@@ -1,0 +1,25 @@
+commit 87f425da1433a172c1fa02134a8dab9a3784e24f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 9 15:38:18 2021 -0500
+
+    cmd/go/internal/mvs: split Reqs into narrower per-function interfaces
+    
+    Reqs currently combines requirements with upgrades and downgrades.
+    However, only Upgrade needs the Upgrade method, and only Downgrade
+    needs the Previous method.
+    
+    When we eventually add lazy loading, the lazily-loaded module graph
+    will not be able to compute upgrades and downgrades, so the
+    implementation work from here to there will be clearer if we are
+    explicit about which are still needed.
+    
+    For #36460
+    
+    Change-Id: I7bf8c2a84ce6bc4ef493a383e3d26850e9a6a6c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290771
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/mvs/mvs.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

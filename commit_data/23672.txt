@@ -1,0 +1,19 @@
+commit 0c72eeb121702cc0a820976138cc01dd1a475895
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Thu Jun 18 12:37:26 2015 +0200
+
+    net/http: do not allow space or slash in Host headers
+    
+    A malformed Host header can result in a malformed HTTP request.
+    Clean them to avoid this.
+    
+    Updates #11206. We may come back and make this stricter for 1.6.
+    
+    Change-Id: I23c7d821cd9dbf66c3c15d26750f305e3672d984
+    Reviewed-on: https://go-review.googlesource.com/11241
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/http_test.go    | 17 +++++++++++++++++
+ src/net/http/request.go      | 32 +++++++++++++++++++++++++++-----
+ src/net/http/request_test.go | 18 ++++++++++++++++++
+ 3 files changed, 62 insertions(+), 5 deletions(-)

@@ -1,0 +1,73 @@
+commit c05b06a12d005f50e4776095a60d6bd9c2c91fac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 10 15:17:38 2017 -0800
+
+    os: use poller for file I/O
+    
+    This changes the os package to use the runtime poller for file I/O
+    where possible. When a system call blocks on a pollable descriptor,
+    the goroutine will be blocked on the poller but the thread will be
+    released to run other goroutines. When using a non-pollable
+    descriptor, the os package will continue to use thread-blocking system
+    calls as before.
+    
+    For example, on GNU/Linux, the runtime poller uses epoll. epoll does
+    not support ordinary disk files, so they will continue to use blocking
+    I/O as before. The poller will be used for pipes.
+    
+    Since this means that the poller is used for many more programs, this
+    modifies the runtime to only block waiting for the poller if there is
+    some goroutine that is waiting on the poller. Otherwise, there is no
+    point, as the poller will never make any goroutine ready. This
+    preserves the runtime's current simple deadlock detection.
+    
+    This seems to crash FreeBSD systems, so it is disabled on FreeBSD.
+    This is issue 19093.
+    
+    Using the poller on Windows requires opening the file with
+    FILE_FLAG_OVERLAPPED. We should only do that if we can remove that
+    flag if the program calls the Fd method. This is issue 19098.
+    
+    Update #6817.
+    Update #7903.
+    Update #15021.
+    Update #18507.
+    Update #19093.
+    Update #19098.
+    
+    Change-Id: Ia5197dcefa7c6fbcca97d19a6f8621b2abcbb1fe
+    Reviewed-on: https://go-review.googlesource.com/36800
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/internal/poll/fd_poll_nacl.go     |   4 +
+ src/internal/poll/fd_poll_runtime.go  |   7 +
+ src/internal/poll/fd_unix.go          |  14 +-
+ src/internal/poll/fd_windows.go       |  10 +-
+ src/os/dir_unix.go                    |   6 +-
+ src/os/dir_windows.go                 |   6 +-
+ src/os/error_posix.go                 |  18 +++
+ src/os/exec/exec_test.go              |   8 ++
+ src/os/export_windows_test.go         |   5 +-
+ src/os/file.go                        |  43 ++----
+ src/os/file_plan9.go                  |  37 ++++-
+ src/os/file_posix.go                  |  39 ++++-
+ src/os/file_unix.go                   | 130 +++++++++--------
+ src/os/file_windows.go                | 258 +++++++---------------------------
+ src/os/os_test.go                     |  75 +++++++++-
+ src/os/os_windows_test.go             |   7 +-
+ src/os/pipe_bsd.go                    |   2 +-
+ src/os/pipe_linux.go                  |   2 +-
+ src/os/stat_unix.go                   |   2 +-
+ src/os/stat_windows.go                |   6 +-
+ src/runtime/netpoll.go                |  39 +++--
+ src/runtime/netpoll_epoll.go          |   4 +
+ src/runtime/netpoll_kqueue.go         |   4 +
+ src/runtime/netpoll_nacl.go           |   4 +
+ src/runtime/netpoll_solaris.go        |   4 +
+ src/runtime/netpoll_stub.go           |   2 +
+ src/runtime/netpoll_windows.go        |   4 +
+ src/runtime/proc.go                   |   4 +-
+ src/runtime/trace/trace_stack_test.go |   1 +
+ 29 files changed, 408 insertions(+), 337 deletions(-)

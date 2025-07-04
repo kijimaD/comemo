@@ -1,0 +1,16 @@
+commit acd8dc95833182df86831ec78e7470864bdb3b88
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 8 09:15:25 2023 -0400
+
+    cmd/go: add a regression test for Git configurations with safe.bareRepository=explicit
+    
+    Change-Id: I394265a4bf849ec89ac44c67aeaaaca801e46caa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493476
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Emily Shaffer <emilyshaffer@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../script/mod_download_git_bareRepository.txt        | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

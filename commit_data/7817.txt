@@ -1,0 +1,14 @@
+commit 338185dabb6a0c966e366c56ab89d749d27a33f9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 21 11:24:48 2011 +1100
+
+    path/filepath: fix TestEvalSymlinks when run under symlinked GOROOT
+    
+    Fixes #1622.
+    
+    R=rsc, bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4287063
+
+ src/pkg/path/filepath/path_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

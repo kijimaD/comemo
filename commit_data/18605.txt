@@ -1,0 +1,13 @@
+commit dd449a1cfa02c908393c927920474c1fe017558f
+Author: Patrick Mézard <patrick@mezard.eu>
+Date:   Mon Feb 24 10:11:37 2014 -0500
+
+    codereview: remove unused upload_options.revision
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/60640052
+
+ lib/codereview/codereview.py | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

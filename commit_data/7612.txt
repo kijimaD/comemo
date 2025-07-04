@@ -1,0 +1,20 @@
+commit 34f2f68354ee074744abb3313c506fd87dc93240
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 3 14:41:09 2011 +1100
+
+    gobuilder: add -package flag to build external packages
+    
+    Also add -v for verbose logging.
+    
+    R=rsc, gri, r, r2
+    CC=golang-dev
+    https://golang.org/cl/4172056
+
+ misc/dashboard/builder/Makefile   |   1 +
+ misc/dashboard/builder/doc.go     |   9 +++
+ misc/dashboard/builder/exec.go    |  11 ++++
+ misc/dashboard/builder/hg.go      |  27 +++++++++
+ misc/dashboard/builder/http.go    |  46 ++++++++++++++++
+ misc/dashboard/builder/main.go    | 113 ++++++++++++++++++++++++++++++++------
+ misc/dashboard/builder/package.go |  66 ++++++++++++++++++++++
+ 7 files changed, 257 insertions(+), 16 deletions(-)

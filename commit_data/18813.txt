@@ -1,0 +1,17 @@
+commit 4ca6e588e4bac8bffa56dfe42526d7a12e7cb69c
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Mar 10 12:33:45 2014 -0400
+
+    time: handle int64 overflow in ParseDuration.
+    
+    Previously, passing a long duration to ParseDuration could result in
+    random, even negative, values.
+    
+    LGTM=r
+    R=golang-codereviews, bradfitz, r
+    CC=golang-codereviews
+    https://golang.org/cl/72120043
+
+ src/pkg/time/format.go    | 3 +++
+ src/pkg/time/time_test.go | 1 +
+ 2 files changed, 4 insertions(+)

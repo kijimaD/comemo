@@ -1,0 +1,36 @@
+commit 9b6bf20a35130b2b0754f2ec54370e207e2f2d9b
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Apr 15 16:56:37 2016 -0400
+
+    crypto/aes: de-couple asm and go implementations
+    
+    There is currently only one assembly implementation of AES
+    (amd64). While it is possible to fit other implementations to the
+    same pattern it complicates the code. For example s390x does not
+    use expanded keys, so having enc and dec in the aesCipher struct
+    is confusing.
+    
+    By separating out the asm implementations we can more closely
+    match the data structures to the underlying implementation. This
+    also opens the door for AES implementations that support block
+    cipher modes other than GCM (e.g. CTR and CBC).
+    
+    This commit changes BenchmarkExpandKey to test the go
+    implementation of key expansion. It might be better to have some
+    sort of 'initialisation' benchmark instead to cover the startup
+    costs of the assembly implementations (which might be doing
+    key expansion in a different way, or not at all).
+    
+    Change-Id: I094a7176b5bbe2177df73163a9c0b711a61c12d6
+    Reviewed-on: https://go-review.googlesource.com/22193
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/aes/aes_gcm.go        |  2 +-
+ src/crypto/aes/aes_test.go       |  2 +-
+ src/crypto/aes/cipher.go         | 18 +++++------
+ src/crypto/aes/cipher_amd64.go   | 66 ++++++++++++++++++++++++++++++++++++++++
+ src/crypto/aes/cipher_asm.go     | 48 -----------------------------
+ src/crypto/aes/cipher_generic.go | 27 ++++++----------
+ 6 files changed, 87 insertions(+), 76 deletions(-)

@@ -1,0 +1,29 @@
+commit 7c50ef6c8c4c827db45a3327cb950913cf9d489b
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 23:39:22 2021 -0500
+
+    go/types: remove asTypeParam and simplify some code
+    
+    This is a port of CL 363438 from types2 to go/types.
+    
+    Change-Id: I87c76d31b398b9ce406f96b0030ee458619b3dbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364235
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/builtins.go    |  6 +++---
+ src/go/types/call.go        |  2 +-
+ src/go/types/conversions.go |  6 +++---
+ src/go/types/decl.go        | 11 ++++++-----
+ src/go/types/expr.go        |  5 ++---
+ src/go/types/instantiate.go |  8 ++++----
+ src/go/types/lookup.go      |  8 +-------
+ src/go/types/operand.go     |  6 +++---
+ src/go/types/predicates.go  |  2 +-
+ src/go/types/type.go        |  6 ------
+ src/go/types/typeset.go     |  8 --------
+ src/go/types/typexpr.go     |  2 +-
+ src/go/types/union.go       | 17 ++++++++---------
+ 13 files changed, 33 insertions(+), 54 deletions(-)

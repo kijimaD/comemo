@@ -1,0 +1,13 @@
+commit 5e11bb259b945f7e7fa60cb87dd6d17b98e6d8da
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 14 13:09:53 2009 -0700
+
+    add tests for the func()() case
+    
+    R=gri
+    DELTA=12  (12 added, 0 deleted, 0 changed)
+    OCL=34601
+    CL=34601
+
+ test/func5.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,29 @@
+commit 0bb62299b0a37b68fa3bb40a0fe449858e162809
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Mar 23 16:17:44 2016 +0100
+
+    misc/ios: deflake tests on darwin/arm{,arm64}
+    
+    A retry mechanism is in place to combat the inherent flakiness of
+    launching iOS test binaries. Before it covered just the starting of
+    lldb; expand it to cover the setup steps as well. Note that the
+    running of the binary itself is (still) not retried, to avoid
+    covering over genuine bugs.
+    
+    On my test device (iPhone 5S, iOS 9.3) starting lldb can take longer
+    than 10 seconds, so increase the timeout for that.
+    Furthermore, some basic steps such as setting breakpoints in lldb
+    can take longer than the 1 second timeout. Increase that timeout
+    as well, to 2 seconds.
+    
+    Finally, improve the error message for when ios-deploy is not
+    installed.
+    
+    For #14318
+    
+    Change-Id: Iba41d1bd9d023575b9454cb577b08f8cae081c2a
+    Reviewed-on: https://go-review.googlesource.com/21072
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

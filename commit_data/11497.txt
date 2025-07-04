@@ -1,0 +1,25 @@
+commit 5e72f3ca0b55c3b23e1060d8610d356bd988eac0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 30 23:48:57 2012 -0500
+
+    build: fix buildscripts
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5600054
+
+ src/buildscript/darwin_386.sh    | 2 +-
+ src/buildscript/darwin_amd64.sh  | 2 +-
+ src/buildscript/freebsd_386.sh   | 2 +-
+ src/buildscript/freebsd_amd64.sh | 2 +-
+ src/buildscript/linux_386.sh     | 2 +-
+ src/buildscript/linux_amd64.sh   | 2 +-
+ src/buildscript/linux_arm.sh     | 2 +-
+ src/buildscript/netbsd_386.sh    | 2 +-
+ src/buildscript/netbsd_amd64.sh  | 2 +-
+ src/buildscript/openbsd_386.sh   | 2 +-
+ src/buildscript/openbsd_amd64.sh | 2 +-
+ src/buildscript/plan9_386.sh     | 2 +-
+ src/buildscript/windows_386.sh   | 2 +-
+ src/buildscript/windows_amd64.sh | 2 +-
+ 14 files changed, 14 insertions(+), 14 deletions(-)

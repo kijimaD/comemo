@@ -1,0 +1,23 @@
+commit 9d54d5466ba1f649398c620ecd4ab6b4230be754
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon May 6 17:01:35 2024 -0400
+
+    .github: simplify the telemetry proposal template
+    
+    Reduce the telemetry proposal template to make it easier to file
+    telemetry proposals. At a high level, the proposal is just a request to
+    merge a specific configuration change, so a free text rationale as well
+    as proposed CL link should suffice. The proposal committee can make sure
+    that all concerns about new uploading are addressed.
+    
+    Also, fix links to the chartconfig package documentation, as well as the
+    config.txt file, and reference the new go.dev/doc/telemetry.
+    
+    Change-Id: I9eefba14967a18327abfcb2de427dc4bec6d659f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583496
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ .github/ISSUE_TEMPLATE/12-telemetry.yml | 73 +++++++++------------------------
+ 1 file changed, 19 insertions(+), 54 deletions(-)

@@ -1,0 +1,24 @@
+commit 91740582c3ec1e57621cbb0ec0f9163431f1b688
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 17 18:21:54 2016 -0400
+
+    runtime: add 'next' flag to ready
+    
+    Currently ready always puts the readied goroutine in runnext. We're
+    going to have to change this for some uses, so add a flag for whether
+    or not to use runnext.
+    
+    For now we always pass true so this is a no-op change.
+    
+    For #15706.
+    
+    Change-Id: Iaa66d8355ccfe4bbe347570cc1b1878c70fa25df
+    Reviewed-on: https://go-review.googlesource.com/23171
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 2 +-
+ src/runtime/mgcmark.go | 2 +-
+ src/runtime/proc.go    | 8 ++++----
+ 3 files changed, 6 insertions(+), 6 deletions(-)

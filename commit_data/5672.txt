@@ -1,0 +1,18 @@
+commit 21ff75bc0efc34675775168ccae118cd286f904c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 18 15:46:00 2010 -0700
+
+    complex divide: match C99 implementation
+    
+    R=iant, ken2, r, r2, ken3
+    CC=golang-dev
+    https://golang.org/cl/1686044
+
+ src/pkg/runtime/complex.c |   70 +-
+ test/cmplxdivide.c        |   61 ++
+ test/cmplxdivide.go       |   43 +
+ test/cmplxdivide1.go      | 2406 +++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out           |    8 -
+ test/recover2.go          |    8 +-
+ test/zerodivide.go        |   14 +-
+ 7 files changed, 2569 insertions(+), 41 deletions(-)

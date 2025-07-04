@@ -1,0 +1,33 @@
+commit 9d4215311ba573a5b676de85b053eec03e577478
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 14 15:21:37 2018 -0700
+
+    runtime: identify special functions by flag instead of address
+    
+    When there are plugins, there may not be a unique copy of runtime
+    functions like goexit, mcall, etc.  So identifying them by entry
+    address is problematic.  Instead, keep track of each special function
+    using a field in the symbol table.  That way, multiple copies of
+    the same runtime function will be treated identically.
+    
+    Fixes #24351
+    Fixes #23133
+    
+    Change-Id: Iea3232df8a6af68509769d9ca618f530cc0f84fd
+    Reviewed-on: https://go-review.googlesource.com/100739
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/issue24351/main.go   | 21 +++++++
+ misc/cgo/testplugin/src/issue24351/plugin.go | 14 +++++
+ misc/cgo/testplugin/test.bash                |  5 ++
+ src/cmd/internal/objabi/funcid.go            | 34 +++++++++++
+ src/cmd/link/internal/ld/pcln.go             | 47 ++++++++++++--
+ src/runtime/os_windows.go                    |  2 -
+ src/runtime/proc.go                          |  9 ++-
+ src/runtime/runtime2.go                      |  4 +-
+ src/runtime/stack.go                         |  5 +-
+ src/runtime/symtab.go                        | 33 +++++++++-
+ src/runtime/traceback.go                     | 91 ++++++++--------------------
+ 11 files changed, 181 insertions(+), 84 deletions(-)

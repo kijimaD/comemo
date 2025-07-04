@@ -1,0 +1,15 @@
+commit f96662324e07176a62632c83654c853465b2203a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 14:06:43 2009 -0700
+
+    related reflect bug: make copies of big values
+    so that callers cannot edit large values inside interfaces.
+    
+    R=r
+    DELTA=52  (42 added, 1 deleted, 9 changed)
+    OCL=29180
+    CL=29195
+
+ src/lib/reflect/all_test.go | 28 ++++++++++++++++++++++++++++
+ src/lib/reflect/value.go    | 31 ++++++++++++++++++++++---------
+ 2 files changed, 50 insertions(+), 9 deletions(-)

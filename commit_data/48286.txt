@@ -1,0 +1,17 @@
+commit 797e8890463671b96fb0af8ed151101950d76999
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 2 20:16:55 2022 -0800
+
+    doc/go1.19: mention use of EDNS(0)
+    
+    For #51153
+    
+    Change-Id: I4374c63498b62ba7a08f146eebd034cbd50623f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389634
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ doc/go1.19.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

@@ -1,0 +1,13 @@
+commit 93b1dcbfcb6e105911d040de295382775004abe2
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Sep 10 17:32:48 2009 -0700
+
+    minor changes
+    
+    R=rsc
+    OCL=34545
+    CL=34545
+
+ src/cmd/goyacc/units.txt | 146 +++++++++++++++++++----------------------------
+ src/cmd/goyacc/units.y   |   2 +-
+ 2 files changed, 60 insertions(+), 88 deletions(-)

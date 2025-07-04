@@ -1,0 +1,17 @@
+commit 69107e73cedb600187c5924247cdd0cf8f74070a
+Author: Xargin <buaa.cch@gmail.com>
+Date:   Wed Jul 28 20:40:07 2021 +0000
+
+    runtime: change 0 to pollNoError in netpollblock
+    
+    Change-Id: I95e91ff21420e396aef876e77bc4ccdc45ab40ca
+    GitHub-Last-Rev: 8e6bd3f002b1c29fed8ce1bd344f7727e8580555
+    GitHub-Pull-Request: golang/go#47372
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337249
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/netpoll.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

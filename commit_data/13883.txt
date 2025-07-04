@@ -1,0 +1,13 @@
+commit c993ac11bce307c08383164947417c98913da73a
+Author: Andrew Harding <andrew@spacemonkey.com>
+Date:   Thu Sep 20 12:36:37 2012 -0400
+
+    crypto/x509: Use ExtKeyUsage and UnknownExtKeyUsage fields from template in CreateCertificate
+    
+    R=golang-dev, agl
+    CC=golang-dev
+    https://golang.org/cl/6535057
+
+ src/pkg/crypto/x509/x509.go      | 89 +++++++++++++++++++++++++++++-----------
+ src/pkg/crypto/x509/x509_test.go | 15 +++++++
+ 2 files changed, 79 insertions(+), 25 deletions(-)

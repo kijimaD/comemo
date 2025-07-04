@@ -1,0 +1,23 @@
+commit 0020b8a2572a953b8521ce75367779255c5a1436
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Apr 8 14:27:33 2017 -0400
+
+    runtime: prevent TLS fetching instructions from being assembled on NaCl/ARM
+    
+    They are dead code already, but the verifier is still not happy.
+    Don't assemble them at all.
+    
+    Looks like it has been like that for long. I don't know why it
+    was ok. Maybe the verifier is now more picky?
+    
+    Fixes #19884.
+    
+    Change-Id: Ib806fb73ca469789dec56f52d484cf8baf7a245c
+    Reviewed-on: https://go-review.googlesource.com/40111
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/tls_arm.s | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

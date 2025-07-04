@@ -1,0 +1,13 @@
+commit 9557103ea6fc41d5dae125a917295288f98f257b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 1 13:31:28 2011 -0500
+
+    A+C: Jose Luis Vázquez González (individual CLA)
+    
+    R=gri, josvazg, gri1
+    CC=golang-dev
+    https://golang.org/cl/4044047
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

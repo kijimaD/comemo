@@ -1,0 +1,15 @@
+commit 07826038c39afb5021134b2c403f773f3f9591aa
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jun 25 07:59:50 2012 +1000
+
+    runtime: avoid r9/r10 during memset
+    
+    Partially fixes issue 3718.
+    
+    R=golang-dev, rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6300043
+
+ src/pkg/runtime/asm_arm.s    | 12 +++--------
+ src/pkg/runtime/memset_arm.s | 47 +++++++++++++++++++++-----------------------
+ 2 files changed, 25 insertions(+), 34 deletions(-)

@@ -1,0 +1,24 @@
+commit 9f8f0a1bfa49b6b617c623f51b9d10ba9a5e4641
+Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
+Date:   Tue Jan 28 16:47:09 2014 +1100
+
+    cmd/go: When linking with gccgo pass .a files in the order they are discovered
+    
+    Under some circumstances linking a test binary with gccgo can fail, because
+    the installed version of the library ends up before the version built for the
+    test on the linker command line.
+    
+    This admittedly slightly hackish fix fixes this by putting the library archives
+    on the linker command line in the order that a pre-order depth first traversal
+    of the dependencies gives them, which has the side effect of always putting the
+    version of the library built for the test first.
+    
+    Fixes #6768
+    
+    LGTM=rsc
+    R=golang-codereviews, minux.ma, gobot, rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/28050043
+
+ src/cmd/go/build.go | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

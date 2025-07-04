@@ -1,0 +1,12 @@
+commit d1882c986673b5bd5fb6775548990d4e11917c1e
+Author: Julie Qiu <julie@golang.org>
+Date:   Thu Dec 6 11:02:49 2018 -0500
+
+    doc/go1.12: release notes for testing
+    
+    Change-Id: I81ffe7ee88354efeabb24f091db66c7c4892876c
+    Reviewed-on: https://go-review.googlesource.com/c/152919
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.12.html | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

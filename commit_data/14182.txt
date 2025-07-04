@@ -1,0 +1,14 @@
+commit 6a3ad481cd495bc22aa4f892ad8f0c225acac1f3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Oct 20 17:25:13 2012 +0800
+
+    cmd/go: make package list order predicable
+    also add a cleanup phase to cmd/go/test.bash.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6741050
+
+ src/cmd/go/pkg.go    |  9 ++++-----
+ src/cmd/go/test.bash | 12 ++++++++++++
+ 2 files changed, 16 insertions(+), 5 deletions(-)

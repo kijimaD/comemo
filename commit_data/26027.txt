@@ -1,0 +1,43 @@
+commit 90cb1fdaf2eb0d1a7154b494fb3ea8b1c0177bdf
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Mar 2 21:24:04 2016 -0500
+
+    cmd/link: add Minalign field to ld.Arch
+    
+    The new Minalign field sets the minimum alignment for all symbols.
+    This is required for the upcoming s390x port which requires symbols
+    be 2-byte aligned for efficient relative addressing.
+    
+    All preexisting architectures have Minalign set to 1 which means
+    that this commit should have no effect.
+    
+    I tested values of 2, 4 and 8 on linux amd64 and the tests appear to
+    pass. Increasing Minalign to 16 appears to break the runtime. I
+    think this is due to assumptions made about the layout of module
+    data.
+    
+    toolstash -cmp on linux amd64 shows no changes due to this commit.
+    
+    Resolves #14604
+    
+    Change-Id: I0fe042d52c4e4732eba5fabcd0c31102a2408764
+    Reviewed-on: https://go-review.googlesource.com/20149
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/amd64/l.go    |  1 +
+ src/cmd/link/internal/amd64/obj.go  |  1 +
+ src/cmd/link/internal/arm/l.go      |  1 +
+ src/cmd/link/internal/arm/obj.go    |  1 +
+ src/cmd/link/internal/arm64/l.go    |  1 +
+ src/cmd/link/internal/arm64/obj.go  |  1 +
+ src/cmd/link/internal/ld/data.go    | 12 ++++++------
+ src/cmd/link/internal/ld/lib.go     |  1 +
+ src/cmd/link/internal/mips64/l.go   |  1 +
+ src/cmd/link/internal/mips64/obj.go |  1 +
+ src/cmd/link/internal/ppc64/l.go    |  1 +
+ src/cmd/link/internal/ppc64/obj.go  |  1 +
+ src/cmd/link/internal/x86/l.go      |  1 +
+ src/cmd/link/internal/x86/obj.go    |  1 +
+ 14 files changed, 19 insertions(+), 6 deletions(-)

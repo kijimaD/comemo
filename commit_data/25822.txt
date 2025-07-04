@@ -1,0 +1,14 @@
+commit d70c04cf08683e2b0a26fb13808f8cacb1bcdd38
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Feb 20 23:24:27 2016 -0500
+
+    runtime: fix missing word in comment
+    
+    Change-Id: I6cb8ac7b59812e82111ab3b0f8303ab8194a5129
+    Reviewed-on: https://go-review.googlesource.com/19791
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

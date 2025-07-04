@@ -1,0 +1,24 @@
+commit 15dcdeb5aacb4503e3d053f198bd4669d5cec2aa
+Author: Devon H. O'Dell <dhobsd@google.com>
+Date:   Thu Jan 4 11:49:17 2024 -0500
+
+    cmd/api: fix panic on exported basic type aliases
+    
+    The order of emitting named type and type aliases in the `Walker`'s
+    `emitType` function is inverted. When the type alias references a basic
+    type, this causes a panic as the type assertion on `*types.Named` fails.
+    This change reorders the logic such that type aliases are emitted prior
+    to this type assertion.
+    
+    Fixes #64958
+    
+    Change-Id: I52dbe13999978912ded788d9cf4948103869bcfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554076
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/api/api_test.go                    | 19 +++++++++++++++++++
+ src/cmd/api/main_test.go                   | 10 +++++-----
+ src/cmd/api/testdata/src/issue64958/p/p.go |  3 +++
+ 3 files changed, 27 insertions(+), 5 deletions(-)

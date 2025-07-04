@@ -1,0 +1,17 @@
+commit 77e98fb8f288811a650828e52e9f0eb2c01a2ed5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 23 17:03:33 2012 -0700
+
+    go/scanner: don't drop identifiers starting with non-ASCII letter...
+    
+    Bug introduced with CL 6454150.
+    
+    Fixes #4000.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6474061
+
+ src/pkg/go/scanner/scanner.go      | 22 +++++-----------------
+ src/pkg/go/scanner/scanner_test.go |  4 +++-
+ 2 files changed, 8 insertions(+), 18 deletions(-)

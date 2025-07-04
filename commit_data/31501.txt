@@ -1,0 +1,16 @@
+commit 0e7518296d04977db0c71e2f326d473782973739
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 5 12:47:53 2017 -0700
+
+    go/importer: report import path if package is not found
+    
+    Fixes #20230.
+    
+    Change-Id: I2e9b9e9d2540eb66c8411ac7910962933bc2c0e9
+    Reviewed-on: https://go-review.googlesource.com/42870
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/go/internal/gcimporter/gcimporter.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

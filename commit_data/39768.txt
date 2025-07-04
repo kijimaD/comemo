@@ -1,0 +1,20 @@
+commit fa7d40abe098a7d30e6cb492ee8e05306b8e537d
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Sep 1 12:47:49 2019 +0700
+
+    cmd/link: always set .dynsym info field
+    
+    CL 187979 added set .dynsym info field, but it won't when
+    there are no global symbols. This CL sets that field
+    unconditionally.
+    
+    Fixes #34000
+    
+    Change-Id: Icc2f8bc74afdade88a377793e6760912b03686ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192600
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/elf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

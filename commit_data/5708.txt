@@ -1,0 +1,15 @@
+commit 37a6bc838bccce61fe33c76ccb60676cabf19dea
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 24 15:07:28 2010 -0700
+
+    gob: add support for complex numbers
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1708048
+
+ src/pkg/gob/codec_test.go |  63 ++++++++++++++++++++++-
+ src/pkg/gob/decode.go     | 126 ++++++++++++++++++++++++++++++----------------
+ src/pkg/gob/encode.go     |  75 ++++++++++++++++++++-------
+ src/pkg/gob/type.go       |  29 ++++++++---
+ 4 files changed, 224 insertions(+), 69 deletions(-)

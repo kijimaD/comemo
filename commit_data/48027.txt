@@ -1,0 +1,26 @@
+commit ad345c265916bbf6c646865e4642eafce6d39e78
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jan 19 16:54:41 2022 -0500
+
+    math/big: prevent overflow in (*Rat).SetString
+    
+    Credit to rsc@ for the original patch.
+    
+    Thanks to the OSS-Fuzz project for discovering this
+    issue and to Emmanuel Odeke (@odeke_et) for reporting it.
+    
+    Fixes #50699
+    Fixes CVE-2022-23772
+    
+    Change-Id: I590395a3d55689625390cf1e58f5f40623b26ee5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379537
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Julie Qiu <julie@golang.org>
+
+ src/math/big/ratconv.go      | 5 +++++
+ src/math/big/ratconv_test.go | 1 +
+ 2 files changed, 6 insertions(+)

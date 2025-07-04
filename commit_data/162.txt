@@ -1,0 +1,11 @@
+commit dbf1da6b376831a4b73695a3e993da21da38fa76
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 13:46:23 2008 -0700
+
+    adding ar.h for source-level compatibility in 6l.
+    binary compatibility is ok
+    
+    SVN=122489
+
+ include/ar.h | 47 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 47 insertions(+)

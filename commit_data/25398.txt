@@ -1,0 +1,12 @@
+commit e35901fd65a9c0f475de260a79b7b628d9d07ebf
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Dec 30 13:23:11 2015 +1300
+
+    database/sql: fix doc typos
+    
+    Change-Id: I374dabed6bf9783839d637e9d7fd6f4e61c7eecf
+    Reviewed-on: https://go-review.googlesource.com/18183
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

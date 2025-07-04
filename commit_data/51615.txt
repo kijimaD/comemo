@@ -1,0 +1,32 @@
+commit 1c65b69bd1dbc930c6246877f6c21c81f2a60d55
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Wed Jan 11 11:45:28 2023 -0600
+
+    runtime: fix performance regression in morestack_noctxt on ppc64
+    
+    In the fix for 54332 the MOVD R1, R1 instruction was added to
+    morestack_noctxt function to set the SPWRITE bit. However, the
+    instruction MOVD R1, R1 results in or r1,r1,r1 which is a special
+    instruction on ppc64 architecture as it changes the thread priority
+    and can negatively impact performance in some cases.
+    More details on such similar nops can be found in Power ISA v3.1
+    Book II on Power ISA Virtual Environment architecture in the chapter
+    on Program Priority Registers and Or instructions.
+    Replacing this by OR R0, R1 has the same affect on setting SPWRITE as
+    needed by the first fix but does not affect thread priority and
+    hence does not cause the degradation in performance
+    
+    Hash65536-64           2.81GB/s ±10%  16.69GB/s ± 0%  +494.44%
+    Fixes #57741
+    
+    Change-Id: Ib912e3716c6afd277994d6c1c5b2891f82225d50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461597
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Auto-Submit: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/runtime/asm_ppc64x.s | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

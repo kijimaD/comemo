@@ -1,0 +1,26 @@
+commit 5aa5db7593537e43b024d65b07f2a9c3379f100e
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Mar 11 13:39:20 2016 -0500
+
+    cmd/compile: use bufio.Reader directly in lexer
+    
+    Removes an intermediate layer of functions that was clogging up a
+    corner of the compiler's profile graph.
+    
+    I can't measure a performance improvement running a large build
+    like jujud, but the profile reports less total time spent in
+    gc.(*lexer).getr.
+    
+    Change-Id: I3000585cfcb0f9729d3a3859e9023690a6528591
+    Reviewed-on: https://go-review.googlesource.com/20565
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go |  20 +++---
+ src/cmd/compile/internal/gc/export.go  |   3 +-
+ src/cmd/compile/internal/gc/lex.go     | 123 ++++++++++++++-------------------
+ src/cmd/compile/internal/gc/parser.go  |   8 +--
+ src/cmd/internal/obj/util.go           |  23 ------
+ test/syntax/ddd.go                     |  11 +++
+ 6 files changed, 79 insertions(+), 109 deletions(-)

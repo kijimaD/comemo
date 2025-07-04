@@ -1,0 +1,18 @@
+commit ac0ccf3cd2464c6df3193ad8aec8d6053000cdb5
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Thu Aug 3 16:51:32 2017 +0200
+
+    doc/1.9: add CL 36696 for crypto/x509 to the release notes
+    
+    add https://go-review.googlesource.com/c/36696
+    "crypto/x509: ignore CN if SAN extension present"
+    to the release notes.
+    
+    Fixes #21289
+    
+    Change-Id: Ifa184d3816806a8da3c67b68476c923329acf13e
+    Reviewed-on: https://go-review.googlesource.com/53030
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

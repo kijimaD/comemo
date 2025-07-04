@@ -1,0 +1,26 @@
+commit 5e70b132c22d10e556b3840626a50ecf1dcad35f
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue Jul 10 00:44:21 2018 -0400
+
+    cmd/pprof: disable readline UI support for TERM=dumb
+    
+    In general, dumb terminal indicates terminal with limited capability.
+    It may provide no support for special character sequences, e.g., no
+    handling of ANSI escape sequences. Its input/output handling behavior
+    may deviate from what's described in termios or terminfo. E.g., in
+    the shell in emacs, even after successfully setting the terminal to
+    raw mode, the terminal behaves as if it's still operating in canonical
+    mode since emacs is doing input processing first.
+    
+    Readline support can be broken in various ways in dumb terminal mode,
+    so we want to disable readline or advanced UI features. The easiest
+    way to detect dumb terminal is to check the environment variable "TERM".
+    
+    Fixes #26254
+    
+    Change-Id: I6b652eb555bc03b84405aae08b0b25d111fbb8b0
+    Reviewed-on: https://go-review.googlesource.com/122879
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/pprof/readlineui.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,12 @@
+commit ab0bd26da520db67add7e8cfd07b89ffe89df46d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 18 21:39:16 2016 +0000
+
+    doc: update go1.8.txt
+    
+    Change-Id: I9a7654a6d623add8542a1c34ccc76ea136a9a7e3
+    Reviewed-on: https://go-review.googlesource.com/27359
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.txt | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

@@ -1,0 +1,30 @@
+commit 9062a5298bdee895dd9f4e9c07ffd3e261c0ac13
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 6 09:03:34 2021 -0700
+
+    cmd/compile/internal/types2: break cycles in invalid types
+    
+    This CL reverses the change in CL 284254 (which was ported
+    to types2) which originated in CL 240901 to address a crash
+    in a test created by a fuzzer (that crash appears to be
+    avoided in other ways, now).
+    
+    This exposed another bug in typeset.go where we don't look
+    for the underlying type when testing if a type is an interface
+    or not. Fixed that as well.
+    
+    Adjusted a test case that now doesn't report an error anymore
+    (which is good).
+    
+    Fixes #48819.
+    
+    Change-Id: I611d68e053d6b8a2f7176d0cd5a44da2df28ad21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354329
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go                   |  1 +
+ .../internal/types2/testdata/fixedbugs/issue41124.go2     |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue48819.src     | 15 +++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go                |  2 +-
+ 4 files changed, 18 insertions(+), 2 deletions(-)

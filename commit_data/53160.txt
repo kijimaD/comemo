@@ -1,0 +1,25 @@
+commit 697644070c6e335b9c3dffdd4e82feb8038c3f22
+Author: Sven Anderson <sven@anderson.de>
+Date:   Fri May 5 00:15:07 2023 +0200
+
+    runtime: improve Pinner with gcBits
+    
+    This change replaces the statically sized pinnerBits with gcBits
+    based ones, that are copied in each GC cycle if they exist.  The
+    pinnerBits now include a second bit per object, that indicates if a
+    pinner counter for multi-pins exists, in order to avoid unnecessary
+    specials iterations.
+    
+    This is a follow-up to CL 367296.
+    
+    Change-Id: I82e38cecd535e18c3b3ae54b5cc67d3aeeaafcfd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493275
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/runtime/mgcsweep.go |   5 ++
+ src/runtime/mheap.go    |  12 +--
+ src/runtime/pinner.go   | 197 +++++++++++++++++++++++++++++++++---------------
+ 3 files changed, 144 insertions(+), 70 deletions(-)

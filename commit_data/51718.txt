@@ -1,0 +1,24 @@
+commit 620399ef0d1390a8f7e7061a45d5304ed087889a
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jan 20 14:03:43 2023 -0500
+
+    internal/coverage/decodemeta: fix coding error in func literal handling
+    
+    Fix a coding error in coverage meta-data decoding in the method
+    decodemeta.CoverageMetaDataDecoder.ReadFunc. The code was not
+    unconditionally assigning the "function literal" field of the
+    coverage.FuncDesc object passed in, resulting in bad values depending
+    on what the state of the field happened to be in the object.
+    
+    Fixes #57942.
+    
+    Change-Id: I6dfd7d7f7af6004f05c622f9a7116e9f6018cf4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462955
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/covdata/dump.go                      |  1 +
+ src/internal/coverage/decodemeta/decode.go   |  4 +-
+ src/internal/coverage/test/roundtrip_test.go | 55 ++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+), 3 deletions(-)

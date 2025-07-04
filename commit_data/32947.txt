@@ -1,0 +1,19 @@
+commit e59fe206e7aeaa8adad28f602d4361f8db2925a6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 27 12:55:23 2017 -0700
+
+    cmd/compile: mark closure structs as Noalg
+    
+    Avoids generating useless equality and hash functions.
+    
+    Shrinks cmd/go executable size on linux/amd64 by ~17kB.
+    
+    Change-Id: Ifde5315cc5cbceb3a7260195c8803cace952359f
+    Reviewed-on: https://go-review.googlesource.com/66650
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 30 +++++++++++++++++-------------
+ src/cmd/compile/internal/gc/dcl.go     |  6 +++++-
+ 2 files changed, 22 insertions(+), 14 deletions(-)

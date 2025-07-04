@@ -1,0 +1,13 @@
+commit 701440043b2634568a45f503a9896de9cd526d0e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 3 22:36:31 2009 -0800
+
+    document gopack.
+    change string in usage message.
+    
+    R=rsc
+    http://go/go-review/1017023
+
+ src/cmd/gopack/ar.c   | 78 +++++++++++++++++++++++++--------------------------
+ src/cmd/gopack/doc.go | 21 ++++++++++++++
+ 2 files changed, 60 insertions(+), 39 deletions(-)

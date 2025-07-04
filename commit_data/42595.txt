@@ -1,0 +1,15 @@
+commit 6b344170db8fad38df941fe97db0348f6f1bb4d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 11:28:15 2020 -0400
+
+    path/filepath: add explicit comment marking elided errors
+    
+    The errors on these lines are meant to be discarded.
+    Add a comment to make that extra clear.
+    
+    Change-Id: I38f72af6dfbb0e86677087baf47780b3cc6e7d40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241083
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/path/filepath/match.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

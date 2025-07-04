@@ -1,0 +1,16 @@
+commit af768fdd341a4d3556646c26e3ebbef3ecf19024
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 6 19:19:39 2016 +0000
+
+    net/http: add mechanism for marking flaky http tests
+    
+    This shouldn't need to exist in general, but in practice I want something
+    like this a few times per year.
+    
+    Change-Id: I9c220e58be44b7726f75d776f714212c570cf8bb
+    Reviewed-on: https://go-review.googlesource.com/18286
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/main_test.go      | 9 +++++++++
+ src/net/http/transport_test.go | 2 +-
+ 2 files changed, 10 insertions(+), 1 deletion(-)

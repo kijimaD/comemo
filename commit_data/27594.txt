@@ -1,0 +1,14 @@
+commit 04acd625d7a1044c8ca78464f6727276577ffb3d
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Tue May 31 22:30:37 2016 +0100
+
+    context: fix typo in comments
+    
+    Change-Id: I41310ec88c889fda79d80eaf4a742a1000284f60
+    Reviewed-on: https://go-review.googlesource.com/23591
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/context/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

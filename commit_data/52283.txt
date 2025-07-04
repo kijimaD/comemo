@@ -1,0 +1,21 @@
+commit b5c8ae9816e705f2202242de9d570a33dabd3a0a
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Nov 4 13:27:23 2022 +0800
+
+    runtime: mark morestack_noctxt SPWRITE for linux/loong64
+    
+    ref. CL 425396
+    
+    Updates #54332.
+    
+    Change-Id: I1a235b0cca4dbf79cf61cf5f40b594fc2d940857
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446895
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+
+ src/runtime/asm_loong64.s | 7 +++++++
+ 1 file changed, 7 insertions(+)

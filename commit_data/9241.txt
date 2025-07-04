@@ -1,0 +1,16 @@
+commit 08bfb3951580365af16be5d6074b33cea8d8e0bf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 28 14:18:22 2011 -0400
+
+    6g, 8g: divide corner case
+    
+    Fixes #1772.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4798062
+
+ src/cmd/6g/ggen.c | 59 +++++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/8g/ggen.c | 66 +++++++++++++++++++++++++++++++++++++++++++++++--------
+ test/divide.go    | 54 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 161 insertions(+), 18 deletions(-)

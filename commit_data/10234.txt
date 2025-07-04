@@ -1,0 +1,12 @@
+commit 31452a36189e48ad178a85299e2b189701d8f358
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 3 17:35:11 2011 -0400
+
+    runtime: fix set and not used
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5305087
+
+ src/pkg/runtime/windows/amd64/callback.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

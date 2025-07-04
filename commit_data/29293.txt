@@ -1,0 +1,69 @@
+commit f31492ffe7d68e84ec0ba6e870d174ab48e6397c
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Oct 21 23:23:48 2016 +0300
+
+    bytes,strings: use IndexByte more often in Index on AMD64
+    
+    IndexByte+compare is faster than indexShortStr in good case, when
+    first byte is rare, but is more costly in bad cases.
+    Start with IndexByte and switch to indexShortStr if we encounter
+    false positives more often than once per 8 bytes.
+    
+    Benchmark changes for package bytes:
+    
+    IndexRune/4K-8                    416ns ± 0%       86ns ± 0%    -79.24%        (p=0.000 n=10+10)
+    IndexRune/4M-8                    413µs ± 0%      100µs ± 1%    -75.88%        (p=0.000 n=10+10)
+    IndexRune/64M-8                  6.73ms ± 0%     2.86ms ± 1%    -57.49%        (p=0.000 n=10+10)
+    Index/10-8                       8.45ns ± 0%     8.96ns ± 0%     +6.04%         (p=0.000 n=9+10)
+    Index/32-8                       9.64ns ± 0%     9.51ns ± 0%     -1.30%          (p=0.000 n=8+9)
+    Index/4K-8                       2.11µs ± 0%     2.12µs ± 0%     +0.26%        (p=0.000 n=10+10)
+    Index/4M-8                       3.60ms ± 5%     3.59ms ± 7%       ~            (p=0.497 n=9+10)
+    Index/64M-8                      57.1ms ± 3%     58.7ms ± 5%       ~            (p=0.113 n=9+10)
+    IndexEasy/10-8                   7.10ns ± 1%     7.71ns ± 1%     +8.60%        (p=0.000 n=10+10)
+    IndexEasy/32-8                   9.29ns ± 1%     9.22ns ± 0%     -0.75%         (p=0.000 n=9+10)
+    IndexEasy/4K-8                   1.06µs ± 0%     0.08µs ± 0%    -92.18%        (p=0.000 n=10+10)
+    IndexEasy/4M-8                   1.07ms ± 0%     0.10ms ± 1%    -90.74%         (p=0.000 n=9+10)
+    IndexEasy/64M-8                  17.3ms ± 0%      2.8ms ± 1%    -83.76%         (p=0.000 n=10+9)
+    
+    IndexRune/4K-8                 9.84GB/s ± 0%  47.42GB/s ± 0%   +381.85%         (p=0.000 n=8+10)
+    IndexRune/4M-8                 10.1GB/s ± 0%   42.1GB/s ± 1%   +314.56%        (p=0.000 n=10+10)
+    IndexRune/64M-8                10.0GB/s ± 0%   23.4GB/s ± 1%   +135.25%        (p=0.000 n=10+10)
+    Index/10-8                     1.18GB/s ± 0%   1.12GB/s ± 0%     -5.67%         (p=0.000 n=10+9)
+    Index/32-8                     3.32GB/s ± 0%   3.36GB/s ± 0%     +1.27%         (p=0.000 n=10+9)
+    Index/4K-8                     1.94GB/s ± 0%   1.93GB/s ± 0%     -0.25%         (p=0.000 n=10+9)
+    Index/4M-8                     1.17GB/s ± 5%   1.17GB/s ± 7%       ~            (p=0.497 n=9+10)
+    Index/64M-8                    1.17GB/s ± 3%   1.15GB/s ± 6%       ~            (p=0.113 n=9+10)
+    IndexEasy/10-8                 1.41GB/s ± 1%   1.30GB/s ± 1%     -7.90%        (p=0.000 n=10+10)
+    IndexEasy/32-8                 3.45GB/s ± 1%   3.47GB/s ± 0%     +0.73%         (p=0.000 n=9+10)
+    IndexEasy/4K-8                 3.84GB/s ± 0%  49.16GB/s ± 0%  +1178.78%         (p=0.000 n=9+10)
+    IndexEasy/4M-8                 3.91GB/s ± 0%  42.19GB/s ± 1%   +980.37%         (p=0.000 n=9+10)
+    IndexEasy/64M-8                3.88GB/s ± 0%  23.91GB/s ± 1%   +515.76%         (p=0.000 n=10+9)
+    
+    No significant changes in strings.
+    
+    In regexp I see:
+    
+    Match/Easy0/32-8                 536MB/s ± 1%   540MB/s ± 1%    +0.75%         (p=0.001 n=9+10)
+    Match/Easy0/1K-8                1.62GB/s ± 0%  4.42GB/s ± 1%  +172.48%        (p=0.000 n=10+10)
+    Match/Easy0/32K-8               1.87GB/s ± 0%  9.07GB/s ± 1%  +384.24%         (p=0.000 n=7+10)
+    Match/Easy0/1M-8                1.90GB/s ± 0%  4.83GB/s ± 0%  +154.56%         (p=0.000 n=8+10)
+    Match/Easy0/32M-8               1.90GB/s ± 0%  4.53GB/s ± 0%  +138.62%         (p=0.000 n=7+10)
+    
+    Compared to in 1.7:
+    
+    Match/Easy0/32-8                  59.5ns ± 0%    59.2ns ± 1%   -0.45%         (p=0.008 n=9+10)
+    Match/Easy0/1K-8                   226ns ± 1%     231ns ± 1%   +2.30%        (p=0.000 n=10+10)
+    Match/Easy0/32K-8                 3.73µs ± 2%    3.61µs ± 1%   -3.12%        (p=0.000 n=10+10)
+    Match/Easy0/1M-8                   206µs ± 1%     217µs ± 0%   +5.34%        (p=0.000 n=10+10)
+    Match/Easy0/32M-8                 7.03ms ± 1%    7.40ms ± 0%   +5.23%        (p=0.000 n=10+10)
+    
+    Fixes #17456
+    
+    Change-Id: I38b2fabcaed7119cc4bf37007ba7bfe7504c8f9f
+    Reviewed-on: https://go-review.googlesource.com/31690
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/bytes/bytes_amd64.go     | 38 ++++++++++++++++++++++++++++++++++++--
+ src/strings/strings_amd64.go | 38 ++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 72 insertions(+), 4 deletions(-)

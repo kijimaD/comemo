@@ -1,0 +1,16 @@
+commit 9786f69f74a5fa290476774e07fb10ce8da84123
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Dec 18 22:17:05 2008 -0800
+
+    print(array)
+    
+    R=r
+    OCL=21570
+    CL=21570
+
+ src/cmd/gc/sys.go      |  1 +
+ src/cmd/gc/sysimport.c |  1 +
+ src/cmd/gc/walk.c      |  5 +++++
+ src/runtime/array.c    | 20 ++++++++++----------
+ src/runtime/runtime.h  |  2 +-
+ 5 files changed, 18 insertions(+), 11 deletions(-)

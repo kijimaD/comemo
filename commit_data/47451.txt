@@ -1,0 +1,26 @@
+commit bc0b98eeffa64f155e7f2a2dc6b883a97c4d0580
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 11 22:21:48 2021 -0800
+
+    cmd/compile/internal/types2: remove asNamed
+    
+    In the few remaining places where we use asNamed, if the argument
+    is indeed a *Named, we either don't need to look "inside" it, or
+    we call under() (which calls Named.underlying() which does resolve);
+    so there's no need for an implicit resolution (which was done by
+    asNamed). The only place where we do need to resolve is in lookup,
+    so added the explicit resolve call in that case.
+    
+    Change-Id: Iff0a19fde7581e94149e89b9e48157c1981db105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363441
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go     |  2 +-
+ src/cmd/compile/internal/types2/lookup.go   |  7 ++++---
+ src/cmd/compile/internal/types2/type.go     |  9 ---------
+ src/cmd/compile/internal/types2/unify.go    | 14 ++++++--------
+ src/cmd/compile/internal/types2/universe.go |  2 +-
+ 5 files changed, 12 insertions(+), 22 deletions(-)

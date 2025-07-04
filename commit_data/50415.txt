@@ -1,0 +1,16 @@
+commit 9c147cc617ed8d9b22ee2637a7c7f7a28e1ee21c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:08:30 2022 +0800
+
+    cmd/fix: use strings.Builder
+    
+    Change-Id: I761766e147202970f82ce804dbaf5d491508995c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428289
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/fix/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

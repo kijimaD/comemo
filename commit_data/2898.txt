@@ -1,0 +1,15 @@
+commit 7955490de29ad5087904ce3a686243fe0230ac32
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 6 13:07:05 2009 -0700
+
+    add runtime.GOMAXPROCS, allowing a program to, in effect, set $GOMAXPROCS
+    
+    R=rsc
+    DELTA=29  (28 added, 1 deleted, 0 changed)
+    OCL=32829
+    CL=32837
+
+ src/pkg/runtime/extern.go            |  3 +++
+ src/pkg/runtime/proc.c               | 24 +++++++++++++++++++++++-
+ test/bench/spectral-norm-parallel.go |  2 ++
+ 3 files changed, 28 insertions(+), 1 deletion(-)

@@ -1,0 +1,74 @@
+commit cebf9d47cf16e9ccc550d3895f5f9074ae2477a0
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Nov 26 11:14:09 2018 +0100
+
+    cmd/link: optimize access to data symbols for aix/ppc64
+    
+    This commit changes the second instruction used to retrieve a symbol on
+    aix/ppc64 if it is in .data or .bss section.
+    
+    The previous version always retrieves the symbol address via a load on
+    its TOC symbol. However, as the TOC is also in .data, the symbol's address
+    is close enough to be fetched directly and the load instruction can be
+    replaced by an addi.
+    
+    Bench go1
+    benchmark                             old ns/op      new ns/op      delta
+    BenchmarkBinaryTree17-16              5919354000     5824897000     -1.60%
+    BenchmarkFannkuch11-16                5206937000     5162043000     -0.86%
+    BenchmarkFmtFprintfEmpty-16           106            105            -0.94%
+    BenchmarkFmtFprintfString-16          165            165            +0.00%
+    BenchmarkFmtFprintfInt-16             165            167            +1.21%
+    BenchmarkFmtFprintfIntInt-16          303            239            -21.12%
+    BenchmarkFmtFprintfPrefixedInt-16     282            283            +0.35%
+    BenchmarkFmtFprintfFloat-16           434            381            -12.21%
+    BenchmarkFmtManyArgs-16               1797           903            -49.75%
+    BenchmarkGobDecode-16                 16000450       12173630       -23.92%
+    BenchmarkGobEncode-16                 12007010       10258070       -14.57%
+    BenchmarkGzip-16                      638581500      456050333      -28.58%
+    BenchmarkGunzip-16                    111976900      74943900       -33.07%
+    BenchmarkHTTPClientServer-16          206850         153716         -25.69%
+    BenchmarkJSONEncode-16                32057380       17517130       -45.36%
+    BenchmarkJSONDecode-16                182606400      106807700      -41.51%
+    BenchmarkMandelbrot200-16             6896975        5616903        -18.56%
+    BenchmarkGoParse-16                   11248260       6094115        -45.82%
+    BenchmarkRegexpMatchEasy0_32-16       292            148            -49.32%
+    BenchmarkRegexpMatchEasy0_1K-16       540            327            -39.44%
+    BenchmarkRegexpMatchEasy1_32-16       243            150            -38.27%
+    BenchmarkRegexpMatchEasy1_1K-16       1029           657            -36.15%
+    BenchmarkRegexpMatchMedium_32-16      423            230            -45.63%
+    BenchmarkRegexpMatchMedium_1K-16      107250         59683          -44.35%
+    BenchmarkRegexpMatchHard_32-16        3353           3139           -6.38%
+    BenchmarkRegexpMatchHard_1K-16        107277         93610          -12.74%
+    BenchmarkRevcomp-16                   1124311500     677442500      -39.75%
+    BenchmarkTemplate-16                  241286600      109177400      -54.75%
+    BenchmarkTimeParse-16                 1058           562            -46.88%
+    BenchmarkTimeFormat-16                1321           581            -56.02%
+    
+    benchmark                            old MB/s     new MB/s     speedup
+    BenchmarkGobDecode-16                47.97        63.05        1.31x
+    BenchmarkGobEncode-16                63.92        74.82        1.17x
+    BenchmarkGzip-16                     30.39        42.55        1.40x
+    BenchmarkGunzip-16                   173.29       258.92       1.49x
+    BenchmarkJSONEncode-16               60.53        110.78       1.83x
+    BenchmarkJSONDecode-16               10.63        18.17        1.71x
+    BenchmarkGoParse-16                  5.15         9.50         1.84x
+    BenchmarkRegexpMatchEasy0_32-16      109.42       215.86       1.97x
+    BenchmarkRegexpMatchEasy0_1K-16      1896.22      3126.28      1.65x
+    BenchmarkRegexpMatchEasy1_32-16      131.46       212.99       1.62x
+    BenchmarkRegexpMatchEasy1_1K-16      994.55       1557.51      1.57x
+    BenchmarkRegexpMatchMedium_32-16     2.36         4.34         1.84x
+    BenchmarkRegexpMatchMedium_1K-16     9.55         17.16        1.80x
+    BenchmarkRegexpMatchHard_32-16       9.54         10.19        1.07x
+    BenchmarkRegexpMatchHard_1K-16       9.55         10.94        1.15x
+    BenchmarkRevcomp-16                  226.06       375.19       1.66x
+    BenchmarkTemplate-16                 8.04         17.77        2.21x
+    
+    Change-Id: Iaf2aa5953b99271361510c69a5ced3371f6c6c20
+    Reviewed-on: https://go-review.googlesource.com/c/151201
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ppc64/asm.go | 34 ++++++++++++++++++++++++++++++----
+ 1 file changed, 30 insertions(+), 4 deletions(-)

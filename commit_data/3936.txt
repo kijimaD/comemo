@@ -1,0 +1,11 @@
+commit 6c7f9f63409a754d217dfae02aee417234212cf3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 9 16:56:17 2009 -0800
+
+    add id tags to contribute.html
+    
+    R=r
+    http://go/go-review/1025033
+
+ doc/contribute.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

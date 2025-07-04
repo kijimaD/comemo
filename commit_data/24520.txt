@@ -1,0 +1,18 @@
+commit 42c7929c0453b771fd22941ce7c1133c60f58bfb
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 20:19:14 2015 +1300
+
+    runtime, runtime/debug: access unexported runtime functions with //go:linkname, not assembly stubs
+    
+    Change-Id: I88f80f5914d6e4c179f3d28aa59fc29b7ef0cc66
+    Reviewed-on: https://go-review.googlesource.com/15960
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/debug/stubs.go |  8 +++-----
+ src/runtime/debug/stubs.s  | 30 ------------------------------
+ src/runtime/mgc.go         |  1 +
+ src/runtime/proc1.go       |  1 +
+ src/runtime/rdebug.go      |  4 ++++
+ 5 files changed, 9 insertions(+), 35 deletions(-)

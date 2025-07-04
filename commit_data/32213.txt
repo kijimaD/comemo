@@ -1,0 +1,15 @@
+commit 342d25fc05a915f267e9d4f0bdc13fb04e014a2b
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Jul 9 09:01:47 2017 +0900
+
+    cmd/link: remove redundant switch stmt
+    
+    Change-Id: I5c4f8dc1e174b3438ef4fb509fac78d6e1b292c9
+    Reviewed-on: https://go-review.googlesource.com/54791
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

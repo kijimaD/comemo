@@ -1,0 +1,22 @@
+commit 628403fd6b02a8e71926b0cbc7c893121482628a
+Author: Seebs <seebachp@gmail.com>
+Date:   Thu Oct 18 17:00:02 2018 -0500
+
+    text/template: drop unused sortKeys function
+    
+    Recent change golang.org/cl/142737 drops the only call site for the
+    sortKeys function. If it's not in use, it should probably not be there in
+    the code, lurking and preparing to bite us when someone calls that instead
+    of the new key sorter in fmtsort, resulting in strange inconsistencies.
+    
+    Since the function isn't called, this should have no impact.
+    Related to, but does not fix, #21095.
+    
+    Change-Id: I4695503ef4d5ce90d989ec952f01ea00cc15c79d
+    Reviewed-on: https://go-review.googlesource.com/c/143178
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/text/template/exec.go | 27 ---------------------------
+ 1 file changed, 27 deletions(-)

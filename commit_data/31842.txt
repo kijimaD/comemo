@@ -1,0 +1,14 @@
+commit 75ab6134fcea003803e25c9bad7f092be3eeb5c3
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Wed Jun 14 19:44:20 2017 -0700
+
+    net/http: document SOCKS5 proxy support
+    
+    Fixes #20618
+    
+    Change-Id: I90712bd76d9d47f29221bc298c69737ebee25c12
+    Reviewed-on: https://go-review.googlesource.com/45814
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 5 +++++
+ 1 file changed, 5 insertions(+)

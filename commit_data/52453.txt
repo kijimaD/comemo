@@ -1,0 +1,24 @@
+commit 0d9eb8bea26a1fbebc149aa1811e5c0d9201dc40
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 24 14:31:29 2023 -0700
+
+    cmd/compile: casts from slices to array pointers are known to be non-nil
+    
+    The cast is proceeded by a bounds check. If the bounds check passes
+    then we know the pointer in the slice is non-nil.
+    
+    ... except casts to pointers of 0-sized arrays. They are strange, as
+    the bounds check can pass for a nil input.
+    
+    Change-Id: Ic01cf4a82d59fbe3071d4b271c94efca9cafaec1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479335
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 9 +++++++--
+ test/nilptr3.go                        | 7 +++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

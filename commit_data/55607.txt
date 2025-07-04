@@ -1,0 +1,20 @@
+commit 720eadead23fcf76c0d783cf0b200ed252b5ea22
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Wed Feb 14 21:01:53 2024 +0000
+
+    cmd/go: do not embed checksums when building with vendor
+    
+    Fixes #46400
+    
+    Tested: Ran go test cmd/go
+    Change-Id: I60655129c55d40a70a13ed23937ef990f315fd73
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564195
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Sam Thanawalla <samthanawalla@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Commit-Queue: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    |  2 +-
+ .../go/testdata/script/mod_gomodcache_vendor.txt   | 32 ++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

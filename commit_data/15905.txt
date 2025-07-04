@@ -1,0 +1,16 @@
+commit 462a17e0f3ac22174cba34dbfb488695f4ddfcd0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 22 15:36:04 2013 -0700
+
+    spec: remove most §links for the now more common in-text links
+    
+    Also:
+    - more consistenly use "xxx" statement rather than <code>xxx</code> statement
+    - fix/remove unnecessary links
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7821050
+
+ doc/go_spec.html | 83 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 42 insertions(+), 41 deletions(-)

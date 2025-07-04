@@ -1,0 +1,16 @@
+commit 0ab3ea9738bb28211c156faf38923bb6c28952cb
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Feb 15 09:06:24 2012 +1100
+
+    build: create the correct $GOTOOLDIR.
+    
+    Before this, make.bash --dist-tool would fail,
+    because $GOROOT/bin/tool was being mkdir'd
+    instead of $GOROOT/pkg/tool/linux_amd64.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5666046
+
+ src/make.bash | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

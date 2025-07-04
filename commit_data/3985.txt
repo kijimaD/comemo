@@ -1,0 +1,13 @@
+commit 384932589d1a8257c191a329e50509039bd052ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 12:00:50 2009 -0800
+
+    work with GNU Make 3.80
+    
+    Fixes #30.
+    
+    R=r1, r
+    https://golang.org/cl/154061
+
+ src/Make.pkg | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit 1b896bff30c7622e6d26a1fd30a73d964a860481
+Author: jchen038 <mfwinds@gmail.com>
+Date:   Tue Nov 29 00:05:54 2022 -0800
+
+    cmd/go/internal/modload: replace import error message from goroot to std
+    
+    When importing a package that does not exist, it would show goroot error
+    message and path. We would like to replace goroot with std instead.
+    
+    Fixes #56965.
+    
+    Change-Id: I86f8a7fab6555b68f792a3a4686de20d51eced8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453895
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/modload/import.go               |  2 +-
+ src/cmd/go/testdata/script/cmd_import_error.txt     |  4 ++--
+ src/cmd/go/testdata/script/mod_get_replaced.txt     |  2 +-
+ src/cmd/go/testdata/script/mod_goroot_errors.txt    | 10 +++++-----
+ src/cmd/go/testdata/script/mod_issue35270.txt       |  2 +-
+ src/cmd/go/testdata/script/mod_load_missing_std.txt |  2 +-
+ src/cmd/go/testdata/script/mod_tidy_error.txt       |  4 ++--
+ src/cmd/go/testdata/script/mod_vendor.txt           |  2 +-
+ src/go/build/build_test.go                          |  4 ++--
+ 9 files changed, 16 insertions(+), 16 deletions(-)

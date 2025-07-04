@@ -1,0 +1,22 @@
+commit 700b73975e9a925584773e6df85b175371cf9d95
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jan 25 17:13:51 2021 -0500
+
+    runtime: use entersyscall in syscall_syscallX on Darwin
+    
+    CL 197938 changed syscall* functions to call entersyscall, instead
+    of entersyscallblock. It missed syscall_syscallX, probably because
+    it was in sys_darwin_64.go, not sys_darwin.go like others. Change
+    that one as well.
+    
+    Found during the review of CL 270380 (thanks Joel).
+    
+    Change-Id: I0884fc766703f555a3895be332dccfa7d2431374
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286435
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_darwin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

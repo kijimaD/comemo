@@ -1,0 +1,29 @@
+commit a0963164e86356092074473049cca7bff52afbce
+Author: David Chase <drchase@google.com>
+Date:   Tue Nov 9 11:47:49 2021 -0500
+
+    cmd/compile: add line number test for #49436
+    
+    This enhances the existing line number test
+    to allow a specific -gcflags (e.g., -G=3)
+    and to permit ignoring duplicate line numbers
+    (which is arguably a bug, but not THIS bug,
+    and it lowers the risk of a flaky test).
+    
+    Limited to Linux/Darwin and amd64/arm64,
+    also tests with "unified" mangling.
+    
+    And, using these new powers, adds a test.
+    
+    Updates #49436.
+    
+    Change-Id: I09c82e6a08d53edd5a752522a827e872d3e16e0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362714
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_lines_test.go  | 49 ++++++++++++++++++-----
+ src/cmd/compile/internal/ssa/testdata/pushback.go | 30 ++++++++++++++
+ 2 files changed, 70 insertions(+), 9 deletions(-)

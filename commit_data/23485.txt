@@ -1,0 +1,14 @@
+commit dbe9ab69d946be2c324430c8ed7717276780b533
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 24 07:23:40 2015 -0700
+
+    cmd/compile/internal/gc: make sure nonzero-sized objects have nonzero alignment
+    
+    See issue #11354.
+    
+    Change-Id: I6817d499e6c02e4a9c83f80bc66a2bee368a69ec
+    Reviewed-on: https://go-review.googlesource.com/11406
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/align.go | 4 ++++
+ 1 file changed, 4 insertions(+)

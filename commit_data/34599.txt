@@ -1,0 +1,23 @@
+commit f0939ba5b18aea6649bf405dd6571030915afd56
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 14 15:35:22 2018 +0000
+
+    runtime, syscall: add RawSyscall6 on Solaris and make it panic
+    
+    The syscall package currently declares RawSyscall6 for every GOOS, but
+    does not define it on Solaris. This leads to code using said function
+    to compile but it will not link. Fix it by adding RawSyscall6 and make
+    it panic.
+    
+    Also remove the obsolete comment above runtime.syscall_syscall as
+    pointed out by Aram.
+    
+    Updates #24357
+    
+    Change-Id: I1b1423121d1c99de2ecc61cd9a935dba9b39e3a4
+    Reviewed-on: https://go-review.googlesource.com/100655
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/runtime/syscall_solaris.go  | 12 ++++++------
+ src/syscall/asm_solaris_amd64.s |  3 +++
+ 2 files changed, 9 insertions(+), 6 deletions(-)

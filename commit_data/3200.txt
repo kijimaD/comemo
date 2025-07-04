@@ -1,0 +1,15 @@
+commit 6384cac3436f91e4e67994af1c97d01c948e4ef1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 3 09:58:13 2009 -0700
+
+    linkify EBNF sections in spec when served via godoc
+    
+    R=rsc
+    DELTA=217  (216 added, 0 deleted, 1 changed)
+    OCL=34279
+    CL=34306
+
+ src/cmd/godoc/Makefile |   1 +
+ src/cmd/godoc/godoc.go |  16 +++-
+ src/cmd/godoc/spec.go  | 201 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 217 insertions(+), 1 deletion(-)

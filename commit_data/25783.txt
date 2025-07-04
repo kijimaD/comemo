@@ -1,0 +1,22 @@
+commit 9a184b22eef79ac0570330a17cf81a15a58bbf76
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 18 16:44:06 2016 -0800
+
+    cmd/compile: refresh builtin.go
+    
+    The export data format was augmented with a new "unsafe-uintptr" tag
+    in https://golang.org/cl/18584, but builtin.go was not regenerated.
+    
+    While here, add a test to make sure builtin.go stays up to date in the
+    future.
+    
+    Change-Id: I4ae17da29f0855bef6ec0fcc10e7082c8427d39c
+    Reviewed-on: https://go-review.googlesource.com/19681
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go      | 72 ++++++++++++++---------------
+ src/cmd/compile/internal/gc/builtin_test.go | 31 +++++++++++++
+ src/cmd/compile/internal/gc/mkbuiltin.go    | 13 +++++-
+ 3 files changed, 79 insertions(+), 37 deletions(-)

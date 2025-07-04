@@ -1,0 +1,24 @@
+commit 15b2f69aa9fe309afd86e8ae7bc4b4e3bf8d4bbc
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Mar 25 08:41:34 2024 -0700
+
+    net/http: also log TLS errors which look like HTTP sent to an HTTPS port
+    
+    We log TLS handshake errors in general, but currently do not log errors
+    when the first TLS record looks like an attempt to send HTTP to an HTTPS
+    port. There doesn't seem to be any principled reason to log the one and
+    not the other, so just log all TLS handshake errors.
+    
+    Fixes #66501
+    
+    Change-Id: I5d78a754d054c220be935513448515721fa387a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573979
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/server.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

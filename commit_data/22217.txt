@@ -1,0 +1,15 @@
+commit 8205bfb5667967ce04e54e365093e57362c3fd0b
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Sat Mar 28 17:08:53 2015 +0300
+
+    test: fix build
+    
+    Fix build after http://golang.org/cl/5297
+    The compiler was changed to not print implicit map capacity in error messages.
+    
+    Change-Id: I852f668680c3c69c5eecc7964e46202a97014d6a
+    Reviewed-on: https://go-review.googlesource.com/8212
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ test/escape_map.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 3e7e2546fc77a80002afcd8ed890b3fe3af48972
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat May 4 10:58:42 2019 -0700
+
+    cmd/go: simplify some modfetch code
+    
+    No point to s[:].
+    
+    Change-Id: I9ba5483010180015555ecbed87c1ac82903fd9dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175277
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/modfetch/pseudo.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

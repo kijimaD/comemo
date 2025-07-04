@@ -1,0 +1,22 @@
+commit cfe3cd903f018dec3cb5997d53b1744df4e53909
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 13 12:17:26 2020 -0800
+
+    runtime: keep P's first timer when in new atomically accessed field
+    
+    This reduces lock contention when only a few P's are running and
+    checking for whether they need to run timers on the sleeping P's.
+    Without this change the running P's would get lock contention
+    while looking at the sleeping P's timers. With this change a single
+    atomic load suffices to determine whether there are any ready timers.
+    
+    Change-Id: Ie843782bd56df49867a01ecf19c47498ec827452
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214185
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/proc.go     |  53 +++++++++++++++--------
+ src/runtime/runtime2.go |   5 +++
+ src/runtime/time.go     | 110 +++++++++++++++++-------------------------------
+ 3 files changed, 79 insertions(+), 89 deletions(-)

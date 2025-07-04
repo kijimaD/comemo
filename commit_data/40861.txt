@@ -1,0 +1,19 @@
+commit 9852b4b093163c3d7bc28a2917f90eb297bbaa2e
+Author: Eric Rutherford <erutherford@gmail.com>
+Date:   Mon Nov 18 20:35:33 2019 -0600
+
+    path: minor changes to improve documentation for Join
+    
+    Reworking the comments in path to call out how leading
+    empty elements are treated. Also updating filepath.Join
+    since it shared much of the wording from path.Join.
+    
+    Updates #35655
+    
+    Change-Id: I5b15c5d36e9d19831ed39e6bcc7f2fd6c1330033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207797
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/path/filepath/path.go | 12 +++++++-----
+ src/path/path.go          |  9 +++++----
+ 2 files changed, 12 insertions(+), 9 deletions(-)

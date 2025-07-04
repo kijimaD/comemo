@@ -1,0 +1,14 @@
+commit 7c946c6d61a9ef0203fba73be6c462215f0e5795
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 24 09:54:13 2017 -0700
+
+    .github: recommend 'go bug' when filing an issue
+    
+    It was released with 1.8, so it should be widely available.
+    
+    Change-Id: I7dcf205009b528071ea63f99cb5da0db183df341
+    Reviewed-on: https://go-review.googlesource.com/50932
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ CONTRIBUTING.md | 1 +
+ 1 file changed, 1 insertion(+)

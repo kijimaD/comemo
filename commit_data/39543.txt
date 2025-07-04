@@ -1,0 +1,19 @@
+commit c4ca60313ef7fd0b9d2c223889caeb20147309ac
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sun Jul 28 16:30:35 2019 +0200
+
+    all: change some function documentation to be more idiomatic
+    
+    Change-Id: I932de9bb061a8ba3332ef03207983e8b98d6f1e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187918
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/rsa/rsa.go      | 2 +-
+ src/encoding/csv/writer.go | 2 +-
+ src/expvar/expvar.go       | 2 +-
+ src/go/types/scope.go      | 4 ++--
+ src/go/types/typestring.go | 2 +-
+ src/net/mail/message.go    | 2 +-
+ 6 files changed, 7 insertions(+), 7 deletions(-)

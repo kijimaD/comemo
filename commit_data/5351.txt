@@ -1,0 +1,19 @@
+commit 22f84c5b2a8fafac38f98c51a01786325524c1bc
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Apr 26 22:44:39 2010 -0700
+
+    math: more special cases for signed zero
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/937042
+
+ src/pkg/math/all_test.go | 545 ++++++++++++++++++++++++++++++++++-------------
+ src/pkg/math/asin.go     |   8 +-
+ src/pkg/math/atan.go     |   7 +
+ src/pkg/math/cbrt.go     |   6 +-
+ src/pkg/math/fabs.go     |   5 +-
+ src/pkg/math/floor.go    |   4 +-
+ src/pkg/math/frexp.go    |   5 +-
+ src/pkg/math/ldexp.go    |   5 +-
+ 8 files changed, 421 insertions(+), 164 deletions(-)

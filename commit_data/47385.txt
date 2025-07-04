@@ -1,0 +1,16 @@
+commit e984240d310302764c66bb4bf84b5747e05cf8ef
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Fri Nov 5 23:50:55 2021 +0900
+
+    runtime: fix unworkable comments for go:nosplit
+    
+    Change-Id: I71c29a2dc7e5b2b6bc35093535228d2907b16b47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361595
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
+
+ src/runtime/sys_darwin.go   | 2 +-
+ src/runtime/sys_openbsd2.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

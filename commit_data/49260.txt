@@ -1,0 +1,17 @@
+commit 1f9f7db2bf7087e82102d5984a8eca9208d1caf3
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Tue Apr 20 00:24:51 2021 +0800
+
+    runtime: remove useless constant definition in malloc.go
+    
+    Change-Id: I060c867d89a06b5a44fbe77804c19299385802d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311250
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/runtime/malloc.go | 6 ------
+ 1 file changed, 6 deletions(-)

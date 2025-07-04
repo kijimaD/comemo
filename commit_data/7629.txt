@@ -1,0 +1,19 @@
+commit da679db0f1ff2380af62371665bded20fef7afad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 4 10:55:47 2011 -0800
+
+    http: add packages http/cgi and http/httptest
+    
+    R=rsc, adg, jnw, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4247048
+
+ src/pkg/Makefile                   |   3 +
+ src/pkg/http/cgi/Makefile          |  11 ++
+ src/pkg/http/cgi/cgi.go            | 201 +++++++++++++++++++++++++++++++++++++
+ src/pkg/http/cgi/cgi_test.go       | 200 ++++++++++++++++++++++++++++++++++++
+ src/pkg/http/cgi/testdata/test.cgi |  34 +++++++
+ src/pkg/http/httptest/Makefile     |  11 ++
+ src/pkg/http/httptest/recorder.go  |  88 ++++++++++++++++
+ src/pkg/http/serve_test.go         |  73 ++------------
+ 8 files changed, 556 insertions(+), 65 deletions(-)

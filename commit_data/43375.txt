@@ -1,0 +1,28 @@
+commit 627959eb04ee0edc4a985a7526ed7fe838ad2573
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 14 21:15:37 2020 -0400
+
+    cmd/link: support cgo internal/linking on darwin/arm64
+    
+    Cgo programs work as well. Still not enabled by default for now.
+    
+    Enable internal linking tests.
+    
+    Updates #38485.
+    
+    Change-Id: I8324a5c263fba221eb4e67d71207ca84fa241e6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263637
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ misc/cgo/test/issue4029.c                  |  2 +-
+ misc/cgo/test/issue4029.go                 |  3 +-
+ misc/cgo/test/issue4029w.go                |  2 +-
+ src/cmd/dist/test.go                       |  7 +--
+ src/cmd/link/internal/arm64/asm.go         | 91 ++++++++++++++++++++++++++++--
+ src/cmd/link/internal/ld/config.go         |  3 -
+ src/cmd/link/internal/loader/loader.go     |  8 ++-
+ src/cmd/link/internal/loadmacho/ldmacho.go | 57 +++++++++++--------
+ 8 files changed, 131 insertions(+), 42 deletions(-)

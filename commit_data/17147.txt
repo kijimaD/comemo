@@ -1,0 +1,15 @@
+commit ede9aa9e028e9bded416309981d8944d88366ffe
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Aug 10 19:22:19 2013 -0700
+
+    bufio: drop buffer recycling, add Reader.Reset and Writer.Reset
+    
+    Fixes #6086
+    
+    R=golang-dev, pieter, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/12603049
+
+ src/pkg/bufio/bufio.go      | 145 ++++++++++++--------------------------------
+ src/pkg/bufio/bufio_test.go |  32 ++++++++++
+ 2 files changed, 71 insertions(+), 106 deletions(-)

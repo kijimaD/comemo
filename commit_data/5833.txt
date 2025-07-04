@@ -1,0 +1,12 @@
+commit 8519134b98c362bf33ea0fb6d414d2db520df284
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 16 15:08:31 2010 -0700
+
+    fix typo in lex.c comment
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1862044
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

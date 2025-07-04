@@ -1,0 +1,12 @@
+commit d169dcee3b89753ea50189e4f5a00689d524c231
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 4 17:59:10 2009 -0700
+
+    fix division bug
+    
+    R=ken
+    OCL=32760
+    CL=32760
+
+ src/cmd/6g/ggen.c | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)

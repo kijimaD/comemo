@@ -1,0 +1,18 @@
+commit 213ee3d20ed35bf1bce8bb3e93fd7b0fca562536
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 25 08:39:19 2016 -0700
+
+    go/types: match cmd/compile's alignment for complex64
+    
+    Fixes #17584.
+    
+    Change-Id: I3af31cc1f2e9c906f3b73e77f3b092624ba78fbe
+    Reviewed-on: https://go-review.googlesource.com/31939
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/vet/testdata/asm.go | 1 +
+ src/cmd/vet/testdata/asm1.s | 7 +++++++
+ src/go/types/sizes.go       | 4 ++++
+ 3 files changed, 12 insertions(+)

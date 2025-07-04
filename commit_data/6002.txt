@@ -1,0 +1,17 @@
+commit 6610d79eda2e1e67d8601b004114e124228ef043
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 12 14:41:52 2010 +1000
+
+    regexp: new regularized methods for matching.
+    The previous set was spotty, incomplete, and confusing.
+    This CL proposes a regular, clean set with clearer names.
+    It's also complete.  Many existing methods will be deprecated,
+    but not in this CL.  Ditto for the tests.
+    
+    R=rsc, gri
+    CC=golang-dev, rog
+    https://golang.org/cl/1946041
+
+ src/pkg/regexp/find_test.go | 442 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/regexp/regexp.go    | 341 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 770 insertions(+), 13 deletions(-)

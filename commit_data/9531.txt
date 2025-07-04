@@ -1,0 +1,12 @@
+commit 45bd7b07e5e4a6524a6fe243a40a5918850168bf
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Aug 29 09:35:08 2011 -0400
+
+    time: fix Plan 9 build
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4966045
+
+ src/pkg/time/zoneinfo_plan9.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

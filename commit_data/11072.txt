@@ -1,0 +1,13 @@
+commit 6dfdd4c1e34c753fb9c897eee355ee6ca3f007a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 9 18:45:59 2012 -0800
+
+    runtime: add NumCPU
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5528061
+
+ src/pkg/runtime/extern.go    | 3 +++
+ src/pkg/runtime/runtime1.goc | 4 ++++
+ 2 files changed, 7 insertions(+)

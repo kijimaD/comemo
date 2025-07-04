@@ -1,0 +1,37 @@
+commit 2ecdf9d800f631cfde30b7463a3ed2c0b60611d5
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Oct 8 16:28:35 2021 -0400
+
+    go/parser: allow eliding interface in constraint literals
+    
+    This is a port of CL 353133 from cmd/compile/internal/syntax, with
+    significant adjustments for the mechanics of go/parser.
+    
+    Some additional cleanup is made along the way: parseParameterList can
+    call parseParamDecl without indirection, and the tparams argument is
+    redundant with the closing token. Also, the error that "all type
+    parameters must be named" is positioned on the first unnamed type
+    parameter.
+    
+    Error recovery in go/parser is notably worse here than the compiler
+    parser, so the test data had to be adjusted to synchronize positions.
+    Fixing this error recovery will have to wait for a later CL.
+    
+    As with the compiler changes, these changes are guarded behind a flag so
+    that they may be easily removed if #48424 is not accepted.
+    
+    For #48424
+    
+    Change-Id: If87925d246f36aaab11a95442f75f659462d4286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354870
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/typeparams/common.go    |  10 ++-
+ src/go/parser/parser.go                 | 126 ++++++++++++++++++++------------
+ src/go/parser/testdata/typeset.go2      |  75 +++++++++++++++++++
+ src/go/printer/testdata/generics.golden |   5 ++
+ src/go/printer/testdata/generics.input  |   5 ++
+ 5 files changed, 170 insertions(+), 51 deletions(-)

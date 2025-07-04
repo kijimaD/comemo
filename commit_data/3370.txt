@@ -1,0 +1,12 @@
+commit 19b1d35d4c50e1bf8b3b3f92ad034b0c844b6869
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 24 19:36:48 2009 -0700
+
+    rewording around ideal and basic types
+    
+    DELTA=355  (93 added, 85 deleted, 177 changed)
+    OCL=34904
+    CL=34998
+
+ doc/go_spec.html | 465 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 237 insertions(+), 228 deletions(-)

@@ -1,0 +1,22 @@
+commit d596bc0e819aec2cf65a61d8b92f6bec8e0a7124
+Author: Damien Neil <dneil@google.com>
+Date:   Fri May 9 16:18:49 2025 -0700
+
+    runtime: disallow closing bubbled chans from outside bubble
+    
+    A chan created within a synctest bubble may not be
+    operated on from outside the bubble.
+    We panicked on send and receive, but not close.
+    Panic on close as well.
+    
+    For #67434
+    
+    Change-Id: I98d39e0cf7baa1a679aca1fb325453d69c535308
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671960
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/internal/synctest/synctest_test.go | 40 ++++++++++++++++++++++++++++++++++
+ src/runtime/chan.go                    |  3 +++
+ 2 files changed, 43 insertions(+)

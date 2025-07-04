@@ -1,0 +1,17 @@
+commit fe70a3a0fd31441bcbb9932ecab11a6083cf2119
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 29 13:47:12 2020 -0700
+
+    crypto/x509: add comment to blank imports done for init side effects
+    
+    To educate future readers.
+    
+    Change-Id: I1ef79178b6997cc96ca066c91b9fec822478674b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266301
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/crypto/x509/x509.go | 2 ++
+ 1 file changed, 2 insertions(+)

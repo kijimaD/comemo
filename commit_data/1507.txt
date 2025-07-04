@@ -1,0 +1,16 @@
+commit ed2ac9b8b0a6721598ffbd8f8e53aed5b129f48c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 16 12:48:07 2009 -0800
+
+    casify reflect.
+    
+    R=rsc
+    DELTA=513  (0 added, 2 deleted, 511 changed)
+    OCL=22954
+    CL=22956
+
+ src/lib/reflect/all_test.go |  10 +-
+ src/lib/reflect/tostring.go |  20 +--
+ src/lib/reflect/type.go     | 338 +++++++++++++++++++++---------------------
+ src/lib/reflect/value.go    | 348 ++++++++++++++++++++++----------------------
+ 4 files changed, 357 insertions(+), 359 deletions(-)

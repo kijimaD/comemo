@@ -1,0 +1,28 @@
+commit 9aef20e823f43eadc2171ea4cf713dddf60cd4dd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Dec 22 19:16:31 2012 +0100
+
+    cmd/gc: fix wrong interaction between inlining and embedded builtins.
+    
+    The patch makes the compile user an ordinary package-local
+    symbol for the name of embedded fields of builtin type.
+    
+    This is incompatible with the fix delivered for issue 2687
+    (revision 3c060add43fb) but fixes it in a different way, because
+    the explicit symbol on the field makes the typechecker able to
+    find it in lookdot.
+    
+    Fixes #3552.
+    
+    R=lvd, rsc, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/6866047
+
+ src/cmd/gc/dcl.c                                   |  3 +
+ src/cmd/gc/fmt.c                                   | 11 +---
+ test/bugs/bug434.go                                | 10 ---
+ .../bug434.dir => fixedbugs/issue3552.dir}/one.go  |  0
+ .../bug434.dir => fixedbugs/issue3552.dir}/two.go  |  0
+ test/fixedbugs/issue3552.go                        | 10 +++
+ test/run.go                                        | 73 +++++++++++-----------
+ 7 files changed, 50 insertions(+), 57 deletions(-)

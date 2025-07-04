@@ -1,0 +1,36 @@
+commit 12acf9b0f009305eefc71d4cee8808cc244e86aa
+Author: vpachkov <slava.pach@gmail.com>
+Date:   Mon Nov 29 15:20:37 2021 +0300
+
+    runtime: remove AVX2less code in memclrNoHeapPointers for GOAMD64 >= 3
+    
+    Optimize memclr by removing simple case loop along with the
+    runtime check since AVX2 is guaranteed to be available when
+    compiling with GOAMD64 >= 3
+    
+    name             old speed      new speed      delta
+    Memclr/5-12      2.70GB/s ± 1%  2.73GB/s ± 1%     ~     (p=0.056 n=5+5)
+    Memclr/16-12     7.00GB/s ± 2%  7.03GB/s ± 1%     ~     (p=1.000 n=5+5)
+    Memclr/64-12     25.5GB/s ± 1%  25.5GB/s ± 1%     ~     (p=0.548 n=5+5)
+    Memclr/256-12    53.4GB/s ± 1%  52.7GB/s ± 2%     ~     (p=0.222 n=5+5)
+    Memclr/4096-12    109GB/s ± 1%   129GB/s ± 0%  +18.57%  (p=0.008 n=5+5)
+    Memclr/65536-12  75.2GB/s ± 2%  78.3GB/s ± 3%   +4.14%  (p=0.008 n=5+5)
+    Memclr/1M-12     53.5GB/s ± 2%  54.1GB/s ± 2%     ~     (p=0.310 n=5+5)
+    Memclr/4M-12     53.1GB/s ± 3%  52.9GB/s ± 2%     ~     (p=1.000 n=5+5)
+    Memclr/8M-12     44.6GB/s ± 3%  45.1GB/s ± 3%     ~     (p=0.310 n=5+5)
+    Memclr/16M-12    24.8GB/s ± 2%  24.2GB/s ± 2%     ~     (p=0.056 n=5+5)
+    Memclr/64M-12    38.3GB/s ± 1%  37.8GB/s ± 1%     ~     (p=0.056 n=5+5)
+    [Geo mean]       31.0GB/s       31.5GB/s        +1.78%
+    
+    Change-Id: I6f3014f6338cb3b5a1b94503faa205f043fe2de8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367494
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/dist/build.go      |  2 ++
+ src/runtime/asm_amd64.h    | 14 ++++++++++++++
+ src/runtime/memclr_amd64.s |  4 ++++
+ 3 files changed, 20 insertions(+)

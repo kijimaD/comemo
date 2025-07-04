@@ -1,0 +1,12 @@
+commit dfc7304d3289645317c3eef3ea5819e9551a0faa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 9 11:16:35 2012 -0700
+
+    net/http: fix name of result parameter in a comment
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6632053
+
+ src/pkg/net/http/client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

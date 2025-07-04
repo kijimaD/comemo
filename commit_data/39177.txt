@@ -1,0 +1,37 @@
+commit 12279faa727696a78d849be8a16c470a344b24a8
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun May 12 14:34:30 2019 +0200
+
+    os: pass correct environment when creating Windows processes
+    
+    This is CVE-2019-11888.
+    
+    Previously, passing a nil environment but a non-nil token would result
+    in the new potentially unprivileged process inheriting the parent
+    potentially privileged environment, or would result in the new
+    potentially privileged process inheriting the parent potentially
+    unprivileged environment. Either way, it's bad. In the former case, it's
+    an infoleak. In the latter case, it's a possible EoP, since things like
+    PATH could be overwritten.
+    
+    Not specifying an environment currently means, "use the existing
+    environment". This commit amends the behavior to be, "use the existing
+    environment of the token the process is being created for." The behavior
+    therefore stays the same when creating processes without specifying a
+    token. And it does the correct thing when creating processes when
+    specifying a token.
+    
+    Fixes #32000
+    
+    Change-Id: Ia57f6e89b97bdbaf7274d6a89c1d9948b6d40ef5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176619
+    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/syscall/windows/syscall_windows.go  |  3 ++
+ src/internal/syscall/windows/zsyscall_windows.go | 32 +++++++++++++++++++
+ src/os/env_default.go                            | 13 ++++++++
+ src/os/env_windows.go                            | 40 ++++++++++++++++++++++++
+ src/os/exec_posix.go                             |  5 ++-
+ 5 files changed, 92 insertions(+), 1 deletion(-)

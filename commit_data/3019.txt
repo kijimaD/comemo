@@ -1,0 +1,16 @@
+commit 63aeaa2a03b850bd932043657519ce7e0b74290d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 19 11:32:46 2009 -0700
+
+    fix import dot bug
+    
+    R=ken
+    OCL=33526
+    CL=33528
+
+ src/cmd/gc/go.h                |  1 -
+ src/cmd/gc/subr.c              |  2 +-
+ test/fixedbugs/bug191.dir/a.go |  9 +++++++++
+ test/fixedbugs/bug191.dir/b.go |  9 +++++++++
+ test/fixedbugs/bug191.go       | 13 +++++++++++++
+ 5 files changed, 32 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 0f1159bf5429b7e2dc774b77be41a66b53d25c55
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 23 17:35:36 2021 -0700
+
+    go/types: delay union element checks
+    
+    This is a clean port of CL 351969 from types2 to go/types
+    with a minor adjustment for error handling (provide an error
+    code).
+    
+    For #46461.
+    
+    Change-Id: I493dde12d8ccf86aa33f4913ac6e82f2eb459088
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351971
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/testdata/fixedbugs/issue46461.go2 |  9 +++++++++
+ src/go/types/typeset.go                        |  8 ++++----
+ src/go/types/union.go                          | 20 ++++++++++++++------
+ 3 files changed, 27 insertions(+), 10 deletions(-)

@@ -1,0 +1,28 @@
+commit ccbcefe2b63382eb7771de9054cb5eb774d8dac8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 13 14:39:16 2010 +1100
+
+    ignore $GOARCH inside the compiler and linker.
+    by definition, they know what they are building for.
+    makes it easier to switch architectures when testing.
+    
+    % 6g x.go
+    % 6l x.6
+    % 6.out
+    "Wed Jan 13 10:57:46 EST 2010"
+    % 8g x.go
+    % 8l x.8
+    % 8.out
+    "Wed Jan 13 10:57:46 EST 2010"
+    % echo $GOARCH
+    
+    %
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186116
+
+ src/cmd/gc/lex.c | 2 +-
+ src/cmd/ld/lib.c | 5 +----
+ src/cmd/ld/lib.h | 1 +
+ 3 files changed, 3 insertions(+), 5 deletions(-)

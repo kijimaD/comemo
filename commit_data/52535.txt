@@ -1,0 +1,18 @@
+commit d15fcbc79f252fe5c01e099ab89b58f1de61df32
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Feb 27 18:39:09 2023 +1100
+
+    cmd/internal/obj/arm64: use more appropriate types for olsr9s/olsr12u
+    
+    This allows for a large number of casts to be removed at call sites.
+    While here, use consistent register naming.
+    
+    Change-Id: I78a2a928b78c9f09f91fb6ed6ad440aa4e63923d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471517
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 37 ++++++++++++++++++-------------------
+ 1 file changed, 18 insertions(+), 19 deletions(-)

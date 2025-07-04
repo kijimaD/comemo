@@ -1,0 +1,33 @@
+commit a3ae45ebe1b3576428f5eb27347704b2d099eab0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 6 16:05:55 2021 -0500
+
+    runtime/pprof: consume tag for first CPU record
+    
+    profBuf.write uses an index in b.tags for each entry, even if that entry
+    has no tag (that slice entry just remains 0). profBuf.read similarly
+    returns a tags slice with exactly as many entries as there are records
+    in data.
+    
+    profileBuilder.addCPUData iterates through the tags in lockstep with the
+    data records. Except in the special case of the first record, where it
+    forgets to increment tags. Thus the first read of profiling data has all
+    tags off-by-one.
+    
+    To help avoid regressions, addCPUData is changed to assert that tags
+    contains exactly the correct number of tags.
+    
+    For #50007.
+    
+    Change-Id: I5f32f93003297be8d6e33ad472c185d924a63256
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369741
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/cpuprof.go          |  2 ++
+ src/runtime/pprof/pprof_test.go | 12 +++++++++++-
+ src/runtime/pprof/proto.go      | 22 +++++++++++++++-------
+ src/runtime/pprof/proto_test.go | 14 +++++++++-----
+ 4 files changed, 37 insertions(+), 13 deletions(-)

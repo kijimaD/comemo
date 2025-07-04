@@ -1,0 +1,21 @@
+commit 9308637e3c2babcb3695d9f9673cf2a2b840362d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Apr 25 10:55:49 2019 +0200
+
+    misc/wasm: fix command line arguments containing multi-byte characters
+    
+    Command line arguments containing multi-byte characters were causing
+    go_js_wasm_exec to crash (RangeError: Source is too large), because
+    their byte length was not handled correctly. This change fixes the bug.
+    
+    Fixes #31645.
+    
+    Change-Id: I7860ebf5b12da37d9d0f43d4b6a22d326a90edaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173877
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

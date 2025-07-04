@@ -1,0 +1,20 @@
+commit 3fcbfb07a82c5332e6b50cddba333af6e6e3e488
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 20 11:42:07 2022 +0200
+
+    doc/go1.19: fix HTML validation issues
+    
+    Avoid duplicating tag ID runtime and remove a superflous </dd> tag.
+    
+    Found by https://validator.w3.org
+    
+    Change-Id: I9c84b8257acbb6d3d6817192bb8d355207944b9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413254
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.19.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

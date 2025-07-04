@@ -1,0 +1,17 @@
+commit e56dc0ad37b2c736668b6069d3f39a3b5f309e87
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 20 23:35:28 2012 -0500
+
+    cmd/go: every test imports regexp
+    
+    This fixes the bug Rob ran into when editing package bytes.
+    Regexp imports regexp/syntax, which imports bytes, and
+    regexp/syntax was not being properly recompiled during a
+    test of a change to package bytes.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5555065
+
+ src/cmd/go/test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

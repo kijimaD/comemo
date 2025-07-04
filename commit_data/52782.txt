@@ -1,0 +1,20 @@
+commit 14f833f117dde3c370fb6cb47ce45a34c46eb2de
+Author: Nayef Ghattas <nayef.ghattas@datadoghq.com>
+Date:   Fri Apr 21 14:12:07 2023 +0200
+
+    runtime/metrics: specify that bucket counts increase monotonically for histogram metrics
+    
+    Make it explicit in the documentation that the histogram metrics
+    are cumulative (i.e. each bucket count increases monotonically).
+    
+    Change-Id: I89119ba816ac46a63f36e607e695fad3695057ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487315
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/metrics/description.go |  6 ++++--
+ src/runtime/metrics/doc.go         | 17 ++++++++++-------
+ 2 files changed, 14 insertions(+), 9 deletions(-)

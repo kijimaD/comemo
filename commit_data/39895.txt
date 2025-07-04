@@ -1,0 +1,27 @@
+commit 6c6ad3086efeada305368b1814abffe906986a87
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 8 01:56:26 2019 +1000
+
+    cmd/asm,cmd/internal/obj: initial support for riscv64 assembler
+    
+    Provide the initial framework for the riscv64 assembler. For now this
+    only supports raw WORD instructions, but at least allows for basic
+    testing. Additional functionality will be added in separate changes.
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I181ffb2d37a34764a3e91eded177d13a89c69f9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194117
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/arch.go            | 122 +++++++++++++++++
+ src/cmd/asm/internal/asm/endtoend_test.go    |   4 +
+ src/cmd/asm/internal/asm/testdata/riscvenc.s |  11 ++
+ src/cmd/dist/buildtool.go                    |   1 +
+ src/cmd/internal/obj/riscv/anames.go         |   1 +
+ src/cmd/internal/obj/riscv/cpu.go            |   3 +
+ src/cmd/internal/obj/riscv/list.go           |  33 +++++
+ src/cmd/internal/obj/riscv/obj.go            | 189 +++++++++++++++++++++++++++
+ 8 files changed, 364 insertions(+)

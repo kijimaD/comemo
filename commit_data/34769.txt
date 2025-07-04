@@ -1,0 +1,22 @@
+commit 72b0fb5153765fef92290a7c3eb816201bbd20fd
+Author: Ben Burkert <ben@benburkert.com>
+Date:   Thu Mar 29 15:04:58 2018 -0700
+
+    net: map context errors from aborted dial to internal net package errors
+    
+    Map the error returned when a dial is aborted from the context package
+    error to the internal net package error. For example, context.Canceled
+    errors map to errCanceled, and context.DeadlineExceeded errors map to
+    poll.ErrTimeout.
+    
+    Fixes #23648
+    
+    Change-Id: Idf9d3d08052d540740c0b054503aaed931dc5b1e
+    Reviewed-on: https://go-review.googlesource.com/103518
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial_unix_test.go | 5 +++--
+ src/net/fd_unix.go        | 2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

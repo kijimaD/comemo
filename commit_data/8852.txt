@@ -1,0 +1,23 @@
+commit dfacfd6431abd43e09eb4606569fdb899f3b1609
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 11:02:32 2011 -0400
+
+    syscall: regenerate zerrors for darwin/linux/freebsd
+    
+    did darwin on mac with older, not broken xcode.
+    did linux arm by copying diffs from linux 386.
+    did freebsd amd64 by copying diffs from freebsd 386.
+    
+    R=golang-dev, r, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/4629067
+
+ src/pkg/syscall/mkerrors.sh              |  1 +
+ src/pkg/syscall/zerrors_darwin_386.go    | 79 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_darwin_amd64.go  | 79 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_freebsd_386.go   | 72 +++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_freebsd_amd64.go | 72 +++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_386.go     | 63 +++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go   | 63 +++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_arm.go     | 59 ++++++++++++++++++++++++
+ 8 files changed, 488 insertions(+)

@@ -1,0 +1,15 @@
+commit 4c1abd6c64085a005b0d9d54eee97cd0c06151b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 4 00:48:31 2012 -0500
+
+    build: dist-based build for windows
+    
+    R=golang-dev, bradfitz, iant, alex.brainman, go.peter.90
+    CC=golang-dev
+    https://golang.org/cl/5630047
+
+ src/all.bat            |  18 ++++
+ src/cmd/dist/windows.c | 229 ++++++++++++++++++++++++++++++++++++-------------
+ src/make.bat           |  52 +++++++++++
+ src/run.bat            |  47 ++++++++++
+ 4 files changed, 288 insertions(+), 58 deletions(-)

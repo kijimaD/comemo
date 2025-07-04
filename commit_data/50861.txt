@@ -1,0 +1,28 @@
+commit 4bcf94b0232db65ed5df47e0127cdbc8866aec64
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 11 11:56:51 2022 +0700
+
+    all: prevent fakePC overflow on 386 in libfuzzer mode
+    
+    fakePC uses hash.Sum32, which returns an uint32. However, libfuzzer
+    trace/hook functions declare fakePC argument as int, causing overflow on
+    386 archs.
+    
+    Fixing this by changing fakePC argument to uint to prevent the overflow.
+    
+    Fixes #56141
+    
+    Change-Id: I3994c461319983ab70065f90bf61539a363e0a2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441996
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ .../compile/internal/typecheck/_builtin/runtime.go | 20 +++++++++---------
+ src/cmd/compile/internal/typecheck/builtin.go      | 10 ++++-----
+ src/internal/fuzz/trace.go                         | 24 +++++++++++-----------
+ src/runtime/libfuzzer.go                           | 16 +++++++--------
+ test/fixedbugs/issue56141.go                       | 12 +++++++++++
+ 5 files changed, 47 insertions(+), 35 deletions(-)

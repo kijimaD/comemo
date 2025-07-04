@@ -1,0 +1,13 @@
+commit 2ca44fe2213b53ccaf6f555c11858c6e36490624
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jul 5 10:35:53 2021 +0200
+
+    doc/go1.17: linkify time.UnixMilli and time.UnixMicro
+    
+    Change-Id: I8503c4649fc42670f13d981f98af480467d6a3e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332829
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

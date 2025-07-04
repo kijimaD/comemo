@@ -1,0 +1,18 @@
+commit 4085426f7dcfdcb7eff86fe1fd0879e02398926b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 31 13:45:43 2013 -0800
+
+    net/url: normalize scheme to lower case (http not HTTP)
+    
+    Also document %2f vs / ambiguity in URL.Path.
+    
+    Fixes #3913.
+    Fixes #3659.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7225076
+
+ src/pkg/net/url/url.go      | 7 +++++++
+ src/pkg/net/url/url_test.go | 9 +++++++++
+ 2 files changed, 16 insertions(+)

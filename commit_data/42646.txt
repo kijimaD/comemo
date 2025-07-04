@@ -1,0 +1,24 @@
+commit 5ae1d62ee3832e7326efbb466168b8cc3e0c83b0
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Aug 10 15:19:08 2020 -0400
+
+    CONTRIBUTORS: update for the Go 1.15 release
+    
+    This update was created using the updatecontrib command:
+    
+            go get golang.org/x/build/cmd/updatecontrib
+            cd gotip
+            updatecontrib
+    
+    With manual changes based on publicly available information
+    to canonicalize letter case and formatting for a few names.
+    
+    For #12042.
+    
+    Change-Id: I66dc5ee28d9a64bc9d150e72d136d8f71e50373b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247767
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ CONTRIBUTORS | 131 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 131 insertions(+)

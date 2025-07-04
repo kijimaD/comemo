@@ -1,0 +1,38 @@
+commit 53c5226f9fec0113c182c203b2b6c225938aeced
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 8 14:18:58 2014 -0800
+
+    runtime: make stack frames fixed size by modifying goproc/deferproc.
+    
+    Calls to goproc/deferproc used to push & pop two extra arguments,
+    the argument size and the function to call.  Now, we allocate space
+    for those arguments in the outargs section so we don't have to
+    modify the SP.
+    
+    Defers now use the stack pointer (instead of the argument pointer)
+    to identify which frame they are associated with.
+    
+    A followon CL might simplify funcspdelta and some of the stack
+    walking code.
+    
+    Fixes issue #8641
+    
+    Change-Id: I835ec2f42f0392c5dec7cb0fe6bba6f2aed1dad8
+    Reviewed-on: https://go-review.googlesource.com/1601
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/5g/ggen.c        | 39 ++++++++++++--------------------
+ src/cmd/6g/ggen.c        | 58 ++++++++++++++++++++++++++++++------------------
+ src/cmd/8g/ggen.c        | 37 +++++++++++++++++++++---------
+ src/cmd/9g/ggen.c        | 25 +++++++++------------
+ src/cmd/gc/go.h          |  2 +-
+ src/cmd/gc/subr.c        |  7 ++++--
+ src/cmd/gc/walk.c        | 33 +++++++++++++++++++++++++++
+ src/runtime/heapdump.go  |  2 +-
+ src/runtime/panic.go     | 25 +++++++++------------
+ src/runtime/panic1.go    | 22 +++++-------------
+ src/runtime/proc1.go     |  4 ----
+ src/runtime/runtime2.go  |  2 +-
+ src/runtime/stack1.go    |  2 +-
+ src/runtime/traceback.go | 42 +++++------------------------------
+ 14 files changed, 149 insertions(+), 151 deletions(-)

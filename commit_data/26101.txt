@@ -1,0 +1,19 @@
+commit 7893442011c680a549b50673ec59e8dbf6f4fe95
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 11:36:05 2016 -0800
+
+    cmd/internal/obj: simplify Optab range handling code
+    
+    Use slices as slices, instead of as clumsy pointers.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: If09eacc2d8805d7d5eaa5566f9b6305541074371
+    Reviewed-on: https://go-review.googlesource.com/20322
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 56 ++++++++++++++------------------------
+ src/cmd/internal/obj/ppc64/asm9.go | 54 +++++++++++++-----------------------
+ 2 files changed, 39 insertions(+), 71 deletions(-)

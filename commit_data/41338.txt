@@ -1,0 +1,100 @@
+commit a3f234c7060b76a4397c2c38dc778a1f82d7fa17
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 20 20:09:41 2020 -0800
+
+    cmd/compile: reduce bounds checks in generated rewrite rules
+    
+    CL 213703 converted generated rewrite rules for commutative ops
+    to use loops instead of duplicated code.
+    
+    However, it loaded args using expressions like
+    v.Args[i] and v.Args[i^1], which the compiler could
+    not eliminate bounds for (including with all outstanding
+    prove CLs).
+    
+    Also, given a series of separate rewrite rules for the same op,
+    we generated bounds checks for every rewrite rule, even though
+    we were repeatedly loading the same set of args.
+    
+    This change reduces both sets of bounds checks.
+    
+    Instead of loading v.Args[i] and v.Args[i^1] for commutative loops,
+    we now preload v.Args[0] and v.Args[1] into local variables,
+    and then swap them (as needed) in the commutative loop post statement.
+    
+    And we now load all top level v.Args into local variables
+    at the beginning of every rewrite rule function.
+    
+    The second optimization is the more significant,
+    but the first helps a little, and they play together
+    nicely from the perspective of generating the code.
+    
+    This does increase register pressure, but the reduced bounds
+    checks more than compensate.
+    
+    Note that the vast majority of rewrite rules evaluated
+    are not applied, so the prologue is the most important
+    part of the rewrite rules.
+    
+    There is one subtle aspect to the new generated code.
+    Because the top level v.Args are shared across rewrite rules,
+    and rule evaluation can swap v_0 and v_1, v_0 and v_1
+    can end up being swapped from one rule to the next.
+    That is OK, because any time a rule does not get applied,
+    they will have been swapped exactly twice.
+    
+    Passes toolstash-check -all.
+    
+    name        old time/op       new time/op       delta
+    Template          213ms ± 2%        211ms ± 2%  -0.85%  (p=0.000 n=92+96)
+    Unicode          83.5ms ± 2%       83.2ms ± 2%  -0.41%  (p=0.004 n=95+90)
+    GoTypes           737ms ± 2%        733ms ± 2%  -0.51%  (p=0.000 n=91+94)
+    Compiler          3.45s ± 2%        3.43s ± 2%  -0.44%  (p=0.000 n=99+100)
+    SSA               8.54s ± 1%        8.32s ± 2%  -2.56%  (p=0.000 n=96+99)
+    Flate             136ms ± 2%        135ms ± 1%  -0.47%  (p=0.000 n=96+96)
+    GoParser          169ms ± 1%        168ms ± 1%  -0.33%  (p=0.000 n=96+93)
+    Reflect           456ms ± 3%        455ms ± 3%    ~     (p=0.261 n=95+94)
+    Tar               186ms ± 2%        185ms ± 2%  -0.48%  (p=0.000 n=94+95)
+    XML               251ms ± 1%        250ms ± 1%  -0.51%  (p=0.000 n=91+94)
+    [Geo mean]        424ms             421ms       -0.68%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          275ms ± 1%        274ms ± 2%  -0.55%  (p=0.000 n=95+98)
+    Unicode           118ms ± 4%        118ms ± 4%    ~     (p=0.642 n=98+90)
+    GoTypes           983ms ± 1%        980ms ± 1%  -0.30%  (p=0.000 n=93+93)
+    Compiler          4.56s ± 6%        4.52s ± 6%  -0.72%  (p=0.003 n=100+100)
+    SSA               11.4s ± 1%        11.1s ± 1%  -2.50%  (p=0.000 n=96+97)
+    Flate             168ms ± 1%        167ms ± 1%  -0.49%  (p=0.000 n=92+92)
+    GoParser          204ms ± 1%        204ms ± 2%  -0.27%  (p=0.003 n=99+96)
+    Reflect           599ms ± 2%        598ms ± 2%    ~     (p=0.116 n=95+92)
+    Tar               227ms ± 2%        225ms ± 2%  -0.57%  (p=0.000 n=95+98)
+    XML               313ms ± 2%        312ms ± 1%  -0.37%  (p=0.000 n=89+95)
+    [Geo mean]        547ms             544ms       -0.61%
+    
+    file    before    after     Δ       %
+    compile 21113112  21109016  -4096   -0.019%
+    total   131704940 131700844 -4096   -0.003%
+    
+    Change-Id: Id6c39e0367e597c0c75b8a4b1eb14cc3cbd11956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216218
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go        |   78 +-
+ src/cmd/compile/internal/ssa/rewrite386.go         | 4259 +++++----
+ .../compile/internal/ssa/rewrite386splitload.go    |   45 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 9784 +++++++++-----------
+ .../compile/internal/ssa/rewriteAMD64splitload.go  |   60 +-
+ src/cmd/compile/internal/ssa/rewriteARM.go         | 4946 +++++-----
+ src/cmd/compile/internal/ssa/rewriteARM64.go       | 6539 +++++++------
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        | 1997 ++--
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      | 2165 +++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 4224 +++++----
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go     | 1468 +--
+ src/cmd/compile/internal/ssa/rewriteS390X.go       | 5219 ++++++-----
+ src/cmd/compile/internal/ssa/rewriteWasm.go        | 1721 ++--
+ src/cmd/compile/internal/ssa/rewritedec.go         |   68 +-
+ src/cmd/compile/internal/ssa/rewritedec64.go       |  370 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go     | 5271 ++++-------
+ 16 files changed, 24007 insertions(+), 24207 deletions(-)

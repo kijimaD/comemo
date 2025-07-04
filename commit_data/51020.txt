@@ -1,0 +1,33 @@
+commit 77296e36457b070bc811a605c4c4bd6c36d972ae
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Oct 27 17:51:04 2022 -0700
+
+    cmd/go: don't substitute '$WORK' for work directory in -x heredocs
+    
+    When writing the set of commands excuted for go build -x, $WORK is
+    substituted for the work directory in all the commnands. But this
+    includes the cat <<EOF commands used to create a file with the given
+    contents. While we can expect the shell to substitute $WORK properly,
+    commands that read input files, such as importcfgs won't do that
+    substitution.
+    
+    This is necessary to fix the build_dash_x script test for CL 432535
+    because it removes .a files from the traditional stdlib install
+    locations. The test can pass even with importcfg packagefiles in $WORK
+    because all transitive imports are in the stdlib, and the compiler can
+    fall back to finding stdlib .a files in their traditional places, but
+    once they're gone the packagefile paths in $WORK will have paths that
+    contain the string $WORK, and os.Open will fail to open them for
+    reading. And since the fallback is gone the test will fail.
+    
+    For #47257
+    
+    Change-Id: I5db0066de6ed3ccf97927a78ce0939e3eb14aebe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446116
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

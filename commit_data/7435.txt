@@ -1,0 +1,12 @@
+commit 047b023119fe6f60e08676697e52bfcb3e33fb04
+Author: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+Date:   Fri Feb 11 08:30:34 2011 -0500
+
+    fix example in inotify
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4174045
+
+ src/pkg/os/inotify/inotify_linux.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

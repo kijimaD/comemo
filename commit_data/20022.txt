@@ -1,0 +1,15 @@
+commit 1a8c00ea213f4f5487735a5bb958114c09b55f29
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 18 11:19:05 2014 -0700
+
+    internal/syscall: add support for getrandom on arm
+    
+    Added in linux commit eb6452537b28
+    
+    LGTM=agl
+    R=agl
+    CC=golang-codereviews
+    https://golang.org/cl/130170043
+
+ src/pkg/internal/syscall/getrandom_linux.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

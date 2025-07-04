@@ -1,0 +1,19 @@
+commit d8b349ea6063a1c977e88cc25785b91d7f4b6237
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 11 12:09:40 2023 -0400
+
+    net/http: routing tree
+    
+    This CL implements a decision tree for efficient routing.
+    The tree holds all the registered patterns. To match
+    a request, we walk the tree looking for a match.
+    
+    Change-Id: I7ed1cdf585fc95b73ef5ca2f942f278100a90583
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527315
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+
+ src/net/http/routing_tree.go      | 222 ++++++++++++++++++++++++++++++++++++
+ src/net/http/routing_tree_test.go | 234 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 456 insertions(+)

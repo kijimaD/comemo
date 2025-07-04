@@ -1,0 +1,17 @@
+commit bc73996facc45a2846ce6ffefad437314d554dcf
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 18 02:32:42 2022 +1000
+
+    cmd/link/internal/loadelf: add additional relocations for riscv64
+    
+    These relocations are produced by clang/llvm.
+    
+    Change-Id: I4820e7ed805d1b7341023b263c167a285ca32cf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431755
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

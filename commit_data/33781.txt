@@ -1,0 +1,38 @@
+commit 415349575dec277fbadf08b9d690d07fe313b288
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 1 16:55:46 2017 -0800
+
+    os: calling Fd disables the SetDeadline methods
+    
+    The full truth seems too complicated to write in this method's doc, so
+    I'm going with a simple half truth.
+    
+    The full truth is that Fd returns the descriptor in blocking mode,
+    because that is historically how it worked, and existing programs
+    would be surprised if the descriptor is suddenly non-blocking. On Unix
+    systems whether a file is non-blocking or not is a property of the
+    underlying file description, not of a particular file descriptor, so
+    changing the returned descriptor to blocking mode also changes the
+    existing File to blocking mode. Blocking mode works fine, althoug I/O
+    operations now take up a thread. SetDeadline and friends rely on the
+    runtime poller, and the runtime poller only works if the descriptor is
+    non-blocking. So it's correct that calling Fd disables SetDeadline.
+    The other half of the truth is that if the program is willing to work
+    with a non-blocking descriptor, it could call
+    syscall.SetNonblock(descriptor, true) to change the descriptor, and
+    the original File, to non-blocking mode. At that point SetDeadline
+    would start working again. I tried to write that in a way that is
+    short and comprehensible but failed. Since deadlines mostly work on
+    pipes, and there isn't much reason to call Fd on a pipe, and few
+    people use SetDeadline, I decided to punt.
+    
+    Fixes #22934
+    
+    Change-Id: I2e49e036f0bcf71f5365193831696f9e4120527c
+    Reviewed-on: https://go-review.googlesource.com/81636
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file_plan9.go   | 1 +
+ src/os/file_unix.go    | 1 +
+ src/os/file_windows.go | 1 +
+ 3 files changed, 3 insertions(+)

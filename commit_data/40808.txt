@@ -1,0 +1,18 @@
+commit e1fa96049358737b138425918ce8d4a1f25ffd70
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 15 12:29:04 2019 -0500
+
+    cmd/dist: when -compile-only is set, write binaries to os.DevNull
+    
+    Previously, we were writing binaries to GOROOT without ever reading them.
+    
+    Updates #28387
+    
+    Change-Id: Ic84999f46a367fcbf2ae1eac8bfdcbceb24dc748
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207342
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

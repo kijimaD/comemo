@@ -1,0 +1,19 @@
+commit b5240daa2f56e7dd778cfbab17adecbf50a62674
+Author: Fabian Wickborn <fabian@wickborn.net>
+Date:   Wed Jul 5 10:09:05 2017 +0200
+
+    runtime/pprof: Fix type name in function comment
+    
+    The name LabelList was changed to LabelSet during the development of the
+    proposal [1], except in one function comment. This commit fixes that.
+    
+    Fixes #20905.
+    
+    [1] https://github.com/golang/go/issues/17280
+    
+    Change-Id: Id4f48d59d7d513fa24b2e42795c2baa5ceb78f36
+    Reviewed-on: https://go-review.googlesource.com/47470
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/label.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

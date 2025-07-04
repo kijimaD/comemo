@@ -1,0 +1,28 @@
+commit a1ea78c470d3136b7aed42a4d8b94497563f98ea
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Feb 5 00:37:18 2025 +0000
+
+    net: use strings.SplitSeq and bytes.SplitSeq
+    
+    Replace `for _, s := range {strings, bytes}.Split(v, sep)` with
+    `for s := range {strings, bytes}.SplitSeq(v, sep)`, to simplify
+    the code and reduce some memory allocations.
+    
+    Change-Id: Idead4de1e3928fc75cc5ba8caeff85542f1243d5
+    GitHub-Last-Rev: 5fb196a073e7583b23b1ebb446d6c067580ed63a
+    GitHub-Pull-Request: golang/go#71554
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646216
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/fs.go                         |  2 +-
+ src/net/http/httptest/recorder.go          |  2 +-
+ src/net/http/httputil/reverseproxy.go      |  2 +-
+ src/net/http/httputil/reverseproxy_test.go |  2 +-
+ src/net/http/main_test.go                  |  2 +-
+ src/net/http/server.go                     |  2 +-
+ src/net/main_test.go                       |  2 +-
+ src/net/net_windows_test.go                | 12 ++++--------
+ 8 files changed, 11 insertions(+), 15 deletions(-)

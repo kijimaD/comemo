@@ -1,0 +1,15 @@
+commit 6f219e8b847c731a6c0d3695b74f312a1ea705a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 24 14:18:25 2014 -0400
+
+    runtime: fix LastGC comment
+    
+    I have no idea what "absolute time" means.
+    
+    LGTM=dvyukov, r
+    R=r, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/144320043
+
+ src/runtime/mem.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

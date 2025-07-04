@@ -1,0 +1,14 @@
+commit 601ee4807bfc259eb01ddf5bb48478902db3e022
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 21:15:47 2009 -0800
+
+    - add a blank before the opening { for multi-line composites
+    (request by r)
+    - feature temporarily disabled
+    
+    R=rsc
+    CC=r
+    http://go/go-review/1018052
+
+ src/pkg/go/printer/nodes.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

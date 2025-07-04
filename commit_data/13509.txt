@@ -1,0 +1,15 @@
+commit 88e858ac80e4adaa9e37db4268f49091d739dd55
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Jul 27 14:22:27 2012 -0400
+
+    log/syslog: don't append \n if there is one
+       pkg log already appends a linefeed to the log message,
+    so log/syslog doesn't need to append another.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/6441048
+
+ src/pkg/log/syslog/syslog.go      | 12 ++++++++++--
+ src/pkg/log/syslog/syslog_test.go | 40 +++++++++++++++++++++++++--------------
+ 2 files changed, 36 insertions(+), 16 deletions(-)

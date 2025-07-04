@@ -1,0 +1,21 @@
+commit ae84aaee44f0d978ea6906812ee73fc2bc6297c8
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue Aug 29 11:03:30 2017 +0200
+
+    runtime: call sigtrampgo on solaris
+    
+    CL 57291 broke on solaris because it depends on signal forwarding
+    working for signals raised by dieFromSignal.
+    Call sigtrampgo instead of sighandler directly, like the other
+    unix platforms.
+    
+    Fixes the solaris builders.
+    
+    Change-Id: I6bf314c436d1edeaecc4b03f15a9155270919524
+    Reviewed-on: https://go-review.googlesource.com/59811
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_solaris_amd64.s | 17 +----------------
+ 1 file changed, 1 insertion(+), 16 deletions(-)

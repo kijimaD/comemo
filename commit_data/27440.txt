@@ -1,0 +1,17 @@
+commit 8f13080267d0ddbb50da9029339796841224116a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 18 15:42:54 2016 +0000
+
+    net/http: allow Client.CheckRedirect to use most recent response
+    
+    Fixes #10069
+    
+    Change-Id: I3819ff597d5a0c8e785403bf9d65a054f50655a6
+    Reviewed-on: https://go-review.googlesource.com/23207
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/client.go      | 50 ++++++++++++++++++++++++++++++++-------------
+ src/net/http/client_test.go | 38 ++++++++++++++++++++++++++++++++++
+ src/net/http/request.go     |  5 +++++
+ src/net/http/response.go    |  2 +-
+ 4 files changed, 80 insertions(+), 15 deletions(-)

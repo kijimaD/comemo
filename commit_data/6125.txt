@@ -1,0 +1,17 @@
+commit 76dccbc2ed4134a925218bc6d3261d963f4146e2
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Aug 30 09:58:27 2010 +1000
+
+    doc: various changes for validating HTML
+    (Fixes missing tags, extra tags, missing attributes, and such found by tidy -e)
+    
+    R=golang-dev, adg1, adg
+    CC=golang-dev
+    https://golang.org/cl/2039043
+
+ doc/codereview_with_mq.html     | 6 +++---
+ doc/gccgo_install.html          | 4 ++--
+ doc/go_for_cpp_programmers.html | 2 +-
+ doc/install.html                | 1 -
+ doc/root.html                   | 2 +-
+ 5 files changed, 7 insertions(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit 03c40f5122eeb9b9abc4492c043af9e033c1503a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 16 15:03:22 2009 -0800
+
+    Change malloc.Lookup to return the size as uintptr rather than
+    uint64.  This changes the Go code to be consistent with the C
+    code.
+    
+    R=rsc
+    DELTA=6  (0 added, 0 deleted, 6 changed)
+    OCL=22983
+    CL=22987
+
+ src/lib/malloc.go  |  2 +-
+ test/mallocrep1.go | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

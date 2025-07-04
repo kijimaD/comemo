@@ -1,0 +1,20 @@
+commit ed7888aea6021e25b0ea58bcad3f26da2b139432
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Apr 22 12:45:44 2020 -0700
+
+    database/sql: de-flake TestTxCannotCommitAfterRollback
+    
+    Do not cancel rows during test. Only cancel the Tx.
+    Correct the referenced issue number on the test.
+    
+    Fixes #38597
+    
+    Change-Id: I0e8ba1bf2a8ba638d121c9c6938501fec1d5e961
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229478
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/sql.go      | 7 +++++++
+ src/database/sql/sql_test.go | 6 +++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

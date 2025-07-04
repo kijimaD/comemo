@@ -1,0 +1,14 @@
+commit e8ba80fbf681430d7c5872b7c228f31c6ec6e37e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 22 22:22:44 2016 +0000
+
+    io: fix comment in test
+    
+    Updates #16795
+    
+    Change-Id: I0bcc34bb5a92a2c480aebfb0eb6ba57bcc7f7cfd
+    Reviewed-on: https://go-review.googlesource.com/27551
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/io/multi_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

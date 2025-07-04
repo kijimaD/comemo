@@ -1,0 +1,17 @@
+commit 55e5b03cb359c591a2ca6ad8b6e9274d094b1632
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 24 17:01:14 2022 -0500
+
+    doc/go1.18: note changes to automatic go.mod and go.sum updates
+    
+    Fixes #51242
+    Updates #45551
+    
+    Change-Id: Iba6e6acd9a94d24e26fcdd125f1022430723ada7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387920
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan Mills <bcmills@google.com>
+
+ doc/go1.18.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

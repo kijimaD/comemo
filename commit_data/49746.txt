@@ -1,0 +1,22 @@
+commit 3ea3d0e8a7f4e2bfa96535aafb6bd802d2907808
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 3 15:14:25 2022 +0700
+
+    cmd/compile: correct alignment of atomic.Int64
+    
+    Same as CL 417555, but for cmd/compile.
+    
+    Fixes #54220
+    
+    Change-Id: I4cc6deaf0a87c952f636888b4ab73f81a44bfebd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420975
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/sizes.go  | 11 +++++++++++
+ src/cmd/compile/internal/types2/sizes.go |  4 ++--
+ test/fixedbugs/issue54220.go             | 26 ++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 2 deletions(-)

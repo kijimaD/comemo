@@ -1,0 +1,13 @@
+commit 77e7e4c329f44353d6d11eb0adee2d83437ce5ea
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 25 08:20:22 2013 +0100
+
+    cmd/cc, cmd/ld: do not overflow strings in symbol lookup.
+    
+    R=golang-dev, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7876044
+
+ src/cmd/cc/lexbody | 2 +-
+ src/cmd/ld/lib.c   | 5 ++---
+ 2 files changed, 3 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit 0d65cd6c1c2b9bebb461e34b365e2de8ed375592
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Aug 5 20:03:32 2017 +0900
+
+    cmd/internal/obj/x86: don't apply workaround for solaris to darwin
+    
+    Currently, we have a workaround for solaris that enforce aboslute
+    addressing for external symbols. However, We don't want to use the
+    workaround for darwin.
+    This CL also refactors code a little bit, because the original function
+    name is not appropriate now.
+    
+    Updates #17490
+    
+    Change-Id: Id21f9cdf33dca6a40647226be49010c2c324ee24
+    Reviewed-on: https://go-review.googlesource.com/54871
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)

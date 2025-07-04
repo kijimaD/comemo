@@ -1,0 +1,12 @@
+commit a0b2d154e6e3ef2d2b4f43b22e4e6579b7d3ccf4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 5 13:59:39 2011 -0700
+
+    doc: document r60.2
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5204041
+
+ doc/devel/release.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

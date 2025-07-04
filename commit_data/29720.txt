@@ -1,0 +1,14 @@
+commit 7736cbafd994873519372980e9eb802c37e4c8c9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 23:27:25 2016 +0000
+
+    cmd/dist: adjust default timeout scale for mips
+    
+    Per recommendation from imgtec.com folk.
+    
+    Change-Id: I9b6f30572f257acce59842ac55362f52fe36c5ab
+    Reviewed-on: https://go-review.googlesource.com/33804
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

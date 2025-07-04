@@ -1,0 +1,18 @@
+commit de8c999159bb72e8a43f9b38b6369fc43eca572e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Feb 25 16:32:15 2023 +0700
+
+    syscall: fix invalid unsafe.Pointer conversion on Windows
+    
+    Fixes #58714
+    
+    Change-Id: Ifa5c059ed5e358ed98aee7e83b95dd1806b535f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471335
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/syscall/env_windows.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

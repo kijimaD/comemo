@@ -1,0 +1,18 @@
+commit 5918f80f1a7043605ef43f63d6373262098fd27c
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Mar 31 11:50:47 2008 -0700
+
+    bug31
+    
+    failed to correctly convert from pointer
+    to interface in a return statement.
+    
+    moved ANY from a special type in
+    chan/map to a basic type.
+    
+    SVN=114350
+
+ src/c/gen.c |  2 +-
+ src/c/go.h  |  2 +-
+ src/c/go.y  | 20 ++++++++------------
+ 3 files changed, 10 insertions(+), 14 deletions(-)

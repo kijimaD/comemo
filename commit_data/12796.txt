@@ -1,0 +1,16 @@
+commit dc640ebd1a340a53db2c5520afca8643fd8f063e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 30 15:27:39 2012 +1100
+
+    exp/terminal: delete.
+    
+    This is now known as code.google.com/p/go.crypto/ssh/terminal.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5970044
+
+ src/pkg/exp/terminal/terminal.go      | 520 ----------------------------------
+ src/pkg/exp/terminal/terminal_test.go | 110 -------
+ src/pkg/exp/terminal/util.go          | 115 --------
+ 3 files changed, 745 deletions(-)

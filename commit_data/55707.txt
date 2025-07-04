@@ -1,0 +1,18 @@
+commit 0fefe417db0e4343968e5772336289e1c82b88a4
+Author: guoguangwu <guoguangwu@magic-shield.com>
+Date:   Sun Feb 25 10:15:17 2024 +0000
+
+    cmd/gofmt: remove impossible err!=nil conditional
+    
+    Change-Id: Ife63c766cefc14d2f6bdd3c706f913b1b6f99949
+    GitHub-Last-Rev: 04e23349e68a3ce12b7d33c0fd3ad8c7ffbd8aaa
+    GitHub-Pull-Request: golang/go#65929
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566099
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/gofmt/gofmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

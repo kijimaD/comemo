@@ -1,0 +1,13 @@
+commit 7fa5941fad63362655f7b9d0a8d230f890103525
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 27 15:40:36 2009 -0800
+
+    make "size 6.out" work on mac.
+    
+    R=r
+    DELTA=11  (6 added, 0 deleted, 5 changed)
+    OCL=23629
+    CL=23631
+
+ src/cmd/6l/asm.c | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

@@ -1,0 +1,13 @@
+commit 1fe22d2d24e150ba6b6d54c1b1909a15e209c6ad
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 1 16:09:29 2011 +0900
+
+    doc: refer to tour.golang.org instead of go-tour.appspot.com
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5331055
+
+ doc/docs.html | 4 ++--
+ doc/root.html | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,24 @@
+commit 37bdd3c3f5a6db5816571509c1986e14591dd3e6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 1 17:20:59 2008 -0800
+
+    - enabled comment printing by default
+    - changed tab width to 8 chars by default to make test run properly
+    - excluded 4 files that are not idempotently printed
+    - fixed a couple of incorrect file position recordings in parser
+    - fine-tuned layout engine
+    - white-space formatting reasonable, but not perfect
+    - no handling of overlong lines
+    R=r
+    
+    To use with smaller tabs:           pretty -tabwidth=4 file.go
+    To use with blanks instead of tabs: pretty -usetabs=0 file.go
+    
+    OCL=20184
+    CL=20184
+
+ usr/gri/pretty/ast.go     |   2 +-
+ usr/gri/pretty/parser.go  |  39 ++++++------
+ usr/gri/pretty/printer.go | 154 +++++++++++++++++++++++++++++++---------------
+ usr/gri/pretty/test.sh    |  11 +++-
+ 4 files changed, 133 insertions(+), 73 deletions(-)

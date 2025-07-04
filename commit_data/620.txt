@@ -1,0 +1,13 @@
+commit ed18e57896ad59b488ad2fc884a2c9e68937eff2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 11 17:19:38 2008 -0700
+
+    new bug
+    
+    R=r
+    DELTA=34  (34 added, 0 deleted, 0 changed)
+    OCL=15178
+    CL=15181
+
+ test/bugs/bug099.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)

@@ -1,0 +1,17 @@
+commit 6ac93e2ac8bb0e0eea58f691c949b81cb66b5d5d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 8 11:50:58 2013 +1000
+
+    flag: export commandLine, the previously internal default FlagSet
+    s/commandLine/CommandLine/g
+    
+    Fixes #4209.
+    
+    R=golang-dev, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12587043
+
+ src/pkg/flag/export_test.go |  7 +----
+ src/pkg/flag/flag.go        | 70 +++++++++++++++++++++++----------------------
+ src/pkg/flag/flag_test.go   |  6 ++--
+ 3 files changed, 40 insertions(+), 43 deletions(-)

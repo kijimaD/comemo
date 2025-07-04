@@ -1,0 +1,15 @@
+commit 8a44c8efaefbbda6dd7ab4ee9a5e449fefbf5e1a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Mar 14 18:21:23 2017 -0400
+
+    cmd/compile: don't spill rematerializeable value when resolving merge edges
+    
+    Fixes #19515.
+    
+    Change-Id: I4bcce152cef52d00fbb5ab4daf72a6e742bae27c
+    Reviewed-on: https://go-review.googlesource.com/38158
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 11 ++++---
+ test/fixedbugs/issue19515.go             | 51 ++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 4 deletions(-)

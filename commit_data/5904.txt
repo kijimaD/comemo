@@ -1,0 +1,13 @@
+commit 491a3ca5b74fc4c06746020594d716b30195a923
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 28 18:21:50 2010 -0700
+
+    gc: fix SIGBUS
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1906042
+
+ include/u.h     | 5 +++++
+ src/cmd/gc/go.h | 1 -
+ 2 files changed, 5 insertions(+), 1 deletion(-)

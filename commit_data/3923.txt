@@ -1,0 +1,12 @@
+commit aae64f8c8134409c99a3e7a90f963e4ca116df7c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 8 23:42:00 2009 -0800
+
+    - exit godoc w/o crashing if negative tabwidth is provided
+    - minor related cleanups
+    
+    R=rsc
+    http://go/go-review/1025026
+
+ src/cmd/godoc/main.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

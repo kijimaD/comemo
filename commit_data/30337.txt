@@ -1,0 +1,18 @@
+commit b32170abdfe6979af249fccba513609fc52cfb15
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 8 12:04:11 2017 +1100
+
+    cmd/link: simplify peemitreloc
+    
+    No functional changes.
+    
+    For #10776.
+    
+    Change-Id: If9a5ef832af116c5802b06a38e0c050d7363f2d5
+    Reviewed-on: https://go-review.googlesource.com/36981
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 94 ++++++++++++++++++++----------------------
+ 1 file changed, 45 insertions(+), 49 deletions(-)

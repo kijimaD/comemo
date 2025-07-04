@@ -1,0 +1,25 @@
+commit 3585e9be670fc76e1bc4d4bfa452ee8798a127f2
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Sep 6 18:09:11 2022 -0700
+
+    os: fix wrong error msg from TestDoubleCloseError
+    
+    When the type assertion fails, the test mistakenly prints the expected
+    (rather than the actual) type.
+    
+    When the error string doesn't match, the text mistakenly prints the
+    original (rather than the converted) error (although there might not be
+    any difference in the output, the code looks wrong).
+    
+    Fix both issues.
+    
+    Change-Id: Ia7dd0632fc677f458fec25d899c46268a12f76e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428916
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/os/os_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

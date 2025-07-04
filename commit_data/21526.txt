@@ -1,0 +1,24 @@
+commit a35181ba7fcb9e62e3f867292501a49e5d1a8b0c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 8 12:19:20 2015 -0800
+
+    os, syscall: revert Yosemite readdir workaround
+    
+    Reverts https://golang.org/cl/119530044 (OS X 10.10 Yosemite beta
+    14A299l workaround), since it was fixed in the final Yosemite release.
+    
+    I verified that the C program http://swtch.com/~rsc/readdirbug.c
+    passes on Yosemite.
+    
+    Adds a new test to the os package too, to verify that reading a
+    regular file as a directory fails.
+    
+    Fixes #9789 (ReadDir: no error if dirname is a file)
+    
+    Change-Id: I75286cef88fbb2ebccf045b479e33c810749dcbc
+    Reviewed-on: https://go-review.googlesource.com/4164
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/os/os_test.go          | 24 ++++++++++++++++++++++++
+ src/syscall/syscall_bsd.go | 35 +----------------------------------
+ 2 files changed, 25 insertions(+), 34 deletions(-)

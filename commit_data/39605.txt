@@ -1,0 +1,14 @@
+commit d6ffc1d8394d6f6420bb92d79d320da88720fbe0
+Author: Wagner Riffel <wgrriffel@gmail.com>
+Date:   Mon Aug 19 00:41:12 2019 -0300
+
+    doc: rewrite reference to plan9.bell-labs.com to 9p.io
+    
+    Change-Id: I75619feced842b8ca509ee08e01b63258c5e87ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190757
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.3.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

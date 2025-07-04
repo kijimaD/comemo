@@ -1,0 +1,12 @@
+commit b6f798f35bb441b328ed53f32b865d0cbdf0ad91
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 3 11:12:25 2013 -0700
+
+    C: add James Tucker (Google CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/8253044
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

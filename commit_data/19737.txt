@@ -1,0 +1,13 @@
+commit 348a20548d8676fef64a304bea2e5675e5f4af2d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jul 15 06:03:36 2014 -0700
+
+    objdump: remove out-of-date comment
+    
+    LGTM=iant
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/112320043
+
+ src/cmd/objdump/main.go | 3 ---
+ 1 file changed, 3 deletions(-)

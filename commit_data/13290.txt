@@ -1,0 +1,15 @@
+commit 2cb74984553e07ae3bc7ca7e89099c11925b01c1
+Author: Joel Sing <jsing@google.com>
+Date:   Wed Jun 6 20:39:27 2012 +1000
+
+    runtime: fix tv_sec handling for netbsd/386
+    
+    On netbsd/386, tv_sec is a 64-bit integer for both timeval and timespec.
+    Fix the time handling code so that it works correctly.
+    
+    R=golang-dev, rsc, m4dh4tt3r
+    CC=golang-dev
+    https://golang.org/cl/6256056
+
+ src/pkg/runtime/sys_netbsd_386.s | 32 ++++++++++++++++++--------------
+ 1 file changed, 18 insertions(+), 14 deletions(-)

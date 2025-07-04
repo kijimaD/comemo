@@ -1,0 +1,12 @@
+commit d93f3b5e31c2d95c6237d72b089576a50dacea79
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 28 17:30:59 2015 -0700
+
+    time: fix 400 year offset in comment
+    
+    Change-Id: I33c2c222ea884d9ff57800ea5185644b5d8e591a
+    Reviewed-on: https://go-review.googlesource.com/14034
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

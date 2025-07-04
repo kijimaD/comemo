@@ -1,0 +1,15 @@
+commit b1ae728d19b0fdc6576823dbe682d453d8f59e01
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Mon Dec 12 18:25:32 2011 -0500
+
+    compress/flate: fix out of bounds error
+    
+    Fixes #2508.
+    
+    R=rsc, krasin
+    CC=golang-dev
+    https://golang.org/cl/5449115
+
+ src/pkg/compress/flate/deflate.go      |  4 +++-
+ src/pkg/compress/flate/deflate_test.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

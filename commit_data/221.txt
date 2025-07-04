@@ -1,0 +1,10 @@
+commit 1bef250f3396f79be0e31a57f7c1520310d10fc0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 24 18:00:24 2008 -0700
+
+    center dots into argument code
+    
+    SVN=124433
+
+ src/runtime/runtime.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

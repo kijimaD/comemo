@@ -1,0 +1,16 @@
+commit 2386808ee9075fd10dd16f6f282779562bf6cef0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 27 16:07:30 2011 +1000
+
+    doc: put Release History link on 'Documentation' page
+    Also put Weekly Snapshot History link on 'Contributing' page
+    
+    Fixes #1885.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4559049
+
+ doc/contrib.html | 5 ++++-
+ doc/docs.html    | 3 +++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

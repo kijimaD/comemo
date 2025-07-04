@@ -1,0 +1,16 @@
+commit c1198b9b8777ef2f570b13b76f426f7cf6857fe4
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 30 13:26:57 2008 -0700
+
+    update tests
+    
+    R=rsc
+    DELTA=159  (65 added, 84 deleted, 10 changed)
+    OCL=18149
+    CL=18151
+
+ test/{bugs => fixedbugs}/bug113.go |  0
+ test/{bugs => fixedbugs}/bug114.go |  0
+ test/{bugs => fixedbugs}/bug116.go |  0
+ test/golden.out                    | 37 +++++++++----------------------------
+ 4 files changed, 9 insertions(+), 28 deletions(-)

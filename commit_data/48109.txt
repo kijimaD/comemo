@@ -1,0 +1,20 @@
+commit 3e514a0103a7e335c70104435555229f51e4d9ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 8 09:47:46 2022 -0800
+
+    spec: explicitly define integer, floating-point, and complex types
+    
+    The terms "integer type", "floating-point type", and "complex type"
+    are used frequently in the spec but are not explicitly (only indirectly)
+    defined.
+    
+    Slightly rephrased the section on numeric types and introduce these
+    terms explicitly. Add links to this section.
+    
+    Change-Id: I3fb888933bece047da8b356b684c855618e9aee4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384157
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 38 +++++++++++++++++++++-----------------
+ 1 file changed, 21 insertions(+), 17 deletions(-)

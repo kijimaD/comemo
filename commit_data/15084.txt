@@ -1,0 +1,14 @@
+commit 6d175e243a0565b3b188dad118ca1e0f845a532a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jan 18 17:05:04 2013 +1100
+
+    net: use windows GetAddrInfoW in LookupPort when possible
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7252045
+
+ src/pkg/net/fd_windows.go     |  1 +
+ src/pkg/net/lookup_windows.go | 43 ++++++++++++++++++++++++++++++++++++++++---
+ src/pkg/net/port_test.go      |  2 +-
+ 3 files changed, 42 insertions(+), 4 deletions(-)

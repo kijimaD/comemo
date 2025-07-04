@@ -1,0 +1,17 @@
+commit fcdcf33a71c9c452e6c0e52fe77449dd6d49a231
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 19 16:49:50 2008 -0800
+
+    - array-ify code, remove local implementation
+    
+    R=r
+    OCL=19648
+    CL=19651
+
+ usr/gri/pretty/ast.go         | 110 ++++++------------------------------------
+ usr/gri/pretty/compilation.go |  15 +++---
+ usr/gri/pretty/parser.go      |  85 ++++++++++++++++----------------
+ usr/gri/pretty/printer.go     |  89 ++++++++++++++++++----------------
+ usr/gri/pretty/tabwriter.go   |  51 ++++++++++----------
+ usr/gri/pretty/untab.go       |  36 +++++++-------
+ 6 files changed, 159 insertions(+), 227 deletions(-)

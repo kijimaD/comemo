@@ -1,0 +1,12 @@
+commit 5e4963d9e8952d2f527746df3dd51dbde2354700
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Oct 20 14:06:00 2010 +1100
+
+    8l: fix windows build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2595041
+
+ src/cmd/ld/pe.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

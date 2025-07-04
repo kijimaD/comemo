@@ -1,0 +1,14 @@
+commit 7a60a962b9284763f8ff239aae54d1d858dd4543
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 29 17:10:02 2016 -0700
+
+    cmd/compile: ecx is reserved for PIC, don't let peep work on it
+    
+    Fixes #15496
+    
+    Change-Id: Ieb5be1caa4b1c23e23b20d56c1a0a619032a9f5d
+    Reviewed-on: https://go-review.googlesource.com/22652
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/x86/peep.go | 4 ++++
+ 1 file changed, 4 insertions(+)

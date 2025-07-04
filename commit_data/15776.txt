@@ -1,0 +1,14 @@
+commit b7f29e259d2b0255ce22060ca7b8f8aaf2679487
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 15 14:33:00 2013 +1100
+
+    misc/dashboard/codereview: add more people.
+    
+    I picked everyone who has committed a CL on behalf of someone else in recent times.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/7836044
+
+ misc/dashboard/codereview/dashboard/people.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

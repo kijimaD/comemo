@@ -1,0 +1,17 @@
+commit d73aa535ded764933aa63e4c2c8fb34e479270cb
+Author: Mark Freeman <mark@golang.org>
+Date:   Wed May 7 16:49:02 2025 -0400
+
+    cmd/compile/internal/noder: begin documenting meta section
+    
+    Meta is the most fundamental section. To flesh this out, we discuss references. Primitives are briefly mentioned by pointing to pkgbits,
+    where they will be defined using a similar grammar.
+    
+    Change-Id: I7abd899f38fad4cc5caf87ebfc7aa1b1985b17d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671176
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/noder/doc.go | 91 +++++++++++++++++++++++++++++------
+ 1 file changed, 77 insertions(+), 14 deletions(-)

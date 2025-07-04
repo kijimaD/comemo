@@ -1,0 +1,19 @@
+commit 4e2b4d7fb2343ea5a05fcb9da821b6912ca86893
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Apr 10 16:29:57 2019 +0200
+
+    runtime: move libcall to stack for syscall package on aix/ppc64
+    
+    Inside syscall_syscall6 function, libcall can directly be on the stack.
+    This is first function called with //go:nosplit, unlike runtime syscalls
+    which can be called during the sigtramp or by others //go:nosplit
+    functions.
+    
+    Change-Id: Icc28def1a63e525850ec3bfb8184b995dfeaa736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171338
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/syscall_aix.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

@@ -1,0 +1,27 @@
+commit c6611b2f7e31aa9152f9279fd9ba0343137af7c0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 22 12:14:23 2019 -0500
+
+    misc/cgo/stdio: fix tests in module mode
+    
+    Updates #30228
+    
+    Change-Id: I4d213c6fe68c47ccb877f13b55128e035f76a26b
+    Reviewed-on: https://go-review.googlesource.com/c/163421
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/stdio/overlaydir_test.go            | 81 ++++++++++++++++++++++++++++
+ misc/cgo/stdio/stdio_test.go                 | 60 +++++++++++++++++++++
+ misc/cgo/stdio/{ => testdata}/chain.go       |  2 +-
+ misc/cgo/stdio/{ => testdata}/chain.out      |  0
+ misc/cgo/stdio/{ => testdata}/fib.go         |  2 +-
+ misc/cgo/stdio/{ => testdata}/fib.out        |  0
+ misc/cgo/stdio/{ => testdata}/hello.go       |  2 +-
+ misc/cgo/stdio/{ => testdata}/hello.out      |  0
+ misc/cgo/stdio/{ => testdata}/run.out        |  0
+ misc/cgo/stdio/{ => testdata/stdio}/file.go  |  0
+ misc/cgo/stdio/{ => testdata/stdio}/stdio.go |  0
+ src/cmd/dist/test.go                         |  2 +-
+ 12 files changed, 145 insertions(+), 4 deletions(-)

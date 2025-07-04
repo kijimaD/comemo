@@ -1,0 +1,14 @@
+commit c5babcc4852397b49ec43778d517ab59f5b10ef7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 26 15:52:23 2019 -0800
+
+    runtime: align first persistentalloc chunk as requested
+    
+    Change-Id: Ib391e019b1a7513d234fb1c8ff802efe8fa7c950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163859
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

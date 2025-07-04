@@ -1,0 +1,16 @@
+commit e3fdcdfea786a503f07a82807c6b43e2a59fda78
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 15:58:38 2009 -0700
+
+    - Ident node now takes a string Value instead of a []bytes
+    (this removes a lot of string() conversions down the road)
+    - a few minor adjustments
+    
+    R=rsc
+    DELTA=11  (0 added, 0 deleted, 11 changed)
+    OCL=27029
+    CL=27038
+
+ src/lib/go/ast.go    | 12 ++++++------
+ src/lib/go/parser.go | 10 +++++-----
+ 2 files changed, 11 insertions(+), 11 deletions(-)

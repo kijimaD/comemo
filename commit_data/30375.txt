@@ -1,0 +1,14 @@
+commit 8ca68c3fec18bec7739ceac0f55681f915baa7f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 12:52:33 2017 -0800
+
+    go/types: fix doc string for Named.Obj
+    
+    Fixes #19249.
+    
+    Change-Id: I6327192eca11fa24f1078c016c9669e4ba4bdb4e
+    Reviewed-on: https://go-review.googlesource.com/37399
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

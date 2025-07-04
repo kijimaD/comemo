@@ -1,0 +1,20 @@
+commit 06fa4c9589d5fec17cb507c471d57d6338afae74
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 20 00:30:48 2020 +0000
+
+    Revert "cmd/go: convert TestShadowingLogic to the script framework"
+    
+    This reverts commit 8fa2b6dcde6008c107c097e44eb0ee94a2a8af3d.
+    
+    Reason for revert: broke the build
+    
+    Change-Id: Iae703b1b3dad6b363f57541641357eabca45e9e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220217
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/go/go_test.go                             | 45 +++++++++++++++++++++++
+ src/cmd/go/testdata/script/list_shadow.txt        | 25 -------------
+ src/cmd/go/testdata/shadow/root1/src/foo/foo.go   |  1 +
+ src/cmd/go/testdata/shadow/root1/src/math/math.go |  1 +
+ src/cmd/go/testdata/shadow/root2/src/foo/foo.go   |  1 +
+ 5 files changed, 48 insertions(+), 25 deletions(-)

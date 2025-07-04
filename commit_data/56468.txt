@@ -1,0 +1,47 @@
+commit eef288da1e7d2815cfa07e486b101ba21f0e0db1
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon May 13 14:59:02 2024 -0400
+
+    cmd: add telemetry for commands in cmd
+    
+    This change modifies the commands in cmd to open counter files,
+    increment invocations counters and to increment counters for the names
+    of the flags that were passed in.
+    
+    cmd/pprof and cmd/vet are both wrappers around tools defined in other
+    modules which do their own flag processing so we can't directly
+    increment flag counters right after flags are parsed. For those two
+    commands we wait to increment counters until after the programs have
+    returned.
+    
+    cmd/dist is built with the bootstrap go so it can't depend on telemetry
+    yet. We can add telemetry support to it once 1.23 is the minimum
+    bootstrap version.
+    
+    For #58894
+    
+    Change-Id: Ic7f6009992465e55c56ad4dc6451bcb1ca51374a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585235
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/addr2line/main.go  | 4 ++++
+ src/cmd/asm/main.go        | 4 ++++
+ src/cmd/buildid/buildid.go | 4 ++++
+ src/cmd/cgo/main.go        | 4 ++++
+ src/cmd/covdata/covdata.go | 5 +++++
+ src/cmd/cover/cover.go     | 5 +++++
+ src/cmd/distpack/pack.go   | 5 +++++
+ src/cmd/doc/main.go        | 5 +++++
+ src/cmd/fix/main.go        | 5 +++++
+ src/cmd/gofmt/gofmt.go     | 5 +++++
+ src/cmd/nm/nm.go           | 4 ++++
+ src/cmd/objdump/main.go    | 4 ++++
+ src/cmd/pack/pack.go       | 4 ++++
+ src/cmd/pprof/pprof.go     | 8 +++++++-
+ src/cmd/preprofile/main.go | 8 ++++++--
+ src/cmd/test2json/main.go  | 5 +++++
+ src/cmd/trace/main.go      | 4 ++++
+ src/cmd/vet/main.go        | 8 ++++++++
+ 18 files changed, 88 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 38eea5b2ad6a6bf108cf4445506559118e34d782
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Jun 16 18:00:28 2014 -0700
+
+    net: avoid array copy when shuffling SRV records
+    
+    We don't need to shift array elements to shuffle them.
+    We just have to swap a selected element with 0th element.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/91750044
+
+ src/pkg/net/dnsclient.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

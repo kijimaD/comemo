@@ -1,0 +1,12 @@
+commit 4f8526223f1cfe2f9d20b8f9c60868468ba009a4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 2 10:41:56 2010 -0800
+
+    A+C: added Jamie Gennis
+    
+    R=iant, r
+    CC=golang-dev
+    https://golang.org/cl/3416042
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

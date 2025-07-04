@@ -1,0 +1,15 @@
+commit 4489f4bc846392e85973ae30e662bd0f3cefbd9b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jun 4 09:53:21 2020 +0200
+
+    cmd/compile/internal: gofmt
+    
+    Change-Id: I67a4375d8eb976d48e4a57e482390f473658b4b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236457
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/arm64/ssa.go            | 44 ++++++++++++------------
+ src/cmd/compile/internal/ssa/rewriteCond_test.go |  2 +-
+ 2 files changed, 23 insertions(+), 23 deletions(-)

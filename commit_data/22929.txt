@@ -1,0 +1,18 @@
+commit c6688b7b1ff5537177d54322559e1207434c7088
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 7 11:22:43 2015 -0700
+
+    fmt: fix panic with large precision
+    
+    The code already handled high widths but not high precisions.
+    Also make sure it handles the harder cases of %U.
+    
+    Fixes #10745.
+    
+    Change-Id: Ib4d394d49a9941eeeaff866dc59d80483e312a98
+    Reviewed-on: https://go-review.googlesource.com/9769
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/fmt_test.go |  5 +++++
+ src/fmt/format.go   | 12 ++++++++++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)

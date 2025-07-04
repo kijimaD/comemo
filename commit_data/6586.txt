@@ -1,0 +1,14 @@
+commit b3601a5c5b20c64f04842cb63a0e73b9d40f92c4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 21 15:33:31 2010 +1100
+
+    gobuilder: write build and benchmarking logs to disk
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2637041
+
+ misc/dashboard/builder/exec.go | 21 ++++++++++++++++-----
+ misc/dashboard/builder/hg.go   |  2 +-
+ misc/dashboard/builder/main.go | 14 ++++++++------
+ 3 files changed, 25 insertions(+), 12 deletions(-)

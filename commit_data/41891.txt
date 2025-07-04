@@ -1,0 +1,20 @@
+commit 7096b1700d0961c7dac18c928bece1e98f1adedf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 8 13:41:59 2020 -0700
+
+    cmd/compile: refactor static slice symbol creation
+    
+    This change mostly moves code around to unify it.
+    A subsequent change will simplify and improve slicesym.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I84a877ea747febb2b571d4089ba6d905b51b27ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227549
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/obj.go   | 10 ++++++++++
+ src/cmd/compile/internal/gc/sinit.go | 23 +++--------------------
+ 2 files changed, 13 insertions(+), 20 deletions(-)

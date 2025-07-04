@@ -1,0 +1,22 @@
+commit 47e6fd05f7d605774864984f70e5a93355109a61
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Wed Apr 26 10:02:22 2023 +0200
+
+    runtime: remove systemstack logic from adjustframe
+    
+    Remove logic for skipping some adjustframe logic for systemstack (aka
+    FuncID_systemstack_switch). This was introduced in 2014 by
+    9198ed4bd6ec7b7dd37aa2797e96f15ddbb1e6cd but doesn't seem to be needed
+    anymore.
+    
+    Updates #59692
+    
+    Change-Id: I2368d64f9bb28ced4e7f15c9b15dac7a29194389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489116
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/stack.go | 7 -------
+ 1 file changed, 7 deletions(-)

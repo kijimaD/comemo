@@ -1,0 +1,38 @@
+commit 0d2e92c2cadc143f17a375ba2172862d18cdc1ef
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 13 23:02:38 2016 -0700
+
+    cmd/compile: add Fields field to Type
+    
+    Switch TSTRUCT and TINTER to use Fields instead of Type, which wrings
+    out the remaining few direct uses of the latter.
+    
+    Preparation for converting fields to use a separate "Field" type.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: I5a2ea7e159d0dde1be2c9afafc10a8f739d95743
+    Reviewed-on: https://go-review.googlesource.com/20675
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/amd64/gsubr.go    |  2 +-
+ src/cmd/compile/internal/gc/bexport.go     |  2 +-
+ src/cmd/compile/internal/gc/cgen.go        |  2 +-
+ src/cmd/compile/internal/gc/dcl.go         |  2 +-
+ src/cmd/compile/internal/gc/esc.go         |  4 ++--
+ src/cmd/compile/internal/gc/export.go      | 35 +++++++++++++++++++++++-------
+ src/cmd/compile/internal/gc/fmt.go         |  6 ++---
+ src/cmd/compile/internal/gc/gsubr.go       |  2 +-
+ src/cmd/compile/internal/gc/inl.go         |  8 +++----
+ src/cmd/compile/internal/gc/order.go       |  4 ++--
+ src/cmd/compile/internal/gc/sinit.go       | 18 +++++++--------
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        |  8 +------
+ src/cmd/compile/internal/gc/type.go        |  7 ++++--
+ src/cmd/compile/internal/gc/typecheck.go   | 31 ++++++++++----------------
+ src/cmd/compile/internal/gc/universe.go    | 23 +++++++++++++-------
+ src/cmd/compile/internal/gc/walk.go        | 14 ++----------
+ src/cmd/compile/internal/x86/gsubr.go      |  2 +-
+ 18 files changed, 89 insertions(+), 83 deletions(-)

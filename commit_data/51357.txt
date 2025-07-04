@@ -1,0 +1,18 @@
+commit 45711645378b7566b4d423b407f7c5c26028819e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 14 18:43:43 2022 +0100
+
+    crypto/ecdsa: improve benchmarks
+    
+    While at it, drop P-224 benchmarks. Nobody cares about P-224.
+    
+    Change-Id: I31db6fedde6026deff36de963690275dacf5fda1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451196
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/ecdsa/ecdsa_test.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

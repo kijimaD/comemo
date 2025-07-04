@@ -1,0 +1,12 @@
+commit 6240b0110ac0c3875ab2943ef2569b1689882178
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 17 11:44:15 2009 -0800
+
+    improve documentation of runtime. there was no mention of types.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/157042
+
+ src/pkg/runtime/extern.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

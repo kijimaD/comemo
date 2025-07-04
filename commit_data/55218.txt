@@ -1,0 +1,35 @@
+commit 98fd8f5768169c1c9cc9ae20490bd1b63ea55461
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 14:28:30 2023 -0500
+
+    runtime: rename GODEBUG=profileruntimelocks to runtimecontentionstacks
+    
+    profileruntimelocks is new in CL 544195, but the name is deceptive. Even
+    with profileruntimelocks=0, runtime-internal locks are still profiled.
+    The actual difference is that call stacks are not collected. Instead all
+    contention is reported at runtime._LostContendedLock.
+    
+    Rename this setting to runtimecontentionstacks to make its name more
+    aligned with its behavior.
+    
+    In addition, for this release the default is profileruntimelocks=0,
+    meaning that users are fairly likely to encounter
+    runtime._LostContendedLock. Rename it to
+    runtime._LostContendedRuntimeLock in an attempt to make it more
+    intuitive that these are runtime locks, not locks in application code.
+    
+    For #57071.
+    
+    Change-Id: I38aac28b2c0852db643d53b1eab3f3bc42a43393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547055
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+
+ src/runtime/extern.go       | 15 ++++++++-------
+ src/runtime/metrics_test.go |  4 ++--
+ src/runtime/mprof.go        | 10 +++++-----
+ src/runtime/proc.go         |  2 +-
+ src/runtime/runtime1.go     | 46 ++++++++++++++++++++++-----------------------
+ 5 files changed, 39 insertions(+), 38 deletions(-)

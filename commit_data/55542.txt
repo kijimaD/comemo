@@ -1,0 +1,22 @@
+commit e0ee5b1afa4d6b53d80fbba1195fe148b7505d99
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 12 20:40:33 2023 -0800
+
+    cmd/compile: move runtime.itab to internal/abi.ITab
+    
+    Change-Id: I44293452764dc4bc4de8d386153c6402a9cbe409
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549435
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/deadcode.go   |  2 +-
+ src/cmd/link/internal/ld/decodesym.go  |  2 +-
+ src/cmd/link/internal/ld/dwarf.go      |  2 +-
+ src/cmd/link/internal/ld/dwarf_test.go |  2 +-
+ src/internal/abi/iface.go              | 21 ++++++++++++++++++
+ src/runtime/alg.go                     |  6 ++---
+ src/runtime/heapdump.go                |  2 +-
+ src/runtime/iface.go                   | 40 +++++++++++++++++-----------------
+ src/runtime/runtime2.go                | 12 +---------
+ 9 files changed, 50 insertions(+), 39 deletions(-)

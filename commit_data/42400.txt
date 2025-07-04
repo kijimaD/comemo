@@ -1,0 +1,25 @@
+commit b2ce3931d8d34ffe3fbed0d9eed2676d916e5431
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu May 21 10:59:29 2020 -0400
+
+    cmd/go: report error for empty GOPROXY list
+    
+    If GOPROXY is "", we set it to the default value,
+    "https://proxy.golang.org,direct". However, if GOPROXY is a non-empty
+    string that doesn't contain any URLs or keywords, we treat it as
+    either "off" or "noproxy", which can lead to some strange errors.
+    
+    This change reports an error for this kind of GOPROXY value.
+    
+    For #39180
+    
+    Change-Id: If2e6e39d6f74c708e5ec8f90e9d4880e0e91894f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234857
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/proxy.go        | 10 +++++++++-
+ src/cmd/go/testdata/script/mod_gonoproxy.txt |  5 +++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

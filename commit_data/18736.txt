@@ -1,0 +1,16 @@
+commit 542415c9df03e40a99ef9eb1005e43ba2cadc46a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 4 09:59:07 2014 -0800
+
+    net/http: deflake another alloc test
+    
+    I have one machine where this 25 test run is flaky
+    and fails ("21 >= 21"), but 50 works everywhere.
+    
+    LGTM=josharian
+    R=josharian
+    CC=golang-codereviews
+    https://golang.org/cl/67870053
+
+ src/pkg/net/http/serve_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

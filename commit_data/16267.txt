@@ -1,0 +1,12 @@
+commit b13eac88aca4ac27174e3f32284637d8d8d0915d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 6 10:12:45 2013 -0700
+
+    C: add Jeremiah Harmsen (Google CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9229043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

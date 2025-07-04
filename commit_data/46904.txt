@@ -1,0 +1,19 @@
+commit fad4a16fd43f6a72b6917eff656be27522809074
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 15 11:22:03 2021 -0400
+
+    cmd/go: use portable flags in TestScript/version_build_settings
+    
+    This fixes a test failure on the 386-longtest builder.
+    
+    For #37475
+    
+    Change-Id: Icd1d3474968fcf85ef893190760fb488302abc3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356209
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/version_build_settings.txt | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,15 @@
+commit 48af64b2956c9cd2618588d3d678ff099ced89a5
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon Oct 22 19:14:30 2012 +0200
+
+    cmd/gc: Mark use of builtin functions as calls.
+    
+    Fixes #4097.
+    
+    R=rsc
+    CC=golang-dev, gri
+    https://golang.org/cl/6749059
+
+ src/cmd/gc/typecheck.c      |  6 ++++++
+ test/fixedbugs/issue4097.go | 11 +++++++++++
+ 2 files changed, 17 insertions(+)

@@ -1,0 +1,48 @@
+commit fadbf7404d2b1aca63993e289448fcc3b6a23107
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 28 14:16:41 2020 -0500
+
+    runtime/pprof: expand final stack frame to avoid truncation
+    
+    When generating stacks, the runtime automatically expands inline
+    functions to inline all inline frames in the stack. However, due to the
+    stack size limit, the final frame may be truncated in the middle of
+    several inline frames at the same location.
+    
+    As-is, we assume that the final frame is a normal function, and emit and
+    cache a Location for it. If we later receive a complete stack frame, we
+    will first use the cached Location for the inlined function and then
+    generate a new Location for the "caller" frame, in violation of the
+    pprof requirement to merge inlined functions into the same Location.
+    
+    As a result, we:
+    
+    1. Nondeterministically may generate a profile with the different stacks
+    combined or split, depending on which is encountered first. This is
+    particularly problematic when performing a diff of profiles.
+    
+    2. When split stacks are generated, we lose the inlining information.
+    
+    We avoid both of these problems by performing a second expansion of the
+    last stack frame to recover additional inline frames that may have been
+    lost. This expansion is a bit simpler than the one done by the runtime
+    because we don't have to handle skipping, and we know that the last
+    emitted frame is not an elided wrapper, since it by definition is
+    already included in the stack.
+    
+    Fixes #37446
+    
+    Change-Id: If3ca2af25b21d252cf457cc867dd932f107d4c61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221577
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/pprof/map.go        |  3 ++-
+ src/runtime/pprof/pprof_test.go | 47 ++++++++++++++++++++++++++++++------
+ src/runtime/pprof/proto.go      | 40 +++++++++++++------------------
+ src/runtime/pprof/runtime.go    |  3 +++
+ src/runtime/symtab.go           | 53 +++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 115 insertions(+), 31 deletions(-)

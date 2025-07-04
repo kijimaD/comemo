@@ -1,0 +1,19 @@
+commit 9d70646fcf09df481e81514ae241e383efae3a77
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 21 22:46:19 2009 -0700
+
+    allow godoc to match on regular expressions.
+    if the name contains a metacharacter, use regexp matching;
+    otherwise require strict equality.
+    
+    now
+            godoc flag '.*Var'
+    can give you all the FooVar functions.
+    
+    R=gri
+    DELTA=19  (19 added, 0 deleted, 0 changed)
+    OCL=27711
+    CL=27713
+
+ usr/gri/pretty/docprinter.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

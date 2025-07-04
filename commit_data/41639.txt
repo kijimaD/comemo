@@ -1,0 +1,36 @@
+commit 4ad643d2089b73fbcfc2c0e3f61cb63dcb217ec5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 8 11:07:52 2020 -0700
+
+    cmd/compile: remove loop in shortcircuit
+    
+    shortcircuitBlock contained a loop to handle blocks like
+    
+    b: <- p q
+      v = Phi true false
+    If v -> t u
+    
+    in a single execution.
+    This change makes shortcircuitBlock do it in two instead,
+    one for each constant phi arg.
+    
+    Motivation: Upcoming changes will expand the range of
+    blocks that the shortcircuit pass can handle.
+    Those changes need to understand what the CFG
+    will look like after the rewrite in shortcircuitBlock.
+    Making shortcircuitBlock do only a single CFG
+    modification at a time significantly simplifies that code.
+    
+    In theory, this is less efficient, but not measurably so.
+    There is minor, unimportant churn in the generated code.
+    
+    Updates #37608
+    
+    Change-Id: Ia6dce7011e3e19b546ed1e176bd407575a0ab837
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222918
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/shortcircuit.go | 92 ++++++++++++++--------------
+ 1 file changed, 45 insertions(+), 47 deletions(-)

@@ -1,0 +1,27 @@
+commit 9dd9174fa55b8078892f8a6d1863715f313d6880
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 9 20:38:18 2022 +0700
+
+    sync/atomic: reduce inlining cost for atomic types methods
+    
+    The "&x.v" cost us 2 inline cost budget, causing extra inline cost for
+    the caller. By taking the fact that "v" is laid out in memory as the
+    first field of all atomic types, we can accessing it without addressing.
+    
+    Discovering why attempting to convert sync.RWMutex.readerCount to atomic
+    type. RWMutex.RUnlock have the inline cost 75, with extra 7 inline cost
+    from Int32.Add causing it not inlinable anymore.
+    
+    With this change, Int32.Add only has 5 inline cost budget, RWMutex can
+    use it while still be inlinable.
+    
+    Change-Id: Iabe1d1bf53389b0b8b5f56b4611231b732fd9df5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429766
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/sync/atomic/type.go | 80 +++++++++++++++++++++++++++++--------------------
+ 1 file changed, 47 insertions(+), 33 deletions(-)

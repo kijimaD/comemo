@@ -1,0 +1,17 @@
+commit ac875bc923db2b7350f244f06a06557e6fd97e05
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 15 00:44:58 2020 +0700
+
+    cmd/compile: don't bother to declare closure inside redeclared func
+    
+    Fixes #17758
+    
+    Change-Id: I75f5dc5be85fd8a6791ac89dfc0681be759cca36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248517
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 12 +++++++++++-
+ test/fixedbugs/issue17758.go           | 17 +++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

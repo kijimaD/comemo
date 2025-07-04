@@ -1,0 +1,19 @@
+commit 9c08d6508442a7491aeb615c52d69d38b1c477c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 21 22:04:30 2012 -0500
+
+    spec: make all comparison results untyped bool
+    
+    Or, depending on your point of view, make the
+    comparisons satisfy any surrounding boolean type.
+    
+    Also, fix a few foo_bar -> fooBar in code fragments.
+    
+    Fixes #2561.
+    
+    R=golang-dev, r, bradfitz, gri, iant, kevlar
+    CC=golang-dev
+    https://golang.org/cl/5671096
+
+ doc/go_spec.html | 57 ++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 37 insertions(+), 20 deletions(-)

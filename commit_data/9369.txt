@@ -1,0 +1,12 @@
+commit 0310935058e7edceb1ec42ed8518fcf0b8340bed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 15 19:05:52 2011 -0700
+
+    godoc: show all top-level decls for (fake) package builtin
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/4904045
+
+ src/cmd/godoc/godoc.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

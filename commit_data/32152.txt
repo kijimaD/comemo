@@ -1,0 +1,22 @@
+commit bd08803680792b553dc78d5b5006ebedadaaccf0
+Author: Matt Dee <mdee@hioscar.com>
+Date:   Tue Aug 8 15:58:27 2017 -0400
+
+    database/sql: fail on unsupported options when context is un-cancellable
+    
+    Currently, the check for `ctx.Done() == context.Background().Done()`
+    comes before the check to see if we are ignoring any options.  That
+    check should be done earlier, so that the options are not silently
+    ignored.
+    
+    Fixes #21350
+    
+    Change-Id: I3704e4209854c7d99f3f92498bae831cabc7e419
+    Reviewed-on: https://go-review.googlesource.com/53970
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/ctxutil.go  |  8 ++++----
+ src/database/sql/sql_test.go | 14 ++++++++++++++
+ 2 files changed, 18 insertions(+), 4 deletions(-)

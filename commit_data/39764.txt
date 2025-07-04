@@ -1,0 +1,22 @@
+commit e6d2544d20f028dffc529ba58249e11f709382e4
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Sep 1 17:30:56 2019 +0200
+
+    test/codegen: mention -all_codegen in the README
+    
+    For performance reasons (avoiding costly cross-compilations) CL 177577
+    changed the codegen test harness to only run the tests for the
+    machine's GOARCH by default.
+    
+    This change updates the codegen README accordingly, explaining what
+    all.bash does run by default and how to perform the tests for all
+    architectures.
+    
+    Fixes #33924
+    
+    Change-Id: I43328d878c3e449ebfda46f7e69963a44a511d40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192619
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ test/codegen/README | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)

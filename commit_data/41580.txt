@@ -1,0 +1,17 @@
+commit b00ebeaebcd8d7535ff08163a7907a6a8fe7b703
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Thu Feb 27 12:11:30 2020 -0600
+
+    net/http/cgi: remove outdated TODO
+    
+    Cookies already work as http.Request parses the Cookie header on-demand
+    when the Cookie methods are called.
+    
+    Change-Id: Ib7a6f68be02940ff0b56d2465c94545d6fd43847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221417
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/cgi/child.go | 2 --
+ 1 file changed, 2 deletions(-)

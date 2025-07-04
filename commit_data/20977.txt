@@ -1,0 +1,15 @@
+commit b7a2b1e980f3f8471f87cd9108d4461b88e39f76
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 12 14:49:08 2014 -0800
+
+    .gitattributes: prevent all magic line ending changes
+    
+    Fixes #9281
+    
+    Change-Id: Id060e9cbad086c994ec74b240f5c61e971e5690b
+    Reviewed-on: https://go-review.googlesource.com/1490
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .gitattributes | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

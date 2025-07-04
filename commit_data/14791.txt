@@ -1,0 +1,16 @@
+commit 63bee953a2d3aea703de1f4980f557d2af645dc9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 4 07:53:42 2013 -0800
+
+    runtime: always incorporate hash seed at start of hash computation
+    
+    Otherwise we can get predictable collisions.
+    
+    R=golang-dev, dave, patrick, rsc
+    CC=golang-dev
+    https://golang.org/cl/7051043
+
+ src/pkg/runtime/alg.c     |  8 ++++----
+ src/pkg/runtime/iface.c   | 15 +++++++--------
+ src/pkg/runtime/runtime.h |  4 ++--
+ 3 files changed, 13 insertions(+), 14 deletions(-)

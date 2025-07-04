@@ -1,0 +1,16 @@
+commit 2fd97ee25e8a623e460aff26b4c422dec9532654
+Author: Nikita Kryuchkov <nkryuchkov10@gmail.com>
+Date:   Sun May 12 22:03:24 2019 +0000
+
+    time: fix a typo in comments
+    
+    Change-Id: I407d7215d077176678a714ff1446e987bb818f7c
+    GitHub-Last-Rev: 22012adb3a8dada5b19eba6d6a9b067295a306a7
+    GitHub-Pull-Request: golang/go#31988
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176797
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/time.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

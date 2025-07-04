@@ -1,0 +1,42 @@
+commit c5cb4843e174697dd060b42810b8d20f0998b2e6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 29 17:31:37 2018 -0700
+
+    html/template: ignore untyped nil arguments to default escapers
+    
+    CL 95215 changed text/template so that untyped nil arguments were no
+    longer ignored, but were instead passed to functions as expected.
+    This had an unexpected effect on html/template, where all data is
+    implicitly passed to functions: originally untyped nil arguments were
+    not passed and were thus effectively ignored, but after CL 95215 they
+    were passed and were printed, typically as an escaped version of "<nil>".
+    
+    This CL restores some of the behavior of html/template by ignoring
+    untyped nil arguments passed implicitly to escaper functions.
+    
+    While eliminating one change to html/template relative to earlier
+    releases, this unfortunately introduces a different one: originally
+    values of interface type with the value nil were printed as an escaped
+    version of "<nil>". With this CL they are ignored as though they were
+    untyped nil values. My judgement is that this is a less common case.
+    We'll see.
+    
+    This CL adds some tests of typed and untyped nil values to
+    html/template and text/template to capture the current behavior.
+    
+    Updates #18716
+    Fixes #25875
+    
+    Change-Id: I5912983ca32b31ece29e929e72d503b54d7b0cac
+    Reviewed-on: https://go-review.googlesource.com/121815
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/html/template/content.go      | 13 +++++++++++--
+ src/html/template/content_test.go |  5 ++---
+ src/html/template/doc.go          |  3 +++
+ src/html/template/escape_test.go  | 21 +++++++++++++++++++--
+ src/text/template/exec_test.go    |  2 ++
+ 5 files changed, 37 insertions(+), 7 deletions(-)

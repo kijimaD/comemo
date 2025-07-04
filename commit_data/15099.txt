@@ -1,0 +1,16 @@
+commit a72f9f46a2aacb522eb5da6bea9ea9a02a1aaea8
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 2 23:17:25 2013 -0500
+
+    cmd/gc: avoid duplicate allocation during inlining
+    
+    Fixes #4667.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7275046
+
+ src/cmd/gc/gen.c            |  2 ++
+ src/cmd/gc/inl.c            |  7 ++++++-
+ test/fixedbugs/issue4667.go | 37 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+), 1 deletion(-)

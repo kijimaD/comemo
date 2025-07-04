@@ -1,0 +1,17 @@
+commit 9867262dfd9b1ba2f212c24dbf26758f81d7cd58
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 12:43:21 2022 -0800
+
+    spec: document behavior of generic type switch cases
+    
+    Fixes #51110.
+    
+    Change-Id: I11370417f1ef435b05dfab18eeabc2c3c1b7b8a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384674
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

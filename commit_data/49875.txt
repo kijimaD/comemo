@@ -1,0 +1,17 @@
+commit 57c1edcaec010874ed4a8491ca4ba3a2dda77339
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 12 16:38:56 2022 +0700
+
+    runtime: mark atomic methods which call nosplit functions as nosplit
+    
+    Fixes #54411
+    
+    Change-Id: I482ebca7365862bfb82a9daf8111c6f395aa1170
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423255
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/internal/atomic/types.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

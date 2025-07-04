@@ -1,0 +1,14 @@
+commit 5f75314e18f726bd4c19bafd95c6c5b1d0db2dc5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Sep 9 15:50:11 2013 +1000
+
+    time: allow more time for TestOverflowRuntimeTimer to succeed
+    
+    Attempting to fix windows gobuilders
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13507044
+
+ src/pkg/time/internal_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

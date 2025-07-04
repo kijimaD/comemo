@@ -1,0 +1,12 @@
+commit 29be58039577a69bfe239a8aaf2cf26d8debf566
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Thu Feb 2 11:48:22 2017 -0800
+
+    doc: add link to the setting GOPATH guide
+    
+    Change-Id: I4718c82540ef214728393824b89c8c7f6656823b
+    Reviewed-on: https://go-review.googlesource.com/36210
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/code.html | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

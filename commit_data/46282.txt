@@ -1,0 +1,31 @@
+commit 4591f49938aedbbac7a24225047984479abe72b8
+Author: Hans <hzb153@gmail.com>
+Date:   Mon Aug 2 05:43:29 2021 +0000
+
+    runtime: do not alloc never used tail bytes in fixalloc
+    
+    Currently, the '_FixAllocChunk % fixalloc.size' tail bytes
+    will never be used when allocing from persistentalloc.
+    
+    Wasted bytes on darwin/amd64:
+      _FixAllocChunk % mheap_.spanalloc.size             = 64
+      _FixAllocChunk % mheap_.cachealloc.size            = 784
+      _FixAllocChunk % mheap_.specialfinalizeralloc.size = 16
+      _FixAllocChunk % mheap_.specialprofilealloc.size   = 16
+      _FixAllocChunk % mheap_.specialReachableAlloc.size = 16
+      _FixAllocChunk % mheap_.arenaHintAlloc.size        = 16
+    
+    After this commit, fixalloc alloc '_FixAllocChunk / fixalloc.size'
+    objects exactly with zero waste. Sizeof(fixalloc{}) is unchanged.
+    
+    Change-Id: Ifc551f5b7aa9d842fa559abbe532ffcfb4d3540c
+    GitHub-Last-Rev: e08b4c66b82bc7be9d14fb7eb7580504d777481e
+    GitHub-Pull-Request: golang/go#47439
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338090
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/mfixalloc.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

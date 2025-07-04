@@ -1,0 +1,21 @@
+commit 8ff16c19909e5aecf51c6b993cba36ea51791f34
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Aug 4 19:41:19 2021 -0400
+
+    runtime: accept restartable sequence pcdata values in isAsyncSafePoint
+    
+    If the pcdata value indicates a restartable sequence, it is okay
+    to asynchronously preempt (and resume at the restart PC). Accept
+    it in isAsyncSafePoint.
+    
+    Fixes #47530.
+    
+    Change-Id: I419225717c8eee5812f3235338262da5895aad0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/340011
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/preempt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

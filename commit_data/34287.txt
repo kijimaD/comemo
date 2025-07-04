@@ -1,0 +1,22 @@
+commit 8999b1d6c9be053f0e8c07ac3516eef7dc8a1830
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Jan 28 19:46:57 2018 +0100
+
+    runtime: shorten reflect.unsafe_New call chain
+    
+    reflect.unsafe_New is an often called function according
+    to profiling in a large production environment.
+    
+    Since newobject is not inlined currently there
+    is call overhead that can be avoided by calling
+    mallocgc directly.
+    
+    name  old time/op  new time/op  delta
+    New   32.4ns ± 2%  29.8ns ± 1%  -8.03%  (p=0.000 n=19+20)
+    
+    Change-Id: I572e4be830ed8e5c0da555dc3a8864c8363112be
+    Reviewed-on: https://go-review.googlesource.com/95015
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

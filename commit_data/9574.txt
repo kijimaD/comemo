@@ -1,0 +1,17 @@
+commit 420934348d31ea1da24ccd08b8e8488c475fb50e
+Author: Mike Rosset <mike.rosset@gmail.com>
+Date:   Thu Sep 1 17:24:32 2011 +1000
+
+    sudo.bash: print error/exit if problem with /usr/local/bin
+    
+    When installing profiling tools on Mac OS X print
+    message if there is a problem with /usr/local/bin
+    
+    Fixes #2209.
+    
+    R=golang-dev, r, adg
+    CC=golang-dev, mike.rosset
+    https://golang.org/cl/4950057
+
+ src/sudo.bash | 5 +++++
+ 1 file changed, 5 insertions(+)

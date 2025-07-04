@@ -1,0 +1,12 @@
+commit ab1c164ecdaf85a30b9dfffbefdf3898a0b46e07
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 22 13:55:22 2011 +1000
+
+    container/heap/heap_test.go: remove container/vector
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4919044
+
+ src/pkg/container/heap/heap_test.go | 32 +++++++++++++++++++++++---------
+ 1 file changed, 23 insertions(+), 9 deletions(-)

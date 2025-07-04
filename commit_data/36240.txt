@@ -1,0 +1,21 @@
+commit 0cac563132d2bf38423f3e39860469dc70790aee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 8 16:54:15 2018 -0700
+
+    cmd/go: include experiments in compiler tool ID
+    
+    No test because testing this would require building a new toolchain
+    with a different experiment.
+    
+    Fixes #26883
+    
+    Change-Id: Iadd513d0920ef12463006dd2a61e94370dd13f68
+    Reviewed-on: https://go-review.googlesource.com/128735
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/buildid.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

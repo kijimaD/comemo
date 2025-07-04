@@ -1,0 +1,22 @@
+commit ed08d01dc37bba55379f4871830dc3e38c22c0c7
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Mar 11 12:17:12 2024 +0000
+
+    image: use built-in clear to simplify code
+    
+    Change-Id: Id34936a115baaf61e4268582c6d9a2027494c385
+    GitHub-Last-Rev: 5fe455b7d24e3e3b871c8999c5bb534f3e1e3ab5
+    GitHub-Pull-Request: golang/go#66244
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/image/draw/draw.go    | 4 +---
+ src/image/gif/reader.go   | 6 ++----
+ src/image/gif/writer.go   | 5 +----
+ src/image/jpeg/huffman.go | 4 +---
+ src/image/png/writer.go   | 8 +-------
+ 5 files changed, 6 insertions(+), 21 deletions(-)

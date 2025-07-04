@@ -1,0 +1,22 @@
+commit c0b860ba313e57e6f57d98d12a0174a024473e0a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 22 20:55:07 2023 +0200
+
+    runtime: remove unused _F_{GET,SET}FL constants on solaris and openbsd
+    
+    These are only needed on aix and darwin.
+    
+    Change-Id: Iea67e4631197359f2bec346ef7d7b723ca23646e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497076
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/defs1_solaris_amd64.go | 2 --
+ src/runtime/defs_openbsd_386.go    | 3 ---
+ src/runtime/defs_openbsd_amd64.go  | 3 ---
+ src/runtime/defs_openbsd_arm.go    | 3 ---
+ src/runtime/defs_openbsd_arm64.go  | 3 ---
+ 5 files changed, 14 deletions(-)

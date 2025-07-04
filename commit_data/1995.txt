@@ -1,0 +1,22 @@
+commit 54ec719391f1516a8bcbe8e5a8ac6ba2764a646d
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 12 17:01:17 2009 -0700
+
+    fix string range to have full unicode range (up to 10FFFF).
+    add test for string range.
+    
+    test has minor failure: after loop the index == len(s); should be len(s)-1
+    in this case.  according to spec, vars are left at position at last
+    iteration.
+    
+    R=ken,rsc
+    DELTA=259  (161 added, 96 deleted, 2 changed)
+    OCL=27343
+    CL=27343
+
+ src/runtime/rune.c    | 113 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime.h |   1 +
+ src/runtime/string.c  | 100 +-------------------------------------------
+ test/golden.out       |   4 ++
+ test/stringrange.go   |  47 +++++++++++++++++++++
+ 5 files changed, 167 insertions(+), 98 deletions(-)

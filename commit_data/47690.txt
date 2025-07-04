@@ -1,0 +1,16 @@
+commit ebe99189fce39be68ef4eafa29923b3a6585a262
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 3 13:39:42 2021 -0500
+
+    doc/go1.18: catch up with runtime/compiler commits and API changes
+    
+    For #47694.
+    
+    Change-Id: I21b1af1807d4da2fb2f4d9b961d44a21d715d7d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369155
+    Trust: Austin Clements <austin@google.com>
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ doc/go1.18.html | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 54 insertions(+), 4 deletions(-)

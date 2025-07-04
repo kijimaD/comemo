@@ -1,0 +1,16 @@
+commit 782feeb765b392e0a69ff35cc57c4b92cd5796ea
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Mar 23 12:23:53 2012 +1100
+
+    doc/godoc.js: fix error on IE8.
+            * implement simple getElementsByClassName for IE8.
+            * remove some lint warnings.
+    
+    Fixes #3318.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5881054
+
+ doc/godocs.js | 102 +++++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 59 insertions(+), 43 deletions(-)

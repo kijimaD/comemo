@@ -1,0 +1,22 @@
+commit b86f393167a19e9aca1c86eb259396aeae976550
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 29 21:21:15 2015 +0200
+
+    mime: tighten up and simplify tests
+    
+    Don't test so much at once.
+    
+    Fixes #10278
+    
+    Change-Id: I32a9cb81a3cffecc7ce4f83c35a4b589bcd3a9f7
+    Reviewed-on: https://go-review.googlesource.com/8213
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/type.go         |  64 ++++++++++++++-------
+ src/mime/type_plan9.go   |  34 +++++++-----
+ src/mime/type_test.go    | 142 ++++++++++++++++++++++++++++++-----------------
+ src/mime/type_unix.go    |   6 +-
+ src/mime/type_windows.go |   8 ++-
+ 5 files changed, 166 insertions(+), 88 deletions(-)

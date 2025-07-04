@@ -1,0 +1,14 @@
+commit 96acfaaefae3378dcde009a184d3f4e5795ee5cc
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 19 14:14:45 2016 -0400
+
+    cmd/go: enable -buildmode=plugin on darwin/amd64
+    
+    Change-Id: I8e594e059448879a9f451801064729186ac7c11b
+    Reviewed-on: https://go-review.googlesource.com/29395
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

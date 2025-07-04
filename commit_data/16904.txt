@@ -1,0 +1,22 @@
+commit ddc01d5b06b7a5206bd100e99ce72bc888da3b05
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 29 22:58:58 2013 +0400
+
+    runtime: fix openbsd build
+    notetsleep: nosplit stack overflow
+            120     assumed on entry to notetsleep
+            96      after notetsleep uses 24
+            88      on entry to runtime.semasleep
+            32      after runtime.semasleep uses 56
+            24      on entry to runtime.nanotime
+            -8      after runtime.nanotime uses 32
+    
+    Nanotime seems to be using only 24 bytes of stack space.
+    Unless I am missing something.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12041044
+
+ src/pkg/runtime/sys_openbsd_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

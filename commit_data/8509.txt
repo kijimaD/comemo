@@ -1,0 +1,12 @@
+commit 86327cdcf546d33afffaabbea01626a78a705868
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri May 27 09:52:15 2011 +1000
+
+    os: TestMkdirAll should not fail to delete _test/_TestMkdirAll_ on Windows
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4515142
+
+ src/pkg/os/path_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

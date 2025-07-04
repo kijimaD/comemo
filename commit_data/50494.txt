@@ -1,0 +1,19 @@
+commit e50dd0e974bdd621e48de2f64e02b4db5d12b393
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 11:34:08 2022 +0800
+
+    database: convert DB.{waitDuration,numClosed} to atomic type
+    
+    Change-Id: I4a67a5e51a98938c07b3c38442f8d852db97cb2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426085
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/sql.go | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)

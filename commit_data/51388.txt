@@ -1,0 +1,35 @@
+commit 72d2c4c635db1751f44a01ee1775fe832471b3cf
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Oct 23 19:13:04 2022 +0200
+
+    crypto/rsa: use R*R multiplication to get into the Montgomery domain
+    
+    This is faster than the current code because computing RR involves
+    one more shiftIn and using it involves an extra multiplication, but each
+    exponentiation was doing montgomeryRepresentation twice, once for x and
+    once for 1, and now they share the RR precomputation.
+    
+    More importantly, it allows precomputing the value and attaching it to
+    the private key in a future CL.
+    
+    name                    old time/op  new time/op  delta
+    DecryptPKCS1v15/2048-8  1.46ms ± 0%  1.40ms ± 7%   -3.69%  (p=0.003 n=10+9)
+    DecryptPKCS1v15/3072-8  4.23ms ± 0%  4.13ms ± 4%   -2.36%  (p=0.004 n=9+9)
+    DecryptPKCS1v15/4096-8  9.42ms ± 0%  9.08ms ± 3%   -3.69%  (p=0.000 n=9+10)
+    EncryptPKCS1v15/2048-8   221µs ± 0%   137µs ± 1%  -37.91%  (p=0.000 n=9+10)
+    DecryptOAEP/2048-8      1.46ms ± 0%  1.39ms ± 1%   -4.97%  (p=0.000 n=9+10)
+    EncryptOAEP/2048-8       221µs ± 0%   138µs ± 0%  -37.71%  (p=0.000 n=8+10)
+    SignPKCS1v15/2048-8     1.68ms ± 0%  1.53ms ± 1%   -8.85%  (p=0.000 n=9+10)
+    VerifyPKCS1v15/2048-8    220µs ± 0%   137µs ± 1%  -37.84%  (p=0.000 n=9+10)
+    SignPSS/2048-8          1.68ms ± 0%  1.52ms ± 1%   -9.16%  (p=0.000 n=8+8)
+    VerifyPSS/2048-8         234µs ±12%   138µs ± 1%  -40.87%  (p=0.000 n=10+9)
+    
+    Change-Id: I6c650bad9019765d793fd37a529ca186cf1eeef7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445019
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/rsa/nat.go | 47 ++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 34 insertions(+), 13 deletions(-)

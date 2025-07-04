@@ -1,0 +1,16 @@
+commit f4f0344fe26cca96cc6063459b48e7af61ae483b
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 13:00:01 2015 +0000
+
+    encoding/base64,xml: map/slice literals janitoring
+    
+    Simplify slice/map literal expressions.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
+    
+    Change-Id: I639cfb02b1f57dea4087863df3995889c9371529
+    Reviewed-on: https://go-review.googlesource.com/13837
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/encoding/base64/base64_test.go | 10 +++++-----
+ src/encoding/xml/marshal_test.go   |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

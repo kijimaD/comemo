@@ -1,0 +1,15 @@
+commit 59934e7ebb25c31647154a559cd2480376ee70cd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 1 14:18:03 2018 -0700
+
+    cmd/go: add -flat_namespace to LDFLAGS whitelist
+    
+    Fixes #26173
+    
+    Change-Id: I032551f63b359c8cbb7296931e1957d2bff8f328
+    Reviewed-on: https://go-review.googlesource.com/121819
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/go/internal/work/security.go | 1 +
+ 1 file changed, 1 insertion(+)

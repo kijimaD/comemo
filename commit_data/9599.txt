@@ -1,0 +1,17 @@
+commit 919cb2ec7cb06e09d0a42c2aba54625cf4d951cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 5 15:31:22 2011 -0400
+
+    gc: fix zero-length struct eval
+    
+    Fixes #2232.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4960054
+
+ src/cmd/5g/cgen.c | 11 +++++++++--
+ src/cmd/6g/cgen.c | 15 +++++++++++----
+ src/cmd/8g/cgen.c | 13 +++++++++----
+ test/struct0.go   | 34 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 63 insertions(+), 10 deletions(-)

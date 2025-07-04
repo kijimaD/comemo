@@ -1,0 +1,12 @@
+commit 6c8447d429811b5b6659836739272f4e7366cf60
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 4 13:14:09 2012 -0700
+
+    test: add bug438, a valid test case that gccgo used to fail to compile
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6196047
+
+ test/fixedbugs/bug438.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

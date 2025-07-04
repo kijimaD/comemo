@@ -1,0 +1,18 @@
+commit 14e8885c3237eae03b125316cccea3973264f8d0
+Author: Percy Wegmann <ox.to.a.cart@gmail.com>
+Date:   Wed Aug 6 11:22:00 2014 -0700
+
+    crypto/tls: Added dynamic alternative to NameToCertificate map for SNI
+    
+    Revised version of https://golang.org/cl/81260045/
+    
+    LGTM=agl
+    R=golang-codereviews, gobot, agl, ox
+    CC=golang-codereviews
+    https://golang.org/cl/107400043
+
+ src/pkg/crypto/tls/common.go                | 57 +++++++++++++++++----
+ src/pkg/crypto/tls/conn_test.go             | 22 ++++++--
+ src/pkg/crypto/tls/handshake_server.go      | 11 +++-
+ src/pkg/crypto/tls/handshake_server_test.go | 78 ++++++++++++++++++++++++++---
+ 4 files changed, 147 insertions(+), 21 deletions(-)

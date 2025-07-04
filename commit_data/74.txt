@@ -1,0 +1,10 @@
+commit b6b8da823dacb3a6e0a63e100052e88469e39dc8
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 8 20:58:15 2008 -0700
+
+    fix up the 'basic types' section. strings were missing
+    
+    SVN=118198
+
+ doc/go_lang.txt | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)

@@ -1,0 +1,16 @@
+commit 91afca94e07aa1366afba9ece04c2def9f99d4c4
+Author: closs <the.cody.oss@gmail.com>
+Date:   Sat Jul 15 16:07:30 2017 -0600
+
+    ast: make ExampleCommentMap a runnable example
+    
+    Fixes #20450
+    
+    Change-Id: I2256282a8880e99508e98fefedfb94a7cccacbcf
+    Reviewed-on: https://go-review.googlesource.com/48969
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/go/ast/example_test.go | 23 +++++++++--------------
+ 1 file changed, 9 insertions(+), 14 deletions(-)

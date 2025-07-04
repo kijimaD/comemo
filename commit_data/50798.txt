@@ -1,0 +1,23 @@
+commit 7d3a5a501c9f30ff6db3016dbfffcb70dacb9f55
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Mon Oct 3 13:15:12 2022 +0000
+
+    runtime/cgo: let darwin pthread stacksize follow rlimit
+    
+    On Mac OS X, the default stack size for non-main threads created by cgo is
+    fixed at 512KB and cannot be altered by setrlimit. This stack size is too
+    small for some recursive scenarios. We can solve this problem by explicitly
+    copying the stack size of the main thread when creating a new thread.
+    
+    Change-Id: I400d5b2e929a1ee261502914a991e208759f64a8
+    GitHub-Last-Rev: b29c74599ea1cce4683d25e1ac8a70ffd9b86381
+    GitHub-Pull-Request: golang/go#53667
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415915
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/cgo/gcc_darwin_amd64.c | 10 ++++------
+ src/runtime/cgo/gcc_darwin_arm64.c | 10 ++++------
+ 2 files changed, 8 insertions(+), 12 deletions(-)

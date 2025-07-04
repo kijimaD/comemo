@@ -1,0 +1,22 @@
+commit 9c384cc570fa964cea1fecc061b17d6858cbcc0d
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Sep 14 20:58:30 2019 +0530
+
+    cmd/compile: optimize ssa if blocks for wasm architecture
+    
+    Check for the next block and accordingly place the successor blocks.
+    This saves an additional jump instruction if the next block is any one
+    of the successor blocks.
+    
+    While at it, inline the logic of goToBlock.
+    
+    Reduces the size of pkg/js_wasm by 264 bytes.
+    
+    Change-Id: I671ac4322e6edcb0d7e590dcca27e074268068d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195204
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/cmd/compile/internal/wasm/ssa.go | 45 +++++++++++++++++++++++-------------
+ 1 file changed, 29 insertions(+), 16 deletions(-)

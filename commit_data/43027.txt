@@ -1,0 +1,18 @@
+commit 0dc369b127651830edef453938dfb5c149aa37cf
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 16 15:42:00 2020 +0700
+
+    cmd/compile: make typecheck set correct untyped type
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ie631d8dacb1cc76613e1f50da8422850ac7119a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255217
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go     | 122 +++++++++++--------------------
+ src/cmd/compile/internal/gc/typecheck.go |  19 ++++-
+ 2 files changed, 60 insertions(+), 81 deletions(-)

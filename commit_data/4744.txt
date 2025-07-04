@@ -1,0 +1,34 @@
+commit 68796b0270e270c034cd99bfbaacaced5d77a363
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 00:25:59 2010 -0800
+
+    gc: add ... T, rework plain ...
+    
+    No longer a distinct type; now a property of func types.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/197042
+
+ src/cmd/5g/gsubr.c             |   1 -
+ src/cmd/6g/gsubr.c             |   1 -
+ src/cmd/8g/gsubr.c             |   1 -
+ src/cmd/gc/align.c             |   3 --
+ src/cmd/gc/dcl.c               |  15 +++++-
+ src/cmd/gc/go.h                |  15 +++---
+ src/cmd/gc/go.y                |  49 +++++++++++++------
+ src/cmd/gc/print.c             |  17 +++++--
+ src/cmd/gc/reflect.c           |  14 +++---
+ src/cmd/gc/subr.c              |  59 ++++++++++++-----------
+ src/cmd/gc/typecheck.c         |  35 +++++++++-----
+ src/cmd/gc/walk.c              |  35 ++++++++++++--
+ src/pkg/exp/datafmt/datafmt.go |   2 -
+ src/pkg/exp/eval/bridge.go     |  11 ++---
+ src/pkg/reflect/type.go        |  26 ++++++----
+ src/pkg/runtime/type.go        |  10 ++--
+ src/pkg/runtime/type.h         |   2 -
+ test/ddd.go                    | 105 +++++++++++++++++++++++++++++++++++++++++
+ test/ddd1.go                   |  28 +++++++++++
+ test/ddd2.go                   |  16 +++++++
+ test/ddd3.go                   |  24 ++++++++++
+ 21 files changed, 360 insertions(+), 109 deletions(-)

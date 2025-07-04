@@ -1,0 +1,17 @@
+commit e2560ace3cbd3b6816d414bd6011c8111ca5aa1f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 25 17:55:12 2017 -0700
+
+    cmd/compile: move Node.Initorder to flags
+    
+    Grand savings: 6 bits.
+    
+    Change-Id: I364be54cc41534689e01672ed0fe2c10a560d3d4
+    Reviewed-on: https://go-review.googlesource.com/41794
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go  | 18 +++++++++---------
+ src/cmd/compile/internal/gc/syntax.go | 13 ++++++++-----
+ 2 files changed, 17 insertions(+), 14 deletions(-)

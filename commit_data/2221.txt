@@ -1,0 +1,22 @@
+commit 66f5e89082ce981b9c025dfa1f2421ec525ecf73
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 14:11:24 2009 -0700
+
+    os: MkdirAll, RemoveAll, Chmod, Chown, Truncate, Getgroups.
+    
+    Getuid, etc drop their errors -- they cannot error
+    
+    R=r
+    DELTA=605  (547 added, 12 deleted, 46 changed)
+    OCL=28919
+    CL=28929
+
+ src/lib/os/Makefile            |   5 +-
+ src/lib/os/file.go             |  60 ++++++++++++++--
+ src/lib/os/os_test.go          | 123 +++++++++++++++++++++++++++++++++
+ src/lib/os/path.go             | 121 ++++++++++++++++++++++++++++++++
+ src/lib/os/path_test.go        | 152 +++++++++++++++++++++++++++++++++++++++++
+ src/lib/os/user.go             |  61 ++++++++++-------
+ src/lib/syscall/file_darwin.go |  91 +++++++++++++++++-------
+ src/lib/syscall/file_linux.go  |  40 +++++++++++
+ 8 files changed, 595 insertions(+), 58 deletions(-)

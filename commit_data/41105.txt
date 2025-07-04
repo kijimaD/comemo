@@ -1,0 +1,22 @@
+commit 5d0075156a01a8c9973188dc06b78aadabeb69da
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 9 15:26:01 2020 -0800
+
+    runtime: add tests for checkptr
+    
+    We had a few test cases to make sure checkptr didn't have certain
+    false positives, but none to test for any true positives. This CL
+    fixes that.
+    
+    Updates #22218.
+    
+    Change-Id: I24c02e469a4af43b1748829a9df325ce510f7cc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214238
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/checkptr_test.go              | 46 +++++++++++++++++++++++++++++++
+ src/runtime/testdata/testprog/checkptr.go | 36 ++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+)

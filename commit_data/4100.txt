@@ -1,0 +1,11 @@
+commit 26b55e44d9bc1d34a6a7659b6bc6ac4f1e63588e
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 17 14:11:50 2009 -0800
+
+    fix botch
+    
+    R=rsc
+    https://golang.org/cl/157046
+
+ src/cmd/6l/asm.c | 1270 ------------------------------------------------------
+ 1 file changed, 1270 deletions(-)

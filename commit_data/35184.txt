@@ -1,0 +1,46 @@
+commit e0d37a33ab6260f5acc68dbb9a02c3135d19bcbb
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 16:52:49 2018 +0200
+
+    cmd/compile: teach prove to handle expressions like len(s)-delta
+    
+    When a loop has bound len(s)-delta, findIndVar detected it and
+    returned len(s) as (conservative) upper bound. This little lie
+    allowed loopbce to drop bound checks.
+    
+    It is obviously more generic to teach prove about relations like
+    x+d<w for non-constant "w"; we already handled the case for
+    constant "w", so we just want to learn that if d<0, then x+d<w
+    proves that x<w.
+    
+    To be able to remove the code from findIndVar, we also need
+    to teach prove that len() and cap() are always non-negative.
+    
+    This CL allows to prove 633 more checks in cmd+std. Most
+    of them are cases where the code was already testing before
+    accessing a slice but the compiler didn't know it. For instance,
+    take strings.HasSuffix:
+    
+        func HasSuffix(s, suffix string) bool {
+            return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+        }
+    
+    When suffix is a literal string, the compiler now understands
+    that the explicit check is enough to not emit a slice check.
+    
+    I also found a loopbce test that was incorrectly
+    written to detect an overflow but had a off-by-one (on the
+    conservative side), so it unexpectly passed with this CL; I
+    changed it to really trigger the overflow as intended.
+    
+    Change-Id: Ib5abade337db46b8811425afebad4719b6e46c4a
+    Reviewed-on: https://go-review.googlesource.com/105635
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/loopbce.go |   7 --
+ src/cmd/compile/internal/ssa/prove.go   | 145 +++++++++++++++++++-------------
+ test/loopbce.go                         |  25 +++++-
+ test/prove.go                           |  39 ++++++++-
+ 4 files changed, 147 insertions(+), 69 deletions(-)

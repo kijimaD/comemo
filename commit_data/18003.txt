@@ -1,0 +1,18 @@
+commit 20dee338c322bb3beb805f837ab780f98cfe8d59
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Dec 16 12:00:23 2013 -0800
+
+    net: lookup protocol in lower-case on Plan 9
+    
+    Protocol keywords are case-insensitive,
+    but the Ndb database is case-sensitive.
+    
+    Also use the generic net protocol instead
+    of tcp in lookupHost.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/40600047
+
+ src/pkg/net/lookup_plan9.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

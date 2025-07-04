@@ -1,0 +1,12 @@
+commit 15b1e4fb94a23c17c594b5e77b3bd81eed880dee
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Wed Jun 7 21:11:30 2017 -0700
+
+    doc: add net/http changes to go1.9.html
+    
+    Change-Id: Ib59e1eea64b0bd2cf8ed778607aafcf74a6239a3
+    Reviewed-on: https://go-review.googlesource.com/45087
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 38 ++++++++++++++++++++++++++++----------
+ 1 file changed, 28 insertions(+), 10 deletions(-)

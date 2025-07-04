@@ -1,0 +1,17 @@
+commit 81acd308a4577af3f0c3e191b16e125c5d10bbf4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 16 14:15:23 2017 -0800
+
+    math/bits: expand doc strings for all functions
+    
+    Follow-up on https://go-review.googlesource.com/36315.
+    No functionality change.
+    
+    For #18616.
+    
+    Change-Id: Id4df34dd7d0381be06eea483a11bf92f4a01f604
+    Reviewed-on: https://go-review.googlesource.com/37140
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/math/bits/bits.go | 136 +++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 101 insertions(+), 35 deletions(-)

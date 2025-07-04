@@ -1,0 +1,17 @@
+commit 0ab71cc065c0ce70d7df8bf498723b5a1c7a89c1
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Wed May 25 22:34:37 2022 +0900
+
+    doc/go1.19: fix reflect pkg link and "a" section
+    
+    Change-Id: Ica05b2b699d8f6383c713460a473ccf753bc78c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408494
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.19.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

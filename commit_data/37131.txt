@@ -1,0 +1,20 @@
+commit 7ec3b5e81f6549213df3ed2113a3e057ae9c5157
+Author: Ian Gudger <igudger@google.com>
+Date:   Fri Oct 26 16:43:13 2018 -0700
+
+    net: remove TODO for DNS cache
+    
+    The proposal to add a DNS cache was rejected, so there is no longer a
+    need for the associated TODO.
+    
+    Updates #24796
+    
+    Change-Id: Ifcedcff72c75a70b2143de0bd3f7bf85ac3528f6
+    Reviewed-on: https://go-review.googlesource.com/c/145197
+    Run-TryBot: Ian Gudger <igudger@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix.go | 1 -
+ 1 file changed, 1 deletion(-)

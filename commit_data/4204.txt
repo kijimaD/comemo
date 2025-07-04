@@ -1,0 +1,13 @@
+commit 43ffcdcbc38394cefbcc7dfda6b761849f04fe29
+Author: Michael Elkins <michael.elkins@gmail.com>
+Date:   Tue Nov 24 11:29:51 2009 -0800
+
+    Adding myself to AUTHORS/CONTRIBUTORS as a result of https://golang.org/cl/156079
+    
+    R=golang-dev, rsc
+    CC=r
+    https://golang.org/cl/157072
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,13 @@
+commit bfd3c223f944fbf1bd22fa75f96a0cd1a14066af
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 21 10:35:27 2014 +0400
+
+    net: fix data race in test
+    Fixes #7157.
+    
+    R=alex.brainman, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/54880043
+
+ src/pkg/net/net_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

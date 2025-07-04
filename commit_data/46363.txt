@@ -1,0 +1,29 @@
+commit 37c9552e065fb4331d8cba84c12392806f1ecbbe
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Sep 3 13:33:37 2021 -0400
+
+    cmd/go: improve the creation and editing of go.work files
+    
+    This change changes go.work files so that directory paths are clearly
+    distinguished from module paths by either being rooted absolute paths or
+    starting with '.' or '..' path elements if they are relative paths.
+    go mod initwork now checks that the go.work file doesn't already exist
+    before creating it, and gomod initwork and gomod editwork look up the
+    module path corresponding to a directory and write it to the directory
+    directive's comment.
+    
+    For #45713
+    
+    Change-Id: I6983779059b7de6fc83d359280ceffb263f6b641
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347591
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modcmd/editwork.go   | 11 +++++++--
+ src/cmd/go/internal/modload/init.go      | 39 +++++++++++--------------------
+ src/cmd/go/internal/modload/modfile.go   | 40 ++++++++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/work.txt      |  3 +++
+ src/cmd/go/testdata/script/work_edit.txt | 30 +++++++++++++-----------
+ 5 files changed, 83 insertions(+), 40 deletions(-)

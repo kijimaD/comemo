@@ -1,0 +1,16 @@
+commit beca0e124d113fa004b8f559c725c704bab2a89a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 10 17:26:03 2013 -0700
+
+    doc/effective_go.html: fix a couple of cosmetic issues
+    At the moment, godoc expands the example in the link, but in
+    the past it has not. Add a waffle word to allow either possibility.
+    Also change the order of cases in the switch in Compare to
+    be consistent with the other switch in the function.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/14439055
+
+ doc/effective_go.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

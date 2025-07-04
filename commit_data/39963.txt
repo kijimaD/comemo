@@ -1,0 +1,15 @@
+commit 110bbc49666215e66155cafd80c5b6493a7707a9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 18 09:25:28 2019 -0700
+
+    go/types: move Identical* predicates into api.go file (cleanup)
+    
+    Follow-up CL removing a TODO.
+    
+    Change-Id: If900d2f999f6a3e2f2ead29283375547e03cac86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196337
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api.go        | 12 ++++++++++++
+ src/go/types/predicates.go | 19 ++-----------------
+ 2 files changed, 14 insertions(+), 17 deletions(-)

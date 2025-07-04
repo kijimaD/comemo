@@ -1,0 +1,46 @@
+commit 3058b1f5382ce645fc22fc09127213feb3032a20
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 10 14:13:06 2017 -0500
+
+    encoding/gob: parallelize Encode/Decode benchmarks
+    
+    Results remain comparable with the non-parallel version with -cpu=1:
+    
+    benchmark                              old ns/op     new ns/op     delta
+    BenchmarkEndToEndPipe                  6200          6171          -0.47%
+    BenchmarkEndToEndPipe-6                1073          1024          -4.57%
+    BenchmarkEndToEndByteBuffer            2925          2664          -8.92%
+    BenchmarkEndToEndByteBuffer-6          516           560           +8.53%
+    BenchmarkEndToEndSliceByteBuffer       231683        237450        +2.49%
+    BenchmarkEndToEndSliceByteBuffer-6     59080         59452         +0.63%
+    BenchmarkEncodeComplex128Slice         67541         66003         -2.28%
+    BenchmarkEncodeComplex128Slice-6       72740         11316         -84.44%
+    BenchmarkEncodeFloat64Slice            25769         27899         +8.27%
+    BenchmarkEncodeFloat64Slice-6          26655         4557          -82.90%
+    BenchmarkEncodeInt32Slice              18685         18845         +0.86%
+    BenchmarkEncodeInt32Slice-6            18389         3462          -81.17%
+    BenchmarkEncodeStringSlice             19089         19354         +1.39%
+    BenchmarkEncodeStringSlice-6           20155         3237          -83.94%
+    BenchmarkEncodeInterfaceSlice          659601        677129        +2.66%
+    BenchmarkEncodeInterfaceSlice-6        640974        251621        -60.74%
+    BenchmarkDecodeComplex128Slice         117130        129955        +10.95%
+    BenchmarkDecodeComplex128Slice-6       155447        24924         -83.97%
+    BenchmarkDecodeFloat64Slice            67695         68776         +1.60%
+    BenchmarkDecodeFloat64Slice-6          82966         15225         -81.65%
+    BenchmarkDecodeInt32Slice              63102         62733         -0.58%
+    BenchmarkDecodeInt32Slice-6            77857         13003         -83.30%
+    BenchmarkDecodeStringSlice             130240        129562        -0.52%
+    BenchmarkDecodeStringSlice-6           165500        31507         -80.96%
+    BenchmarkDecodeInterfaceSlice          937637        1060835       +13.14%
+    BenchmarkDecodeInterfaceSlice-6        973495        270613        -72.20%
+    
+    updates #18177
+    
+    Change-Id: Ib3579010faa70827d5cbd02a826dbbb66ca13eb7
+    Reviewed-on: https://go-review.googlesource.com/36722
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/gob/timing_test.go | 185 ++++++++++++----------------------------
+ 1 file changed, 54 insertions(+), 131 deletions(-)

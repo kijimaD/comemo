@@ -1,0 +1,14 @@
+commit 27010467984dcef481e5b05113a6fbcf74b4df45
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Aug 20 21:21:09 2012 +0800
+
+    doc/install: we only need command line tools for Xcode on OS X
+         Fixes #3973.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6464078
+
+ doc/install-source.html | 10 ++++++++--
+ doc/install.html        |  9 +++++++--
+ 2 files changed, 15 insertions(+), 4 deletions(-)

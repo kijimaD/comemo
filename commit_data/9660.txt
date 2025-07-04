@@ -1,0 +1,55 @@
+commit 0432a23c68fa0a7383c046820f4dc366c0ffef02
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Mon Sep 12 16:37:03 2011 -0700
+
+    exp/template/html: tolerate '/' ambiguity in JS when it doesn't matter.
+    
+    Often, division/regexp ambiguity doesn't matter in JS because the next
+    token is not a slash.
+    
+    For example, in
+    
+      <script>var global{{if .InitVal}} = {{.InitVal}}{{end}}</script>
+    
+    When there is an initial value, the {{if}} ends with jsCtxDivOp
+    since a '/' following {{.InitVal}} would be a division operator.
+    When there is none, the empty {{else}} branch ends with jsCtxRegexp
+    since a '/' would start a regular expression.  A '/' could result
+    in a valid program if it were on a new line to allow semicolon
+    insertion to terminate the VarDeclaration.
+    
+    There is no '/' though, so we can ignore the ambiguity.
+    
+    There are cases where a missing semi can result in ambiguity that
+    we should report.
+    
+      <script>
+      {{if .X}}var x = {{.X}}{{end}}
+      /...{{.Y}}
+      </script>
+    
+    where ... could be /foo/.test(bar) or /divisor.  Disambiguating in
+    this case is hard and is required to sanitize {{.Y}}.
+    
+    Note, that in the case where there is a '/' in the script tail but it
+    is not followed by any interpolation, we already don't care.  So we
+    are already tolerant of
+    
+    <script>{{if .X}}var x = {{.X}}{{end}}/a-bunch-of-text</script>
+    
+    because tJS checks for </script> before looking in /a-bunch-of-text.
+    
+    This CL
+    - Adds a jsCtx value: jsCtxUnknown
+    - Changes joinContext to join contexts that only differ by jsCtx.
+    - Changes tJS to return an error when a '/' is seen in jsCtxUnknown.
+    - Adds tests for both the happy and sad cases.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4956077
+
+ src/pkg/exp/template/html/context.go     |  4 ++++
+ src/pkg/exp/template/html/escape.go      | 15 ++++++++++++++-
+ src/pkg/exp/template/html/escape_test.go | 16 ++++++++++++++++
+ 3 files changed, 34 insertions(+), 1 deletion(-)

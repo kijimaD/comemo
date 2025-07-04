@@ -1,0 +1,24 @@
+commit 1ef3a77e182b322eaaaf767eb176a093f5f68282
+Author: Patrick Pelletier <pp.pelletier@gmail.com>
+Date:   Wed Jan 25 22:09:26 2017 -0800
+
+    mime/multipart: allow boundary len <= 70
+    
+    As per RFC 2046, the boundary for multipart MIME is allowed up to 70
+    characters. The old SetBoundary implementation only allowed up to 69 so
+    this bumps it to the correct value of 70.
+    
+    The relevant RFC is at https://www.ietf.org/rfc/rfc2046.txt and section
+    5.1.1 defines the boundary specification.
+    
+    Fixes #18793
+    
+    Change-Id: I91d2ed4549c3d27d6049cb473bac680a750fb520
+    Reviewed-on: https://go-review.googlesource.com/35830
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/multipart/writer.go      | 4 ++--
+ src/mime/multipart/writer_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

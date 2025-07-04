@@ -1,0 +1,12 @@
+commit 4a61dbce4c7d0f2d29b463ed2b53b12d7556304b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 21 23:22:14 2010 +0100
+
+    release.2010-06-21 tag
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1684046
+
+ .hgtags | 2 ++
+ 1 file changed, 2 insertions(+)

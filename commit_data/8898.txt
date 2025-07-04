@@ -1,0 +1,17 @@
+commit 83550f0728fa8e2d4be1dd1d2b17a7cedb726c8f
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Wed Jun 29 16:44:47 2011 +1000
+
+    gofix: fixes for os/signal changes
+    
+    Fixes #1971.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4630056
+
+ src/cmd/gofix/Makefile       |   1 +
+ src/cmd/gofix/fix.go         | 159 +++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/gofix/signal.go      |  49 +++++++++++++
+ src/cmd/gofix/signal_test.go |  96 ++++++++++++++++++++++++++
+ 4 files changed, 301 insertions(+), 4 deletions(-)

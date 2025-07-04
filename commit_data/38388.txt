@@ -1,0 +1,29 @@
+commit 4ba69a9a17d643e2e18acebac7b176746564b897
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Fri Jan 11 17:16:28 2019 -0200
+
+    cmd/compile: add processor level selection support to ppc64{,le}
+    
+    ppc64{,le} processor level selection allows the compiler to generate instructions
+    targeting newer processors and processor-specific optimizations without breaking
+    compatibility with our current baseline. This feature introduces a new environment
+    variable, GOPPC64.
+    
+    GOPPC64 is a GOARCH=ppc64{,le} specific option, for a choice between different
+    processor levels (i.e. Instruction Set Architecture versions) for which the
+    compiler will target. The default is 'power8'.
+    
+    Change-Id: Ic152e283ae1c47084ece4346fa002a3eabb3bb9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163758
+    Run-TryBot: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ doc/install-source.html           | 11 +++++++++++
+ src/cmd/dist/build.go             | 11 +++++++++++
+ src/cmd/dist/buildruntime.go      |  2 ++
+ src/cmd/go/internal/cfg/cfg.go    |  1 +
+ src/cmd/go/internal/envcmd/env.go |  2 ++
+ src/cmd/internal/objabi/util.go   | 12 ++++++++++++
+ test/run.go                       |  4 ++--
+ 7 files changed, 41 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit bfdeb57cc31d5db0501e4d364b74088f5c0e60b1
+Author: Mihai Borobocea <MihaiBorobocea@gmail.com>
+Date:   Tue Jul 29 16:46:53 2014 -0700
+
+    fmt: measure width in runes not bytes with %c and %q for ints
+    
+    This is meant to share my progress on Issue 8275, if it's useful to you. I'm not familiar with the formatter's internals, so this change is likely naive.
+    
+    Change these calls to measure width in runes not bytes:
+    fmt.Printf("(%5q)\n", '§')
+    fmt.Printf("(%3c)\n", '§')
+    
+     Fixes #8275.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/104320043
+
+ src/pkg/fmt/fmt_test.go | 2 ++
+ src/pkg/fmt/format.go   | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

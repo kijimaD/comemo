@@ -1,0 +1,26 @@
+commit 2711127974b4785dd52bd2fb2ec18275f2634ef4
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu May 28 13:58:45 2020 +0200
+
+    syscall: avoid dup2 in forkAndExecInChild1 on Android
+    
+    Android O and newer blocks the dup2 syscall.
+    
+    Change-Id: Ibca01fc72ef114deeef6c0450a8b81a556ed0530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235537
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_dup2_linux.go    | 10 ++++++++++
+ src/syscall/syscall_dup3_linux.go    |  9 +++++++++
+ src/syscall/syscall_linux_386.go     |  5 +----
+ src/syscall/syscall_linux_amd64.go   |  5 +----
+ src/syscall/syscall_linux_arm.go     |  5 +----
+ src/syscall/syscall_linux_arm64.go   |  5 +----
+ src/syscall/syscall_linux_mips64x.go |  5 +----
+ src/syscall/syscall_linux_mipsx.go   |  5 +----
+ src/syscall/syscall_linux_ppc64x.go  |  5 +----
+ src/syscall/syscall_linux_riscv64.go |  5 +----
+ src/syscall/syscall_linux_s390x.go   |  5 +----
+ 11 files changed, 28 insertions(+), 36 deletions(-)

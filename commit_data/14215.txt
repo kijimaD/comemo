@@ -1,0 +1,19 @@
+commit b575e3ca99501448cf6bed6e82a83f9a99d938d8
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Oct 25 13:02:31 2012 +0200
+
+    exp/locale/collate: slightly changed collation elements:
+    - Allow secondary values below the default value in second form. This is
+      to support before tags for secondary values, as used by Chinese.
+    - Eliminate collation elements that are guaranteed to be immaterial
+      after a weight increment.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6739051
+
+ src/pkg/exp/locale/collate/build/colelem.go      | 36 +++++++++++++++---------
+ src/pkg/exp/locale/collate/build/colelem_test.go | 24 ++++++++++------
+ src/pkg/exp/locale/collate/colelem.go            |  2 +-
+ src/pkg/exp/locale/collate/colelem_test.go       |  2 +-
+ 4 files changed, 40 insertions(+), 24 deletions(-)

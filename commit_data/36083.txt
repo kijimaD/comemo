@@ -1,0 +1,12 @@
+commit 95c3348344de688bbb9aba5474a612442e7d36ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 13:30:33 2018 -0400
+
+    cmd/go: generate alldocs.go
+    
+    Change-Id: I5a82aec66332f52e304f647758221b5f30b4e2b6
+    Reviewed-on: https://go-review.googlesource.com/124701
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go | 842 +++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 791 insertions(+), 51 deletions(-)

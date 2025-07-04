@@ -1,0 +1,17 @@
+commit f1f0eda44663110fe1857780f080af0f8eea6ed9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 10:44:23 2015 -0400
+
+    cmd/compile: remove use of Node.Nname in initplan
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 168
+    $
+    
+    Change-Id: Ie7e2cee8cec101560bd5dd013b23969278f89b12
+    Reviewed-on: https://go-review.googlesource.com/10536
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/sinit.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

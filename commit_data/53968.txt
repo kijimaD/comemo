@@ -1,0 +1,19 @@
+commit 6eb31c1a00327fb1c757d78519f8dcc9ace6ceaf
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jul 31 15:26:26 2023 -0400
+
+    cmd/compile/internal/inline: refactor inline budget computation
+    
+    Split out the code that computes the initial inline "hairyness" budget
+    for a function so that it can be reused (in a later patch). This is a
+    pure refactoring; no change in compiler functionality.
+    
+    Change-Id: I9b1b7b10a7c480559b837492b10eb08771b7a145
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514795
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go | 34 ++++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 12 deletions(-)

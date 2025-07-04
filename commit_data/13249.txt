@@ -1,0 +1,16 @@
+commit 65e61d5770c7cbabe86e8159eb922e207942dde0
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sat Jun 2 14:02:44 2012 -0400
+
+    runtime: add (unused for now) gc field to type information
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6255074
+
+ src/cmd/gc/reflect.c    | 21 ++++++++++++---------
+ src/cmd/ld/dwarf.c      |  2 +-
+ src/pkg/reflect/type.go |  1 +
+ src/pkg/runtime/type.go |  3 ++-
+ src/pkg/runtime/type.h  |  1 +
+ 5 files changed, 17 insertions(+), 11 deletions(-)

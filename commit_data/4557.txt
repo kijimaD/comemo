@@ -1,0 +1,14 @@
+commit 1594730461e95e51624e16b74c07ca46bc243ba5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 18:23:30 2010 -0800
+
+    codereview: repeated hg mail sends "PTAL"
+    
+    also send out hg mail for TBR submits
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/183137
+
+ lib/codereview/codereview.py | 38 +++++++++++++++++++++++++++++---------
+ 1 file changed, 29 insertions(+), 9 deletions(-)

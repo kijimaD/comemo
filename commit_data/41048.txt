@@ -1,0 +1,24 @@
+commit 2ee2c6232c3cb7e2927b964701a81c1591c410db
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Dec 30 11:26:17 2019 -0500
+
+    runtime: don't use R11 in nanotime1/walltime1 on ARM
+    
+    R11 a.k.a. REGTMP is the temp register used by the assembler. It
+    may be clobbered if the assembler needs to synthesize
+    instructions. In particular, in nanotime1/walltime1, the load of
+    global variable runtime.iscgo clobbers it. So, avoid using R11
+    to hold a long-lived value.
+    
+    Fixes #36309.
+    
+    Change-Id: Iec2ab9d664532cad8fbf58da17f580e64a744f62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212641
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Andrew G. Morgan <agm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_linux_arm.s | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

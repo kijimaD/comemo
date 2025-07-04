@@ -1,0 +1,12 @@
+commit 9ef9765c168c8561b98dc41c25eb8ae83abfcd7a
+Author: Suriyaa Sundararuban <suriyaasundararuban@gmail.com>
+Date:   Tue Jun 12 09:40:24 2018 +0000
+
+    .github: use HTTPS for Stack Overflow link in SUPPORT.md
+    
+    Change-Id: I4e339b7c359a7cdb0933f7624ce190086c9c3599
+    Reviewed-on: https://go-review.googlesource.com/118155
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ .github/SUPPORT.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

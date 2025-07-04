@@ -1,0 +1,19 @@
+commit 72013c47009d99c5ded7407bf80d90bd8ba95d3e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 25 11:59:17 2023 +0000
+
+    encoding/gob: reuse calls to TypeOf for wireType
+    
+    After the previous commit, both calls use the non-pointer type,
+    so we can deduplicate. No noticeable difference in init cost.
+    
+    Change-Id: I0f0fb91d42655787cb58b4442ad3da4194560af4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479399
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/gob/type.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

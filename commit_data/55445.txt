@@ -1,0 +1,25 @@
+commit 93f0c0b25e7ea8ae7c2d5df32c6083cfabf2ffc2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 25 17:13:11 2024 +0000
+
+    internal/testenv: allow "-noopt" anywhere in builder name in test
+    
+    testenv's TestHasGoBuild test is supposed to allow noopt builders to not
+    have go build, but the pattern match is failing on the LUCI builders
+    where a test shard might have an additional "-test_only" suffix in the
+    builder name. Furthermore, in the LUCI world, "run mods" (the builder
+    type suffixes) are supposed to be well-defined and composable, so it
+    doesn't make sense to restrict "-noopt" to the builder suffix anyway.
+    
+    This change modifies the test to allow "-noopt" to appear anywhere in
+    the builder name when checking if it's running on a noopt builder.
+    
+    Change-Id: I393818e3e8e452c7b0927cbc65726d552aa8ff8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558596
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/testenv/testenv_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

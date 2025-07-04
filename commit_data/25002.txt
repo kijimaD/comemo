@@ -1,0 +1,20 @@
+commit 52f111fb34a4f57404db53af4d89d4a25fcb114e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 18 17:50:21 2015 -0800
+
+    cmd/compile: print regular error message in BOM corner-case
+    
+    This never happens but for pathological input where a BOM sequence
+    is unfinished and ends in EOF (src: "package p\n\nfunc \xef\xef").
+    No test case added because the /test framework doesn't lend itself
+    easily to it in this case (file must end in EOF rather than comment).
+    Instead, tested manually.
+    
+    Fixes #13268.
+    
+    Change-Id: I049034e6dde7ad884b0a8c329921adac1866ff18
+    Reviewed-on: https://go-review.googlesource.com/17047
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

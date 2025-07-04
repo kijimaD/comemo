@@ -1,0 +1,18 @@
+commit f72ea8eb7624a15bc211bb5189169090013b2911
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Oct 14 21:47:08 2009 -0700
+
+    LDREX and STREX
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=30  (30 added, 0 deleted, 0 changed)
+    OCL=35751
+    CL=35756
+
+ src/cmd/5a/lex.c   |  3 +++
+ src/cmd/5l/5.out.h |  3 +++
+ src/cmd/5l/asm.c   | 19 +++++++++++++++++++
+ src/cmd/5l/optab.c |  2 ++
+ src/cmd/5l/span.c  |  3 +++
+ 5 files changed, 30 insertions(+)

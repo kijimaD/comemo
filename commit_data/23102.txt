@@ -1,0 +1,23 @@
+commit 719efc70eb84b74a93d236f7c7ddca9901f65436
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 20 11:50:48 2015 -0400
+
+    runtime: make runtime.callers walk calling G, not g0
+    
+    Currently runtime.callers invokes gentraceback with the pc and sp of
+    the G it is called from, but always passes g0 even if it was called
+    from a regular g. Right now this has no ill effects because
+    runtime.callers does not use either callback argument or the
+    _TraceJumpStack flag, but it makes the code fragile and will break
+    some upcoming changes.
+    
+    Fix this by lifting the getg() call outside of the systemstack in
+    runtime.callers.
+    
+    Change-Id: I4e1e927961c0e0cd4dcf28693be47df7bae9e122
+    Reviewed-on: https://go-review.googlesource.com/10292
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/traceback.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

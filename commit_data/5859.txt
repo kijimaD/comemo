@@ -1,0 +1,12 @@
+commit 8975d36412b0587d3c665681ce65cf7705d40a98
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Jul 21 15:59:11 2010 +0300
+
+    arm: fic build3, disable flaky 64 bit test
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1888041
+
+ test/arm-pass.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

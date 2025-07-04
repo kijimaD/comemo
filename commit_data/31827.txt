@@ -1,0 +1,24 @@
+commit 8c4bec8fb7fb4f2ad1eb7ed027fac466244b0f4d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 13 17:08:02 2017 +0000
+
+    net/http: update bundled http2
+    
+    Update x/net/http2 to git rev 6b17b9baf5 for:
+    
+       http2: stop rejecting outgoing paths beginning with two slashes
+       https://golang.org/cl/45773
+    
+    This also uses an updated version of x/tools/cmd/bundle (CL 45190)
+    that fixes an edge case where it used to drop some comments.
+    
+    Updates #20627
+    Fixes #19103
+    
+    Change-Id: I450d61485e66098f4f8a79954f729f7bcd85856f
+    Reviewed-on: https://go-review.googlesource.com/45700
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/net/http/h2_bundle.go | 26 +++++++++++++++++++-------
+ 1 file changed, 19 insertions(+), 7 deletions(-)

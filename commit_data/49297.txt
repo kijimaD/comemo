@@ -1,0 +1,35 @@
+commit c6ef69e7d7f79f6fc72e51aa7b1ff3c7373b7b53
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
+
+    misc, test: fix test error for loong64
+    
+    Contributors to the loong64 port are:
+      Weining Lu <luweining@loongson.cn>
+      Lei Wang <wanglei@loongson.cn>
+      Lingqin Gong <gonglingqin@loongson.cn>
+      Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+      Meidan Li <limeidan@loongson.cn>
+      Xiaojuan Zhai <zhaixiaojuan@loongson.cn>
+      Qiyuan Pu <puqiyuan@loongson.cn>
+      Guoqi Chen <chenguoqi@loongson.cn>
+    
+    This port has been updated to Go 1.15.6:
+      https://github.com/loongson/go
+    
+    Updates #46229
+    
+    Change-Id: I6760b4a7e51646773cd0f48baa1baba01b213b7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342325
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ misc/cgo/test/testdata/issue9400/asm_loong64.s | 28 ++++++++++++++++++++++++++
+ test/intrinsic_atomic.go                       |  2 +-
+ test/nosplit.go                                |  3 +++
+ test/run.go                                    |  1 +
+ 4 files changed, 33 insertions(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 1e690409206ff97330b5a91517d453fc5129bab2
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Sep 29 14:19:17 2023 -0400
+
+    cmd/link: split text sections for arm 32-bit
+    
+    This CL is a roll-forward (tweaked slightly) of CL 467715, which
+    turned on text section splitting for GOARCH=arm. The intent is to
+    avoid recurrent problems with external linking where there is a
+    disagreement between the Go linker and the external linker over
+    whether a given branch will reach. In the past our approach has been
+    to tweak the reachability calculations slightly to try to work around
+    potential linker problems, but this hasn't proven to be very robust;
+    section splitting seems to offer a better long term fix.
+    
+    Fixes #58425.
+    
+    Change-Id: I7372d41abce84097906a3d0805b6b9c486f345d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531795
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go    | 19 +++++++++++++------
+ src/cmd/link/internal/ld/ld_test.go |  2 +-
+ 2 files changed, 14 insertions(+), 7 deletions(-)

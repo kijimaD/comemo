@@ -1,0 +1,19 @@
+commit 63661b7251f1e42c6ccc673fa6530c62e2fbd7ac
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jul 24 17:02:05 2019 -0700
+
+    cmd/compile: refactor checkdupfields API
+    
+    Allows avoiding the Type.Fields call, which affects prevents
+    checkdupfields from being called at the more natural point during
+    dowidth.
+    
+    Change-Id: I724789c860e7fffba1e8e876e2d74dcfba85d75c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187517
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/align.go |  2 +-
+ src/cmd/compile/internal/gc/dcl.go   | 10 +++++-----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

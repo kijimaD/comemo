@@ -1,0 +1,12 @@
+commit 73a73e50654bae2d1d6e16ff2664dc6091d44ca0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 6 09:48:08 2015 -0800
+
+    doc/go1.5: mention new SWIG requirement: must be 3.0.6 or later.
+    
+    Change-Id: I18b78677b2ac9a82560d5d787225d4fc46d451d3
+    Reviewed-on: https://go-review.googlesource.com/7050
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

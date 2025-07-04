@@ -1,0 +1,12 @@
+commit 978c3e96d1e1b1e5d1cd93430bfff8855c3b2bf5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 13 12:11:56 2009 -0800
+
+    gc: fix comment
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/174077
+
+ src/cmd/gc/go.y | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

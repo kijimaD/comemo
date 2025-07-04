@@ -1,0 +1,18 @@
+commit fce63888cecd22dfc01bf1b6dcb5a1429aecbc17
+Author: Andres Erbsen <andreser@google.com>
+Date:   Mon Aug 11 16:40:42 2014 -0700
+
+    crypto/tls: implement tls-unique channel binding (RFC 5929 section 3).
+    Tested against GnuTLS and Python.
+    
+    LGTM=agl
+    R=golang-codereviews, agl, ashankar
+    CC=agl, golang-codereviews
+    https://golang.org/cl/117100043
+
+ src/pkg/crypto/tls/common.go           |  8 ++++++
+ src/pkg/crypto/tls/conn.go             |  6 +++++
+ src/pkg/crypto/tls/handshake_client.go | 14 ++++++-----
+ src/pkg/crypto/tls/handshake_server.go | 14 ++++++-----
+ src/pkg/crypto/tls/tls_test.go         | 45 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 75 insertions(+), 12 deletions(-)

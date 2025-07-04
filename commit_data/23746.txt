@@ -1,0 +1,17 @@
+commit c4bfd2de2039601f20ca2133b83261f703987211
+Author: Silvan Jegen <s.jegen@gmail.com>
+Date:   Tue Jan 13 21:41:23 2015 +0100
+
+    bufio: Remove unneeded error initialization
+    
+    The default value for error is nil so there is no need to assign this
+    value here.
+    
+    Change-Id: I4714ef7607996ccbf91b704390e1d1d39ee3847b
+    Reviewed-on: https://go-review.googlesource.com/12355
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bufio/bufio.go | 1 -
+ 1 file changed, 1 deletion(-)

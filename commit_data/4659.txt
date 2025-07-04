@@ -1,0 +1,65 @@
+commit 758f2bc556b19a3b46798b28741bacc322b243f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 17:06:20 2010 -0800
+
+    eliminate the package global name space assumption in object files
+    
+    5g/6g/8g: add import statements to export metadata, mapping package path to package name.
+            recognize "" as the path of the package in export metadata.
+            use "" as the path of the package in object symbol names.
+    
+    5c/6c/8c, 5a/6a/8a: rewrite leading . to "". so that ·Sin means Sin in this package.
+    
+    5l/6l/8l: rewrite "" in symbol names as object files are read.
+    
+    gotest: handle new symbol names.
+    
+    gopack: handle new import lines in export metadata.
+    
+    Collectively, these changes eliminate the assumption of a global
+    name space in the object file formats.  Higher level pieces such as
+    reflect and the computation of type hashes still depend on the
+    assumption; we're not done yet.
+    
+    R=ken2, r, ken3
+    CC=golang-dev
+    https://golang.org/cl/186263
+
+ src/cmd/5g/ggen.c                   |   2 +-
+ src/cmd/5g/gobj.c                   |   4 +-
+ src/cmd/5g/gsubr.c                  |   4 +-
+ src/cmd/5l/l.h                      |   7 --
+ src/cmd/5l/obj.c                    |  12 ++-
+ src/cmd/6g/ggen.c                   |   2 +-
+ src/cmd/6g/gobj.c                   |   4 +-
+ src/cmd/6g/gsubr.c                  |   4 +-
+ src/cmd/6g/reg.c                    |   8 +-
+ src/cmd/6l/obj.c                    |  12 ++-
+ src/cmd/8g/ggen.c                   |   2 +-
+ src/cmd/8g/gobj.c                   |   4 +-
+ src/cmd/8g/gsubr.c                  |   4 +-
+ src/cmd/8g/reg.c                    |   8 +-
+ src/cmd/8l/obj.c                    |  12 ++-
+ src/cmd/cc/lex.c                    |   9 +-
+ src/cmd/cc/lexbody                  |   8 +-
+ src/cmd/gc/align.c                  |   2 +-
+ src/cmd/gc/builtin.c.boot           | 168 ++++++++++++++++++------------------
+ src/cmd/gc/dcl.c                    |  19 ++--
+ src/cmd/gc/export.c                 |  32 ++++---
+ src/cmd/gc/gen.c                    |   2 +-
+ src/cmd/gc/go.h                     |  48 +++++++----
+ src/cmd/gc/go.y                     |  89 +++++++++----------
+ src/cmd/gc/init.c                   |   6 +-
+ src/cmd/gc/lex.c                    |  76 +++++++++-------
+ src/cmd/gc/obj.c                    |   8 +-
+ src/cmd/gc/reflect.c                |  44 ++++++----
+ src/cmd/gc/subr.c                   | 163 ++++++++++++++++++++++------------
+ src/cmd/gc/typecheck.c              |   4 +-
+ src/cmd/gc/unsafe.c                 |   2 +-
+ src/cmd/gopack/ar.c                 |  60 ++++++-------
+ src/cmd/gotest/gotest               |  25 +++++-
+ src/cmd/ld/go.c                     |  89 +++++++++++--------
+ src/cmd/ld/lib.c                    | 127 +++++++++++++++++++++------
+ src/cmd/ld/lib.h                    |  23 +++--
+ src/pkg/debug/gosym/pclntab_test.go |   2 +-
+ 37 files changed, 673 insertions(+), 422 deletions(-)

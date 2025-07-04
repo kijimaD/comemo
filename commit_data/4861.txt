@@ -1,0 +1,13 @@
+commit ca075494a65f8b30abc9dfeb76b5144b9f14ed1e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 16 12:49:41 2010 -0800
+
+    godoc: initialize vars depending on flags after parsing the flags.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/206109
+
+ src/cmd/godoc/godoc.go | 4 +++-
+ src/cmd/godoc/main.go  | 1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)

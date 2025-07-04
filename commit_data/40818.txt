@@ -1,0 +1,19 @@
+commit 6ba0be16391697bdaab7d8f836b66921977d5474
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 16 07:12:53 2019 -0800
+
+    hash/maphash: mark call into runtime hash function as not escaping
+    
+    This allows maphash.Hash to be allocated on the stack for typical uses.
+    
+    Fixes #35636
+    
+    Change-Id: I8366507d26ea717f47a9fb46d3bd69ba799845ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207444
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/hash/maphash/maphash.go |  1 +
+ test/escape_hash_maphash.go | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+)

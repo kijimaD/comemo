@@ -1,0 +1,23 @@
+commit 9e2f2fcd2e6cd3a755d2e236d5b5f24de8f6e04f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 19:20:43 2009 -0700
+
+    compilers were inconsistent about
+    whether no register argument was
+    REGARG == 0 or REGARG < 0.
+    use REGARG < 0 because arm needs 0 for R0.
+    
+    R=ken
+    OCL=31562
+    CL=31566
+
+ src/cmd/6c/cgen.c  |  6 ++++--
+ src/cmd/6c/peep.c  |  4 ++--
+ src/cmd/6c/txt.c   | 16 ++++++++--------
+ src/cmd/6l/6.out.h |  2 +-
+ src/cmd/8c/cgen.c  |  2 +-
+ src/cmd/8c/peep.c  |  2 +-
+ src/cmd/8c/txt.c   | 10 +++++-----
+ src/cmd/8l/8.out.h |  2 +-
+ src/cmd/cc/pgen.c  | 14 +++++++-------
+ 9 files changed, 30 insertions(+), 28 deletions(-)

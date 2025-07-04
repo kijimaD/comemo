@@ -1,0 +1,29 @@
+commit 1cac3e84f5dabe211a32538e2e60ebd31da19661
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 27 20:46:29 2018 +1100
+
+    plugin: skip building tests on linux/arm64
+    
+    It appears that linux/arm64
+    
+    https://build.golang.org/log/6808dbded6aebadf68cb65a0e30e4d1a62cd687b
+    
+    fails with
+    
+    /workdir/go/pkg/tool/linux_arm64/link: running gcc failed: exit status 1
+    /usr/bin/ld.gold: internal error in global, at ../../gold/aarch64.cc:4973
+    collect2: error: ld returned 1 exit status
+    FAIL plugin [build failed]
+    
+    error. So stop building these tests on linux/arm64.
+    
+    Fixes linux/arm64 build
+    
+    Change-Id: I41eb3d9659f7967d80136513899a5203bbf03fb1
+    Reviewed-on: https://go-review.googlesource.com/c/151478
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/plugin/plugin_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

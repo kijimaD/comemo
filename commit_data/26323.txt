@@ -1,0 +1,21 @@
+commit 26594c3dfd67f1fccb328c02de680bfea7eef013
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 15 23:50:58 2016 -0500
+
+    runtime: use indexes for select lock order
+    
+    Currently the select lock order is a []*hchan. We're going to need to
+    refer to things other than the channel itself in lock order shortly,
+    so switch this to a []uint16 of indexes into the select cases. This
+    parallels the existing representation for the poll order.
+    
+    Change-Id: I89262223fe20b4ddf5321592655ba9eac489cda1
+    Reviewed-on: https://go-review.googlesource.com/20036
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/select.go |  2 +-
+ src/runtime/select.go                 | 72 ++++++++++++++++++-----------------
+ 2 files changed, 39 insertions(+), 35 deletions(-)

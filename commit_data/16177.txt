@@ -1,0 +1,15 @@
+commit 9ca4a25f4ba0dcdb17c41374f146668e97183176
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 15 10:35:37 2013 -0700
+
+    cmd/ld: ignore PE sections that are not code or data
+    
+    Update #5106
+    Update #5273
+    
+    R=minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/8715043
+
+ src/cmd/ld/ldpe.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

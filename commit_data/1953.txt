@@ -1,0 +1,25 @@
+commit 39436f2a747bc1c64f50c8be46cd9cf801576ba8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 2 21:46:19 2009 -0700
+
+    special case check for this situation
+    
+            ; cat >http.go
+            package main
+            import "http"  // intended the library, not this file
+            ^D
+            ; 6g http.go
+            ; 6g http.go
+            http.go:4: export/package mismatch: init
+            ;
+    
+    new error:
+    
+            http.6:7 http.go:3: cannot import package main
+    
+    R=ken
+    OCL=27053
+    CL=27053
+
+ src/cmd/gc/go.y | 3 +++
+ 1 file changed, 3 insertions(+)

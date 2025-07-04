@@ -1,0 +1,28 @@
+commit b428456df69ee28ff063d421b670682a363da55c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 22 07:49:31 2009 -0700
+
+    nacl syscall package.
+    similar tweaks to make debug/proc, net, os build.
+    
+    R=r
+    DELTA=861  (855 added, 4 deleted, 2 changed)
+    OCL=34877
+    CL=34890
+
+ src/pkg/debug/proc/proc_nacl.go     |  20 +++
+ src/pkg/debug/proc/regs_nacl_386.go |   6 +
+ src/pkg/net/fd_nacl.go              |  37 ++++
+ src/pkg/os/dir_nacl_386.go          |  81 +++++++++
+ src/pkg/os/error.go                 |   2 -
+ src/pkg/os/exec.go                  |   6 +-
+ src/pkg/os/stat_nacl_386.go         |  44 +++++
+ src/pkg/os/sys_nacl.go              |   9 +
+ src/pkg/syscall/PORT.sh             |   9 +
+ src/pkg/syscall/asm_nacl_386.s      | 120 +++++++++++++
+ src/pkg/syscall/mkerrors_nacl.sh    |  41 +++++
+ src/pkg/syscall/mksysnum_nacl.sh    |  29 ++++
+ src/pkg/syscall/syscall_nacl.go     | 329 ++++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_nacl_386.go |  15 ++
+ src/pkg/syscall/types_nacl.c        | 115 +++++++++++++
+ 15 files changed, 857 insertions(+), 6 deletions(-)

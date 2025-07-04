@@ -1,0 +1,12 @@
+commit a81c6563525521a116582b93a4a95f3e8a6ceec9
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Fri Jul 17 15:40:26 2015 -0400
+
+    androidtest.bash: robust cleanup in case of failure.
+    
+    Change-Id: I69ed001bca4987e08b46a8288f6feae2aca6a142
+    Reviewed-on: https://go-review.googlesource.com/12380
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/androidtest.bash | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

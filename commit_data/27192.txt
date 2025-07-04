@@ -1,0 +1,17 @@
+commit 6ed79fbd1abf018b018088c6a1699cd34ee6d56c
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 28 15:04:10 2016 -0700
+
+    cmd/compile: remove BlockDead state
+    
+    It is unused, remove the clutter.
+    
+    Change-Id: I51a44326b125ef79241459c463441f76a289cc08
+    Reviewed-on: https://go-review.googlesource.com/22586
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/check.go          | 13 -------------
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  3 +--
+ src/cmd/compile/internal/ssa/opGen.go          |  2 --
+ src/cmd/compile/internal/ssa/rewrite.go        |  3 ---
+ 4 files changed, 1 insertion(+), 20 deletions(-)

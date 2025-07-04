@@ -1,0 +1,12 @@
+commit 7ddbe798425306dccfebd7d1842720cc3c273b9c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 24 12:37:51 2010 +1000
+
+    effective go: fix errors caught by HaWe
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1959043
+
+ doc/effective_go.html | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

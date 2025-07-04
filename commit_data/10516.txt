@@ -1,0 +1,12 @@
+commit 7606079d9f54351e0aff78da804ce72814475446
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 28 11:47:23 2011 -0500
+
+    CONTRIBUTORS: add Maxim Pimenov (Google CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5443047
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

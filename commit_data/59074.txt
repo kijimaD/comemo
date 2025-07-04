@@ -1,0 +1,27 @@
+commit 21417518a9e826973c316d3328e069b7535bb23c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Oct 12 17:37:23 2022 +1100
+
+    cmd/compile: combine negation and word sign extension on riscv64
+    
+    Use NEGW to produce a negated and sign extended word, rather than doing
+    the same via two instructions:
+    
+       neg     t0, t0
+       sext.w  a0, t0
+    
+    Becomes:
+    
+       negw    t0, t0
+    
+    Change-Id: I824ab25001bd3304bdbd435e7b244fcc036ef212
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652319
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 11 +++++++++++
+ test/codegen/arithmetic.go                      |  2 +-
+ 3 files changed, 15 insertions(+), 1 deletion(-)

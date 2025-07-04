@@ -1,0 +1,28 @@
+commit a4cb37d4afd4b6b386ed7b51466c8c57c6045f9c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Aug 16 14:01:15 2024 -0400
+
+    cmd/dist: require Go 1.22.6 as minimum bootstrap toolchain
+    
+    This is a minimal change to start to require the new minimum bootstrap.
+    Taking advantage of the newer bootstap to simplify and improve code is
+    left to be done in separate CLs.
+    
+    For #64751.
+    
+    Change-Id: I1d4f883fae3026354a199174d51e79a36cd2dc53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606156
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/next/5-toolchain.md                   |  5 +++++
+ src/cmd/dist/README                       | 10 +++++-----
+ src/cmd/dist/{notgo120.go => notgo122.go} |  8 ++++----
+ src/make.bash                             |  8 ++++----
+ src/make.bat                              |  2 +-
+ src/make.rc                               |  2 +-
+ 6 files changed, 20 insertions(+), 15 deletions(-)

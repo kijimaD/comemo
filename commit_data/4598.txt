@@ -1,0 +1,16 @@
+commit 1c6c0eee20ea60035a154ebc59d37115443447a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 13:09:33 2010 -0800
+
+    godoc: skip template wrapping for complete HTML files
+    
+    demo at http://wreck:8080/doc/
+    click on go_talk-20100112.html
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/186137
+
+ lib/godoc/dirlist.html |  2 +-
+ src/cmd/godoc/godoc.go | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit a027466e4b6d594fd8b562094fe63a9c4c6ec4f7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 6 15:25:29 2017 -0700
+
+    cmd/compile: check that phis are always first after scheduling
+    
+    Update #20178
+    
+    Change-Id: I603f77268ed38afdd84228c775efe006f08f14a7
+    Reviewed-on: https://go-review.googlesource.com/45018
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/check.go     | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssa/deadstore.go |  6 +++++-
+ src/cmd/compile/internal/ssa/rewrite.go   |  4 ++++
+ 3 files changed, 25 insertions(+), 1 deletion(-)

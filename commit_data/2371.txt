@@ -1,0 +1,27 @@
+commit a00bfb5b49bb73825d3993894d51d466e2776dc9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 2 23:25:17 2009 -0700
+
+    8g:
+      * floating point -> integer conversions.
+        x86 defines that overflow/underflow
+        results in 1<<15, 1<<31, 1<<63 for
+        int16, int32, int64.  when building the
+        unsigned conversions out of the native signed
+        ones, 8g turns overflow/underflow into zero.
+        the spec does not say what should happen.
+    
+      * many tiny bug fixes.  can run a large number
+        of files from go/test now, and can fmt.Printf.
+    
+      * struggling with byte register allocation
+        and float32 computation.
+    
+    R=ken
+    OCL=29642
+    CL=29811
+
+ src/cmd/8g/cgen.c  | 249 ++++++++++++++---------------
+ src/cmd/8g/gg.h    |  17 +-
+ src/cmd/8g/gsubr.c | 461 ++++++++++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 481 insertions(+), 246 deletions(-)

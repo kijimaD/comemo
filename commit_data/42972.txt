@@ -1,0 +1,18 @@
+commit c0c396bd6ad2aea40f7f302711c8b89e20feb371
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Sep 11 20:09:40 2020 -0400
+
+    misc/ios: quote paths
+    
+    The paths may contain spaces. Quote them.
+    
+    Change-Id: I1f67085a1e7c40f60282c2fea7104fb44a01e310
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254739
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/ios/clangwrap.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 1a8dfadbfe26978cba0d6ce57bf437a93f796da6
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Aug 20 19:21:39 2022 +0800
+
+    encoding/json: move some misplaced benchmark tests to bench_test.go
+    
+    Change-Id: I5987eed00ee825421abe62699a06e9b66499f35f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425016
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/json/bench_test.go  | 31 +++++++++++++++++++++++++++++++
+ src/encoding/json/number_test.go | 15 ---------------
+ src/encoding/json/stream_test.go | 15 ---------------
+ 3 files changed, 31 insertions(+), 30 deletions(-)

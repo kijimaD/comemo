@@ -1,0 +1,20 @@
+commit 26708439ecb4dc923149b17eb522df46dcc2fb23
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 4 17:17:55 2018 -0800
+
+    cmd/compile: refactor order.go into methods
+    
+    No functional changes, just changing all the orderfoo functions
+    into (*Order).foo methods.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ib9833daa98aff3c645ce56794a414f8472689152
+    Reviewed-on: https://go-review.googlesource.com/98617
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 636 +++++++++++++++++------------------
+ src/cmd/compile/internal/gc/sinit.go |   6 +-
+ 2 files changed, 311 insertions(+), 331 deletions(-)

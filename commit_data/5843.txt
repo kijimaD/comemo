@@ -1,0 +1,13 @@
+commit 02786d263c3fe31ed211d8872b8cc630cff09f8e
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jul 19 11:08:04 2010 -0400
+
+    time: fix parsing of minutes in time zones.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1830041
+
+ src/pkg/time/format.go    |  2 +-
+ src/pkg/time/time_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

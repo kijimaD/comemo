@@ -1,0 +1,15 @@
+commit 3423b7b40a568466a3566f8139d88f3a80e81e7e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 14 15:48:32 2015 -0500
+
+    runtime: fix bugs in previous commit
+    
+    These were fixed in my local commit,
+    but I forgot that the web Submit button can't see that.
+    
+    Change-Id: Iec3a70ce3ccd9db2a5394ae2da0b293e45ac2fb5
+    Reviewed-on: https://go-review.googlesource.com/2822
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/malloc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

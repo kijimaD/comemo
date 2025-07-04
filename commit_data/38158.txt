@@ -1,0 +1,30 @@
+commit 38642b9fced4ed79fafe31a96b2bb432474f2e36
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 1 05:49:48 2019 +0000
+
+    Revert "cmd/compile: rewrite f(g()) for multi-value g() during typecheck"
+    
+    This reverts commit d96b7fbf98bfac4861cda1b5c17a002ce8d62aa5.
+    
+    Reason for revert: broke noopt and longtest builders.
+    
+    Change-Id: Ifaec64d817c4336cb255a2e9db00526b7bc5606a
+    Reviewed-on: https://go-review.googlesource.com/c/164757
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go       |   7 +
+ src/cmd/compile/internal/gc/fmt.go       |  13 +-
+ src/cmd/compile/internal/gc/iexport.go   |   3 +-
+ src/cmd/compile/internal/gc/init.go      |   9 --
+ src/cmd/compile/internal/gc/inl.go       |  18 ++-
+ src/cmd/compile/internal/gc/order.go     |  60 ++++++-
+ src/cmd/compile/internal/gc/typecheck.go | 258 ++++++++++++++++++++-----------
+ test/cmplx.go                            |   6 +-
+ test/copy1.go                            |   2 +-
+ test/fixedbugs/issue15992.go             |  38 -----
+ test/fixedbugs/issue15992.out            |   4 -
+ test/fixedbugs/issue17038.go             |   2 +-
+ test/fixedbugs/issue9521.go              |   4 +-
+ 13 files changed, 267 insertions(+), 157 deletions(-)

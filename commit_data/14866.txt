@@ -1,0 +1,18 @@
+commit 8b62f54eb7bca56514984839dd26ddb05f2b3ed8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 11 14:55:49 2013 -0800
+
+    go/types: export QualifiedName.IsSame and NamedType.AstObj
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7103047
+
+ src/pkg/go/types/check.go      |  4 ++--
+ src/pkg/go/types/errors.go     |  4 ++--
+ src/pkg/go/types/expr.go       | 14 +++++++-------
+ src/pkg/go/types/operand.go    | 20 ++++++++++----------
+ src/pkg/go/types/predicates.go | 19 +++----------------
+ src/pkg/go/types/types.go      | 33 +++++++++++++++++++++++++++++----
+ src/pkg/go/types/universe.go   |  2 +-
+ 7 files changed, 54 insertions(+), 42 deletions(-)

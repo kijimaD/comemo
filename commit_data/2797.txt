@@ -1,0 +1,23 @@
+commit 75760a4b5d340be2bcd78e03380b4c62f689a85b
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Mon Jul 27 17:32:35 2009 -0700
+
+    Implement multi-valued functions, multi-valued return, and
+    unpacking for assignments, call arguments, and returns.  This
+    change revamps the whole assignment compilation system to be
+    multi-valued, using the new MultiType type and multiV value.
+    Function calls, returns, and assignments now share a lot of
+    code and produce very consistent error messages.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=510  (335 added, 74 deleted, 101 changed)
+    OCL=32248
+    CL=32258
+
+ usr/austin/eval/compiler.go |   6 +-
+ usr/austin/eval/expr.go     | 288 ++++++++++++++++++++++++++++++++------------
+ usr/austin/eval/stmt.go     | 195 ++++++++++++++++++------------
+ usr/austin/eval/type.go     |  68 ++++++++++-
+ usr/austin/eval/value.go    |  32 +++++
+ 5 files changed, 425 insertions(+), 164 deletions(-)

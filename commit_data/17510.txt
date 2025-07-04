@@ -1,0 +1,14 @@
+commit 933d7129c07e32ffa403c94634fa0c7045f6b3d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 13:03:59 2013 -0400
+
+    cmd/gc: squelch spurious "invalid recursive type" error
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13512047
+
+ src/cmd/gc/align.c          |  6 ++++--
+ src/cmd/gc/typecheck.c      |  8 +++++++-
+ test/fixedbugs/issue5581.go | 34 ++++++++++++++++++++++++++++++++++
+ 3 files changed, 45 insertions(+), 3 deletions(-)

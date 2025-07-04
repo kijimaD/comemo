@@ -1,0 +1,12 @@
+commit ed6fd1bcbe06a69e9469fe59d92840a84b41c07b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 6 08:18:58 2009 -0800
+
+    runtime: disable pointer scan optimization
+      * broken by reflect, gob
+    
+    TBR=r
+    https://golang.org/cl/166077
+
+ src/pkg/runtime/slice.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

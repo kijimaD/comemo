@@ -1,0 +1,18 @@
+commit 0d87f6a62e497fabd473a9a9847c355a42d64f16
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 14 17:43:50 2017 +0000
+
+    net/http: deflake TestServerTimeouts
+    
+    Retry the test several times with increasingly long timeouts.
+    
+    Fixes #19538 (hopefully)
+    
+    Change-Id: Ia3bf2b63b4298a6ee1e4082e14d9bfd5922c293a
+    Reviewed-on: https://go-review.googlesource.com/38154
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/net/http/serve_test.go | 45 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 13 deletions(-)

@@ -1,0 +1,76 @@
+commit 16e7613b2e1861b25c6549051337d1d8a850cf63
+Author: Motiejus Jakštys <motiejus@jakstys.lt>
+Date:   Wed May 25 02:55:34 2022 +0000
+
+    cmd/cgo: use --no-gc-sections if available
+    
+    zig cc passes `--gc-sections` to the underlying linker, which then
+    causes undefined symbol errors when compiling with cgo but without C
+    code. Add `-Wl,--no-gc-sections` to make it work with zig cc. Minimal
+    example:
+    
+    **main.go**
+    
+        package main
+        import _ "runtime/cgo"
+        func main() {}
+    
+    Run (works after the patch, doesn't work before):
+    
+        CC="zig cc" go build main.go
+    
+    Among the existing code, `src/runtime/testdata/testprognet` fails to
+    build:
+    
+        src/runtime/testdata/testprognet$ CC="zig cc" go build .
+        net(.text): relocation target __errno_location not defined
+        net(.text): relocation target getaddrinfo not defined
+        net(.text): relocation target freeaddrinfo not defined
+        net(.text): relocation target gai_strerror not defined
+        runtime/cgo(.text): relocation target stderr not defined
+        runtime/cgo(.text): relocation target fwrite not defined
+        runtime/cgo(.text): relocation target vfprintf not defined
+        runtime/cgo(.text): relocation target fputc not defined
+        runtime/cgo(.text): relocation target abort not defined
+        runtime/cgo(.text): relocation target pthread_create not defined
+        runtime/cgo(.text): relocation target nanosleep not defined
+        runtime/cgo(.text): relocation target pthread_detach not defined
+        runtime/cgo(.text): relocation target stderr not defined
+        runtime/cgo(.text): relocation target strerror not defined
+        runtime/cgo(.text): relocation target fprintf not defined
+        runtime/cgo(.text): relocation target abort not defined
+        runtime/cgo(.text): relocation target pthread_mutex_lock not defined
+        runtime/cgo(.text): relocation target pthread_cond_wait not defined
+        runtime/cgo(.text): relocation target pthread_mutex_unlock not defined
+        runtime/cgo(.text): relocation target pthread_cond_broadcast not defined
+        runtime/cgo(.text): relocation target malloc not defined
+    
+    With the patch both examples build as expected.
+    
+    @ianlancetaylor suggested:
+    
+    > It would be fine with me if somebody wants to send a cgo patch that
+    passes -Wl,--no-gc-sections, with a fallback if that option is not
+    supported.
+    
+    ... and this is what we are doing. Tested with zig
+    0.10.0-dev.2252+a4369918b
+    
+    This is a continuation of CL 405414: the original one broke AIX and iOS
+    builds. To fix that, added `unknown option` to the list of strings
+    under lookup.
+    
+    Fixes #52690
+    
+    Change-Id: Id6743e1e759a02627b0fc6d2ac89bb69b706d04c
+    GitHub-Last-Rev: 86f227a14e9f326f1b461b641e4865bc4dc70780
+    GitHub-Pull-Request: golang/go#53028
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407814
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/work/exec.go | 42 +++++++++++++++++++++++++++++++---------
+ 1 file changed, 33 insertions(+), 9 deletions(-)

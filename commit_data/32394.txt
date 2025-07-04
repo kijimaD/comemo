@@ -1,0 +1,13 @@
+commit b3a17812867ad746fb13fbede06e9055fb17c2fb
+Author: Ryuji IWATA <qt.luigi@gmail.com>
+Date:   Sun Aug 20 23:58:59 2017 +0900
+
+    doc/go1.9: fix typo in crypto/x509 of "Minor changes to the library".
+    
+    Change-Id: I79fee40370dc6758ca1869227f076c61d07f21a5
+    Reviewed-on: https://go-review.googlesource.com/57390
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

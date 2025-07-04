@@ -1,0 +1,16 @@
+commit 0b2caf27177e47b587df6ef4dce2df67ad3e4666
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 6 16:15:04 2013 -0800
+
+    go/types: implement constant string(x) conversions
+    
+    Fixes #4982.
+    
+    R=adonovan, r
+    CC=golang-dev
+    https://golang.org/cl/7537043
+
+ src/pkg/go/types/conversions.go           | 29 ++++++++++++++++++++++++++---
+ src/pkg/go/types/operand.go               |  1 +
+ src/pkg/go/types/testdata/conversions.src | 26 ++++++++++++++++++++++----
+ 3 files changed, 49 insertions(+), 7 deletions(-)

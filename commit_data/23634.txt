@@ -1,0 +1,19 @@
+commit 4735002f58af2cf7f8ffbbea1830fe0401579102
+Author: Hariharan Srinath <srinathh@gmail.com>
+Date:   Sat Jul 11 14:20:14 2015 +0530
+
+    flag: Clarifies docs for Arg(int) and FlagSet.Arg(int)
+    
+    Adds the clarification that these functions return empty
+    string if the requested element is not available
+    
+    Added fullstops
+    
+    Fixes #11664
+    
+    Change-Id: I84173862bc785240f7d3ee75a5023673264d172b
+    Reviewed-on: https://go-review.googlesource.com/12061
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/flag/flag.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

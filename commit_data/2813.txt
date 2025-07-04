@@ -1,0 +1,13 @@
+commit 189153ed131e4fa106ff945754509a043f8fcb93
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 28 17:02:05 2009 -0700
+
+    fix error that gcc thinks is a warning
+    
+    R=ken
+    OCL=32264
+    CL=32386
+
+ src/cmd/5g/cgen.c | 2 +-
+ src/cmd/8g/cgen.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

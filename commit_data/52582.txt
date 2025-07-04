@@ -1,0 +1,18 @@
+commit 9efca84066496f54c236cfc4184255edd60573c7
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Apr 10 11:25:06 2023 -0400
+
+    crypto/x509: skip broken darwin root tests
+    
+    For #57428.
+    For #35678.
+    
+    Change-Id: I806c16d3ff3815b8681916753338356c444970d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482165
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/crypto/x509/root_darwin_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

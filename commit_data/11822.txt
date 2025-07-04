@@ -1,0 +1,14 @@
+commit b1d9ae9406e0217731665da622b7a29fadc3efbd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Feb 12 20:03:30 2012 -0800
+
+    go spec: method names must be unique
+    
+    Fixes #2916.
+    
+    R=golang-dev, remyoudompheng, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5652064
+
+ doc/go_spec.html | 31 ++++++++++++++++++++-----------
+ 1 file changed, 20 insertions(+), 11 deletions(-)

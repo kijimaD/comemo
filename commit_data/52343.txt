@@ -1,0 +1,20 @@
+commit b98c1b22bd1b91e46144537fd3146f5b9e3d8acb
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Mar 20 13:01:14 2023 -0700
+
+    all: gofmt
+    
+    Change-Id: I926388ee5aeeff11f765cbd4558b66645d1bbc08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477836
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go |  6 +++---
+ src/internal/godebug/godebug.go          | 10 +++++++---
+ src/runtime/cgocheck.go                  |  1 +
+ src/runtime/internal/atomic/types.go     |  2 ++
+ src/runtime/mbarrier.go                  |  2 ++
+ src/runtime/metrics/description_test.go  |  1 +
+ src/runtime/start_line_test.go           |  2 +-
+ 7 files changed, 17 insertions(+), 7 deletions(-)

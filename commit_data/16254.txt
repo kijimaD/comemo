@@ -1,0 +1,12 @@
+commit 9de38d6788efec8d65c51d47e5a5b503be8df14f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 1 14:30:51 2013 -0700
+
+    runtime/cgo: export symbols in both internal and external link mode
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/9060045
+
+ src/pkg/runtime/cgo/callbacks.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

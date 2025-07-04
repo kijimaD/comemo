@@ -1,0 +1,23 @@
+commit 6277656d69640da9166bbac2a132a3ddee61dcac
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 12 09:35:43 2012 +1000
+
+    html, exp/html: escape ' and " as &#39; and &#34;, since IE8 and
+    below do not support &apos;.
+    
+    This makes package html consistent with package text/template's
+    HTMLEscape function.
+    
+    Fixes #3489.
+    
+    R=rsc, mikesamuel, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5992071
+
+ src/pkg/exp/html/escape.go      |  8 +++++---
+ src/pkg/exp/html/render_test.go |  2 +-
+ src/pkg/exp/html/token_test.go  | 11 ++++++-----
+ src/pkg/html/escape.go          |  8 +++++---
+ src/pkg/net/http/server.go      |  6 ++++--
+ src/pkg/text/template/funcs.go  |  2 +-
+ 6 files changed, 22 insertions(+), 15 deletions(-)

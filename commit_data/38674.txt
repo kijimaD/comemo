@@ -1,0 +1,40 @@
+commit cb6646234cb6565d19d9efea987c8d8fc9be5c31
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 5 22:28:31 2019 +0200
+
+    encoding/json: use SetBytes in UnmarshalReuse benchmark
+    
+    This was the only benchmark missing the SetBytes call, as spotted
+    earlier by Bryan.
+    
+    It's not required to make the benchmark useful, but it can still be a
+    good way to see how its speed is affected by the reduced allocations:
+    
+    name                  time/op
+    CodeUnmarshal-8        12.1ms ± 1%
+    CodeUnmarshalReuse-8   11.4ms ± 1%
+    
+    name                  speed
+    CodeUnmarshal-8       161MB/s ± 1%
+    CodeUnmarshalReuse-8  171MB/s ± 1%
+    
+    name                  alloc/op
+    CodeUnmarshal-8        3.28MB ± 0%
+    CodeUnmarshalReuse-8   1.94MB ± 0%
+    
+    name                  allocs/op
+    CodeUnmarshal-8         92.7k ± 0%
+    CodeUnmarshalReuse-8    77.6k ± 0%
+    
+    While at it, remove some unnecessary empty lines.
+    
+    Change-Id: Ib2bd92d5b3237b8f3092e8c6f863dab548fee2f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170938
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/bench_test.go   | 2 +-
+ src/encoding/json/example_test.go | 1 -
+ src/encoding/json/stream_test.go  | 2 --
+ 3 files changed, 1 insertion(+), 4 deletions(-)

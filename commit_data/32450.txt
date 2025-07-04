@@ -1,0 +1,17 @@
+commit b0ba0b49a023100151ec4b562163615f37b57ad9
+Author: Tom Levy <tomlevy93@gmail.com>
+Date:   Fri Aug 25 17:13:34 2017 +1200
+
+    sync/atomic: remove references to old atomic pointer hammer tests
+    
+    The tests were removed in https://golang.org/cl/2311 but some
+    references to them were missed.
+    
+    Change-Id: I163e554a0cc99401a012deead8fda813ad74dbfe
+    Reviewed-on: https://go-review.googlesource.com/58870
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/sync/atomic/atomic_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

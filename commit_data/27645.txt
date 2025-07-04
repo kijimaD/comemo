@@ -1,0 +1,17 @@
+commit f9b4556de01710a964ffd0513eb7574a2d1fd62c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 6 10:41:47 2016 +1000
+
+    net/http: send one Transfer-Encoding header when "chunked" set manually
+    
+    Fixes #15960
+    
+    Change-Id: I7503f6ede33e6a1a93cee811d40f7b297edf47bc
+    Reviewed-on: https://go-review.googlesource.com/23811
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 14 ++++++++++++++
+ src/net/http/server.go     |  1 +
+ 2 files changed, 15 insertions(+)

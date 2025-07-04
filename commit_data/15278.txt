@@ -1,0 +1,22 @@
+commit 2d4164596f3bd798996732aaa01b95e70f91e8a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 14:39:39 2013 -0500
+
+    cmd/go: reject case-insensitive file name, import collisions
+    
+    To make sure that Go code will work when moved to a
+    system with a case-insensitive file system, like OS X or Windows,
+    reject any package built from files with names differing
+    only in case, and also any package built from imported
+    dependencies with names differing only in case.
+    
+    Fixes #4773.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7314104
+
+ src/cmd/go/main.go   | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/pkg.go    | 43 ++++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/test.bash | 41 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 140 insertions(+), 1 deletion(-)

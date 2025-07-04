@@ -1,0 +1,14 @@
+commit ffedff7e506cdf298f06ad36f3264ca197aa7d25
+Author: Austin Clements <austin@google.com>
+Date:   Sat Dec 24 17:03:10 2016 -0800
+
+    runtime: add table of size classes in a comment
+    
+    Change-Id: I52fae67c9aeceaa23e70f2ef0468745b354f8c75
+    Reviewed-on: https://go-review.googlesource.com/34932
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mksizeclasses.go | 16 +++++++++++
+ src/runtime/sizeclasses.go   | 68 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+)

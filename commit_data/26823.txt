@@ -1,0 +1,15 @@
+commit 5b3e5766bcc5e1090d0512a5916886ffc24ab246
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Apr 8 14:43:35 2016 +1000
+
+    cmd/go: remove special case that puts godoc in $GOROOT/bin
+    
+    Updates golang/go#15106
+    
+    Change-Id: I4214b841d63bb7e9c3c5ede2abe21a8a68f06c41
+    Reviewed-on: https://go-review.googlesource.com/21701
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 22 ----------------------
+ src/cmd/go/pkg.go     |  9 +--------
+ 2 files changed, 1 insertion(+), 30 deletions(-)

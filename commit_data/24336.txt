@@ -1,0 +1,21 @@
+commit bca70a66a7ebd7c8e18aaaac912673f65253373a
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Tue Sep 15 00:16:35 2015 +0200
+
+    cmd/compile/internal/gc: use sort.Interface for reflect methods
+    
+    Generate slices of method *Sig(nature)s instead of linked lists.
+    Remove custom lsort function in favor of sort.Interface.
+    
+    Eliminates another use of stringsCompare.
+    
+    Passes go build -a -toolexec 'toolstash -cmp' std cmd.
+    
+    Change-Id: I9ed1664b7f55be9e967dd7196e396a76f6ea3422
+    Reviewed-on: https://go-review.googlesource.com/14559
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/go.go           |   1 -
+ src/cmd/compile/internal/gc/reflect.go      | 216 +++++++++-------------------
+ src/cmd/compile/internal/gc/reflect_test.go |  47 ++++++
+ 3 files changed, 116 insertions(+), 148 deletions(-)

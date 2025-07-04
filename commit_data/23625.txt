@@ -1,0 +1,18 @@
+commit 91ba0abef12df6824bcf912ce4bc62f5c9e1fe91
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jul 4 13:49:47 2015 +0900
+
+    net: fix misidentification of link-local, global unicast IP addresses
+    
+    Don't treat IPv4-mapped link-local IP addresses as IPv6 link-local
+    addresses, an IPv4 broadcast address as a global unicast IP address.
+    
+    Fixes #11585.
+    
+    Change-Id: I6a7a0c0601f18638f5c624ab63e12ee40f77b182
+    Reviewed-on: https://go-review.googlesource.com/11883
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip.go      | 31 +++++++++++++++----------------
+ src/net/ip_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 16 deletions(-)

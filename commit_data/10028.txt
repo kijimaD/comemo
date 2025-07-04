@@ -1,0 +1,24 @@
+commit 7bc4f8de0fc91b209265f797fd20820914f5baaa
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Oct 18 12:58:57 2011 -0400
+
+    exp/terminal: split terminal handling from exp/ssh
+    
+    This change splits terminal handling from exp/ssh, as suggested
+    several times in the ssh code review.
+    
+    shell.go and shell_test.go are copies from exp/ssh with minimal
+    changes, so don't need another full review. A future CL will remove
+    that code from exp/ssh.
+    
+    R=bradfitz, r, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/5278049
+
+ src/pkg/exp/terminal/Makefile         |  15 ++
+ src/pkg/exp/terminal/shell.go         | 359 ++++++++++++++++++++++++++++++++++
+ src/pkg/exp/terminal/shell_test.go    | 110 +++++++++++
+ src/pkg/exp/terminal/terminal.go      | 103 ++++++++++
+ src/pkg/syscall/types_linux.c         | 107 ++++++++++
+ src/pkg/syscall/ztypes_linux_amd64.go | 111 +++++++++++
+ 6 files changed, 805 insertions(+)

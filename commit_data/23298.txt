@@ -1,0 +1,16 @@
+commit 494ff188f882098648831a27c7c09da5085fa0c2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jun 5 10:39:23 2015 -0700
+
+    cmd/compile: early typecheck top level OAS2 nodes
+    
+    Fixes #10977.
+    
+    Change-Id: I706c953c16daad48595c7fae2d82124614dfc3ad
+    Reviewed-on: https://go-review.googlesource.com/10780
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/lex.go |  4 ++--
+ test/fixedbugs/issue10977.go       | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)

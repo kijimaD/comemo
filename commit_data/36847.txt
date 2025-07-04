@@ -1,0 +1,16 @@
+commit 1961d8d72a53e780effa18bfa8dbe4e4282df0b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 3 22:18:07 2018 +0000
+
+    crypto/rand: warn to stderr if blocked 60+ sec on first Reader.Read call
+    
+    Fixes #22614
+    
+    Change-Id: I220afbaaeab4dec6d59eeeef12107234a77f1587
+    Reviewed-on: https://go-review.googlesource.com/c/139419
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/rand/rand.go         | 4 ++++
+ src/crypto/rand/rand_unix.go    | 8 ++++++++
+ src/crypto/rand/rand_windows.go | 9 +++++++++
+ 3 files changed, 21 insertions(+)

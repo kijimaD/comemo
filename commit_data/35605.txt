@@ -1,0 +1,29 @@
+commit 2ce295e9542c104110a050bf809dd0a37e191eb7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 5 21:06:17 2018 +0000
+
+    net/http: remove an allocation in ServeMux
+    
+    Also, add a benchmark variant ("SkipServe") that only benchmarks the
+    ServeMux handler selection path.
+    
+    name                  old time/op    new time/op    delta
+    ServeMux_SkipServe-4    74.2µs ± 2%    60.6µs ± 1%   -18.31%   (p=0.000 n=10+9)
+    
+    name                  old alloc/op   new alloc/op   delta
+    ServeMux_SkipServe-4    2.62kB ± 0%   0.00kB ±NaN%  -100.00%  (p=0.000 n=10+10)
+    
+    name                  old allocs/op  new allocs/op  delta
+    ServeMux_SkipServe-4       180 ± 0%        0 ±NaN%  -100.00%  (p=0.000 n=10+10)
+    
+    Updates #25383
+    
+    Change-Id: Icfbb3b977e309093d032e922d1b4f254df6f5955
+    Reviewed-on: https://go-review.googlesource.com/116378
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/serve_test.go | 13 ++++++++-----
+ src/net/http/server.go     |  7 ++++++-
+ 2 files changed, 14 insertions(+), 6 deletions(-)

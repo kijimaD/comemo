@@ -1,0 +1,15 @@
+commit e36b4d76ad697536921f2bcd119e7cf2a702b920
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Nov 20 11:06:35 2024 -0800
+
+    doc/godebug: document we removed x509sha1
+    
+    Change-Id: I4a4ff0b9e0d3584b96e414d60b889d68fa8660c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630236
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/godebug.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

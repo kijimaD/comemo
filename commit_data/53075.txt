@@ -1,0 +1,20 @@
+commit bf8571c5d6ce823e3ad7491429cf26d3a74461aa
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri May 5 13:22:02 2023 +0200
+
+    crypto/ed25519,crypto/rsa: make Equal methods constant time
+    
+    Fixes #53849
+    Updates #57752
+    
+    Change-Id: I055564f31a47c79565b82bf9844fcf626989b295
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492955
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/ed25519/ed25519.go |  5 +++--
+ src/crypto/rsa/rsa.go         | 12 +++++++++---
+ 2 files changed, 12 insertions(+), 5 deletions(-)

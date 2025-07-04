@@ -1,0 +1,14 @@
+commit a7d7d7aec26b18e8ae4581a30b7c0f5b4d0b9c6b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 8 12:05:31 2017 -0400
+
+    runtime: fix tab/space inconsistency in runtime-gdb.py
+    
+    Change-Id: I78c6198eb909e679cf0f776b77dda52211bfd347
+    Reviewed-on: https://go-review.googlesource.com/45133
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/runtime-gdb.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

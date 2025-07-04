@@ -1,0 +1,12 @@
+commit 392cebea5dd9acfb249b8a7daf1c6e759e70e5b8
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Tue May 14 13:28:16 2013 -0700
+
+    image: minor update of comments.
+    
+    R=golang-dev, iant, bradfitz, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/9408044
+
+ src/pkg/image/format.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,29 @@
+commit 5ba797bd189b460854a0aea877381abcaef8105b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 5 14:20:04 2016 -0700
+
+    cmd/compile: move a lot of declarations outside of go.go
+    
+    go.go is currently a grab bag of various unrelated type and variable
+    declarations. Move a bunch of them into other more relevant source
+    files.
+    
+    There are still more that can be moved, but these were the low hanging
+    fruit with obvious homes.
+    
+    No code/comment changes. Just shuffling stuff around.
+    
+    Change-Id: I43dbe1a5b8b707709c1a3a034c693d38b8465063
+    Reviewed-on: https://go-review.googlesource.com/21561
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/const.go     |  53 ++++++++++++
+ src/cmd/compile/internal/gc/dcl.go       |   6 ++
+ src/cmd/compile/internal/gc/go.go        | 137 -------------------------------
+ src/cmd/compile/internal/gc/lex.go       |  12 +++
+ src/cmd/compile/internal/gc/popt.go      |  28 +++++++
+ src/cmd/compile/internal/gc/reflect.go   |  10 +++
+ src/cmd/compile/internal/gc/type.go      |  14 ++++
+ src/cmd/compile/internal/gc/typecheck.go |  14 ++++
+ 8 files changed, 137 insertions(+), 137 deletions(-)

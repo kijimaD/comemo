@@ -1,0 +1,22 @@
+commit 1e50dd02a98bce8901cf10634ee0b2c8bbe4da81
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Oct 22 20:47:54 2018 +0200
+
+    runtime: use multiplication with overflow check for newarray
+    
+    This improves performance for e.g. maps with a bucket size
+    (key+value*8 bytes) larger than 32 bytes and removes loading
+    a value from the maxElems array for smaller bucket sizes.
+    
+    name                old time/op  new time/op  delta
+    MakeMap/[Byte]Byte  95.5ns ± 1%  94.7ns ± 1%  -0.78%  (p=0.013 n=9+9)
+    MakeMap/[Int]Int     128ns ± 0%   121ns ± 2%  -5.63%  (p=0.000 n=6+10)
+    
+    Updates #21588
+    
+    Change-Id: I7d9eb7d49150c399c15dcab675e24bc97ff97852
+    Reviewed-on: https://go-review.googlesource.com/c/143997
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/malloc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

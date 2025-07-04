@@ -1,0 +1,21 @@
+commit 10a273196b5aed2d72d50573bfc5c0bdb2e631a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 10 22:25:31 2014 -0700
+
+    net/http: don't reject 0-lengthed bodies with Expect 100-continue
+    
+    I was implementing rules from RFC 2616. The rules are apparently useless,
+    ambiguous, and too strict for common software on the Internet. (e.g. curl)
+    
+    Add more tests, including a test of a chunked request.
+    
+    Fixes #7625
+    
+    LGTM=dsymonds
+    R=golang-codereviews, dsymonds
+    CC=adg, golang-codereviews, rsc
+    https://golang.org/cl/84480045
+
+ src/pkg/net/http/serve_test.go | 62 +++++++++++++++++++++++++++++++++---------
+ src/pkg/net/http/server.go     |  8 +-----
+ 2 files changed, 50 insertions(+), 20 deletions(-)

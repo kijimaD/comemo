@@ -1,0 +1,23 @@
+commit 2532352ffba751726419a866e9ae5cb5529637fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 8 14:42:19 2023 -0700
+
+    go/types, types2: move functions for untyped constants into const.go
+    
+    No changes to the moved functions.
+    Generate const.go for go/types.
+    
+    Change-Id: I5ac412cecd9f618676a01138aed36428bbce3311
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493715
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/const.go | 307 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/expr.go  | 293 -----------------------------
+ src/go/types/const.go                    | 308 +++++++++++++++++++++++++++++++
+ src/go/types/expr.go                     | 293 -----------------------------
+ src/go/types/generate_test.go            |   1 +
+ 5 files changed, 616 insertions(+), 586 deletions(-)

@@ -1,0 +1,14 @@
+commit 78961ed961f372c2852f9ea59ee6a201e966dcc8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 24 16:11:14 2010 -0800
+
+    path: add Match
+    
+    R=eridius, r, rog
+    CC=golang-dev
+    https://golang.org/cl/217088
+
+ src/pkg/path/Makefile      |   1 +
+ src/pkg/path/match.go      | 197 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/path/match_test.go |  76 +++++++++++++++++
+ 3 files changed, 274 insertions(+)

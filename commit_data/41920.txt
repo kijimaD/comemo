@@ -1,0 +1,16 @@
+commit 7580937524965d6b4acd39d36f8447b1919e1816
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Apr 11 10:32:21 2020 -0700
+
+    cmd/compile: move more generic rewrites to the typed version
+    
+    Change-Id: I22d0644710d12c7efc509fd2a15789e2e073e6a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227869
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 166 +++---
+ src/cmd/compile/internal/ssa/rewrite.go        |  27 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 680 ++++++++++++++-----------
+ 3 files changed, 488 insertions(+), 385 deletions(-)

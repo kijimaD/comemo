@@ -1,0 +1,14 @@
+commit 3cb067d70dd3cd0e4eeb5395d9a8da8ebf199d1a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 12 11:23:33 2018 -0700
+
+    os: add Expand benchmarks
+    
+    Change-Id: I68e65591cc50433f97a97027e3ae3b452451adf2
+    Reviewed-on: https://go-review.googlesource.com/106696
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/env_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

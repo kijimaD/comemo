@@ -1,0 +1,26 @@
+commit 87431981522981bc69b1eccc392e101df3318c2e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 11 12:29:47 2022 -0700
+
+    test: make issue54343.go robust against the tiny allocator
+    
+    I structured the test for issue54343.go after issue46725.go, where I
+    was careful to use `[4]int`, which is a type large enough to avoid the
+    tiny object allocator (which interferes with finalizer semantics). But
+    in that test, I didn't note the importance of that type, so I
+    mistakenly used just `int` in issue54343.go.
+    
+    This CL switches issue54343.go to use `[4]int` too, and then adds
+    comments to both pointing out the significance of this type.
+    
+    Updates #54343.
+    
+    Change-Id: I699b3e64b844ff6d8438bbcb4d1935615a6d8cc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/fixedbugs/issue46725.go | 2 +-
+ test/fixedbugs/issue54343.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 16bea49ede776bd781515546e9a3df22c3dcfe06
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Sat Oct 6 13:56:12 2012 +0800
+
+    cmd/cc: map C int to int32 in Go defs
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6621052
+
+ src/cmd/cc/godefs.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

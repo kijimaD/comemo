@@ -1,0 +1,19 @@
+commit 7e5906a57d92e8afe8a6bb3f5d4c19d0e920ab9a
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jan 26 13:16:26 2023 -0800
+
+    net/http: remove five second timeout from TestTransportClosesBodyOnError
+    
+    Wait forever and let the test time out with a stack trace if the
+    expected response doesn't happen.
+    
+    Fixes #57990
+    
+    Change-Id: I835def63db113752cdd06e03e258cb10d63a6a25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463222
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/http/transport_test.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

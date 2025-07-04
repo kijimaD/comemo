@@ -1,0 +1,19 @@
+commit 444066e56dcb8dfedbc7c92d64da0d6f93dafed3
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jul 15 20:21:33 2010 -0700
+
+    interpret lines that look like
+            //line 10 units.y
+    which is equiv to c
+            #line 10 units.y
+    the purpose is to generate diagnostics
+    that correctly point to preprocessed source.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1863042
+
+ src/cmd/gc/lex.c         | 61 +++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/gc/subr.c        | 34 ++++++++++++++++++---------
+ src/cmd/goyacc/goyacc.go |  7 ++++--
+ 3 files changed, 88 insertions(+), 14 deletions(-)

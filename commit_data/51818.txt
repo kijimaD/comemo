@@ -1,0 +1,25 @@
+commit 49520907394c0a1060b51dc4a5d5ce1ac470a5f1
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Sun Jan 29 21:28:37 2023 +0100
+
+    internal/syscall/windows: regenerate zsyscall_windows.go
+    
+    CL 463219 broke TestAllDependencies because zsyscall_windows.go
+    was not correctly formatted, probably edited by hand.
+    
+    The failure was not catch by the CL builders because it is
+    only failing on linux longtests builders, which was not executed.
+    Windows builders skip that test because it lacks of the `diff` command.
+    
+    Change-Id: Id02992d71be2db7e9d3d169545679ab957f3be7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463841
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/syscall/windows/zsyscall_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

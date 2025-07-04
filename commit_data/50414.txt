@@ -1,0 +1,17 @@
+commit 866fbb67d0285240c3cf0c430ff018d20f99379c
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:05:52 2022 +0800
+
+    cmd/dist: use strings.Builder
+    
+    Change-Id: I56bd5d6b1333a96339340e5af5e6470cc7fb11a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428287
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/dist/buildgo.go      | 11 +++++------
+ src/cmd/dist/buildruntime.go |  8 ++++----
+ 2 files changed, 9 insertions(+), 10 deletions(-)

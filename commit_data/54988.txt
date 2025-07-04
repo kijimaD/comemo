@@ -1,0 +1,74 @@
+commit 6ef98ac87c8a4185c0bace496d84cb3b68f069e3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 10 15:28:32 2023 -0400
+
+    runtime/metrics: add STW stopping and total time metrics
+    
+    This CL adds four new time histogram metrics:
+    
+    /sched/pauses/stopping/gc:seconds
+    /sched/pauses/stopping/other:seconds
+    /sched/pauses/total/gc:seconds
+    /sched/pauses/total/other:seconds
+    
+    The "stopping" metrics measure the time taken to start a stop-the-world
+    pause. i.e., how long it takes stopTheWorldWithSema to stop all Ps.
+    This can be used to detect STW struggling to preempt Ps.
+    
+    The "total" metrics measure the total duration of a stop-the-world
+    pause, from starting to stop-the-world until the world is started again.
+    This includes the time spent in the "start" phase.
+    
+    The "gc" metrics are used for GC-related STW pauses. The "other" metrics
+    are used for all other STW pauses.
+    
+    All of these metrics start timing in stopTheWorldWithSema only after
+    successfully acquiring sched.lock, thus excluding lock contention on
+    sched.lock. The reasoning behind this is that while waiting on
+    sched.lock the world is not stopped at all (all other Ps can run), so
+    the impact of this contention is primarily limited to the goroutine
+    attempting to stop-the-world. Additionally, we already have some
+    visibility into sched.lock contention via contention profiles (#57071).
+    
+    /sched/pauses/total/gc:seconds is conceptually equivalent to
+    /gc/pauses:seconds, so the latter is marked as deprecated and returns
+    the same histogram as the former.
+    
+    In the implementation, there are a few minor differences:
+    
+    * For both mark and sweep termination stops, /gc/pauses:seconds started
+      timing prior to calling startTheWorldWithSema, thus including lock
+      contention.
+    
+    These details are minor enough, that I do not believe the slight change
+    in reporting will matter. For mark termination stops, moving timing stop
+    into startTheWorldWithSema does have the side effect of requiring moving
+    other GC metric calculations outside of the STW, as they depend on the
+    same end time.
+    
+    Fixes #63340
+    
+    Change-Id: Iacd0bab11bedab85d3dcfb982361413a7d9c0d05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534161
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/debug.go                |   4 +-
+ src/runtime/export_debuglog_test.go |   4 +-
+ src/runtime/export_test.go          |  16 ++--
+ src/runtime/heapdump.go             |   4 +-
+ src/runtime/histogram.go            |  13 +++
+ src/runtime/metrics.go              |  38 ++++----
+ src/runtime/metrics/description.go  |  36 ++++++--
+ src/runtime/metrics/doc.go          |  43 +++++++--
+ src/runtime/metrics_test.go         | 173 +++++++++++++++++++++++++++++++++++-
+ src/runtime/mgc.go                  |  42 +++++----
+ src/runtime/mprof.go                |  19 ++--
+ src/runtime/mstats.go               |  12 +--
+ src/runtime/os_linux.go             |   6 +-
+ src/runtime/proc.go                 |  84 ++++++++++++++---
+ src/runtime/runtime2.go             |  15 ++++
+ src/runtime/trace.go                |  12 +--
+ src/runtime/trace2.go               |   4 +-
+ 17 files changed, 425 insertions(+), 100 deletions(-)

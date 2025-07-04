@@ -1,0 +1,18 @@
+commit 49b77a87974c310b1d6a8437f3490f81811b2058
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Nov 16 11:33:38 2016 -0800
+
+    database/sql: guard against driver.Stmt.Close panics
+    
+    Do not retain a lock when driver.Stmt.Close panic as the rest
+    of the sql package ensures.
+    
+    Updates #16019
+    
+    Change-Id: Idc7ea9258ae23f491e79cce3efc365684a708428
+    Reviewed-on: https://go-review.googlesource.com/33328
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

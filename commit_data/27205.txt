@@ -1,0 +1,20 @@
+commit d8d33514f9e8c80d504ab4a61ef96621afc3647d
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 29 11:15:16 2016 -0400
+
+    cmd/compile: Move divconst_test out of test/bench/go1
+    
+    This is necessary to avoid disrupting the go1 suite and gives
+    us a place to put other tests of basic compiler function and
+    correctness.
+    
+    Change-Id: I36933819ff2bfe6a2121fff2be9a98efd2123d9a
+    Reviewed-on: https://go-review.googlesource.com/22597
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/test/README                               | 4 ++++
+ {test/bench/go1 => src/cmd/compile/internal/test}/divconst_test.go | 2 +-
+ src/cmd/compile/internal/test/test.go                              | 1 +
+ 3 files changed, 6 insertions(+), 1 deletion(-)

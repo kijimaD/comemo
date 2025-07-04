@@ -1,0 +1,18 @@
+commit 04a89054428b4da8f56300edcf0eb180abb9c8dd
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 28 10:53:06 2011 -0800
+
+    gob: updates to the debugging tool.
+    - complex numbers now supported.
+    - entirely independent of standard decode code.
+    - parser has no read-ahead; that is, the scanning works
+    simply by reading the values as they arrive, not by trying
+    to count bytes for message boundaries, a proof of concept
+    for the pending rewrite of the regular decoder.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4084044
+
+ src/pkg/gob/debug.go | 427 ++++++++++++++++++++++++---------------------------
+ 1 file changed, 204 insertions(+), 223 deletions(-)

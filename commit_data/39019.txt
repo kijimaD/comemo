@@ -1,0 +1,15 @@
+commit 689ee112dfb872e97116acd4c8d96ece1533604e
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu May 2 20:37:27 2019 -0600
+
+    math/big: document Int.String
+    
+    Int.String had no documentation and the documentation for Int.Text
+    did not mention the handling of the nil pointer case.
+    
+    Change-Id: I9f21921e431c948545b7cabc7829e4b4e574bbe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175118
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/intconv.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

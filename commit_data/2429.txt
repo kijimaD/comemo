@@ -1,0 +1,13 @@
+commit 0f62ac42a4022adb3d6181fc1dd616f5af20075f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 8 17:22:28 2009 -0700
+
+    add new function io.ReadAll
+    
+    R=gri
+    DELTA=14  (6 added, 4 deleted, 4 changed)
+    OCL=30072
+    CL=30074
+
+ src/lib/io/utils.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

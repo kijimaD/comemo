@@ -1,0 +1,19 @@
+commit 9aaaedbbb407330185b1ebd62fd4f146dfe2eff3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Feb 28 13:58:42 2023 +0100
+
+    syscall: use unsafe.Slice in (*RawSockaddrAny).Sockaddr on windows
+    
+    Follow CL 471436.
+    
+    Change-Id: I415b126f58dbd381b8d45457e7bd79f025a2a03c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472035
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/syscall/syscall_windows.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

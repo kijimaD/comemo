@@ -1,0 +1,14 @@
+commit 24f9db7c20ea874c14b04f4183a5632a15ff4c29
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Oct 8 22:00:34 2017 -0700
+
+    misc/cgo/testcshared: don't overwrite cc in parallel runs
+    
+    Fixes #22176
+    
+    Change-Id: If47ec9a25da6b480868d8eeccc518dc97d48bda7
+    Reviewed-on: https://go-review.googlesource.com/69230
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ misc/cgo/testcshared/cshared_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

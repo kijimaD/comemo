@@ -1,0 +1,15 @@
+commit e3fc124640d01395183d53d1c053b5236883b12f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 7 17:15:10 2008 -0700
+
+    revert specification of pointer types to current implementation
+    (do not allow explicit type forward declarations) and more clearly
+    specify resolution
+    
+    R=r
+    DELTA=30  (9 added, 7 deleted, 14 changed)
+    OCL=13967
+    CL=13987
+
+ doc/go_lang.txt | 42 ++++++++++++++++++++++--------------------
+ 1 file changed, 22 insertions(+), 20 deletions(-)

@@ -1,0 +1,23 @@
+commit 880a689124161f9dc342255ba8fe326719eb8de1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 4 12:30:30 2015 -0800
+
+    runtime: don't call msanread when running on the system stack
+    
+    The runtime is not instrumented, but the calls to msanread in the
+    runtime can sometimes refer to the system stack.  An example is the call
+    to copy in stkbucket in mprof.go.  Depending on what C code has done,
+    the system stack may appear uninitialized to msan.
+    
+    Change-Id: Ic21705b9ac504ae5cf7601a59189302f072e7db1
+    Reviewed-on: https://go-review.googlesource.com/16660
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testsanitizers/msan.go      |  4 +++
+ misc/cgo/testsanitizers/msan2.go     |  4 +++
+ misc/cgo/testsanitizers/msan4.go     | 50 ++++++++++++++++++++++++++++++++++++
+ misc/cgo/testsanitizers/msan_fail.go |  4 +++
+ misc/cgo/testsanitizers/test.bash    |  5 ++++
+ src/runtime/msan.go                  | 15 ++++++++++-
+ src/runtime/msan_amd64.s             |  6 ++---
+ 7 files changed, 84 insertions(+), 4 deletions(-)

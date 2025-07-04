@@ -1,0 +1,40 @@
+commit 5781df421e721088f3ff6229f0e8d4e4c04765b8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 28 16:15:14 2019 -0700
+
+    all: s/cancelation/cancellation/
+    
+    Though there is variation in the spelling of canceled,
+    cancellation is always spelled with a double l.
+    
+    Reference: https://www.grammarly.com/blog/canceled-vs-cancelled/
+    
+    Change-Id: I240f1a297776c8e27e74f3eca566d2bc4c856f2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170060
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go                                | 4 ++--
+ .../x/tools/go/analysis/passes/lostcancel/lostcancel.go           | 4 ++--
+ src/context/context.go                                            | 6 +++---
+ src/context/context_test.go                                       | 4 ++--
+ src/context/example_test.go                                       | 2 +-
+ src/database/sql/sql.go                                           | 2 +-
+ src/internal/poll/fd_windows.go                                   | 6 +++---
+ src/math/j0.go                                                    | 4 ++--
+ src/math/j1.go                                                    | 4 ++--
+ src/net/dial.go                                                   | 2 +-
+ src/net/dial_test.go                                              | 4 ++--
+ src/net/http/client.go                                            | 6 +++---
+ src/net/http/http.go                                              | 2 +-
+ src/net/http/request.go                                           | 2 +-
+ src/net/http/socks_bundle.go                                      | 2 +-
+ src/net/http/transport.go                                         | 8 ++++----
+ src/net/http/transport_test.go                                    | 2 +-
+ src/net/lookup.go                                                 | 2 +-
+ src/net/net.go                                                    | 2 +-
+ src/os/timeout_test.go                                            | 4 ++--
+ src/runtime/signal_solaris.go                                     | 2 +-
+ src/vendor/golang.org/x/net/nettest/conntest.go                   | 6 +++---
+ 22 files changed, 40 insertions(+), 40 deletions(-)

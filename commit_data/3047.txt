@@ -1,0 +1,17 @@
+commit 8bbe748b84bce360a0636a62f80cde198adefa28
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 21 15:43:23 2009 -0700
+
+    Enable these tests.  Fix divconst.go and modconst.go to
+    compile with the current compiler.  Adjust expected error
+    message in method1.go to match 6g output.
+    
+    R=rsc
+    DELTA=9  (2 added, 5 deleted, 2 changed)
+    OCL=33674
+    CL=33682
+
+ test/ken/divconst.go | 2 --
+ test/ken/modconst.go | 2 --
+ test/method1.go      | 5 ++---
+ 3 files changed, 2 insertions(+), 7 deletions(-)

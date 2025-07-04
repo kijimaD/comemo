@@ -1,0 +1,14 @@
+commit 68576506d6c241fe445eba5e25fb8830e4135915
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 4 01:39:29 2012 -0500
+
+    cmd/dist: add BSD gohostos cases
+    
+    Should fix FreeBSD build.
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5629050
+
+ src/cmd/dist/unix.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

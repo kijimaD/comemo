@@ -1,0 +1,27 @@
+commit 49be65eeba37a3d29a8a33379794e7a84df6cca1
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:24:32 2018 +0200
+
+    syscall: change solaris files to libc files
+    
+    AIX and Solaris both requires libc to make any syscalls and their
+    implementation is really similar.
+    Therefore, Solaris files reused by AIX have their name changed to *_libc.
+    
+    exec_libc.go is also adapted to AIX.
+    
+    Updates: #25893
+    
+    Change-Id: I50d1d7b964831637013d5e64799187cd9565c42b
+    Reviewed-on: https://go-review.googlesource.com/c/138719
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/syscall_solaris.go                     |  7 +++
+ src/syscall/asm_solaris_amd64.s                    |  4 ++
+ src/syscall/{exec_solaris.go => exec_libc.go}      | 23 +++++++---
+ src/syscall/exec_unix.go                           | 12 +++---
+ src/syscall/mkall.sh                               | 13 +++++-
+ .../{mksyscall_solaris.pl => mksyscall_libc.pl}    | 50 +++++++++++++++++++---
+ 6 files changed, 89 insertions(+), 20 deletions(-)

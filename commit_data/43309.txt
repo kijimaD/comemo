@@ -1,0 +1,32 @@
+commit cced777026e1fc094ed21d99ae1efa4cf19146d2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 21 21:24:00 2020 -0700
+
+    cmd/compile: set n.Name.Defn for inlined parameters
+    
+    Normally, when variables are declared and initialized using ":=", we
+    set the variable's n.Name.Defn to point to the initialization
+    assignment node (i.e., OAS or OAS2). Further, some frontend
+    optimizations look for variables that are initialized but never
+    reassigned.
+    
+    However, when inl.go inlines calls, it was declaring the inlined
+    variables, and then separately assigning to them. This CL changes
+    inl.go tweaks the AST to fit the combined declaration+initialization
+    pattern.
+    
+    This isn't terribly useful by itself, but it allows further followup
+    optimizations.
+    
+    Updates #41474.
+    
+    Change-Id: I62a9752c60414305679e0ed15a6563baa0224efa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256457
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/inl.go             | 74 +++++++++++---------------
+ src/cmd/compile/internal/logopt/logopt_test.go |  2 +-
+ 2 files changed, 33 insertions(+), 43 deletions(-)

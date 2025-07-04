@@ -1,0 +1,21 @@
+commit efb0c55407cdbef6aa5471f057b8afd1d0303369
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 11 13:54:55 2016 -0500
+
+    runtime: avoid span root marking entirely during mark termination
+    
+    Currently we enqueue span root mark jobs during both concurrent mark
+    and mark termination, but we make the job a no-op during mark
+    termination.
+    
+    This is silly. Instead of queueing them up just to not do them, don't
+    queue them up in the first place.
+    
+    Change-Id: Ie1d36de884abfb17dd0db6f0449a2b7c997affab
+    Reviewed-on: https://go-review.googlesource.com/20666
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgcmark.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

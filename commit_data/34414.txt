@@ -1,0 +1,26 @@
+commit aa9c1a8f8038e88da6d7cbfdc56e34ff914b7b04
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 28 22:01:24 2018 -0800
+
+    runtime: fix amd64p32 indexbytes in presence of overflow
+    
+    When the slice/string length is very large,
+    probably artifically large as in CL 97523,
+    adding BX (length) to R11 (pointer) overflows.
+    As a result, checking DI < R11 yields the wrong result.
+    Since they will be equal when the loop is done,
+    just check DI != R11 instead.
+    Yes, the pointer itself could overflow, but if that happens,
+    something else has gone pretty wrong; not our concern here.
+    
+    Fixes #24187
+    
+    Change-Id: I2f60fc6ccae739345d01bc80528560726ad4f8c6
+    Reviewed-on: https://go-review.googlesource.com/97802
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/asm_amd64p32.s   |  2 +-
+ test/fixedbugs/issue24187.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

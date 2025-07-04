@@ -1,0 +1,24 @@
+commit 4883b73982ad27752a1519c03928fb4659672ab0
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Dec 16 17:10:50 2010 -0500
+
+    crypto/tls: add ECDHE support
+    
+    (ECDHE is "Elliptic Curve Diffie Hellman Ephemeral")
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3668042
+
+ src/pkg/crypto/rsa/pkcs1v15.go                |   3 +
+ src/pkg/crypto/tls/Makefile                   |   1 +
+ src/pkg/crypto/tls/cipher_suites.go           |  50 +++++-
+ src/pkg/crypto/tls/common.go                  |  23 ++-
+ src/pkg/crypto/tls/conn.go                    |   2 +
+ src/pkg/crypto/tls/handshake_client.go        |  41 +++--
+ src/pkg/crypto/tls/handshake_client_test.go   | 211 ++++++++++++++++++++++
+ src/pkg/crypto/tls/handshake_messages.go      | 113 +++++++++++-
+ src/pkg/crypto/tls/handshake_messages_test.go |   5 +
+ src/pkg/crypto/tls/handshake_server.go        |  54 ++++--
+ src/pkg/crypto/tls/key_agreement.go           | 246 ++++++++++++++++++++++++++
+ 11 files changed, 703 insertions(+), 46 deletions(-)

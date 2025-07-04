@@ -1,0 +1,20 @@
+commit 5ee2290420889281637b536473a9a51ffd63dda4
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Jan 31 22:28:21 2019 -0700
+
+    math/big: implement Rat.SetUint64
+    
+    Implemented via the underlying Int.SetUint64.
+    Added tests for Rat.SetInt64 and Rat.SetUint64.
+    
+    Fixes #29579
+    
+    Change-Id: I03faaffc93e36873b202b58ae72b139dea5c40f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160682
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/rat.go      |  7 +++++++
+ src/math/big/rat_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+)

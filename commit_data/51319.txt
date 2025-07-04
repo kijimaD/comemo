@@ -1,0 +1,25 @@
+commit 2946c887babdafd8e92550723d5bd0aeb5613335
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 2 14:33:04 2022 -0400
+
+    cmd/dist: use goTest for manual go test invocations
+    
+    This CL rewrites everywhere in dist that manually constructs an
+    exec.Cmd to run "go test" to use the goTest abstraction. All remaining
+    invocations of "go test" after this CL construct the command line
+    manually, but ultimately use addCmd to execute it.
+    
+    I traced all exec calls from cmd/dist on linux/amd64 and this makes
+    only no-op changes (such as re-arranging the order of flags).
+    
+    For #37486.
+    
+    Change-Id: Idc7497e39bac04def7ddaf2010881c9623e76fd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450015
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/dist/test.go | 64 ++++++++++++++--------------------------------------
+ 1 file changed, 17 insertions(+), 47 deletions(-)

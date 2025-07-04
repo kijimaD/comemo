@@ -1,0 +1,12 @@
+commit b23096b514e6290b1ff31183516378fe91e16251
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Nov 23 10:37:05 2017 +0900
+
+    debug/gosym: update docs for changes in Go 1.3
+    
+    Change-Id: I850d961e0444f8d34284e994aee183afba35eaa7
+    Reviewed-on: https://go-review.googlesource.com/79597
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/gosym/symtab.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

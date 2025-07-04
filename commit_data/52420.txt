@@ -1,0 +1,17 @@
+commit 524f820b7fc6b191820c1e3813ca60677c91052a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Mar 27 19:20:58 2023 +0000
+
+    runtime: skip TestGdbCoreSignalBacktrace on arches other than 386/amd64
+    
+    For #25218.
+    
+    Change-Id: I4024a2064e0f56755fe40eb7489ba28eb4358c60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479518
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/runtime-gdb_unix_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

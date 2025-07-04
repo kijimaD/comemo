@@ -1,0 +1,24 @@
+commit 48f990b4a5743426ebf39b9cf2930fe100ebca9e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 22 12:32:59 2018 -0400
+
+    cmd/compile: fix GOEXPERIMENT=preemptibleloops type-checking
+    
+    This experiment has gone stale. It causes a type-checking failure
+    because the condition of the OIF produced by range loop lowering has
+    type "untyped bool". Fix this by typechecking the whole OIF statement,
+    not just its condition.
+    
+    This doesn't quite fix the whole experiment, but it gets further.
+    Something about preemption point insertion is causing failures like
+    "internal compiler error: likeliness prediction 1 for block b10 with 1
+    successors" in cmd/compile/internal/gc.
+    
+    Change-Id: I7d80d618d7c91c338bf5f2a8dc174d582a479df3
+    Reviewed-on: https://go-review.googlesource.com/102157
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/range.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

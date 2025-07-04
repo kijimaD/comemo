@@ -1,0 +1,18 @@
+commit 7047742f125053438b81fb3c8d33e8ad462e981e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 3 17:38:14 2016 -0800
+
+    cmd/compile: change esc.go to use nodeSeq
+    
+    Move a few local fields all the way to []*Node while I'm at it.
+    
+    Update #14473.
+    
+    Change-Id: Ib18360879839ac592f778cf1042f111bdf14add3
+    Reviewed-on: https://go-review.googlesource.com/20197
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go | 250 ++++++++++++++++++-------------------
+ 1 file changed, 119 insertions(+), 131 deletions(-)

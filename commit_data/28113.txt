@@ -1,0 +1,22 @@
+commit 67ea710792eabdae1182e2bf4845f512136cccce
+Author: Sam Whited <sam@samwhited.com>
+Date:   Wed Mar 2 00:00:23 2016 -0600
+
+    time: Add Until helper function
+    
+    Adds an Until() function that returns the duration until the given time.
+    This compliments the existing Since() function and makes writing
+    expressions that have expiration times more readable; for example:
+    
+        <-After(time.Until(connExpires)):
+    
+    Fixes #14595
+    
+    Change-Id: I87998a924b11d4dad5512e010b29d2da6b123456
+    Reviewed-on: https://go-review.googlesource.com/20118
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/time/time.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

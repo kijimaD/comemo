@@ -1,0 +1,17 @@
+commit 64dc25b2db5d5be55f3f2fde3daac6c8a2873235
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jul 14 21:41:12 2020 +0000
+
+    runtime: add tests for addrRanges.add
+    
+    Change-Id: I249deb482df74068b0538e9d773b9a87bc5a6df3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242681
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go  |  62 +++++++++++++++++++++++++-
+ src/runtime/mranges_test.go | 103 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 163 insertions(+), 2 deletions(-)

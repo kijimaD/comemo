@@ -1,0 +1,18 @@
+commit e23876a3835a67dfab936da273fb050dabe765d1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 1 12:56:12 2022 -0700
+
+    net: drop unused _C_ai_addrlen function
+    
+    Fixes AIX build.
+    
+    Change-Id: Icbb33896017bbcc488a8baff20e10eb0e14ea4b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447095
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/cgo_unix_cgo.go     | 15 +++++++--------
+ src/net/cgo_unix_syscall.go |  1 -
+ 2 files changed, 7 insertions(+), 9 deletions(-)

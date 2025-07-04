@@ -1,0 +1,20 @@
+commit 73e862eced80553479b7f19d572e9ca4e07bf585
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 4 15:42:32 2018 -0500
+
+    cmd/go/internal/get: use a strings.Replacer in expand
+    
+    This should be a no-op, but produces deterministic (and more correct)
+    behavior if we have accidentally failed to sanitize one of the inputs.
+    
+    Updates #29231
+    
+    Change-Id: I1271d0ffd01a691ec8c84906c4e02d9e2be19c72
+    Reviewed-on: https://team-review.git.corp.google.com/c/370575
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/154103
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/get/vcs.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

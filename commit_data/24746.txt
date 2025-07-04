@@ -1,0 +1,17 @@
+commit e9f90ba246dab09943a2578a77b017186e8cb661
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 6 08:29:53 2015 +0000
+
+    Revert "runtime: simplify buffered channels."
+    
+    Revert for now until #13169 is understood.
+    
+    This reverts commit 8e496f1d6923172291658f0a785bdb47cc152325.
+    
+    Change-Id: Ib3eb2588824ef47a2b6eb9e377a24e5c817fcc81
+    Reviewed-on: https://go-review.googlesource.com/16716
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/chan.go   | 495 +++++++++++++++++++++++++++-----------------------
+ src/runtime/select.go | 118 ++++++++----
+ 2 files changed, 349 insertions(+), 264 deletions(-)

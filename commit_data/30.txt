@@ -1,0 +1,13 @@
+commit 3cdf9c3bff49d1e0ef3b0347d2e97761f4c0a945
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 12 15:29:57 2008 -0700
+
+    - added another test
+    - added script to run tests
+    - fixed primary expression syntax in go.atg
+    
+    SVN=112281
+
+ tests/hashmap.go  | 6 +++---
+ tests/runtests.sh | 8 ++++++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

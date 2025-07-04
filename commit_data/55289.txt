@@ -1,0 +1,20 @@
+commit d1a186d7d07034b75f1d3fe950804efec3b9089a
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 13 11:37:46 2023 -0500
+
+    doc: add release note fragment on inlining changes
+    
+    Add some material to the "compiler" portion of the release
+    notes describing the 1.22 changes to the inliner.
+    
+    For #61422.
+    Updates #61502.
+    
+    Change-Id: Ic7f1cb7f70752446d2465ea3da6bd7488436342b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549395
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

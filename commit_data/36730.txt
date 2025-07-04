@@ -1,0 +1,15 @@
+commit 206fd7886b717d49758de9c125c1fd3575d74ef6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 21 21:03:35 2018 -0700
+
+    spec: be more precise about the moment deferred functions are executed
+    
+    Fixes #27802.
+    
+    Change-Id: I7ea9f7279300a55b0cb851893edc591a6f84e324
+    Reviewed-on: https://go-review.googlesource.com/136758
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

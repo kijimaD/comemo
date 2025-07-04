@@ -1,0 +1,15 @@
+commit b83549a7e652ed048525b939130c67d993b06890
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Oct 14 21:47:28 2009 -0700
+
+    cas
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=31  (1 added, 8 deleted, 22 changed)
+    OCL=35752
+    CL=35757
+
+ src/pkg/runtime/arm/cas.s | 19 +++++++++++++++++--
+ src/pkg/sync/asm_arm.s    | 20 ++++++++++++++++++--
+ 2 files changed, 35 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 6952347200ccdc02cbb045b56f26536e8f18f80d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 21 20:32:36 2010 +1000
+
+    misc/dashboard/builder: fixes and improvements
+    
+    - fix release upload
+    - add -rev= flag to build specific revision and exit
+    - added support for all-$GOARCH.bash
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2247044
+
+ misc/dashboard/builder/main.go | 97 ++++++++++++++++++++++++++----------------
+ 1 file changed, 61 insertions(+), 36 deletions(-)

@@ -1,0 +1,13 @@
+commit 1228112b50448a9ef2d8f6c78f510cec2424a1f4
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Oct 26 21:49:32 2009 -0700
+
+    bug162, large indices on nil references
+    
+    R=rsc
+    http://go/go-review/1013016
+
+ src/cmd/5g/cgen.c  | 10 ++++++++
+ src/cmd/5g/gg.h    |  3 ++-
+ src/cmd/5g/gsubr.c | 72 ++++++++++++++++++++++++++++++++++++++++++++----------
+ 3 files changed, 71 insertions(+), 14 deletions(-)

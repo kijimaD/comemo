@@ -1,0 +1,12 @@
+commit 355ed5da82d5bcf3cafd409c799ac694d69728f4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 19 14:09:12 2011 -0800
+
+    exec: disable new test to fix build
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5494075
+
+ src/pkg/os/exec/exec_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

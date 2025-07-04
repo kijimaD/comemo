@@ -1,0 +1,18 @@
+commit eab9a77a60f5b6aaba978b61fbb260f2fbb307fb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 31 12:51:45 2022 -0800
+
+    go/types, types2: fix unification code for defined types
+    
+    Fixes #50929.
+    
+    Change-Id: I65b8eaf5e4b423839bc53c7b1db3679961498c8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382076
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../types2/testdata/fixedbugs/issue50929.go2       | 68 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/unify.go           |  5 +-
+ src/go/types/testdata/fixedbugs/issue50929.go2     | 68 ++++++++++++++++++++++
+ src/go/types/unify.go                              |  7 ++-
+ 4 files changed, 145 insertions(+), 3 deletions(-)

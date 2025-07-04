@@ -1,0 +1,21 @@
+commit ebb0e5db758791966a1afb193ddb021d4250d5d6
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Oct 6 09:23:31 2012 +0200
+
+    test: Add rundir, rundircmpout and errorcheckdir commands to testlib and run.go
+    
+    rundir will compile each file in the directory in lexicographic order, link the last file as the main package and run the resulting program. rundircmpout is an related command, that will compare the output of the program to an corresponding .out file
+    
+    errorcheckdir will compile each file in a directory in lexicographic order, running errorcheck on each file as it compiles. All compilations are assumed to be successful except for the last file. However, If a -0 flag is present on the command, the last compilation will also be assumed successful
+    
+    This CL also includes a small refactoring of run.go. It was getting unwieldy and the meaning of the run commands was hidden behind argument line formatting.
+    
+    Fixes #4058.
+    
+    R=rsc, minux.ma, remyoudompheng, iant
+    CC=golang-dev
+    https://golang.org/cl/6554071
+
+ test/run.go  | 143 ++++++++++++++++++++++++++++++++++++++++++++++++-----------
+ test/testlib |  40 +++++++++++++++++
+ 2 files changed, 156 insertions(+), 27 deletions(-)

@@ -1,0 +1,28 @@
+commit 9f33dc3ca1b7b6bdb1a8e83c24d490f579bbbdc8
+Author: David Chase <drchase@google.com>
+Date:   Wed Feb 17 10:38:03 2021 -0500
+
+    cmd/compile: handle aggregate OpArg in registers
+    
+    Also handles case where OpArg does not escape but has its address
+    taken.
+    
+    May have exposed a lurking bug in 1.16 expandCalls,
+    if e.g., loading len(someArrayOfstructThing[0].secondStringField)
+    from a local.  Maybe.
+    
+    For #40724.
+    
+    Change-Id: I0298c4ad5d652b5e3d7ed6a62095d59e2d8819c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293396
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go        |   2 -
+ src/cmd/compile/internal/ssa/expand_calls.go | 250 ++++++++++++++++++---------
+ src/cmd/compile/internal/ssa/op.go           |  10 ++
+ src/cmd/compile/internal/ssa/regalloc.go     |   3 +
+ src/cmd/compile/internal/ssa/stackalloc.go   |  15 +-
+ src/cmd/compile/internal/ssa/tighten.go      |   2 +-
+ src/cmd/compile/internal/ssagen/ssa.go       |  36 +++-
+ 7 files changed, 225 insertions(+), 93 deletions(-)

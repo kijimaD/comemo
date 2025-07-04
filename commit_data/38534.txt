@@ -1,0 +1,23 @@
+commit 6582ee9cba7e4b5ffba1048782393d2557e64f1f
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 22 14:57:32 2019 -0400
+
+    test: new test for issue 30908
+    
+    New test case designed to mimic the code in issue 30908, which
+    features duplicate but non-indentical DWARF abstract subprogram DIEs.
+    
+    Updates #30908.
+    
+    Change-Id: Iacb4b53e6a988e46c801cdac236cef883c553f8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168957
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/fixedbugs/issue30908.dir/a.go | 32 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue30908.dir/b.go | 35 +++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue30908.dir/m.go | 21 +++++++++++++++++++++
+ test/fixedbugs/issue30908.go       |  9 +++++++++
+ 4 files changed, 97 insertions(+)

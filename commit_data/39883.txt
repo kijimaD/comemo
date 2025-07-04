@@ -1,0 +1,23 @@
+commit 3d522b10885a21f2c07344748e36bbfdcad01990
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 9 17:31:23 2019 -0400
+
+    cmd/go/internal/module: in VersionError, do not wrap an existing ModuleError
+    
+    VersionError wraps the given error in a ModuleError struct.
+    
+    If the given error is already a ModuleError for the same path and
+    version, we now return it directly instead of wrapping.
+    This makes it safer to call VersionError if we don't know whether
+    a given error is already wrapped.
+    
+    Updates #30748
+    
+    Change-Id: I41b23f6c3ead0ec382e848696da51f478da1ad35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189781
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/module/module.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

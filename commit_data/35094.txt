@@ -1,0 +1,23 @@
+commit d292f77e95fd9afdbfcfa12c9552d5926cdde8b1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 23 13:49:51 2018 -0700
+
+    cmd/compile: rewrite 2*x+c into LEAx1 on amd64
+    
+    Rewrite x<<1+c into x+x+c, which can be expressed as a single LEAQ/LEAL.
+    
+    Bit of a special case, but the single-instruction
+    LEA is both shorter and faster than SHL then ADD.
+    
+    Triggers 293 times during make.bash.
+    
+    Change-Id: I3f09c8e9a8f3859d1eeed336f095fc3ada79c2c1
+    Reviewed-on: https://go-review.googlesource.com/108938
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 43 +++++++++++++++++++++++++++-
+ test/codegen/arithmetic.go                   |  5 ++++
+ 3 files changed, 48 insertions(+), 1 deletion(-)

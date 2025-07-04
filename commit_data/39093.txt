@@ -1,0 +1,19 @@
+commit a44c3edbe0aafb509a175dfe0918bd17863bc97c
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 3 18:06:41 2019 -0400
+
+    all: document vendoring in the standard library
+    
+    Added documentation that explains special cases for vendored packages
+    in the standard library and provides instructions for updating vendor
+    directories.
+    
+    Fixes #31806
+    
+    Change-Id: Ib697ed18eae28023ab0bfb9f4d250992c393571d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174999
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/README.vendor     | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/README.vendor |  2 ++
+ 2 files changed, 56 insertions(+)

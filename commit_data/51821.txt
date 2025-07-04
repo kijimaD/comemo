@@ -1,0 +1,30 @@
+commit f2a2600860ebcd1b86a0d8b67308da0a3fa673f0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Jan 12 16:55:19 2023 -0500
+
+    all: give nested modules fully-qualified names
+    
+    The two crypto modules are both named "asm". If both are included in a
+    single go.work (e.g., from `go work use -r .` in the repo), builds break
+    from "module asm appears multiple times in workspace".
+    
+    Give these modules fully-qualified names to avoid conflicts. While we
+    are here, also expand the name of two other testdata modules. Those
+    modules don't currently conflict, but they have vague names at risk of
+    future conflicts.
+    
+    Fixes #57769.
+    
+    Change-Id: I2bd8a505051e92348d49560ec698ed921f2c81be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461896
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/objdump/testdata/testfilenum/go.mod        | 2 +-
+ src/crypto/internal/bigmod/_asm/go.mod             | 2 +-
+ src/crypto/internal/edwards25519/field/_asm/go.mod | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

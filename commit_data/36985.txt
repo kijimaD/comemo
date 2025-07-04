@@ -1,0 +1,23 @@
+commit 9f66b41beea82cc613cad9138c10a50f2b3ea137
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jun 16 01:22:07 2018 +0200
+
+    cmd/compile: avoid implicit bounds checks after explicit checks for append
+    
+    The generated code for the append builtin already checks if the appended
+    to slice is large enough and calls growslice if that is not the case.
+    Trust that this ensures the slice is large enough and avoid the
+    implicit bounds check when slicing the slice to its new size.
+    
+    Removes 365 panicslice calls (-14%) from the go binary which
+    reduces the binary size by ~12kbyte.
+    
+    Change-Id: I1b88418675ff409bc0b956853c9e95241274d5a6
+    Reviewed-on: https://go-review.googlesource.com/c/119315
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go  | 22 ++++++++++++----------
+ src/cmd/compile/internal/gc/walk.go |  3 +++
+ 2 files changed, 15 insertions(+), 10 deletions(-)

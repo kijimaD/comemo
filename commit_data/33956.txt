@@ -1,0 +1,14 @@
+commit acc1ec9b9d2724e58babf533068ac2d23225f8cb
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Dec 19 15:21:05 2017 -0500
+
+    doc/debugging_with_gdb: mention delve as an alternative.
+    
+    Fixes #23108
+    
+    Change-Id: I9b3d0f0c399c0b4cb488adaf3c002bc55d5d21d9
+    Reviewed-on: https://go-review.googlesource.com/84795
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ doc/debugging_with_gdb.html | 43 +++++++++++++++++++++++++++++++------------
+ 1 file changed, 31 insertions(+), 12 deletions(-)

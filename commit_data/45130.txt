@@ -1,0 +1,17 @@
+commit 7ec7a3cf33930e346e5f53fd41d2601b7c520056
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 1 19:12:02 2021 +0000
+
+    runtime: make gcEffectiveGrowthRatio a method on gcControllerState
+    
+    For #44167.
+    
+    Change-Id: Ie3cf8d2960c843a782ec85426fa73c279adaed64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306605
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgcpacer.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

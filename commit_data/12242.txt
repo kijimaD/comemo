@@ -1,0 +1,12 @@
+commit 2f4e5f79a67c7efffc7b85c16774f251a1a07e5c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 28 11:21:56 2012 +1100
+
+    gobuilder: send commit time in RFC3339 format
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5701063
+
+ misc/dashboard/builder/http.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

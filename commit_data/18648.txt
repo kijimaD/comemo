@@ -1,0 +1,16 @@
+commit f9b384f554143901ddf771214bfacf8041862f0c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 26 07:56:41 2014 +1100
+
+    syscall: fix solaris build
+    
+    Solaris does not define syscall.{Mmap,Munmap}. Move the Mmap test to a new file and exclude solaris as discussed.
+    
+    LGTM=aram
+    R=aram, mikioh.mikioh, iant
+    CC=golang-codereviews
+    https://golang.org/cl/68720043
+
+ src/pkg/syscall/mmap_unix_test.go    | 22 ++++++++++++++++++++++
+ src/pkg/syscall/syscall_unix_test.go | 12 +-----------
+ 2 files changed, 23 insertions(+), 11 deletions(-)

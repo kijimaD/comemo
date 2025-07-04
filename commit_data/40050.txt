@@ -1,0 +1,18 @@
+commit 9740b60e140433c6ab2230ca4f53935818221445
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Sep 16 10:23:54 2019 +0200
+
+    cmd/compile: refactor some code in loopbce.go
+    
+    This CL extracts the logic for pattern-matching an induction
+    variable into a separate function, in preparation for next CL
+    where we would need to call it multiple times.
+    
+    No functional changes, passes toolstash -cmp.
+    
+    Change-Id: Ic52391e6c1b2e72bae32a0f3f65dfea321caaf4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195737
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/loopbce.go | 58 ++++++++++++++++++++-------------
+ 1 file changed, 36 insertions(+), 22 deletions(-)

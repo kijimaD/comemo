@@ -1,0 +1,20 @@
+commit 51af90445696772703ed88d967e8c23c8e9e992d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 25 21:07:11 2022 -0700
+
+    go/types, types2: use correct shift value when typechecking constant shift
+    
+    Fixes #56425.
+    
+    Change-Id: Ieae3fdb5326d4b6f6ec1cdcd579051559e34b35b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445515
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go             | 5 +++--
+ src/go/types/expr.go                                | 5 +++--
+ src/internal/types/testdata/fixedbugs/issue56425.go | 8 ++++++++
+ 3 files changed, 14 insertions(+), 4 deletions(-)

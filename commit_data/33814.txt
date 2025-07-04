@@ -1,0 +1,15 @@
+commit 9b8d604db245e4910ac88a96c529e9798ab58c99
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 6 13:38:10 2017 -0500
+
+    doc/go1.10: preannounce removal of OS X 10.8 support in Go 1.11
+    
+    For #23011.
+    
+    Change-Id: Ibd934f32e41cb8dddbd3d68a324536cf29a97916
+    Reviewed-on: https://go-review.googlesource.com/82275
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.10.html | 5 +++++
+ 1 file changed, 5 insertions(+)

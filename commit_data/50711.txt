@@ -1,0 +1,24 @@
+commit 32a52e039953889a3aaa6a3e7f0ad0f7dfcbeac3
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Sep 27 19:03:54 2022 +0800
+
+    cmd/go: using strings.CutPrefix replace strings.HasPrefix and strings.TrimPrefix
+    
+    Change-Id: I143d05c24a3e897d0f3ee78dd16954c32ceae091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435137
+    Run-TryBot: xie cui <523516579@qq.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/envcmd/env.go            |  4 ++--
+ src/cmd/go/internal/modfetch/codehost/git.go |  4 ++--
+ src/cmd/go/internal/modfetch/coderepo.go     | 10 ++++++----
+ src/cmd/go/internal/modload/load.go          |  3 +--
+ src/cmd/go/internal/modload/vendor.go        |  8 ++++----
+ src/cmd/go/internal/test/genflags.go         |  5 +++--
+ src/cmd/go/internal/work/action.go           |  4 ++--
+ src/cmd/go/script_test.go                    |  6 ++----
+ 8 files changed, 22 insertions(+), 22 deletions(-)

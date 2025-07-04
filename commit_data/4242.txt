@@ -1,0 +1,13 @@
+commit 68d3b6e51a69a66b96051365992f67dca20ec013
+Author: Andrew Skiba <skibaa@gmail.com>
+Date:   Mon Nov 30 12:03:26 2009 -0800
+
+    Handle \r as a whitespace when parsing JSON string.
+    Fixes #272.
+    
+    R=rsc
+    https://golang.org/cl/161061
+
+ src/pkg/json/parse.go       |  2 +-
+ src/pkg/json/struct_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 76e705310ae7c985ad6eb7bcedbaaa3702f2c8f2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 20 13:02:10 2011 -0700
+
+    httptest: add NewUnstartedServer
+    
+    This allows testing TLS with different http.Server
+    options (timeouts, limits).
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5094043
+
+ src/pkg/http/httptest/server.go | 82 +++++++++++++++++++++++++++--------------
+ 1 file changed, 54 insertions(+), 28 deletions(-)

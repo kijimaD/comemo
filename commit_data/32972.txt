@@ -1,0 +1,16 @@
+commit 97d17fcfd19594afc03ee68e9d74b9db14798c7f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 4 15:32:40 2017 -0700
+
+    runtime: force the type of specialfinalizer into DWARF
+    
+    The core dump reader wants to know the layout of this type.
+    No variable has this type, so it wasn't previously dumped
+    to DWARF output.
+    
+    Change-Id: I982040b81bff202976743edc7fe53247533a9d81
+    Reviewed-on: https://go-review.googlesource.com/68312
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 2 ++
+ 1 file changed, 2 insertions(+)

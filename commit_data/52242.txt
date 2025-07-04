@@ -1,0 +1,40 @@
+commit f758d648b0aea95b10713864f20c957412ff9193
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 14 12:22:24 2022 -0400
+
+    runtime: implement traceback iterator
+    
+    Currently, all stack walking logic is in one venerable, large, and
+    very, very complicated function: runtime.gentraceback. This function
+    has three distinct operating modes: printing, populating a PC buffer,
+    or invoking a callback. And it has three different modes of unwinding:
+    physical Go frames, inlined Go frames, and cgo frames. It also has
+    several flags. All of this logic is very interwoven.
+    
+    This CL reimplements the monolithic gentraceback function as an
+    "unwinder" type with an iterator API. It moves all of the logic for
+    stack walking into this new type, and gentraceback is now a
+    much-simplified wrapper around the new unwinder type that still
+    implements printing, populating a PC buffer, and invoking a callback.
+    Follow-up CLs will replace uses of gentraceback with direct uses of
+    unwinder.
+    
+    Exposing traceback functionality as an iterator API will enable a lot
+    of follow-up work such as simplifying the open-coded defer
+    implementation (which should in turn help with #26813 and #37233),
+    printing the bottom of deep stacks (#7181), and eliminating the small
+    limit on CPU stacks in profiles (#56029).
+    
+    Fixes #54466.
+    
+    Change-Id: I36e046dc423c9429c4f286d47162af61aff49a0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458218
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/crash_unix_test.go |  10 +-
+ src/runtime/runtime2.go        |   8 +
+ src/runtime/symtab.go          |   2 +
+ src/runtime/traceback.go       | 798 +++++++++++++++++++++++++----------------
+ 4 files changed, 500 insertions(+), 318 deletions(-)

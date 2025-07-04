@@ -1,0 +1,15 @@
+commit 04d8605c21e085eeba6dd8b7d5d19bcbb46f0ba8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 20 11:12:05 2009 -0700
+
+    clear out pkg tree in clean.bash.
+    rename place-holder to _place_holder_ so it can be avoided.
+    
+    R=r
+    DELTA=5  (2 added, 2 deleted, 1 changed)
+    OCL=29093
+    CL=29097
+
+ pkg/{place-holder => ~place-holder~} | 0
+ src/clean.bash                       | 2 +-
+ 2 files changed, 1 insertion(+), 1 deletion(-)

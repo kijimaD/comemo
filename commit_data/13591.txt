@@ -1,0 +1,18 @@
+commit 5530a426efed5baa88e47ac73be19d7b7e99d743
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Aug 7 13:36:08 2012 +1000
+
+    exp/html: correctly handle <title> after </head>
+    
+    The <title> element was getting removed from the stack of open elements,
+    when its parent, the <head> element should have been removed instead.
+    
+    Pass 2 additional tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6449101
+
+ src/pkg/exp/html/parse.go                | 2 +-
+ src/pkg/exp/html/testlogs/tests7.dat.log | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

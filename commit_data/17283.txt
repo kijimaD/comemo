@@ -1,0 +1,20 @@
+commit f0fef323833b9b060024507a3229fa7bf9b523a8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 16 12:49:51 2013 +1000
+
+    cmd/go: fix at least some instances of double compilation
+    
+    When the packages the tested package depends on don't build,
+    we weren't getting out early. Added a simple check for a successful
+    build to an existing early out.
+    
+    There may be other ways that double compilation arises, but
+    this fixes the one listed in the issue.
+    Fixes #5679
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13036043
+
+ src/cmd/go/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

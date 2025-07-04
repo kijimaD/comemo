@@ -1,0 +1,13 @@
+commit 2e38b3511afd32a6e9cbb97e01da411495427259
+Author: Ingo Krabbe <ikrabbe.ask@gmail.com>
+Date:   Tue Jul 21 12:49:59 2015 +0200
+
+    misc/cgo/testsovar: needs the `extern` keyword to export variables on non-windows platforms
+    
+    Change-Id: I87fa25214fbf24469148a63f4e1e61e261105c16
+    Reviewed-on: https://go-review.googlesource.com/12470
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsovar/cgoso_c.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit ec6b5123feb4df04dfa470db609171a9401ec7c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 25 17:32:31 2012 -0400
+
+    A+C: add Michael Stapelberg (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6325058
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

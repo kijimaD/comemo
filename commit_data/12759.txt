@@ -1,0 +1,13 @@
+commit a3b86e9379e6e38d7f7a680cc688be1b99c2c5a8
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Mar 27 11:16:29 2012 +1100
+
+    misc/goplay: fix error on IE8.
+            use cancelBubble=true instead of preventDefault().
+    
+    R=golang-dev, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/5888043
+
+ misc/goplay/goplay.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

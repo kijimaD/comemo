@@ -1,0 +1,37 @@
+commit af0143ce03c6a1516a615f07c84a6f029f82399d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 6 11:34:02 2009 -0800
+
+    make 8a, 8c, 8l build in go environment.
+    ,s/int32/long/g in 8a, 8c, 8l.
+    delete dead code.
+    move enam.c, 8.out.h, mkenam from 8c to 8l.
+    
+    R=r
+    DELTA=1850  (581 added, 983 deleted, 286 changed)
+    OCL=22119
+    CL=22129
+
+ src/cmd/8a/Makefile        | 42 ++++++++++++++++++++
+ src/cmd/8a/a.h             | 48 ++++++++---------------
+ src/cmd/8a/a.y             |  2 +-
+ src/cmd/8a/lex.c           |  2 +-
+ src/cmd/8c/Makefile        | 41 ++++++++++++++++++++
+ src/cmd/8c/cgen.c          | 12 +++---
+ src/cmd/8c/cgen64.c        | 96 +++-------------------------------------------
+ src/cmd/8c/div.c           | 18 ++++-----
+ src/cmd/8c/gc.h            | 92 ++++++++++++++++++++++----------------------
+ src/cmd/8c/mul.c           | 20 +++++-----
+ src/cmd/8c/reg.c           | 68 ++++++++++++++++----------------
+ src/cmd/8c/sgen.c          |  4 +-
+ src/cmd/8c/swt.c           | 46 +++++++++++-----------
+ src/cmd/8c/txt.c           | 16 ++++----
+ src/cmd/{8c => 8l}/8.out.h |  4 +-
+ src/cmd/8l/Makefile        | 37 ++++++++++++++++++
+ src/cmd/8l/asm.c           | 18 ++++-----
+ src/cmd/8l/l.h             | 94 ++++++++++++++++++++++-----------------------
+ src/cmd/{8c => 8l}/mkenam  |  2 +-
+ src/cmd/8l/obj.c           | 76 ++++++++----------------------------
+ src/cmd/8l/pass.c          | 32 ++++++++--------
+ src/cmd/8l/span.c          | 36 ++++++++---------
+ 22 files changed, 390 insertions(+), 416 deletions(-)

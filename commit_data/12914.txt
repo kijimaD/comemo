@@ -1,0 +1,13 @@
+commit a682540547aa0fc3380950b7f7ecaebc4eff928c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 19 09:23:48 2012 -0700
+
+    A+C: add Bjorn Tillenius (Individual CLA)
+    
+    R=golang-dev, kevlar
+    CC=golang-dev
+    https://golang.org/cl/6075045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

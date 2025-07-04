@@ -1,0 +1,23 @@
+commit c123a800633532a4051eebf8ab9ba695ae46013b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Feb 25 12:56:44 2015 +1100
+
+    syscall: generate AT_* constants and regenerate ztypes_linux_*.go
+    
+    Updates #9974
+    
+    The *at family of syscalls requires some constants to be defined in the
+    syscall package for linux. Add the necessary constants and regenerate
+    the ztypes_linux_*.go files.
+    
+    Change-Id: I6df343fef7bcacad30d36c7900dbfb621465a4fe
+    Reviewed-on: https://go-review.googlesource.com/5836
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/types_linux.go          | 4 +++-
+ src/syscall/ztypes_linux_386.go     | 4 +++-
+ src/syscall/ztypes_linux_amd64.go   | 4 +++-
+ src/syscall/ztypes_linux_arm.go     | 4 +++-
+ src/syscall/ztypes_linux_ppc64.go   | 4 +++-
+ src/syscall/ztypes_linux_ppc64le.go | 4 +++-
+ 6 files changed, 18 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit e29d3dfc49f7142d87ab71bd1d8d04e129972dd5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 22 00:29:37 2012 -0500
+
+    gc: new, less strict bool rules
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5688064
+
+ src/cmd/gc/const.c     | 21 ++++++++++++++++++---
+ src/cmd/gc/subr.c      | 12 ++++++++++++
+ src/cmd/gc/typecheck.c | 11 ++++++++++-
+ src/cmd/gc/walk.c      |  4 +++-
+ test/named1.go         |  4 ++--
+ 5 files changed, 45 insertions(+), 7 deletions(-)

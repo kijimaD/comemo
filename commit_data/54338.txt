@@ -1,0 +1,20 @@
+commit dc6513b89f12768a4cc90925e383bd64240715ac
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 6 18:31:00 2023 +0200
+
+    net: remove unused _C_GoString
+    
+    It's unused since CL 466335.
+    
+    Change-Id: I2750f478bd2a1cde270a6273551e1434cb38b5ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526076
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/cgo_unix_cgo.go     | 1 -
+ src/net/cgo_unix_syscall.go | 4 ----
+ 2 files changed, 5 deletions(-)

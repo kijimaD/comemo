@@ -1,0 +1,27 @@
+commit 77e20e8cec3885a0aa6b9f9a8ba0018baea2e304
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jul 8 20:48:41 2008 -0700
+
+    converted double to float64
+    
+    SVN=126446
+
+ src/lib/math/asin.go  |  8 ++++----
+ src/lib/math/atan.go  | 34 ++++++++++++++++------------------
+ src/lib/math/atan2.go | 10 +++++-----
+ src/lib/math/exp.go   | 18 +++++++++---------
+ src/lib/math/fabs.go  |  2 +-
+ src/lib/math/floor.go |  6 +++---
+ src/lib/math/fmod.go  |  6 +++---
+ src/lib/math/hypot.go | 16 ++++++++--------
+ src/lib/math/log.go   | 22 +++++++++++-----------
+ src/lib/math/main.go  | 35 ++++++++++++++++-------------------
+ src/lib/math/pow.go   |  8 ++++----
+ src/lib/math/pow10.go | 24 ++++++++++++------------
+ src/lib/math/sin.go   | 12 ++++++------
+ src/lib/math/sinh.go  | 29 +++++++++++++++--------------
+ src/lib/math/sqrt.go  | 24 ++++++++++++------------
+ src/lib/math/sys.go   | 12 ++++++------
+ src/lib/math/tan.go   |  8 ++++----
+ src/lib/math/tanh.go  | 12 ++++++------
+ 18 files changed, 141 insertions(+), 145 deletions(-)

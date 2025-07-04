@@ -1,0 +1,16 @@
+commit bd384d42c11d5b3ec36dbc325ec8d350ea1f1b82
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri May 3 13:21:49 2019 +0200
+
+    misc/ios: don't refer to iostest.bash
+    
+    iostest.bash might not live much longer, and all.bash is much
+    less confusing and more explicit.
+    
+    Change-Id: If42e8716bbbb02aa3f817dceaabb1aa8076aae1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175178
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/ios/README | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

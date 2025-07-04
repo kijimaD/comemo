@@ -1,0 +1,17 @@
+commit 40d1ec588f492f63637b59e933d6c682d66659a4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 24 22:02:50 2020 -0400
+
+    cmd/dist: use GOOS=ios for iOS simulator test
+    
+    Updates #42100.
+    
+    Change-Id: Ib59432bea99a9dd6e25fbd759b31e423dc250f42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265197
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

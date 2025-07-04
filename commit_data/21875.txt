@@ -1,0 +1,20 @@
+commit 9a420f4cf324736f77550e81176eb7363ec6788d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 3 09:30:07 2015 -0800
+
+    cmd/asm: LOOP is a branch instruction on x86
+    
+    Just a missed case in in the handling of branches.
+    
+    Fixes #10065
+    
+    Change-Id: I6be054d30bf1f383c12b4c7626abd5f8ae22b22e
+    Reviewed-on: https://go-review.googlesource.com/6631
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go           | 3 ++-
+ src/cmd/asm/internal/asm/testdata/386.out   | 3 ++-
+ src/cmd/asm/internal/asm/testdata/386.s     | 4 ++++
+ src/cmd/asm/internal/asm/testdata/amd64.out | 3 ++-
+ src/cmd/asm/internal/asm/testdata/amd64.s   | 4 ++++
+ 5 files changed, 14 insertions(+), 3 deletions(-)

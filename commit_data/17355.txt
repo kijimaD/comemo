@@ -1,0 +1,16 @@
+commit dfdd1ba028b0adc78f858850a255bcd57aabef86
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 22 02:17:45 2013 +0400
+
+    runtime: do not trigger GC on g0
+    GC acquires worldsema, which is a goroutine-level semaphore
+    which parks goroutines. g0 can not be parked.
+    Fixes #6193.
+    
+    R=khr, khr
+    CC=golang-dev
+    https://golang.org/cl/12880045
+
+ src/pkg/runtime/mgc0.c  | 29 ++++++++---------------------
+ src/pkg/runtime/stack.c |  2 +-
+ 2 files changed, 9 insertions(+), 22 deletions(-)

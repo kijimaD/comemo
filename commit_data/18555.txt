@@ -1,0 +1,15 @@
+commit ac40fb44701c7a920310e18d22777196bdf8e581
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 18 13:38:47 2014 -0800
+
+    api: whitelist change to unicode.Version
+    
+    Unbreaks the build.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/65650043
+
+ api/except.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,21 @@
+commit 41d0bbdc166b8ade1b91f5493e4ad7cb901020de
+Author: David Chase <drchase@google.com>
+Date:   Mon May 8 14:37:02 2017 -0400
+
+    cmd/link: include DW_AT_producer in .debug_info
+    
+    This can make life easier for Delve (and other debuggers),
+    and can help them with bug reports.
+    
+    Sample producer field (from objdump):
+    <48> DW_AT_producer : Go cmd/compile devel +8a59dbf41a Mon May 8 16:02:44 2017 -0400
+    
+    Change-Id: I0605843c959b53a60a25a3b870aa8755bf5d5b13
+    Reviewed-on: https://go-review.googlesource.com/33588
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/dwarf/dwarf.go   | 1 +
+ src/cmd/link/internal/ld/dwarf.go | 2 ++
+ 2 files changed, 3 insertions(+)

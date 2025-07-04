@@ -1,0 +1,16 @@
+commit 2d7ae3fbd86d4b5471ac4044ece208b29cd0ef74
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 22 10:21:19 2021 -0500
+
+    net: diagnose unexpected nils in TestUnixAndUnixpacketServer
+    
+    For #34611
+    
+    Change-Id: I31894d58498b2c290ecceccfc004bc817f8969c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366114
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/server_test.go | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)

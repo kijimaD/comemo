@@ -1,0 +1,12 @@
+commit ea196278aa1277029314b6eaa4da65e981f19eb1
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 11 12:32:47 2013 -0700
+
+    debug/macho: add doc comment for FormatError
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7624044
+
+ src/pkg/debug/macho/file.go | 2 ++
+ 1 file changed, 2 insertions(+)

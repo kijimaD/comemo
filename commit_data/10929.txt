@@ -1,0 +1,14 @@
+commit 9754d61552d6f1b1c6b4f7a02d2b33c016c06f92
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 21 17:24:42 2011 +1100
+
+    dashboard: cache todo responses
+    
+    R=golang-dev, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/5500057
+
+ misc/dashboard/app/build/cache.go   | 125 ++++++++++++++++++++++++++++++++++++
+ misc/dashboard/app/build/handler.go |  37 ++++++-----
+ misc/dashboard/app/build/ui.go      |   5 --
+ 3 files changed, 145 insertions(+), 22 deletions(-)

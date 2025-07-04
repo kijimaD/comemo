@@ -1,0 +1,17 @@
+commit 11c1aa9f6d5d73ea75ad01eba054cee47dc7c621
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Mon Nov 16 12:39:37 2009 -0800
+
+    Adding my name to authors/contributors.  I'm waiting to hear
+    back from Carnegie Mellon about whether they're interested in
+    signing the agreement (do you know if they have already?).
+    In the meantime, I'm submitting these changes on my own time.
+    If CMU has already signed the corporate contributor agreement,
+    please remove my name from the AUTHORS list.
+    
+    R=rsc
+    https://golang.org/cl/154161
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

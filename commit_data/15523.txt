@@ -1,0 +1,15 @@
+commit 83c5d07c0e940b0ff3f9da23920f047c4dd6e6fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 1 00:30:19 2013 -0500
+
+    runtime/cgo: fix arm build
+    
+    During my global search and replace I forgot to open *.S (capital).
+    
+    R=golang-dev
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7415047
+
+ src/pkg/runtime/cgo/gcc_arm.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 56076c3080022f595541932fb4cea379939ec313
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Mar 4 19:53:14 2023 -0800
+
+    io: reduce allocations in Pipe constructor
+    
+    Rather than having PipeWriter and PipeReader a wrapper type on pipe,
+    make them have the same underlying memory representation and
+    rely instead of simply casting the same *pipe pointer
+    as either a *PipeReader or *PipeWriter to control the set of methods.
+    
+    This reduces the number of allocations by 2,
+    going from a total of 6 down to 4 allocations.
+    
+    Change-Id: I09207a00c4b7afb44c7773d752c5628a07e24fda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473535
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/io/pipe.go | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)

@@ -1,0 +1,12 @@
+commit 3f25c8a2ef3f9e9c55132ff770ae54efd289a21d
+Author: Peter Froehlich <peter.hans.froehlich@gmail.com>
+Date:   Wed Dec 23 08:49:38 2009 -0800
+
+    Fix comment for Chmod.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/183042
+
+ src/pkg/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

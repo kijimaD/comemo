@@ -1,0 +1,24 @@
+commit 78583a125ae028b4c4ffc2732dfd1cd98855917c
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Dec 21 09:31:39 2017 -0800
+
+    database/sql: fix nil pointer use within withLock
+    
+    During the refactor in 1126d1483f0397648905fcd4590ae45352cabd69 I
+    introduced a logical error within one withLock function that used
+    the result of the call before checking for the error. Change
+    the order so that the error is checked before the result is used.
+    
+    None of the other withLock uses have similar issues.
+    
+    Fixes #23208
+    
+    Change-Id: I6c5dcf262e36bad4369c850f1e0131066360a82e
+    Reviewed-on: https://go-review.googlesource.com/85175
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,37 @@
+commit d29f5247b8cbf5f2cb7b0e325a5eb1c7c5c1a91f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Feb 10 00:49:44 2022 +0000
+
+    runtime: refactor the scavenger and make it testable
+    
+    This change refactors the scavenger into a type whose methods represent
+    the actual function and scheduling of the scavenger. It also stubs out
+    access to global state in order to make it testable.
+    
+    This change thus also adds a test for the scavenger. In writing this
+    test, I discovered the lack of a behavior I expected: if the
+    pageAlloc.scavenge returns < the bytes requested scavenged, that means
+    the heap is exhausted. This has been true this whole time, but was not
+    documented or explicitly relied upon. This change rectifies that. In
+    theory this means the scavenger could spin in run() indefinitely (as
+    happened in the test) if shouldStop never told it to stop. In practice,
+    shouldStop fires long before the heap is exhausted, but for future
+    changes it may be important. At the very least it's good to be
+    intentional about these things.
+    
+    While we're here, I also moved the call to stopTimer out of wake and
+    into sleep. There's no reason to add more operations to a context that's
+    already precarious (running without a P on sysmon).
+    
+    Change-Id: Ib31b86379fd9df84f25ae282734437afc540da5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384734
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/export_test.go      | 104 +++++++
+ src/runtime/mgcscavenge.go      | 584 +++++++++++++++++++++++++---------------
+ src/runtime/mgcscavenge_test.go | 112 ++++++++
+ src/runtime/mgcsweep.go         |   7 +-
+ src/runtime/proc.go             |   4 +-
+ 5 files changed, 580 insertions(+), 231 deletions(-)

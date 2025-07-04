@@ -1,0 +1,30 @@
+commit 885111365ba0a74421059bfbd18f4c57c1e70332
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Apr 18 16:53:55 2015 +0900
+
+    net: fix inconsistent error values on File
+    
+    This change fixes inconsistent error values on
+    File{Conn,Listener,PacketConn} and File method of Conn, Listener.
+    
+    Updates #4856.
+    
+    Change-Id: I3197b9277bef0e034427e3a44fa77523acaa2520
+    Reviewed-on: https://go-review.googlesource.com/9101
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/error_test.go     | 114 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/fd_plan9.go       |   2 +-
+ src/net/fd_unix.go        |   4 +-
+ src/net/fd_windows.go     |   2 +-
+ src/net/file.go           |  48 +++++++++++++++++++
+ src/net/file_plan9.go     |  30 ++----------
+ src/net/file_stub.go      |  28 ++----------
+ src/net/file_unix.go      |  28 ++++--------
+ src/net/file_windows.go   |  24 +++-------
+ src/net/net.go            |   8 +++-
+ src/net/tcpsock_plan9.go  |   8 +++-
+ src/net/tcpsock_posix.go  |   8 +++-
+ src/net/unixsock_plan9.go |   2 +-
+ src/net/unixsock_posix.go |   8 +++-
+ 14 files changed, 217 insertions(+), 97 deletions(-)

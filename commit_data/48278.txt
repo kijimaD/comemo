@@ -1,0 +1,20 @@
+commit 4f8094386c3c015f6b6f3efc3a002d188433d388
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 3 15:13:11 2022 -0500
+
+    cmd/go: error out of 'go work use' if no directories are given
+    
+    Otherwise, the behavior of 'go work use -r' (without arguments)
+    may be surprising.
+    
+    Change-Id: I50cf1339591720ec5bd333146b89c9944ce420d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389855
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                          |  2 +-
+ src/cmd/go/internal/workcmd/use.go             |  5 ++++-
+ src/cmd/go/testdata/script/work_use_noargs.txt | 11 +++++++++++
+ 3 files changed, 16 insertions(+), 2 deletions(-)

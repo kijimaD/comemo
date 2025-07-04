@@ -1,0 +1,17 @@
+commit 053fe2f485fa1fd191f079cdc4a32f33761e38e4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 30 20:53:14 2021 -0400
+
+    cmd/link: emit better error for duplicated definition
+    
+    Print the packages where the duplicates come from.
+    
+    Change-Id: Ib3dc9aa0a3f5ddd97b03744be6d01d4bfcb33996
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315949
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/loader/loader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

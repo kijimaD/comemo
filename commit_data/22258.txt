@@ -1,0 +1,18 @@
+commit 919a6fbeab6e4eb73c2cca596ca79ae1a2abda34
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 1 11:49:12 2015 -0700
+
+    math/big: faster Int.Binomial(n, k) for k > n/2
+    
+    benchmark             old ns/op     new ns/op     delta
+    BenchmarkBinomial     478664        4410          -99.08%
+    
+    Fixes #10084.
+    
+    Change-Id: Ib75034428e32c79c9a660ae9f9bd396afc6a7f11
+    Reviewed-on: https://go-review.googlesource.com/8351
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/int.go      |  4 ++++
+ src/math/big/int_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)

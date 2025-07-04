@@ -1,0 +1,23 @@
+commit 00055152d320f60476ca5db1e7da4fc89f94834e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Dec 21 12:23:18 2018 -0500
+
+    cmd/go: fix -n output in runtime/internal/atomic
+    
+    When building runtime/internal/atomic, the toolchain writes a symabis2
+    file. This file is read back in, filtered, and appended to the symabis
+    file. This breaks with -n, since the symabis2 file is never written.
+    
+    With this change, when -n is used, an equivalent "grep" command is
+    printed instead. The output for -x is unchanged.
+    
+    Fixes #29346
+    
+    Change-Id: Id25e06e06364fc6689e71660d000f09c649c4f0c
+    Reviewed-on: https://go-review.googlesource.com/c/155480
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/gc.go                       | 6 ++++++
+ src/cmd/go/testdata/script/build_runtime_gcflags.txt | 4 ++++
+ 2 files changed, 10 insertions(+)

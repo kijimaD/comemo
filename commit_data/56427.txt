@@ -1,0 +1,24 @@
+commit b44600f83f5431f9af00cb209c443fe167588b6e
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Fri May 10 08:38:42 2024 +0000
+
+    reflect: let Value.Seq iterate integer conform to the spec
+    
+    See CL 557596, according to the go specification,
+    the iterated variable type should
+    be the same as the iterated integer type.
+    
+    For #66056
+    
+    Change-Id: I96c87440328c2c50c40d76ecf2f222a331be1ce9
+    GitHub-Last-Rev: 8f80e401e5d7e092290d94e2bfcac89f3e04c2c5
+    GitHub-Pull-Request: golang/go#67269
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584516
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/reflect/iter.go      | 49 ++++++++++++++++++++++++++++++++----------------
+ src/reflect/iter_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 16 deletions(-)

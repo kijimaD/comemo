@@ -1,0 +1,42 @@
+commit d5be41fc4e58995da5797022221d6b84b9894896
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 16 15:15:00 2009 -0700
+
+    rename bytes.Buffer.Data() to bytes.Buffer.Bytes()
+    
+    R=rsc
+    DELTA=152  (6 added, 0 deleted, 146 changed)
+    OCL=34695
+    CL=34701
+
+ src/cmd/ebnflint/ebnflint.go         |  2 +-
+ src/cmd/godoc/godoc.go               | 20 +++++------
+ src/pkg/archive/tar/writer_test.go   |  2 +-
+ src/pkg/base64/base64_test.go        |  4 +--
+ src/pkg/bufio/bufio_test.go          |  6 ++--
+ src/pkg/bytes/buffer.go              | 14 +++++---
+ src/pkg/bytes/buffer_test.go         |  8 ++---
+ src/pkg/compress/gzip/gunzip_test.go |  2 +-
+ src/pkg/compress/zlib/reader_test.go |  2 +-
+ src/pkg/crypto/block/cbc_aes_test.go |  4 +--
+ src/pkg/crypto/block/cfb_aes_test.go |  4 +--
+ src/pkg/crypto/block/ctr_aes_test.go |  4 +--
+ src/pkg/crypto/block/eax_aes_test.go |  4 +--
+ src/pkg/crypto/block/ecb_aes_test.go |  4 +--
+ src/pkg/crypto/block/ecb_test.go     |  4 +--
+ src/pkg/crypto/block/ofb_aes_test.go |  4 +--
+ src/pkg/crypto/block/xor_test.go     |  4 +--
+ src/pkg/datafmt/datafmt.go           |  8 ++---
+ src/pkg/exvar/exvar.go               |  2 +-
+ src/pkg/go/parser/interface.go       |  4 +--
+ src/pkg/go/printer/printer_test.go   |  2 +-
+ src/pkg/gob/codec_test.go            | 68 ++++++++++++++++++------------------
+ src/pkg/http/triv.go                 |  2 +-
+ src/pkg/io/utils.go                  |  2 +-
+ src/pkg/json/parse.go                |  2 +-
+ src/pkg/os/os_test.go                |  4 +--
+ src/pkg/regexp/regexp.go             |  4 +--
+ src/pkg/tabwriter/tabwriter.go       |  8 ++---
+ src/pkg/template/format.go           |  2 +-
+ src/pkg/template/template_test.go    | 16 ++++-----
+ 30 files changed, 111 insertions(+), 105 deletions(-)

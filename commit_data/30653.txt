@@ -1,0 +1,18 @@
+commit 57107f300a53c0e52bc0a1ff03d52faa628c11e5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 14 09:12:55 2017 -0700
+
+    cmd/compile: use local fn variable in compile
+    
+    fn == Curfn in this context. Prefer the local variable.
+    
+    Passes toolstash -cmp. Updates #15756.
+    
+    Change-Id: I75b589c682d0c1b524cac2bbf2bba368a6027b06
+    Reviewed-on: https://go-review.googlesource.com/38151
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

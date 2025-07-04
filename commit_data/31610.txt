@@ -1,0 +1,19 @@
+commit 9fdf77c3730cbb98f699bbd06db16988b7c590c2
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri May 19 02:13:50 2017 +0200
+
+    cmd/compile: skip TestScopeRanges on Plan 9
+    
+    TestScopeRanges has been added in CL 40095. This
+    test is failing on Plan 9 because executables don't
+    have a DWARF symbol table.
+    
+    Fixes #20418.
+    
+    Change-Id: I6dd3baa636998134ccd042203c8b5c3199a4d6e1
+    Reviewed-on: https://go-review.googlesource.com/43670
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/scope_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

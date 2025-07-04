@@ -1,0 +1,17 @@
+commit 3426b80dd9483a25d8d12fa0f39be7686f26c97b
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 18 15:39:38 2011 -0500
+
+    xml: support for > in tags
+    
+    This introduces support for selecting which subelement
+    to unmarshal into a given struct field by providing a
+    nesting path separated by the > character.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4066041
+
+ src/pkg/xml/read.go      | 88 +++++++++++++++++++++++++++++++++++++++++++++---
+ src/pkg/xml/read_test.go | 68 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 152 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit 634f0edabce65774a5e9dbd963b7b67a07d4bd62
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 20 15:30:11 2011 +1100
+
+    dashboard: todo sends full Commit with Kind field
+    
+    Permits us to implement other Kinds of todo instruction in the future.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5495087
+
+ misc/dashboard/app/build/build.go | 56 ++++++++++++++++++++++++---------
+ misc/dashboard/app/build/test.go  | 66 +++++++++++++++++++++++++++++----------
+ misc/dashboard/builder/http.go    | 21 +++++++++----
+ misc/dashboard/builder/main.go    |  4 +--
+ 4 files changed, 108 insertions(+), 39 deletions(-)

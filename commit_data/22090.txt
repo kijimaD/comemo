@@ -1,0 +1,20 @@
+commit d21cef1f8f7b09bac11642a705078675e8e59164
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 17 15:28:57 2015 -0400
+
+    runtime: remove pointless harvestwbufs
+    
+    Currently we harvestwbufs the moment we enter the mark phase, even
+    before starting the world again. Since cached wbufs are only filled
+    when we're in mark or mark termination, they should all be empty at
+    this point, making the harvest pointless. Remove the harvest.
+    
+    We should, but do not currently harvest at the end of the mark phase
+    when we're running out of work to do.
+    
+    Change-Id: I5f4ba874f14dd915b8dfbc4ee5bb526eecc2c0b4
+    Reviewed-on: https://go-review.googlesource.com/7669
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 1 -
+ 1 file changed, 1 deletion(-)

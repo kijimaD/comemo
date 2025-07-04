@@ -1,0 +1,16 @@
+commit ddf6d8005dc25ddc0a72e70cf3fc55343119867d
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Mar 8 14:27:51 2015 +0100
+
+    test: fix nosplit test, and disable nilptr3 test on arm64
+    
+    Change-Id: I5d40e04395de743a8fdcfa8bdc0e580729bc66a3
+    Reviewed-on: https://go-review.googlesource.com/7147
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/nilptr3.go | 5 +++--
+ test/nosplit.go | 3 +++
+ 2 files changed, 6 insertions(+), 2 deletions(-)

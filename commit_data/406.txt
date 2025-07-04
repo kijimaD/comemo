@@ -1,0 +1,13 @@
+commit 220edc48da3553d77da2bcb88b59259cc20f4457
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 22 15:23:06 2008 -0700
+
+    Expand section on compound literals.
+    
+    R=ken,gri
+    DELTA=31  (22 added, 0 deleted, 9 changed)
+    OCL=13351
+    CL=13362
+
+ doc/go_lang.txt | 32 +++++++++++++++++++++++++++-----
+ 1 file changed, 27 insertions(+), 5 deletions(-)

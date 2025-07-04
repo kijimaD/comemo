@@ -1,0 +1,15 @@
+commit 75e0569b99d6da1315a8009df6803d1e4fae5ce8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 29 13:26:49 2009 -0700
+
+    statistics HTML page for rpc
+    
+    R=rsc
+    DELTA=121  (115 added, 0 deleted, 6 changed)
+    OCL=32427
+    CL=32429
+
+ src/pkg/rpc/Makefile  |   3 +-
+ src/pkg/rpc/debug.go  | 100 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/rpc/server.go |  23 ++++++++++--
+ 3 files changed, 121 insertions(+), 5 deletions(-)

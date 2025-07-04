@@ -1,0 +1,12 @@
+commit bc34cda74225601b2f8c19c04d9668f83216960f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 15 14:20:30 2011 -0700
+
+    rpc: add the ability to write out a memory profile during testing.
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4290047
+
+ src/pkg/rpc/server_test.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

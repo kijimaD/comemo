@@ -1,0 +1,12 @@
+commit d3191f5c2b10da7c7608828df648d01355e0e2f3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Mar 13 03:24:13 2012 +0800
+
+    gc: correct comment in runtime.go
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/5777057
+
+ src/cmd/gc/runtime.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

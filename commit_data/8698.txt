@@ -1,0 +1,20 @@
+commit 9ded954a3b024ce1d8d73b21475697c6a5f76963
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 13 10:22:31 2011 +1000
+
+    net: rearrange source files so we could run more tests on windows
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4603043
+
+ src/pkg/net/Makefile                               |  15 +-
+ src/pkg/net/dnsclient.go                           | 367 ++-------------------
+ src/pkg/net/dnsclient_unix.go                      | 262 +++++++++++++++
+ src/pkg/net/dnsmsg_test.go                         |   7 -
+ src/pkg/net/dnsname_test.go                        |   4 -
+ src/pkg/net/lookup.go                              |  50 ---
+ src/pkg/net/lookup_unix.go                         | 126 +++++++
+ .../net/{resolv_windows.go => lookup_windows.go}   |  84 ++---
+ src/pkg/net/net_test.go                            |   4 -
+ 9 files changed, 442 insertions(+), 477 deletions(-)

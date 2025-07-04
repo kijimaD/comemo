@@ -1,0 +1,13 @@
+commit 958e0792b5a3cbbc4a633bbf829441d51a299e28
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 19 00:36:26 2014 -0500
+
+    test/fixedbugs/issue9355: fix build on arm and power64
+    
+    Change-Id: I1ef770184ad1d42bcb58714d559f2cc866a919ab
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/1880
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/fixedbugs/issue9355.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

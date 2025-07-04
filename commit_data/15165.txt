@@ -1,0 +1,12 @@
+commit 6c54bf991680f937db8fb74e8da4b26a757e8242
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Feb 8 13:24:38 2013 +0800
+
+    runtime: fix build for Linux/ARM
+    
+    R=dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7299055
+
+ src/pkg/runtime/traceback_arm.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

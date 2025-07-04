@@ -1,0 +1,15 @@
+commit 35222eeb78ddb84f5787729c5f149cfd73d63ef8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Dec 19 08:14:50 2023 -0800
+
+    doc: add html/template release note
+    
+    Updates #61422
+    
+    Change-Id: Ie86e8545d55cfd0898d21387d8b48d9392f85bf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551335
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

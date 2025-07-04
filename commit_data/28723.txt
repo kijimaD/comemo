@@ -1,0 +1,18 @@
+commit b108009d00e55c34486541202dc11ab5cb06b63f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Oct 8 07:22:47 2016 +0900
+
+    vendor: update vendored route
+    
+    Updates golang_org/x/net/route to rev f09c466 for:
+    - route: fix typo
+    - route: test helper code cleanup
+    
+    Change-Id: If39f0e947dc56f3b0f38190035d2f47c8d847c74
+    Reviewed-on: https://go-review.googlesource.com/30730
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/vendor/golang_org/x/net/route/route_test.go | 35 +++++++++++++------------
+ 1 file changed, 18 insertions(+), 17 deletions(-)

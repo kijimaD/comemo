@@ -1,0 +1,15 @@
+commit dcc96e4b9403a3a1e135b81d5f556a72a04a2add
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 17 18:02:26 2021 -0700
+
+    io/ioutil: use correct Go version in redirection comments
+    
+    Change-Id: I282f428137ca3360a58167c94e26f3dfdf59fb63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302756
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/io/ioutil/tempfile.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

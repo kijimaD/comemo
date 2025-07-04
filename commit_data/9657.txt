@@ -1,0 +1,16 @@
+commit 9fc687392c215a090b35d6966964990633f40acb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 12 15:52:29 2011 -0400
+
+    gc: clean up if grammar
+    
+    Fixes #2248.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4978064
+
+ src/cmd/gc/go.errors |  3 +++
+ src/cmd/gc/go.y      | 38 ++++++++++++++++++++++----------------
+ test/syntax/else.go  | 12 ++++++++++++
+ 3 files changed, 37 insertions(+), 16 deletions(-)

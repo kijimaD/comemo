@@ -1,0 +1,25 @@
+commit 6c98ecda100c2e3f8325d0b958f53aeaeb92c101
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 8 14:41:44 2021 -0400
+
+    cmd/compile: don't use fast32/64 map functions for aggregates
+    
+    Under register ABI, aggregates like [2]uint32 is passed
+    differently than a uint64. For now, don't use the fast version
+    of the map functions for non-trivial aggregates.
+    
+    GOEXPERIMENT=regabi,regabiargs can now pass make.bash, modulo
+    staleness checks.
+    
+    TODO: maybe find some way to use the fast functions. Maybe
+    unsafe-cast to uint32/64 then call the map function. But need to
+    make the type checker happy.
+    
+    Change-Id: If42717280dde12636fb970798cf1ca8fb29a3d06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308650
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/walk/walk.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

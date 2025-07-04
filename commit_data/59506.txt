@@ -1,0 +1,23 @@
+commit 3ea94ae446727ab75f6baa38444cf49041cb3b16
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Feb 25 22:50:10 2025 +0000
+
+    runtime: help the race detector detect possible concurrent cleanups
+    
+    This change makes it so that cleanup goroutines, in race mode, create a
+    fake race context and switch to it, emulating cleanups running on new
+    goroutines. This helps in catching races between cleanups that might run
+    concurrently.
+    
+    Change-Id: I4c4e33054313798d4ac4e5d91ff2487ea3eb4b16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mcleanup.go                     | 76 +++++++++++++++++++++++++++++
+ src/runtime/race.go                         |  7 +++
+ src/runtime/race/testdata/finalizer_test.go | 41 ++++++++++++++++
+ src/runtime/race0.go                        |  1 +
+ 4 files changed, 125 insertions(+)

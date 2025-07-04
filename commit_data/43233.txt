@@ -1,0 +1,15 @@
+commit 2be7788f8383c2330cd96db53273e2995d4468f8
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 8 08:42:11 2020 -0700
+
+    doc: update install docs for 387->softfloat transition
+    
+    Fixes #41861
+    
+    Change-Id: I7aa9370c7762986ee07ba6ff7f6ebda067559f06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260757
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install-source.html | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

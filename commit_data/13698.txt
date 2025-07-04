@@ -1,0 +1,14 @@
+commit d199c34cf0b9c536ffd0167159fa50be2261935c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 28 15:33:05 2012 -0700
+
+    test/bench/shootout: pidigits is much faster
+    Also fix a bug in the script (s/runonly/run/)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6501051
+
+ test/bench/shootout/timing.log | 6 ++++++
+ test/bench/shootout/timing.sh  | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

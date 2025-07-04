@@ -1,0 +1,12 @@
+commit 85255f99426b97c6663db6c4a5387d7f958f0282
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Mon Nov 21 09:11:34 2011 -0800
+
+    bcrypt: Correct typo in package comment.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5415062
+
+ src/pkg/crypto/bcrypt/bcrypt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

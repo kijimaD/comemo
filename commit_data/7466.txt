@@ -1,0 +1,12 @@
+commit a0c3b96065e6291cab072eb526ac4c49c6d06aa3
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Feb 15 16:38:45 2011 -0500
+
+    crypto/tls: make protocol negotiation failure fatal
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4178054
+
+ src/pkg/crypto/tls/handshake_client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

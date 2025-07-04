@@ -1,0 +1,26 @@
+commit 5d06d165ff36010b3828161401aa425f8e8506a6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 5 23:09:08 2024 +0700
+
+    cmd/compile: remove types.Type rparams field
+    
+    This field is present during the initial development of generic support
+    inside compiler, and indicating whether a type is fully instantiated is
+    the solely purpose at this moment. Further, its name is also confused,
+    and there have been a TODO to chose a better name for it.
+    
+    Instead, just using a bit to track whether a type is fully instantiated,
+    then this rparams field can be removed to simplify the code.
+    
+    Change-Id: Ia29c6dd5792487c440b83b0f3b77bd60917c2019
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611255
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/reader.go      | 17 +++++---
+ src/cmd/compile/internal/types/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types/type.go        | 63 +++++++--------------------
+ 3 files changed, 26 insertions(+), 56 deletions(-)

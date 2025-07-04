@@ -1,0 +1,22 @@
+commit 38f0a829aa041cbe5f694da52d733352aa5b70bc
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Aug 1 10:17:14 2024 -0400
+
+    debug/buildid: treat too large string as "not a Go executable"
+    
+    If the length does not fit in int, saferio.ReadDataAt returns
+    io.ErrUnexpectedEOF. Treat is as an invalid format.
+    
+    Fixes #68692.
+    For #68592.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest
+    Change-Id: Ie856f29c907fd10e6d9b7dfbb6f0d8008a75a1c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602435
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/debug/buildinfo/buildinfo.go | 4 ++++
+ 1 file changed, 4 insertions(+)

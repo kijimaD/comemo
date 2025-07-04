@@ -1,0 +1,11 @@
+commit abc6ad427d96138ef5a3c8fdb9d2f6d5ab9a2bbb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 22 18:04:21 2009 -0700
+
+    minor changes to walk
+    
+    R=rsc
+    http://go/go-review/1012008
+
+ src/pkg/go/ast/walk.go | 111 +++++++++++++++++++++++--------------------------
+ 1 file changed, 52 insertions(+), 59 deletions(-)

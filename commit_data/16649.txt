@@ -1,0 +1,14 @@
+commit 5cd5d88954a20c2f4792b6010f3ab7b82355e84b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 26 11:36:18 2013 -0700
+
+    crypto/sha256: provide top-level Sum and Sum224 functions
+    Makes it easy to ask the simple question, what is the hash of this data?
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/10629043
+
+ src/pkg/crypto/sha256/sha256.go      | 32 ++++++++++++++++++++++++++++----
+ src/pkg/crypto/sha256/sha256_test.go |  8 ++++++++
+ 2 files changed, 36 insertions(+), 4 deletions(-)

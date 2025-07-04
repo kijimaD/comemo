@@ -1,0 +1,29 @@
+commit adbfdfe377fe4b0b4892db097f23f7e1249216cf
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Aug 26 23:05:36 2017 +0200
+
+    cmd/compile: don't use MOVOstore for move on plan9/amd64
+    
+    The SSA compiler currently generates MOVOstore instructions
+    to optimize 16 bytes moves on AMD64 architecture.
+    
+    However, we can't use the MOVOstore instruction on Plan 9,
+    because floating point operations are not allowed in the
+    note handler.
+    
+    We rely on the useSSE flag to disable the use of the
+    MOVOstore instruction on Plan 9 and replace it by two
+    MOVQstore instructions.
+    
+    Fixes #21625
+    
+    Change-Id: Idfefcceadccafe1752b059b5fe113ce566c0e71c
+    Reviewed-on: https://go-review.googlesource.com/59171
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/compile/internal/gc/asm_test.go      |  33 +++++++++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  14 +++-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 102 +++++++++++++++++++++++----
+ 3 files changed, 135 insertions(+), 14 deletions(-)

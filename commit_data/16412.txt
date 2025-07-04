@@ -1,0 +1,16 @@
+commit 5782f4117dcb4c8fc40f8110a57ac531a2abdb99
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon May 27 11:29:11 2013 +0400
+
+    runtime: introduce cnewarray() to simplify allocation of typed arrays
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/9648044
+
+ src/pkg/reflect/all_test.go | 19 +++++++++++++++++
+ src/pkg/runtime/iface.c     | 32 ++---------------------------
+ src/pkg/runtime/malloc.goc  | 50 ++++++++++++++++++++++++++-------------------
+ src/pkg/runtime/malloc.h    |  1 +
+ src/pkg/runtime/slice.c     | 20 +-----------------
+ 5 files changed, 52 insertions(+), 70 deletions(-)

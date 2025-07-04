@@ -1,0 +1,22 @@
+commit 25d2987dd93e1fa0d325af440a69e26fc0c9ee0e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 17 22:53:23 2011 -0800
+
+    text/template: refactor set parsing
+    Parse {{define}} blocks during template parsing rather than separately as a set-specific thing.
+    This cleans up set parse significantly, and enables the next step, if we want, to unify the
+    API for templates and sets.
+    Other than an argument change to parse.Parse, which is in effect an internal function and
+    unused by client code, there is no API change and no spec change yet.
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5393049
+
+ src/pkg/text/template/exec_test.go        |  6 ++-
+ src/pkg/text/template/parse.go            | 14 ++----
+ src/pkg/text/template/parse/parse.go      | 75 +++++++++++++++++++++++--------
+ src/pkg/text/template/parse/parse_test.go |  2 +-
+ src/pkg/text/template/parse/set.go        | 38 +---------------
+ src/pkg/text/template/set.go              |  1 +
+ 6 files changed, 70 insertions(+), 66 deletions(-)

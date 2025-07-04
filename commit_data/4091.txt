@@ -1,0 +1,14 @@
+commit 1a2418f575a3347540069b5deb856bac367e1a49
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 08:47:48 2009 -0800
+
+    codereview: add clpatch --ignore_hgpatch_errors.
+      of limited utility but good for creating the metadata
+      for an AUTHORS/CONTRIBUTORS change even if
+      the patch doesn't apply cleanly.
+    
+    R=r
+    https://golang.org/cl/154140
+
+ lib/codereview/codereview.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

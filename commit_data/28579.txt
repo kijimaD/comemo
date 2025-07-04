@@ -1,0 +1,19 @@
+commit d58219e50ba1fd9bf577be7332bdcabe0ef8b7d5
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Sep 29 18:46:24 2016 +0200
+
+    cmd/compile: delete unused IntLiteral function
+    
+    IntLiteral was only called by the gins functions in
+    cmd/compile/internal/{arm64,mips64,ppc64}/gsubr.go
+    but CL 29220 (cmd/compile: remove gins) deleted them,
+    so IntLiteral is now unused.
+    
+    Change-Id: I2652b6d2ace6fdadc1982f65e749f3982513371e
+    Reviewed-on: https://go-review.googlesource.com/29996
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/const.go | 13 -------------
+ 1 file changed, 13 deletions(-)

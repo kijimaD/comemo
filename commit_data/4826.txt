@@ -1,0 +1,13 @@
+commit d4ad8e8ce35b330904e327a586606d95bb87d143
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Feb 9 17:26:04 2010 -0800
+
+    bug fix in 6c/8c/5c mis-aligned
+    function arguments.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/206054
+
+ src/cmd/cc/com.c | 33 +++++++++++++++++----------------
+ 1 file changed, 17 insertions(+), 16 deletions(-)

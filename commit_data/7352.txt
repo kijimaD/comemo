@@ -1,0 +1,57 @@
+commit 3f61184e1bec975b91ac17295695c5582d241c5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 3 13:51:43 2011 -0500
+
+    gc, ld: detect stale or incompatible object files
+    
+    The object files begin with a header that is
+    
+            $GOARCH
+    
+    on a line by itself.  This CL changes that header to
+    
+            go object $GOOS $GOARCH release.2011-01-01 4567+
+    
+    where the final two fields are the most recent release
+    tag and the current hg version number.
+    
+    All objects imported into a Go compilation or linked into an
+    executable must have the same header line, and that header
+    line must match the compiler and linker versions.
+    
+    The effect of this will be that if you update and run all.bash
+    and then try to link in objects compiled with an earlier version
+    of the compiler (or invoke the wrong version of the compiler),
+    you will get an error showing the different headers instead
+    of perhaps silent incompatibility.
+    
+    Normal usage with all.bash should be unaffected, because
+    all.bash deletes all the object files in $GOROOT/pkg/$GOOS_$GOARCH
+    and cleans all intermediate object files before starting.
+    
+    This change is intended to diagnose stale objects arising when
+    users maintaining alternate installation directories forget to
+    rebuild some of their files after updating.
+    
+    It should help make the adoption of $GOPATH (CL 3780043)
+    less error-prone.
+    
+    R=ken2, r
+    CC=golang-dev
+    https://golang.org/cl/4023063
+
+ src/cmd/5a/lex.c    |  2 +-
+ src/cmd/5c/swt.c    |  2 +-
+ src/cmd/6a/lex.c    |  2 +-
+ src/cmd/6c/swt.c    |  2 +-
+ src/cmd/8a/lex.c    |  2 +-
+ src/cmd/8c/swt.c    |  2 +-
+ src/cmd/gc/align.c  |  3 ++-
+ src/cmd/gc/lex.c    | 22 +++++++++++++++++++---
+ src/cmd/gc/obj.c    |  2 +-
+ src/cmd/gc/subr.c   |  3 ++-
+ src/cmd/gopack/ar.c | 36 +++++++++++++++++++++++++++++++-----
+ src/cmd/ld/lib.c    | 26 +++++++++++++++++++-------
+ src/libmach/obj.c   | 46 ++++++++++++++++++++++++----------------------
+ src/version.bash    | 13 ++++++-------
+ 14 files changed, 110 insertions(+), 53 deletions(-)

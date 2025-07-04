@@ -1,0 +1,35 @@
+commit 064842450bd904d2519d723a0109b33007ad00e9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 8 20:06:58 2018 +0000
+
+    runtime: allocate from free and scav fairly
+    
+    This change modifies the behavior of span allocations to no longer
+    prefer the free treap over the scavenged treap.
+    
+    While there is an additional cost to allocating out of the scavenged
+    treap, the current behavior of preferring the unscavenged spans can
+    lead to unbounded growth of a program's virtual memory footprint.
+    
+    In small programs (low # of Ps, low resident set size, low allocation
+    rate) this behavior isn't really apparent and is difficult to
+    reproduce.
+    
+    However, in relatively large, long-running programs we see this
+    unbounded growth in free spans, and an unbounded amount of heap
+    growths.
+    
+    It still remains unclear how this policy change actually ends up
+    increasing the number of heap growths over time, but switching the
+    policy back to best-fit does indeed solve the problem.
+    
+    Change-Id: Ibb88d24f9ef6766baaa7f12b411974cc03341e7b
+    Reviewed-on: https://go-review.googlesource.com/c/148979
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgclarge.go | 13 +++++--------
+ src/runtime/mheap.go    | 41 ++++++++++++++++++++++++++---------------
+ 2 files changed, 31 insertions(+), 23 deletions(-)

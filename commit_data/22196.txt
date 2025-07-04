@@ -1,0 +1,22 @@
+commit 6bf00075add48934c020b138857ec6a7c7c24653
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 3 16:42:06 2015 -0800
+
+    syscall: don't allocate when boxing common Errno values into errors
+    
+    Fixes #8859
+    
+    Change-Id: If8098e6edad1f83dc35fa84f4431689e8ee97678
+    Reviewed-on: https://go-review.googlesource.com/6701
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/mksyscall.pl             |   2 +-
+ src/syscall/syscall_unix.go          |  24 ++++
+ src/syscall/zsyscall_darwin_386.go   | 206 +++++++++++++--------------
+ src/syscall/zsyscall_darwin_amd64.go | 206 +++++++++++++--------------
+ src/syscall/zsyscall_linux_386.go    | 226 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_amd64.go  | 260 +++++++++++++++++------------------
+ src/syscall/zsyscall_linux_arm.go    | 250 ++++++++++++++++-----------------
+ 7 files changed, 599 insertions(+), 575 deletions(-)

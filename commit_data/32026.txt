@@ -1,0 +1,12 @@
+commit 8cb40fa4215c736aed011fe8b580ade7150acffa
+Author: Adam Kisala <adam.kisala@gmail.com>
+Date:   Sat Jul 15 19:27:56 2017 +0100
+
+    strconv: adds missing comment to neg flag, formats comment on trunc flag
+    
+    Change-Id: Ibdd57489543d57a24d1e3c41210abd9fbc930b8f
+    Reviewed-on: https://go-review.googlesource.com/48867
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strconv/decimal.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

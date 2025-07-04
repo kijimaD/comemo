@@ -1,0 +1,31 @@
+commit bd07e4f25906f4443811e3b6bdb4ff2918beed0c
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Oct 27 09:45:53 2011 +1100
+
+    html: close <option> element when opening <optgroup>
+    
+    Pass tests1.dat, test 34:
+    <!DOCTYPE html>A<option>B<optgroup>C<select>D</option>E
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     "A"
+    |     <option>
+    |       "B"
+    |     <optgroup>
+    |       "C"
+    |       <select>
+    |         "DE"
+    
+    Also passes tests 35-48. Test 48 is:
+    </ COM--MENT >
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5311063
+
+ src/pkg/html/parse.go      | 6 ++++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

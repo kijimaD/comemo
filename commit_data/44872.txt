@@ -1,0 +1,37 @@
+commit 4b1a24f3cd9d49ecbe4c30b6a5ecade70f9dd04f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 11 10:44:34 2021 -0500
+
+    runtime: fix G passed to schedEnabled and cleanup
+    
+    exitsyscall0 contains two G variables: _g_ and gp. _g_ is the active G,
+    g0, while gp is the G to run (which just exited from a syscall).
+    
+    It is passing _g_ to schedEnabled, which is incorrect; we are about to
+    execute gp, so that is what we should be checking the schedulability of.
+    
+    While this is incorrect and should be fixed, I don't think it has ever
+    caused a problem in practice:
+    
+     * g0 does not have g.startpc set, so schedEnabled simplifies to
+       just !sched.disable.user.
+     * This is correct provided gp is never a system goroutine.
+     * As far as I know, system goroutines never use entersyscall /
+       exitsyscall.
+    
+    As far I can tell, this was a simple copy/paste error from exitsyscall,
+    where variable _g_ is the G to run.
+    
+    While we are here, eliminate _g_ entirely, as the one other use is
+    identical to using gp.
+    
+    Change-Id: I5df98a34569238b89ab13ff7012cd756fefb10dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291329
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

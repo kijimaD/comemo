@@ -1,0 +1,12 @@
+commit db9fb7b9abf3e82481300eb83aa2631cd79b4d0d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 10 21:48:43 2014 +0400
+
+    cmd/go: fix comment
+    
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/61650044
+
+ src/cmd/go/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 80e7dddffafa6c5eb8e98d642b87546eb8e445ab
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Apr 15 16:29:43 2016 +1000
+
+    compress/flate: fix a fmt.Fprintf style nit in a test.
+    
+    It's not a big deal (the for loop drops from 130-ish to 120-ish
+    milliseconds for me) but it's not a big change either.
+    
+    Change-Id: I161a49caab5cae5a2b87866ed1dfb93627be8013
+    Reviewed-on: https://go-review.googlesource.com/22110
+    Reviewed-by: Klaus Post <klauspost@gmail.com>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/flate/writer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit c0c30258be6f596bb081a6cc0ae89a2502f77e4d
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 15 15:20:59 2008 -0700
+
+    turn spaces to tabs
+    replace ifs with switch
+    still runs!
+    
+    SVN=118947
+
+ test/turing.go | 86 +++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 43 insertions(+), 43 deletions(-)

@@ -1,0 +1,21 @@
+commit 1c17981f4acaedf1c262fd289c7945a521b43a2f
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Mon Apr 17 22:13:52 2023 -0700
+
+    misc/wasm: support wasmtime in wasip1
+    
+    Allow switching to wasmtime through the GOWASIRUNTIME variable. This
+    will allow builders to run the wasip1 standard library tests against
+    the wasmtime WASI runtime.
+    
+    For #59583
+    
+    Change-Id: I4d5200df7bb27b66e041f00e89d4c2e585f5da7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485615
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/wasm/go_wasip1_wasm_exec | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

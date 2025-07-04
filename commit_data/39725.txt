@@ -1,0 +1,20 @@
+commit 2393d1614736eb3ece950d6dd70883120237e209
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 28 12:56:26 2019 -0700
+
+    cmd/compile: handle infinite loops in shortcircuit pass
+    
+    The newly upgraded shortcircuit pass attempted to remove infinite loops.
+    Stop doing that.
+    
+    Fixes #33903
+    
+    Change-Id: I0fc9c1b5f2427e54ce650806602ef5e3ad65aca5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192144
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/shortcircuit.go | 10 ++++++++--
+ test/fixedbugs/issue33903.go                 | 16 ++++++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

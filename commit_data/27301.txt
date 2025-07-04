@@ -1,0 +1,20 @@
+commit 88d3db0a5b5196ed45c96014d5a2d32e4e41e34e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 12:45:23 2016 -0500
+
+    runtime: stop traceback at foreign function
+    
+    This can only happen when profiling and there is foreign code
+    at the top of the g0 stack but we're not in cgo.
+    That in turn only happens with the race detector.
+    
+    Fixes #13568.
+    
+    Change-Id: I23775132c9c1a3a3aaae191b318539f368adf25e
+    Reviewed-on: https://go-review.googlesource.com/18322
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/traceback.go | 5 +++++
+ 1 file changed, 5 insertions(+)

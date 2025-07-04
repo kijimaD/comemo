@@ -1,0 +1,12 @@
+commit 4c182045ff6af5657d5ef0f43ba1fd11a4d06be5
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:51:19 2016 +0200
+
+    cmd/objdump: skip tests for GOARCH=mips{,le}
+    
+    Change-Id: I8111ceb6960364166aa8a445f4d6d8b0581d371e
+    Reviewed-on: https://go-review.googlesource.com/31513
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/objdump/objdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

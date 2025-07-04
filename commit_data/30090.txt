@@ -1,0 +1,19 @@
+commit afa0247c5d28eb9558311729c8edf3f0c898644f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 23 08:45:15 2016 -0800
+
+    buildall.bash: clarify target selection
+    
+    Avoid confusing use of $(( in non-arithmetic context.
+    
+    Permit added targets linux-386-387 linux-arm-arm5 to be correctly
+    matched against pattern argument.
+    
+    Change-Id: Ib004c926457acb760c7e270fdd2f4095b1787a6d
+    Reviewed-on: https://go-review.googlesource.com/33492
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/buildall.bash | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 5d4c6088be94e0380d4b937f381eaa28ed7ba010
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Wed Feb 28 09:30:08 2024 +0000
+
+    testing: fix typo in comment
+    
+    Change-Id: I5aa6093b0199df1ef5b0ad0fcfa651a4b990bfd5
+    GitHub-Last-Rev: b053d993eb497500ee63024ef12784f63fac6c0e
+    GitHub-Pull-Request: golang/go#65986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567655
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/testing/fuzz.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

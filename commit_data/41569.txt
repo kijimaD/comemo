@@ -1,0 +1,29 @@
+commit 585e31df63f6879c03b285711de6f9dcba1f2cb0
+Author: Ivan Trubach <mr.trubach@icloud.com>
+Date:   Thu Dec 12 13:33:42 2019 +0000
+
+    cmd/doc: fix merging comments in -src mode
+    
+    These changes fix go doc -src mode that vomits comments from random files if
+    filesystem does not sort files by name. The issue was with parse.ParseDir
+    using the Readdir order of files, which varies between platforms and filesystem
+    implementations. Another option is to merge comments using token.FileSet.Iterate
+    order in cmd/doc, but since ParseDir is mostly used in go doc, I’ve opted for
+    smaller change because it’s unlikely to break other uses or cause any perfomance
+    issues.
+    
+    Example (macOS APFS): `go doc -src net.ListenPacket`
+    
+    Change-Id: I7f9f368c7d9ccd9a2cbc48665f2cb9798c7b3a3f
+    GitHub-Last-Rev: 654fb450421266a0bb64518016944db22bd681e3
+    GitHub-Pull-Request: golang/go#36104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210999
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/doc/doc_test.go          | 34 ++++++++++++++++++++++++++++++++++
+ src/cmd/doc/testdata/merge/aa.go |  7 +++++++
+ src/cmd/doc/testdata/merge/bb.go |  7 +++++++
+ src/go/parser/interface.go       |  8 +-------
+ 4 files changed, 49 insertions(+), 7 deletions(-)

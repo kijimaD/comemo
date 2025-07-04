@@ -1,0 +1,12 @@
+commit 179acf4083bedecad5f9700b86f6b58052b7526e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 17 15:26:36 2018 -0500
+
+    doc/go1.12: updates for runtime and compiler
+    
+    Change-Id: Ifb16fd28105efd05cebbd615b52e45330b77cede
+    Reviewed-on: https://go-review.googlesource.com/c/154600
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 58 ++++++++++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 47 insertions(+), 11 deletions(-)

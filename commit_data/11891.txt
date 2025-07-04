@@ -1,0 +1,17 @@
+commit e11632ee0044474d3e767192d6f61e6ab010c48d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 14 17:19:59 2012 +1100
+
+    go/doc, godoc: regard lone examples as "whole file" examples
+    
+    Fixes #2930.
+    
+    R=r, gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/5657048
+
+ src/cmd/go/test.go         |  4 ++++
+ src/cmd/godoc/godoc.go     |  9 ++++++---
+ src/pkg/go/doc/example.go  | 32 ++++++++++++++++++++++++++------
+ src/pkg/testing/testing.go |  3 +++
+ 4 files changed, 39 insertions(+), 9 deletions(-)

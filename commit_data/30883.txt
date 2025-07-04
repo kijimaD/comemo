@@ -1,0 +1,24 @@
+commit 3c0072e0567c55d7172f137389cbfdfe0c428888
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 28 15:13:19 2017 -0700
+
+    cmd/compile/internal/gc: use anonfield and namedfield
+    
+    Automated refactoring using gofmt.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I8624e1c231dc736e1bb4cc800acaf629a0af91d7
+    Reviewed-on: https://go-review.googlesource.com/38740
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go     | 18 +++++++++---------
+ src/cmd/compile/internal/gc/closure.go |  6 +++---
+ src/cmd/compile/internal/gc/dcl.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go |  2 +-
+ src/cmd/compile/internal/gc/select.go  | 20 ++++++++++----------
+ src/cmd/compile/internal/gc/subr.go    | 12 ++++++------
+ src/cmd/compile/internal/gc/walk.go    |  8 ++++----
+ 7 files changed, 34 insertions(+), 34 deletions(-)

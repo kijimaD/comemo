@@ -1,0 +1,18 @@
+commit 444d28295b81c62dc40180a59aeb480bed43ca3a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 12 18:56:25 2021 -0400
+
+    test: make codegen/memops.go work with both ABIs
+    
+    Following CL 309335, this fixes memops.go.
+    
+    Change-Id: Ia2458b5267deee9f906f76c50e70a021ea2fcb5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309552
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/codegen/memops.go | 52 +++++++++++++++++---------------------------------
+ 1 file changed, 18 insertions(+), 34 deletions(-)

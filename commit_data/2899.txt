@@ -1,0 +1,15 @@
+commit e2e6becf3a38aebb676d04943a1daf34598d641f
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Aug 6 13:54:13 2009 -0700
+
+    Make ptrace_linux compile with recent changes to switch type
+    checking.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=11  (0 added, 0 deleted, 11 changed)
+    OCL=32839
+    CL=32841
+
+ usr/austin/ptrace/ptrace_linux.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

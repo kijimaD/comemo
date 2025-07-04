@@ -1,0 +1,30 @@
+commit 56959158331072ed17801aa539a0d6f28064b511
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Oct 6 18:10:14 2011 +0300
+
+    runtime: fix spurious deadlock reporting
+    Fixes #2337.
+    Unfortunate sequence of events is:
+    1. maxcpu=2, mcpu=1, grunning=1
+    2. starttheworld creates an extra M:
+       maxcpu=2, mcpu=2, grunning=1
+    4. the goroutine calls runtime.GOMAXPROCS(1)
+       maxcpu=1, mcpu=2, grunning=1
+    5. since it sees mcpu>maxcpu, it calls gosched()
+    6. schedule() deschedules the goroutine:
+       maxcpu=1, mcpu=1, grunning=0
+    7. schedule() call getnextandunlock() which
+       fails to pick up the goroutine again,
+       because canaddcpu() fails, because mcpu==maxcpu
+    8. then it sees that grunning==0,
+       reports deadlock and terminates
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5191044
+
+ src/pkg/runtime/malloc.h |  2 +-
+ src/pkg/runtime/mgc0.c   |  6 +++---
+ src/pkg/runtime/proc.c   | 19 ++++++++++++-------
+ test/fixedbugs/bug370.go | 18 ++++++++++++++++++
+ 4 files changed, 34 insertions(+), 11 deletions(-)

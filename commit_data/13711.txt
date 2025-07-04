@@ -1,0 +1,12 @@
+commit 11d75fb62ee5fa46d33845b768980060e837f9db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 30 18:38:33 2012 -0700
+
+    A+C: added Alan Donovan (Google corporate license)
+    
+    R=adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6490063
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

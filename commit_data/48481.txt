@@ -1,0 +1,32 @@
+commit 86c8075675ed74c1f404894242c26b99800f1639
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Fri Mar 18 09:10:02 2022 +0100
+
+    runtime: combine wbuf checks in tryGetFast and putFast
+    
+    Less text and improves codegen a bit.
+    
+    compilecmp on ARM64:
+    
+    runtime
+    (*gcWork).putFast 160 -> 144  (-10.00%)
+    (*gcWork).tryGetFast 144 -> 128  (-11.11%)
+    scanobject 784 -> 752  (-4.08%)
+    greyobject 800 -> 784  (-2.00%)
+    
+    AMD64:
+    
+    runtime
+    greyobject 765 -> 748  (-2.22%)
+    (*gcWork).tryGetFast 102 -> 85  (-16.67%)
+    scanobject 837 -> 820  (-2.03%)
+    (*gcWork).putFast 102 -> 89  (-12.75%)
+    
+    Change-Id: I6bb508afe1ba416823775c0bfc08ea9dc21de8a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393754
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcwork.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

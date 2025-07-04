@@ -1,0 +1,38 @@
+commit 94f233574b2c4ba91e632308b2ceb2ec80fdd3fb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 14:18:28 2012 +1100
+
+    doc: pngcrush and remove old, unused images
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5758047
+
+ doc/button_background.png       | Bin 126 -> 0 bytes
+ doc/go-logo-black.png           | Bin 8855 -> 8843 bytes
+ doc/go-logo-blue.png            | Bin 10874 -> 9360 bytes
+ doc/go-logo-white.png           | Bin 25371 -> 21469 bytes
+ doc/gopher/bumper.png           | Bin 380345 -> 276215 bytes
+ doc/gopher/bumper192x108.png    | Bin 10781 -> 8432 bytes
+ doc/gopher/bumper320x180.png    | Bin 20193 -> 15098 bytes
+ doc/gopher/bumper480x270.png    | Bin 36347 -> 26509 bytes
+ doc/gopher/bumper640x360.png    | Bin 57726 -> 42013 bytes
+ doc/gopher/doc.png              | Bin 4818 -> 4395 bytes
+ doc/gopher/gopherbw.png         | Bin 210660 -> 171323 bytes
+ doc/gopher/gophercolor.png      | Bin 231683 -> 169406 bytes
+ doc/gopher/gophercolor16x16.png | Bin 785 -> 739 bytes
+ doc/gopher/help.png             | Bin 6345 -> 5729 bytes
+ doc/gopher/pkg.png              | Bin 5898 -> 5409 bytes
+ doc/gopher/project.png          | Bin 9213 -> 8042 bytes
+ doc/gopher/ref.png              | Bin 14576 -> 10536 bytes
+ doc/gopher/run.png              | Bin 11369 -> 9220 bytes
+ doc/gopher/talks.png            | Bin 6375 -> 4877 bytes
+ doc/logo-153x55.png             | Bin 4055 -> 3382 bytes
+ doc/logo.png                    | Bin 1938 -> 0 bytes
+ doc/play_overlay.png            | Bin 1703 -> 0 bytes
+ doc/video-001.png               | Bin 29228 -> 0 bytes
+ doc/video-002.png               | Bin 22027 -> 0 bytes
+ doc/video-003.png               | Bin 11189 -> 0 bytes
+ doc/video-004.png               | Bin 22713 -> 0 bytes
+ doc/video-005.jpg               | Bin 6783 -> 0 bytes
+ 27 files changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,16 @@
+commit 846bb475203ac3fcef61569b2d1360947254dd38
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Jan 22 11:30:51 2024 -0500
+
+    doc: remove last TODO item
+    
+    For #61422
+    
+    Change-Id: I50e427b78a533c3196aeb5291a34c05528ee0bed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557455
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 4 ----
+ 1 file changed, 4 deletions(-)

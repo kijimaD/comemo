@@ -1,0 +1,23 @@
+commit 92bdfab795a1245d8b81a6e841d5e5aa52f3a790
+Author: Ben Burkert <ben@benburkert.com>
+Date:   Mon May 21 19:28:19 2018 -0700
+
+    internal/poll: disable splice on old linux versions
+    
+    The splice syscall is buggy prior to linux 2.6.29. Instead of returning
+    0 when reading a closed socket, it returns EAGAIN.  While it is possible
+    to detect this (HAProxy falls back to recv), it is simpiler to avoid
+    using splice all together. the "fcntl(fd, F_GETPIPE_SZ)" syscall is used
+    detect buggy versions of splice as the syscall returns EINVAL on
+    versions prior to 2.6.35.
+    
+    Fixes #25486
+    
+    Change-Id: I860c029f13de2b09e95a7ba39b76ac7fca91a195
+    Reviewed-on: https://go-review.googlesource.com/113999
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/splice_linux.go | 57 +++++++++++++++++++--------------------
+ 1 file changed, 28 insertions(+), 29 deletions(-)

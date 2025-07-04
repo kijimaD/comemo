@@ -1,0 +1,23 @@
+commit 8693b4f095b2efdbd11967655579606bc3192c59
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 29 12:22:32 2018 -0500
+
+    runtime: remove unused memlimit function
+    
+    Change-Id: Id057dcc85d64e5c670710fbab6cacd4b906cf594
+    Reviewed-on: https://go-review.googlesource.com/93655
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os3_solaris.go  | 31 -------------------------------
+ src/runtime/os_darwin.go    |  8 --------
+ src/runtime/os_dragonfly.go | 31 -------------------------------
+ src/runtime/os_freebsd.go   | 31 -------------------------------
+ src/runtime/os_linux.go     | 32 --------------------------------
+ src/runtime/os_nacl.go      |  4 ----
+ src/runtime/os_netbsd.go    |  4 ----
+ src/runtime/os_openbsd.go   |  4 ----
+ src/runtime/os_plan9.go     |  4 ----
+ src/runtime/os_windows.go   |  4 ----
+ 10 files changed, 153 deletions(-)

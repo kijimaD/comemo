@@ -1,0 +1,13 @@
+commit 7e414a5b017decee07f3ffa17943adcbb08aa83e
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Sep 7 10:24:55 2012 -0700
+
+    net,mime: Minor corrections to documentation comments.
+    
+    R=r
+    CC=dsymonds, gobot, golang-dev
+    https://golang.org/cl/6495085
+
+ src/pkg/mime/multipart/multipart.go | 2 +-
+ src/pkg/net/mail/message.go         | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

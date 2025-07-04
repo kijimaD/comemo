@@ -1,0 +1,26 @@
+commit 94bf9a8d4ad479e5a9dd57b3cb8e682e841d58d4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 26 16:44:36 2019 -0400
+
+    net/http: fix wantConnQueue memory leaks in Transport
+    
+    I'm trying to keep the code changes minimal for backporting to Go 1.13,
+    so it is still possible for a handful of entries to leak,
+    but the leaks are now O(1) instead of O(N) in the steady state.
+    
+    Longer-term, I think it would be a good idea to coalesce idleMu with
+    connsPerHostMu and clear entries out of both queues as soon as their
+    goroutines are done waiting.
+    
+    Fixes #33849
+    Fixes #33850
+    
+    Change-Id: Ia66bc64671eb1014369f2d3a01debfc023b44281
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191964
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go      |  28 ++++++-
+ src/net/http/transport_test.go | 170 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 197 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 99aa56a437be4f72da2eefd2cce1c09fe8d7c201
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 17 16:32:11 2019 -0700
+
+    go/parser: return partial result from ParseExpr in case of error
+    
+    Remove redundant code and improve documentation in the process.
+    
+    Fixes #34211.
+    
+    Change-Id: I9a6d1467f1a2c98a163f41f9df147fc6500c6fad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196077
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/parser/interface.go   | 21 +++++++++++++--------
+ src/go/parser/parser_test.go |  9 ++++++++-
+ 2 files changed, 21 insertions(+), 9 deletions(-)

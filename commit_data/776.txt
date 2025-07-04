@@ -1,0 +1,14 @@
+commit 52a548034e76a4a709af5a2a8dc6aed3e2945957
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 30 13:02:50 2008 -0700
+
+    - exceptional conditions during expression evaluation are undefined
+    - "nil" for interfaces, comparison against "nil"
+    
+    R=r
+    DELTA=38  (24 added, 5 deleted, 9 changed)
+    OCL=16207
+    CL=16211
+
+ doc/go_spec.txt | 45 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 13 deletions(-)

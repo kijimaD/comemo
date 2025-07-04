@@ -1,0 +1,17 @@
+commit e30aa166ea642876863107b90238abfc97932ba0
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed May 1 09:56:11 2019 -0400
+
+    test: enable more memcombine tests for ppc64le
+    
+    This enables more of the testcases in memcombine for ppc64le,
+    and adds more detail to some existing.
+    
+    Change-Id: Ic522a1175bed682b546909c96f9ea758f8db247c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174737
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/codegen/memcombine.go | 24 ++++++++++++++++--------
+ 1 file changed, 16 insertions(+), 8 deletions(-)

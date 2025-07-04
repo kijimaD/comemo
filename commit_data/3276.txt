@@ -1,0 +1,22 @@
+commit 98c98192eca5b49be70bfc33118d44dae9670ca4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 15 13:51:33 2009 -0700
+
+    final batch for "declared and not used"
+     * update mksyscall.sh and rebuild syscall/z*.go
+     * fix a few linux-only files
+    
+    R=r
+    DELTA=455  (12 added, 1 deleted, 442 changed)
+    OCL=34637
+    CL=34655
+
+ src/pkg/debug/proc/proc_linux.go         |   7 +-
+ src/pkg/net/fd_linux.go                  |   2 +-
+ src/pkg/syscall/mksyscall.sh             |  16 ++-
+ src/pkg/syscall/syscall_linux.go         |   2 +-
+ src/pkg/syscall/zsyscall_darwin_386.go   | 192 ++++++++++++-------------
+ src/pkg/syscall/zsyscall_darwin_amd64.go | 192 ++++++++++++-------------
+ src/pkg/syscall/zsyscall_linux_386.go    | 220 ++++++++++++++--------------
+ src/pkg/syscall/zsyscall_linux_amd64.go  | 240 +++++++++++++++----------------
+ 8 files changed, 441 insertions(+), 430 deletions(-)

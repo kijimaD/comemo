@@ -1,0 +1,24 @@
+commit 11f494f37eec4325a96db32188fac41ec11a19e9
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Sep 30 00:55:26 2017 +0200
+
+    runtime: rename offsets macros to prepare for multiple versions
+    
+    High Sierra has a new commpage layout (this is issue #3188), so
+    we need to adjust the code to handle multiple versions of the
+    layout.
+    
+    In preparation for this change, we rename the existing offset
+    macros with a prefix that identifies the commpage version they
+    refer to.
+    
+    Updates #22037
+    
+    Change-Id: Idca4b7a855a2ff6dbc434cd12453fc3194707aa8
+    Reviewed-on: https://go-review.googlesource.com/67331
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_darwin_amd64.s | 44 +++++++++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 22 deletions(-)

@@ -1,0 +1,10 @@
+commit c8bce425b028fad30091d9b1b92a8a9725b61e61
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 11 19:37:47 2008 -0700
+
+    fix comment
+    
+    SVN=126931
+
+ src/runtime/rt2_amd64.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

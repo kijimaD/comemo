@@ -1,0 +1,14 @@
+commit 6154ae8e24f8e4ddc414cc8c11a5ac091935cb73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 18 14:16:40 2013 -0700
+
+    math/big: fix Errorf verb
+    
+    Pointed out by go vet.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/10368048
+
+ src/pkg/math/big/nat_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

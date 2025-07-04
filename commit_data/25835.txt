@@ -1,0 +1,18 @@
+commit 1e00cc1647916b705682f8721b8a9e9e095bf4ee
+Author: Brady Sullivan <brady@bsull.com>
+Date:   Mon Feb 22 15:19:18 2016 -0800
+
+    crypto/tls: Improve ambiguous comment in cipher_suites.go
+    
+    A comment existed referencing RC4 coming before AES because of it's
+    vulnerability to the Lucky 13 attack. This clarifies that the Lucky 13 attack
+    only effects AES-CBC, and not AES-GCM.
+    
+    Fixes #14474
+    
+    Change-Id: Idcb07b5e0cdb0f9257cf75abea60129ba495b5f5
+    Reviewed-on: https://go-review.googlesource.com/19845
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/cipher_suites.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

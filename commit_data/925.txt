@@ -1,0 +1,18 @@
+commit 44b0ecc5caf0b700c0452429bdbc345111778fce
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 21 15:38:26 2008 -0700
+
+    6g: use full type in sigt[0].name
+    sys: add sys.reflect
+    runtime: add canfail flag for later
+    
+    R=ken
+    OCL=17583
+    CL=17583
+
+ src/cmd/6g/obj.c       |   8 +++-
+ src/cmd/gc/sys.go      |   2 +-
+ src/cmd/gc/sysimport.c | 117 +++++++++++++++++++++++--------------------------
+ src/runtime/iface.c    |  78 ++++++++++++++++++++++-----------
+ test/golden.out        |   8 ++--
+ 5 files changed, 118 insertions(+), 95 deletions(-)

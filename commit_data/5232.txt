@@ -1,0 +1,13 @@
+commit b26a7a2b884e334e4b1775b22f81230a755ad942
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 6 10:53:48 2010 -0700
+
+    fix deps.bash. \t does not mean tab in some seds.
+    also: add /dev/null to the ls args to repair handling of empty dependency lists.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/883045
+
+ src/pkg/deps.bash | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 38cb9d28a9a3970f5bfeacdbeaa2f95aab3ebe73
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Tue Feb 7 13:12:25 2017 -0500
+
+    runtime/pprof: document that profile names should not contain spaces.
+    
+    Change-Id: I967d897e812bee63b32bc2a7dcf453861b89b7e3
+    Reviewed-on: https://go-review.googlesource.com/36533
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/pprof.go | 2 ++
+ 1 file changed, 2 insertions(+)

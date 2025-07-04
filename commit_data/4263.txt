@@ -1,0 +1,16 @@
+commit 4f6dbc6901d457037bd4980b77e9bcd3bd67b911
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Tue Dec 1 15:54:49 2009 -0800
+
+    Explicitly return values where it's shadowing the parameter.
+    
+    Bad returns noticed by "Devon H. O'Dell" <devon.odell@gmail.com>.
+    
+    Resolves Issue 360.
+    
+    R=rsc, dho, agl, agl1
+    CC=ukai
+    https://golang.org/cl/163055
+
+ src/pkg/websocket/websocket.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

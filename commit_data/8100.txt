@@ -1,0 +1,18 @@
+commit 881b1b4a025486d90a2d9caf6f7a3a7634a93c6d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 14 13:49:19 2011 -0700
+
+    http: be clear when failing to connect to a proxy
+    
+    Ubuntu and/or GNOME have some bug that likes
+    to set the "http_proxy" environment variable
+    and forgets to unset it.  This is annoying
+    to debug.  Be clear in the error message that
+    a proxy was in use.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4409045
+
+ src/pkg/http/transport.go | 3 +++
+ 1 file changed, 3 insertions(+)

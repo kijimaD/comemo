@@ -1,0 +1,14 @@
+commit a7c57b05e9b51194c534d41a232739921aa2f45d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 4 20:14:58 2012 -0800
+
+    net/http: clarify DefaultTransport docs
+    
+    Fixes #4281
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6872053
+
+ src/pkg/net/http/transport.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit 7a2daa7d3a1871385d5d09b80578bda7bf857037
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 30 13:47:40 2010 -0700
+
+    proc, eval: Don't assign address of an array to a slice.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2084041
+
+ src/pkg/debug/proc/regs_linux_amd64.go | 2 +-
+ src/pkg/exp/eval/eval_test.go          | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

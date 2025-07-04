@@ -1,0 +1,11 @@
+commit cb94b60cfb240a654836c71503438fa12815ba8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 10 09:10:08 2009 -0800
+
+    allow user agent to mention Go.
+    
+    R=r
+    http://go/go-review/1024046
+
+ src/pkg/http/request.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

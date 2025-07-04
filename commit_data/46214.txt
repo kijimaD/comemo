@@ -1,0 +1,18 @@
+commit 9da7ccab5888e15b675584b5b0eeb63e48baafa8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 27 14:26:31 2021 -0400
+
+    cmd/go/internal/modload: remove go117EnableLazyLoading
+    
+    Updates #36460
+    
+    Change-Id: I19f375f58f118e83a2615a29bbbb3853f059f0bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345391
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/init.go    | 21 ++++++++++-----------
+ src/cmd/go/internal/modload/modfile.go |  8 --------
+ 2 files changed, 10 insertions(+), 19 deletions(-)

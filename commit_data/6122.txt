@@ -1,0 +1,16 @@
+commit b5664ee320011e59c2e295c34c194e496f65e7e0
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 28 07:52:55 2010 +1000
+
+    template: finally fix space handling around actions.
+    Rewrite the code to express the intention more clearly.
+    
+    Fixes #1042.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2011046
+
+ src/pkg/template/template.go      | 64 +++++++++++++++++++++++----------------
+ src/pkg/template/template_test.go |  1 +
+ 2 files changed, 39 insertions(+), 26 deletions(-)

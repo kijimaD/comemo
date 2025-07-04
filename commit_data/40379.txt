@@ -1,0 +1,20 @@
+commit 5a5854c2d1a0eed6d48734ab2cc674c25aa670cb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 22 11:59:00 2019 -0700
+
+    runtime: fix -d=checkptr failure for testing/quick
+    
+    This CL extends checkptrBase to recognize pointers into the stack and
+    data/bss sections. I was meaning to do this eventually anyway, but
+    it's also an easy way to workaround #35068.
+    
+    Updates #35068.
+    
+    Change-Id: Ib47f0aa800473a4fbc249da52ff03bec32c3ebe2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202639
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/checkptr.go | 40 ++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 36 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit b65cdc28882bfd7c4be46e811a6a7841d9fb7d53
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 18 18:40:02 2016 +0900
+
+    path/filepath: add a test case for EvalSymlinks error
+    
+    EvalSymlinks returns error if given path or its target path don't exist.
+    Add a test for future improvement.
+    
+    Change-Id: Ic9a4aa5eaee0fe7ac523d54d8eb3132a11b380b3
+    Reviewed-on: https://go-review.googlesource.com/27330
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/path/filepath/path_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

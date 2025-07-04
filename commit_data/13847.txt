@@ -1,0 +1,12 @@
+commit 218f08a9875572fdadb5a60055ac735b972d3417
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 17 17:01:09 2012 -0700
+
+    doc: document OS X tarballs
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6506129
+
+ doc/install.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

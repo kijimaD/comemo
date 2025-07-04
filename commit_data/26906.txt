@@ -1,0 +1,15 @@
+commit da6205b67e844503152b3be7bbb1a25c76cbbce2
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Apr 8 17:56:36 2016 +0200
+
+    cmd/pprof/internal/profile: always subtract 1 from PCs
+    
+    Go runtime never emits PCs that are not a return address
+    (except for cpu profiler).
+    
+    Change-Id: I08d9dc5c7c71e23f34f2f0c16f8baeeb4f64fcd6
+    Reviewed-on: https://go-review.googlesource.com/21735
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/pprof/profile/legacy_profile.go | 41 ++++++++----------------
+ 1 file changed, 13 insertions(+), 28 deletions(-)

@@ -1,0 +1,26 @@
+commit 851f6fd61425c810959c7ab51e6dc86f8a63c970
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 8 19:50:06 2023 -0800
+
+    bufio: permit r.Reset(r) without infinite recursion
+    
+    This can happen in reasonable code because NewReader(r) can return r,
+    if r is already a Reader.
+    
+    Similarly for Writer.
+    
+    Fixes #58423
+    
+    Change-Id: Iff9d9265410bee68fbaeb7175369847bd737eb2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466815
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/bufio.go      | 14 +++++++++++++
+ src/bufio/bufio_test.go | 53 +++++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 52 insertions(+), 15 deletions(-)

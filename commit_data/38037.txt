@@ -1,0 +1,29 @@
+commit c0101b1961299ce6d13fac3c1dd13d3aea22b276
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Feb 24 22:48:46 2019 +0100
+
+    time: parse 1us in Nanoseconds example
+    
+    The example for Nanoseconds() currently reads:
+    
+      ns, _ := time.ParseDuration("1000ns")
+      fmt.Printf("one microsecond has %d nanoseconds.", ns.Nanoseconds())
+    
+    which is not terribly interesting: it seems obvious that parsing
+    "1000ns" and then calling Nanoseconds() will print 1000. The mention
+    of microseconds in the text suggests that the author's intention was,
+    instead, to write something like this:
+    
+      u, _ := time.ParseDuration("1us")
+    
+    i.e. build a time value by parsing 1 microsecond, and then print the
+    value in nanoseconds. Change the example to do this.
+    
+    Change-Id: I4ddb123f0935a12cda3b5d6f1ca919bfcd6383d6
+    Reviewed-on: https://go-review.googlesource.com/c/163622
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

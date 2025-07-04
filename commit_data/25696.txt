@@ -1,0 +1,19 @@
+commit 2d916bec968212c69dcff1da4c85943c529a11b5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 27 22:00:59 2016 -0800
+
+    runtime: align stack in sigfwd for darwin/386
+    
+    We might be forwarding to a C signal handler.  C code expects the stack
+    to be aligned.  Should fix darwin/386 build: the testcarchive tests were
+    hanging as the program got an endless series of SIGSEGV signals.
+    
+    Change-Id: Ia02485d3736a3c40e12259f02d25f842cf8e4d29
+    Reviewed-on: https://go-review.googlesource.com/19025
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_darwin_386.s | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

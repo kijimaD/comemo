@@ -1,0 +1,18 @@
+commit b66a294813bb70fdc52d0e55e32048be3f3a176a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 19:22:56 2017 -0400
+
+    cmd/dist: set GOCACHE during make.bash/run.bash
+    
+    Use a build cache separate from the default user cache,
+    one that will be wiped out during startup, so that make.bash
+    continues to start from a clean slate.
+    
+    Change-Id: I38733991015c66efb89fc170c71701b1dd9de28d
+    Reviewed-on: https://go-review.googlesource.com/75291
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/build.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

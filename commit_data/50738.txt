@@ -1,0 +1,19 @@
+commit 9faf6b79297810f6c9418201c6a9fe7fe5a3695c
+Author: Mikael Urankar <mikael@FreeBSD.org>
+Date:   Sun Sep 18 17:39:37 2022 +0200
+
+    cmd/link/internal/riscv64: add support for freebsd/riscv64
+    
+    Updates #53466
+    
+    Change-Id: Ifa1b8fe79f952a08dbdf91ae5ab23e4431e66134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431660
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/riscv64/obj.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

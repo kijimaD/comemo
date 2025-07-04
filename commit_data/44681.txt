@@ -1,0 +1,151 @@
+commit 600259b099d3ba215912ce957143febe84c684fb
+Author: erifan01 <eric.fang@arm.com>
+Date:   Thu Jul 23 10:24:56 2020 +0800
+
+    cmd/compile: use depth first topological sort algorithm for layout
+    
+    The current layout algorithm tries to put consecutive blocks together,
+    so the priority of the successor block is higher than the priority of
+    the zero indegree block. This algorithm is beneficial for subsequent
+    register allocation, but will result in more branch instructions.
+    The depth-first topological sorting algorithm is a well-known layout
+    algorithm, which has applications in many languages, and it helps to
+    reduce branch instructions. This CL applies it to the layout pass.
+    The test results show that it helps to reduce the code size.
+    
+    This CL also includes the following changes:
+    1, Removed the primary predecessor mechanism. The new layout algorithm is
+      not very friendly to register allocator in some cases, in order to adapt
+      to the new layout algorithm, a new primary predecessor selection strategy
+      is introduced.
+    2, Since the new layout implementation may place non-loop blocks between
+      loop blocks, some adaptive modifications have also been made to looprotate
+      pass.
+    3, The layout also affects the results of codegen, so this CL also adjusted
+      several codegen tests accordingly.
+    
+    It is inevitable that this CL will cause the code size or performance of a
+    few functions to decrease, but the number of cases it improves is much larger
+    than the number of cases it drops.
+    
+    Statistical data from compilecmp on linux/amd64 is as follow:
+    name                      old time/op       new time/op       delta
+    Template                        382ms ± 4%        382ms ± 4%    ~     (p=0.497 n=49+50)
+    Unicode                         170ms ± 9%        169ms ± 8%    ~     (p=0.344 n=48+50)
+    GoTypes                         2.01s ± 4%        2.01s ± 4%    ~     (p=0.628 n=50+48)
+    Compiler                        190ms ±10%        189ms ± 9%    ~     (p=0.734 n=50+50)
+    SSA                             11.8s ± 2%        11.8s ± 3%    ~     (p=0.877 n=50+50)
+    Flate                           241ms ± 9%        241ms ± 8%    ~     (p=0.897 n=50+49)
+    GoParser                        366ms ± 3%        361ms ± 4%  -1.21%  (p=0.004 n=47+50)
+    Reflect                         835ms ± 3%        838ms ± 3%    ~     (p=0.275 n=50+49)
+    Tar                             336ms ± 4%        335ms ± 3%    ~     (p=0.454 n=48+48)
+    XML                             433ms ± 4%        431ms ± 3%    ~     (p=0.071 n=49+48)
+    LinkCompiler                    706ms ± 4%        705ms ± 4%    ~     (p=0.608 n=50+49)
+    ExternalLinkCompiler            1.85s ± 3%        1.83s ± 2%  -1.47%  (p=0.000 n=49+48)
+    LinkWithoutDebugCompiler        437ms ± 5%        437ms ± 6%    ~     (p=0.953 n=49+50)
+    [Geo mean]                      615ms             613ms       -0.37%
+    
+    name                      old alloc/op      new alloc/op      delta
+    Template                       38.7MB ± 1%       38.7MB ± 1%    ~     (p=0.834 n=50+50)
+    Unicode                        28.1MB ± 0%       28.1MB ± 0%  -0.22%  (p=0.000 n=49+50)
+    GoTypes                         168MB ± 1%        168MB ± 1%    ~     (p=0.054 n=47+47)
+    Compiler                       23.0MB ± 1%       23.0MB ± 1%    ~     (p=0.432 n=50+50)
+    SSA                            1.54GB ± 0%       1.54GB ± 0%  +0.21%  (p=0.000 n=50+50)
+    Flate                          23.6MB ± 1%       23.6MB ± 1%    ~     (p=0.153 n=43+46)
+    GoParser                       35.1MB ± 1%       35.1MB ± 2%    ~     (p=0.202 n=50+50)
+    Reflect                        84.7MB ± 1%       84.7MB ± 1%    ~     (p=0.333 n=48+49)
+    Tar                            34.5MB ± 1%       34.5MB ± 1%    ~     (p=0.406 n=46+49)
+    XML                            44.3MB ± 2%       44.2MB ± 3%    ~     (p=0.981 n=50+50)
+    LinkCompiler                    131MB ± 0%        128MB ± 0%  -2.74%  (p=0.000 n=50+50)
+    ExternalLinkCompiler            120MB ± 0%        120MB ± 0%  +0.01%  (p=0.007 n=50+50)
+    LinkWithoutDebugCompiler       77.3MB ± 0%       77.3MB ± 0%  -0.02%  (p=0.000 n=50+50)
+    [Geo mean]                     69.3MB            69.1MB       -0.22%
+    
+    file      before    after     Δ        %
+    addr2line 4104220   4043684   -60536   -1.475%
+    api       5342502   5249678   -92824   -1.737%
+    asm       4973785   4858257   -115528  -2.323%
+    buildid   2667844   2625660   -42184   -1.581%
+    cgo       4686849   4616313   -70536   -1.505%
+    compile   23667431  23268406  -399025  -1.686%
+    cover     4959676   4874108   -85568   -1.725%
+    dist      3515934   3450422   -65512   -1.863%
+    doc       3995581   3925469   -70112   -1.755%
+    fix       3379202   3318522   -60680   -1.796%
+    link      6743249   6629913   -113336  -1.681%
+    nm        4047529   3991777   -55752   -1.377%
+    objdump   4456151   4388151   -68000   -1.526%
+    pack      2435040   2398072   -36968   -1.518%
+    pprof     13804080  13565808  -238272  -1.726%
+    test2json 2690043   2645987   -44056   -1.638%
+    trace     10418492  10232716  -185776  -1.783%
+    vet       7258259   7121259   -137000  -1.888%
+    total     113145867 111204202 -1941665 -1.716%
+    
+    The situation on linux/arm64 is as follow:
+    name                      old time/op       new time/op       delta
+    Template                        280ms ± 1%        282ms ± 1%  +0.75%  (p=0.000 n=46+48)
+    Unicode                         124ms ± 2%        124ms ± 2%  +0.37%  (p=0.045 n=50+50)
+    GoTypes                         1.69s ± 1%        1.70s ± 1%  +0.56%  (p=0.000 n=49+50)
+    Compiler                        122ms ± 1%        123ms ± 1%  +0.93%  (p=0.000 n=50+50)
+    SSA                             12.6s ± 1%        12.7s ± 0%  +0.72%  (p=0.000 n=50+50)
+    Flate                           170ms ± 1%        172ms ± 1%  +0.97%  (p=0.000 n=49+49)
+    GoParser                        262ms ± 1%        263ms ± 1%  +0.39%  (p=0.000 n=49+48)
+    Reflect                         639ms ± 1%        650ms ± 1%  +1.63%  (p=0.000 n=49+49)
+    Tar                             243ms ± 1%        245ms ± 1%  +0.82%  (p=0.000 n=50+50)
+    XML                             324ms ± 1%        327ms ± 1%  +0.72%  (p=0.000 n=50+49)
+    LinkCompiler                    597ms ± 1%        596ms ± 1%  -0.27%  (p=0.001 n=48+47)
+    ExternalLinkCompiler            1.90s ± 1%        1.88s ± 1%  -1.00%  (p=0.000 n=50+50)
+    LinkWithoutDebugCompiler        364ms ± 1%        363ms ± 1%    ~     (p=0.220 n=49+50)
+    [Geo mean]                      485ms             488ms       +0.49%
+    
+    name                      old alloc/op      new alloc/op      delta
+    Template                       38.7MB ± 0%       38.8MB ± 1%    ~     (p=0.093 n=43+49)
+    Unicode                        28.4MB ± 0%       28.4MB ± 0%  +0.03%  (p=0.000 n=49+45)
+    GoTypes                         169MB ± 1%        169MB ± 1%  +0.23%  (p=0.010 n=50+50)
+    Compiler                       23.2MB ± 1%       23.2MB ± 1%  +0.11%  (p=0.000 n=40+44)
+    SSA                            1.54GB ± 0%       1.55GB ± 0%  +0.45%  (p=0.000 n=47+49)
+    Flate                          23.8MB ± 2%       23.8MB ± 1%    ~     (p=0.543 n=50+50)
+    GoParser                       35.3MB ± 1%       35.4MB ± 1%    ~     (p=0.792 n=50+50)
+    Reflect                        85.2MB ± 1%       85.2MB ± 0%    ~     (p=0.055 n=50+47)
+    Tar                            34.5MB ± 1%       34.5MB ± 1%  +0.06%  (p=0.015 n=50+50)
+    XML                            43.8MB ± 2%       43.9MB ± 2%  +0.19%  (p=0.000 n=48+48)
+    LinkCompiler                    137MB ± 0%        136MB ± 0%  -0.92%  (p=0.000 n=50+50)
+    ExternalLinkCompiler            127MB ± 0%        127MB ± 0%    ~     (p=0.516 n=50+50)
+    LinkWithoutDebugCompiler       84.0MB ± 0%       84.0MB ± 0%    ~     (p=0.057 n=50+50)
+    [Geo mean]                     70.4MB            70.4MB       +0.01%
+    
+    file      before    after     Δ        %
+    addr2line 4021557   4002933   -18624   -0.463%
+    api       5127847   5028503   -99344   -1.937%
+    asm       5034716   4936836   -97880   -1.944%
+    buildid   2608118   2594094   -14024   -0.538%
+    cgo       4488592   4398320   -90272   -2.011%
+    compile   22501129  22213592  -287537  -1.278%
+    cover     4742301   4713573   -28728   -0.606%
+    dist      3388071   3365311   -22760   -0.672%
+    doc       3802250   3776082   -26168   -0.688%
+    fix       3306147   3216939   -89208   -2.698%
+    link      6404483   6363699   -40784   -0.637%
+    nm        3941026   3921930   -19096   -0.485%
+    objdump   4383330   4295122   -88208   -2.012%
+    pack      2404547   2389515   -15032   -0.625%
+    pprof     12996234  12856818  -139416  -1.073%
+    test2json 2668500   2586788   -81712   -3.062%
+    trace     9816276   9609580   -206696  -2.106%
+    vet       6900682   6787338   -113344  -1.643%
+    total     108535806 107056973 -1478833 -1.363%
+    
+    Change-Id: Iaec1cdcaacca8025e9babb0fb8a532fddb70c87d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255239
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: eric fang <eric.fang@arm.com>
+
+ src/cmd/compile/internal/ssa/block.go      | 16 +++++++
+ src/cmd/compile/internal/ssa/layout.go     | 62 +++++++++++++++---------
+ src/cmd/compile/internal/ssa/looprotate.go | 23 +++++----
+ src/cmd/compile/internal/ssa/regalloc.go   | 76 +++++++++++++++++++-----------
+ test/codegen/arithmetic.go                 |  8 ++++
+ test/codegen/comparisons.go                |  8 ++--
+ 6 files changed, 130 insertions(+), 63 deletions(-)

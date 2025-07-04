@@ -1,0 +1,13 @@
+commit ac29f30dbb35d8812c865aed6a6ae738a480def3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 26 09:46:58 2017 -0700
+
+    plugin: mention that there are known bugs with plugins
+    
+    Change-Id: I9e63661cac2bebc41d7aa3cd80e1920eec22b894
+    Reviewed-on: https://go-review.googlesource.com/51250
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/plugin/plugin.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

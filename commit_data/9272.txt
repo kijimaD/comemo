@@ -1,0 +1,12 @@
+commit 5c5ce6d24d766b47791cb4066748e8ef26ecae9a
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Aug 1 09:02:06 2011 -0700
+
+    exp/template: ensure that a valid Set is returned even on error.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4838044
+
+ src/pkg/exp/template/helper.go | 3 +++
+ 1 file changed, 3 insertions(+)

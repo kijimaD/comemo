@@ -1,0 +1,14 @@
+commit 2e1bc9e8673cced68b89ba5210bf8e3379cd786b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Mar 12 13:50:25 2012 +1100
+
+    cmd/vet: little tweak to tagged literal script to get it closer to drop-in format.
+    
+    This is a minor change that made it easier for me; if you hate it I can drop it.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5798060
+
+ src/cmd/vet/taglit.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 27a1454ee09b1923ddcf0cdc5e17b4dd7de8ea2a
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 20 10:43:43 2021 -0400
+
+    cmd/internal/goobj: minor dead code cleanup
+    
+    Remove a bit of dead code from the Go object file reader (io.ReaderAt
+    no longer needed in goobj.Reader).
+    
+    Change-Id: I04150d37fb90b59c9dbe930878d4dd21cdcd7ca7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357309
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/goobj/objfile.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

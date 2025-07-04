@@ -1,0 +1,13 @@
+commit 4659f6de3846eb19ca1cb7ed367c718a959d5711
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 21 21:21:44 2010 +1000
+
+    regexp: delete Iter methods
+    They are unused and not that useful anyway.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2225045
+
+ src/pkg/regexp/regexp.go | 36 ------------------------------------
+ 1 file changed, 36 deletions(-)

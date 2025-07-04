@@ -1,0 +1,23 @@
+commit be27fcfd2bfeda927213f334811df794d6a45872
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 14 14:49:16 2023 -0700
+
+    os, internal/poll: don't use splice with tty
+    
+    Also don't try to wait for a non-pollable FD.
+    
+    Fixes #59041
+    
+    Change-Id: Ife469d8738f2cc27c0beba223bdc8f8bc757b2a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476335
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/splice_linux.go | 19 ++++-----
+ src/os/readfrom_linux.go          | 13 ++++++
+ src/os/readfrom_linux_test.go     | 84 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 107 insertions(+), 9 deletions(-)

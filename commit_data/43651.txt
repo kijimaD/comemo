@@ -1,0 +1,35 @@
+commit 6abbfc17c255c07134a69c3ca305231db80530ec
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 28 18:06:05 2020 -0400
+
+    runtime: add world-stopped assertions
+    
+    Stopping the world is an implicit lock for many operations, so we should
+    assert the world is stopped in functions that require it.
+    
+    This is enabled along with the rest of lock ranking, though it is a bit
+    orthogonal and likely cheap enough to enable all the time should we
+    choose.
+    
+    Requiring a lock _or_ world stop is common, so that can be expressed as
+    well.
+    
+    Updates #40677
+    
+    Change-Id: If0a58544f4251d367f73c4120c9d39974c6cd091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248577
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/heapdump.go     | 15 +++++++++
+ src/runtime/lockrank_off.go | 16 +++++++++
+ src/runtime/lockrank_on.go  | 79 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mcheckmark.go   |  2 ++
+ src/runtime/mgc.go          |  2 ++
+ src/runtime/mgcmark.go      |  4 +++
+ src/runtime/mgcsweep.go     |  2 ++
+ src/runtime/mstats.go       | 14 ++++++--
+ src/runtime/proc.go         | 14 ++++++++
+ 9 files changed, 145 insertions(+), 3 deletions(-)

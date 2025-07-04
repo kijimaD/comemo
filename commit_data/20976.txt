@@ -1,0 +1,23 @@
+commit 557a61d270f101c0983e6aca9b271cc854526d28
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 9 10:15:18 2014 -0500
+
+    cmd/gc: add //go:nowritebarrier to diagnose unintended write barriers
+    
+    //go:nowritebarrier can only be used in package runtime.
+    It does not disable write barriers; it is an assertion, checked
+    by the compiler, that the following function needs no write
+    barriers.
+    
+    Change-Id: Id7978b779b66dc1feea39ee6bda9fd4d80280b7c
+    Reviewed-on: https://go-review.googlesource.com/1224
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/cmd/gc/go.h      |   2 +
+ src/cmd/gc/go.y      |   2 +
+ src/cmd/gc/lex.c     |   6 ++
+ src/cmd/gc/walk.c    |   2 +
+ src/cmd/gc/y.tab.c   | 268 ++++++++++++++++++++++++++-------------------------
+ src/runtime/mgc.go   |  64 +++++++++++-
+ src/runtime/proc1.go |   3 +-
+ 7 files changed, 209 insertions(+), 138 deletions(-)

@@ -1,0 +1,12 @@
+commit 5ec55c5134402bfc8cb797b87f7937031f670da4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 30 11:23:39 2010 +1000
+
+    doc: faq updates part one
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2301041
+
+ doc/go_faq.html | 47 +++++++++++++++++++++++++++--------------------
+ 1 file changed, 27 insertions(+), 20 deletions(-)

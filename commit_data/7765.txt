@@ -1,0 +1,19 @@
+commit 66f09fd459cc7477c1c2f0de5a296ab84920f473
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 15 14:05:37 2011 -0400
+
+    gc: diagnose unused labels
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4287047
+
+ src/cmd/5g/ggen.c |   2 +-
+ src/cmd/6g/ggen.c |   2 +-
+ src/cmd/8g/ggen.c |   2 +-
+ src/cmd/gc/dcl.c  |   1 -
+ src/cmd/gc/gen.c  | 157 +++++++++++++++++++++++++++++++++---------------------
+ src/cmd/gc/go.h   |   9 +++-
+ test/label.go     |  60 +++++++++++++++++++++
+ test/label1.go    |  85 +++++++++++++++++++++++++++++
+ 8 files changed, 251 insertions(+), 67 deletions(-)

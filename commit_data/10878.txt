@@ -1,0 +1,31 @@
+commit 2368b003e0d663e07079f1f250e954a51a64144b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Dec 19 16:45:51 2011 -0500
+
+    strconv: implement faster parsing of decimal numbers.
+    
+    The algorithm is the same as in the double-conversion library
+    which also implements Florian Loitsch's fast printing algorithm.
+    It uses extended floats with a 64-bit mantissa, but cannot give
+    an answer for all cases.
+    
+                               old ns/op  new ns/op  speedup
+    BenchmarkAtof64Decimal         332        322      1.0x
+    BenchmarkAtof64Float           385        373      1.0x
+    BenchmarkAtof64FloatExp       9777        419     23.3x
+    BenchmarkAtof64Big            3934        691      5.7x
+    BenchmarkAtof64RandomBits    34060        899     37.9x
+    BenchmarkAtof64RandomFloats   1329        680      2.0x
+    
+    See F. Loitsch, ``Printing Floating-Point Numbers Quickly and
+    Accurately with Integers'', Proceedings of the ACM, 2010.
+    
+    R=ality, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5494068
+
+ src/pkg/strconv/Makefile     |   1 +
+ src/pkg/strconv/atof.go      |  23 ++++
+ src/pkg/strconv/atof_test.go |  64 +++++++++
+ src/pkg/strconv/extfloat.go  | 311 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 399 insertions(+)

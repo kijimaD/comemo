@@ -1,0 +1,37 @@
+commit 163da6feb525a98dab5c1f01d81b2c705ead51ea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Feb 20 12:58:21 2022 -0800
+
+    go/types, types2: add "dynamic" flag to comparable predicate
+    
+    A type implements a comparable interface only if the type
+    is statically known to be comparable. Specifically, a type
+    cannot contain (component) interfaces that are not statically
+    known to be comparable.
+    
+    This CL adds a flag "dynamic" to the comparable predicate to
+    control whether interfaces are always (dynamically) comparable.
+    Set the flag to true when testing for (traditional) Go comparability;
+    set the flag to false when testing whether a type implements the
+    comparable interface.
+    
+    Fixes #51257.
+    
+    Change-Id: If22bc047ee59337deb2e7844b8f488d67e5c5530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387055
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go            |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go     |  2 +-
+ src/cmd/compile/internal/types2/predicates.go      | 11 +++---
+ .../types2/testdata/fixedbugs/issue51257.go2       | 46 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typeset.go         |  2 +-
+ src/go/types/expr.go                               |  2 +-
+ src/go/types/instantiate.go                        |  2 +-
+ src/go/types/predicates.go                         | 11 +++---
+ src/go/types/testdata/fixedbugs/issue51257.go2     | 46 ++++++++++++++++++++++
+ src/go/types/typeset.go                            |  2 +-
+ 10 files changed, 110 insertions(+), 16 deletions(-)

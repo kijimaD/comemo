@@ -1,0 +1,13 @@
+commit 2c982ce9a0d30cf7c771d24b2d4d124b8230087a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 31 10:34:51 2014 -0700
+
+    cmd/gc: fix example flag in comment
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/118480044
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

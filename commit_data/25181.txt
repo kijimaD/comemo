@@ -1,0 +1,19 @@
+commit 51a112fefc26fe557bab46abbc3b50565e56c570
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Dec 5 14:29:39 2015 +1100
+
+    path/filepath: handle c: as first parameter in Join properly
+    
+    This is CL 11882 brought back to life.
+    
+    Fixes #11551
+    
+    Change-Id: I29810183957745442d1e9937f56a66fc9c6cc82a
+    Reviewed-on: https://go-review.googlesource.com/17470
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/path_test.go    | 7 ++++++-
+ src/path/filepath/path_windows.go | 5 +++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit c63066123bb5c2ef7a6d26d1a6e3e5f1012a1e23
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Fri Apr 28 07:14:08 2023 -0600
+
+    net/http: avoid leaking the writing goroutine
+    
+    The test will wait for all goroutines.
+    A race can occur if the writing goroutine uses the Log after the test exits.
+    
+    For #58264
+    For #59883
+    For #59884
+    
+    Change-Id: I9b8ec7c9d024ff74b922b69efa438be5a4fa3483
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490255
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/net/http/serve_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

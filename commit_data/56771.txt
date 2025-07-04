@@ -1,0 +1,29 @@
+commit a130fb63091bf3103bb7baabbd2484f7e560edae
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jun 10 14:25:22 2024 +0000
+
+    cmd/compile/internal/ssa: fix DWARF location expr for .closureptr
+    
+    CL 586975 added support to the compiler back end to emit a synthetic
+    ".closureptr" variable in range func bodies, plus code to spill the
+    incoming context pointer to that variable's location on the stack.
+    
+    This patch fixes up the code in the back end that generates DWARF
+    location lists for incoming parameters (which sometimes arrive in
+    registers) in the "-l -N" no-optimization case to also create a
+    correct DWARF location list for ".closureptr", a two-piece list
+    reflecting the fact that its value arrives in a register and then is
+    spilled to the stack in the prolog.
+    
+    Fixes #67918.
+    
+    Change-Id: I029305b5248b8140253fdeb6821b877916fbb87a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591595
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/debug.go  | 112 ++++++++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/func.go   |   3 +
+ src/cmd/compile/internal/ssagen/ssa.go |   1 +
+ 3 files changed, 92 insertions(+), 24 deletions(-)

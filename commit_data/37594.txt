@@ -1,0 +1,27 @@
+commit c8ca793176cfae8a9fc501d6e37896304f483f2e
+Author: Austin Clements <austin@google.com>
+Date:   Wed Dec 5 15:21:17 2018 -0500
+
+    cmd/compile: mark memclrHasPointers calls as write barriers
+    
+    There are two places where the compiler generates memclrHasPointers
+    calls. These are effectively write barriers, but the compiler doesn't
+    currently record them as such in the function. As a result code like
+    
+      for i := range a {
+        a[i] = nil
+      }
+    
+    inserts a write barrier for the assignment to a[i], but the compiler
+    doesn't report this. Hence, it's not reported in the -d=wb output, and
+    it's not checked against //go:nowritebarrier annotations.
+    
+    Change-Id: I40299ebc9824f05cf516cba494d4c086b80ffb53
+    Reviewed-on: https://go-review.googlesource.com/c/152722
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/range.go | 1 +
+ src/cmd/compile/internal/gc/walk.go  | 1 +
+ 2 files changed, 2 insertions(+)

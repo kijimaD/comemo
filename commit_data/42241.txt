@@ -1,0 +1,16 @@
+commit e1d16843bdbf85c99bc963b7a343cbffa047e378
+Author: cncal <flycalvin@qq.com>
+Date:   Thu Apr 30 04:19:25 2020 +0000
+
+    runtime/race: fix comment in select_test.TestNoRaceSelect1
+    
+    selectGoImpl was merged into selectGo in https://golang.org/cl/37860.
+    
+    Change-Id: I39985f37223743f1ea0aba9bee0e2708398a925c
+    GitHub-Last-Rev: ec97b4be3298f5595a5cd6109c311dcb35e06663
+    GitHub-Pull-Request: golang/go#38716
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230340
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/race/testdata/select_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

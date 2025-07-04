@@ -1,0 +1,12 @@
+commit ef77c226264faf4cfeee1a957ca8de78f9ce40ec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 16 10:45:39 2008 -0800
+
+    - fixed minor bug in example (found by ken)
+    
+    R=r
+    OCL=21272
+    CL=21272
+
+ doc/go_spec.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

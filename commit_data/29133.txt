@@ -1,0 +1,31 @@
+commit 07a31bc3da1115775c6607fa400e2d147f6c17c3
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 26 13:57:08 2016 -0700
+
+    crypto/x509: don't accept a root that already appears in a chain.
+    
+    Since a root certificate is self-signed, it's a valid child of itself.
+    If a root certificate appeared both in the pool of intermediates and
+    roots the verification code could find a chain which included it twice:
+    first as an intermediate and then as a root. (Existing checks prevented
+    the code from looping any more.)
+    
+    This change stops the exact same certificate from appearing twice in a
+    chain. This simplifies the results in the face of the common
+    configuration error of a TLS server returning a root certificate.
+    
+    (This should also stop two different versions of the “same” root
+    appearing in a chain because the self-signature on one will not validate
+    for the other.)
+    
+    Fixes #16800.
+    
+    Change-Id: I004853baa0eea27b44d47b9b34f96113a92ebac8
+    Reviewed-on: https://go-review.googlesource.com/32121
+    Run-TryBot: Adam Langley <agl@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/verify.go      | 10 +++++++++-
+ src/crypto/x509/verify_test.go |  8 --------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

@@ -1,0 +1,13 @@
+commit 4e40a03682aca2f0283689b21f9dc5b2919fc464
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 2 09:18:08 2010 -0800
+
+    A+C: adding Stefan Nilsson
+    
+    R=rsc, iant2
+    CC=golang-dev
+    https://golang.org/cl/3417041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,41 @@
+commit bf408e741c2827a45c8576dda4126fc4135ef247
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 29 17:30:58 2022 -0700
+
+    cmd/compile/internal/syntax: remove generic-specific parse modes
+    
+    Generics have landed; we cannot revert the syntax anymore. Remove
+    ability to choose between non-generic and generic code. Also remove
+    mode to enable method type parameters. Adjust code accordingly.
+    
+    Also remove a couple of TODOs that are not relevant anymore.
+    
+    Remove tests from types2 which were focussed on method type parameters,
+    make types2 and go/types tests match up where there was a difference in
+    this regard.
+    
+    Change-Id: I989bdcb19eea7414214af739187fa013a044295d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396634
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/noder/noder.go            |   2 +-
+ src/cmd/compile/internal/syntax/dumper_test.go     |   2 +-
+ src/cmd/compile/internal/syntax/error_test.go      |   6 +-
+ src/cmd/compile/internal/syntax/parser.go          | 209 +++++++++------------
+ src/cmd/compile/internal/syntax/parser_test.go     |   6 +-
+ src/cmd/compile/internal/syntax/printer_test.go    |   6 +-
+ src/cmd/compile/internal/syntax/syntax.go          |   2 -
+ .../compile/internal/syntax/testdata/issue47704.go |   1 -
+ .../internal/syntax/testdata/issue47704.go117      |  18 --
+ .../compile/internal/syntax/testdata/smoketest.go  |  18 +-
+ src/cmd/compile/internal/types2/api_test.go        |  32 +---
+ src/cmd/compile/internal/types2/builtins_test.go   |   2 +-
+ src/cmd/compile/internal/types2/check_test.go      |   2 +-
+ src/cmd/compile/internal/types2/mono_test.go       |   2 +-
+ src/cmd/compile/internal/types2/stdlib_test.go     |   2 +-
+ .../internal/types2/testdata/check/mtypeparams.go  |  52 -----
+ .../internal/types2/testdata/check/typeparams.go   |  27 +--
+ src/cmd/compile/internal/types2/typeset_test.go    |   2 +-
+ src/go/types/testdata/check/typeparams.go          |  25 ---
+ 19 files changed, 109 insertions(+), 307 deletions(-)

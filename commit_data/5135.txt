@@ -1,0 +1,12 @@
+commit 732f3919abd12f977055b877eae79aa90e414196
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 25 11:45:18 2010 -0700
+
+    Support #pragma dynexport on OS X.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/733041
+
+ src/cmd/ld/macho.c | 128 ++++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 108 insertions(+), 20 deletions(-)

@@ -1,0 +1,14 @@
+commit 3c55ee642005db840f8d84bbdfaafa66f713559d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 6 09:06:05 2016 -0700
+
+    cmd/compile: refactor out method-called-as-function check
+    
+    Change-Id: I417aae8622d7d363863704594680bd2502a09049
+    Reviewed-on: https://go-review.googlesource.com/27463
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

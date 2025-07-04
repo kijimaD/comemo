@@ -1,0 +1,16 @@
+commit 1b417e20ffe052d51835ec84dcc5df08717cb8a3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 28 14:39:38 2016 -0800
+
+    cmd/compile: superficial cleanup in maplit
+    
+    Mostly renaming variables for clarity.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I9867137c34c14985cbbbdb2d34fbbe4cc65cb6fb
+    Reviewed-on: https://go-review.googlesource.com/20023
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 42 ++++++++++++++++--------------------
+ 1 file changed, 18 insertions(+), 24 deletions(-)

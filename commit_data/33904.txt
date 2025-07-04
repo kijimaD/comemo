@@ -1,0 +1,19 @@
+commit 98443ecd0a8e7a71bd632f77e8d1a9e19e7ef475
+Author: David Chase <drchase@google.com>
+Date:   Thu Dec 14 13:41:13 2017 -0500
+
+    cmd/compile: clean up debug_test.go
+    
+    Exercise of preparing a how-to document motivated me to
+    clean up some of the stupider wonkier bits.  Since this
+    does not run for test -short, expect no change for trybots,
+    did pass testing with OSX gdb and a refreshed copy of Delve.
+    
+    Change-Id: I58edd10599b172c4787ff5f110db078f6c2c81c5
+    Reviewed-on: https://go-review.googlesource.com/83957
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 77 +++++++++++++++---------------
+ 1 file changed, 38 insertions(+), 39 deletions(-)

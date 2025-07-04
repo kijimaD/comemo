@@ -1,0 +1,13 @@
+commit d84415d8f0457993e3d536c66a22a555f17c14aa
+Author: Adam Langley <agl@golang.org>
+Date:   Mon May 16 11:16:48 2011 -0700
+
+    crypto/x509: support DSA public keys in X.509 certs.
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/4517072
+
+ src/pkg/crypto/x509/x509.go      | 78 ++++++++++++++++++++++++++++++++--------
+ src/pkg/crypto/x509/x509_test.go | 62 ++++++++++++++++++++++++++++++++
+ 2 files changed, 125 insertions(+), 15 deletions(-)

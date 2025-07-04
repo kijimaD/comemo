@@ -1,0 +1,12 @@
+commit 72a2abf8adeac57aee898a7dbca6478b494efa74
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 28 12:22:47 2012 -0700
+
+    go/parser: minor internal cleanups
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6356046
+
+ src/pkg/go/parser/parser.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

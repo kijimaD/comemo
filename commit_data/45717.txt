@@ -1,0 +1,24 @@
+commit 3de3440fb9b2d7f8a14b33f96fcfcee8eb61ec55
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 27 22:27:55 2021 -0400
+
+    go/ast: remove FuncDecl.IsMethod for Go 1.17
+    
+    The IsMethod method was added to FuncDecl in the process of working on
+    support for type parameters, but is now only used in one place. It also
+    didn't go through the proposal process. Remove it for 1.17.
+    
+    Also clean up a doc comment that mentioned type parameters.
+    
+    Fixes #46297
+    
+    Change-Id: I432bdd626324f613baf059540b7c5436985b2b16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323369
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/ast/ast.go        | 6 +-----
+ src/go/types/resolver.go | 2 +-
+ 2 files changed, 2 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit e13dd94c564e94de78e6e3e673eb5797d9be0f34
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Wed Sep 18 23:45:58 2019 +0300
+
+    cmd/go/internal/semver: remove duplicate words in Compare doc
+    
+    Change-Id: I1ab0b5f713581b5f497878f222fa4ba3998a0ccd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196179
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/semver/semver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

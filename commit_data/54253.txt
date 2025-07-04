@@ -1,0 +1,27 @@
+commit 2e644cce9db814a50fa185b583075bd927910057
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Aug 17 15:30:58 2023 +0200
+
+    crypto/des: test using the public API
+    
+    Several of the tests in crypto/des were using the unexported
+    desCipher type and other unexported functions to test the package,
+    leaving desCipher.Encrypt and desCipher.Decrypt only partially tested.
+    
+    This CL changes the tests to use the public API, except for
+    TestInitialPermute and TestFinalPermute, which are testing
+    implementation details on purpose.
+    
+    Change-Id: I0bc13cea06b79b29425412b9bf36b997871518ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520495
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/crypto/des/block.go         | 10 ------
+ src/crypto/des/cipher.go        |  4 +--
+ src/crypto/des/des_test.go      | 72 +++++++++++++++--------------------------
+ src/crypto/des/internal_test.go | 29 +++++++++++++++++
+ 4 files changed, 57 insertions(+), 58 deletions(-)

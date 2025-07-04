@@ -1,0 +1,16 @@
+commit f612cd704a260cf362e5b6307b7ace4eb83f5f56
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Aug 10 01:28:10 2017 +0000
+
+    Revert "cmd/compile: discard duplicate inline method bodies"
+    
+    This reverts commit f0b36269041eff3b8bbdd18e2ff41b06557235d1.
+    
+    Reason for revert: this change caused the runtime tests on all linux/amd64 and linux/386 builders to timeout
+    
+    Change-Id: Idf8cfdfc84540e21e8da403e74df5596a1d9327b
+    Reviewed-on: https://go-review.googlesource.com/54490
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bimport.go | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

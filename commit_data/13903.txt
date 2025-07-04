@@ -1,0 +1,14 @@
+commit b51ad9cf457744d9e2feb6ada239a1078ba4540a
+Author: Rob Pike <r@golang.org>
+Date:   Sun Sep 23 05:03:43 2012 +1000
+
+    spec: a couple of minor tweaks to the wording of the import section
+    - remove ambiguous 'it'
+    - use a lower-case PackageName in the example
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6552057
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

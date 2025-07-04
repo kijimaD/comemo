@@ -1,0 +1,14 @@
+commit baea3e946d4456ea6a72bceaf018fefe2196272b
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Feb 9 13:33:07 2010 -0800
+
+    8a/8l: Added CMOVcc instructions
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/204067
+
+ src/cmd/8a/lex.c   | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/8l/8.out.h | 34 ++++++++++++++++++++++++++++++++++
+ src/cmd/8l/optab.c | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 100 insertions(+)

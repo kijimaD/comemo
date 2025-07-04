@@ -1,0 +1,19 @@
+commit cdb270cf0737a4752e5375b737eba83929f2b415
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Aug 23 19:27:49 2022 -0700
+
+    reflect: fix stale Value.kind documentation
+    
+    The lowests fives bits are the kind, and the next five bits are attributes,
+    not the other way around.
+    
+    Change-Id: I5e1d13b195b766e99f66bb1227cc7f84e85dc49d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425185
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/reflect/value.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

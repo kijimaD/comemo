@@ -1,0 +1,19 @@
+commit 9f5264f2999b7fa44a3642cf489a93c52d9d0b2f
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Jan 26 20:22:59 2010 -0800
+
+    small embedded target for arm.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/193104
+
+ src/pkg/runtime/embedded/README       |  4 ++
+ src/pkg/runtime/embedded/arm/defs.h   |  1 +
+ src/pkg/runtime/embedded/arm/rt0.s    |  1 +
+ src/pkg/runtime/embedded/arm/signal.c |  1 +
+ src/pkg/runtime/embedded/arm/sys.s    |  1 +
+ src/pkg/runtime/embedded/mem.c        | 40 ++++++++++++++++++
+ src/pkg/runtime/embedded/os.h         |  1 +
+ src/pkg/runtime/embedded/thread.c     | 80 +++++++++++++++++++++++++++++++++++
+ 8 files changed, 129 insertions(+)

@@ -1,0 +1,71 @@
+commit aaf63f8d06cda8308eb7c47ebc1f2cf2c1c91d02
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 17 00:08:24 2009 -0700
+
+    Step 1 of the Big Error Shift: make os.Error an interface and replace *os.Errors with os.Errors.
+    lib/template updated to use new setup; its clients also updated.
+    
+    Step 2 will make os's error support internally much cleaner.
+    
+    R=rsc
+    OCL=27586
+    CL=27586
+
+ doc/progs/cat_rot13.go              |   4 +-
+ doc/progs/file.go                   |   8 +--
+ src/cmd/gobuild/Makefile            |   2 +-
+ src/cmd/gobuild/gobuild.go          |   4 +-
+ src/cmd/gobuild/util.go             |   8 +--
+ src/cmd/gotest/gotest               |   1 +
+ src/lib/bufio.go                    |  32 +++++------
+ src/lib/bufio_test.go               |  12 ++--
+ src/lib/exec.go                     |  12 ++--
+ src/lib/fmt/print.go                |  16 +++---
+ src/lib/hash/adler32.go             |   2 +-
+ src/lib/hash/crc32.go               |   2 +-
+ src/lib/hash/md5.go                 |   2 +-
+ src/lib/hash/sha1.go                |   2 +-
+ src/lib/http/request.go             |   8 +--
+ src/lib/http/server.go              |  12 ++--
+ src/lib/http/url.go                 |   8 +--
+ src/lib/http/url_test.go            |   4 +-
+ src/lib/io/bytebuffer.go            |   4 +-
+ src/lib/io/io.go                    |  16 +++---
+ src/lib/io/pipe.go                  |  18 +++---
+ src/lib/json/generic.go             |   2 +-
+ src/lib/net/dnsclient.go            |  10 ++--
+ src/lib/net/dnsconfig.go            |   6 +-
+ src/lib/net/fd.go                   |  16 +++---
+ src/lib/net/fd_darwin.go            |   8 +--
+ src/lib/net/fd_linux.go             |   8 +--
+ src/lib/net/net.go                  | 102 +++++++++++++++++-----------------
+ src/lib/net/net_darwin.go           |   6 +-
+ src/lib/net/net_linux.go            |   6 +-
+ src/lib/net/parse.go                |   2 +-
+ src/lib/net/port.go                 |   4 +-
+ src/lib/os/dir_amd64_darwin.go      |   4 +-
+ src/lib/os/dir_amd64_linux.go       |   4 +-
+ src/lib/os/env.go                   |   4 +-
+ src/lib/os/error.go                 |  43 ++++++++++-----
+ src/lib/os/exec.go                  |   6 +-
+ src/lib/os/file.go                  |  32 +++++------
+ src/lib/os/time.go                  |   2 +-
+ src/lib/regexp/all_test.go          |   4 +-
+ src/lib/regexp/regexp.go            |   8 +--
+ src/lib/strconv/atof.go             |   6 +-
+ src/lib/strconv/atof_test.go        |   2 +-
+ src/lib/strconv/atoi.go             |  10 ++--
+ src/lib/strconv/atoi_test.go        |   8 +--
+ src/lib/strconv/quote.go            |   6 +-
+ src/lib/tabwriter/tabwriter.go      |  12 ++--
+ src/lib/tabwriter/tabwriter_test.go |   2 +-
+ src/lib/template/template.go        | 106 +++++++++++++++---------------------
+ src/lib/template/template_test.go   |  10 ++--
+ src/lib/time/sleep.go               |   2 +-
+ src/lib/time/zoneinfo.go            |  10 ++--
+ src/lib/xml.go                      |  34 ++++++------
+ test/chan/goroutines.go             |   2 +-
+ usr/gri/pretty/astprinter.go        |   2 +-
+ usr/gri/pretty/godoc.go             |   8 +--
+ usr/gri/pretty/platform.go          |   6 +-
+ 57 files changed, 341 insertions(+), 339 deletions(-)

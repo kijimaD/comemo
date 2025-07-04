@@ -1,0 +1,28 @@
+commit a7af474359179062a82429da927407d2d5395acc
+Author: smasher164 <aindurti@gmail.com>
+Date:   Tue Dec 4 06:41:39 2018 -0500
+
+    cmd/compile: improve error message for non-final variadic parameter
+    
+    Previously, when a function signature had defined a non-final variadic
+    parameter, the error message always referred to the type associated with that
+    parameter. However, if the offending parameter's name was part of an identifier
+    list with a variadic type, one could misinterpret the message, thinking the
+    problem had been with one of the other names in the identifer list.
+    
+        func bar(a, b ...int) {}
+    clear ~~~~~~~^       ^~~~~~~~ confusing
+    
+    This change updates the error message and sets the column position to that of
+    the offending parameter's name, if it exists.
+    
+    Fixes #28450.
+    
+    Change-Id: I076f560925598ed90e218c25d70f9449ffd9b3ea
+    Reviewed-on: https://go-review.googlesource.com/c/152417
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go |  6 +++++-
+ test/fixedbugs/issue28450.go         | 18 ++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 0df9fa2ebec975359c8ee1150ecf7f28f12b39ee
+Author: David Url <david@urld.io>
+Date:   Thu Aug 23 17:28:59 2018 +0200
+
+    net/http: log call site which causes multiple header writes
+    
+    If an illegal header write is detected, find the first caller outside of
+    net/http using runtime.CallersFrames and include the call site in the log
+    message.
+    
+    Fixes #18761
+    
+    Change-Id: I92be00ac206c6ebdd60344ad7bf40a7c4c188547
+    Reviewed-on: https://go-review.googlesource.com/c/130997
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go |  6 +++---
+ src/net/http/server.go            | 28 +++++++++++++++++++++++++---
+ 2 files changed, 28 insertions(+), 6 deletions(-)

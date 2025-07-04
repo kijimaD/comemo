@@ -1,0 +1,16 @@
+commit f6d582db6123e3b199fa34334505f952e554312d
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Mon Apr 9 15:04:59 2012 -0400
+
+    cmd/yacc: spring cleaning for units.y
+    
+    * sort imports
+    * use runtime.GOROOT
+    * fix some typos
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/5987054
+
+ src/cmd/yacc/units.y | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

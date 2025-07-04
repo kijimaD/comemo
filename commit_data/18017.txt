@@ -1,0 +1,17 @@
+commit 762a9d934eab267418595df7a220eec50919b77d
+Author: Julien Schmidt <google@julienschmidt.com>
+Date:   Tue Dec 17 11:57:30 2013 -0800
+
+    database/sql: fix auto-reconnect in prepared statements
+    
+    This also fixes several connection leaks.
+    Fixes #5718
+    
+    R=bradfitz, adg
+    CC=alberto.garcia.hierro, golang-dev
+    https://golang.org/cl/14920046
+
+ src/pkg/database/sql/fakedb_test.go |  24 ++++++++
+ src/pkg/database/sql/sql.go         | 120 +++++++++++++++++++++---------------
+ src/pkg/database/sql/sql_test.go    | 106 ++++++++++++++++++++++++++++++-
+ 3 files changed, 198 insertions(+), 52 deletions(-)

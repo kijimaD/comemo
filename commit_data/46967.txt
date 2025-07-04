@@ -1,0 +1,20 @@
+commit 3ff39c5eda6aa869cbc3a19237750fa7cf495832
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 20 12:18:40 2021 -0700
+
+    cmd/compile/internal/types2: use correct types when checking generic conversions
+    
+    Iterate through the actual, possibly defined types of constraints
+    when type-checking generic conversions, not the underlying types.
+    
+    For #47150.
+    
+    Change-Id: Ia7af313bf46d6f6b0ad5292ff793b030b8e2d3d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357333
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go           | 16 ++++++++--------
+ .../internal/types2/testdata/examples/conversions.go2    | 14 ++++++++++++++
+ 2 files changed, 22 insertions(+), 8 deletions(-)

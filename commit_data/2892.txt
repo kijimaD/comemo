@@ -1,0 +1,21 @@
+commit a2880958134de8c5acfdd52449906278374931b2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 5 15:56:44 2009 -0700
+
+    - FieldByName lookup through anonymous fields
+    - FieldByIndex
+    - changed StructField.Index type from int -> []int
+    - adjustments to reflect clients
+    
+    R=rsc,r
+    DELTA=336  (263 added, 47 deleted, 26 changed)
+    OCL=32731
+    CL=32802
+
+ src/pkg/datafmt/datafmt.go   |  54 +++-------------
+ src/pkg/json/struct.go       |   2 +-
+ src/pkg/reflect/all_test.go  | 144 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/reflect/type.go      | 105 +++++++++++++++++++++++++++----
+ src/pkg/reflect/value.go     |  29 +++++++++
+ src/pkg/template/template.go |   2 +-
+ 6 files changed, 276 insertions(+), 60 deletions(-)

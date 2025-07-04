@@ -1,0 +1,24 @@
+commit db9e15e68f24120922564365670c2bef6f6869e7
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Oct 25 10:02:37 2018 +0200
+
+    os: fix tests for AIX
+    
+    This commits fixes tests for AIX inside os package.
+    
+    "hostname" command on AIX returns "name.domain" and not only "name".
+    So, "hostname -s" must be called.
+    
+    Change-Id: I75e193bcb6ad607ce54ad99aabbed9839012f707
+    Reviewed-on: https://go-review.googlesource.com/c/144537
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/executable_test.go | 4 ++--
+ src/os/file_posix.go      | 5 +++++
+ src/os/os_test.go         | 6 +++++-
+ src/os/sticky_bsd.go      | 2 +-
+ src/os/sticky_notbsd.go   | 1 +
+ 5 files changed, 14 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit 6b80b62fd1b5338e6ec8bc2ff521b94f2fefae9c
+Author: David Chase <drchase@google.com>
+Date:   Tue Aug 9 14:07:02 2022 -0400
+
+    internal/pkgbits: fix performance of rawReloc
+    
+    There was a TODO about quadratic performance, and indeed,
+    it can get bad.  Added a map, made some integers that are
+    unlikely to exceed a few million into 32-bit integers.
+    
+    Change-Id: I6facf2eabc00483e943b326ca8dcae2f778093da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422297
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/internal/pkgbits/encoder.go | 18 +++++++++++-------
+ src/internal/pkgbits/reloc.go   |  4 ++--
+ 2 files changed, 13 insertions(+), 9 deletions(-)

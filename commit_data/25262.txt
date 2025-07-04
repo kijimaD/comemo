@@ -1,0 +1,13 @@
+commit 4280ed84fd7a8de329074f57bbfb3af6fc7f93d5
+Author: Burcu Dogan <jbd@google.com>
+Date:   Mon Dec 14 16:39:09 2015 -0800
+
+    net/http: skip TestClientTimeout_Headers in HTTP/2 mode
+    
+    Change-Id: I3533b557cd6c7127ab4efbe8766184b51ce260c9
+    Reviewed-on: https://go-review.googlesource.com/17768
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

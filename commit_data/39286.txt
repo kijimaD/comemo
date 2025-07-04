@@ -1,0 +1,20 @@
+commit f61fa116ea613c501884ad32687ee33c6edf10a2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri May 31 12:32:30 2019 -0400
+
+    test: add a test for gccgo bug #32347
+    
+    The gccgo compiler crashes with int-to-string conversion with
+    large integer constant operand. CL 179777 is the fix. This CL
+    adds a test.
+    
+    Updates #32347.
+    
+    Change-Id: Id1d9dbbcdd3addca4636f1b9c5fdbc450cc48c1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179797
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue32347.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

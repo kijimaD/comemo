@@ -1,0 +1,18 @@
+commit 466e299d6b6f98e86a5284afab1e6068867de66b
+Author: OneOfOne <oneofone@gmail.com>
+Date:   Sat Jul 8 20:19:25 2017 +0200
+
+    net/url: allow *User functions to work on a nil receiver.
+    
+    Fixes #20924
+    
+    Change-Id: If89f31da63cbea38d7e615a428b7b07629770a45
+    Reviewed-on: https://go-review.googlesource.com/47851
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tim Cooper <tim.cooper@layeh.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go      |  9 +++++++++
+ src/net/url/url_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

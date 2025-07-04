@@ -1,0 +1,13 @@
+commit 38323890360fdcf361a2af774a99e10ac9371758
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 17 13:22:20 2010 -0800
+
+    fix cgo build
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3750041
+
+ src/Make.pkg                 | 2 +-
+ src/pkg/runtime/cgo/Makefile | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

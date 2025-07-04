@@ -1,0 +1,18 @@
+commit 683df29f7c018821b1bfac08d0f11d32ebb7757f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Aug 29 10:49:03 2011 -0400
+
+    net: change the internal form of IPMask for IPv4
+    
+    This CL changes the internal form of IPMask for IPv4
+    from 16-byte to 4-byte, also adds Size method to IPMask
+    struct and changes output string format of IPMask.String
+    method.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4950046
+
+ src/pkg/net/ip.go      | 71 ++++++++++++++++++++++++++------------------------
+ src/pkg/net/ip_test.go | 67 +++++++++++++++++++++++++++++++++++------------
+ 2 files changed, 87 insertions(+), 51 deletions(-)

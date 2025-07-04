@@ -1,0 +1,17 @@
+commit 42ecf39e85a6960f4e0c2272bf9aff491eda3b66
+Author: ChrisALiles <caveryliles@gmail.com>
+Date:   Mon Feb 26 15:35:48 2018 +1100
+
+    cmd/compile: improve compiler error on embedded structs
+    
+    Fixes #23609
+    
+    Change-Id: I751aae3d849de7fce1306324fcb1a4c3842d873e
+    Reviewed-on: https://go-review.googlesource.com/97076
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 13 ++++++++++++-
+ test/fixedbugs/issue23609.go             | 27 +++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

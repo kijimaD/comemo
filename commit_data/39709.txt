@@ -1,0 +1,19 @@
+commit aced50af3b4d9e7ee7f34452a227780dce7ea511
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 28 13:15:09 2019 -0700
+
+    cmd/compile: update fmt_test.go for esc.go code cleanup
+    
+    CL 187598 removed a bunch of esc.go's debug messages, so some format
+    strings are no longer needed.
+    
+    Fixes #33915.
+    
+    Change-Id: Iaadf12b5d68358e1abb00210f5aa8be01b36ce82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192142
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/fmtmap_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

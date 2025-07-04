@@ -1,0 +1,18 @@
+commit 07bcfe574593eea878e187c99e2d7aa17798eef5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 3 11:27:32 2018 -0700
+
+    cmd/go: don't crash in go fmt on invalid input when using modules
+    
+    Fixes #26792
+    
+    Change-Id: I9a878180af28e3939b654fd88bed150010dffde0
+    Reviewed-on: https://go-review.googlesource.com/127856
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/fmtcmd/fmt.go                |  2 +-
+ src/cmd/go/testdata/script/mod_gofmt_invalid.txt | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

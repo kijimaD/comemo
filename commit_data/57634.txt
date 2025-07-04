@@ -1,0 +1,18 @@
+commit 604eaa175bfaadfb868d6add76325020b6e13048
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Oct 6 18:47:56 2024 +0200
+
+    iter: fix spurious TestPullDoubleYield[2] successes
+    
+    The two tests confused a nil pointer panic with the panic from a double
+    call to yield.
+    
+    Change-Id: I0040e60cf4b702a92825d308db1201a85f164009
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617917
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/iter/pull_test.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit f64c67018103c200c9e150ac5f1199a3175f54a6
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Tue May 24 12:50:38 2016 +0100
+
+    cmd/trace: add option to output pprof files
+    
+    The trace tool can generate some interesting profiles, but it was only
+    exposing them as svg through the web UI.  This adds command line options
+    to generate the raw pprof file.
+    
+    Change-Id: I52e4f909fdca6f65c3616add444e3892783640f4
+    Reviewed-on: https://go-review.googlesource.com/23324
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/trace/main.go  |  44 ++++++++++++++++++-
+ src/cmd/trace/pprof.go | 113 +++++++++++++++++++++++--------------------------
+ 2 files changed, 97 insertions(+), 60 deletions(-)

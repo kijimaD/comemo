@@ -1,0 +1,16 @@
+commit ebafc80ebaa8d7e67ba72642eed67c0adfc0c0c3
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Nov 3 09:36:53 2015 +1300
+
+    cmd/link: remove duplicate symtab entry for global functions
+    
+    golang.org/cl/16436 added a local symbol for every global function, but also
+    added a duplicate entry for the global symbol. Surprisingly this hasn't caused
+    any noticeable problems, but it's still wrong.
+    
+    Change-Id: Icd3906760f8aaf7bef31ffd4f2d866d73d36dc2c
+    Reviewed-on: https://go-review.googlesource.com/16581
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/symtab.go | 1 +
+ 1 file changed, 1 insertion(+)

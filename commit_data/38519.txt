@@ -1,0 +1,24 @@
+commit 1e83369ca002218389e81235ed96d2bb509bb779
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Mar 20 18:16:33 2019 +0000
+
+    Revert "cmd/go: fix the default build output name for versioned binaries"
+    
+    This reverts CL 140863 (commit bf94fc3ae387fc09929443393741919fac6727af).
+    
+    Reason for revert: There was a potential problem spotted in the original
+    fix, which resulted in it being rolled back from release-branch.go1.12
+    and not included in Go 1.12.1 release. We intend to improve the fix and
+    include it in Go 1.12.2 instead. To make the fix easier to backport,
+    revert this change before re-applying the improved fix (next commit).
+    
+    Change-Id: If6c785f58482d2531b5927c5ea7002f548c21c7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168402
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/go/internal/load/pkg.go                    | 71 ++++++++++------------
+ src/cmd/go/internal/test/test.go                   |  2 +-
+ src/cmd/go/internal/work/build.go                  |  6 +-
+ .../go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt   |  6 --
+ src/cmd/go/testdata/script/mod_build_versioned.txt | 16 -----
+ 5 files changed, 37 insertions(+), 64 deletions(-)

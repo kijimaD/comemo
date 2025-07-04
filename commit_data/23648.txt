@@ -1,0 +1,25 @@
+commit ad60cd8b929553611c30b01b0f39164acc91473f
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 30 18:20:13 2015 -0400
+
+    runtime: report MemStats.PauseEnd in UNIX time
+    
+    Currently we report MemStats.PauseEnd in nanoseconds, but with no
+    particular 0 time. On Linux, the 0 time is when the host started. On
+    Darwin, it's the UNIX epoch. This is also inconsistent with the other
+    absolute time in MemStats, LastGC, which is always reported in
+    nanoseconds since 1970.
+    
+    Fix PauseEnd so it's always reported in nanoseconds since 1970, like
+    LastGC.
+    
+    Fixes one of the issues raised in #10323.
+    
+    Change-Id: Ie2fe3169d45113992363a03b764f4e6c47e5c6a8
+    Reviewed-on: https://go-review.googlesource.com/11801
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/malloc_test.go | 4 ++++
+ src/runtime/mgc.go         | 5 +++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

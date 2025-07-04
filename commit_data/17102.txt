@@ -1,0 +1,25 @@
+commit 9449c18ac8c130df000283d5d533f4cecf6b3afe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 8 14:10:59 2013 -0700
+
+    cmd/api: rewrite using go/types
+    
+    - adjusted test files so that they actually type-check
+    - adjusted go1.txt, go1.1.txt, next.txt
+    - to run, provide build tag: api_tool
+    
+    Fixes #4538.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12300043
+
+ api/go1.1.txt                              |    2 +
+ api/go1.txt                                |   94 ++-
+ api/next.txt                               |  133 +++-
+ src/cmd/api/clone.go                       |  251 ------
+ src/cmd/api/goapi.go                       | 1146 +++++++++-------------------
+ src/cmd/api/goapi_test.go                  |    8 +-
+ src/cmd/api/testdata/src/pkg/p1/golden.txt |   13 +-
+ src/cmd/api/testdata/src/pkg/p1/p1.go      |   21 +-
+ 8 files changed, 584 insertions(+), 1084 deletions(-)

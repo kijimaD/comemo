@@ -1,0 +1,12 @@
+commit 4ddcb0ea738c181070039db8d9fed9f81958424c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 17 15:23:19 2009 -0800
+
+    fix for gofmt rewrite matcher bug
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179096
+
+ src/cmd/gofmt/rewrite.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,54 @@
+commit 333087623a8040d5da7f87dd53328156fae28e90
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Feb 21 14:24:31 2020 -0500
+
+    CONTRIBUTORS: second round of updates for Go 1.14
+    
+    This update was automatically generated using the updatecontrib command:
+    
+            cd gotip
+            go run golang.org/x/build/cmd/updatecontrib
+    
+    With minor manual changes based on publicly available information
+    to canonicalize letter case and formatting for a few names.
+    
+    Actions taken (relative to CONTRIBUTORS at origin/master):
+    
+            Added Aaron Bieber <deftly@gmail.com>
+            Added Adam Williams <pwnfactory@gmail.com>
+            Added Ayke van Laethem <aykevanlaethem@gmail.com>
+            Added Bradford Lamson-Scribner <brad.lamson@gmail.com>
+            Added Brian Falk <falk@logicparty.org>
+            Added Chen Zhihan <energiehund@gmail.com>
+            Added Christopher Loessl <cloessl+github@gmail.com>
+            Added Frederik Zipp <fzipp@gmx.de>
+            Added Fujimoto Kyosuke <kyoro.f@gmail.com>
+            Added GitHub User jopbrown (6345470) <msshane2008@gmail.com>
+            Added GitHub User yah01 (12216890) <kagaminehuan@gmail.com>
+            Added Hiromichi Ema <ema.hiro@gmail.com>
+            Added Jamal Carvalho <jamal.a.carvalho@gmail.com>
+            Added Jason Baker <jason-baker@users.noreply.github.com>
+            Added Kanta Ebihara <kantaebihara@gmail.com>
+            Added Kirill Tatchihin <kirabsuir@gmail.com>
+            Added Kévin Dunglas <dunglas@gmail.com>
+            Added Mariano Cano <mariano@smallstep.com>
+            Added Sergey Ivanov <ser1325@gmail.com>
+            Added Thomas Symborski <thomas.symborski@gmail.com>
+            Added Tomohiro Kusumoto <zabio1192@gmail.com>
+            Added Xingqang Bai <bxq2011hust@qq.com>
+            Used GitHub User jopbrown (6345470) form for jopbrown <msshane2008@gmail.com> https://github.com/golang/exp/commit/0405dc7 [exp]
+            Used GitHub User yah01 (12216890) form for yah01 <kagaminehuan@gmail.com> https://github.com/golang/go/commit/ee55dd6b64 [go]
+            Used GitHub name "Hiromichi Ema" for emahiro <ema.hiro@gmail.com> https://github.com/golang/tools/commit/b6336cbc [tools]
+            Used GitHub name "Jamal Carvalho" for Gopher <jamal.a.carvalho@gmail.com> https://github.com/golang/gddo/commit/31dd61d [gddo]
+            Used GitHub name "Xingqang Bai" for bxq2011hust <bxq2011hust@qq.com> https://github.com/golang/go/commit/79ccbe1b67 [go]
+    
+    Updates #12042
+    
+    Change-Id: I13f8ab37f8b38f8f5d0ff71c939ad39d0bc4f985
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220363
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ CONTRIBUTORS | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

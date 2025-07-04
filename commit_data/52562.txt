@@ -1,0 +1,25 @@
+commit 38dadcc3b5e0f0ed70d224f1eb519a83dcdb52de
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 7 15:37:18 2023 +0000
+
+    net/http: fix a race in TestResponseControllerSetPastReadDeadline
+    
+    If the Write goroutine is delayed for long enough after its first
+    Write, the handler may have closed both the readc and donec channels
+    by the time it selects over them, and the donec case may be randomly
+    chosen. Handle that case by explicitly checking readc as well.
+    
+    This fixes a race accidentally introduced in CL 482935 and observed in
+    https://build.golang.org/log/fa684750994d1fda409722f144b90c65b4c52cf9.
+    
+    For #59447.
+    
+    Change-Id: I5c87a599910cf8c1d037e5bbce68bf35afd55d61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483036
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/net/http/responsecontroller_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

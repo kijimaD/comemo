@@ -1,0 +1,15 @@
+commit 9733f96b4798f608ce9ff284ebcd06473c3734a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 2 10:21:56 2011 -0800
+
+    http: initialize request Header for the transport
+    
+    Fixes #1558
+    
+    R=rsc, r, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4260042
+
+ src/pkg/http/client.go      | 11 +++++++++++
+ src/pkg/http/client_test.go |  7 +++++--
+ 2 files changed, 16 insertions(+), 2 deletions(-)

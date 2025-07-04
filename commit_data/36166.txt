@@ -1,0 +1,25 @@
+commit 6bea321ba27a4c0c9424c11c6424697deee7cce2
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Jul 30 17:05:49 2018 +0300
+
+    cmd/cgo: add column number to line directives
+    
+    Due to a new specification of //line: directives, missing
+    column info is now treated as column 0, aka "unknown column"
+    (see https://github.com/golang/go/issues/24183 for details).
+    
+    As cgo does not add column number to generated //line: directive,
+    resulting files parsed do not have column info.
+    
+    Fix by adding column of 1 to generated line directives.
+    
+    Fixes #26692
+    
+    Change-Id: Ie9263c0cf666b92d19c34240e745e8f32ffe7174
+    Reviewed-on: https://go-review.googlesource.com/126675
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

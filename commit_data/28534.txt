@@ -1,0 +1,21 @@
+commit 3390294308462d5ddab95feaf42acc8fde767c98
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 26 10:06:10 2016 -0700
+
+    cmd/compile: PPC64, find compare-with-immediate
+    
+    Added rules for compare double and word immediate,
+    including those that use invertflags to cope with
+    flipped operands.
+    
+    Change-Id: I594430a210e076e52299a2cc6ab074dbb04a02bd
+    Reviewed-on: https://go-review.googlesource.com/29763
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |   9 ++
+ src/cmd/compile/internal/ssa/rewrite.go      |   5 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 180 +++++++++++++++++++++++++++
+ 3 files changed, 194 insertions(+)

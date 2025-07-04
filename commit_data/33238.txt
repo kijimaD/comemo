@@ -1,0 +1,21 @@
+commit b4e207d71858bfd491f2baaf66777e31b6eb9ca2
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Oct 25 15:34:08 2017 -0400
+
+    cmd/go: enable TestNoteReading on ppc64le
+    
+    This test was previously disabled when external linking was
+    unsupported on ppc64le. It should still be disabled on ppc64
+    since there is no cgo or external linking there, but I removed
+    the if test for GOARCH=ppc64 since the initial test for cgo
+    enabled will cause it to be skipped on ppc64.
+    
+    Fixes #22360
+    
+    Change-Id: I5a0e3e4a1bd71ac7bf0ed0c792f7b78fb4a5e100
+    Reviewed-on: https://go-review.googlesource.com/73510
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/note_test.go | 2 --
+ 1 file changed, 2 deletions(-)

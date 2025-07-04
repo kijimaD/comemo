@@ -1,0 +1,23 @@
+commit 819e0b29bbbc07022e7b94c12b55860466a02e5b
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Mar 26 00:04:48 2016 +0100
+
+    strings: improve explode and correct comment
+    
+    Merges explodetests into splittests which already contain
+    some of the tests that cover explode.
+    
+    Adds a test to cover the utf8.RuneError branch in explode.
+    
+    name      old time/op  new time/op  delta
+    Split1-2  14.9ms ± 0%  14.2ms ± 0%  -4.06%  (p=0.000 n=47+49)
+    
+    Change-Id: I00f796bd2edab70e926ea9e65439d820c6a28254
+    Reviewed-on: https://go-review.googlesource.com/21609
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strings/strings.go      | 27 ++++++++++-----------------
+ src/strings/strings_test.go | 37 ++++++++-----------------------------
+ 2 files changed, 18 insertions(+), 46 deletions(-)

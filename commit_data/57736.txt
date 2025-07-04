@@ -1,0 +1,29 @@
+commit 3cb0c039e9bdc4bf8ca7cc31dc7432f9f37d4079
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Mon Oct 21 21:47:40 2024 +0000
+
+    cmd/asm: add support for LDREXB/STREXB
+    
+    These are 8-bit ARM Load/Store atomics and are available starting from armv6k.
+    
+    See https://developer.arm.com/documentation/dui0379/e/arm-and-thumb-instructions/strex
+    
+    For #69735
+    
+    Change-Id: I12623433c89070495c178208ee4758b3cdefd368
+    GitHub-Last-Rev: d6a797836af1dccdcc6e6554725546b386d01615
+    GitHub-Pull-Request: golang/go#69959
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621395
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/arch/arm.go             |  2 +-
+ src/cmd/asm/internal/asm/testdata/armerror.s |  2 ++
+ src/cmd/asm/internal/asm/testdata/armv6.s    |  2 ++
+ src/cmd/internal/obj/arm/a.out.go            |  2 ++
+ src/cmd/internal/obj/arm/anames.go           |  2 ++
+ src/cmd/internal/obj/arm/asm5.go             | 34 +++++++++++++++++++++-------
+ 6 files changed, 35 insertions(+), 9 deletions(-)

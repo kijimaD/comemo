@@ -1,0 +1,12 @@
+commit 6a22e2fb3f9dd97725d48b9a690180666be8f290
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 22 11:42:44 2012 -0400
+
+    cmd/6a: delete dead code
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6223060
+
+ src/cmd/6a/lex.c | 14 --------------
+ 1 file changed, 14 deletions(-)

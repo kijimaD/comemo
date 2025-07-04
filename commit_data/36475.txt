@@ -1,0 +1,19 @@
+commit 97f153528513e9a7ededf7e0aca7a4e30a3f4fe7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 24 11:44:55 2018 -0700
+
+    runtime: mark sigInitIgnored nosplit
+    
+    The sigInitIgnored function can be called by initsig before a shared
+    library is initialized, before the runtime is initialized.
+    
+    Fixes #27183
+    
+    Change-Id: I7073767938fc011879d47ea951d63a14d1cce878
+    Reviewed-on: https://go-review.googlesource.com/131277
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sigqueue.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

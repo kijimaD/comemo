@@ -1,0 +1,16 @@
+commit 732ea4c2dcc1bcbcff65c31047ebb54364e7865d
+Author: Rabin Gaire <rabingaire20@gmail.com>
+Date:   Sun Dec 6 23:17:20 2020 +0545
+
+    sort: add example tests for SearchFloat64s and SearchInts
+    
+    Change-Id: I5fa4773467e3f515250deead72fdce3e4bd0973b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275457
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/sort/example_search_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

@@ -1,0 +1,22 @@
+commit 4a3c3ec9966022fd6a02e1790f71536acd6bcf1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:56:57 2024 -0500
+
+    runtime: delete addtimer
+    
+    modtimer can always be used in place of addtimer.
+    Do that and delete addtimer, avoiding duplicated logic.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: I70291796bdac3bef5e0850f039f6f4a1da4498ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564118
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go | 70 +++++++++++------------------------------------------
+ src/time/sleep.go   |  2 +-
+ src/time/tick.go    |  2 +-
+ 3 files changed, 16 insertions(+), 58 deletions(-)

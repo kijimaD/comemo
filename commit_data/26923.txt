@@ -1,0 +1,27 @@
+commit 2c9d773f7411de211389b9e1da441fae68f826d8
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Apr 14 16:31:42 2016 +0200
+
+    misc/trace: update trace viewer html
+    
+    The old trace-viewer is broken since Chrome 49:
+    https://bugs.chromium.org/p/chromium/issues/detail?id=569417
+    It was fixed in:
+    https://github.com/catapult-project/catapult/commit/506457cbd726324f327b80ae11f46c1dfeb8710d
+    
+    This change updates trace-viewer to the latest version
+    (now it is called catapult).
+    
+    This version has a bug in the lean config that we use, though:
+    https://github.com/catapult-project/catapult/issues/2247
+    So use full config for now (it works, but leads to larger html).
+    When the bug is fixed we need to switch back to lean config (issue #15302).
+    
+    Change-Id: Ifb8d782ced66e3292d81c5604039fe18eaf267c5
+    Reviewed-on: https://go-review.googlesource.com/22013
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/trace/README.md              |   12 +-
+ misc/trace/trace_viewer_lean.html | 8773 ++++++++++++++++++++++++++-----------
+ src/cmd/trace/trace.go            |   91 +-
+ 3 files changed, 6332 insertions(+), 2544 deletions(-)

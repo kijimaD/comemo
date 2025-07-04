@@ -1,0 +1,14 @@
+commit 7b40095e8c2ab6ae08589fa53f4328231139fdd3
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri Apr 1 22:26:57 2011 -0400
+
+    syscall: make Rawsyscall6 pass 6th arg on linux/386
+    
+    Forgot this one in the previous CL
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4345043
+
+ src/pkg/syscall/asm_linux_386.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,30 @@
+commit 2aba467933b3252c758b65146d2ea5a5cff196da
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Aug 20 15:06:06 2020 -0500
+
+    cmd/compile: remove unused carry related ssa ops in ppc64
+    
+    The intermediate SSA opcodes* are no longer generated during the
+    lowering pass.  The shifting rules have been improved using ISEL.
+    Therefore, we can remove them and the rules which expand them.
+    
+    * The removed opcodes are:
+    
+      LoweredAdd64Carry
+      ADDconstForCarry
+      MaskIfNotCarry
+      FlagCarryClear
+      FlagCarrySet
+    
+    Change-Id: I1ebe2726ed988f29ed4800c8f57b428f7a214cd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249462
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go        | 19 +------
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  9 +--
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 12 ++--
+ src/cmd/compile/internal/ssa/opGen.go        | 36 ------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 82 ----------------------------
+ 5 files changed, 6 insertions(+), 152 deletions(-)

@@ -1,0 +1,20 @@
+commit 5f23bc8903c9b7930398c154b884979a1a43946f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 21:02:12 2016 -0500
+
+    cmd/compile: add AVARLIVE to peep for arm, arm64, mips64, ppc64
+    
+    Fixes build on those systems.
+    
+    Also fix printing of AVARLIVE.
+    
+    Change-Id: I1b38cca0125689bc08e4e1bdd0d0c140b1ea079a
+    Reviewed-on: https://go-review.googlesource.com/18641
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/arm/peep.go    | 1 +
+ src/cmd/compile/internal/arm64/peep.go  | 1 +
+ src/cmd/compile/internal/mips64/peep.go | 1 +
+ src/cmd/compile/internal/ppc64/peep.go  | 1 +
+ src/cmd/internal/obj/util.go            | 2 +-
+ 5 files changed, 5 insertions(+), 1 deletion(-)

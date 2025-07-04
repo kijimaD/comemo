@@ -1,0 +1,19 @@
+commit 7d1e07049fec1d9a9fd4116111e52b161746dbde
+Author: uji <ujiprog@gmail.com>
+Date:   Wed Mar 2 23:29:43 2022 +0000
+
+    make.bash: document CC_FOR_${GOOS}_${GOARCH}
+    
+    Fixes #51306
+    
+    Change-Id: I5989d86fe5ac4d02793b2ecb00c549d9586763da
+    GitHub-Last-Rev: 6b0f6bee434219a2c502e8b5630fbe74ca25024a
+    GitHub-Pull-Request: golang/go#51379
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388176
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/make.bash | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

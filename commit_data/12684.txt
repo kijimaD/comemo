@@ -1,0 +1,13 @@
+commit d05b3869286a48afbc228992b314f0bf817afc48
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 19 22:54:06 2012 +0800
+
+    doc: update format for "C? Go? Cgo!" article
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5841050
+
+ doc/articles/c_go_cgo.html | 59 +++++++++++++++++++++++-----------------------
+ doc/progs/cgo1.go          |  2 --
+ 2 files changed, 30 insertions(+), 31 deletions(-)

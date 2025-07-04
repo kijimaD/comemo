@@ -1,0 +1,18 @@
+commit b5077f82fade43dcfcc40648ffd65dc98a1515df
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Fri Oct 14 17:09:38 2011 -0700
+
+    http: avoid panic caused by nil URL
+    
+    The current code will panic if an invalid
+    request (one with a nil URL) is passed to
+    the doFollowingRedirects function.
+    
+    Also, remove a redundant nil Header check.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5270046
+
+ src/pkg/http/client.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

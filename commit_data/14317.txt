@@ -1,0 +1,14 @@
+commit 0ead18c59e357d79f10e3132d4b1b2fede577cbb
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Nov 6 20:54:22 2012 +0400
+
+    runtime: mark race instrumentation callbacks as nosplitstack
+    It speedups the race detector somewhat, but also prevents
+    getcallerpc() from obtaining lessstack().
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6812091
+
+ src/pkg/runtime/race.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

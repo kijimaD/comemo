@@ -1,0 +1,22 @@
+commit 94b974a22d6eaf46a1c3b50b20746ee9d759a327
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Jun 6 19:53:30 2011 +1000
+
+    os: add Process.Kill and Process.Signal
+    
+    R=alex.brainman, r, rsc, krasin, iant, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4437091
+
+ src/pkg/os/Makefile                               | 12 +++++++++++
+ src/pkg/os/exec_posix.go                          | 25 ++++++++++++++++++++++-
+ src/pkg/os/exec_unix.go                           |  8 ++++++++
+ src/pkg/os/exec_windows.go                        | 12 ++++++++++-
+ src/pkg/os/{signal/mkunix.sh => mkunixsignals.sh} |  2 +-
+ src/pkg/os/signal/Makefile                        |  6 ------
+ src/pkg/os/signal/signal.go                       | 25 +++++------------------
+ src/pkg/os/signal/signal_test.go                  |  5 +++--
+ src/pkg/syscall/syscall_windows.go                |  9 +++-----
+ src/pkg/syscall/zsyscall_windows_386.go           | 21 ++++++++++++++++---
+ src/pkg/syscall/ztypes_windows_386.go             | 17 +++++++++++++++
+ 11 files changed, 102 insertions(+), 40 deletions(-)

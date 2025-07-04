@@ -1,0 +1,18 @@
+commit 9e876861017991fe1478421b85a83964ea7abc6d
+Author: Dave Day <djd@golang.org>
+Date:   Fri Sep 9 17:59:43 2016 +1000
+
+    net/url: modernise parse and unit tests
+    
+    Remove the naked returns and goto statements from parse.
+    
+    Make tests more consistent in the got/want ordering, and clean up some
+    unnecessary helper functions.
+    
+    Change-Id: Iaa244cb8c00dd6b42836d95448bf02caa72bfabd
+    Reviewed-on: https://go-review.googlesource.com/28890
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/url/url.go      | 30 +++++++++----------
+ src/net/url/url_test.go | 79 +++++++++++++++++++++----------------------------
+ 2 files changed, 48 insertions(+), 61 deletions(-)

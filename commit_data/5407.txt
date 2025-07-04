@@ -1,0 +1,12 @@
+commit ac1d46a22aa00fb5f4ba3bc3a4ae85bfb49214b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 12:01:15 2010 -0700
+
+    fix build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1044041
+
+ src/pkg/big/arith_386.s | 6 ++++++
+ 1 file changed, 6 insertions(+)

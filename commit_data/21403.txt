@@ -1,0 +1,23 @@
+commit 5a2771e286433c64a20fbe5ae6252080418dfa5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 26 15:14:23 2015 -0500
+
+    cmd/gc, cmd/ld, liblink: update for portable Prog, Addr changes
+    
+    Change-Id: Ia6f8badca56565b9df80c8dbe28c47f6cf7e653f
+    Reviewed-on: https://go-review.googlesource.com/3515
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/cmd/gc/align.c    |  2 +-
+ src/cmd/gc/go.h       |  4 ----
+ src/cmd/gc/pgen.c     |  2 +-
+ src/cmd/gc/plive.c    | 18 +++++++++++-------
+ src/cmd/gc/popt.c     | 10 +++++-----
+ src/cmd/ld/dwarf.c    |  2 +-
+ src/cmd/ld/lib.c      |  4 ++--
+ src/liblink/data.c    |  8 ++++----
+ src/liblink/objfile.c | 26 +++++++++++---------------
+ src/liblink/pass.c    |  6 +++---
+ src/liblink/pcln.c    |  2 +-
+ 11 files changed, 40 insertions(+), 44 deletions(-)

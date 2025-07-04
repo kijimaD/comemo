@@ -1,0 +1,21 @@
+commit 43f29e64a613ba23d44222f9cb20f72b4d77784e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 18:16:24 2009 -0700
+
+    mechanism for putting go types into 6.out symbol table.
+    no types yet.
+    
+    R=ken
+    OCL=33142
+    CL=33146
+
+ src/cmd/6g/gg.h          |   6 +--
+ src/cmd/6g/gobj.c        | 131 ++++++++++++++++++++++++++---------------------
+ src/cmd/6g/gsubr.c       |   3 ++
+ src/cmd/6l/6.out.h       |   1 +
+ src/cmd/6l/l.h           |   1 +
+ src/cmd/6l/obj.c         |   4 +-
+ src/cmd/6l/span.c        |  14 ++---
+ src/cmd/gc/lex.c         |   3 +-
+ src/libmach_amd64/6obj.c |   3 ++
+ 9 files changed, 95 insertions(+), 71 deletions(-)

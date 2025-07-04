@@ -1,0 +1,28 @@
+commit cf7aa585ac8b3a2db8e0792d6d7c14259568823e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 22 11:43:29 2020 -0500
+
+    cmd/link: invalidate kernel cache on darwin
+    
+    Apparently, the darwin kernel may cache the code signature at
+    mmap. When we mmap the output buffer, it doesn't have a code
+    signature (as we haven't generated one). Invalidate the kernel
+    cache after writing the file.
+    
+    See https://github.com/golang/go/issues/42684#issuecomment-731704900
+    for more information.
+    
+    Updates #38485.
+    Fixes #42684.
+    
+    Change-Id: Iac2ef756ca1454c856944423e5040b8e17a6b420
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272258
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/link/internal/ld/outbuf.go           | 1 +
+ src/cmd/link/internal/ld/outbuf_darwin.go    | 9 +++++++++
+ src/cmd/link/internal/ld/outbuf_notdarwin.go | 9 +++++++++
+ 3 files changed, 19 insertions(+)

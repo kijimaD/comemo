@@ -1,0 +1,13 @@
+commit 6c03b0d468e0cef300397aa9d254885d3a03753e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 9 12:46:49 2011 -0800
+
+    run.bash: must make codelab before we can test it.
+    this will break the build, but it's already silently broken.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4168041
+
+ src/run.bash | 2 ++
+ 1 file changed, 2 insertions(+)

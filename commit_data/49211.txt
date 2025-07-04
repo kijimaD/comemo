@@ -1,0 +1,21 @@
+commit 3474cd4eee82ac442618391f8bc4a70d7b1cb65a
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed May 11 22:42:00 2022 +0800
+
+    encoding/csv: add Reader.InputOffset method
+    
+    Fixes #43401.
+    
+    Change-Id: I2498e77e41d845130d95012bc8623bfb29c0dda1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405675
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ api/next/43401.txt              |  1 +
+ src/encoding/csv/reader.go      | 18 +++++++++++++++---
+ src/encoding/csv/reader_test.go | 15 +++++++++++----
+ 3 files changed, 27 insertions(+), 7 deletions(-)

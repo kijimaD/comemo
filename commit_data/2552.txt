@@ -1,0 +1,18 @@
+commit 5d5904bb4dc132e6f97ab990e0bb0c73a2af15ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 29 17:46:22 2009 -0700
+
+    bug163 bug164 bug166
+    
+    R=ken
+    OCL=30889
+    CL=30889
+
+ src/cmd/gc/go.y                    |  3 ++-
+ src/cmd/gc/lex.c                   | 11 +++++++----
+ src/pkg/http/request.go            |  2 +-
+ test/{bugs => fixedbugs}/bug163.go |  2 +-
+ test/{bugs => fixedbugs}/bug164.go |  3 +--
+ test/{bugs => fixedbugs}/bug166.go |  0
+ test/golden.out                    |  9 ---------
+ 7 files changed, 12 insertions(+), 18 deletions(-)

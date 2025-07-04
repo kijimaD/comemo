@@ -1,0 +1,15 @@
+commit 5d4569197eeef42862b8ea87a7e8ccda1cd061a0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 3 16:14:07 2020 -0500
+
+    cmd/go/internal/modload: fix minor errors in comments
+    
+    Change-Id: I38848e7bcd5dfa9f7feb415e1c54921768bf1ab8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275295
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/load.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

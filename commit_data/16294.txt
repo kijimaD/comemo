@@ -1,0 +1,17 @@
+commit d535bc7af3290c6f09eeb391e0ef00f374f9b743
+Author: Alberto García Hierro <alberto@garciahierro.com>
+Date:   Tue May 14 15:33:46 2013 -0700
+
+    net/http: Fix basic authentication with empty password
+    
+            The encoded string must include the : separating the username
+            and the password, even when the latter is empty. See
+            http://www.ietf.org/rfc/rfc2617.txt for more information.
+    
+    R=golang-dev, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/8475043
+
+ src/pkg/net/http/client.go      | 13 ++++++++++++-
+ src/pkg/net/http/client_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 92cf05daf3c96c854f8e2a32d6734a91ef7bb865
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 5 09:56:39 2017 -0400
+
+    test: deflake locklinear again
+    
+    Fixes #19276.
+    
+    Change-Id: I64f8f80331d09956b6698c0b004ed7f7d70857fc
+    Reviewed-on: https://go-review.googlesource.com/39591
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ test/locklinear.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

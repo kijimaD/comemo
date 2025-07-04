@@ -1,0 +1,20 @@
+commit 052a66babd64cd7f7f1e11f411da694907c31343
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 21 19:43:27 2009 -0700
+
+    runtime: fix init scheduling bug.
+    
+    if there is a goroutine waiting to run
+    and the init goroutine enters a system call,
+    entersyscall was trying to kick off a new
+    scheduler for the other goroutine, causing
+    a panic (new goroutines can't run until main.main).
+    
+    R=r
+    DELTA=32  (32 added, 0 deleted, 0 changed)
+    OCL=31982
+    CL=31982
+
+ src/pkg/runtime/proc.c |  8 ++++++++
+ test/initsyscall.go    | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

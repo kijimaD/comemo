@@ -1,0 +1,14 @@
+commit c025cf64dcf0f4a95fae5340eafd9e7ab352944c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Mar 31 22:35:55 2009 -0700
+
+    Bail out of gotest immediately if compiling fails.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=4  (2 added, 2 deleted, 0 changed)
+    OCL=26978
+    CL=26978
+
+ src/cmd/gotest/gotest | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

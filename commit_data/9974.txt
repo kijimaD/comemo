@@ -1,0 +1,14 @@
+commit ddc3381e8b3bc91e54985bd8679c98f0cba3beff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 14 10:07:27 2011 -0700
+
+    net: skip ICMP test on Windows too unless uid 0
+    
+    This test fails for me on Windows 7 64-bit non-Admin.
+    
+    R=golang-dev, rsc, krautz
+    CC=golang-dev
+    https://golang.org/cl/5276048
+
+ src/pkg/net/ipraw_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

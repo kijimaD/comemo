@@ -1,0 +1,33 @@
+commit b1e83c0513cc009192ebb6fcf5e232adf23552d4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Mar 29 12:59:12 2022 -0400
+
+    cmd/compile: simplify func value symbol generation
+    
+    Currently, in most cases the compiler generates a func value
+    symbol when it is referenced, except when building a shared object
+    it generates the func value symbol when the function is declared.
+    
+    The comment says this was necessary because we cannot deduplicate
+    DUPOK symbols across DSO boundaries. But the dynamic linker is
+    just fine to resolve symbols with the same name across DSO
+    boundaries.
+    
+    Another problem may be that the address of the PLT stub may be
+    used. When such a func value is deferred, when the runtime needs
+    to scan its arguments, it cannot look up the PC to find the
+    function and therefore cannot find its stack map. This is not a
+    problem now as deferred functions always have no arguments.
+    
+    Remove the special case for shared linkage.
+    
+    Change-Id: Id7df0b0ada6d3d7f85741a9ab09581975509516c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396534
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/abi.go      | 12 -------
+ src/cmd/compile/internal/staticdata/data.go | 51 +----------------------------
+ 2 files changed, 1 insertion(+), 62 deletions(-)

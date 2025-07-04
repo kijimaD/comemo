@@ -1,0 +1,13 @@
+commit b9988edbb68ad889247ebe58c479ee4033883fe8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 10 19:12:43 2010 -0700
+
+    test: Add test for //line (currently fails).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2127045
+
+ test/bugs/bug305.go | 24 ++++++++++++++++++++++++
+ test/golden.out     |  8 ++++++++
+ 2 files changed, 32 insertions(+)

@@ -1,0 +1,13 @@
+commit 37c2972772e3e62c9822afb34c80ff2bc2c29c22
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 1 16:37:20 2016 -0800
+
+    cmd/compile: give SymFlags type to Sym flags
+    
+    Change-Id: Ifa65a35418c2b5a2c517c0d9bbe37f472091e759
+    Reviewed-on: https://go-review.googlesource.com/20115
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/go.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

@@ -1,0 +1,20 @@
+commit 5f172fadbebf16818bedc32b0c4c73f59a7155fd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 14 10:31:51 2011 -0700
+
+    test: Add test for inheriting private method from anonymous field.
+    
+    The spec says that all methods are inherited from an anonymous
+    field.  There is no exception for non-exported methods.
+    
+    This is related to issue 1536.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5012043
+
+ test/bugs/bug367.dir/main.go | 12 ++++++++++++
+ test/bugs/bug367.dir/p.go    | 16 ++++++++++++++++
+ test/bugs/bug367.go          |  7 +++++++
+ test/golden.out              |  4 ++++
+ 4 files changed, 39 insertions(+)

@@ -1,0 +1,16 @@
+commit 115b1cd192609624a898954b9759fcd90247badc
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Mar 4 13:42:51 2018 +0100
+
+    mime: add wasm architecture
+    
+    This commit adds the wasm architecture to the mime package.
+    
+    Updates #18892
+    
+    Change-Id: I0481057bd52e39d84b3d6f5140335e293eff38f3
+    Reviewed-on: https://go-review.googlesource.com/106998
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/type_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

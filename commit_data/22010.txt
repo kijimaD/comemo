@@ -1,0 +1,12 @@
+commit 362f7bfa689979fd0c122ee87f54fefb0f88e9fb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 13 13:18:54 2015 -0700
+
+    test: add test that gccgo failed to compile
+    
+    Change-Id: I9ea6d4d8a9c1c63de36f2f3871dd5ac9201c0aac
+    Reviewed-on: https://go-review.googlesource.com/7523
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ test/fixedbugs/bug495.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

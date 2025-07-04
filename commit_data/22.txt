@@ -1,0 +1,12 @@
+commit 7acb294d58010dc7632591e7e60a1db33ff962eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 11 16:02:46 2008 -0700
+
+    - replaced 's in productions everywhere with "s (we were inconsistent in
+      some places)
+    - removed extra []'s around switch decl/tag expression - not needed
+    
+    SVN=112117
+
+ doc/go_lang.txt | 171 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 86 insertions(+), 85 deletions(-)

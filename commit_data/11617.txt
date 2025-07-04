@@ -1,0 +1,12 @@
+commit 7e5dc928a4ad95eb062afa19616de8104d32a458
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 4 01:37:30 2012 -0500
+
+    path/filepath: disable broken tests
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5625050
+
+ src/pkg/path/filepath/path_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

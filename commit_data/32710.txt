@@ -1,0 +1,20 @@
+commit a4956248a8b15cc8bb2fabce0be4a802e965ec3c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Sep 8 23:05:19 2017 +0200
+
+    runtime: move evacuateX evacuateY relation check from makemap to evacuate
+    
+    Move the check near the code in evacuate that relies on
+    the relation evacuateX+1 == evacuateY.
+    
+    If the relation is fullfilled the check is known to be true
+    at compile time and removed by the compiler.
+    
+    Change-Id: I711b75e09047bf347819ccaeec41d244a5883867
+    Reviewed-on: https://go-review.googlesource.com/62410
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

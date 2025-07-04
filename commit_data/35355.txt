@@ -1,0 +1,24 @@
+commit e4172e5f5e9b194ec300ddc2bd6678a8e1d34454
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed May 9 17:35:10 2018 -0400
+
+    cmd/compile/internal/ssa: initialize t.UInt in SetTypPtrs()
+    
+    Initialization of t.UInt is missing from SetTypPtrs in config.go,
+    preventing rules that use it from matching when they should.
+    This adds the initialization to allow those rules to work.
+    
+    Updated test/codegen/rotate.go to test for this case, which
+    appears in math/bits RotateLeft32 and RotateLeft64. There had been
+    a testcase for this in go 1.10 but that went away when asm_test.go
+    was removed.
+    
+    Change-Id: I82fc825ad8364df6fc36a69a1e448214d2e24ed5
+    Reviewed-on: https://go-review.googlesource.com/112518
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go | 3 ++-
+ test/codegen/rotate.go                 | 2 ++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

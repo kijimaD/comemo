@@ -1,0 +1,25 @@
+commit 08af216c75a583a198c4ccfe68628c74554ee82f
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Apr 2 13:41:00 2024 +0000
+
+    encoding/json: use slices to simplify the code
+    
+    Use "slices.Equal" instead of "reflect.DeepEqual".
+    
+    Replace unnecessary helper type "byIndex" with "slices.SortFunc".
+    
+    No effect on benchmarks.
+    
+    Change-Id: I1fb2768ea6d9db7f487408fa109343be3f1741d5
+    GitHub-Last-Rev: 8429bc145272ae620fcd001b1de393bf3c0b6108
+    GitHub-Pull-Request: golang/go#66646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575715
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/json/decode_test.go |  5 +++--
+ src/encoding/json/encode.go      | 25 ++++---------------------
+ 2 files changed, 7 insertions(+), 23 deletions(-)

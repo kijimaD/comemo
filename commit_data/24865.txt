@@ -1,0 +1,24 @@
+commit a35c85c0cc518b89e0318bf8b6c2c584c61090bb
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 21:15:18 2015 +1300
+
+    cmd/internal/obj, runtime: implement IE model TLS on ppc64le
+    
+    This requires changing the tls access code to match the patterns documented in
+    the ABI documentation or the system linker will "optimize" it into ridiculousness.
+    
+    With this change, -buildmode=pie works, although as it is tested in testshared,
+    the tests are not run yet.
+    
+    Change-Id: I1efa6687af0a5b8db3385b10f6542a49056b2eb3
+    Reviewed-on: https://go-review.googlesource.com/15971
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/link.go          | 13 ++++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go   |  1 +
+ src/cmd/internal/obj/ppc64/anames9.go |  1 +
+ src/cmd/internal/obj/ppc64/asm9.go    | 38 +++++++++++++++++++++++++++++++++-
+ src/cmd/link/internal/ld/elf.go       | 39 ++++++++++++++++++++---------------
+ src/cmd/link/internal/ppc64/asm.go    | 11 +++++++++-
+ src/runtime/tls_ppc64x.s              |  6 ++----
+ 7 files changed, 86 insertions(+), 23 deletions(-)

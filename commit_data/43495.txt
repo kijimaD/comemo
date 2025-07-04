@@ -1,0 +1,19 @@
+commit bda37a0b8a4e89318901a68492b79cf6531fa2ff
+Author: Austin Clements <austin@google.com>
+Date:   Sat Oct 3 19:52:08 2020 -0400
+
+    runtime: tidy compileCallback
+    
+    This makes a few minor cleanups and simplifications to compileCallback.
+    
+    Change-Id: Ibebf4b5ed66fb68bba7c84129c127cd4d8a691fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263269
+    Trust: Austin Clements <austin@google.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/runtime2.go        |  8 ----
+ src/runtime/syscall_windows.go | 86 ++++++++++++++++++++++++++----------------
+ 2 files changed, 53 insertions(+), 41 deletions(-)

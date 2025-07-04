@@ -1,0 +1,17 @@
+commit e6b6d107f7157bb515564f628e5b9b455e295db3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 16:23:18 2021 -0800
+
+    doc/go1.16: mention deprecation of io/ioutil
+    
+    For #40025
+    For #40700
+    For #42026
+    
+    Change-Id: Ib51b5e1398c4eb811506df21e3bd56dd84bd1f7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285377
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

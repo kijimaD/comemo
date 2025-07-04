@@ -1,0 +1,14 @@
+commit 4da157a7235c790c197912bd1c830d9731c77638
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 20 13:39:44 2015 -0700
+
+    cmd/dist, cmd/internal/gc: switch gc from math/big to vendored math/big
+    
+    Change-Id: Iab9a1f814acd53d5707bfcd6c3f9616c79fa7789
+    Reviewed-on: https://go-review.googlesource.com/7858
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/buildtool.go       | 1 +
+ src/cmd/internal/gc/go.go       | 2 +-
+ src/cmd/internal/gc/mparith1.go | 2 +-
+ 3 files changed, 3 insertions(+), 2 deletions(-)

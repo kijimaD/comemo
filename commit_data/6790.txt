@@ -1,0 +1,12 @@
+commit 387d58e79049d8113771a829891104cf7aaa694f
+Author: Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+Date:   Fri Nov 26 13:05:22 2010 +1100
+
+    compress/flate: fix typo in comment.
+    
+    R=golang-dev, nigeltao_gnome, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/3334041
+
+ src/pkg/compress/flate/inflate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

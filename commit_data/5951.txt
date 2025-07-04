@@ -1,0 +1,12 @@
+commit a6449b66a4897c406d7d360daab558a11d6a74f8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 3 23:39:01 2010 -0700
+
+    gofmt: make code more readable by avoiding redeclaration
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1910045
+
+ src/cmd/gofmt/gofmt.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

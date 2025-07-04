@@ -1,0 +1,20 @@
+commit c92f5ee170e6f9c639f1ca684061a0cedde54108
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 12 12:30:34 2021 -0400
+
+    cmd/link: start at address 0 when external linking
+    
+    When external linking, we are creating an object file, instead of
+    a executable. The absolute address is irrelevant. The external
+    linker will set it up. Start at address 0.
+    
+    Change-Id: I3a2e0b8087b328d5c3144f29ca8ba6311aa39cba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319830
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 4 +++-
+ src/cmd/link/internal/ld/pe.go  | 2 ++
+ 2 files changed, 5 insertions(+), 1 deletion(-)

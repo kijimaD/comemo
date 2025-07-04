@@ -1,0 +1,14 @@
+commit b1297aa04f72992186f75441ad2c34eddd829100
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 24 18:24:21 2008 -0800
+
+    - move error handling out of scanner
+    - use more of the existing library code
+    
+    R=r
+    OCL=19957
+    CL=19959
+
+ usr/gri/pretty/compilation.go |  89 ++++++++++++++++++++-
+ usr/gri/pretty/scanner.go     | 177 ++++--------------------------------------
+ 2 files changed, 102 insertions(+), 164 deletions(-)

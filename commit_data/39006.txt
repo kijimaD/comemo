@@ -1,0 +1,24 @@
+commit 762953be28010644fb38ddbe4a55094751d10049
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 1 16:44:21 2019 -0700
+
+    cmd/compile: disable Go1.13 language features for -lang=go1.12 and below
+    
+    Fixes   #31747.
+    Updates #19308.
+    Updates #12711.
+    Updates #29008.
+    Updates #28493.
+    Updates #19113.
+    
+    Change-Id: I76d2fdbc7698cc4e0f31b7ae24cbb4d28afbb6a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174897
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go     | 32 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
+ src/go/types/stdlib_test.go              |  1 +
+ test/fixedbugs/issue31747.go             | 34 ++++++++++++++++++++++++++++++++
+ 4 files changed, 72 insertions(+), 1 deletion(-)

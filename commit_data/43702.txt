@@ -1,0 +1,24 @@
+commit 5ed81a3d14aa4eda5de87d7fe074b4c913b58511
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Nov 3 16:59:25 2020 -0600
+
+    cmd/asm: fix rlwnm reg,reg,const,reg encoding on ppc64
+    
+    The wrong value for the first reg parameter was selected.
+    Likewise the wrong opcode was selected.  This should match
+    rlwnm (rrr type), not rlwinm (irr type).
+    
+    Similarly, fix the optab matching rules so clrlslwi does
+    not match reg,reg,const,reg arguments.  This is not a valid
+    operand combination for clrlslwi.
+    
+    Fixes #42368
+    
+    Change-Id: I4eb16d45a760b9fd3f497ef9863f82465351d39f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267421
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  2 ++
+ src/cmd/internal/obj/ppc64/asm9.go        | 26 ++++++--------------------
+ 2 files changed, 8 insertions(+), 20 deletions(-)

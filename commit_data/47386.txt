@@ -1,0 +1,16 @@
+commit 17980dff368256a0763cf042376d3fb36d06c109
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 9 20:22:26 2021 -0800
+
+    doc: make a copy of the latest Go 1.17 spec
+    
+    This will allow us to compare the changes made for Go 1.18.
+    
+    Change-Id: I1456270b201967f5cb05e66cec556939e6e33265
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362894
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.17_spec.html | 6858 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 6858 insertions(+)

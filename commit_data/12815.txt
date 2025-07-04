@@ -1,0 +1,12 @@
+commit f1a39ff003db83dad301a045f4796384a1037e62
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 3 08:10:21 2012 +1000
+
+    doc: sync playground.js
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5956043
+
+ doc/play/playground.js | 87 ++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 56 insertions(+), 31 deletions(-)

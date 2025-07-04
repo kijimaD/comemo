@@ -1,0 +1,16 @@
+commit 2a4c0afee72953f16e852131bebd560120353d1d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 8 17:06:16 2019 -0400
+
+    cmd/go/internal/get: propagate server errors if no go-import tags are found
+    
+    Updates #30748
+    
+    Change-Id: Ic93c68c1c4b2728f383edfdb06371ecc79a6f7b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189779
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/get/vcs.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

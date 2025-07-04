@@ -1,0 +1,14 @@
+commit 620ec45c5f7b3a29265efd67532177474590a947
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Oct 6 14:48:39 2009 -0700
+
+    cleaned up cgen() to be a bit more straightforward.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=104  (46 added, 56 deleted, 2 changed)
+    OCL=35392
+    CL=35394
+
+ src/cmd/5g/cgen.c | 106 +++++++++++++++++++++++++-----------------------------
+ 1 file changed, 48 insertions(+), 58 deletions(-)

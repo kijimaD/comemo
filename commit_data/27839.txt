@@ -1,0 +1,17 @@
+commit 12292754d3c46a4172373971b1ba945ecc4c5cbc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 7 17:41:25 2016 -0700
+
+    net: change t.Error to t.Errorf
+    
+    Caught by vet.
+    
+    Updates #11041
+    
+    Change-Id: I4dbb2eeaf633eea5976074840064edc2349e01d8
+    Reviewed-on: https://go-review.googlesource.com/27120
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/net/dnsmsg_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

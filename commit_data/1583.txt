@@ -1,0 +1,13 @@
+commit 6ee6d6ec55efac70555e49728902ff0c10630b8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 28 16:58:48 2009 -0800
+
+    add stack test
+    
+    R=r
+    DELTA=48  (48 added, 0 deleted, 0 changed)
+    OCL=23715
+    CL=23732
+
+ test/stack.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 52 insertions(+)

@@ -1,0 +1,25 @@
+commit f7fc25ed5a16ee7678680ffd0bcc3078cc249e0a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 14 00:04:05 2020 +1000
+
+    image/gif: add more writer benchmarks
+    
+    The two existing benchmarks encode randomized pixels, which isn't very
+    representative. The two new benchmarks encode a PNG photo as a GIF.
+    
+    Also rename the benchmarks for consistency.
+    
+    Also fix the bytes-per-op measure for paletted images, which are 1 (not
+    4) bytes per pixel.
+    
+    Also simplify BenchmarkEncodeRandomPaletted (formerly just called
+    BenchmarkEncode). It doesn't need to generate a random palette (and the
+    GIF encoder largely doesn't care about the palette's RGBA values).
+    Use palette.Plan9 instead, a pre-existing 256-element color palette.
+    
+    Change-Id: I10a6ea4e9590bb0d9f76e8cc0f4a88d43b1d650d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248218
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/image/gif/writer_test.go | 53 +++++++++++++++++++++++++++++++-------------
+ 1 file changed, 38 insertions(+), 15 deletions(-)

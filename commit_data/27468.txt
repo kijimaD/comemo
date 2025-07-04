@@ -1,0 +1,15 @@
+commit 9cd2c700deccc6dfcc8f264857e406c53bf07859
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 19 06:15:18 2016 +0900
+
+    net: deflake TestDialTimeoutMaxDuration
+    
+    Fixes #15745.
+    
+    Change-Id: I6f9a1dcf0b1d97cb443900c7d8da09ead83d4b6a
+    Reviewed-on: https://go-review.googlesource.com/23243
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/timeout_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

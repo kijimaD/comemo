@@ -1,0 +1,21 @@
+commit 33e3983db805ccf27f34a143d91e4346233a0ee2
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 4 10:11:29 2019 +0200
+
+    cmd/nm, runtime/cgo: add cgo support for freebsd/arm64
+    
+    Based on work by Mikaël Urankar (@MikaelUrankar).
+    
+    Updates #24715
+    Updates #35197
+    
+    Change-Id: I91144101043d67d3f8444bf8389c9606abe2a66c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199919
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go               |  2 +-
+ src/cmd/nm/nm_cgo_test.go           |  5 +++
+ src/runtime/cgo/gcc_freebsd_arm64.c | 68 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 74 insertions(+), 1 deletion(-)

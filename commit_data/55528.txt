@@ -1,0 +1,26 @@
+commit 39ec246e739a787375b00acd92c10311863575a2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 1 10:24:25 2024 -0500
+
+    cmd/go: avoid copying a binary to be exec'd in TestScript/gotoolchain_path
+    
+    Runinng 'go build' writes the binary in a separate process, so avoids
+    the race described in #22315. However, the script engine's 'cp'
+    command currently executes in-process, so it does not avoid that bug
+    and may retain stale file descriptors when running tests in parallel.
+    
+    Avoid the race in this particular test by giving the final binary
+    location in the '-o' argument instead of copying it there after the
+    fact.
+    
+    Fixes #64019.
+    
+    Change-Id: I96d276f33c09e39f465e9877356f1d8f2ae55062
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560415
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/testdata/script/gotoolchain_path.txt | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

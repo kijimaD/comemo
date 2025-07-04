@@ -1,0 +1,17 @@
+commit 94b3fd06cb431358f45786246cd279c8bdb9370b
+Author: Michele Di Pede <michele.di.pede@gmail.com>
+Date:   Fri Oct 30 11:55:18 2020 +0100
+
+    cmd/compile: code cleanup
+    
+    Change-Id: Ibf68e663f29a5cb3b64a7d923c005c16da647769
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266537
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go   |  9 ++++----
+ src/cmd/compile/internal/ssa/compile.go | 40 +++++++++++++++++----------------
+ src/cmd/compile/internal/x86/ssa.go     |  7 +++---
+ 3 files changed, 30 insertions(+), 26 deletions(-)

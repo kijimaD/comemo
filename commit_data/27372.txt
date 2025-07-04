@@ -1,0 +1,18 @@
+commit 21d781070cea6001ee541933ed76dc6da96bde4c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 13:39:36 2016 -0700
+
+    cmd/compile: use one format for exporting calls of builtin functions
+    
+    Minor cleanup. Each of these cases appears both during export and
+    import when running all.bash and thus is tested by all.bash.
+    
+    Change-Id: Iaa4a5a5b163cefe33e43d08d396e02a02e5c22a5
+    Reviewed-on: https://go-review.googlesource.com/23060
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 17 +++++++++++++----
+ src/cmd/compile/internal/gc/bimport.go | 19 ++++---------------
+ 2 files changed, 17 insertions(+), 19 deletions(-)

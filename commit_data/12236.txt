@@ -1,0 +1,16 @@
+commit ec15046a8d7aea1bc8f89c5ff8006c5244e76ebc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 28 08:33:06 2012 +1100
+
+    cmd/go: drop -example, apply -run to examples
+    Once more, with feeling.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5698080
+
+ src/cmd/go/test.go         |  5 -----
+ src/cmd/go/testflag.go     |  2 --
+ src/pkg/testing/example.go | 10 ++--------
+ src/pkg/testing/testing.go |  2 +-
+ 4 files changed, 3 insertions(+), 16 deletions(-)

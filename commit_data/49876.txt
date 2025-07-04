@@ -1,0 +1,32 @@
+commit 2cf49a76b674ee5075f3ed6ff857c5b3e7a8109a
+Author: darmiel <71837281+darmiel@users.noreply.github.com>
+Date:   Wed May 4 12:39:49 2022 +0000
+
+    net/http: trim cookie names
+    
+    The current implementation ignores cookies where the
+    cookie name starts or ends with a space. For example,
+    
+    name =value
+    
+    is ignored.
+    
+    I have come across pages that send cookies in this weird format.
+    I tested with the latest versions of Firefox, Safari and Chrome,
+    all of which accept cookies in this format.
+    
+    To do this, I remove leading and trailing spaces from the
+    cookie name after cutting at '='.
+    
+    Change-Id: I8fd0c37a2113b6ce75712dd43607d1ea55e86c68
+    GitHub-Last-Rev: 368f50fcb4c7537b90249c3c497e61dc81038f6e
+    GitHub-Pull-Request: golang/go#52121
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397734
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/cookie.go      | 2 ++
+ src/net/http/cookie_test.go | 6 ++++++
+ 2 files changed, 8 insertions(+)

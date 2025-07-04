@@ -1,0 +1,15 @@
+commit e82031618aff8c69ed09970cce66b9fcaaa939b8
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Mon Sep 23 11:35:17 2013 +1000
+
+    misc/notepadplus: fix some number syntax highlight issue
+    
+    notepadplus can only support some normal golang's hex and imaginary numbers.
+    it can't detect some special number, eg. 1./1.e/1.i/1+0.1i (omit "0" in ".0").
+    
+    R=golang-dev, gvdschoot
+    CC=ajstarks, golang-dev
+    https://golang.org/cl/13401047
+
+ misc/notepadplus/userDefineLang.xml | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

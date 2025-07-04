@@ -1,0 +1,21 @@
+commit 13d0af4e704bee164f873701e326048bdaf23933
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 24 14:59:18 2019 +0000
+
+    net/http: export Header.Clone, reduce its allocations, use it everywhere
+    
+    Fixes #29915
+    
+    Change-Id: I6e6edf4f9a0e062211f74d120ae1a242bce1b274
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173658
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/net/http/client.go                |  4 ++--
+ src/net/http/header.go                | 15 +++++++++++----
+ src/net/http/httptest/recorder.go     | 14 ++------------
+ src/net/http/httputil/reverseproxy.go | 12 +-----------
+ src/net/http/server.go                |  4 ++--
+ 5 files changed, 18 insertions(+), 31 deletions(-)

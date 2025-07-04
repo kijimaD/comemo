@@ -1,0 +1,16 @@
+commit 4f97afcdf2d6914a1989afd2cbbcaf6a5b1342af
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 5 19:58:27 2015 -0800
+
+    misc/swig/callback: fix test for SWIG -cgo support
+    
+    The test used to import ../callback.  I forget why that ever worked,
+    but it probably had something to do with the shared libraries we used
+    to use with SWIG.  It doesn't work today.
+    
+    Change-Id: Ib83d6c398aa46bf2fc66320b47b6e6d9897ee0b7
+    Reviewed-on: https://go-review.googlesource.com/7004
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/swig/callback/callback_test.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

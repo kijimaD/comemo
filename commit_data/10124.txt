@@ -1,0 +1,12 @@
+commit 1e900b0d226b4a562abc6d31adb2eb721c60cbf9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 27 15:40:57 2011 +0900
+
+    doc: fix escaping in weekly.html
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5306070
+
+ doc/devel/weekly.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

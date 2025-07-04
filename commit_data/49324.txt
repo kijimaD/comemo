@@ -1,0 +1,21 @@
+commit b6bcd0d1352578033eea0490790b6af3bf300b3f
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue May 24 17:05:05 2022 -0400
+
+    doc/go1.19: update Go 1.19 relese note TODOs using relnote
+    
+    This updates the release notes with TODOs using relnote. It also
+    changes all refrences of golang.org to go.dev.
+    
+    For #51400.
+    
+    Change-Id: I8a210140483aed7c41fe47242041e4b363e2eb10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408217
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.19.html | 160 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 158 insertions(+), 2 deletions(-)

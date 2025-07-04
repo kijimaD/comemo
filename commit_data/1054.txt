@@ -1,0 +1,16 @@
+commit bdbb958895e7055e3ecd3f9c75b3d453b0ab7fff
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 5 08:17:01 2008 -0800
+
+    fix bugs parsing functions in reflect library.
+    parsed interfaces wrong.
+    could not handle a function with a single type as a return value.
+    
+    R=rsc
+    DELTA=34  (20 added, 2 deleted, 12 changed)
+    OCL=18511
+    CL=18520
+
+ src/lib/reflect/test.go | 12 ++++++++----
+ src/lib/reflect/type.go | 32 +++++++++++++++++++++++---------
+ 2 files changed, 31 insertions(+), 13 deletions(-)

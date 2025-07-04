@@ -1,0 +1,18 @@
+commit 3e1519d05a640701e1a2f1d9ba737fc912a1b624
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:45:00 2022 -0500
+
+    cmd/pack: use testenv.Command instead of exec.Command in tests
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: Ia1dd1bacfa2c9378401bbce304ebf7ee3f159352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450707
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/pack/pack_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

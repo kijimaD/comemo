@@ -1,0 +1,25 @@
+commit 6f5590edf6883583a801ceb9309f074c0cd7c1cd
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Apr 8 23:44:40 2022 +0800
+
+    cmd/compile: always write fun[0] in incomplete itab
+    
+    runtime.getitab need filled fun[0] to identify whether
+    implemented the interface.
+    
+    Fixes #51700
+    Fixes #52228
+    
+    Change-Id: I0173b98f4e1b45e3a0183a5b60229d289140d1e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399058
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 16 ++++++-------
+ test/typeparam/issue51700.go                    | 26 +++++++++++++++++++++
+ test/typeparam/issue52228.go                    | 30 +++++++++++++++++++++++++
+ 3 files changed, 64 insertions(+), 8 deletions(-)

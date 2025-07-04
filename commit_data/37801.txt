@@ -1,0 +1,15 @@
+commit ed78c90a784f9703857c3303d871b973ee2f0102
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Dec 30 08:22:27 2018 -1000
+
+    strconv: make docs for Itoa and Atoi slightly higher level
+    
+    Fixes #29461
+    
+    Change-Id: I5db8bc80e5bd0778dced8471581c67e66853aada
+    Reviewed-on: https://go-review.googlesource.com/c/155924
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/strconv/atoi.go | 2 +-
+ src/strconv/itoa.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

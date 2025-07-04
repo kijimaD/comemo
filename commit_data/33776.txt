@@ -1,0 +1,17 @@
+commit 8ba0933a694021fe02adbc80586bd78652f2464c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Dec 1 19:42:55 2017 +0000
+
+    net/http: speed up and deflake TestServerKeepAlivesEnabled_h2
+    
+    Fixes #21724
+    
+    Change-Id: I92571bf228781b17fdf012a2fb52a597c877cefe
+    Reviewed-on: https://go-review.googlesource.com/81576
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/export_test.go | 6 ++++++
+ src/net/http/serve_test.go  | 6 +++++-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

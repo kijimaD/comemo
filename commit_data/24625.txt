@@ -1,0 +1,14 @@
+commit 9b6069bf983678b2f490be029d493e711bf80bd9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Oct 7 20:07:56 2015 -0400
+
+    net/url: fix mentions of URL.EscapedPath method
+    
+    Fixes #12862.
+    
+    Change-Id: I6921ae31bd5515f344fd97d08eafc317228b98a0
+    Reviewed-on: https://go-review.googlesource.com/15590
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/url/url.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

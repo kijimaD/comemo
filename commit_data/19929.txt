@@ -1,0 +1,13 @@
+commit cdf77676289de7580b1451a3862cc97f620df389
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 7 09:28:49 2014 +0900
+
+    doc/go1.4.txt: add support for ALPN
+    
+    LGTM=minux
+    R=r, agl, minux
+    CC=golang-codereviews
+    https://golang.org/cl/121340043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

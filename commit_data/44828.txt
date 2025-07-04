@@ -1,0 +1,34 @@
+commit b587b050ca55661120912b5a1d6071a1922ad0ea
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Mar 24 14:50:02 2021 -0700
+
+    cmd/compile: add transform functions for OXDOT and builtins
+    
+    Pull out the tranformation part of the typechecking functions for:
+     - selector expressions (OXDOT)
+     - calls to builtin functions (which go through the typechecker loop
+       twice, once for the call and once for each different kind of
+       builtin).
+    
+    Some of the transformation functions create new nodes that should have
+    the same type as the original node. For consistency, now each of the
+    transformation functions requires that the node passed in has its type
+    and typecheck flag set. If the transformation function replaces or adds
+    new nodes, it will set the type and typecheck flag for those new nodes.
+    
+    As usual, passes all the gotests, even with -G=3 enabled.
+    
+    Change-Id: Ic48b0ce5f58425f4a358afa78315bfc7c28066c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304729
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/noder/helpers.go       |  25 +-
+ src/cmd/compile/internal/noder/stencil.go       |  41 ++--
+ src/cmd/compile/internal/noder/transform.go     | 293 +++++++++++++++++++++++-
+ src/cmd/compile/internal/typecheck/expr.go      |  10 +-
+ src/cmd/compile/internal/typecheck/typecheck.go |  24 +-
+ 5 files changed, 342 insertions(+), 51 deletions(-)

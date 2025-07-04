@@ -1,0 +1,22 @@
+commit 76bb0caa5cf76bf631bb6cfd5c0853305087dc78
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 25 21:43:33 2023 -0400
+
+    runtime: delete a very stale comment
+    
+    This comment claims mark termination re-scans stacks and uses the
+    write barrier to determine how much of the stack needs to be
+    rescanned. This hasn't been true since we introduced the hybrid write
+    barrier and deleted stack rescanning with CL 31766 in Go 1.8.
+    
+    Updates #17503 I suppose.
+    
+    Change-Id: I5e90f25020c9fa6f146ec6ed0642ba2b4884c2a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498435
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mbarrier.go | 6 ------
+ 1 file changed, 6 deletions(-)

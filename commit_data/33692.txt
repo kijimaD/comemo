@@ -1,0 +1,18 @@
+commit 5419ed3a66ca6128fa7b19f193a5a3a4e5cecd4a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 27 08:12:50 2017 -0800
+
+    cmd/compile: remove unused code
+    
+    Found a few functions in cmd/compile that aren't used.
+    
+    Change-Id: I53957dae6f1a645feb8b95383f0f050964b4f7d4
+    Reviewed-on: https://go-review.googlesource.com/79975
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/main.go     | 13 -------------
+ src/cmd/compile/internal/gc/walk.go     | 26 --------------------------
+ src/cmd/compile/internal/ssa/rewrite.go |  4 ----
+ 3 files changed, 43 deletions(-)

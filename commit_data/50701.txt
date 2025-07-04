@@ -1,0 +1,21 @@
+commit dd42a84fb36ade570a7bfaf6fec5df44bbf71500
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 29 14:56:26 2022 -0400
+
+    cmd: add skips as needed to get tests to pass on js/wasm
+    
+    For #54219.
+    
+    Change-Id: I9767f46a5b44beeee62a3d53c4de4f6acb6b6e73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436816
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/covdata/tool_test.go            | 20 +++++++------
+ src/cmd/cover/cfg_test.go               |  2 +-
+ src/cmd/cover/cover_test.go             | 53 ++++++++++++++++-----------------
+ src/cmd/go/internal/cache/cache_test.go |  6 ++++
+ 4 files changed, 44 insertions(+), 37 deletions(-)

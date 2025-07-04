@@ -1,0 +1,35 @@
+commit 88474d47ddeb5714a18923048beaa5dafa7196d5
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 10:39:36 2021 -0500
+
+    go/types: underlying type of a type parameter is its constraint interface
+    
+    This is a port of CL 359016 from types2 to go/types. Some of the code
+    around untyped nil differed (because we have to treat untyped nil
+    differently in go/types for historical reasons).
+    
+    Updates #47916
+    
+    Change-Id: Ifc428ed977bf2f4f84cc831f1a3527156940d7b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364716
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/assignments.go |  2 +-
+ src/go/types/builtins.go    | 30 ++++++++++++++--
+ src/go/types/call.go        |  2 +-
+ src/go/types/conversions.go | 16 +++++----
+ src/go/types/expr.go        | 34 ++++++++++++++++--
+ src/go/types/index.go       | 86 +++++++++++++++++++++++++++++++++++++++++++++
+ src/go/types/lookup.go      |  6 ++--
+ src/go/types/operand.go     |  9 ++---
+ src/go/types/predicates.go  | 27 +++++++++-----
+ src/go/types/sizes.go       |  1 +
+ src/go/types/struct.go      |  9 +++--
+ src/go/types/type.go        |  9 +++--
+ src/go/types/typeparam.go   | 23 ++++++++++--
+ src/go/types/typeset.go     |  4 +++
+ src/go/types/typexpr.go     | 12 +++++--
+ 15 files changed, 231 insertions(+), 39 deletions(-)

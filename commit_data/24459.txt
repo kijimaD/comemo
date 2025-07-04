@@ -1,0 +1,16 @@
+commit 7c43975aceebcac6813696787d3b0fa19c83e74d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Oct 3 21:54:15 2015 -0400
+
+    cmd/compile/internal/big: fix unused result from testing/quick.Check
+    
+    Update #12834.
+    
+    Change-Id: If7bbcc249517f2f2d8a7dcbba6411ede92331abe
+    Reviewed-on: https://go-review.googlesource.com/15381
+    Reviewed-by: Damian Gryski <dgryski@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/big/int_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

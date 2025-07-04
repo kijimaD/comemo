@@ -1,0 +1,43 @@
+commit 4b5a64f467f20b70373979d85c1358ac8af64411
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu May 15 08:05:52 2025 +0200
+
+    os: set FILE_FLAG_BACKUP_SEMANTICS when opening without I/O access
+    
+    FILE_FLAG_BACKUP_SEMANTICS is necessary to open directories on Windows,
+    and to enable backup applications do extended operations on files if
+    they hold the SE_BACKUP_NAME and SE_RESTORE_NAME privileges.
+    
+    os.OpenFile currently sets FILE_FLAG_BACKUP_SEMANTICS for all supported
+    cases except when the file is opened with O_WRONLY | O_RDWR (that is,
+    access mode 3). This access mode doesn't correspond to any of the
+    standard POSIX access modes, but some OSes special case it to mean
+    different things. For example, on Linux, O_WRONLY | O_RDWR means check
+    for read and write permission on the file and return a file descriptor
+    that can't be used for reading or writing.
+    
+    On Windows, os.OpenFile has historically mapped O_WRONLY | O_RDWR to a
+    0 access mode, which Windows internally interprets as
+    FILE_READ_ATTRIBUTES. Additionally, it doesn't prepare the file for I/O,
+    given that the read attributes permission doesn't allow reading or
+    writing (not that this is similar to what happens on Linux). This
+    makes opening the file around 50% faster, and one can still use the
+    handle to stat it, so some projects have been using this behavior
+    to open files without I/O access.
+    
+    This CL updates os.OpenFile so that directories can also be opened
+    without I/O access. This effectively closes #23312, as all the remaining
+    cases where we don't set FILE_FLAG_BACKUP_SEMANTICS imply opening
+    with O_WRONLY or O_RDWR, and that's not allowed by Unix's open.
+    
+    Closes #23312.
+    
+    Change-Id: I77c4f55e1ca377789aef75bd8a9bce2b7499f91d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673035
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/syscall_windows.go      | 17 ++++++++++++-----
+ src/syscall/syscall_windows_test.go |  3 ++-
+ 2 files changed, 14 insertions(+), 6 deletions(-)

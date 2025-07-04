@@ -1,0 +1,12 @@
+commit 3441bda959fe6b5ff4f0f14362451d99f6a56ccd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 14 10:59:33 2011 -0400
+
+    gotest: add timing, respect $GOARCH
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4370049
+
+ src/cmd/gotest/gotest.go | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)

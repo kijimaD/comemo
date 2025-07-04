@@ -1,0 +1,18 @@
+commit 35dd2ed58d281df6542fa0fb5a884b9c48cdaac9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 29 20:20:13 2016 -0800
+
+    cmd/compile: give mparith{2,3}.go files more meaningful names
+    
+    Also, relocate related const and type definitions from go.go.
+    
+    Change-Id: Ieb9b672da8dd510ca67022b4f7ae49a778a56579
+    Reviewed-on: https://go-review.googlesource.com/20080
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/go.go                  | 27 ----------------------
+ .../internal/gc/{mparith3.go => mpfloat.go}        | 19 +++++++++++++++
+ .../compile/internal/gc/{mparith2.go => mpint.go}  |  9 +++++++-
+ 3 files changed, 27 insertions(+), 28 deletions(-)

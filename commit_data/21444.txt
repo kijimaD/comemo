@@ -1,0 +1,23 @@
+commit 8e2423a67dab2fe8f218dc37bb31ec26aaad7c14
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Jan 30 11:23:22 2015 +0300
+
+    cmd/gc: typecheck type switch variables
+    
+    Type switch variables was not typechecked.
+    Previously it lead only to a minor consequence:
+    
+    switch unsafe.Sizeof = x.(type) {
+    
+    generated an inconsistent error message.
+    But capturing by value functionality now requries typechecking of all ONAMEs.
+    
+    Fixes #9731
+    
+    Change-Id: If037883cba53d85028fb97b1328696091b3b7ddd
+    Reviewed-on: https://go-review.googlesource.com/3600
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/swt.c            |  2 ++
+ test/fixedbugs/issue9731.go | 21 +++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

@@ -1,0 +1,12 @@
+commit 23e72645ddf1eefbf56df7a0f3cb0a994c6f1072
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 17 09:06:28 2014 -0800
+
+    regexp: remove unnecessary sentence in doc comment.
+    
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/53190046
+
+ src/pkg/regexp/regexp.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 7247d6b96f639d266828c33566a71697272a67da
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 30 15:46:02 2011 -0500
+
+    test: another select test
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4004044
+
+ test/chan/select5.go | 482 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 482 insertions(+)

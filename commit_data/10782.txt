@@ -1,0 +1,12 @@
+commit 23cd406496827a7f14ada2a0756c3edd129b0218
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 14 10:25:16 2011 -0500
+
+    hash/crc32: make compatible with go/build
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5486060
+
+ src/pkg/hash/crc32/crc32_generic.go | 2 ++
+ 1 file changed, 2 insertions(+)

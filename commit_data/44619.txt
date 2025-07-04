@@ -1,0 +1,20 @@
+commit b3896fc331c36a539f825f1f656cef3f9cdffd3f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 11 15:04:16 2021 -0500
+
+    net/http: revert change to generated file from CL 296152
+    
+    This file is generated, so the fix needs to happen upstream.
+    The file can then be regenerated using 'go generate net/http'.
+    
+    Updates #44143
+    
+    Change-Id: I13a1e7677470ba84a06976e5bbe24f4ce1e7cfb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301069
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/socks_bundle.go | 2 --
+ 1 file changed, 2 deletions(-)

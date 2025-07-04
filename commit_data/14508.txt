@@ -1,0 +1,12 @@
+commit 58ce93b6bfe1e24539d621ef326876f1f6758cf8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Nov 27 21:59:08 2012 +0400
+
+    runtime/race: add test case for issue 4453
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6854103
+
+ src/pkg/runtime/race/testdata/mop_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

@@ -1,0 +1,76 @@
+commit c5b6c2abe2e5b29f47f9095bbdead5674b7252de
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 10 15:48:30 2017 -0500
+
+    encoding/json: parallelize most benchmarks
+    
+    Don't bother with BenchmarkDecoderStream — it's doing something subtle
+    with the input buffer that isn't easy to replicate in a parallel test.
+    
+    Results remain comparable with the non-parallel version with -cpu=1:
+    
+    benchmark                          old ns/op     new ns/op     delta
+    BenchmarkCodeEncoder               22815832      21058729      -7.70%
+    BenchmarkCodeEncoder-6             22190561      3579757       -83.87%
+    BenchmarkCodeMarshal               25356621      25396429      +0.16%
+    BenchmarkCodeMarshal-6             25359813      4944908       -80.50%
+    BenchmarkCodeDecoder               94794556      88016360      -7.15%
+    BenchmarkCodeDecoder-6             93795028      16726283      -82.17%
+    BenchmarkDecoderStream             532           583           +9.59%
+    BenchmarkDecoderStream-6           598           550           -8.03%
+    BenchmarkCodeUnmarshal             97644168      89162504      -8.69%
+    BenchmarkCodeUnmarshal-6           96615302      17036419      -82.37%
+    BenchmarkCodeUnmarshalReuse        91747073      90298479      -1.58%
+    BenchmarkCodeUnmarshalReuse-6      89397165      15518005      -82.64%
+    BenchmarkUnmarshalString           808           843           +4.33%
+    BenchmarkUnmarshalString-6         912           220           -75.88%
+    BenchmarkUnmarshalFloat64          695           732           +5.32%
+    BenchmarkUnmarshalFloat64-6        710           191           -73.10%
+    BenchmarkUnmarshalInt64            635           640           +0.79%
+    BenchmarkUnmarshalInt64-6          618           185           -70.06%
+    BenchmarkIssue10335                916           947           +3.38%
+    BenchmarkIssue10335-6              879           216           -75.43%
+    BenchmarkNumberIsValid             34.7          34.3          -1.15%
+    BenchmarkNumberIsValid-6           34.9          36.7          +5.16%
+    BenchmarkNumberIsValidRegexp       1174          1121          -4.51%
+    BenchmarkNumberIsValidRegexp-6     1134          1119          -1.32%
+    BenchmarkSkipValue                 20506938      20708060      +0.98%
+    BenchmarkSkipValue-6               21627665      22375630      +3.46%
+    BenchmarkEncoderEncode             690           726           +5.22%
+    BenchmarkEncoderEncode-6           649           157           -75.81%
+    
+    benchmark                    old MB/s     new MB/s     speedup
+    BenchmarkCodeEncoder         85.05        92.15        1.08x
+    BenchmarkCodeEncoder-6       87.45        542.07       6.20x
+    BenchmarkCodeMarshal         76.53        76.41        1.00x
+    BenchmarkCodeMarshal-6       76.52        392.42       5.13x
+    BenchmarkCodeDecoder         20.47        22.05        1.08x
+    BenchmarkCodeDecoder-6       20.69        116.01       5.61x
+    BenchmarkCodeUnmarshal       19.87        21.76        1.10x
+    BenchmarkCodeUnmarshal-6     20.08        113.90       5.67x
+    BenchmarkSkipValue           90.55        89.67        0.99x
+    BenchmarkSkipValue-6         90.83        87.80        0.97x
+    
+    benchmark                    old allocs     new allocs     delta
+    BenchmarkIssue10335          4              4              +0.00%
+    BenchmarkIssue10335-6        4              4              +0.00%
+    BenchmarkEncoderEncode       1              1              +0.00%
+    BenchmarkEncoderEncode-6     1              1              +0.00%
+    
+    benchmark                    old bytes     new bytes     delta
+    BenchmarkIssue10335          320           320           +0.00%
+    BenchmarkIssue10335-6        320           320           +0.00%
+    BenchmarkEncoderEncode       8             8             +0.00%
+    BenchmarkEncoderEncode-6     8             8             +0.00%
+    
+    updates #18177
+    
+    Change-Id: Ia4f5bf5ac0afbadb1705ed9f9e1b39dabba67b40
+    Reviewed-on: https://go-review.googlesource.com/36724
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/bench_test.go  | 136 ++++++++++++++++++++++-----------------
+ src/encoding/json/stream_test.go |  10 +--
+ 2 files changed, 83 insertions(+), 63 deletions(-)

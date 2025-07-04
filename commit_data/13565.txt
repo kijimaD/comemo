@@ -1,0 +1,20 @@
+commit 728f19131919734e473e3de425abb966b45b13f8
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Aug 3 15:42:14 2012 -0400
+
+    crypto/elliptic: explicitly handle P+P, ∞+P and P+∞
+    
+    These aren't needed for scalar multiplication, but since we export a
+    generic Add function we should handle it.
+    
+    This change also corrects two bugs in p224Contract that it turned up.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6458076
+
+ src/pkg/crypto/ecdsa/ecdsa.go            |  6 ++-
+ src/pkg/crypto/elliptic/elliptic.go      | 90 +++++++++++++++++--------------
+ src/pkg/crypto/elliptic/elliptic_test.go | 38 +++++++++++++
+ src/pkg/crypto/elliptic/p224.go          | 91 ++++++++++++++++++++++++--------
+ 4 files changed, 160 insertions(+), 65 deletions(-)

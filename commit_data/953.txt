@@ -1,0 +1,12 @@
+commit 63ed2b710b1d03976c3ae72ce952a5b43bb868d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 24 14:08:01 2008 -0700
+
+    - missing file
+    
+    R=r
+    OCL=17813
+    CL=17813
+
+ usr/gri/pretty/compilation.go | 46 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

@@ -1,0 +1,12 @@
+commit a22e9393e39a7a2036ed6f55b9e9b668b261a25c
+Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
+Date:   Fri Mar 20 21:18:17 2015 +0000
+
+    cmd/go: Delete some unused code.
+    
+    Change-Id: I5e11a76ebb20284618144be2ef5449d3202b6222
+    Reviewed-on: https://go-review.googlesource.com/7900
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/testflag.go | 37 -------------------------------------
+ 1 file changed, 37 deletions(-)

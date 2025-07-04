@@ -1,0 +1,21 @@
+commit 840ec052f6b550859f48fff28559bf18e5ca4b22
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Jun 12 12:09:44 2023 +0000
+
+    archive/tar: narrow trim range for formatter'formatString
+    
+    Trim s[:len(b)-1] rather than s[:len(b)], since s[len(b)-1] is '/'.
+    
+    Change-Id: I055da555810c112774549bd13d4faa8bfa0a60dc
+    GitHub-Last-Rev: 457977514d75a6c72086c2f4d89fb601280b8b90
+    GitHub-Pull-Request: golang/go#60729
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502376
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/archive/tar/strconv.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

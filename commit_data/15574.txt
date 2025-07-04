@@ -1,0 +1,15 @@
+commit b65acaeab24b1d93a765cbd0c53d1b6a0d7bb496
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon Mar 4 17:01:42 2013 +0100
+
+    cmd/gc: disallow selectors to the blank identifier
+    
+    Fixes #4941.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7415051
+
+ src/cmd/gc/typecheck.c | 4 ++++
+ test/blank1.go         | 5 +++++
+ 2 files changed, 9 insertions(+)

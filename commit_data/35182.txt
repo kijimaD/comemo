@@ -1,0 +1,19 @@
+commit 980fdb8dd5fe0151a9b7e84ec6b8c20a11727521
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Apr 2 03:17:18 2018 +0200
+
+    cmd/compile: improve testing of induction variables
+    
+    Test both minimum and maximum bound, and prepare
+    formatting for more advanced tests (inclusive / esclusive bounds).
+    
+    Change-Id: Ibe432916d9c938343bc07943798bc9709ad71845
+    Reviewed-on: https://go-review.googlesource.com/104040
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/loopbce.go | 21 ++++++++++---
+ test/loopbce.go                         | 54 ++++++++++++++++-----------------
+ test/prove.go                           |  4 +--
+ 3 files changed, 46 insertions(+), 33 deletions(-)

@@ -1,0 +1,24 @@
+commit 139e935d3cc8d38c9adc7ff7de8a87c28fe339c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 13 10:46:58 2021 -0400
+
+    math/big: comment division
+    
+    The comments in the code refer to Knuth and to Burnikel and Ziegler,
+    but Knuth's presentation is inscrutable, and our recursive division
+    code does not bear much resemblance to Burnikel and Ziegler's paper
+    (which is fine, ours is nicer).
+    
+    Add a standalone explanation of division instead of referring to
+    difficult or not-directly-used references.
+    
+    Change-Id: Ic1b35dc167fb29a69ee00e0b4a768ac9cc9e1324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321078
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/math/big/natdiv.go | 684 +++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 611 insertions(+), 73 deletions(-)

@@ -1,0 +1,15 @@
+commit 7bf8355dc7d1a185cb96f66011a3217b99e85f69
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jul 20 08:32:25 2012 +0900
+
+    net: fix typo
+    
+    R=golang-dev, bsiegert, r
+    CC=golang-dev
+    https://golang.org/cl/6428050
+
+ src/pkg/net/dial.go            | 2 +-
+ src/pkg/net/iprawsock.go       | 4 ++--
+ src/pkg/net/iprawsock_plan9.go | 4 ++--
+ src/pkg/net/iprawsock_posix.go | 4 ++--
+ 4 files changed, 7 insertions(+), 7 deletions(-)

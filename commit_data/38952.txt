@@ -1,0 +1,13 @@
+commit ccbc9a3f9f6479070f5a45a8583d14d158b8bcb0
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Apr 29 16:41:20 2019 +0200
+
+    cmd/go: add XCOFF format handler for go version
+    
+    Change-Id: Ib102ae95acfd89fc3c9942a4ec82c74362f62045
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174299
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/version/exe.go | 44 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 43 insertions(+), 1 deletion(-)

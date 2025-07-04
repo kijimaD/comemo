@@ -1,0 +1,36 @@
+commit 8e38b17a906e7208fe9133cedd154758ae4f717d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 29 15:54:06 2012 -0500
+
+    spec: apply method sets, embedding to all types, not just named types
+    
+    When we first wrote the method set definition, we had long
+    discussions about whether method sets applied to all types
+    or just named types, and we (or at least I) concluded that it
+    didn't matter: the two were equivalent points of view, because
+    the only way to introduce a new method was to write a method
+    function, which requires a named receiver type.
+    
+    However, the addition of embedded types changed this.
+    Embedding can introduce a method without writing an explicit
+    method function, as in:
+    
+            var x struct {
+                    sync.Mutex
+            }
+    
+            var px *struct {
+                    sync.Mutex
+            }
+    
+            var _, _ sync.Locker = &x, px
+    
+    The edits in this CL make clear that both &x and px satisfy
+    sync.Locker.  Today, gccgo already works this way; 6g does not.
+    
+    R=golang-dev, gri, iant, r
+    CC=golang-dev
+    https://golang.org/cl/5702062
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

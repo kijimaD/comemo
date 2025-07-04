@@ -1,0 +1,28 @@
+commit 40a6e2dae5a9c75f1ddc6f97b48b9442c118653f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 10 16:28:57 2023 -0500
+
+    cmd/compile: tighten for huge functions in -N mode
+    
+    Currently, in -N mode we skip the tighten pass. However, for very
+    large functions, many values live across blocks can cause
+    pathological behavior in the register allocator, which could use
+    a huge amount of memory or cause the program to hang. For
+    functions that large, debugging using a debugger is unlikely to be
+    very useful (the function is probably generated anyway). So we do
+    a little optimization to make fewer values live across blocks and
+    make it easier for the compiler.
+    
+    Fixes #52180.
+    
+    Change-Id: I355fe31bb87ea5d0870bb52dd06405dd5d791dab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475339
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go | 2 +-
+ src/cmd/compile/internal/ssa/tighten.go | 9 +++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

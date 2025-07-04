@@ -1,0 +1,14 @@
+commit dcbf59cb4e8701b9be26013400fd21d60fa9a55d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 1 14:17:09 2011 +1000
+
+    path/filepath: clean up a triple negative.
+    also make the error prints better in the test.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4556069
+
+ src/pkg/path/filepath/match.go      | 7 +++----
+ src/pkg/path/filepath/match_test.go | 9 ++++++++-
+ 2 files changed, 11 insertions(+), 5 deletions(-)

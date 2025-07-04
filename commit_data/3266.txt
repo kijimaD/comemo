@@ -1,0 +1,47 @@
+commit 28eba4877b6e51830632136f0eca8ca6d39d6179
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 14 17:20:29 2009 -0700
+
+    fix "declared and not used" errors in non-test code.
+    
+    R=r
+    DELTA=112  (6 added, 57 deleted, 49 changed)
+    OCL=34610
+    CL=34610
+
+ doc/progs/run                       |  2 +-
+ doc/progs/sortmain.go               |  2 +-
+ src/pkg/archive/tar/reader.go       | 10 ++++------
+ src/pkg/archive/tar/writer.go       |  8 +++-----
+ src/pkg/base64/base64_test.go       |  1 -
+ src/pkg/bytes/bytes.go              |  4 ++--
+ src/pkg/compress/gzip/gunzip.go     |  3 +--
+ src/pkg/container/ring/ring_test.go |  1 -
+ src/pkg/datafmt/parser.go           |  3 +--
+ src/pkg/ebnf/parser.go              |  3 +--
+ src/pkg/go/scanner/scanner_test.go  |  1 -
+ src/pkg/gob/codec_test.go           |  4 ----
+ src/pkg/gob/decoder.go              |  3 +--
+ src/pkg/gob/type_test.go            |  1 -
+ src/pkg/http/request.go             |  3 +--
+ src/pkg/http/request_test.go        |  3 +--
+ src/pkg/json/generic.go             |  3 +--
+ src/pkg/json/struct.go              |  4 +---
+ src/pkg/net/dnsclient.go            |  2 --
+ src/pkg/net/net.go                  |  1 -
+ src/pkg/os/getwd.go                 |  1 -
+ src/pkg/path/path.go                |  1 -
+ src/pkg/reflect/tostring_test.go    |  1 -
+ src/pkg/reflect/value.go            |  2 --
+ src/pkg/regexp/regexp.go            |  6 +++---
+ src/pkg/rpc/client.go               |  8 ++++----
+ src/pkg/rpc/server.go               |  1 -
+ src/pkg/strconv/decimal_test.go     |  1 -
+ src/pkg/syscall/exec.go             |  6 ++----
+ src/pkg/testing/testing.go          |  1 -
+ src/pkg/time/tick.go                |  4 +++-
+ src/pkg/time/zoneinfo.go            |  6 ++----
+ src/pkg/utf8/utf8.go                |  6 ++----
+ test/bench/k-nucleotide.go          |  1 -
+ test/bench/regex-dna.go             |  1 -
+ 35 files changed, 35 insertions(+), 73 deletions(-)

@@ -1,0 +1,14 @@
+commit fc8bef06c4097ca80efa47aacb55201580015015
+Author: Serhat Giydiren <serhatgiydiren@gmail.com>
+Date:   Sat Oct 5 16:12:13 2019 +0300
+
+    unicode/utf8: add link to formal UTF-8 description.
+    
+    Fixes #31590
+    
+    Change-Id: I7fd6dcc5c34496776439ff0295f18b5fb5cb538a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199141
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/unicode/utf8/utf8.go | 1 +
+ 1 file changed, 1 insertion(+)

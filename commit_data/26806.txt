@@ -1,0 +1,38 @@
+commit bce9747ed00c53e7ddeea102e87aede1b3ec9bd3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Apr 9 15:04:45 2016 +1000
+
+    cmd: remove unused code
+    
+    Generated with honnef.co/go/unused
+    
+    There is a large amount of unused code in cmd/internal/obj/s390x but
+    that can wait til the s390x port is merged.
+    
+    There is some unused code in
+    cmd/internal/unvendor/golang.org/x/arch/arm/armasm but that should be
+    addressed upstream and a new revision imported.
+    
+    Change-Id: I252c0f9ea8c5bb1a0b530a374ef13a0a20ea56aa
+    Reviewed-on: https://go-review.googlesource.com/21782
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+
+ src/cmd/internal/goobj/read.go                  |  7 ++----
+ src/cmd/internal/obj/mips/asm0.go               |  4 ----
+ src/cmd/internal/obj/x86/asm6.go                |  5 -----
+ src/cmd/internal/obj/x86/obj6_test.go           |  1 -
+ src/cmd/internal/objfile/pe.go                  |  2 --
+ src/cmd/link/internal/amd64/asm.go              |  6 -----
+ src/cmd/link/internal/arm/asm.go                |  5 -----
+ src/cmd/link/internal/arm64/asm.go              |  4 ----
+ src/cmd/link/internal/ld/data.go                |  4 ----
+ src/cmd/link/internal/ld/deadcode.go            |  4 +---
+ src/cmd/link/internal/ld/decodesym.go           | 18 ---------------
+ src/cmd/link/internal/ld/go.go                  | 30 +------------------------
+ src/cmd/link/internal/ld/macho.go               |  7 ++----
+ src/cmd/link/internal/ld/macho_combine_dwarf.go |  4 +---
+ src/cmd/link/internal/mips64/asm.go             |  4 ----
+ src/cmd/link/internal/ppc64/asm.go              |  4 ----
+ src/cmd/link/internal/x86/asm.go                |  4 ----
+ 17 files changed, 7 insertions(+), 106 deletions(-)

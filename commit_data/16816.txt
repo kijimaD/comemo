@@ -1,0 +1,15 @@
+commit df3e6ce4b1df508624082d31abb24300f9057b86
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 18 22:58:49 2013 -0400
+
+    runtime: disable preemption during runtime.settype
+    
+    It assumes that the m will not change, and the m may
+    change if the goroutine is preempted.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11560043
+
+ src/pkg/runtime/malloc.goc | 5 +++++
+ 1 file changed, 5 insertions(+)

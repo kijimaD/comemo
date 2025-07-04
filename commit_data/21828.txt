@@ -1,0 +1,14 @@
+commit e15221acece3ffeb7aaca9cf967f8ea7dac6e664
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 2 00:16:16 2015 -0500
+
+    cmd/9l: fix ppc64le build
+    
+    The conversion accidentally dropped the +4 here.
+    
+    Change-Id: Ic6181a759565c261bc1b084317f693ae249fd036
+    Reviewed-on: https://go-review.googlesource.com/6451
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/9l/asm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

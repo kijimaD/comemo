@@ -1,0 +1,21 @@
+commit 821b7994826cf8f9f5f66ca35339ffe088dba02d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun Feb 9 01:40:45 2020 -0500
+
+    test: clean up run.go
+    
+    • Inline check function because it's more readable.
+    • Delete toolPath because it was unused.
+    • Use strings.TrimPrefix because it's simpler.
+    • Remove out variable because its value was unused.
+    • Rename serr to err because it's more consistent.
+    
+    Change-Id: I084fb4f8b399578834d5eea29a673c386cf3a357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218701
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Hajime Hoshi <hajimehoshi@gmail.com>
+
+ test/run.go | 48 ++++++++++++++++++++++--------------------------
+ 1 file changed, 22 insertions(+), 26 deletions(-)

@@ -1,0 +1,14 @@
+commit bd6dfe9a3e381e6aae7aa11787ba70fcb77909ff
+Author: surechen <surechen17@gmail.com>
+Date:   Wed May 13 17:03:36 2020 +0800
+
+    math/big: add a comment for SetMantExp
+    
+    Change-Id: I9ff5d1767cf70648c2251268e5e815944a7cb371
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233737
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/float.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

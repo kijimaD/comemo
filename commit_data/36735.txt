@@ -1,0 +1,19 @@
+commit b84a58095f11ba3122b88847d1b0a73c57c1632c
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Sat Sep 8 17:00:00 2018 +0100
+
+    image/png: pack image data for small bitdepth paletted images
+    
+    Bit packs image data when writing images with fewer than 16
+    colors in its palette. Reading of bit packed image data was
+    already implemented.
+    
+    Fixes #19879
+    
+    Change-Id: I0a06f9599a163931e20d3503fc3722e5101f0070
+    Reviewed-on: https://go-review.googlesource.com/134235
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/png/writer.go      |  73 ++++++++++++++++++++++++-----
+ src/image/png/writer_test.go | 108 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 170 insertions(+), 11 deletions(-)

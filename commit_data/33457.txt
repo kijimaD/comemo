@@ -1,0 +1,24 @@
+commit 0c554957483aaf1f62c6251dbe62ab5fce3e219c
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Mon Nov 6 01:32:55 2017 -0700
+
+    cmd/compile: lock in test for column numbers in unused error
+    
+    Updates #21317
+    
+    @mdempsky fixed issue #21317 with CL 66810,
+    so lock a test in to ensure we don't regress.
+    
+    The test is manual for now before test/run.go
+    has support for matching column numbers so do
+    it old school and match expected output after
+    an exec.
+    
+    Change-Id: I6c2a66ddf04248f79d17ed7033a3280d50e41562
+    Reviewed-on: https://go-review.googlesource.com/76150
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue21317.go | 60 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 60 insertions(+)

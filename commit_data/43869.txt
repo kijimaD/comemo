@@ -1,0 +1,16 @@
+commit f6dcc975f7207340ad11d9296c42e7730ecf1f9f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 17:26:22 2020 -0800
+
+    go/constant: make constant.Make produce "smallest" const representation
+    
+    Fixes #42640.
+    
+    Change-Id: I22b8142b0a47a0f957d1bda28cdfdbb8388cffc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273086
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/constant/value.go      |  6 +++---
+ src/go/constant/value_test.go | 34 ++++++++++++++++++++++++----------
+ 2 files changed, 27 insertions(+), 13 deletions(-)

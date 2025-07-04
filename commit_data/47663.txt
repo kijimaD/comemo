@@ -1,0 +1,21 @@
+commit 28ec0fdeb500b4d0ab5c0ac07cba2f5ebc12ae32
+Author: Austin Clements <austin@google.com>
+Date:   Wed Dec 1 13:41:45 2021 -0500
+
+    runtime: print errno on clock_gettime failure on OpenBSD
+    
+    For #49532.
+    
+    Change-Id: I5afc64c987f0519903128550a7dac3a0f5e592cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368334
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/sys_openbsd2.go     | 16 ++++++++++++++--
+ src/runtime/sys_openbsd_386.s   |  7 +++++--
+ src/runtime/sys_openbsd_amd64.s |  7 +++++--
+ src/runtime/sys_openbsd_arm.s   |  8 +++++---
+ src/runtime/sys_openbsd_arm64.s |  8 +++++---
+ 5 files changed, 34 insertions(+), 12 deletions(-)

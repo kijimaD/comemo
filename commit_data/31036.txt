@@ -1,0 +1,22 @@
+commit 7165bcc6baf2508769df3ffe55ac876381f7565b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 7 06:53:14 2017 -0700
+
+    cmd/internal/obj: remove timing prints from assemblers
+    
+    Updates #19865
+    
+    Change-Id: I24fbf5d79b5e4cac09c14cfff678a8215397b670
+    Reviewed-on: https://go-review.googlesource.com/39914
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/arm/asm5.go   | 3 ---
+ src/cmd/internal/obj/arm64/asm7.go | 3 ---
+ src/cmd/internal/obj/mips/asm0.go  | 3 ---
+ src/cmd/internal/obj/mips/obj0.go  | 3 ---
+ src/cmd/internal/obj/ppc64/asm9.go | 3 ---
+ src/cmd/internal/obj/ppc64/obj9.go | 3 ---
+ src/cmd/internal/obj/s390x/objz.go | 3 ---
+ 7 files changed, 21 deletions(-)

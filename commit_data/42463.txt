@@ -1,0 +1,17 @@
+commit 7e477573244000da3cfe60c0d4cb4007097245d9
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 4 11:16:43 2020 -0400
+
+    syscall: hide internal comment from Syscall documentation
+    
+    There's a comment on the Syscall function that's supposed to be an
+    internal implementation note, but since it's not separated from the
+    function definition, it appears in godoc. Add a blank line to prevent
+    this.
+    
+    Change-Id: Iba307f1cc3844689ec3c6d82c21d441852e35bca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236561
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/dll_windows.go | 1 +
+ 1 file changed, 1 insertion(+)

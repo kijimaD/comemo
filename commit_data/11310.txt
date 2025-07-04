@@ -1,0 +1,13 @@
+commit 4d3b9d97573082152894847f5040876f8febc70f
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Sat Jan 21 12:18:15 2012 -0500
+
+    compress/flate: fix a typo, improve compression rate by 3-4%.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5556077
+
+ src/pkg/compress/flate/deflate.go      | 2 +-
+ src/pkg/compress/flate/deflate_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit e3e043bea4d7547edf004a9e202f66a4d69b5899
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Nov 2 14:38:33 2018 +0100
+
+    cmd/compile: improve typechecking of OSLICEHEADER nodes
+    
+    Create a new node for OSLICEHEADER nodes to ensure typechecks are applied.
+    Add nil checks for OSLICEHEADER type and pointer parameters
+    for better error messages when these are not set.
+    Improve formatting of OSLICEHEADER nodes in compiler error messages.
+    
+    Change-Id: Idea8f41bb4beb636f0e1fc381ff8d79b1d44fbae
+    Reviewed-on: https://go-review.googlesource.com/c/146997
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/fmt.go       |  7 +++++++
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++++-
+ src/cmd/compile/internal/gc/walk.go      | 17 ++++++++++-------
+ 3 files changed, 22 insertions(+), 8 deletions(-)

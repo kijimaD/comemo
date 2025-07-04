@@ -1,0 +1,20 @@
+commit 13d36a9b46c7beeb49ffc623d5ab0568840b277b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon May 13 14:59:02 2024 -0400
+
+    cmd/go: don't start upload until after toolchain selection
+    
+    Run telemetry.Start (without the upload) first thing so we can increment
+    counters in toolchain selection. Then run telemetry.StartWithUpload
+    after toolchain selection so we don't start the upload until after
+    toolchain selection has happened so we don't start something heavyweight
+    before selection.
+    
+    Change-Id: Ia8979175a163265c3e29f6cb11a4ada4714d1d95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585419
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/main.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

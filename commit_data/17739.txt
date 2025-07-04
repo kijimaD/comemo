@@ -1,0 +1,16 @@
+commit fe1c92a203fdc60c76eaaef9030390219fbadd86
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 3 13:53:16 2013 -0400
+
+    doc: remove link to PackageVersioning wiki
+    
+    That page may be fine for experienced Go programmers
+    but it's not really targeting new programmers.
+    There's too much we don't know yet.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14345043
+
+ doc/go_faq.html | 5 -----
+ 1 file changed, 5 deletions(-)

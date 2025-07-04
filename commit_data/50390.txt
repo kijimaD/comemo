@@ -1,0 +1,20 @@
+commit 0752f4a12cfd212ed5a5fdfc8696811d89b12acf
+Author: Jinzhu <wosmvp@gmail.com>
+Date:   Mon Sep 5 09:02:11 2022 +0000
+
+    database/sql: simplify retry logic when the connection is bad
+    
+    Simplify retry logic when got bad connection
+    
+    Change-Id: I92494c6c020576ec01bc4868334ee920ded7aa57
+    GitHub-Last-Rev: 7499b0c9419a31c9adce6d5096a1924aa3612f1d
+    GitHub-Pull-Request: golang/go#54043
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419182
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/database/sql/sql.go | 160 +++++++++++++++++++-----------------------------
+ 1 file changed, 64 insertions(+), 96 deletions(-)

@@ -1,0 +1,17 @@
+commit b188b4cc110261a004674df5a4e209cc4894d314
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 9 15:29:41 2016 -0800
+
+    cmd/gofmt: don't eat source if -w fails
+    
+    Write output to a temp file first and only upon success
+    rename that file to source file name.
+    
+    Fixes #8984.
+    
+    Change-Id: Ie40e49d2a4eb3c9462fe769ccbf055b4366eceb0
+    Reviewed-on: https://go-review.googlesource.com/33018
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/gofmt/gofmt.go | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

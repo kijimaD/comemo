@@ -1,0 +1,23 @@
+commit dc3bef36354c7977cfd9e4459e1e6f31bc8624a6
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Jan 16 15:31:12 2018 -0500
+
+    runtime/gdb: use goroutine atomicstatus to determine the state
+    
+    Previously find_goroutine determined whether a goroutine is
+    stopped by checking the sched.sp field. This heuristic doesn't
+    always hold but causes find_goroutine to return bogus pc/sp
+    info for running goroutines.
+    
+    This change uses the atomicstatus bit to determine
+    the state which is more accurate.
+    
+    R=go1.11
+    
+    Change-Id: I537d432d9e0363257120a196ce2ba52da2970f59
+    Reviewed-on: https://go-review.googlesource.com/49691
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/runtime-gdb.py      |  6 ++++--
+ src/runtime/runtime-gdb_test.go | 32 ++++++++++++++++++++++++++++----
+ 2 files changed, 32 insertions(+), 6 deletions(-)

@@ -1,0 +1,19 @@
+commit 302dd7b71eb565c5460966292e434fc903362cb6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 9 14:51:00 2016 -0700
+
+    crypto/cipher, math/big: fix example names
+    
+    Fixes (legit) vet warnings.
+    Fix some verb tenses while we're here.
+    
+    Updates #11041
+    
+    Change-Id: I27e995f55b38f4cf584e97a67b8545e8247e83d6
+    Reviewed-on: https://go-review.googlesource.com/27122
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/crypto/cipher/example_test.go | 4 ++--
+ src/math/big/floatexample_test.go | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

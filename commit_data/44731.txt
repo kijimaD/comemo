@@ -1,0 +1,24 @@
+commit f47fab938eb19e383258b3501560b46d2e47158a
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Mar 17 17:54:41 2021 -0700
+
+    cmd/compile: remove unneeded calls to typecheck in noder2
+    
+    Remove unneeded calls to typecheck in noder2 associated with g.use() and
+    g.obj(). These routines are already setting the types2-derived type
+    correctly for ONAME nodes, and there is no typechecker1-related
+    transformations related to ONAME nodes, other than making sure that
+    newly created closure variables have their type set.
+    
+    Tested through normal -G=3 testing in all.bash (all of go/tests).
+    
+    Change-Id: I1b790ab9948959685fca3a768401458201833671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303029
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/expr.go   |  7 ++-----
+ src/cmd/compile/internal/noder/object.go | 20 ++++++++++++++++----
+ 2 files changed, 18 insertions(+), 9 deletions(-)

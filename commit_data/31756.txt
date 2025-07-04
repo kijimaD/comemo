@@ -1,0 +1,16 @@
+commit fab47f7b3a9d8ad91b96bf80f0b9dff2feda31d2
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Jun 6 16:13:39 2017 +0200
+
+    net/http: enable TestLinuxSendfile on mips64
+    
+    The test is passing on a 64bit RFS.
+    
+    Fixes #18008
+    
+    Change-Id: Ia4c4f4dde0392c7f6bbe5dbffc97cf848ec5a107
+    Reviewed-on: https://go-review.googlesource.com/44953
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit e956429166632c68785a17be44b649ae6205bfb0
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Dec 10 13:28:46 2008 -0800
+
+    string hash function faults w empty string
+    fixes maps[""]
+    
+    R=r
+    OCL=20909
+    CL=20911
+
+ src/runtime/runtime.c | 2 ++
+ 1 file changed, 2 insertions(+)

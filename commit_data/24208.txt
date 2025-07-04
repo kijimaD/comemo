@@ -1,0 +1,18 @@
+commit 92e68c89f686d451df2d72e6b3f279dbd2b82442
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 28 23:15:41 2015 -0400
+
+    runtime: move stack barrier code to its own file
+    
+    Currently the stack barrier code is mixed in with the mark and scan
+    code. Move all of the stack barrier related functions and variables to
+    a new dedicated source file. There are no code modifications.
+    
+    Change-Id: I604603045465ef8573b9f88915d28ab6b5910903
+    Reviewed-on: https://go-review.googlesource.com/14050
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     |  14 ----
+ src/runtime/mgcmark.go | 161 -------------------------------------------
+ src/runtime/mstkbar.go | 184 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 184 insertions(+), 175 deletions(-)

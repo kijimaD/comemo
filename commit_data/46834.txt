@@ -1,0 +1,18 @@
+commit 34f7b1f841cc450cc3aba42019e613fd03a84fce
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Oct 8 11:14:35 2021 -0400
+
+    go/parser: clean up unnecessary arguments and replace an if statement
+    
+    Eliminate an unnecessary argument from parseGenericType, and replace an
+    if statement with a switch.
+    
+    Change-Id: Iaa8afeface929332579f183c8e523961cca9aca4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354869
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/parser/parser.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

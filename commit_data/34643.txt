@@ -1,0 +1,14 @@
+commit 4b06d9d72747b0407e2cd9a423b689c7e9c8e92d
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Mar 19 14:15:13 2018 -0400
+
+    doc: remove non-prime from list of primes in spec
+    
+    Fixes golang/go#24451
+    
+    Change-Id: Id9b4cbd1a1ff032f1cc4606e9734ddcc64892ae5
+    Reviewed-on: https://go-review.googlesource.com/101457
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

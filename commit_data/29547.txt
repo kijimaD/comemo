@@ -1,0 +1,15 @@
+commit 1b66b38e25af567aa30a7b22581c05285be3564a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 15 20:16:15 2016 -0500
+
+    api, doc: update go1.8.txt and next.txt
+    
+    Both automated updates with a few tweaks.
+    
+    Change-Id: I24579a8dcc32a84a4fff5c2212681ef30dda61d1
+    Reviewed-on: https://go-review.googlesource.com/33297
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/next.txt  | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ doc/go1.8.txt | 40 +++++++++++++++++++++++++++--
+ 2 files changed, 110 insertions(+), 12 deletions(-)

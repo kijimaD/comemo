@@ -1,0 +1,22 @@
+commit 2f4d4206831b722070fecd7efcd0f1b122aa3760
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Mar 19 13:18:43 2016 +0100
+
+    fmt: remove depth argument from handleMethods and printArg
+    
+    handleMethods can format Error() and String() directly as its known
+    these return strings that can be directly printed using fmtString.
+    Remove the obsolete depth argument from handleMethods.
+    
+    Remove the depth argument from printArg since it is only ever
+    called with depth set to 0. Recursion for formatting complex
+    arguments is handled only by printValue which keeps track of depth.
+    
+    Change-Id: I4c4be588751de12ed999e7561a51bc168eb9eb2d
+    Reviewed-on: https://go-review.googlesource.com/20911
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/print.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

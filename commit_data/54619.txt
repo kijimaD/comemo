@@ -1,0 +1,24 @@
+commit 0c64ebce7e7007615aba58a19be07372f0febe69
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Oct 4 10:26:17 2023 -0400
+
+    go/printer: parenthesize type in <-((<-chan int)(nil))
+    
+    When printing synthetic syntax (not created by the parser),
+    the tree for <-((<-chan int)(nil)) without any ParenExpr nodes
+    was misprinted so that it was parsed back as a receive of
+    a receive. This changes emits parens around the channel type.
+    
+    Fixes #63362
+    
+    Change-Id: I2041ced224f0bca001cee5d37f7a127265d21020
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532556
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/printer/nodes.go        | 21 +++++++++++++++------
+ src/go/printer/printer_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 6 deletions(-)

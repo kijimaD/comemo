@@ -1,0 +1,13 @@
+commit 3ca788de64bd7938efba378668e6ac65ff4b65ca
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 11 16:43:36 2014 +1000
+
+    os/signal: use unique program name during TestCtrlBreak
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/84650047
+
+ src/pkg/os/signal/signal_windows_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

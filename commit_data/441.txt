@@ -1,0 +1,21 @@
+commit d302244c6ce73f4377b1b1e9897a5efa7c871ee5
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 28 13:07:58 2008 -0700
+
+    add lstat
+    clean up some code
+    fix comments
+    add paramter names to interface
+    
+    R=ken
+    OCL=13521
+    CL=13521
+
+ src/syscall/errstr_darwin.go       |  6 ++----
+ src/syscall/errstr_linux.go        |  6 ++----
+ src/syscall/stat_amd64_darwin.go   |  9 +++++----
+ src/syscall/stat_amd64_linux.go    |  7 ++++---
+ src/syscall/syscall.go             |  8 ++++----
+ src/syscall/syscall_amd64_darwin.s | 13 +++++++++++++
+ src/syscall/syscall_amd64_linux.s  | 16 ++++++++++++++++
+ 7 files changed, 46 insertions(+), 19 deletions(-)

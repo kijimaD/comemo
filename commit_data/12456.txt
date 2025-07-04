@@ -1,0 +1,14 @@
+commit e2b207bc4f7c41fe6399cb992d101a615722c314
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 7 14:51:20 2012 +0900
+
+    sync/atomic: disable store and load test on a single processor machine
+    
+    Fixes #3226.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5756073
+
+ src/pkg/sync/atomic/atomic_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

@@ -1,0 +1,18 @@
+commit 1a800d1c88d54ab0b4cee64ec8d79c377544fe48
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 5 10:56:01 2024 +0100
+
+    syscall: use goarch.BigEndian
+    
+    Change-Id: I99e5f6fab900b0bf301f78460c618c01b231f62b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568956
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/dirent.go        | 3 ++-
+ src/syscall/endian_big.go    | 9 ---------
+ src/syscall/endian_little.go | 9 ---------
+ 3 files changed, 2 insertions(+), 19 deletions(-)

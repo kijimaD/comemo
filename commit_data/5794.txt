@@ -1,0 +1,18 @@
+commit b6850fe73973c3f0953273f0799732678ba85f34
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Tue Jul 13 10:31:51 2010 +1000
+
+    os: Use TempFile with default TempDir for temp test files
+    
+    Use io/ioutil.TempFile with default os.TempDir for temporary test files.
+    For os_test.go temporary test files, use a local file system and OS
+    independent directory names. Avoid problems with NFS.
+    
+    Fixes #848.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1806043
+
+ src/pkg/os/os_test.go | 169 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 80 insertions(+), 89 deletions(-)

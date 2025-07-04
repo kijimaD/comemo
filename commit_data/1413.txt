@@ -1,0 +1,15 @@
+commit 1da03aaef76ab8c216c221ce478dfc10470414c6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 6 13:54:53 2009 -0800
+
+    A richer interface for regexps.  Simple boolean matcher, a vector of strings rather than
+    indexes, and a global boolean function for quick action.
+    
+    R=rsc
+    DELTA=152  (127 added, 12 deleted, 13 changed)
+    OCL=22140
+    CL=22142
+
+ src/lib/regexp/all_test.go | 93 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/lib/regexp/regexp.go   | 34 ++++++++++++++++-
+ 2 files changed, 121 insertions(+), 6 deletions(-)

@@ -1,0 +1,21 @@
+commit 01b9656fce32249d6debc2f0eaa2ce0c4154b827
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Fri Jan 27 22:51:39 2023 -0800
+
+    misc/wasm: extend executable compatibility
+    
+    The path /bin/bash is not available on all operating systems.
+    Use /usr/bin/env bash to find the system bash interpreter.
+    
+    Change-Id: I493e462a8e261b7fbbd3f3c0b1d10e55c5ed783b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463977
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Evan Phoenix <evan@phx.io>
+
+ misc/wasm/go_js_wasm_exec | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

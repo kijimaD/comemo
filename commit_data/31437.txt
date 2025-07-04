@@ -1,0 +1,20 @@
+commit c44d031bf08a916c01ee53a33fc54d46e0833d1b
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 2 11:07:41 2016 -0400
+
+    runtime: eliminate heapBits.hasPointers
+    
+    This is no longer necessary now that we can more efficiently consult
+    the span's noscan bit.
+    
+    This is a cherry-pick of dev.garbage commit 312aa09996.
+    
+    Change-Id: Id0b00b278533660973f45eb6efa5b00f373d58af
+    Reviewed-on: https://go-review.googlesource.com/41252
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbitmap.go | 11 -----------
+ src/runtime/mgcmark.go |  4 ++--
+ 2 files changed, 2 insertions(+), 13 deletions(-)

@@ -1,0 +1,14 @@
+commit f22c357a34521404c445dc2e848657ecbfa4ad5e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 4 15:26:04 2018 +0000
+
+    os: make UserHomeDir specialize behavior for GOOS=android
+    
+    Change-Id: I69582662aeee7344226856c24907516ddfc92f60
+    Reviewed-on: https://go-review.googlesource.com/c/139717
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+
+ src/os/file.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 343543894875f943e970f5acfe994849f70ddc36
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 07:23:03 2011 -0500
+
+    runtime: silence darwin/386 build warnings
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5502056
+
+ src/pkg/runtime/cgo/gcc_darwin_386.c | 1 +
+ src/pkg/runtime/signal_darwin_386.c  | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

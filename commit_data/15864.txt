@@ -1,0 +1,30 @@
+commit 44840786ae2a7a24d81df176494e0af5ba9764c4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 21 12:54:19 2013 +0400
+
+    runtime: explicitly remove fd's from epoll waitset before close()
+    Fixes #5061.
+    
+    Current code relies on the fact that fd's are automatically removed from epoll set when closed. However, it is not true. Underlying file description is removed from epoll set only when *all* fd's referring to it are closed.
+    
+    There are 2 bad consequences:
+    1. Kernel delivers notifications on already closed fd's.
+    2. The following sequence of events leads to error:
+       - add fd1 to epoll
+       - dup fd1 = fd2
+       - close fd1 (not removed from epoll since we've dup'ed the fd)
+       - dup fd2 = fd1 (get the same fd as fd1)
+       - add fd1 to epoll = EEXIST
+    
+    So, if fd can be potentially dup'ed of fork'ed, it's necessary to explicitly remove the fd from epoll set.
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/7870043
+
+ src/pkg/net/fd_unix.go           |  4 +++-
+ src/pkg/runtime/netpoll.goc      |  3 +++
+ src/pkg/runtime/netpoll_epoll.c  | 14 +++++++++++++-
+ src/pkg/runtime/netpoll_kqueue.c |  9 +++++++++
+ src/pkg/runtime/runtime.h        |  1 +
+ 5 files changed, 29 insertions(+), 2 deletions(-)

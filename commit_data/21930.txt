@@ -1,0 +1,56 @@
+commit cdb7d7dcc22a2f09df0267641b73d45703ffc6e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 13:57:36 2015 -0500
+
+    cmd/5l etc: restore comments lost during C -> Go conversion
+    
+    It appears that c2go dropped comments inside struct { ... } and enum { ... }.
+    Restore them.
+    
+    Identified missing comments by checking for comments present
+    in the C code but not the Go code, made a list, and then reapplied
+    with some mechanical help.
+    
+    Missing comment finder: http://play.golang.org/p/g6qNUAo1Y0
+    
+    Change-Id: I323ab45c7ef9d51e28eab3b699eb14bee1eef66b
+    Reviewed-on: https://go-review.googlesource.com/6899
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/5l/asm.go                   |   2 +-
+ src/cmd/5l/l.go                     |   4 +-
+ src/cmd/6l/asm.go                   |   2 +-
+ src/cmd/6l/l.go                     |  38 +--
+ src/cmd/8g/reg.go                   |   2 +-
+ src/cmd/8l/l.go                     |  38 +--
+ src/cmd/9g/opt.go                   |  38 +--
+ src/cmd/9g/reg.go                   |   2 +-
+ src/cmd/9l/l.go                     |   2 +-
+ src/cmd/internal/gc/esc.go          |  45 ++--
+ src/cmd/internal/gc/go.go           | 365 +++++++++++++++-----------
+ src/cmd/internal/gc/gsubr.go        |   2 +
+ src/cmd/internal/gc/order.go        |   6 +-
+ src/cmd/internal/gc/plive.go        |  68 +++--
+ src/cmd/internal/gc/popt.go         |  37 ++-
+ src/cmd/internal/gc/range.go        |   7 +
+ src/cmd/internal/gc/syntax.go       | 499 +++++++++++++++++++-----------------
+ src/cmd/internal/gc/typecheck.go    |   2 +-
+ src/cmd/internal/gc/walk.go         |  11 +-
+ src/cmd/internal/ld/decodesym.go    |   2 +-
+ src/cmd/internal/ld/dwarf.go        |  35 ++-
+ src/cmd/internal/ld/dwarf_defs.go   | 492 ++++++++++++++++++-----------------
+ src/cmd/internal/ld/elf.go          |   7 +-
+ src/cmd/internal/ld/go.go           |   4 +-
+ src/cmd/internal/ld/ldelf.go        |   8 +-
+ src/cmd/internal/ld/ldmacho.go      |   4 +-
+ src/cmd/internal/ld/ldpe.go         |   2 +-
+ src/cmd/internal/ld/lib.go          |  16 +-
+ src/cmd/internal/ld/pe.go           |  11 +-
+ src/cmd/internal/obj/arm/5.out.go   | 120 ++++++---
+ src/cmd/internal/obj/arm/asm5.go    |   7 +-
+ src/cmd/internal/obj/objfile.go     |  96 +++++++
+ src/cmd/internal/obj/ppc64/9.out.go | 102 +++++---
+ src/cmd/internal/obj/ppc64/asm9.go  |   1 +
+ src/cmd/internal/obj/x86/6.out.go   |  61 ++++-
+ src/cmd/internal/obj/x86/asm6.go    |  64 +++--
+ 36 files changed, 1271 insertions(+), 931 deletions(-)

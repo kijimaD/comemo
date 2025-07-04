@@ -1,0 +1,21 @@
+commit 78c46581f4da82473f3efcbbe1f3b48625f88471
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 15 00:34:35 2016 -0700
+
+    cmd/compile: deduplicate appendpp functions
+    
+    Change-Id: Ifa7a882b020f7b0c9602c28c3e5567e5d4c39e73
+    Reviewed-on: https://go-review.googlesource.com/29216
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/compile/internal/amd64/ggen.go  | 48 +++++++++++----------------------
+ src/cmd/compile/internal/arm/ggen.go    | 34 +++++++----------------
+ src/cmd/compile/internal/arm64/ggen.go  | 40 +++++++++------------------
+ src/cmd/compile/internal/gc/gsubr.go    | 16 +++++++++++
+ src/cmd/compile/internal/mips64/ggen.go | 32 ++++++----------------
+ src/cmd/compile/internal/ppc64/ggen.go  | 36 +++++++------------------
+ src/cmd/compile/internal/s390x/ggen.go  | 32 ++++++----------------
+ src/cmd/compile/internal/x86/ggen.go    | 32 ++++++----------------
+ 8 files changed, 87 insertions(+), 183 deletions(-)

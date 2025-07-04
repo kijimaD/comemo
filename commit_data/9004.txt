@@ -1,0 +1,16 @@
+commit 3c6a7b3fc50a391f939308b522ac79e6ac79990b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 11 15:40:41 2011 +1000
+
+    go/build: use os.MkdirAll to create directories
+    
+    Replaces "mkdir -p ..." command, as Windows mkdir command
+    does not support -p flag. Also, is simpler and faster then
+    launching new process.
+    
+    R=golang-dev, mattn.jp, adg, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4626087
+
+ src/pkg/go/build/build.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

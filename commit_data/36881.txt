@@ -1,0 +1,21 @@
+commit 430b9cb92f1291f2bef3c99d21925b3204cead90
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Oct 5 18:22:06 2018 +0000
+
+    runtime: revert "skip TestLldbPython when lldb is too old"
+    
+    This reverts commit d2170040617231a26ab0722d093ecb19e2ba8302.
+    
+    Reason for revert: It broke all the darwin builders; it's also not
+    obvious how the weird darwin versions (900, 1000) relate to the > 3.9
+    requisite, so I'm not sure how to decide about skipping in a robust
+    way. It's better to revert the check for now.
+    
+    Fixes #28028
+    
+    Change-Id: Ibbcb7bf7cd2136e0851ebd097a2bc4dec9f0ee18
+    Reviewed-on: https://go-review.googlesource.com/c/140217
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/runtime-lldb_test.go | 23 -----------------------
+ 1 file changed, 23 deletions(-)

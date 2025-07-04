@@ -1,0 +1,21 @@
+commit 0509727b0d8c4175f3d8957b2066916e889da383
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 15:57:47 2011 -0500
+
+    build: fixes for Windows
+    
+    * work around a linker/cgo bug
+    * do not run deps.bash on Windows unless we need it
+      (cuts a full minute off the build time)
+    * add windows to the list of cgo-enabled targets
+    
+    The gopack problem is issue 2601.
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5504062
+
+ src/cmd/go/build.go     | 18 +++++++++++++++---
+ src/make.bash           |  1 +
+ src/pkg/go/build/dir.go |  2 ++
+ 3 files changed, 18 insertions(+), 3 deletions(-)

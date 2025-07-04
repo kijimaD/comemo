@@ -1,0 +1,14 @@
+commit deaf0333df5209985fc508c0e83cac789d780309
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 27 23:09:16 2015 -0700
+
+    runtime: fix definitions of getpid and kill on Solaris
+    
+    A further attempt to fix raiseproc on Solaris.
+    
+    Change-Id: I8d8000d6ccd0cd9f029ebe1f211b76ecee230cd0
+    Reviewed-on: https://go-review.googlesource.com/12771
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os3_solaris.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,32 @@
+commit 5af3658eaa4b6bb9e66fcb4ac426207359628477
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 4 08:47:25 2025 -0800
+
+    go/types, types2: use errorCause instead of reportf in comparableType
+    
+    If the error cause is not further specified (empty string),
+    avoid allocating a new errorCause. This makes using errorCauses
+    as boolean signals efficient.
+    
+    While at it, fix an error message for incomparable arrays:
+    report the array type rather than its underlying type.
+    
+    Change-Id: I844b18a76695330ca726932ee760aa89635f6a38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go         |  6 +--
+ src/cmd/compile/internal/types2/instantiate.go  |  4 +-
+ src/cmd/compile/internal/types2/predicates.go   | 59 +++++++++++++------------
+ src/cmd/compile/internal/types2/typeset.go      |  4 +-
+ src/cmd/compile/internal/types2/under.go        |  5 +++
+ src/go/types/expr.go                            |  6 +--
+ src/go/types/instantiate.go                     |  4 +-
+ src/go/types/predicates.go                      | 59 +++++++++++++------------
+ src/go/types/typeset.go                         |  4 +-
+ src/go/types/under.go                           |  5 +++
+ src/internal/types/testdata/spec/comparisons.go |  2 +-
+ 11 files changed, 81 insertions(+), 77 deletions(-)

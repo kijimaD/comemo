@@ -1,0 +1,22 @@
+commit 463009ff06c246afa7a7d0999c198fc5a3808294
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 19 18:11:16 2012 -0500
+
+    5a, 5c, 5g, 5l: fix build for Linux/ARM.
+    ARM doesn't have the concept of scale, so I renamed the field
+    Addr.scale to Addr.flag to better reflect its true meaning.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5687044
+
+ src/cmd/5a/lex.c   | 1 +
+ src/cmd/5c/swt.c   | 7 ++++---
+ src/cmd/5g/gg.h    | 1 +
+ src/cmd/5g/gobj.c  | 1 +
+ src/cmd/5g/gsubr.c | 5 +++--
+ src/cmd/5l/asm.c   | 2 ++
+ src/cmd/5l/l.h     | 1 +
+ src/cmd/5l/obj.c   | 5 +++--
+ src/libmach/5obj.c | 2 +-
+ 9 files changed, 17 insertions(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit 6a29806e018acc3bf0c17c9d6b946b9ba8edeb4d
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 8 09:41:39 2017 -0800
+
+    crypto/x509: sort the list of fields used by CreateCertificateRequest.
+    
+    Change-Id: I67589cb9e728e6c7df5ef6e981189193154338d3
+    Reviewed-on: https://go-review.googlesource.com/36559
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/x509/x509.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

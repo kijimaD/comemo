@@ -1,0 +1,30 @@
+commit 7e0d66020c49ef56158346ce18dc3f538393829e
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Apr 4 18:22:29 2016 +0200
+
+    testing: improve output
+    
+    This introduces a few changes
+    - Skipped benchmarks now print a SKIP line, also if there was
+    no output
+    - The benchmark name is only printed if there the benchmark
+    was not skipped or did not fail in the probe phase.
+    
+    It also fixes a bug of doubling a skip message in chatty mode in
+    absense of a failure.
+    
+    The chatty flag is now passed in the common struct to allow
+    for testing of the printed messages.
+    
+    Fixes #14799
+    
+    Change-Id: Ia8eb140c2e5bb467e66b8ef20a2f98f5d95415d5
+    Reviewed-on: https://go-review.googlesource.com/21504
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/benchmark.go |  45 ++++++++++++++++---
+ src/testing/sub_test.go  | 110 ++++++++++++++++++++++++++++++++++++++++++++++-
+ src/testing/testing.go   |  16 ++++---
+ 3 files changed, 158 insertions(+), 13 deletions(-)

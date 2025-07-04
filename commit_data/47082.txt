@@ -1,0 +1,22 @@
+commit a3bb28e5ffee83c30a2c65963ef032cc2ab73a3c
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Tue Oct 19 18:59:34 2021 +0300
+
+    cmd/compile: allow inlining of ORANGE
+    
+    Updates #14768
+    
+    Change-Id: I33831f616eae5eeb099033e2b9cf90fa70d6ca86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356869
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/inline/inl.go |  3 +--
+ test/fixedbugs/issue49100b.go          | 27 +++++++++++++++++++++++++++
+ test/fixedbugs/issue49100b.out         |  6 ++++++
+ test/inline.go                         | 13 +++++++++++++
+ test/linkname.dir/linkname1.go         |  2 +-
+ 5 files changed, 48 insertions(+), 3 deletions(-)

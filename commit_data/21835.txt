@@ -1,0 +1,16 @@
+commit b38fa898c682d6d3f709e4a84710938de5b29d2d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 1 20:03:49 2015 -0500
+
+    cmd/go: force default env vars onto tool subprocesses
+    
+    This avoids needing every invoked tool to have an identical
+    computation of the build defaults as the go command does.
+    It makes sure the tools all know what the go command wants.
+    
+    Change-Id: I484f15982bfb93c86cde8fc9df7f456505270b87
+    Reviewed-on: https://go-review.googlesource.com/6409
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/main.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,14 @@
+commit 6383896feeafde38c50aa04fc87afc7faf8225c6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 23 13:13:43 2013 +0900
+
+    net: update doc on socket
+    
+    Also makes variable names a bit cleaner.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/12808047
+
+ src/pkg/net/sock_posix.go | 45 ++++++++++++++++++++++++++-------------------
+ 1 file changed, 26 insertions(+), 19 deletions(-)

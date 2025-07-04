@@ -1,0 +1,14 @@
+commit 34050ca8de7c6ef84fc1f829a3bb7a473723429c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 26 22:16:06 2009 -0700
+
+    - adjustments to match slightly changed scanner interface
+    - more comments on parser, various cleanups
+    
+    TBR=r
+    OCL=26813
+    CL=26813
+
+ usr/gri/pretty/compilation.go |    2 +-
+ usr/gri/pretty/parser.go      | 1373 +++++++++++++++++++++--------------------
+ 2 files changed, 689 insertions(+), 686 deletions(-)

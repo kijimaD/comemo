@@ -1,0 +1,16 @@
+commit fef54b22f8ee7a57a5ba04a6a02244a10f90e904
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 17:59:30 2014 -0400
+
+    cmd/go: revise disallowInternal
+    
+    This fixes two problems: x/internal/y/z was using parent = x/internal/y instead of x,
+    and hasPathPrefix only looks at /, not \ for Windows.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/121280045
+
+ src/cmd/go/pkg.go | 35 ++++++++++++++++++++++++++++-------
+ 1 file changed, 28 insertions(+), 7 deletions(-)

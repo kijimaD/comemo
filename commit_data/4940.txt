@@ -1,0 +1,26 @@
+commit ef0be41e20c2c728e640fe33090f08d5349c5a5e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 24 16:17:11 2010 -0800
+
+    go/ast: streamline representation of field lists
+    - always include position information about opening/closing parens/braces
+    - replace uses of []*ast.Field with *ast.FieldList
+    
+    Fixes #473.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/223043
+
+ src/cmd/cgo/ast.go                          | 12 ++++---
+ src/cmd/cgo/gcc.go                          |  6 ++--
+ src/pkg/exp/eval/typec.go                   | 56 ++++++++++++-----------------
+ src/pkg/go/ast/ast.go                       | 48 +++++++++++++++++--------
+ src/pkg/go/ast/filter.go                    | 19 ++++++----
+ src/pkg/go/ast/walk.go                      | 14 ++++----
+ src/pkg/go/doc/doc.go                       |  8 ++---
+ src/pkg/go/parser/parser.go                 | 46 ++++++++++++------------
+ src/pkg/go/printer/nodes.go                 | 41 +++++++++++----------
+ src/pkg/go/printer/testdata/comments.golden |  8 +++++
+ src/pkg/go/printer/testdata/comments.input  |  8 +++++
+ 11 files changed, 151 insertions(+), 115 deletions(-)

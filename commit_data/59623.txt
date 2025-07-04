@@ -1,0 +1,66 @@
+commit e6dacf91ffb0a356aa692ab5c46411e2eef913f3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon May 5 13:44:26 2025 -0400
+
+    runtime: use cgroup CPU limit to set GOMAXPROCS
+    
+    This CL adds two related features enabled by default via compatibility
+    GODEBUGs containermaxprocs and updatemaxprocs.
+    
+    On Linux, containermaxprocs makes the Go runtime consider cgroup CPU
+    bandwidth limits (quota/period) when setting GOMAXPROCS. If the cgroup
+    limit is lower than the number of logical CPUs available, then the
+    cgroup limit takes precedence.
+    
+    On all OSes, updatemaxprocs makes the Go runtime periodically
+    recalculate the default GOMAXPROCS value and update GOMAXPROCS if it has
+    changed. If GOMAXPROCS is set manually, this update does not occur. This
+    is intended primarily to detect changes to cgroup limits, but it applies
+    on all OSes because the CPU affinity mask can change as well.
+    
+    The runtime only considers the limit in the leaf cgroup (the one that
+    actually contains the process), caching the CPU limit file
+    descriptor(s), which are periodically reread for updates. This is a
+    small departure from the original proposed design. It will not consider
+    limits of parent cgroups (which may be lower than the leaf), and it will
+    not detection cgroup migration after process start.
+    
+    We can consider changing this in the future, but the simpler approach is
+    less invasive; less risk to packages that have some awareness of runtime
+    internals. e.g., if the runtime periodically opens new files during
+    execution, file descriptor leak detection is difficult to implement in a
+    stable way.
+    
+    For #73193.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I6a6a636c631c1ae577fb8254960377ba91c5dc98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670497
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ api/next/73193.txt                                 |   1 +
+ doc/godebug.md                                     |  11 +
+ doc/next/4-runtime.md                              |  25 ++
+ doc/next/6-stdlib/99-minor/runtime/73193.md        |   5 +
+ src/go/build/deps_test.go                          |   2 +
+ src/internal/cgrouptest/cgrouptest_linux.go        | 206 +++++++++++++
+ src/internal/cgrouptest/cgrouptest_linux_test.go   |  19 ++
+ src/internal/coverage/pkid.go                      |  23 +-
+ src/internal/godebugs/table.go                     |   2 +
+ src/runtime/cgroup_linux.go                        | 119 ++++++++
+ src/runtime/cgroup_linux_test.go                   | 325 +++++++++++++++++++++
+ src/runtime/cgroup_stubs.go                        |  24 ++
+ src/runtime/debug.go                               |  68 ++++-
+ src/runtime/float.go                               |  79 +++++
+ src/runtime/gomaxprocs_windows_test.go             |  44 +++
+ src/runtime/lockrank.go                            |  55 ++--
+ src/runtime/metrics/doc.go                         |   9 +
+ src/runtime/mklockrank.go                          |   3 +-
+ src/runtime/proc.go                                | 113 ++++++-
+ src/runtime/runtime.go                             |   1 +
+ src/runtime/runtime1.go                            |   4 +
+ src/runtime/runtime2.go                            |  17 +-
+ src/runtime/testdata/testprog/gomaxprocs.go        | 152 ++++++++++
+ .../testdata/testprog/gomaxprocs_windows.go        |  63 ++++
+ 24 files changed, 1327 insertions(+), 43 deletions(-)

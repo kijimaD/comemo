@@ -1,0 +1,19 @@
+commit bd3bb5adf9b68483e904d6e3076190a4fa28ffec
+Author: Tim King <taking@google.com>
+Date:   Thu Aug 22 13:38:25 2024 -0700
+
+    go/internal/gcimporter: parse materialized aliases
+    
+    Parse materialized aliases in indexed format.
+    
+    This was in https://go.dev/cl/574717 in x/tools.
+    
+    Updates #68778
+    
+    Change-Id: I2f0871aeb5a2e74c803176001f178757766a4a0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607498
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/internal/gcimporter/iimport.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

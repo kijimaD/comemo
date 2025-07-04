@@ -1,0 +1,16 @@
+commit 019421d17fedd4af924dee6b969f2945d64a9eea
+Author: Harmen <alicebob@lijzij.de>
+Date:   Wed Mar 18 17:52:57 2020 +0000
+
+    database/sql: fix variable name in example
+    
+    It's a very minor error, but it's a bad copy/paste example.
+    
+    Change-Id: Ia6a723c31f2205c933857ce2cf715bddf773ebb6
+    GitHub-Last-Rev: 7f14b1a5c1ea3775aa2009184b0b1790e03225eb
+    GitHub-Pull-Request: golang/go#37932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223960
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ src/database/sql/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

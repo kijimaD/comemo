@@ -1,0 +1,21 @@
+commit ccd28e8eb6f81f21093deb730ea70982cb381514
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Mon Jul 12 16:37:53 2010 -0700
+
+    crypto/rand for Windows
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/1773041
+
+ src/pkg/crypto/rand/Makefile            |  17 +++++
+ src/pkg/crypto/rand/rand.go             | 113 +----------------------------
+ src/pkg/crypto/rand/rand_unix.go        | 124 ++++++++++++++++++++++++++++++++
+ src/pkg/crypto/rand/rand_windows.go     |  42 +++++++++++
+ src/pkg/crypto/rsa/pkcs1v15_test.go     |  18 ++---
+ src/pkg/crypto/rsa/rsa_test.go          |  18 ++---
+ src/pkg/crypto/x509/x509_test.go        |   9 +--
+ src/pkg/syscall/syscall_windows.go      |   3 +
+ src/pkg/syscall/zsyscall_windows_386.go |  37 ++++++++++
+ src/pkg/syscall/ztypes_windows_386.go   |  28 ++++++++
+ 10 files changed, 268 insertions(+), 141 deletions(-)

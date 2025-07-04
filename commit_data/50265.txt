@@ -1,0 +1,19 @@
+commit 8e35910640bd190103d99d994d54b738e619c858
+Author: Jonathan FOng <jonathanfong098@gmail.com>
+Date:   Fri Aug 26 12:10:32 2022 -0700
+
+    math/rand: document that Source returned by NewSource implements Source64
+    
+    Fixes #44488
+    
+    Change-Id: I570950799788678b9dc6e9ddad894973b4611e09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425974
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/math/rand/rand.go | 5 +++++
+ 1 file changed, 5 insertions(+)

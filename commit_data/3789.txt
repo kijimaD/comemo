@@ -1,0 +1,19 @@
+commit 1fede304ff60d6d987a6249cd61d1e13a7ae2054
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 22:07:13 2009 -0800
+
+    more comment formatting:
+    - preserve (some) indentation of comment text for /*-style comments
+      even if the first comment line does not contain any text that might
+      suggest the "correct" indentation
+    - enabled because otherwise existing larger comments get re-formatted
+      (this will not introduce a lot of changes since comments of this
+      kind - until now - were not changed with respect to indentation)
+    
+    R=rsc
+    http://go/go-review/1016047
+
+ src/pkg/go/printer/printer.go               | 56 +++++++++++++++--------
+ src/pkg/go/printer/testdata/comments.golden | 69 ++++++++++++++++++++++++++---
+ src/pkg/go/printer/testdata/comments.input  | 59 ++++++++++++++++++++++++
+ 3 files changed, 160 insertions(+), 24 deletions(-)

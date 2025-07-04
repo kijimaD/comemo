@@ -1,0 +1,24 @@
+commit 1b7fefc91f7779c886a307c809144b57d84ed35e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jan 28 14:37:58 2020 -0800
+
+    doc/go1.14: add crypto/tls release notes
+    
+    A few minor changes that didn't feel worth mentioning:
+    
+    * CL 205059: support leaving Certificates/GetCertificate nil if
+      GetConfigForClient is set
+    * CL 205059: send the unrecognized_name alert when there are no
+      available certificates
+    * CL 205068: add correct names for CHACHA20_POLY1305 ciphersuite constants
+    * CL 204046: fix CreateCRL for Ed25519 CAs
+    * CL 205058: add CertificateRequestInfo.Version
+    
+    Change-Id: Ie820fb0c6842e669edde031132c7cda5b09e7682
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216759
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 56 +++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 49 insertions(+), 7 deletions(-)

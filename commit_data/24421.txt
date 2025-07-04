@@ -1,0 +1,16 @@
+commit f35310edff6a16fd247fab47cc4e37874a668c5d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 1 15:40:55 2015 -0700
+
+    syscall: skip a couple tests when running under Kubernetes
+    
+    Update #12815
+    
+    Change-Id: I3bf6de74bc8ab07000fe9a4308299839ef20632f
+    Reviewed-on: https://go-review.googlesource.com/15283
+    Reviewed-by: Evan Brown <evanbrown@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

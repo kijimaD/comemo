@@ -1,0 +1,16 @@
+commit 90ffb7c806c049ececeb2c6ce7fa0dbb056ae4ca
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 24 14:39:03 2015 +1100
+
+    doc: add Code of Conduct
+    
+    Fixes #13073
+    
+    Change-Id: I4fd9c6c61f1b9d49f66816839ca35209b4147ae3
+    Reviewed-on: https://go-review.googlesource.com/17167
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/conduct.html | 273 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/contrib.html |   8 +-
+ doc/help.html    |   6 ++
+ 3 files changed, 286 insertions(+), 1 deletion(-)

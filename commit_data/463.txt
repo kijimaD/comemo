@@ -1,0 +1,15 @@
+commit defecbd7a956a26daf854a9ae37197c019beb868
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 1 15:22:41 2008 -0700
+
+    bug: non-exported type is accessible in client
+    
+    R=r
+    OCL=13736
+    CL=13738
+
+ test/bugs/bug083.dir/bug0.go | 11 +++++++++++
+ test/bugs/bug083.dir/bug1.go |  9 +++++++++
+ test/bugs/bug083.go          |  6 ++++++
+ test/golden.out              |  2 ++
+ 4 files changed, 28 insertions(+)

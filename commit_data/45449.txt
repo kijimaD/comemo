@@ -1,0 +1,19 @@
+commit 06ac303f6a14b133254f757e54599c48e3c2a4ad
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 9 16:55:15 2021 -0600
+
+    cmd/internal/obj/ppc64: simplify got/toc address classification
+    
+    These generate similar machine code sequences to
+    other symbol accesses, therefore we should merge them.
+    
+    Change-Id: Id8ead284d430fadd2e58bad255deb465498dfade
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314109
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/internal/obj/ppc64/a.out.go   |  2 -
+ src/cmd/internal/obj/ppc64/anames9.go |  2 -
+ src/cmd/internal/obj/ppc64/asm9.go    | 92 +++++++++++++----------------------
+ 3 files changed, 33 insertions(+), 63 deletions(-)

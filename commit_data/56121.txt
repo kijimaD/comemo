@@ -1,0 +1,33 @@
+commit 61a3ee54411086d4bf996b65dd3bc2b7432f9b51
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Mar 27 09:40:24 2024 -0400
+
+    go/types: ObjectString: remove only 1 Alias for "type A = RHS"
+    
+    As we migrate towards materialized Alias types, the ObjectString
+    for a type A such as
+       type A = B
+       type B = int
+    should be "type A = B", removing exactly one Alias constructor
+    from the type of A. (The previous behavior was "type A = int".)
+    
+    I suspect the existing Alias.{Unalias,Underlying} API is
+    inadequate and that we will need an Alias.RHS accessor that
+    removes exactly one Alias. Other clients such as the import/
+    export packages will need it, because aliases are not
+    isomorphic to defined types, in which, given
+       type A B
+       type B int
+    the Underlying of A is indeed int. See #66559.
+    
+    Change-Id: I11a4aacbe6dbeeafc3aee31b3c096296b5970cd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574716
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/object.go      |   4 +
+ src/cmd/compile/internal/types2/object_test.go | 100 +++++++++++++------------
+ src/go/types/object.go                         |   4 +
+ src/go/types/object_test.go                    | 100 +++++++++++++------------
+ 4 files changed, 112 insertions(+), 96 deletions(-)

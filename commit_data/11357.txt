@@ -1,0 +1,12 @@
+commit fce2416b135b47119ceb9171aa5ddc3326346206
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 24 11:24:55 2012 -0800
+
+    go/build: typo
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5575049
+
+ src/pkg/go/build/dir.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 649294d0a5a647517eba7f91afef2e635b92a0da
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Jan 3 10:00:49 2019 -0700
+
+    math: fix ternary correction statement in Log1p
+    
+    The original port of Log1p incorrectly translated a ternary statement
+    so that a correction was only applied to one of the branches.
+    
+    Fixes #29488
+    
+    Change-Id: I035b2fc741f76fe7c0154c63da6e298b575e08a4
+    Reviewed-on: https://go-review.googlesource.com/c/156120
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/all_test.go | 2 ++
+ src/math/log1p.go    | 5 +++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

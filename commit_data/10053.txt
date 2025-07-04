@@ -1,0 +1,12 @@
+commit cf0952d352d3f56b9c5a7b4637805051e3814057
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 19 08:45:38 2011 -0700
+
+    syscall: update ztypes_linux_386 for terminal changes
+    
+    R=golang-dev, dave, iant
+    CC=golang-dev
+    https://golang.org/cl/5299045
+
+ src/pkg/syscall/ztypes_linux_386.go | 111 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 111 insertions(+)

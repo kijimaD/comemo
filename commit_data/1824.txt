@@ -1,0 +1,13 @@
+commit f8ba0f45118ebaafca0abab8e9d4211bdf2d4139
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 12 19:04:56 2009 -0700
+
+    mem.html: nit
+    go_spec.html: document const type propagation
+    
+    R=ken
+    OCL=26223
+    CL=26225
+
+ doc/go_spec.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit d865b5caa6bedfe90ce9335af518d17f8107fb91
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jun 18 10:26:46 2019 +0200
+
+    syscall: enable ReadDirent tests on aix, linux and solaris
+    
+    Change-Id: I13fd6bad4600ef909b13ac517ba6a06909b5c703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182379
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/{dirent_bsd_test.go => dirent_test.go} | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 6cd74b03f38de40d84d1d9efe8663714ccfaaee5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 5 11:25:30 2008 -0800
+
+    Don't use a named pointer type as a receiver type.  The
+    current spec forbids it:
+        The type specified by the type name is called ``receiver
+        base type''.  The receiver base type must be a type
+        declared in the current file, and it must not be a pointer
+        type.
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=18527
+    CL=18541
+
+ test/chan/powser1.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

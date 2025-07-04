@@ -1,0 +1,25 @@
+commit 5929ead6fbdec684c38157d45715c46107fa6ada
+Author: Nikhil Benesch <nikhil.benesch@gmail.com>
+Date:   Sat Mar 24 18:51:01 2018 -0400
+
+    runtime: support capturing C backtrace from signal handler on darwin/amd64
+    
+    The implementation is mostly copied from the commit that added
+    linux/amd64 support for this feature (https://golang.org/cl/17761).
+    
+    Change-Id: I3f482167620a7a3daf50a48087f8849a30d713bd
+    Reviewed-on: https://go-review.googlesource.com/102438
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo/callbacks_traceback.go |  2 +-
+ src/runtime/cgo/gcc_traceback.c        | 11 +----
+ src/runtime/cgo/libcgo.h               | 10 +++++
+ src/runtime/crash_cgo_test.go          |  8 +++-
+ src/runtime/os_darwin.go               |  7 +++-
+ src/runtime/sys_darwin_386.s           |  3 ++
+ src/runtime/sys_darwin_amd64.s         | 76 ++++++++++++++++++++++++++++++++++
+ src/runtime/sys_darwin_arm.s           |  3 ++
+ src/runtime/sys_darwin_arm64.s         |  3 ++
+ 9 files changed, 110 insertions(+), 13 deletions(-)

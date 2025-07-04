@@ -1,0 +1,21 @@
+commit 7e88826a69366bbcb64f2f89dbe02c57f7ebf678
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Mar 27 19:44:06 2016 -0700
+
+    cmd/compile: clear OTFUNC info when converting to OTYPE
+    
+    I want to get rid of OTFUNC, which serves no useful purpose.  However,
+    it turns out that the escape analysis pass looks at the node slices set
+    up for OTFUNC, even though by the time escape analysis runs the OTFUNC
+    has been converted to OTYPE.  This CL converts the escape analysis code
+    to look at the function decls instead, and clears the OTFUNC info when
+    converting to OTYPE to ensure that nothing else looks at it.
+    
+    Change-Id: I3f2f5997ea8ea7a127a858e94b20aabfab84a5bf
+    Reviewed-on: https://go-review.googlesource.com/21202
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go       | 69 +++++++++++++++++---------------
+ src/cmd/compile/internal/gc/typecheck.go |  3 ++
+ 2 files changed, 39 insertions(+), 33 deletions(-)

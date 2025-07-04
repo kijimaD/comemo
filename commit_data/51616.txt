@@ -1,0 +1,18 @@
+commit 145dd38471fe5e14b8a77f5f466b70ab49c9a62b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 14 14:44:21 2023 -0500
+
+    archive/tar, archive/zip: document ErrInsecurePath and GODEBUG setting
+    
+    These are mentioned in the release notes but not the actual doc comments.
+    Nothing should exist only in release notes.
+    
+    Change-Id: I8d10f25a2c9b2677231929ba3f393af9034b777b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462195
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/archive/tar/reader.go | 8 +++++++-
+ src/archive/zip/reader.go | 8 ++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

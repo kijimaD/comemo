@@ -1,0 +1,26 @@
+commit d107aa2cd1fdc596b9275a127e6c35cc5f8d32bb
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 15 13:04:54 2021 -0800
+
+    cmd/compile: upgrade ssa to do (int or float) -> complex
+    
+    Generic instantiations can produce conversions from constant
+    literal ints or floats to complex values. We could constant literals
+    during instantiation, but it is just as easy to upgrade the code
+    generator to do the conversions.
+    
+    Fixes #50193
+    
+    Change-Id: I24bdc09226c8e868f6282e0e4057ba6c3ad5c41a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372514
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 57 +++++++++++++++++++---------------
+ test/typeparam/issue50193.go           | 32 +++++++++++++++++++
+ test/typeparam/issue50193.out          |  6 ++++
+ 3 files changed, 70 insertions(+), 25 deletions(-)

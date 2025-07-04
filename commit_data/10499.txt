@@ -1,0 +1,14 @@
+commit d1324d8a7a2a74b9eed8d62a28445db1bbdb90a9
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 24 08:51:47 2011 -0800
+
+    effective_go: remove unused variable from a couple of examples
+    Fixes #2481.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5435068
+
+ doc/effective_go.html | 4 ++--
+ doc/effective_go.tmpl | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

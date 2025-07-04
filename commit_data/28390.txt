@@ -1,0 +1,23 @@
+commit 896ac677b5e3e80278cc1ce179d8a077ac3a6d2f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 14:51:41 2016 -0700
+
+    cmd/go: make bug subcommand open the browser
+    
+    Instead of dumping information for the use
+    to copy/paste into the issue tracker,
+    open the issue tracker directly with a pre-filled
+    template.
+    
+    Change-Id: I370d0063b609200497014ccda35244fa4314a662
+    Reviewed-on: https://go-review.googlesource.com/29210
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/bootstrap.go |  3 +++
+ src/cmd/go/bug.go       | 69 ++++++++++++++++++++++++++++++++++---------------
+ src/cmd/go/http.go      |  4 +++
+ 3 files changed, 55 insertions(+), 21 deletions(-)

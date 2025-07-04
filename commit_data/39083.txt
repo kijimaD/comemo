@@ -1,0 +1,16 @@
+commit fb63ed2babb535b19ae1755742e672ef17e57262
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed May 8 23:45:06 2019 +0200
+
+    misc/android: silence adb output unless an error occurs
+    
+    Fixes #31917
+    
+    Change-Id: I794e457b2245d355e2df5077078c67aa09e00ff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175920
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/android/go_android_exec.go | 53 +++++++++++++++++++++++++----------------
+ 1 file changed, 32 insertions(+), 21 deletions(-)

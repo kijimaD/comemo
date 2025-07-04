@@ -1,0 +1,14 @@
+commit 9088f9f245e432f9f87ae8cfe46b9d36dbcf1a2e
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 6 10:45:18 2010 -0700
+
+    gob: add test for indirect maps, slices, arrays.
+    fix a bug in the handling of indirect maps.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1132042
+
+ src/pkg/gob/codec_test.go | 67 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/decode.go     |  3 ---
+ 2 files changed, 67 insertions(+), 3 deletions(-)

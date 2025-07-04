@@ -1,0 +1,16 @@
+commit 47150aafbfaadf1f193b8840df02f388998e83ab
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 19 10:15:58 2019 -0400
+
+    cmd/go/internal/modfetch: comment on known bug in isVendoredPackage
+    
+    Fixes #31562
+    
+    Change-Id: Ida30dd8071eccb6b490ab89a1de087038fe26796
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172977
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

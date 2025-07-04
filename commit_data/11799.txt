@@ -1,0 +1,14 @@
+commit a7b83f2287bc650e8479445bbe5008e9ccec12ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 11 00:04:37 2012 -0500
+
+    5g: fix out of registers bug
+    
+    Same fix as 6g, tripped by the 6g test case.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5651074
+
+ src/cmd/5g/cgen.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

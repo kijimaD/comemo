@@ -1,0 +1,21 @@
+commit ebd0b778c92c4dfc71195ef83d71116957e173ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 26 13:27:12 2021 -0800
+
+    go/types: better error message for missing ~ in constraint
+    
+    This is a port of CL 366758 from types2 to go/types.
+    
+    For #49179.
+    
+    Change-Id: I7e1c6ffb392d5c535cf901004b7acbe8c3be9b0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367199
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/instantiate.go                    | 25 ++++++++++++++++++++++---
+ src/go/types/testdata/fixedbugs/issue49179.go2 | 20 +++++++++++++++++++-
+ src/go/types/typeset.go                        |  2 ++
+ 3 files changed, 43 insertions(+), 4 deletions(-)

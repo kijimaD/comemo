@@ -1,0 +1,23 @@
+commit 691f5b8e74e7a2d11740f54a4a6827ff7ec9f661
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 28 11:49:37 2024 -0800
+
+    go/types: generate typeset.go from types2 source
+    
+    To simplify the translation, use extra atPos calls where needed
+    in the respective types2 source.
+    
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 420 LOC.
+    
+    Change-Id: I839844a6e85ccb1111d76c43de23127d8f9fbbce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567776
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/typeset.go | 24 ++++++++++++++----------
+ src/go/types/generate_test.go              |  1 +
+ src/go/types/typeset.go                    | 14 ++++++++++----
+ 3 files changed, 25 insertions(+), 14 deletions(-)

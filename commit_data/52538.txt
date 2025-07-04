@@ -1,0 +1,20 @@
+commit 96e8e62821ddb862e947fc9a1609e8e5b713cf14
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 11 22:16:20 2022 +0000
+
+    runtime: initialize the memory limit in mallocinit
+    
+    Currently the memory limit is left uninitialized before gcinit, and
+    allocations may happen. The result is that the span allocation path
+    might try to scavenge memory unnecessarily. Prevent this by setting the
+    memory limit up early to its default value.
+    
+    Change-Id: I886d9a8fa645861e4f88e0d54af793418426f520
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450736
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/malloc.go | 3 +++
+ 1 file changed, 3 insertions(+)

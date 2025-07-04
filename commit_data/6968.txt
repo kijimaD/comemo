@@ -1,0 +1,15 @@
+commit 2f8ff0b81d38d2039c1827fd8b0744ff70c09497
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Wed Dec 15 11:49:43 2010 -0500
+
+    codereview: keep quiet when not in use
+    
+    This prevents status messages from filling the
+    screen when using a command like 'hg log | less'.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3666042
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

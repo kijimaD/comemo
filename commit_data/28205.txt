@@ -1,0 +1,19 @@
+commit 269ff8e6030cacd3a8ef5804f39c50566ce6f57e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 5 20:16:16 2016 +0000
+
+    io: make MultiReader nil exhausted Readers for earlier GC
+    
+    No test because the language spec makes no promises in this area.
+    
+    Fixes #16983
+    
+    Change-Id: I1a6aa7ff87dd14aa27e8400040a6f6fc908aa1fd
+    Reviewed-on: https://go-review.googlesource.com/28533
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/io/multi.go | 1 +
+ 1 file changed, 1 insertion(+)

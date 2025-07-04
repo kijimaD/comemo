@@ -1,0 +1,17 @@
+commit a15aa05ae2f7b39c28581be4563879381a6fcd2a
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Oct 19 19:59:39 2009 -0700
+
+    first version of closures. test/closure doesn't yet pass.
+    
+    go/test: passes 87% (300/343)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=125  (125 added, 0 deleted, 0 changed)
+    OCL=35893
+    CL=35900
+
+ src/pkg/runtime/arm/closure.c | 122 ++++++++++++++++++++++++++++++++++++++++++
+ test/arm-pass.txt             |   3 ++
+ 2 files changed, 125 insertions(+)

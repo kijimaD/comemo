@@ -1,0 +1,12 @@
+commit 119324d785ea091050adc2aa56a0a601ad59e204
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 17 14:26:01 2008 -0700
+
+    - updated printing of chan types
+    
+    R=r
+    OCL=15448
+    CL=15448
+
+ usr/gri/gosrc/printer.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

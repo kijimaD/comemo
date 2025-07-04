@@ -1,0 +1,12 @@
+commit 70bf4215e9d9e6e4693e61657daaa52e6c4c3894
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 7 19:41:55 2011 -0700
+
+    scanner: better TokenString output
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4373048
+
+ src/pkg/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

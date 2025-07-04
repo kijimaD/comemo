@@ -1,0 +1,14 @@
+commit 24cdb0f9657a6b69c823e6e9386d48e5ab6bd221
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Tue Feb 13 01:15:38 2018 +0000
+
+    doc: fix typo in OverflowInt godoc
+    
+    Change-Id: I426310e0c05c2b4a0123299ade0fe11721d40b10
+    GitHub-Last-Rev: 651c0291d6f2561e3e179a0b97e0e73ac6d21e2f
+    GitHub-Pull-Request: golang/go#23801
+    Reviewed-on: https://go-review.googlesource.com/93475
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit f3f507b2d86bfb38c7e466a465d5b6463cfd4184
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 21 15:17:35 2017 -0800
+
+    spec: provide some (minimal) intuition for the notion of "terminating statement"
+    
+    Fixes #23215.
+    
+    Change-Id: Ib20825bf08915b4daaabbfd91f168e24973c512d
+    Reviewed-on: https://go-review.googlesource.com/85215
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

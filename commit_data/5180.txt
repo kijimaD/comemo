@@ -1,0 +1,12 @@
+commit 6a71a4639efa9eb629919b3035f80fd131c76274
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 30 11:19:58 2010 -0700
+
+    godoc: don't print package clause in -src command-line mode with filtering
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/844041
+
+ src/cmd/godoc/main.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

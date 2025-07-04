@@ -1,0 +1,21 @@
+commit 5bb59b6d1645144dade71e8d19ccf39338788a0f
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Sep 9 07:22:14 2019 +0000
+
+    Revert "compile: prefer an AND instead of SHR+SHL instructions"
+    
+    This reverts commit 9ec7074a946b7c2812a1a044e84276a36f46d14d.
+    
+    Reason for revert: broke s390x (copysign, abs) and arm64 (bitfield) tests.
+    
+    Change-Id: I16c1b389c062e8c4aa5de079f1d46c9b25b0db52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193850
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   5 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 114 ++++++++++++++++++++++++-
+ test/codegen/math.go                           |   4 +-
+ 4 files changed, 123 insertions(+), 8 deletions(-)

@@ -1,0 +1,17 @@
+commit 1e26df40fa2ee41da971338ab25299e27a221704
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 11 13:31:05 2015 -0700
+
+    cmd/doc: print BUGs after package docs
+    
+    Was otherwise absent unless bound to an exported symbol,
+    as in the BUG with strings.Title.
+    
+    Fixes #10781.
+    
+    Change-Id: I1543137073a9dee9e546bc9d648ca54fc9632dde
+    Reviewed-on: https://go-review.googlesource.com/9899
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/doc/pkg.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,0 +1,25 @@
+commit 312bfc5d55994aaef5910716e096a675aa3bce39
+Author: Chris Marchesi <chrism@vancluevertech.com>
+Date:   Wed Mar 6 03:44:48 2019 +0000
+
+    net/http: add request file upload benchmarks
+    
+    This adds benchmarks to test file uploads using PUT requests.
+    
+    It's designed to complement changes https://golang.org/cl/163599 and
+    https://golang.org/cl/163737, allowing an easy comparison of
+    performance before and after these changes are applied.
+    
+    Updates #30377.
+    
+    Co-authored-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    
+    Change-Id: Ib8e692c61e1f7957d88c7101669d4f7fb8110c65
+    GitHub-Last-Rev: 242622b4fca9f289defa2f268efc31208743e5dd
+    GitHub-Pull-Request: golang/go#30424
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163862
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/request_test.go | 91 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)

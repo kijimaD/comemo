@@ -1,0 +1,20 @@
+commit 526de61c67add8400d73b28bbed3f3680586c472
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Sun May 8 11:04:34 2022 +0800
+
+    test: add test case for #51840
+    
+    This issue has been fixed in CL 403837.
+    
+    Fixes #51840.
+    
+    Change-Id: I282062bb06278696fe25e9ede333c64539dc964e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404914
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/typeparam/issue51840.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

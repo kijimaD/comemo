@@ -1,0 +1,15 @@
+commit b0a1b82ec133d08505d69a064b0dac0d807817e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 9 09:03:25 2013 -0400
+
+    cmd/go: cgo programs depend on syscall
+    
+    Fixes #5048.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12651044
+
+ src/cmd/go/pkg.go    | 32 +++++++++++++++++++++++++++-----
+ src/cmd/go/test.bash | 44 +++++++++++++++++++++++++++++---------------
+ 2 files changed, 56 insertions(+), 20 deletions(-)

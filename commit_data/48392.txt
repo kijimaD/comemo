@@ -1,0 +1,28 @@
+commit d34287a4f68de5b8a796ec50b8c6b0582a4afc40
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Jan 26 10:23:48 2022 +0800
+
+    cmd/link: default generic ABI compression for ELF
+    
+    This CL change all debug dwarf headers to generic ABI
+    "Compression header" for ELF
+    (http://www.sco.com/developers/gabi/latest/ch4.sheader.html#compression_header)
+    
+    Fixes #50796
+    
+    Change-Id: I188625e596f11cd120dbd802ac2d79341d5eaf41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380755
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: mzh <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/elf_test.go             |  3 +++
+ src/cmd/link/internal/ld/data.go     | 27 +++++++++++++++++++++++----
+ src/cmd/link/internal/ld/dwarf.go    | 11 +++++++++--
+ src/cmd/link/internal/ld/elf.go      |  3 +++
+ src/cmd/link/internal/ld/lib.go      |  2 +-
+ src/cmd/link/internal/sym/segment.go |  2 ++
+ src/debug/elf/file.go                | 34 ++++++++++++++++++++++++++++++----
+ 7 files changed, 71 insertions(+), 11 deletions(-)

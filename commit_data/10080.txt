@@ -1,0 +1,20 @@
+commit 18b025d530b2410c74c094c0e78671570c60b7bd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Oct 25 11:28:07 2011 +1100
+
+    html: remove the Tokenizer.ReturnComments option.
+    
+    The original intention was to simplify the parser, in making it skip
+    all comment tokens. However, checking that the Go html package is
+    100% compatible with the WebKit HTML test suite requires parsing the
+    comments. There is no longer any real benefit for the option.
+    
+    R=gri, andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5321043
+
+ src/pkg/html/doc.go        |  3 ---
+ src/pkg/html/parse.go      |  1 -
+ src/pkg/html/token.go      | 50 +++++++++++++++++++---------------------------
+ src/pkg/html/token_test.go |  1 -
+ 4 files changed, 21 insertions(+), 34 deletions(-)

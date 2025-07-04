@@ -1,0 +1,13 @@
+commit 163ecdac1a1e71ff99049a9df87f9356be918fac
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 16 12:31:18 2009 +1100
+
+    new semicolon rule in effective_go.html.
+    eliminate all tab characters while we're here.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/180055
+
+ doc/effective_go.html | 809 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 412 insertions(+), 397 deletions(-)

@@ -1,0 +1,13 @@
+commit 2d9fab905b6380507f92e5dbd9b95107a86130f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 11 11:50:56 2014 -0700
+
+    C: add Kay Zhu (Google CLA)
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/74110043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

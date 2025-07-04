@@ -1,0 +1,16 @@
+commit d3ff5090ddd22d2c8afe12aa07fa1fb0b61588c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 16:03:53 2018 -0400
+
+    cmd/compile: fix format error
+    
+    Found by pending CL to make cmd/vet auto-detect printf wrappers.
+    
+    Change-Id: I6b5ba8f9c301dd2d7086c152cf2e54a68b012208
+    Reviewed-on: https://go-review.googlesource.com/109345
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/iexport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

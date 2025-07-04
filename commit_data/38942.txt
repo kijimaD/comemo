@@ -1,0 +1,15 @@
+commit 76659e47971b594aa6855ef77e022420e070e5ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 29 05:38:25 2019 +0000
+
+    cmd/link/internal/s390x: fix s390x build
+    
+    Fix breakage from CL 173437
+    
+    Change-Id: If218ffaa1259fbdee641143ffbe4b38030c373b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174278
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/s390x/asm.go | 2 ++
+ 1 file changed, 2 insertions(+)

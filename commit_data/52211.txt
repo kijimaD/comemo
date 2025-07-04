@@ -1,0 +1,23 @@
+commit 8b3961264120d188c3c9739370826e346d8748c2
+Author: Nikola Jokic <jokicnikola07@gmail.com>
+Date:   Mon Mar 6 09:52:12 2023 +0100
+
+    debug/buildinfo: recognize macOS fat binary in go version
+    
+    buildinfo did not check for fat magic, which caused go version to report
+    unrecognized file format.
+    
+    This change reads the fat file and passes the first arch file to machoExe.
+    
+    Fixes #58796
+    
+    Change-Id: I45cd26729352e46cc7ecfb13f2e9a8d96d62e0a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473615
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/debug/buildinfo/buildinfo.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

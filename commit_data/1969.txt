@@ -1,0 +1,13 @@
+commit 640f3f25dcd238bfc6b4fd99b1808071cfa12888
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 7 00:32:16 2009 -0700
+
+    add error case in doc for Index. simplify code slightly.
+    
+    R=rsc
+    DELTA=5  (1 added, 0 deleted, 4 changed)
+    OCL=27148
+    CL=27151
+
+ src/lib/strings.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

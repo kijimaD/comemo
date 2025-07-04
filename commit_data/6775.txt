@@ -1,0 +1,14 @@
+commit b3dd22fecb57152056e2bc04c8bca81f72c3f5e1
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Nov 18 13:07:34 2010 -0800
+
+    adjustable hash code in
+    typecheck of composit literals
+    to get rid of n^2 behavior.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3208041
+
+ src/cmd/gc/typecheck.c | 53 +++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 48 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit 07b8011393dc3d3a78b3cd0857a31da339985994
+Author: Paul Borman <borman@google.com>
+Date:   Tue Jul 12 08:54:09 2016 -0700
+
+    text/template: improve lexer performance in finding left delimiters.
+    
+    The existing implementation calls l.next for each run up to the next
+    instance of the left delimiter ({{).  For ascii text, this is multiple
+    function calls per byte.  Change to use strings.Index to find the left
+    delimiter.  The performace improvement ranges from 1:1 (no text outside
+    of {{}}'s) to multiple times faster (9:1 was seen on 8K of text with no
+    {{ }}'s).
+    
+    Change-Id: I2f82bea63b78b6714f09a725f7b2bbb00a3448a3
+    Reviewed-on: https://go-review.googlesource.com/24863
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+
+ src/text/template/parse/lex.go | 41 +++++++++++++++--------------------------
+ 1 file changed, 15 insertions(+), 26 deletions(-)

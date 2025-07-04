@@ -1,0 +1,27 @@
+commit 9fa81a88279f2e4be11992a0bc313210b62ae08f
+Author: Emily Shaffer <nasamuffin@google.com>
+Date:   Wed Apr 26 14:51:31 2023 -0700
+
+    cmd/go/internal/modfetch/codehost: explicitly specify GIT_DIR
+    
+    When Git has safe.bareRepository=explicit set, operations on bare Git
+    repositories will fail unless --git-dir or GIT_DIR is set. The rest of
+    the time, specifying the gitdir makes repository discovery at the
+    beginning of a Git command ever-so-slightly faster. So, there is no
+    downside to ensuring that users with this stricter security config set
+    can still use 'go mod' commands easily.
+    
+    See
+    https://lore.kernel.org/git/pull.1261.v8.git.git.1657834081.gitgitgadget@gmail.com/
+    for a more detailed description of security concerns around embedded
+    bare repositories without an explicitly specified GIT_DIR.
+    
+    Change-Id: I01c1d97a79fdab12c2b5532caf84eb7760f96b18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489915
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,15 @@
+commit cd49927ca75dba4c7ba8648ee233102f1771d5bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 29 12:09:00 2008 -0700
+
+    - added language about string literal concatenation
+    - added "..." to list of delimiters (slightly re-arranged that table)
+    - rename of 2 productions for more consistent naming
+    
+    R=r
+    DELTA=20  (7 added, 1 deleted, 12 changed)
+    OCL=16101
+    CL=16103
+
+ doc/go_spec.txt | 34 ++++++++++++++++++++--------------
+ 1 file changed, 20 insertions(+), 14 deletions(-)

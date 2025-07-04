@@ -1,0 +1,24 @@
+commit bd23e84b73b90947a676ec9a5325de52d7186815
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Feb 27 22:02:51 2019 +0000
+
+    internal/lazytemplate: add a lazy template wrapper
+    
+    Similar to internal/lazyregexp, this will allow removing unnecessary
+    work from init functions with trivial refactors, thanks to sync.Once.
+    
+    Copy the structure. The only major difference is that a template also
+    carries a name.
+    
+    For #29382.
+    
+    Change-Id: I65d096dc2e2072b310bf59a814cd62669856b5b5
+    Reviewed-on: https://go-review.googlesource.com/c/164337
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go                 | 11 ++++---
+ src/internal/lazyregexp/lazyre.go         |  7 +++++
+ src/internal/lazytemplate/lazytemplate.go | 52 +++++++++++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 5 deletions(-)

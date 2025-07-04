@@ -1,0 +1,15 @@
+commit af832ac0b9609922d486f511dad04fba7a24dc44
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 17 11:21:02 2012 -0700
+
+    misc/dashboard/builder: reinstate 'go get -d' error handling hack
+    
+    I thought this was redundant since the behavior of 'go get -d' had
+    changed. I was wrong. Should have tested more thoroughly.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6500136
+
+ misc/dashboard/builder/main.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

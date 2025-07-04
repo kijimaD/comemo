@@ -1,0 +1,30 @@
+commit e74c6cd3c05fda74fc8cac7a24b22b8b55a2239d
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Mar 4 07:18:26 2017 +0100
+
+    regexp: add ASCII fast path for context methods
+    
+    The step method implementations check directly if the next rune
+    only needs one byte to be decoded and avoid calling utf8.DecodeRune
+    for such ASCII characters.
+    
+    Introduce the same fast path optimization for rune decoding
+    for the context methods.
+    
+    Results for regexp benchmarks that use the context methods:
+    
+    name                            old time/op  new time/op  delta
+    AnchoredLiteralShortNonMatch-4  97.5ns ± 1%  94.8ns ± 2%  -2.80%  (p=0.000 n=45+43)
+    AnchoredShortMatch-4             163ns ± 1%   160ns ± 1%  -1.84%  (p=0.000 n=46+47)
+    NotOnePassShortA-4               742ns ± 2%   742ns ± 2%    ~     (p=0.440 n=49+50)
+    NotOnePassShortB-4               535ns ± 1%   533ns ± 2%  -0.37%  (p=0.005 n=46+48)
+    OnePassLongPrefix-4              169ns ± 2%   166ns ± 2%  -2.06%  (p=0.000 n=50+49)
+    
+    Change-Id: Ib302d9e8c63333f02695369fcf9963974362e335
+    Reviewed-on: https://go-review.googlesource.com/38256
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/regexp.go | 32 ++++++++++++++++++++++++--------
+ 1 file changed, 24 insertions(+), 8 deletions(-)

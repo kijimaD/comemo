@@ -1,0 +1,18 @@
+commit 4d9f68028a0b3b481459b9d07d074f8272a013b1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 17 13:23:25 2015 -0800
+
+    cmd/asm: add doc.go
+    
+    There was no documentation produced by "go doc cmd/asm".
+    Follow the style set by cmd/compile.
+    
+    Fixes #13148.
+    
+    Change-Id: I02e08ce2e7471f855bfafbbecee98ffdb7096995
+    Reviewed-on: https://go-review.googlesource.com/16997
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/doc.go                  | 48 +++++++++++++++++++++++++++++++++++++
+ src/cmd/asm/internal/flags/flags.go |  3 +++
+ 2 files changed, 51 insertions(+)

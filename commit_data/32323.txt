@@ -1,0 +1,26 @@
+commit ee714947c511715c752179fe738a45045ffa205c
+Author: Michael Steinert <mike.steinert@gmail.com>
+Date:   Mon Jul 17 11:14:23 2017 -0500
+
+    cmd/cgo: unify cgo output for gc and gccgo
+    
+    When calling a Go function that returns multiple values from C, cgo
+    generates a structure to hold the values. According to the documentation
+    this structure is called `struct <function-name>_return`. When compiling
+    for gccgo the generated structure name is `struct <function-name>_result`.
+    This change updates the output for gccgo to match the documentation and
+    output for gc.
+    
+    Fixes #20910
+    
+    Change-Id: Iaea8030a695a7aaf9d9f317447fc05615d8e4adc
+    Reviewed-on: https://go-review.googlesource.com/49350
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue20910.c  | 19 +++++++++++++++++++
+ misc/cgo/test/issue20910.go | 19 +++++++++++++++++++
+ src/cmd/cgo/out.go          |  6 +++---
+ 4 files changed, 42 insertions(+), 3 deletions(-)

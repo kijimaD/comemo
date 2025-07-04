@@ -1,0 +1,22 @@
+commit 61a7e44002949a5e335dc7cfc7c9167074c3487a
+Author: Rob Pike <r@golang.org>
+Date:   Sat Dec 20 13:38:29 2008 -0800
+
+    fix some tests. only 3 remain broken (complit, hilbert, initcomma).
+    leaving golden.out alone for now.
+    
+    R=ken
+    DELTA=13  (0 added, 0 deleted, 13 changed)
+    OCL=21682
+    CL=21682
+
+ test/fixedbugs/bug027.go | 2 +-
+ test/fixedbugs/bug045.go | 2 +-
+ test/fixedbugs/bug054.go | 2 +-
+ test/fixedbugs/bug059.go | 2 +-
+ test/initcomma.go        | 2 +-
+ test/ken/array.go        | 6 +++---
+ test/ken/rob2.go         | 6 +++---
+ test/ken/string.go       | 2 +-
+ test/vectors.go          | 2 +-
+ 9 files changed, 13 insertions(+), 13 deletions(-)

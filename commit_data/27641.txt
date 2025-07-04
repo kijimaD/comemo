@@ -1,0 +1,22 @@
+commit 7b48020cfeb64d1f841a7523aa841dbe53b3b465
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 1 15:24:14 2016 -0700
+
+    cmd/cgo: check pointers for deferred C calls at the right time
+    
+    We used to check time at the point of the defer statement. This change
+    fixes cgo to check them when the deferred function is executed.
+    
+    Fixes #15921.
+    
+    Change-Id: I72a10e26373cad6ad092773e9ebec4add29b9561
+    Reviewed-on: https://go-review.googlesource.com/23650
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/cgo/errors/ptr.go |   8 ++++
+ src/cmd/cgo/ast.go     |   9 ++--
+ src/cmd/cgo/gcc.go     | 110 ++++++++++++++++++++++++++++++++++++++++++-------
+ src/cmd/cgo/main.go    |   8 +++-
+ 4 files changed, 115 insertions(+), 20 deletions(-)

@@ -1,0 +1,29 @@
+commit cd77738198ffe0c4a1db58352c89f9b2d2a4e85e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 15 14:05:22 2023 -0800
+
+    cmd/link: don't switch to gold on ARM Linux
+    
+    The bug in GNU ld appears to have been fixed in GNU binutils 2.28 by
+    GNU binutils revision 5522f910cb539905d6adfdceab208ddfa5e84557.
+    (This may have been accidental as the ChangeLog for the fix makes
+    no reference to it; the fix is from
+    https://sourceware.org/bugzilla/show_bug.cgi?id=19962).
+    
+    Continue using gold on arm64, at least for now, because as reported in
+    issue #22040 GNU ld still fails there.
+    
+    For #15696
+    For #22040
+    
+    Change-Id: I5534bb8b5680daf536a7941aba5c701e8a4138ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468655
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)

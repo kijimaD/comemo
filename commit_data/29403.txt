@@ -1,0 +1,18 @@
+commit 276c29ff6da13ef7089075d8cd2172fe3d3956fb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Nov 5 00:21:59 2016 +0000
+
+    net/http: deflake TestClientRedirectTypes and maybe some similar ones
+    
+    A few tests were using the global DefaultTransport implicitly.
+    Be explicit instead. And then make some parallel while I'm there.
+    
+    Change-Id: I3c617e75429ecc8f6d23567d1470f5e5d0cb7cfd
+    Reviewed-on: https://go-review.googlesource.com/32758
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client_test.go | 64 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 46 insertions(+), 18 deletions(-)

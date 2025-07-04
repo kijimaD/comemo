@@ -1,0 +1,14 @@
+commit ac3028f0a9950890f850306fdde03b272dc6baee
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 20 17:00:52 2011 -0500
+
+    build: fix build
+    
+    Missing file during last CL.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5505047
+
+ src/buildinfo.sh | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

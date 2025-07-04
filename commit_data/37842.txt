@@ -1,0 +1,21 @@
+commit e1b903788ac5e35ed0d0fb20d904eafedca02c81
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 4 17:30:36 2019 -0500
+
+    cmd/go: deflake TestScript/gcflags_patterns
+    
+    The check below can fail incorrectly if the buildid ends with '-p'.
+    
+        ! stderr 'compile.* -e .*-p [^z]'
+    
+    This fix changes regular expressions to '-e.* -p' or '-N.* -p' instead
+    of '-e .*-p'. '-l' is no longer used because the compiler accepts
+    multiple flags starting with '-l' ('-e' and '-N' do not have this
+    problem), so there could be false matches.
+    
+    Change-Id: I827c411de28624019a287f853acc9666e87cbfb9
+    Reviewed-on: https://go-review.googlesource.com/c/156327
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/testdata/script/gcflags_patterns.txt | 26 ++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

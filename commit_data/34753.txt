@@ -1,0 +1,12 @@
+commit cc936d12bde1fe850b9f3928868105d76fbd53d8
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Mar 28 21:25:09 2018 -0400
+
+    doc: update 1.9.5 release notes to include net/http/pprof
+    
+    Change-Id: I7c0716711a2cadd347fdf242c792b109539f7355
+    Reviewed-on: https://go-review.googlesource.com/103163
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/devel/release.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

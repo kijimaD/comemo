@@ -1,0 +1,16 @@
+commit 9dc2350d8cb10f8af5f3551aeb5e3e8bf820c071
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 25 12:57:38 2020 +0100
+
+    doc/go1.16: add time/tzdata release note for CL 261877
+    
+    For #40700
+    
+    Change-Id: I056cef20a5f071977d0ae589c7a50d5f69af3283
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273166
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

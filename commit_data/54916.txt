@@ -1,0 +1,16 @@
+commit 3290fb870c1b48618f859153d8c0b76c5adb2dfc
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 8 10:45:34 2023 -0500
+
+    cmd/compile/internal/types: remove dead function
+    
+    Remove the function CleanroomDo, which is no longer being
+    used anywhere.
+    
+    Change-Id: Ie148005793b004bf63ca996101d08c30b87f8575
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540776
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types/pkg.go | 9 ---------
+ 1 file changed, 9 deletions(-)

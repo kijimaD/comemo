@@ -1,0 +1,16 @@
+commit 3b76bed3cdd865d9aabaa8e42eac72dc61e067db
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 18 13:50:14 2020 -0400
+
+    cmd/internal/moddeps: skip GOROOT/pkg when locating modules
+    
+    Fixes #37929
+    
+    Change-Id: I1435411de43aed98f40e0d98e450310b0fdf804c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223924
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/moddeps/moddeps_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

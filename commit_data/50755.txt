@@ -1,0 +1,20 @@
+commit 76c1a501a5bb1e511655d89195b3b94b7a621cf9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 30 22:34:42 2022 +0700
+
+    test: enable issue47631.go for Unified IR
+    
+    Updates #53058
+    
+    Change-Id: Ieaa500bea11f26f9a039196592bea67405bdf0ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437215
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/internal/gcimporter/gcimporter_test.go |  1 +
+ test/run.go                                   |  3 +--
+ test/typeparam/issue47631.go                  | 17 +++++++----------
+ 3 files changed, 9 insertions(+), 12 deletions(-)

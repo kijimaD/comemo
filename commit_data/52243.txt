@@ -1,0 +1,25 @@
+commit da384766a053d851d912f04afaa1113b627a0822
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 13 15:55:21 2023 -0500
+
+    runtime: make unsafe.Slice usable from nowritebarrierrec
+    
+    Many compiler-generated panics are dynamically changed to a "throw"
+    when they happen in the runtime. One effect of this is that they are
+    allowed in nowritebarrierrec contexts. Currently, the unsafe.Slice
+    panics don't have this treatment.
+    
+    We're about to expose more code that uses unsafe.Slice to the write
+    barrier checker (it's actually already there and it just can't see
+    through an indirect call), so give these panics the dynamic check.
+    
+    Very indirectly updates #54466.
+    
+    Change-Id: I65cb96fa17eb751041e4fa25a1c1bd03246c82ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468296
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/unsafe.go | 26 +++++++++++++++++++++-----
+ 1 file changed, 21 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit 385ca9ae9afa7b326f2b27c8596961bcef862504
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 19 17:18:50 2017 -0700
+
+    cmd/compile: further simplify walkprint
+    
+    Passes toolstash-check.
+    
+    Change-Id: I6386a37a35221de8d3944253beee668927810f17
+    Reviewed-on: https://go-review.googlesource.com/55096
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 38 +++++++++++++++++--------------------
+ 1 file changed, 17 insertions(+), 21 deletions(-)

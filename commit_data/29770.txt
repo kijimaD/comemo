@@ -1,0 +1,16 @@
+commit 51a75a01f89ee7c85e2fef6b71d7245de49a3483
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 8 21:19:18 2016 +0000
+
+    doc: remove pprof TODOs from go1.8.html
+    
+    There is nothing notable to mention as far as users are concerned.
+    
+    Fixes #17929 (another bug tracks the remaining TODO item)
+    
+    Change-Id: Id39f787581ed9d2ecd493126bb7ca27836816d4b
+    Reviewed-on: https://go-review.googlesource.com/34145
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.8.html | 8 --------
+ 1 file changed, 8 deletions(-)

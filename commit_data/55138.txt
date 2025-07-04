@@ -1,0 +1,21 @@
+commit 37971b31dfde1b9c40f6d42484e528c17450a9ae
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 21 14:44:41 2023 -0500
+
+    cmd/link/internal/ld: fix DWARF type DIE "go kind" bug for synthetic ptr types
+    
+    The code path in linker DWARF type generation that synthesizes pointer
+    type DIEs needed for other synthesized types wasn't properly setting
+    the DW_AT_go_kind attribute for the new pointer types.
+    
+    Fixes #64231.
+    
+    Change-Id: I70c338d2b33ae3b93a4c6f201e5836d91d368086
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544315
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/dwtest/dwtest.go |  2 +-
+ src/cmd/link/internal/ld/dwarf.go      |  1 +
+ src/cmd/link/internal/ld/dwarf_test.go | 71 ++++++++++++++++++++++++++++------
+ 3 files changed, 61 insertions(+), 13 deletions(-)

@@ -1,0 +1,19 @@
+commit cc48b01883271920f7c111b0815790492b2a95c7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 23 13:38:15 2017 -0700
+
+    cmd/compile/internal/gc: cleanup FuncDecl noding
+    
+    Collapse funcHeader into funcDecl.
+    Initialize pragmas earlier.
+    Move empty / non-empty body errors closer to fun.Body handling.
+    Switch some yyerror to yyerrorl.
+    
+    Change-Id: I71fb7a3c0b77d656af560e4d88da894ba6183826
+    Reviewed-on: https://go-review.googlesource.com/38475
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go | 77 +++++++++++++++---------------------
+ 1 file changed, 32 insertions(+), 45 deletions(-)

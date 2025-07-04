@@ -1,0 +1,17 @@
+commit b1159bad99db43e3f1b114e16c913d0e28387160
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 11 11:08:20 2019 -0500
+
+    cmd/dist: write binaries to to GOTMPDIR instead of GOROOT in runHostTest
+    
+    Updates #32407
+    Updates #28387
+    
+    Change-Id: I2ab933896940787b67ab5464c8213670e6e108c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206459
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/dist/test.go | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)

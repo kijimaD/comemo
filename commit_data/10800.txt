@@ -1,0 +1,15 @@
+commit 24e9683ae654c804b7da6da47ef60b9060db718e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 14 16:37:54 2011 -0800
+
+    fmt: don't recur if String method (etc.) misbehaves
+    
+    Fixes #2555.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5486076
+
+ src/pkg/fmt/fmt_test.go | 34 ++++++++++++++++++++++++++++++++++
+ src/pkg/fmt/print.go    |  7 +++++++
+ 2 files changed, 41 insertions(+)

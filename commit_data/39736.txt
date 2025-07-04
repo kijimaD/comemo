@@ -1,0 +1,21 @@
+commit 5411953df50ce83ee8e23ca33a8a16335ad95cf2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 29 14:31:40 2019 -0700
+
+    cmd/compile: avoid follow-on errors for literals with syntax errors
+    
+    - only convert literal strings if there were no syntax errors
+      (some of the conversion routines exit if there is an error)
+    - mark nodes for literals with syntax errors to avoid follow-on
+      errors
+    - don't attempt to import packages whose path had syntax errors
+    
+    Fixes #32133.
+    
+    Change-Id: I1803ad48c65abfecf6f48ddff1e27eded5e282c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192437
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/noder.go | 57 +++++++++++++++++++++---------------
+ test/fixedbugs/issue32133.go         | 43 +++++++++++++++++++++++++++
+ 2 files changed, 77 insertions(+), 23 deletions(-)

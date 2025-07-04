@@ -1,0 +1,15 @@
+commit f6f1401286adc6e67fc2a9f5b9651ef8ead309c9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 13 12:44:04 2011 -0800
+
+    godoc: don't double HTML-escape search result snippets
+    
+    Fixes #1412.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/3994041
+
+ src/cmd/godoc/format.go  | 2 +-
+ src/cmd/godoc/snippet.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

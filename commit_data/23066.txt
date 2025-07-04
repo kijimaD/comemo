@@ -1,0 +1,29 @@
+commit 277acca286e47fd704aae10d030c74927ba2a8d2
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 15 16:13:14 2015 -0400
+
+    runtime: hold worldsema while starting the world
+    
+    Currently, startTheWorld releases worldsema before starting the
+    world. Since startTheWorld can change gomaxprocs after allowing Ps to
+    run, this means that gomaxprocs can change while another P holds
+    worldsema.
+    
+    Unfortunately, the garbage collector and forEachP assume that holding
+    worldsema protects against changes in gomaxprocs (which it *almost*
+    does). In particular, this is causing somewhat frequent "P did not run
+    fn" crashes in forEachP in the runtime tests because gomaxprocs is
+    changing between the several loops that forEachP does over all the Ps.
+    
+    Fix this by only releasing worldsema after the world is started.
+    
+    This relates to issue #10618. forEachP still fails under stress
+    testing, but much less frequently.
+    
+    Change-Id: I085d627b70cca9ebe9af28fe73b9872f1bb224ff
+    Reviewed-on: https://go-review.googlesource.com/10156
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go   | 3 +--
+ src/runtime/proc1.go | 9 ++++++---
+ 2 files changed, 7 insertions(+), 5 deletions(-)

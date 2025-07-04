@@ -1,0 +1,29 @@
+commit a1eec645e101b26d53e7cc06b70a27d70cfac98b
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 25 16:38:39 2017 -0400
+
+    cmd/trace: don't shift trace slices to 0
+    
+    Currently all trace slices get shifted to start at time 0. This makes
+    it very difficult to find specific points in time unless they fall in
+    the first slice.
+    
+    For example, right now when you click "View trace
+    (6.005646218s-8.155419698s)" on the trace tool's main page, the trace
+    view puts the first event in that slice at time 0. If you're looking
+    for something that happened at time 7s, you have to look at time
+    0.9943537s in the trace view. And if you want to subtract times taken
+    from different slices, you have to figure out what those time really
+    correspond to.
+    
+    Fix this by telling the trace viewer not to shift the times when it
+    imports the trace. In the above example, this makes the view of that
+    second trace slice start at time 6.005646218s, so you don't have to do
+    any gymnastics to find or calculate times in later slices.
+    
+    Change-Id: I04e0afda60f5573fdd8ad96238c24013297ef263
+    Reviewed-on: https://go-review.googlesource.com/54633
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/trace.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

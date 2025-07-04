@@ -1,0 +1,21 @@
+commit 0adc89aa962aa116da5540c3248977318d360738
+Author: Pantelis Sampaziotis <psampaz@gmail.com>
+Date:   Tue Sep 10 18:43:15 2019 +0000
+
+    strconv: add Unwrap to custom error types
+    
+    Updates #30322
+    
+    This change adds the Unwrap method to NumError. NumError is the only custom error type of the strconv that has a nested exported error.
+    
+    Change-Id: I8774886348880365a83f72a1d106276def27dffe
+    GitHub-Last-Rev: 712f3df8842f48f988cebfc527476781a7cf7140
+    GitHub-Pull-Request: golang/go#34213
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194563
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/strconv/atoi.go      | 2 ++
+ src/strconv/atoi_test.go | 7 +++++++
+ 2 files changed, 9 insertions(+)

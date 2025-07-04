@@ -1,0 +1,21 @@
+commit 7ee220c56768021179b7c4be19631be82773b9da
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 14 00:29:20 2022 +0700
+
+    net: avoid relying on singleflight.Group.DoChan to detect hook called
+    
+    So next CLs can revert changes to "internal/singleflight" in CL #82795,
+    then replace it with "golang.org/x/sync/singleflight" instead.
+    
+    For #31697
+    
+    Change-Id: I873ce30d7e051539aa6dc5d4f21e558869a6d132
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423654
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/net/lookup.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

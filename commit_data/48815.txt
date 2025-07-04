@@ -1,0 +1,36 @@
+commit e04280838f34669458d55d6aab812a8c304c40a0
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 12 07:11:28 2022 +0100
+
+    io/ioutil: provide an equivalent for the deprecated ReadDir
+    
+    All APIs in the now-deprecated io/ioutil package have a direct
+    replacement in either the io or os package with the same signature,
+    with the notable exception of ioutil.ReadDir, as os.ReadDir has a
+    slightly different signature with fs.DirEntry rather than fs.FileInfo.
+    
+    New code can easily make use of []fs.DirEntry directly,
+    but existing code may need to continue using []fs.FileInfo for backwards
+    compatibility reasons. For instance, I had a bit of code that exposed
+    the slice as a public API, like:
+    
+            return ioutil.ReadDir(name)
+    
+    It took me a couple of minutes to figure out what the exact equivalent
+    in terms of os.ReadDir would be, and a code sample would have helped.
+    Add one for future reference.
+    
+    For #42026.
+    For #51927.
+    
+    Change-Id: I76d46cd7d68fc609c873821755fdcfc299ffd56c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399854
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/io/ioutil/ioutil.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

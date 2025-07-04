@@ -1,0 +1,14 @@
+commit e47b7af6409e37bd395ff92dee9c98720d22fc26
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 15 08:13:46 2016 -0800
+
+    doc: start of go1.8.html release notes
+    
+    Updates #17929
+    
+    Change-Id: Ie90736cfce3fc5f23cbe0a0f1971476705aac5f9
+    Reviewed-on: https://go-review.googlesource.com/33436
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 270 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 270 insertions(+)

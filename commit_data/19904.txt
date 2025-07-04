@@ -1,0 +1,23 @@
+commit de1ab89f03a9a22a919fe051bb7251178c80279c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Aug 6 06:11:41 2014 -0700
+
+    dist: fix Plan 9 build
+    
+    Since CL 115060044, mkanames declares an empty
+    array in anames8.c and anames6.c, which is not
+    valid for the Plan 9 compiler.
+    
+    char* cnames8[] = {
+    };
+    
+    This change makes mkanames not declaring the
+    cnames array when no C_ constants are found.
+    
+    LGTM=iant
+    R=minux, iant
+    CC=golang-codereviews
+    https://golang.org/cl/117680043
+
+ src/cmd/dist/buildgc.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

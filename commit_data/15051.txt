@@ -1,0 +1,17 @@
+commit 6799b773ebbd53c2c6d3d36e5b58e6efd0f4dc80
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jan 31 14:12:43 2013 +1100
+
+    exp/cookiejar: update PublicSuffixList doc comment to match the
+    examples at http://publicsuffix.org/.
+    
+    That website previously listed pvt.k12.wy.us, but that was an error,
+    as confirmed by correspondance with submissions@publicsuffix.org, and
+    the website was fixed on 2013-01-23.
+    
+    R=adg
+    CC=dr.volker.dobler, golang-dev
+    https://golang.org/cl/7241053
+
+ src/pkg/exp/cookiejar/jar.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

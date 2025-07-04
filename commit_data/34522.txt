@@ -1,0 +1,21 @@
+commit e3127f023f6a591699bcaa5b6fb2844ecee794ea
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 7 15:11:54 2018 -0800
+
+    cmd/compile: fuse escape analysis parameter tagging loops
+    
+    Simplifies the code somewhat and allows removing Param.Field.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Id854416aea8afd27ce4830ff0f5ff940f7353792
+    Reviewed-on: https://go-review.googlesource.com/99336
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go         | 10 ----------
+ src/cmd/compile/internal/gc/esc.go         | 32 ++++++++++--------------------
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/syntax.go      |  3 ---
+ 4 files changed, 12 insertions(+), 35 deletions(-)

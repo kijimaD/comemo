@@ -1,0 +1,29 @@
+commit 4e27aa6cd2c3f579328e3b490780664ade34053d
+Author: Shuhei Takahashi <nya@chromium.org>
+Date:   Mon Mar 22 00:22:23 2021 +0900
+
+    os/exec: simplify TestContextCancel
+    
+    TestContextCancel is a test that ensures a process is killed soon after
+    canceling the context, even if Wait is not called (#16222). The test
+    checks whether the process exited without calling Wait by writing some
+    data to its stdin.
+    
+    Currently the test involves two goroutines writing to stdin and reading
+    from stdout. However the reading goroutine is not very necessary to
+    detect the process exit.
+    
+    This patch simplifies the test by connecting the process stdout to
+    /dev/null.
+    
+    For #42061
+    
+    Change-Id: I0447a1c024ee5abb050c627ec3766b731b02181a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303352
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec_test.go | 38 +++++---------------------------------
+ 1 file changed, 5 insertions(+), 33 deletions(-)

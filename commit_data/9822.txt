@@ -1,0 +1,39 @@
+commit 9aae6482f41de1a9cef2e039be1d668ac2c42d00
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 28 16:00:12 2011 -0400
+
+    go: documentation for new command
+    
+    *** This is a design review, not a code review. ***
+    Feel free to reply to the mail instead of picking out
+    individual lines to comment on in Rietveld.
+    
+    This command, go, will replace both gomake/make and goinstall.
+    Make will stick around only for building our C commands
+    and perhaps package runtime.
+    
+    In normal use while developing you'd run commands like
+    
+            go compile
+            go test
+            go clean
+            go install
+    
+    which apply to the package in the current directory.
+    
+    To operate on code written by others, you add an explicit
+    package path:
+    
+            go get gopath.googlecode.com/hg/oauth
+            go test gopath.googlecode.com/hg/oauth
+    
+    The script.txt file is a script showing the output of
+    the various help commands that the command has.
+    (Right now, all the command can do is print help messages.)
+    
+    R=golang-dev, bradfitz, kevlar, r, edsrzf, gri, adg, rogpeppe, r
+    CC=golang-dev
+    https://golang.org/cl/5019045
+
+ src/cmd/go/script.txt | 352 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 352 insertions(+)

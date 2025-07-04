@@ -1,0 +1,14 @@
+commit d32b305e7b480aaff0951aab24b65e5f6affc4a9
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Fri Jul 6 09:56:04 2018 +0100
+
+    CONTRIBUTORS: replace old e-mail address
+    
+    I don't have access to this e-mail inbox anymore.
+    
+    Change-Id: Ia3dff6a56c7f6c782be74a998a622ef0611eca7e
+    Reviewed-on: https://go-review.googlesource.com/122456
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

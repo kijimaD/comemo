@@ -1,0 +1,15 @@
+commit 85cae5d7b86b7eac155e6e706af11ef8dc68ece0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 9 08:32:08 2015 -0800
+
+    cmd/pprof/internal/report: fix typo in recognized output unit
+    
+    Fixes #9814.
+    
+    Change-Id: I1be49efae0648038f590eeca1262037bf1af3df5
+    Reviewed-on: https://go-review.googlesource.com/4240
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/pprof/internal/report/report.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

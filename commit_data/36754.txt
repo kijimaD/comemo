@@ -1,0 +1,23 @@
+commit e35a41261b19589f40d32bd66274c23ab4b9b32e
+Author: Keith Randall <khr@google.com>
+Date:   Tue Sep 25 14:32:44 2018 -0700
+
+    reflect: use correct write barrier operations for method funcs
+    
+    Fix the code to use write barriers on heap memory, and no
+    write barriers on stack memory.
+    
+    These errors were discoverd as part of fixing #27695. They may
+    have something to do with that issue, but hard to be sure.
+    The core cause is different, so this fix is a separate CL.
+    
+    Update #27695
+    
+    Change-Id: Ib005f6b3308de340be83c3d07d049d5e316b1e3c
+    Reviewed-on: https://go-review.googlesource.com/137438
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/reflect/type.go     |  2 ++
+ src/reflect/value.go    | 39 ++++++++++++++++++++++++++-------------
+ src/runtime/mbarrier.go | 13 +++++++++++++
+ 3 files changed, 41 insertions(+), 13 deletions(-)

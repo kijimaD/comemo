@@ -1,0 +1,17 @@
+commit bf58d209992395f8c30c8554b2d04dc4e4ce128f
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Thu Aug 29 14:41:01 2013 +0200
+
+    cmd/8g: add descriptions for some missing instructions.
+    
+    These instructions are emitted when GO386=387 or the target
+    i386 CPU does not have SSE2 capabilities.
+    
+    Fixes #6215.
+    
+    R=golang-dev, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/12812045
+
+ src/cmd/8g/prog.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

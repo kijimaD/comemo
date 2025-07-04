@@ -1,0 +1,17 @@
+commit 7ab361531514764fdccb23283a2e7f1916b74b87
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Dec 2 17:06:15 2022 -0500
+
+    doc/go1.20: preannounce dropping macOS 10.13 and 10.14 support
+    
+    For #23011.
+    
+    Change-Id: I386920928a98403180098f1da5ea7696a239210e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454957
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.20.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

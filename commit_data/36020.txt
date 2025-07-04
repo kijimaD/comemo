@@ -1,0 +1,26 @@
+commit 57b5a71d7c897a2f3a21ba8b875bb9264faed326
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 17 11:38:35 2018 -0400
+
+    Revert "runtime: fix lldb test after DWARF compression"
+    
+    This reverts commit c99300229de4e69220790c71da14785dc52c3d68.
+    
+    The original CL skipped the lldb test if it couldn't read compressed
+    DWARF, but lldb can never read compressed DWARF, so this effectively
+    disabled this test unconditionally.
+    
+    The previous commit disabled DWARF compression for this test, so the
+    test now works on its own merits again. This CL reverts the change to
+    skip the test so we don't simply mask lldb failures.
+    
+    Updates #25925.
+    
+    Change-Id: I3e1c787b658257b542c3c70807065dde9cfe05ee
+    Reviewed-on: https://go-review.googlesource.com/124386
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime-lldb_test.go | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)

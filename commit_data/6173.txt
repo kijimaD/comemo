@@ -1,0 +1,100 @@
+commit 4f61fc96b2788be7cbfc6f7a72acef3d3feeeb6c
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 4 10:36:13 2010 +1000
+
+    test: remove semiocolons.
+    The ken directory is untouched so we have some examples with explicit semis.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2157041
+
+ test/64bit.go                  | 302 ++++++++++-----------
+ test/assign.go                 |  48 ++--
+ test/bigalg.go                 |  86 +++---
+ test/blank.go                  |  60 ++---
+ test/blank1.go                 |   4 +-
+ test/chan/fifo.go              |  26 +-
+ test/chan/goroutines.go        |  32 +--
+ test/chan/perm.go              |  68 ++---
+ test/chan/powser1.go           | 579 ++++++++++++++++++++--------------------
+ test/chan/powser2.go           | 585 ++++++++++++++++++++---------------------
+ test/char_lit.go               |   7 +-
+ test/closedchan.go             |  98 +++----
+ test/cmp2.go                   |   6 +-
+ test/cmp3.go                   |   6 +-
+ test/cmp4.go                   |   8 +-
+ test/cmp5.go                   |   8 +-
+ test/complit.go                |  44 ++--
+ test/compos.go                 |   8 +-
+ test/const.go                  | 164 ++++++------
+ test/const1.go                 | 112 ++++----
+ test/const2.go                 |   2 +-
+ test/convlit.go                |  40 +--
+ test/decl.go                   |  30 +--
+ test/declbad.go                |  42 +--
+ test/env.go                    |  16 +-
+ test/escape.go                 | 158 +++++------
+ test/float_lit.go              |  18 +-
+ test/for.go                    |  42 +--
+ test/func.go                   |  74 +++---
+ test/func1.go                  |   4 +-
+ test/func2.go                  |  24 +-
+ test/func3.go                  |  14 +-
+ test/func4.go                  |   4 +-
+ test/gc.go                     |   2 +-
+ test/gc1.go                    |   4 +-
+ test/hashmap.go                | 115 ++++----
+ test/helloworld.go             |   2 +-
+ test/if.go                     | 100 +++----
+ test/if1.go                    |   4 +-
+ test/import.go                 |   8 +-
+ test/import1.go                |   4 +-
+ test/indirect1.go              |   2 +-
+ test/initialize.go             |  12 +-
+ test/initializerr.go           |  10 +-
+ test/initsyscall.go            |   4 +-
+ test/int_lit.go                |   6 +-
+ test/interface/bigdata.go      |  52 ++--
+ test/interface/convert1.go     |  18 +-
+ test/interface/convert2.go     |  18 +-
+ test/interface/embed.go        |  70 ++---
+ test/interface/embed0.go       |  24 +-
+ test/interface/embed1.go       |  50 ++--
+ test/interface/fail.go         |  12 +-
+ test/interface/fake.go         |  78 +++---
+ test/interface/receiver.go     |   4 +-
+ test/interface/returntype.go   |   6 +-
+ test/interface/struct.go       | 152 +++++------
+ test/iota.go                   | 156 +++++------
+ test/literal.go                | 352 ++++++++++++-------------
+ test/mallocrand.go             |  10 +-
+ test/mallocrep.go              |   2 +-
+ test/map.go                    | 412 ++++++++++++++---------------
+ test/method1.go                |   8 +-
+ test/nil.go                    |  36 +--
+ test/nilptr/arrayindex.go      |   6 +-
+ test/nilptr/arrayindex1.go     |   8 +-
+ test/nilptr/arraytoslice.go    |  10 +-
+ test/nilptr/arraytoslice1.go   |  10 +-
+ test/nilptr/arraytoslice2.go   |  12 +-
+ test/nilptr/slicearray.go      |   8 +-
+ test/nilptr/structfield.go     |  12 +-
+ test/nilptr/structfield1.go    |  12 +-
+ test/nilptr/structfield2.go    |  14 +-
+ test/nilptr/structfieldaddr.go |  12 +-
+ test/nul1.go                   |   2 +-
+ test/parentype.go              |  10 +-
+ test/printbig.go               |   2 +-
+ test/runtime.go                |   2 +-
+ test/sieve.go                  |  20 +-
+ test/sigchld.go                |   4 +-
+ test/sinit.go                  |   8 +-
+ test/string_lit.go             |  54 ++--
+ test/stringrange.go            |  54 ++--
+ test/switch.go                 | 158 +++++------
+ test/switch1.go                |   6 +-
+ test/test0.go                  |  64 ++---
+ test/typeswitch.go             |  78 +++---
+ test/utf.go                    |  60 ++---
+ 88 files changed, 2537 insertions(+), 2541 deletions(-)

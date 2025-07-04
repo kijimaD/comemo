@@ -1,0 +1,17 @@
+commit 2f792d32be161f61063e84edb3bb83182371cc68
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 13:31:20 2009 -0800
+
+    - always format blocks with closing } on a new line, even if empty
+    - at the moment this also affects single-line function declarations
+      because we have disabled them at the moment (but not single-line
+      function literals)
+    
+    R=rsc
+    http://go/go-review/1016040
+
+ src/pkg/go/printer/nodes.go                     | 59 +++++++++++++---------
+ src/pkg/go/printer/testdata/comments.golden     |  6 ++-
+ src/pkg/go/printer/testdata/declarations.golden | 18 ++++---
+ src/pkg/go/printer/testdata/statements.golden   | 66 ++++++++++++++++---------
+ 4 files changed, 95 insertions(+), 54 deletions(-)

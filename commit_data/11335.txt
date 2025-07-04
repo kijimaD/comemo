@@ -1,0 +1,18 @@
+commit 633a2ce096464a63d939c645f31c6bf9d245b042
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 23 08:40:13 2012 -0800
+
+    spec: function invocation, panic on *nil
+    Document that indirection through a nil pointer will panic.
+    Explain function invocation.
+    This section will need more work, but it's a start.
+    
+    Fixes #1865.
+    Fixes #2252.
+    
+    R=rsc, iant, r
+    CC=golang-dev
+    https://golang.org/cl/5532114
+
+ doc/go_spec.html | 48 ++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 36 insertions(+), 12 deletions(-)

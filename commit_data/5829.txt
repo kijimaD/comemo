@@ -1,0 +1,12 @@
+commit 8a95821694e8aa126446d9fc2d6fa63961d191d3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 16 11:01:04 2010 -0700
+
+    cgo: If CC is set in environment, use it rather than "gcc".
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1842042
+
+ src/cmd/cgo/gcc.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

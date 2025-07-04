@@ -1,0 +1,18 @@
+commit 7c692cc7ea69ba4d8603fbada112289443a6f526
+Author: Vishal Dalwadi <dalwadivishal26@gmail.com>
+Date:   Fri May 7 10:05:36 2021 +0530
+
+    doc/go1.17: document changes to os package
+    
+    Documents the changes to File.WriteString method.
+    
+    For #44513.
+    Fixes #46018.
+    
+    Change-Id: I3a8ef9df9f84662614d54802710bd705d626b995
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317910
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.17.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

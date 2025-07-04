@@ -1,0 +1,22 @@
+commit 98842cabb6133ab7b8f2b323754a48085eed82f3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 24 17:52:54 2017 +0000
+
+    net/http: don't send body on redirects for 301, 302, 303 when GetBody is set
+    
+    The presence of Request.GetBody being set on a request was causing all
+    redirected requests to have a body, even if the redirect status didn't
+    warrant one.
+    
+    This bug came from 307/308 support (https://golang.org/cl/29852) which
+    removed the line that set req.Body to nil after POST/PUT redirects.
+    
+    Change-Id: I2a4dd5320f810ae25cfd8ea8ca7c9700e5dbd369
+    Reviewed-on: https://go-review.googlesource.com/35633
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/net/http/client.go      | 21 ++++++++++------
+ src/net/http/client_test.go | 61 ++++++++++++++++++++++++++++++---------------
+ 2 files changed, 54 insertions(+), 28 deletions(-)

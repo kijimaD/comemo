@@ -1,0 +1,24 @@
+commit 85d56c3096636cebd6e0aea846d78599edbbb9e2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 13 12:49:03 2019 -0700
+
+    runtime: use dispatch semaphores on Darwin
+    
+    Changes Darwin semaphore support from using pthread mutexes and
+    condition variables to using dispatch semaphores. Signaling a dispatch
+    semaphore is async-signal-safe.
+    
+    Fixes #31264
+    
+    Change-Id: If0ce47623501db13e3804b14ace5f4d8eaef461e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182258
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/os_darwin.go       | 60 ++++++++---------------------
+ src/runtime/sys_darwin.go      | 58 +++++++++-------------------
+ src/runtime/sys_darwin_386.s   | 85 +++++++++++++-----------------------------
+ src/runtime/sys_darwin_amd64.s | 62 +++++++++++-------------------
+ src/runtime/sys_darwin_arm.s   | 54 +++++++++++----------------
+ src/runtime/sys_darwin_arm64.s | 53 +++++++++++---------------
+ 6 files changed, 123 insertions(+), 249 deletions(-)

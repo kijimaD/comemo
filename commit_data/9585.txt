@@ -1,0 +1,15 @@
+commit c45c0c0c1d7d35639612f0f278ec8e34958b0be2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 2 15:11:28 2011 -0400
+
+    gc: zero stack-allocated slice backing arrays
+    
+    Fixes Han-Wen's termite bug.
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/4977052
+
+ src/cmd/gc/sinit.c |  1 +
+ test/escape3.go    | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)

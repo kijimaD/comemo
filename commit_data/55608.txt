@@ -1,0 +1,22 @@
+commit a0226c5680f3ce6b0d8a8341f8c69611f3008393
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Feb 16 10:58:56 2024 -0500
+
+    runtime/internal/atomic: correct GOARM=7 guard at a DMB instruction
+    
+    CL 525637 changed to the guard of DMB instruction from the
+    compiled-in runtime.goarm value to GOARM_7 macro and CPU feature
+    detection. It missed a place where runtime.goarm is loaded to a
+    register and reused later. This CL corrects the condition.
+    
+    Fixes #65601.
+    
+    Change-Id: I2ddefd03a1eb1048dbec0254c6e234c65b054279
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564855
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/internal/atomic/atomic_arm.s | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

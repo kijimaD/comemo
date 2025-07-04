@@ -1,0 +1,16 @@
+commit 39ab8db914712dfc4898290f40b41dc8ea2c55a9
+Author: Sean Chen <40845434+two@users.noreply.github.com>
+Date:   Tue Sep 24 03:16:52 2019 +0000
+
+    runtime: update runtime2.go itab comments about sync struct
+    
+    `cmd/compile/internal/gc/reflect.go:/^func.dumptypestructs` was modified many times, now is  `cmd/compile/internal/gc/reflect.go:/^func.dumptabs`
+    
+    Change-Id: Ie949a5bee7878c998591468a04f67a8a70c61da7
+    GitHub-Last-Rev: 9ecc26985ef18c8e870649b46419db0a9c72054f
+    GitHub-Pull-Request: golang/go#34489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197037
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/runtime2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

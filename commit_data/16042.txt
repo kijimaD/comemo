@@ -1,0 +1,24 @@
+commit 0e7144a875aae64a0029c7cbbd1b7fa2d5e7f691
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 1 18:59:58 2013 -0700
+
+    runtime: make map reads multithreaded safe.
+    
+    Doing grow work on reads is not multithreaded safe.
+    Changed code to do grow work only on inserts & deletes.
+    
+    This is a short-term fix, eventually we'll want to do
+    grow work in parallel to recover the space of the old
+    table.
+    
+    Fixes #5120.
+    
+    R=bradfitz, khr
+    CC=golang-dev
+    https://golang.org/cl/8242043
+
+ src/cmd/gc/range.c             |  4 +--
+ src/pkg/runtime/hashmap.c      | 69 ++++++++++++++++++++++++++++++++++++------
+ src/pkg/runtime/hashmap_fast.c | 28 ++++++++++++-----
+ src/pkg/runtime/map_test.go    |  3 --
+ 4 files changed, 81 insertions(+), 23 deletions(-)

@@ -1,0 +1,19 @@
+commit 0d81b72e1bf5518b503dbefd0764bfa7e47dcecf
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 17 12:54:31 2014 -0400
+
+    reflect: a few microoptimizations
+    
+    Replace i < 0 || i >= x with uint(i) >= uint(x).
+    Shorten a few other code sequences.
+    Move the kind bits to the bottom of the flag word, to avoid shifts.
+    
+    LGTM=r
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/159020043
+
+ src/reflect/makefunc.go |   6 +-
+ src/reflect/type.go     |   2 +-
+ src/reflect/value.go    | 205 ++++++++++++++++++++----------------------------
+ 3 files changed, 91 insertions(+), 122 deletions(-)

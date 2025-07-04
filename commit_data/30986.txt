@@ -1,0 +1,23 @@
+commit 63a72fd447abb8a07bee9166e87bfe27780492c3
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 3 10:17:48 2017 -0700
+
+    cmd/compile: strength-reduce floating point
+    
+    x*2 -> x+x
+    x/c, c power of 2 -> x*(1/c)
+    
+    Fixes #19827
+    
+    Change-Id: I74c9f0b5b49b2ed26c0990314c7d1d5f9631b6f1
+    Reviewed-on: https://go-review.googlesource.com/39295
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/asm_test.go        |  29 +++++
+ src/cmd/compile/internal/gc/float_test.go      |  21 ++++
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  44 ++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 144 +++++++++++++++++--------
+ 5 files changed, 198 insertions(+), 48 deletions(-)

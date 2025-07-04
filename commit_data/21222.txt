@@ -1,0 +1,15 @@
+commit 3aba41d6c3ee7a74cde724a2740896978ae81d89
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jan 8 19:09:56 2015 -0500
+
+    runtime: source startupRandomData from auxv AT_RANDOM on linux/arm.
+    
+    Fixes #9541.
+    
+    Change-Id: I5d659ad50d7c3d1c92ed9feb86cda4c1a6e62054
+    Reviewed-on: https://go-review.googlesource.com/2584
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_linux_arm.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit 37666561b2f040c965aa8d635453f2e58839e7bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 24 15:13:39 2010 -0800
+
+    http: fix handling of Close, use Close in http.Post
+    default to HTTP/1.1
+    
+    R=petar-m
+    CC=golang-dev
+    https://golang.org/cl/224041
+
+ src/pkg/http/client.go             |  1 +
+ src/pkg/http/requestwrite_test.go  | 37 +++++++++++++++++++++++++++++++++++++
+ src/pkg/http/response.go           | 10 +++++++---
+ src/pkg/http/responsewrite_test.go |  3 ++-
+ src/pkg/http/transfer.go           | 28 +++++++++++++++++++++-------
+ 5 files changed, 68 insertions(+), 11 deletions(-)

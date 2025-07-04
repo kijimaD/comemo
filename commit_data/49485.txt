@@ -1,0 +1,23 @@
+commit 1d9d99b7ce279f2af928f79cbc5906d99f29bb67
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 16 11:35:40 2022 -0400
+
+    cmd/link: consider alignment in carrier symbol size calculation
+    
+    Currently, when we calculate the size of a carrier symbol, we use
+    the previous symbol's end address as the start. But the symbol
+    actually starts after applying the alignment. Do this in the
+    size calculation.
+    
+    Should fix AIX build.
+    
+    Updates #53372.
+    
+    Change-Id: I17942b1fe8027dce12b78c8e8c80ea6cebcee240
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412734
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

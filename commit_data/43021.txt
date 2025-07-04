@@ -1,0 +1,30 @@
+commit 9a702fd427645e4bcd42a68f9676bc1ab2adb6e4
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Sep 17 15:54:13 2020 -0400
+
+    cmd/go: flip relationship between load and modload
+    
+    Previously, modload imported load, but it mainly just did so in order
+    to install callbacks to the modload API. This was important during vgo
+    development, but there's no longer a strong reason to do this. Nothing
+    modload imports strongly depends on load, so there's little danger of
+    a dependency cycle.
+    
+    This change deletes the callbacks in load and instead, makes load call
+    exported functions in modload directly. In the future, these functions
+    may have different signatures than their GOPATH counterparts.
+    
+    Change-Id: Ifde5c3ffebd190b5bd184924ec447d272b936f27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255719
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go       | 46 ++++++++++++-----------------------
+ src/cmd/go/internal/modload/import.go |  7 ------
+ src/cmd/go/internal/modload/init.go   | 14 +----------
+ src/cmd/go/internal/vcs/vcs.go        | 36 ++++++++++++++++++++++++---
+ src/cmd/go/internal/work/exec.go      |  3 ++-
+ src/cmd/go/internal/work/init.go      |  4 +--
+ 6 files changed, 53 insertions(+), 57 deletions(-)

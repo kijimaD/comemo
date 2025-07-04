@@ -1,0 +1,17 @@
+commit b3d3762b2ea99eab54d8c760a069b1a8d920bfb1
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 24 16:05:26 2011 +1000
+
+    encoding/line: delete package.
+    Its functionality is now in bufio.
+    Fixes #1869.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4553061
+
+ src/pkg/Makefile                   |   1 -
+ src/pkg/encoding/line/Makefile     |  11 ---
+ src/pkg/encoding/line/line.go      | 115 --------------------------------
+ src/pkg/encoding/line/line_test.go | 133 -------------------------------------
+ 4 files changed, 260 deletions(-)

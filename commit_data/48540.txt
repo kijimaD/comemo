@@ -1,0 +1,21 @@
+commit 0bbd05b8262624bb8e8aea43fa76934fbff8fc81
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Sat Mar 26 02:10:29 2022 +0000
+
+    time: add Duration.Abs
+    
+    Fixes #51414
+    
+    Change-Id: Ia3b1674f2a902c8396fe029397536643a3bc1784
+    GitHub-Last-Rev: 67159648af09e7a8ac2825a1fe71b2de3fb9d748
+    GitHub-Pull-Request: golang/go#51739
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393515
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ api/next/51414.txt    |  1 +
+ src/time/time.go      | 13 +++++++++++++
+ src/time/time_test.go | 24 ++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+)

@@ -1,0 +1,14 @@
+commit 595efd0d205b2a1fe143440088f8f394b09c3b8c
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Dec 1 10:17:33 2011 +1100
+
+    syscall: fix openbsd sysctl hostname/domainname workaround
+    
+    Fixes #2509.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5451055
+
+ src/pkg/syscall/syscall_bsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

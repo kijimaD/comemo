@@ -1,0 +1,15 @@
+commit 87dae02a636e61895d8f084e9584befacc724d3f
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 24 14:11:20 2008 -0700
+
+    string nil same as string ""
+    
+    SVN=124381
+
+ src/cmd/6g/cgen.c     |   9 ++++
+ src/cmd/6g/gen.c      |   5 --
+ src/cmd/6g/gsubr.c    |   7 ++-
+ src/cmd/gc/walk.c     | 140 ++++++++++++++++++++++++++++++++------------------
+ src/runtime/runtime.c |  32 +++++++++---
+ src/runtime/runtime.h |   2 +-
+ 6 files changed, 129 insertions(+), 66 deletions(-)

@@ -1,0 +1,21 @@
+commit e24380b6fa82682baa4103787373520c7685e38a
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Dec 1 11:38:38 2022 -0500
+
+    runtime,hash/maphash: eliminate maphash torture test for -race
+    
+    Disable the "torture" portion of the maphash tests if -race is in
+    effect (these tests can cause timeouts on the longtest -race builder).
+    
+    Fixes #57030.
+    
+    Change-Id: I23d7561dac3e81d979cad9e0efa6f5b7154aadd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454455
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/hash/maphash/smhasher_test.go |  5 +++++
+ src/runtime/hash_test.go          | 19 +++++++++++++++++++
+ 2 files changed, 24 insertions(+)

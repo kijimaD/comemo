@@ -1,0 +1,12 @@
+commit c09d284953f3b628087896da65b6c0227529e33e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 24 14:55:07 2015 -0700
+
+    cmd/compile: add missing quotation mark
+    
+    Change-Id: I102901e3df76830ccd5ab74d757203d103eef9e8
+    Reviewed-on: https://go-review.googlesource.com/12657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

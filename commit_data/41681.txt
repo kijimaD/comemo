@@ -1,0 +1,18 @@
+commit b3b174ffcf8ab4977dba1e9e18b91993a8c5a253
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 18 16:32:31 2020 -0700
+
+    runtime: minor updates to netpoll comments
+    
+    In Go 1.4 we renamed READY to pdReady and WAIT to pdWait as part of
+    rewriting netpoll from C to Go. Finish updating the comments to use
+    the new names.
+    
+    Change-Id: I6cefc698b46c58211fd6be1489bdd70419454962
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223998
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/netpoll.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

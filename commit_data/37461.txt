@@ -1,0 +1,16 @@
+commit b8fad4b33d20224f2965a1e9cdbd931fda0ed636
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 19 10:36:45 2018 -0500
+
+    runtime: improve "P has cached GC work" debug info
+    
+    For #27993.
+    
+    Change-Id: I20127e8a9844c2c488f38e1ab1f8f5a27a5df03e
+    Reviewed-on: https://go-review.googlesource.com/c/149968
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mgc.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

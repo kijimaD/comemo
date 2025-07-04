@@ -1,0 +1,14 @@
+commit 4e4097d9d97554231cb867142285fb92301108a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 16:32:45 2009 -0700
+
+    386 shift bug; wasn't zero-extending 16- and 8-bit counts
+    +test
+    
+    R=ken
+    OCL=35801
+    CL=35801
+
+ src/cmd/8g/cgen64.c | 12 ++++++++----
+ test/64bit.go       | 46 ++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 46 insertions(+), 12 deletions(-)

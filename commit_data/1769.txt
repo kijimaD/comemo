@@ -1,0 +1,13 @@
+commit b18e4184100e18c50b88d009487dd7a2841d093a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 6 03:22:02 2009 -0800
+
+    document unicode, such as it is
+    
+    R=rsc
+    DELTA=18  (9 added, 0 deleted, 9 changed)
+    OCL=25817
+    CL=25832
+
+ src/lib/unicode/letter.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

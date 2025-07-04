@@ -1,0 +1,17 @@
+commit dff9108d988c3bd1ef323db2938631132f2337fe
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 24 15:38:16 2015 -0400
+
+    runtime: make notetsleep_internal nowritebarrier
+    
+    When notetsleep_internal is called from notetsleepg, notetsleepg has
+    just given up the P, so write barriers are not allowed in
+    notetsleep_internal.
+    
+    Change-Id: I1b214fa388b1ea05b8ce2dcfe1c0074c0a3c8870
+    Reviewed-on: https://go-review.googlesource.com/12647
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/lock_futex.go | 4 ++++
+ 1 file changed, 4 insertions(+)

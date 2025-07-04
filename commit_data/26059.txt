@@ -1,0 +1,22 @@
+commit 69285a8b46c1d7588d0542d4f9d00f03cbfcbca9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Mar 4 14:53:26 2016 -0500
+
+    reflect: recognize unnamed directional channels
+    
+    go test github.com/onsi/gomega/gbytes now passes at tip, and tests
+    added to the reflect package.
+    
+    Fixes #14645
+    
+    Change-Id: I16216c1a86211a1103d913237fe6bca5000cf885
+    Reviewed-on: https://go-review.googlesource.com/20221
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/all_test.go | 2 ++
+ src/reflect/set_test.go | 2 ++
+ src/reflect/type.go     | 6 +++++-
+ src/runtime/type.go     | 6 +++++-
+ 4 files changed, 14 insertions(+), 2 deletions(-)

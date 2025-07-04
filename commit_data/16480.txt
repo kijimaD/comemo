@@ -1,0 +1,18 @@
+commit 62891fb811980cce1f859254306265f2d4922da2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jun 4 08:18:36 2013 +0200
+
+    cmd/gc: fix missing slice/array types in export data.
+    
+    Fixes #5614.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/9953044
+
+ src/cmd/gc/export.c                       |  1 +
+ test/fixedbugs/issue5614.dir/rethinkgo.go | 16 ++++++++++++++++
+ test/fixedbugs/issue5614.dir/x.go         |  7 +++++++
+ test/fixedbugs/issue5614.dir/y.go         |  5 +++++
+ test/fixedbugs/issue5614.go               | 11 +++++++++++
+ 5 files changed, 40 insertions(+)

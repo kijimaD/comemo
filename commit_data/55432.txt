@@ -1,0 +1,39 @@
+commit e85968670e35fc24987944c56277d80d7884e9cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 23 13:21:19 2024 -0800
+
+    go/types, types2: better error msg when type inference fails in a call
+    
+    In Checker.infer, report an error through an (incoming) *error_
+    so that the error can be reported as desired where infer is called.
+    Checker.infer is now a pure function.
+    
+    Fixes #60543.
+    
+    At call sites of Checker.infer, pass in an *error_ and use it to
+    report inference errors, together with additional information as
+    desired.
+    
+    Fixes #60542.
+    
+    In go/types, in error_.errorf, pass in a positioner rather than
+    a token.Pos. Also, introduce noposn, the positioner equivalent
+    for nopos. Adjust call sites as needed.
+    
+    Change-Id: I462a7899a77a8bee2a21ba88299df237d74e0672
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558035
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go            | 16 ++++++++++++----
+ src/cmd/compile/internal/types2/infer.go           | 22 +++++++++++-----------
+ src/go/types/assignments.go                        |  6 +++---
+ src/go/types/call.go                               | 20 ++++++++++++++------
+ src/go/types/check.go                              |  3 ++-
+ src/go/types/errors.go                             | 12 ++++++------
+ src/go/types/errors_test.go                        |  4 ++--
+ src/go/types/infer.go                              | 22 +++++++++++-----------
+ .../types/testdata/fixedbugs/issue60542.go         |  2 +-
+ 9 files changed, 62 insertions(+), 45 deletions(-)

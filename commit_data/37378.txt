@@ -1,0 +1,28 @@
+commit e51b19a993efa61b7d8f8d2828d9ee95ea82c98c
+Author: Martin Garton <garton@gmail.com>
+Date:   Tue Nov 13 13:34:42 2018 +0000
+
+    bufio: make Reader.Peek invalidate Unreads
+    
+    Since Reader.Peek potentially reads from the underlying io.Reader,
+    discarding previous buffers, UnreadRune and UnreadByte cannot
+    necessarily work.  Change Peek to invalidate the unread buffers in all
+    cases (as allowed according to the documentation) and thus prevent
+    hiding bugs in the caller.
+    
+    (This change was previoiusly merged and then reverted due concern about
+    being too close to a release)
+    
+    Fixes #18556
+    
+    Change-Id: I9027d75aa834d4b27703f37711ba25de04d89f3c
+    GitHub-Last-Rev: 917ef1e51131d734f92efc946a0ab5ca4ff69be6
+    GitHub-Pull-Request: golang/go#28768
+    Reviewed-on: https://go-review.googlesource.com/c/149297
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/bufio.go      |  3 +++
+ src/bufio/bufio_test.go | 18 ++++++++++++++++++
+ 2 files changed, 21 insertions(+)

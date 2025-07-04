@@ -1,0 +1,12 @@
+commit 7f6a7e22a8e93364d6d853c5983f8c0624c21165
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 20:28:14 2013 -0400
+
+    net/http: explain the "1.1" in the default User-Agent
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/13263052
+
+ src/pkg/net/http/request.go | 5 +++++
+ 1 file changed, 5 insertions(+)

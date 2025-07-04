@@ -1,0 +1,40 @@
+commit 8cb350d69a1b0765c1c81301583d6fd99fb9d74b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Mar 1 15:06:37 2022 -0500
+
+    runtime: synchronize P wakeup and dropping Ps
+    
+    CL 310850 dropped work re-checks on non-spinning Ms to fix #43997.
+    
+    This introduced a new race condition: a non-spinning M may drop its P
+    and then park at the same time a spinning M attempts to wake a P to
+    handle some new work. The spinning M fails to find an idle P (because
+    the non-spinning M hasn't quite made its P idle yet), and does nothing
+    assuming that the system is fully loaded. This results in loss of work
+    conservation. In the worst case we could have a complete deadlock if
+    injectglist fails to wake anything just as all Ps are going idle.
+    
+    sched.needspinning adds new synchronization to cover this case. If work
+    submission fails to find a P, it sets needspinning to indicate that a
+    spinning M is required. When non-spinning Ms prepare to drop their P,
+    they check needspinning and abort going idle to become a spinning M
+    instead. This addresses the race without extra spurious wakeups. In the
+    normal (non-racing case), an M will become spinning via the normal path
+    and clear the flag.
+    
+    injectglist must change in addition to wakep because it is a similar
+    form of work submission, notably used following netpoll at a point when
+    we might not have a P that would guarantee the work runs.
+    
+    Fixes #45867
+    
+    Change-Id: Ieb623a6d4162fb8c2be7b4ff8acdebcc3a0d69a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389014
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go     | 175 ++++++++++++++++++++++++++++++++++++------------
+ src/runtime/runtime2.go |   9 ++-
+ 2 files changed, 139 insertions(+), 45 deletions(-)

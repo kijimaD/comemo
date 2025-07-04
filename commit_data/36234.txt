@@ -1,0 +1,23 @@
+commit 79bf7955dc225a8d5b28d8201b90aa0d6b0644aa
+Author: Rebecca Stambler <rstambler@golang.org>
+Date:   Thu Aug 9 12:34:19 2018 -0400
+
+    go/types: fix errors in recording type information
+    
+    In my previous change, I didn't use the correct functions for continuing
+    to record type informations after errors. Change to using the correct
+    functions, and add a comment to clarify in expr.go.
+    
+    Updates #22467
+    
+    Change-Id: I66ebb636ceb2b994db652343430f0551db0050c3
+    Reviewed-on: https://go-review.googlesource.com/128835
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/types/api_test.go    | 4 ++--
+ src/go/types/assignments.go | 2 +-
+ src/go/types/call.go        | 4 +---
+ src/go/types/expr.go        | 2 ++
+ 4 files changed, 6 insertions(+), 6 deletions(-)

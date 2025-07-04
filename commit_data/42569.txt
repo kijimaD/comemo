@@ -1,0 +1,12 @@
+commit 3c474d4164990c10c48c2b881211b6af95058be9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jun 26 19:05:13 2020 +0200
+
+    doc/go1.15: fix typos and wording in a few places
+    
+    Change-Id: Ib1fc7a8305f3bc698b9022e0a565ccbcf687e0d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240158
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

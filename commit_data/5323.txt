@@ -1,0 +1,15 @@
+commit e4136fe91c96cecb7d5c4f4be98a4fedd646705d
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Apr 20 21:41:58 2010 -0700
+
+    big: eliminate redundant array lookups
+    
+    This gives about a 6% performance improvement to pidigits.
+    Thanks to Russ for the suggestion.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/957041
+
+ src/pkg/big/nat.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

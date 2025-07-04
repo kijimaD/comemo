@@ -1,0 +1,18 @@
+commit 92cd6e3af9f423ab4d8ac78f24e7fd81c31a8ce6
+Author: David Glasser <glasser@meteor.com>
+Date:   Tue May 31 12:28:57 2016 -0700
+
+    encoding/json: fix docs on valid key names
+    
+    This has been inaccurate since https://golang.org/cl/6048047.
+    
+    Fixes #15317.
+    
+    Change-Id: If93d2161f51ccb91912cb94a35318cf33f4d526a
+    Reviewed-on: https://go-review.googlesource.com/23691
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

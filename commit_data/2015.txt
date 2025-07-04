@@ -1,0 +1,12 @@
+commit c956e909136df153750b1409697763d17b5ce63a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 14 20:10:49 2009 -0700
+
+    add a section about order of evaluation
+    
+    DELTA=32  (29 added, 2 deleted, 1 changed)
+    OCL=27197
+    CL=27469
+
+ doc/go_spec.html | 33 ++++++++++++++++++++++++++++++---
+ 1 file changed, 30 insertions(+), 3 deletions(-)

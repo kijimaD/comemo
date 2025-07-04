@@ -1,0 +1,17 @@
+commit 2b70c6add3e5637815b39c2595572b431a40171e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 18 23:09:07 2008 -0700
+
+    - fixed old test cases with wrong syntax
+    - added more test cases to Makefile
+    - fixed another parser issue (possibly a 6g bug - to be tracked down)
+    
+    R=r
+    OCL=15516
+    CL=15516
+
+ usr/gri/gosrc/base.go    | 5 ++---
+ usr/gri/gosrc/decls.go   | 9 ---------
+ usr/gri/pretty/Makefile  | 6 ++++--
+ usr/gri/pretty/parser.go | 2 +-
+ 4 files changed, 7 insertions(+), 15 deletions(-)

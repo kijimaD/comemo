@@ -1,0 +1,12 @@
+commit 34c58065e54e0ac2d610b4a550bdba8f1db90ec6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 6 02:52:17 2016 +0000
+
+    runtime: rename os1_linux.go to os_linux.go
+    
+    Change-Id: I938f61763c3256a876d62aeb54ef8c25cc4fc90e
+    Reviewed-on: https://go-review.googlesource.com/21567
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/{os1_linux.go => os_linux.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

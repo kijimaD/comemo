@@ -1,0 +1,17 @@
+commit fadeafac9391942af19cfa5cc3fc9ccedcd87b47
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Mon Mar 11 07:43:57 2013 -0700
+
+    net/http: add additional status codes defined in RFC 6585
+    
+    428 Precondition Required
+    429 Too Many Requests
+    431 Request Header Fields Too Large
+    511 Network Authentication Required
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7678043
+
+ src/pkg/net/http/status.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

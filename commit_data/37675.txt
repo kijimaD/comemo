@@ -1,0 +1,15 @@
+commit a728b0ba7cf6316e0c2e79f8d725654a40d62081
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Wed Dec 12 17:38:17 2018 -0800
+
+    cmd/link: skip TestRuntimeTypeAttrInternal on windows/arm
+    
+    Updates #26148
+    
+    Change-Id: Ide1fe821cc061a08488df9d40878131f37f894c9
+    Reviewed-on: https://go-review.googlesource.com/c/153844
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

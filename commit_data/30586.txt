@@ -1,0 +1,27 @@
+commit 5e4a958351222233fbc6f82ab621a7d15299eea5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 7 12:31:59 2017 -0800
+
+    cmd/compile: refactor portable SSA Op handling
+    
+    Several SSA ops will always behave identically regardless of target
+    architecture, so handle those within gc/ssa.go instead.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I54d514e80ab86723e44332a5a38e3054cbca8c5d
+    Reviewed-on: https://go-review.googlesource.com/37931
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go  | 19 -------------------
+ src/cmd/compile/internal/arm/ssa.go    | 19 -------------------
+ src/cmd/compile/internal/arm64/ssa.go  | 19 -------------------
+ src/cmd/compile/internal/gc/ssa.go     | 31 ++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/mips/ssa.go   | 19 -------------------
+ src/cmd/compile/internal/mips64/ssa.go | 19 -------------------
+ src/cmd/compile/internal/ppc64/ssa.go  | 21 ---------------------
+ src/cmd/compile/internal/s390x/ssa.go  | 19 -------------------
+ src/cmd/compile/internal/x86/ssa.go    | 18 ------------------
+ 9 files changed, 30 insertions(+), 154 deletions(-)

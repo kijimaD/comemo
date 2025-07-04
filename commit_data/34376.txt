@@ -1,0 +1,23 @@
+commit c5d6c42d35059bb911cf9f4a77704438ab4f9de0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 24 10:50:38 2018 -0800
+
+    runtime: improve 386/amd64 systemstack
+    
+    Minor improvements, noticed while investigating other things.
+    
+    Shorten the prologue.
+    
+    Make branch direction better for static branch prediction;
+    the most common case by far is switching stacks (g==curg).
+    
+    Change-Id: Ib2211d3efecb60446355cda56194221ccb78057d
+    Reviewed-on: https://go-review.googlesource.com/97377
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_386.s      | 21 ++++++++++-----------
+ src/runtime/asm_amd64.s    | 20 ++++++++++----------
+ src/runtime/asm_amd64p32.s | 21 ++++++++++-----------
+ 3 files changed, 30 insertions(+), 32 deletions(-)

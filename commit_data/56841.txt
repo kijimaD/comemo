@@ -1,0 +1,31 @@
+commit cf54a3d11469e3e9bd531ee2cdeaf613467923f1
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Jun 23 14:10:14 2024 +0200
+
+    crypto/tls: replay test recordings without network
+    
+    There is no reason to go across a pipe when replaying a conn recording.
+    This avoids the complexity of using localPipe and goroutines, and makes
+    handshake benchmarks more accurate, as we don't measure network
+    overhead.
+    
+    Also note how it removes the need for -fast: operating locally we know
+    when the flow is over and can error out immediately, without waiting for
+    a read from the feeder on the other side of the pipe to timeout.
+    
+    Avoids some noise in #67979, but doesn't fix the two root causes:
+    localPipe flakes and testing.B races.
+    
+    Updates #67979
+    
+    Change-Id: I153d3fa5a24847f3947823e8c3a7bc639f89bc1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594255
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+
+ src/crypto/tls/handshake_client_test.go | 232 +++++++++++++-------------------
+ src/crypto/tls/handshake_server_test.go |  95 +++----------
+ src/crypto/tls/handshake_test.go        |  72 +++++++++-
+ 3 files changed, 188 insertions(+), 211 deletions(-)

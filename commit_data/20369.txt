@@ -1,0 +1,26 @@
+commit d72029e3a3e6726248d84fdd1e468a3683ccb577
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 9 16:05:00 2014 +1000
+
+    undo CL 140110043 / 17b5fc2aa130
+    
+    I have found better approach, then longer wait.
+    See CL 134360043 for details.
+    
+    ««« original CL description
+    runtime/pprof: adjust cpuHogger so that tests pass on windows builders
+    
+    LGTM=rsc
+    R=dvyukov, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/140110043
+    
+    »»»
+    
+    LGTM=dave
+    R=golang-codereviews, dave, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/133500043
+
+ src/runtime/pprof/pprof_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

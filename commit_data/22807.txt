@@ -1,0 +1,28 @@
+commit f390135733ae20a3c8b6700426cc379f6e145319
+Author: Alex A Skinner <alex@lx.lc>
+Date:   Sat Apr 25 20:50:21 2015 -0400
+
+    net: make go DNS use localhost if resolv.conf is missing or empty
+    
+    Per resolv.conf man page, "If this file does not exist, only the name
+    server on the local machine will be queried."
+    
+    This behavior also occurs if file is present but unreadable,
+    or if no nameservers are listed.
+    
+    Fixes #10566
+    
+    Change-Id: Id5716da0eae534d5ebfafea111bbc657f302e307
+    Reviewed-on: https://go-review.googlesource.com/9380
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/conf.go                | 13 +++-----
+ src/net/conf_test.go           | 74 ++++++++++++++++++++++++++++++++----------
+ src/net/dnsclient_unix.go      | 27 ++++++---------
+ src/net/dnsclient_unix_test.go | 41 +++++++++++++----------
+ src/net/dnsconfig_unix.go      | 22 +++++++++----
+ src/net/dnsconfig_unix_test.go | 25 ++++++++++++--
+ src/net/error_test.go          |  6 ----
+ src/net/net.go                 |  1 +
+ 8 files changed, 134 insertions(+), 75 deletions(-)

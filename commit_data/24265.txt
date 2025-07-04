@@ -1,0 +1,16 @@
+commit 4ac4085f8e75a92bf622622ad10f7aecdda5afdc
+Author: Austin Clements <austin@google.com>
+Date:   Mon Sep 14 14:28:09 2015 -0400
+
+    runtime: minor clarifications of markroot
+    
+    This puts the _Root* indexes in a more friendly order and tweaks
+    markrootSpans to use a for-range loop instead of its own indexing.
+    
+    Change-Id: I2c18d55c9a673ea396b6424d51ef4997a1a74825
+    Reviewed-on: https://go-review.googlesource.com/14548
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 7 ++++---
+ src/runtime/mgcmark.go | 3 +--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

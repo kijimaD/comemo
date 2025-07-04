@@ -1,0 +1,18 @@
+commit f47d403cb48f669fe4a6c4ba6bcaaa33eb2e51af
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 12 00:53:04 2010 -0400
+
+    gc: make string x + y + z + ... + w efficient
+    
+    1 malloc per concatenation.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2124045
+
+ src/cmd/gc/builtin.c.boot  |  2 +-
+ src/cmd/gc/runtime.go      |  4 +++-
+ src/cmd/gc/walk.c          | 45 +++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/runtime/runtime.h  |  1 +
+ src/pkg/runtime/string.goc | 28 ++++++++++++++++++++++++++--
+ 5 files changed, 72 insertions(+), 8 deletions(-)

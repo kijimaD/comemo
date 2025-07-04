@@ -1,0 +1,20 @@
+commit 887d9ef6101c6efeef00b0c7c80e634ff983fdcc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Feb 10 23:54:56 2025 +0000
+
+    internal/trace: increment sync counter before final Sync on error
+    
+    CL 648195 was supposed to have fixed #71615, but it didn't include an
+    update to r.syncs. I can confirm this CL fixes the issue even when
+    running the test many times in a row.
+    
+    Fixes #71615.
+    
+    Change-Id: I97db3d639dc5bc8648a191696f90b0e5087307c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648315
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/reader.go | 1 +
+ 1 file changed, 1 insertion(+)

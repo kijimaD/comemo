@@ -1,0 +1,14 @@
+commit 91cb9995c390cac1f8121f075045ad94c0086fd7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 3 10:40:33 2013 -0700
+
+    doc/go1.1.html: state that the heap is bigger on 64-bit machines
+    Be deliberately vague, since the precise details should not be depended upon.
+    Fixes #5155.
+    
+    R=golang-dev, gri, adg
+    CC=golang-dev
+    https://golang.org/cl/8283044
+
+ doc/go1.1.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

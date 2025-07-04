@@ -1,0 +1,15 @@
+commit dfdfba14b98591a45186a9e9182b71e7df816e2c
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 18 22:25:17 2013 +0100
+
+    cmd/gc: allow registerization of temporaries created by inlining.
+    
+    Names beginning with a dot are ignored by optimizers.
+    
+    R=rsc, lvd, golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7098049
+
+ src/cmd/gc/dcl.c | 4 ++--
+ src/cmd/gc/inl.c | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

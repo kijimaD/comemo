@@ -1,0 +1,28 @@
+commit 10ea6519e4e61d47385ca7b7f60ca96856271de7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 20:57:01 2012 -0400
+
+    build: make int 64 bits on amd64
+    
+    The assembly offsets were converted mechanically using
+    code.google.com/p/rsc/cmd/asmlint. The instruction
+    changes were done by hand.
+    
+    Fixes #2188.
+    
+    R=iant, r, bradfitz, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/6550058
+
+ doc/go1.1.html                   |  65 +++++++++++++++++++++++++
+ doc/go_faq.html                  |   9 ++--
+ src/cmd/6g/galign.c              |   6 +--
+ src/cmd/6l/l.h                   |   2 +-
+ src/cmd/cgo/main.go              |   2 +-
+ src/cmd/dist/goc2c.c             |   2 +-
+ src/pkg/bytes/asm_amd64.s        |  26 +++++-----
+ src/pkg/hash/crc32/crc32_amd64.s |  12 ++---
+ src/pkg/math/big/arith_amd64.s   | 102 +++++++++++++++++++--------------------
+ src/pkg/runtime/runtime.h        |   4 +-
+ test/index.go                    |   5 ++
+ 11 files changed, 154 insertions(+), 81 deletions(-)

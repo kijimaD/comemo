@@ -1,0 +1,17 @@
+commit 1fa063cbb6efd16a13d9c0e44374aac8791fbcb7
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 19:10:47 2017 +0100
+
+    go/internal/gccimporter: actually use pkg parameter
+    
+    We're passed a pkg, so it makes little sense to not use it. This was
+    probably a typo and not the intended behaviour.
+    
+    Fixes #19407.
+    
+    Change-Id: Ia1c9130c0e474daf47753cf51914a2d7db272c96
+    Reviewed-on: https://go-review.googlesource.com/37839
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gccgoimporter/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

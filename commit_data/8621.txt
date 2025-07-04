@@ -1,0 +1,16 @@
+commit eb72403bb6675b9bd5e9a94b9d8b0638c54a8c00
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 6 09:25:30 2011 +1000
+
+    go/build: exclude cgo test from arm
+    go/build: include command output in error values
+    go/build: add syslist.go to .hgignore
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4550118
+
+ .hgignore                      | 1 +
+ src/pkg/go/build/build.go      | 6 +++++-
+ src/pkg/go/build/build_test.go | 5 +++++
+ 3 files changed, 11 insertions(+), 1 deletion(-)

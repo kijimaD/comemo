@@ -1,0 +1,14 @@
+commit a84ac18936bb60f5037b84ccc47ae5f591f7e1a1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 8 12:36:30 2019 -0500
+
+    cmd/go/internal/lockedfile: add a unit-test for Transform
+    
+    Updates #35425
+    
+    Change-Id: I9ca2251246ee2fa9bb7a335d5eff94d3c9f1f004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206143
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/lockedfile/transform_test.go | 104 +++++++++++++++++++++++
+ 1 file changed, 104 insertions(+)

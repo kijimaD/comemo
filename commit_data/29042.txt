@@ -1,0 +1,27 @@
+commit 2113c9ad0d82b3d1a734c0b5fc0efc9c44a920d5
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Tue Oct 18 06:18:39 2016 +0200
+
+    image/color: improve speed of RGBA methods
+    
+    Apply the optimizations added to color conversion functions in
+    https://go-review.googlesource.com/#/c/21910/ to the RGBA methods.
+    
+    YCbCrToRGBA/0-4      6.32ns ± 3%  6.58ns ± 2%   +4.15%  (p=0.000 n=20+19)
+    YCbCrToRGBA/128-4    8.02ns ± 2%  5.89ns ± 2%  -26.57%  (p=0.000 n=20+19)
+    YCbCrToRGBA/255-4    8.06ns ± 2%  6.59ns ± 3%  -18.18%  (p=0.000 n=20+20)
+    NYCbCrAToRGBA/0-4    8.71ns ± 2%  8.78ns ± 2%   +0.86%  (p=0.036 n=19+20)
+    NYCbCrAToRGBA/128-4  10.3ns ± 4%   7.9ns ± 2%  -23.44%  (p=0.000 n=20+20)
+    NYCbCrAToRGBA/255-4  9.64ns ± 2%  8.79ns ± 3%   -8.80%  (p=0.000 n=20+20)
+    
+    Fixes: #15260
+    
+    Change-Id: I225efdf74603e8d2b4f063054f7baee7a5029de6
+    Reviewed-on: https://go-review.googlesource.com/31773
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/color/ycbcr.go      | 89 ++++++++++++++++++++++++++++---------------
+ src/image/color/ycbcr_test.go | 63 ++++++++++++++++++++++++++----
+ 2 files changed, 115 insertions(+), 37 deletions(-)

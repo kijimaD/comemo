@@ -1,0 +1,15 @@
+commit 32dbccde78562763b6d5cc847d32c5f94fa6cab4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Feb 21 03:03:57 2020 +1100
+
+    cmd/internal/obj/riscv: add FCLASSS/FCLASSD instructions
+    
+    Add support for floating-point classification instructions.
+    
+    Change-Id: I64463d477b3db0cca16ff7bced64f154011ef4cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220542
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 8 +++++++-
+ src/cmd/internal/obj/riscv/obj.go            | 6 ++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

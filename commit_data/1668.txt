@@ -1,0 +1,17 @@
+commit 8e7873672e7d5b1f727fbc5d56ba4dea322d54f7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 12 16:06:21 2009 -0800
+
+    - fixed bugs related to the empty statement
+      (now in sync with the spec and with 6g)
+    - fixed incorrect logging statement in gds
+    
+    R=r
+    OCL=24970
+    CL=24970
+
+ usr/gri/pretty/ast.go     |  6 ++++++
+ usr/gri/pretty/gds.go     |  2 +-
+ usr/gri/pretty/parser.go  | 33 +++++++++++++++------------------
+ usr/gri/pretty/printer.go |  6 ++++++
+ 4 files changed, 28 insertions(+), 19 deletions(-)

@@ -1,0 +1,20 @@
+commit f4b918384d64dbd046f144012a60080fae16af86
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 18 18:35:53 2021 -0700
+
+    test: enable fixedbugs/bug193.go for -G compiler option
+    
+    Temporarily disable a questionable test case in fixedbugs/bug193.go
+    and enable the test as a whole. See the issues below for details.
+    
+    Updates #45114.
+    Updates #45117.
+    
+    Change-Id: I1de6f8d79b592eeeec139cd92b6c9cac56a9a74b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303094
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ test/fixedbugs/bug193.go | 4 +++-
+ test/run.go              | 1 -
+ 2 files changed, 3 insertions(+), 2 deletions(-)

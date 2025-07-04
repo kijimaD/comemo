@@ -1,0 +1,13 @@
+commit 47580f79b48d82e42c8c7b44fc49ea8de9f74fcf
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Sep 11 19:09:25 2008 -0700
+
+    bug075
+    
+    R=r
+    OCL=15192
+    CL=15192
+
+ src/cmd/gc/walk.c | 1 +
+ src/runtime/map.c | 1 +
+ 2 files changed, 2 insertions(+)

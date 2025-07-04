@@ -1,0 +1,16 @@
+commit 2a81292ac35a1a71d64f28150c96e57b74f882d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 14:08:19 2011 -0800
+
+    srcextract: HTML-escape output if so desired
+    
+    This functionality was removed with CL 4169041.
+    
+    Minor simplifications.
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/4171042
+
+ doc/codelab/wiki/srcextract.go | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

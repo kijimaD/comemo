@@ -1,0 +1,23 @@
+commit c2d1df6391a7b4bcdc6112c512c2fd9c365153c5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed May 6 12:59:18 2020 -0400
+
+    cmd/go: group 'go get' update messages together near the end of output
+    
+    In module mode, 'go get' prints a message for each version query it
+    resolves. This change groups those messages together near the end of
+    the output so they aren't mixed with other module "finding" and
+    "downloading" messages. They'll still be printed before build-related
+    messages.
+    
+    Fixes #37982
+    
+    Change-Id: I107a9f2b2f839e896399df906e20d6fc77f280c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232578
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                 | 31 ++++++++++++++++++++---
+ src/cmd/go/testdata/script/mod_get_update_log.txt | 15 +++++++++++
+ 2 files changed, 43 insertions(+), 3 deletions(-)

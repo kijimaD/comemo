@@ -1,0 +1,34 @@
+commit e5956bca418bb8528509665ae753eada2024b9e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 24 08:55:43 2015 -0800
+
+    net/http: more HTTP/2 tests and fixes
+    
+    This compares the behavior of server handlers and the net/http
+    Transport in both HTTP/1 and HTTP/2 mode and verifies they're the
+    same.
+    
+    This also moves some client<->server tests into clientserver_test.go.
+    Many of them were in serve_test.go or transport_test.go but were
+    basically testing both.
+    
+    h2_bundle.go is an update of the golang.org/x/net/http2 code
+    from https://golang.org/cl/17204 (x/net git rev c745c36eab10)
+    
+    Fixes #13315
+    Fixes #13316
+    Fixes #13317
+    Fixes other stuff found in the process too
+    Updates #6891 (http2 support in general)
+    
+    Change-Id: Id9c45fad44cdf70ac95d2b89e578d66e882d3cc2
+    Reviewed-on: https://go-review.googlesource.com/17205
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/clientserver_test.go | 353 ++++++++++++++++++++++++++++++++++++++
+ src/net/http/h2_bundle.go         | 152 +++++++++++++---
+ src/net/http/main_test.go         |  42 -----
+ src/net/http/serve_test.go        |  93 ----------
+ src/net/http/transport_test.go    |  69 +-------
+ 5 files changed, 487 insertions(+), 222 deletions(-)

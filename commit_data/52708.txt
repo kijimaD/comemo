@@ -1,0 +1,25 @@
+commit a41a29ad19c25c3475a65b7265fcad870d954c2a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 6 16:03:33 2020 -0400
+
+    runtime: adjust frame pointer on stack copy on ARM64
+    
+    Frame pointer is enabled on ARM64. When copying stacks, the
+    saved frame pointers need to be adjusted.
+    
+    Updates #39524, #40044.
+    Fixes #58432.
+    
+    Change-Id: I73651fdfd1a6cccae26a5ce02e7e86f6c2fb9bf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241158
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/stack.go                               | 26 +++++++++++--
+ src/runtime/stack_test.go                          | 12 ++++++
+ src/runtime/testdata/testprog/framepointer.go      | 44 ++++++++++++++++++++++
+ src/runtime/testdata/testprog/framepointer_amd64.s |  9 +++++
+ src/runtime/testdata/testprog/framepointer_arm64.s |  9 +++++
+ 5 files changed, 96 insertions(+), 4 deletions(-)

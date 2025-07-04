@@ -1,0 +1,19 @@
+commit 5a43a271e8cc589e077b4e056298d3711e233cd3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Feb 9 12:47:33 2018 -0500
+
+    cmd/compile: CALLudiv on nacl/arm doesn't clobber R12
+    
+    On nacl/arm, R12 is clobbered by the RET instruction in function
+    that has a frame. runtime.udiv doesn't have a frame, so it does
+    not clobber R12.
+    
+    Change-Id: I0de448749f615908f6659e92d201ba3eb2f8266d
+    Reviewed-on: https://go-review.googlesource.com/93116
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/ssa/config.go | 3 ---
+ src/runtime/vlop_arm.s                 | 3 +++
+ 2 files changed, 3 insertions(+), 3 deletions(-)

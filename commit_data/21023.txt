@@ -1,0 +1,16 @@
+commit 3f1954175231156ce57a67938a58511e242c2213
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 18 16:30:46 2014 +1100
+
+    runtime: use go generate for zcallback_windows.go
+    
+    replacement for CL 180640043
+    
+    Change-Id: I8ff36645cfcbbda338faf7b29cbfdb95c47d5ec4
+    Reviewed-on: https://go-review.googlesource.com/1765
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime2_windows.go  |  8 --------
+ src/runtime/wincallback.go       | 23 ++++++++++++++++++++++-
+ src/runtime/zcallback_windows.go |  5 +++++
+ 3 files changed, 27 insertions(+), 9 deletions(-)

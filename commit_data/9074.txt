@@ -1,0 +1,16 @@
+commit e8ff9a624f28fcfc653f2a23aeb718afdaaaf55a
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Jul 14 18:13:39 2011 +0200
+
+    gc: fix closure bug
+    
+    Fixes #2056.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4709042
+
+ src/cmd/gc/closure.c     | 78 +++++++++++++++++++++++++-----------------------
+ src/cmd/gc/walk.c        |  4 +--
+ test/fixedbugs/bug346.go | 19 ++++++++++++
+ 3 files changed, 62 insertions(+), 39 deletions(-)

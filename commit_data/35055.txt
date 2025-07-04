@@ -1,0 +1,18 @@
+commit da24c95ce09668a0d977c208e8e610a21b98b019
+Author: weeellz <weeellz12@gmail.com>
+Date:   Sat Apr 14 18:07:20 2018 +0300
+
+    database/sql: remove unnecessary else conditions
+    
+    Fixes golint warning about "if block ends with a return statement,
+    so drop this else and outdent its block".
+    
+    Change-Id: Iac4fd324e04e3e3fe3e3933f5e59095041d292c5
+    Reviewed-on: https://go-review.googlesource.com/107115
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/convert.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

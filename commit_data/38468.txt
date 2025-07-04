@@ -1,0 +1,17 @@
+commit b2453c058839683cafd8a77600f2cee29cc3c668
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Mar 19 14:00:03 2019 +0100
+
+    runtime/cgo: correct cgo_export directives in callbacks_aix.go
+    
+    This commit removes spaces which were wrongly added in
+    //go:cgo_export_static during CL 164010.
+    
+    Change-Id: Iadd18efdde9ff32e907d793a72ef0f9efda35fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168317
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/callbacks_aix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

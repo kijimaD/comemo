@@ -1,0 +1,14 @@
+commit a3baccefd6851acc77beadd645d5b0278146fe1d
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Thu Jan 5 18:38:01 2012 -0800
+
+    various: fix prints
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5516049
+
+ misc/dashboard/app/build/notify.go | 2 +-
+ src/cmd/gotest/gotest.go           | 2 +-
+ src/pkg/fmt/fmt_test.go            | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

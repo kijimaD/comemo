@@ -1,0 +1,19 @@
+commit 975ba6e2b2547e0c4065a09644686723704283e1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 27 11:00:29 2020 +0700
+
+    cmd/compile: mark OpSB, OpSP as poor statement Op
+    
+    So that would make them last choice for a statement boundary.
+    
+    This is follow up of CL 273506.
+    
+    Change-Id: I0203aa0e0d95d538064c2113143c85c4fbb1e65e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273666
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/numberlines.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

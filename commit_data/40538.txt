@@ -1,0 +1,27 @@
+commit 971ec8728e27a3a9e0b0b26413e2b994c828f86d
+Author: Joshua M. Clulow <josh@sysmgr.org>
+Date:   Fri Nov 1 22:26:59 2019 -0700
+
+    runtime: check for events when port_getn fails with ETIME
+    
+    On illumos systems, and at least historically on Solaris systems, it is
+    possible for port_getn(3C) calls to return some number of events and
+    then fail with error ETIME.
+    
+    Generally we expect this to happen if the caller passes an nget value
+    larger than 1 and calls with a timeout; if less than the requested
+    number of events accumulate the system will still return them after
+    timeout failure so the caller must check the updated nget value in the
+    ETIME case.  Note that although less likely this can still happen even
+    when requesting just 1 event, especially with a short timeout value or
+    on a busy system.
+    
+    Fixes #35261
+    
+    Change-Id: I0d83251b69a2fadc64c4e8e280aa596e2e1548ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204801
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/netpoll_solaris.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 0218dfe7eb4afded4614a51d03bfedfec995378d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 13:11:41 2013 -0400
+
+    cmd/gc: allow inlined struct == to mention unsafe.Pointer even in safe mode
+    
+    Fixes #5578.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13417044
+
+ src/cmd/gc/walk.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

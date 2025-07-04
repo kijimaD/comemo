@@ -1,0 +1,21 @@
+commit c46226a6222eb8bc8b30b40e8ce09ebe00f5dade
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 23 03:56:23 2017 +0000
+
+    net: mark TestDialerDualStack as flaky
+    
+    It was already marked flaky for everything but the dashboard.
+    Remove that restriction. It's just flaky overall.
+    
+    It's doing more harm than good.
+    
+    Updates #13324
+    
+    Change-Id: I36feff32a1b8681e77700f74b9c70cb4073268eb
+    Reviewed-on: https://go-review.googlesource.com/38459
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/net/dial_test.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

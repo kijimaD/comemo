@@ -1,0 +1,14 @@
+commit 6ed6cb4550f5f65c7e51d4f9b9b70d7418ddbf50
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Mar 15 17:38:05 2015 +1100
+
+    cmd/dist: use GOARM=5 for openbsd/arm
+    
+    OpenBSD/arm only currently supports softfloat, hence make the default GOARM=5.
+    
+    Change-Id: Ie3e8f457f001b3803d17ad9bc4ab957b2da18c6a
+    Reviewed-on: https://go-review.googlesource.com/7614
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/dist/util.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

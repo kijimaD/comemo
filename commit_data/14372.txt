@@ -1,0 +1,12 @@
+commit a8accda52d2e63ff146169e0d25fb58f632f4133
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Nov 12 12:20:42 2012 +0100
+
+    doc/install: document system requirements for the FreeBSD/ARM port
+    
+    R=golang-dev, r, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6816080
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

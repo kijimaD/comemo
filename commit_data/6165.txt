@@ -1,0 +1,12 @@
+commit d94fedabb435ec0afbecace94d0711184461440a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 3 17:11:56 2010 +1000
+
+    list: update comment to state that the zero value is ready to use.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2147042
+
+ src/pkg/container/list/list.go | 1 +
+ 1 file changed, 1 insertion(+)

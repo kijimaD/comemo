@@ -1,0 +1,18 @@
+commit ad523565369af0005c59232e5d2dd7359073f0f4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 28 14:35:52 2022 -0800
+
+    cmd/compile: remove a bunch of dead noder code
+    
+    This code was only needed for supporting -G=0 mode, which is now gone.
+    
+    Change-Id: I504887ab179e357a3cd21ef582f9edae49f6cbb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388536
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/import.go |  175 ----
+ src/cmd/compile/internal/noder/noder.go  | 1333 +-----------------------------
+ 2 files changed, 1 insertion(+), 1507 deletions(-)

@@ -1,0 +1,14 @@
+commit 0f64a6ef8db6a025fe2bb3d1756d312e9ea7d702
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 7 14:46:41 2013 +1100
+
+    os: document that Exit does not run deferred calls
+    
+    Fixes #4101.
+    
+    R=dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/7065048
+
+ src/pkg/os/proc.go | 2 ++
+ 1 file changed, 2 insertions(+)

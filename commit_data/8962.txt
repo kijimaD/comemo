@@ -1,0 +1,12 @@
+commit ae19943e2b13784be69b51bf44fc5956fdc2759b
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 7 10:35:37 2011 +1000
+
+    CONTRIBUTORS: add Google contributor mpvl@golang.org
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev, mpvl
+    https://golang.org/cl/4643075
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

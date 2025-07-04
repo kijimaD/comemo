@@ -1,0 +1,17 @@
+commit 5e03c84a3d48d84229a9c24727f1af99583ac348
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Nov 7 16:34:03 2015 +0100
+
+    net/http: update http2 bundle to rev d62542
+    
+    Updates to use new client pool abstraction.
+    
+    Change-Id: I3552018038ee8394d313d3253af337b07be211f6
+    Reviewed-on: https://go-review.googlesource.com/16730
+    Reviewed-by: Blake Mizerany <blake.mizerany@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 295 +++++++++++++++++++++++++---------------------
+ src/net/http/transport.go |  49 ++++++--
+ 2 files changed, 200 insertions(+), 144 deletions(-)

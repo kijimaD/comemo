@@ -1,0 +1,22 @@
+commit b08156cd874d9534776cd9ece8f6f4ab092a68a5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 7 11:27:01 2014 -0500
+
+    runtime: fix memory leak in runfinq
+    
+    One reason the sync.Pool finalizer test can fail is that
+    this function's ef1 contains uninitialized data that just
+    happens to point at some of the old pool. I've seen this cause
+    retention of a single pool cache line (32 elements) on arm.
+    
+    Really we need liveness information for C functions, but
+    for now we can be more careful about data in long-lived
+    C functions that block.
+    
+    LGTM=bradfitz, dvyukov
+    R=golang-codereviews, bradfitz, dvyukov
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/72490043
+
+ src/pkg/runtime/mgc0.c | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

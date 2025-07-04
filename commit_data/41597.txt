@@ -1,0 +1,16 @@
+commit 9f74f0afa6270e6735c1b6f59519cc88ff2ed1e4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Mar 10 03:27:44 2020 +1100
+
+    cmd/compile: remove special handling for OpRISCV64SUBW in markUnsafePoints
+    
+    Due to improved optimisation, we no longer emit SUBW for the write barrier
+    checks on riscv64, hence remove special handling in markUnsafePoints.
+    
+    Change-Id: Ia1150c3e11f25e183735e58f8716a511d9e90fb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222638
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 6 ------
+ 1 file changed, 6 deletions(-)

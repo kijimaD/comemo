@@ -1,0 +1,12 @@
+commit b6e6870cdb04a838dfb08f2792fbd8d41b849d2a
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Dec 12 17:03:34 2018 -0500
+
+    doc/go1.12: add release notes for bufio and syscall packages
+    
+    Change-Id: I5112be3b0f80ef1d9dad234b1f233e598465a409
+    Reviewed-on: https://go-review.googlesource.com/c/153824
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

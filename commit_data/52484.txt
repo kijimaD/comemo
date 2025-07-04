@@ -1,0 +1,31 @@
+commit 092d43c329babb41f9bbad265bfe82bb48522b64
+Author: Philippe Antoine <contact@catenacyber.fr>
+Date:   Thu Mar 23 08:14:39 2023 +0000
+
+    all: replace fmt.Sprintf("%d") with strconv.Itoa
+    
+    This was found by running `git grep 'fmt.Sprintf("%d",' | grep -v test | grep -v vendor`
+    
+    And this was automatically fixed with gotiti https://github.com/catenacyber/gotiti
+    and using unconvert https://github.com/mdempsky/unconvert
+    to check if there was (tool which fixed another useless cast)
+    
+    Change-Id: I023926bc4aa8d51de45f712ac739a0a80145c28c
+    GitHub-Last-Rev: 1063e32e5b69b6f9bb17673887b8c4ebe5be8fe4
+    GitHub-Pull-Request: golang/go#59144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477675
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/covdata/argsmerge.go                 | 7 +++++--
+ src/cmd/go/internal/modfetch/codehost/svn.go | 3 ++-
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 4 ++--
+ src/go/token/position.go                     | 3 ++-
+ src/internal/buildcfg/cfg.go                 | 3 ++-
+ src/net/http/triv.go                         | 2 +-
+ src/runtime/coverage/emit.go                 | 5 +++--
+ 7 files changed, 17 insertions(+), 10 deletions(-)

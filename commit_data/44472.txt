@@ -1,0 +1,31 @@
+commit 77973863c351b162d68723439fc56fb054e917b2
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 9 15:14:43 2021 -0500
+
+    cmd/compile: use abiutils for all rcvr/in/out frame offsets.
+    
+    types thought it knew how to do this, but that's a lie, because types
+    doesn't know what the ABI is.
+    
+    includes extra checking to help prevent things from accidentally working
+    if they need to be changed but aren't.
+    
+    For #40724.
+    
+    Change-Id: I166cd948f262344b7bebde6a2c25e7a7f878bbfb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293393
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go        | 33 ++++++++++------
+ src/cmd/compile/internal/ir/expr.go             |  8 ++--
+ src/cmd/compile/internal/ssa/expand_calls.go    | 31 +++++++++++----
+ src/cmd/compile/internal/ssa/op.go              | 40 ++++---------------
+ src/cmd/compile/internal/ssagen/ssa.go          | 51 ++++++++++++++-----------
+ src/cmd/compile/internal/typecheck/typecheck.go |  2 +-
+ src/cmd/compile/internal/types/size.go          |  6 ++-
+ src/cmd/compile/internal/types/type.go          | 16 +++++++-
+ src/cmd/compile/internal/walk/assign.go         |  2 +-
+ 9 files changed, 107 insertions(+), 82 deletions(-)

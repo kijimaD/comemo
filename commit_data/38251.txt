@@ -1,0 +1,18 @@
+commit c7408a87757f94ed72e3e2b7886880dcca946b28
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 6 11:56:06 2019 +1100
+
+    doc: sort map output in Effective Go
+    
+    And explain that it does this. A minor change probably worth mentioning,
+    although (#28782) I'd still like to freeze this document against any substantial
+    changes.
+    
+    Fix #30568.
+    
+    Change-Id: I74c56744871cfaf00dc52a9b480ca61d3ed19a6b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165597
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/effective_go.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

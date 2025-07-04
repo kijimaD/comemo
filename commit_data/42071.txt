@@ -1,0 +1,24 @@
+commit f049d911e93b84577577e73108605627ed522409
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 22 14:37:02 2020 -0700
+
+    cmd/compile: be stricter about recognizing safety rule #4
+    
+    unsafe.Pointer safety rule #4 says "The compiler handles a Pointer
+    converted to a uintptr in the argument list of a call". Within escape
+    analysis, we've always required this be a single conversion
+    unsafe.Pointer->uintptr conversion, but the corresponding logic in
+    order is somewhat laxer, allowing arbitrary chains of OCONVNOPs from
+    unsafe.Pointer to uintptr.
+    
+    This CL changes order to be stricter to match escape analysis.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Iadd210d2123accb2020f5728ea2a47814f703352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229578
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html                      | 12 ++++++++++++
+ src/cmd/compile/internal/gc/order.go | 31 ++++++++++++-------------------
+ 2 files changed, 24 insertions(+), 19 deletions(-)

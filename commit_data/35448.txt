@@ -1,0 +1,15 @@
+commit 31ef3846a792012b0588d92251f3976596c0b1b1
+Author: Keith Randall <khr@google.com>
+Date:   Tue May 22 09:12:35 2018 -0700
+
+    cmd/compile: add rulegen diagnostic
+    
+    When rulegen complains about a missing type, report the line number
+    in the rules file.
+    
+    Change-Id: Ic7c19e1d5f29547911909df5788945848a6080ff
+    Reviewed-on: https://go-review.googlesource.com/114004
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

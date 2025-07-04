@@ -1,0 +1,17 @@
+commit 1d3ca9236e93c8e0ba3cd7f14b758fc2c791ad34
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Feb 16 23:42:19 2012 +0100
+
+    cmd/gc: correctly typecheck expression lists in returns.
+    
+    Invalid return statements were accidentally compiling or
+    triggering internal errors.
+    Fixes #3044.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5673074
+
+ src/cmd/gc/typecheck.c   |  5 ++++-
+ test/fixedbugs/bug418.go | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

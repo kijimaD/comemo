@@ -1,0 +1,23 @@
+commit fcf8143d638dbc34fdd418f45f8e8b45de802916
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Mon Sep 21 00:45:21 2015 +0200
+
+    encoding/json: scanner: use byte, more consistent
+    
+    The fields step and redoState of struct scanner are now defined as
+    `func(s *scanner, c byte) int` instead of
+    `func(s *scanner, c int) int`, since bytes are sufficient.
+    Further changes improve the consistency in the scanner.go file.
+    
+    Change-Id: Ifb85f2130d728d2b936d79914d87a1f0b5c6ee7d
+    Reviewed-on: https://go-review.googlesource.com/14801
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/decode.go      |   2 +-
+ src/encoding/json/decode_test.go |   2 +-
+ src/encoding/json/indent.go      |   4 +-
+ src/encoding/json/scanner.go     | 101 ++++++++++++++++++---------------------
+ src/encoding/json/stream.go      |   8 ++--
+ 5 files changed, 55 insertions(+), 62 deletions(-)

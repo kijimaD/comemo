@@ -1,0 +1,23 @@
+commit a7fd2fab0e865f7fcedd3b437f1fa6e958bacc61
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 14 15:12:11 2023 -0500
+
+    doc: add godebug.md, documenting GODEBUG
+    
+    Document the changes to GODEBUG implemented as
+    part of proposal #56986.
+    
+    Fixes #56986.
+    
+    Change-Id: I23153a123e23820c5b22db4767620e037bbdd083
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462202
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ doc/godebug.md                      | 181 ++++++++++++++++++++++++++++++++++++
+ src/cmd/go/alldocs.go               |   2 +-
+ src/cmd/go/internal/help/helpdoc.go |   2 +-
+ 3 files changed, 183 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 2dd0c03427afc3a6142405085e50ffe5545cb2fd
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Tue Apr 23 13:11:58 2013 -0700
+
+    doc: fix typo in race_detector.html
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8625044
+
+ doc/articles/race_detector.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

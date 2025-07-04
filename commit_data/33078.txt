@@ -1,0 +1,18 @@
+commit 9ce43ce66797c1ddfbf365dfd83e5e17a6a7717e
+Author: Artyom Pervukhin <artyom.pervukhin@gmail.com>
+Date:   Wed Oct 11 11:19:44 2017 +0300
+
+    image/gif: make Decode only keep the first frame in memory
+    
+    Decode decodes entire GIF image and returns the first frame as an
+    image.Image. There's no need for it to keep every decoded frame in
+    memory except for the one it returns.
+    
+    Fixes #22199
+    
+    Change-Id: I76b4bd31608ebc76a1a3df02e85c20eb80df7877
+    Reviewed-on: https://go-review.googlesource.com/69890
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/gif/reader.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

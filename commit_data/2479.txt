@@ -1,0 +1,13 @@
+commit 05240bb290f25cd596d9c0c92ec8782f0359deae
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 18 16:32:26 2009 -0700
+
+    use multiline string literal in gobuild
+    
+    R=r
+    DELTA=76  (1 added, 0 deleted, 75 changed)
+    OCL=30497
+    CL=30510
+
+ src/cmd/gobuild/makefile.go | 151 ++++++++++++++++++++++----------------------
+ 1 file changed, 76 insertions(+), 75 deletions(-)

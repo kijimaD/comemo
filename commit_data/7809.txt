@@ -1,0 +1,12 @@
+commit 8c4a2ae6f8d0dc8043116ec83a6f5a8598eec3f2
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Mar 18 09:28:23 2011 -0700
+
+    godoc: No need to use filepath.IsAbs()
+    
+    R=golang-dev, brainman, gri
+    CC=golang-dev
+    https://golang.org/cl/4277062
+
+ src/cmd/godoc/dirtrees.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

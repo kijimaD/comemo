@@ -1,0 +1,25 @@
+commit 54b403723bffc72b3b48f6dfbbe76c5394e77e12
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 5 00:42:44 2009 -0700
+
+    delay := processing
+    
+    R=ken
+    OCL=32772
+    CL=32772
+
+ src/Make.conf            |   2 +-
+ src/cmd/gc/dcl.c         |  77 +++++++++++++
+ src/cmd/gc/gen.c         |   4 +-
+ src/cmd/gc/go.h          |   3 +-
+ src/cmd/gc/go.y          |   4 +-
+ src/cmd/gc/select.c      |   8 ++
+ src/cmd/gc/subr.c        |   2 +-
+ src/cmd/gc/typecheck.c   | 152 +++++++++++++++++++------
+ src/cmd/gc/walk.c        | 290 +----------------------------------------------
+ src/run.bash             |   5 +-
+ test/declbad.go          |  10 +-
+ test/fixedbugs/bug030.go |   2 +-
+ test/fixedbugs/bug035.go |   4 +-
+ test/fixedbugs/bug103.go |   2 +-
+ 14 files changed, 227 insertions(+), 338 deletions(-)

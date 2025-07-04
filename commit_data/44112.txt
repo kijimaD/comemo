@@ -1,0 +1,43 @@
+commit 6192b9875128c5f53a69b959d5a1abf0f10ae93f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jan 7 11:14:06 2021 -0500
+
+    cmd/go: make hints in error messages more consistent
+    
+    * All commands the user can run to fix the problem now appear alone on
+      a separate line after a tab.
+    * Removed -d from 'go get' commands.
+    * Replaced 'go mod tidy' with 'go mod download $modpath' when a
+      package might be provided by a module missing a sum.
+    * Errors about 'path@version' syntax are more explicit.
+    
+    Fixes #29415
+    Fixes #42087
+    Fixes #43430
+    Fixes #43523
+    
+    Change-Id: I4427c2c4506a727a2c727d652fd2d506bb134d3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282121
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go                                   |  4 ++--
+ src/cmd/go/internal/get/get.go                          |  2 +-
+ src/cmd/go/internal/load/pkg.go                         |  6 +-----
+ src/cmd/go/internal/modget/get.go                       |  2 +-
+ src/cmd/go/internal/modload/import.go                   | 14 ++++++++------
+ src/cmd/go/internal/modload/init.go                     |  2 +-
+ src/cmd/go/internal/modload/load.go                     |  2 +-
+ src/cmd/go/internal/modload/vendor.go                   |  2 +-
+ src/cmd/go/internal/test/testflag.go                    |  2 +-
+ src/cmd/go/testdata/script/mod_get_promote_implicit.txt | 10 +++++++---
+ src/cmd/go/testdata/script/mod_get_retract.txt          |  2 +-
+ src/cmd/go/testdata/script/mod_invalid_path.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_sum_ambiguous.txt        |  8 ++++++--
+ src/cmd/go/testdata/script/mod_sum_readonly.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt          |  6 +++---
+ src/cmd/go/testdata/script/mod_versions.txt             |  6 +++---
+ src/cmd/go/testdata/script/test_flag.txt                |  6 +++---
+ 17 files changed, 42 insertions(+), 36 deletions(-)

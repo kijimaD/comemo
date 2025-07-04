@@ -1,0 +1,21 @@
+commit 7bc99ffa0534f025bc579a045fc7a5afc11ef3c3
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Sun Jun 10 17:17:49 2018 -0700
+
+    cmd/compile: make case insensitive suggestions aware of package
+    
+    Ensure that compiler error suggestions after case insensitive
+    field lookups don't mistakenly reported unexported fields if
+    those fields aren't in the local package being processed.
+    
+    Fixes #25727
+    
+    Change-Id: Icae84388c2a82c8cb539f3d43ad348f50a644caa
+    Reviewed-on: https://go-review.googlesource.com/117755
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 13 +++++++++++--
+ test/fixedbugs/issue25727.go             | 21 +++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 2 deletions(-)

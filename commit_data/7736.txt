@@ -1,0 +1,15 @@
+commit e6c9bccd33581bbe8ec291f6c9a7ef608e5e0861
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 11 10:08:49 2011 -0500
+
+    gopack: omit time stamps
+    
+    This makes it possible to build a package twice
+    and get the same bytes both times.
+    
+    R=r, dsymonds, r2
+    CC=golang-dev
+    https://golang.org/cl/4248077
+
+ src/cmd/gopack/ar.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

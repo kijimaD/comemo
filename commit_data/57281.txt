@@ -1,0 +1,22 @@
+commit 7300b9e633f8b8cb49e2e95f4c4693657ded3451
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 17:35:13 2024 -0700
+
+    internal/testenv: simplify hasSymlink for windows
+    
+    1. Combine two functions into one.
+    
+    2. Use errors.Is to check for wrapped errors.
+    
+    3. Use sync.OnceValues.
+    
+    Change-Id: I25f55d31bb658ff08da209b1740e9dff579cca69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609797
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/testenv/testenv_windows.go | 29 +++++++----------------------
+ 1 file changed, 7 insertions(+), 22 deletions(-)

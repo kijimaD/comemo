@@ -1,0 +1,12 @@
+commit cc4dc5a22af12976abd292731077c7605e9a19e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 24 17:10:51 2008 -0700
+
+    avoid JMP to ATEXT in xfol
+    
+    R=ken
+    OCL=17833
+    CL=17833
+
+ src/cmd/6l/pass.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

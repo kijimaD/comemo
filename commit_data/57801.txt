@@ -1,0 +1,19 @@
+commit 775837f51f03245bcba333094b4b3742f8fbfca3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Aug 21 16:17:16 2024 -0400
+
+    internal/runtime/maps: avoid passing unused key return
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Idee1e021e3cef8f0c031e8f06efbcf6e88918d8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622376
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/runtime/maps/map.go   | 15 +++++++++++++--
+ src/internal/runtime/maps/table.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 2 deletions(-)

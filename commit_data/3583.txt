@@ -1,0 +1,16 @@
+commit 4d4e885bd1541c4a5d9019332c378b8981f00f09
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 19 11:52:44 2009 -0700
+
+    Add an RSA-OAEP implementation.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=734  (734 added, 0 deleted, 0 changed)
+    OCL=35738
+    CL=35879
+
+ src/pkg/crypto/rsa/Makefile    |  11 ++
+ src/pkg/crypto/rsa/rsa.go      | 413 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/rsa/rsa_test.go | 310 +++++++++++++++++++++++++++++++
+ 3 files changed, 734 insertions(+)

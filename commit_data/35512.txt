@@ -1,0 +1,26 @@
+commit 68de5508d374c910cc0bf066b8f65cd5395115b1
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Tue May 22 22:37:40 2018 +0300
+
+    cmd/vet: eliminate use of Perl in tests
+    
+    This change uses errorCheck and wantedErrors functions copied from
+    the test/run.go to eliminate use of the test/errchk perl script.
+    
+    Tests' error messages that contained full filenames were changed to
+    have base filenames because the errorCheck function processes output
+    from "go vet" in the same way.
+    
+    Fixes #20032.
+    
+    Change-Id: Ieb7be67c2d7281b9648171c698398449b7e2d4dd
+    Reviewed-on: https://go-review.googlesource.com/114176
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/testdata/atomic.go    |   2 +-
+ src/cmd/vet/testdata/shadow.go    |   8 +-
+ src/cmd/vet/testdata/structtag.go |  18 +--
+ src/cmd/vet/vet_test.go           | 285 ++++++++++++++++++++++++++++++++------
+ 4 files changed, 255 insertions(+), 58 deletions(-)

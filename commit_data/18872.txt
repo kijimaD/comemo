@@ -1,0 +1,16 @@
+commit 6436df0d81ac195d7b1dbcfc3715bb96423bfecd
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 14 22:49:46 2014 +0100
+
+    runtime: fix 386 assembly for syscall.naclWrite
+    
+    It was using the wrong offset and returned random values
+    making "runoutput" compiler tests crash.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/76250043
+
+ src/pkg/runtime/sys_nacl_386.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 175e60a2ad47f477e5e3bfed83beaa9fe6a5ac85
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Nov 29 09:20:59 2011 -0500
+
+    crypto/tls: add openbsd root certificate location
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5437079
+
+ src/pkg/crypto/tls/root_unix.go | 1 +
+ 1 file changed, 1 insertion(+)

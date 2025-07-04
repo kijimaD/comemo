@@ -1,0 +1,16 @@
+commit 948f0b7a0bf2030bd927ccab7446324ed684d43f
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Wed Jan 2 17:37:27 2013 -0500
+
+    net/http: document Request.URL
+    
+    Request.URL had no documentation before and some people were expecting all fields to be populated.
+    
+    Fixes #3805.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7008046
+
+ src/pkg/net/http/request.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

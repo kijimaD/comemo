@@ -1,0 +1,17 @@
+commit 8fc87c957c6bc9d6dbd9c74171803cd4e7384c80
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Feb 6 11:04:12 2012 +1100
+
+    image: add package docs, rename s/UnknownFormatError/ErrFormat/ and
+    rewrite the doc comment for Repeated.
+    
+    Fixes #2858.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5626050
+
+ src/pkg/image/format.go |  8 ++++----
+ src/pkg/image/image.go  | 34 ++++++++++++++++++++++++----------
+ src/pkg/image/names.go  | 12 ++++++++----
+ 3 files changed, 36 insertions(+), 18 deletions(-)

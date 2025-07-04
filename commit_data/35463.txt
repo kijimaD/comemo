@@ -1,0 +1,106 @@
+commit f11e9aac4f7340812a35ffadd8283cddd4cd3031
+Author: Austin Clements <austin@google.com>
+Date:   Sat Apr 21 16:15:41 2018 -0400
+
+    cmd/compile: reuse liveness structures
+    
+    Currently liveness analysis is a significant source of allocations in
+    the compiler. This CL mitigates this by moving the main sources of
+    allocation to the ssa.Cache, allowing them to be reused between
+    different liveness runs.
+    
+    Passes toolstash -cmp.
+    
+    name        old time/op       new time/op       delta
+    Template          194ms ± 1%        193ms ± 1%    ~     (p=0.156 n=10+9)
+    Unicode          99.1ms ± 1%       99.3ms ± 2%    ~     (p=0.853 n=10+10)
+    GoTypes           689ms ± 0%        687ms ± 0%  -0.27%  (p=0.022 n=10+9)
+    Compiler          3.29s ± 1%        3.30s ± 1%    ~     (p=0.489 n=9+9)
+    SSA               8.02s ± 2%        7.97s ± 1%  -0.71%  (p=0.011 n=10+10)
+    Flate             131ms ± 1%        130ms ± 1%  -0.59%  (p=0.043 n=9+10)
+    GoParser          162ms ± 1%        160ms ± 1%  -1.53%  (p=0.000 n=10+10)
+    Reflect           454ms ± 0%        454ms ± 0%    ~     (p=0.959 n=8+8)
+    Tar               185ms ± 1%        185ms ± 2%    ~     (p=0.905 n=9+10)
+    XML               235ms ± 1%        232ms ± 1%  -1.15%  (p=0.001 n=9+10)
+    [Geo mean]        414ms             412ms       -0.39%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         35.6MB ± 0%       34.2MB ± 0%  -3.75%  (p=0.000 n=10+10)
+    Unicode          29.5MB ± 0%       29.4MB ± 0%  -0.26%  (p=0.000 n=10+9)
+    GoTypes           117MB ± 0%        112MB ± 0%  -3.78%  (p=0.000 n=9+10)
+    Compiler          532MB ± 0%        512MB ± 0%  -3.80%  (p=0.000 n=10+10)
+    SSA              1.55GB ± 0%       1.48GB ± 0%  -4.82%  (p=0.000 n=10+10)
+    Flate            24.5MB ± 0%       23.6MB ± 0%  -3.61%  (p=0.000 n=10+9)
+    GoParser         28.7MB ± 0%       27.7MB ± 0%  -3.43%  (p=0.000 n=10+10)
+    Reflect          80.5MB ± 0%       78.1MB ± 0%  -2.96%  (p=0.000 n=10+10)
+    Tar              35.1MB ± 0%       33.9MB ± 0%  -3.49%  (p=0.000 n=10+10)
+    XML              43.7MB ± 0%       42.4MB ± 0%  -3.05%  (p=0.000 n=10+10)
+    [Geo mean]       78.4MB            75.8MB       -3.30%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           335k ± 0%         335k ± 0%  -0.12%  (p=0.000 n=10+10)
+    Unicode            339k ± 0%         339k ± 0%  -0.01%  (p=0.001 n=10+10)
+    GoTypes           1.18M ± 0%        1.17M ± 0%  -0.12%  (p=0.000 n=10+10)
+    Compiler          4.94M ± 0%        4.94M ± 0%  -0.06%  (p=0.000 n=10+10)
+    SSA               12.5M ± 0%        12.5M ± 0%  -0.07%  (p=0.000 n=10+10)
+    Flate              223k ± 0%         223k ± 0%  -0.11%  (p=0.000 n=10+10)
+    GoParser           281k ± 0%         281k ± 0%  -0.08%  (p=0.000 n=10+10)
+    Reflect            963k ± 0%         960k ± 0%  -0.23%  (p=0.000 n=10+9)
+    Tar                330k ± 0%         330k ± 0%  -0.12%  (p=0.000 n=10+10)
+    XML                392k ± 0%         392k ± 0%  -0.08%  (p=0.000 n=10+10)
+    [Geo mean]         761k              760k       -0.10%
+    
+    Compared to just before "cmd/internal/obj: consolidate emitting entry
+    stack map", the cumulative effect of adding stack maps everywhere and
+    register maps, plus these optimizations, is:
+    
+    name        old time/op       new time/op       delta
+    Template          186ms ± 1%        194ms ± 1%  +4.41%  (p=0.000 n=9+10)
+    Unicode          96.5ms ± 1%       99.1ms ± 1%  +2.76%  (p=0.000 n=9+10)
+    GoTypes           659ms ± 1%        689ms ± 0%  +4.56%  (p=0.000 n=9+10)
+    Compiler          3.14s ± 2%        3.29s ± 1%  +4.95%  (p=0.000 n=9+9)
+    SSA               7.68s ± 3%        8.02s ± 2%  +4.41%  (p=0.000 n=10+10)
+    Flate             126ms ± 0%        131ms ± 1%  +4.14%  (p=0.000 n=10+9)
+    GoParser          153ms ± 1%        162ms ± 1%  +5.90%  (p=0.000 n=10+10)
+    Reflect           436ms ± 1%        454ms ± 0%  +4.14%  (p=0.000 n=10+8)
+    Tar               177ms ± 1%        185ms ± 1%  +4.28%  (p=0.000 n=8+9)
+    XML               224ms ± 1%        235ms ± 1%  +5.23%  (p=0.000 n=10+9)
+    [Geo mean]        396ms             414ms       +4.47%
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         34.5MB ± 0%       35.6MB ± 0%  +3.24%  (p=0.000 n=10+10)
+    Unicode          29.3MB ± 0%       29.5MB ± 0%  +0.51%  (p=0.000 n=9+10)
+    GoTypes           113MB ± 0%        117MB ± 0%  +3.31%  (p=0.000 n=8+9)
+    Compiler          509MB ± 0%        532MB ± 0%  +4.46%  (p=0.000 n=10+10)
+    SSA              1.49GB ± 0%       1.55GB ± 0%  +4.10%  (p=0.000 n=10+10)
+    Flate            23.8MB ± 0%       24.5MB ± 0%  +2.92%  (p=0.000 n=10+10)
+    GoParser         27.9MB ± 0%       28.7MB ± 0%  +2.88%  (p=0.000 n=10+10)
+    Reflect          77.4MB ± 0%       80.5MB ± 0%  +4.01%  (p=0.000 n=10+10)
+    Tar              34.1MB ± 0%       35.1MB ± 0%  +3.12%  (p=0.000 n=10+10)
+    XML              42.6MB ± 0%       43.7MB ± 0%  +2.65%  (p=0.000 n=10+10)
+    [Geo mean]       76.1MB            78.4MB       +3.11%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           320k ± 0%         335k ± 0%  +4.60%  (p=0.000 n=10+10)
+    Unicode            336k ± 0%         339k ± 0%  +0.96%  (p=0.000 n=9+10)
+    GoTypes           1.12M ± 0%        1.18M ± 0%  +4.55%  (p=0.000 n=10+10)
+    Compiler          4.66M ± 0%        4.94M ± 0%  +6.18%  (p=0.000 n=10+10)
+    SSA               11.9M ± 0%        12.5M ± 0%  +5.37%  (p=0.000 n=10+10)
+    Flate              214k ± 0%         223k ± 0%  +4.15%  (p=0.000 n=9+10)
+    GoParser           270k ± 0%         281k ± 0%  +4.15%  (p=0.000 n=10+10)
+    Reflect            921k ± 0%         963k ± 0%  +4.49%  (p=0.000 n=10+10)
+    Tar                317k ± 0%         330k ± 0%  +4.25%  (p=0.000 n=10+10)
+    XML                375k ± 0%         392k ± 0%  +4.75%  (p=0.000 n=10+10)
+    [Geo mean]         729k              761k       +4.34%
+    
+    Updates #24543.
+    
+    Change-Id: Ia951fdb3c17ae1c156e1d05fc42e69caba33c91a
+    Reviewed-on: https://go-review.googlesource.com/110179
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/plive.go  | 36 ++++++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/cache.go |  2 ++
+ 2 files changed, 37 insertions(+), 1 deletion(-)

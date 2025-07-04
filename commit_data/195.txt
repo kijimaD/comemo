@@ -1,0 +1,11 @@
+commit 727ea928d5586b75a781254d6265b8696c6e8863
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 18 13:08:01 2008 -0700
+
+    forgot command line for bug054
+    update golden.out
+    
+    SVN=123412
+
+ test/golden.out | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

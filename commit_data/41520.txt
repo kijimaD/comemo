@@ -1,0 +1,41 @@
+commit 95f382139043059a2a0780ba577b53893408f7e4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 25 18:42:24 2020 +1100
+
+    cmd/go, cmd/link: implement -buildmode=pie on windows
+    
+    This CL implements windows version of -buildmode=pie code in both
+    cmd/go and cmd/link.
+    
+    Windows executables built with -buildmode=pie set (unlike the one
+    built with -buildmode=exe) will have extra .reloc PE section, and
+    will have no IMAGE_FILE_RELOCS_STRIPPED flag set. They will also
+    have IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag set, and
+    IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA flag set for windows/amd64.
+    
+    Both cgo and non-cgo versions are implemented. And TestBuildmodePIE
+    is extended to test both cgo and non-cgo versions on windows and
+    linux.
+    
+    This CL used some code from CLs 152759 and 203602.
+    
+    RELNOTE=yes
+    
+    Fixes #27144
+    Updates #35192
+    
+    Change-Id: I1249e4ffbd79bd4277efefb56db321c390c0f76f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214397
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go                   |  4 +++
+ src/cmd/go/go_test.go                  | 57 +++++++++++++++++++++++++++++++--
+ src/cmd/go/internal/work/init.go       |  8 +++--
+ src/cmd/go/testdata/script/version.txt |  6 ++--
+ src/cmd/internal/sys/supported.go      |  3 +-
+ src/cmd/link/internal/ld/config.go     |  3 +-
+ src/cmd/link/internal/ld/lib.go        | 16 ++++++++--
+ src/cmd/link/internal/ld/pe.go         | 58 ++++++++++++++++++++++------------
+ 8 files changed, 122 insertions(+), 33 deletions(-)

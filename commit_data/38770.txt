@@ -1,0 +1,22 @@
+commit ae85ae5db2d3b6a3dfb75ade74e0f11234375594
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Apr 16 08:52:42 2019 +0200
+
+    runtime: avoid getg in preinit on Android
+    
+    sigaction is called as part of library mode initializers
+    (_rt0_*_lib). Sigaction in turn calls getg, but on Android the TLS
+    offset for g has not been initialized and getg might return garbage.
+    
+    Add a check for initialization before calling getg.
+    
+    Fixes the golang.org/x/mobile/bind/java tests on amd64 and 386.
+    
+    Fixes #31476
+    
+    Change-Id: Id2c41fdc983239eca039b49a54b8853c5669d127
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172158
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo_sigaction.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

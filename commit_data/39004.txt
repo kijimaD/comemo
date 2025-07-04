@@ -1,0 +1,40 @@
+commit aaf40f8f98ded15d0a039470a552f58b8b71abac
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed May 1 21:57:52 2019 +0700
+
+    cmd/compile: fix maplit init panics for dynamic entry
+    
+    golang.org/cl/174498 removes dynamic map entry handling in maplit, by
+    filtering the static entry only. It panics if it see a dynamic entry.
+    It relies on order to remove all dynamic entries.
+    
+    But after recursively call order on the statics, some static entries
+    become dynamic, e.g OCONVIFACE node:
+    
+            type i interface {
+                    j()
+            }
+            type s struct{}
+    
+            func (s) j() {}
+    
+            type foo map[string]i
+    
+            var f = foo{
+                    "1": s{},
+            }
+    
+    To fix it, we recursively call order on each static entry, if it changed
+    to dynamic, put entry to dynamic then.
+    
+    Fixes #31777
+    
+    Change-Id: I1004190ac8f2d1eaa4beb6beab989db74099b025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174777
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 20 +++++++++++++-------
+ test/fixedbugs/issue31777.go         | 24 ++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 7 deletions(-)

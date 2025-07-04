@@ -1,0 +1,21 @@
+commit 2b46cffe574432bd902e9e20fb00846cc2d2817d
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Sun Sep 3 13:49:10 2023 -0700
+
+    syscall: improve linux SysProcAttr documentation
+    
+    The SysProcAttr is OS-specific anyway, so it makes little sense to say
+    that some fields are Linux-specific (they all are anyway).
+    
+    While at it, make sure to use complete sentences (add missing periods).
+    
+    Change-Id: Ic0afe3920c2561fd9a657f4edab21939a8f56d57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525395
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/exec_linux.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

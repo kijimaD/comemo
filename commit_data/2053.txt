@@ -1,0 +1,19 @@
+commit 7e1cfa74321335358e56d58986900fe6c26587d8
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 19 21:02:29 2009 -0700
+
+    Readn is a silly name when there's no n.  Change to FullRead.
+    
+    R=gri
+    DELTA=15  (0 added, 0 deleted, 15 changed)
+    OCL=27619
+    CL=27619
+
+ src/lib/exec_test.go           |  4 ++--
+ src/lib/http/fs.go             |  2 +-
+ src/lib/io/io.go               | 12 ++++++------
+ src/lib/net/dialgoogle_test.go |  2 +-
+ src/lib/net/parse.go           |  2 +-
+ src/lib/time/zoneinfo.go       |  2 +-
+ usr/gri/pretty/platform.go     |  2 +-
+ 7 files changed, 13 insertions(+), 13 deletions(-)

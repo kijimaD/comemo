@@ -1,0 +1,20 @@
+commit f77f22b2bf43f565ac0933c8e1068c387e4007c3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 10 09:46:39 2016 -0700
+
+    net/http: update bundled x/net/http2
+    
+    Updates x/net/http2 to git rev 96dbb961 for golang.org/cl/23002
+    
+    Fixes #15366
+    Updates #15134 (server part remains)
+    
+    Change-Id: I29336e624706f906b754da66381a620ae3293c6c
+    Reviewed-on: https://go-review.googlesource.com/23003
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go | 11 -----
+ src/net/http/h2_bundle.go         | 91 ++++++++++++++++++++++++++++++++-------
+ 2 files changed, 75 insertions(+), 27 deletions(-)

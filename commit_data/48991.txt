@@ -1,0 +1,22 @@
+commit 35d02791b990082fe80da54352050bd095ebd1e7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 3 11:47:44 2022 +0200
+
+    net: remove fallback path in sysSocket
+    
+    Support for operating system versions requiring this fallback path was
+    dropped from recent Go versions. The minimum Linux kernel version is
+    2.6.32 as of Go 1.18. FreeBSD 10 is no longer supported as of Go 1.13.
+    
+    Change-Id: I7e74768146dd43a36d0d26fcb08eed9ace82189f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403634
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/net/sock_cloexec.go | 25 -------------------------
+ 1 file changed, 25 deletions(-)

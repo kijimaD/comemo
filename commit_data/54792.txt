@@ -1,0 +1,19 @@
+commit e7908ab9a266da09a247480cb45dab213fb3e00e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 13 16:43:39 2023 -0400
+
+    cmd/go: allow suffixed toolchains to satisfy toolchain lines for the same base version
+    
+    Fixes #63357.
+    
+    Change-Id: I8380cf0d3965d6aef84a91a515d3e0e8aae9344b
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535355
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/toolchain/select.go          |  6 ++++--
+ src/cmd/go/testdata/script/gotoolchain_local.txt | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

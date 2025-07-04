@@ -1,0 +1,17 @@
+commit fecab4058655c14887b4109b508c7fc640b3b563
+Author: William Chan <willchan@chromium.org>
+Date:   Tue May 31 14:05:35 2011 -0700
+
+    http/spdy: fix data race in header decompression.
+    
+    flate's reader greedily reads from the shared io.Reader in Framer. This leads to a data race on Framer.r. Fix this by providing a corkedReader to zlib.NewReaderDict(). We uncork the reader and allow it to read the number of bytes in the compressed payload.
+    
+    Fixes #1884.
+    
+    R=bradfitz, rsc, go.peter.90
+    CC=golang-dev
+    https://golang.org/cl/4530089
+
+ src/pkg/http/spdy/framer.go      | 31 ++++++++++++++++++++++++++-----
+ src/pkg/http/spdy/framer_test.go | 12 ------------
+ 2 files changed, 26 insertions(+), 17 deletions(-)

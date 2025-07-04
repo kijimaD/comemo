@@ -1,0 +1,10 @@
+commit 1a3f9445301d8a3ce2c92a0d6ce3e40a7c5adb3f
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 25 11:35:06 2008 -0700
+
+    simul assignment
+    
+    SVN=124591
+
+ src/cmd/gc/walk.c | 97 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 86 insertions(+), 11 deletions(-)

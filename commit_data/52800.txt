@@ -1,0 +1,21 @@
+commit 954ff15dbe5fc722f8965c80934774a3fa2d8c71
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Apr 24 13:48:29 2023 -0400
+
+    cmd/go: skip the 'git' part of get_insecure_redirect in short mode
+    
+    Invoking 'git' adds about 200ms to this test on a fast machine,
+    probably more on a slow one. (As a general habit we skip the
+    'git' tests uniformly in short mode.)
+    
+    For #52545.
+    
+    Change-Id: Iea6d86a8c9c8b0f1fe51888faf7f5fe7dd8f1eb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488236
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/get_insecure_redirect.txt | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,18 @@
+commit 58834c3ee08ea85b764c7cc3318ce7a68ea92cbd
+Author: Quan Tong <quantonganh@gmail.com>
+Date:   Fri Feb 7 18:42:26 2025 +0700
+
+    cmd/go: initialize req.Header when loading git credential
+    
+    Fixes #71604
+    
+    Change-Id: I3d733a50b4451dfb571aba91a28387ba9e0614dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647615
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/auth/auth.go          | 3 ++-
+ src/cmd/go/testdata/script/goauth_git.txt | 2 ++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

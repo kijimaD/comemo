@@ -1,0 +1,32 @@
+commit 3ff5632d63b820fbcbb4b69e47ec586d59bf5ea5
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Sep 26 13:58:37 2022 -0500
+
+    cmd/internal/obj/ppc64: cleanup and remove usage of getimpliedreg
+    
+    getimpliedreg was used to set a default register in cases where
+    one was implied but not set by the assembler or compiler.
+    
+    In most cases with constant values, R0 is implied, and is the value
+    0 by architectural design.  In those cases, R0 is always used, so
+    treat 0 and REG_R0 as interchangeable in those encodings.
+    
+    Similarly, the pseudo-register SP or FP is used to in place of the
+    stack pointer, always R1 on PPC64. Unconditionally set this during
+    classification of NAME_AUTO and NAME_PARAM as it may be 0.
+    
+    The case where REGSB might be returned from getimpliedreg is never
+    used. REGSB is aliased to R2, but in practice it is either R0 or R2
+    depending on buildmode. See symbolAccess in asm9.go for an example.
+    
+    Change-Id: I7283e66d5351f56a7fe04cee38714910eaa73cb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434775
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 58 ++++++--------------------------------
+ 1 file changed, 8 insertions(+), 50 deletions(-)

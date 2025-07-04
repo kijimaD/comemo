@@ -1,0 +1,12 @@
+commit 4c2123e534967f01b95ed164b137f2f2ab8e5890
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 6 10:11:41 2011 +1000
+
+    go/build: fix windows build by commenting out references to stdout and stderr in cgotest
+    
+    R=golang-dev, r, adg
+    CC=golang-dev
+    https://golang.org/cl/4561062
+
+ src/pkg/go/build/cgotest/file.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,30 @@
+commit 37715cce695e96d3d5a8e01f5009517121241330
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Nov 19 16:04:32 2019 -0500
+
+    runtime: relax TestAsyncPreempt
+    
+    In TestAsyncPreempt, the function being tested for preemption,
+    although still asynchronously preemptible, may have only samll
+    ranges of PCs that are preemtible. In an unlucky run, it may
+    take quite a while to have a signal that lands on a preemptible
+    instruction. The test case is kind of an extreme. Relax it to
+    make it more preemptible.
+    
+    In the original version, the first closure has more work to do,
+    and it is not a leaf function, and the second test case is a
+    frameless leaf function. In the current version, the first one
+    is also a frameless leaf function (the atomic is intrinsified).
+    Add some calls to it. It is still not preemptible without async
+    preemption.
+    
+    Fixes #35608.
+    
+    Change-Id: Ia4f857f2afc55501c6568d7507b517e3b4db191c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208221
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/testdata/testprog/preempt.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

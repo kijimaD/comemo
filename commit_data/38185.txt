@@ -1,0 +1,22 @@
+commit aef1a7e19251dee75c30c5fc0828ac5cb9722035
+Author: Marat Khabibullin <marat.khabibullin@jetbrains.com>
+Date:   Wed Feb 13 19:20:50 2019 +0000
+
+    html/template: prevent test from failing with nil pointer dereference
+    
+    The variable err could have nil value when we call err.Error(),
+    because after we check it for nil above we continue the test
+    (t.Errorf doesn't stop the test execution).
+    
+    Updates #30208
+    
+    Change-Id: I6f7a8609f2453f622a1fa94a50c99d2e04d5fbcd
+    GitHub-Last-Rev: 3a5d9b1e9e202327af17cc1b93bfa69f6701af84
+    GitHub-Pull-Request: golang/go#30215
+    Reviewed-on: https://go-review.googlesource.com/c/162477
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/html/template/escape_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

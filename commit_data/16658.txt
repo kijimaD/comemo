@@ -1,0 +1,16 @@
+commit eac6bee7c1aba48dd4f677dc354acba003d75d41
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 27 20:43:43 2013 +0400
+
+    runtime: fix argument printing during traceback
+    Current code can print more arguments than necessary
+    and also incorrectly prints "...".
+    Update #5723.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/10689043
+
+ src/pkg/runtime/traceback_arm.c | 10 +++++-----
+ src/pkg/runtime/traceback_x86.c | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)

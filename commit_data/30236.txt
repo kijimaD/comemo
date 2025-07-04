@@ -1,0 +1,17 @@
+commit fc13da1648b513fb6d9f1ec1521a0065727a19b4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 13 10:57:07 2017 -0800
+
+    internal/poll: only export FD.eofError for testing on posix systems
+    
+    Fixes build on plan9.
+    
+    Change-Id: Idbb1e6887c24a873de77c92095198847ed953278
+    Reviewed-on: https://go-review.googlesource.com/36915
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/export_posix_test.go | 15 +++++++++++++++
+ src/internal/poll/export_test.go       |  4 ----
+ 2 files changed, 15 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 6694f14b6787b5e24699beb6bc7bebf01273e152
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 8 09:04:27 2012 -0800
+
+    test: run some more tests by default
+    
+    R=golang-dev, remyoudompheng, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6833043
+
+ test/args.go | 5 +----
+ test/nul1.go | 8 +-------
+ test/run.go  | 3 ---
+ 3 files changed, 2 insertions(+), 14 deletions(-)

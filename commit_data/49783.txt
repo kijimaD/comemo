@@ -1,0 +1,24 @@
+commit 5639fcae7fee2cf04c1b87e9a81155ee3bb6ed71
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 8 17:14:14 2022 +0200
+
+    net/netip: fix method name in {AddrPort,Prefix}.IsValid godoc
+    
+    In CL 339309 these were probably copied from the respective
+    godoc comments in package inet.af/netaddr, also see
+    https://pkg.go.dev/inet.af/netaddr#IPPort.IsValid and
+    https://pkg.go.dev/inet.af/netaddr#IPPrefix.IsValid
+    
+    In net/netip the methods are named Addr. Adjust the godoc comments
+    accordingly.
+    
+    Change-Id: Icfe1d73b647c2e195d96cd5b1073a734905134af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421995
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/netip/netip.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

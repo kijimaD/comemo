@@ -1,0 +1,12 @@
+commit c7c147c83016384db29791e2006f9919c571512a
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Jul 18 15:16:26 2018 -0400
+
+    doc: update go1.11.html with user annotation API additions
+    
+    Change-Id: I357eea0efb04392e1a4671d20190a2052bf548de
+    Reviewed-on: https://go-review.googlesource.com/124706
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.11.html | 53 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 52 insertions(+), 1 deletion(-)

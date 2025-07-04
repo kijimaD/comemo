@@ -1,0 +1,12 @@
+commit d8714ca49f974d6117b443bfe90c0cc3511dc138
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Tue Mar 19 14:47:41 2013 -0400
+
+    unicode: modify a comment to the convention format.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/7869043
+
+ src/pkg/unicode/letter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

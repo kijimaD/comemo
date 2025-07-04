@@ -1,0 +1,18 @@
+commit 9f447c20efeaab1e60e1da03feee2fa0935cf95c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 16 11:26:41 2016 -0700
+
+    cmd/compile: remove unused Label fields
+    
+    Updates #16357.
+    
+    Change-Id: I37f04d83134b5e1e7f6ba44eb9a566758ef594d3
+    Reviewed-on: https://go-review.googlesource.com/29350
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/gen.go  | 10 ----------
+ src/cmd/compile/internal/gc/go.go   | 10 ----------
+ src/cmd/compile/internal/gc/pgen.go |  3 ---
+ 3 files changed, 23 deletions(-)

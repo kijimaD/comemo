@@ -1,0 +1,29 @@
+commit 45c3387d777caf28f4b992ad9a6216e3085bb8fe
+Author: Julie Qiu <julie@golang.org>
+Date:   Tue Mar 1 10:19:38 2022 -0600
+
+    encoding/pem: fix stack overflow in Decode
+    
+    Previously, Decode called decodeError, a recursive function that was
+    prone to stack overflows when given a large PEM file containing errors.
+    
+    Credit to Juho Nurminen of Mattermost who reported the error.
+    
+    Fixes CVE-2022-24675
+    Fixes #51853
+    
+    Change-Id: Iffe768be53c8ddc0036fea0671d290f8f797692c
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1391157
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    (cherry picked from commit 794ea5e828010e8b68493b2fc6d2963263195a02)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399820
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/pem/pem.go      | 172 ++++++++++++++++++-------------------------
+ src/encoding/pem/pem_test.go |  28 ++++++-
+ 2 files changed, 100 insertions(+), 100 deletions(-)

@@ -1,0 +1,15 @@
+commit dbf59dadfaa688bb0c9a5162ad1622fbf0411665
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 2 20:24:43 2018 +0000
+
+    net/url: update docs to match renamed receiver
+    
+    The receiver was renamed 6 years ago in https://golang.org/cl/5674065
+    but the docs weren't updated to match.
+    
+    Change-Id: I5e72cedc0e0f067382545d272f48a9c7dfb5a9b7
+    Reviewed-on: https://go-review.googlesource.com/104116
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/url/url.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

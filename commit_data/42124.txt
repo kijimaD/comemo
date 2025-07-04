@@ -1,0 +1,21 @@
+commit 396833caef83b20f38199f9d74cb3e768b2fd478
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 15:20:56 2020 -0700
+
+    cmd/compile: avoid double-zeroing
+    
+    This triggers in 131 functions in std+cmd.
+    In those functions, it often helps considerably
+    (2-10% text size reduction).
+    
+    Noticed while working on #38554.
+    
+    Change-Id: Id0dbb8e7cb21d469ec08ec3d5be9beb9e8291e9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229707
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  4 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 40 ++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

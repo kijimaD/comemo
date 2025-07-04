@@ -1,0 +1,15 @@
+commit 19104dc532bb15896090c2f8a72080a342fcad20
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Oct 4 08:09:39 2014 +1000
+
+    crypto/x509: add OpenELEC system root location.
+    
+    Fixes #8349.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/147320043
+
+ src/crypto/x509/root_unix.go | 1 +
+ 1 file changed, 1 insertion(+)

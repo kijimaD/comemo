@@ -1,0 +1,12 @@
+commit ffe70eaa3cc9913d4d3e462ecaa41522330da85e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 15:16:51 2011 -0700
+
+    go spec: update section on Implementation Differences
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4977046
+
+ doc/go_spec.html | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

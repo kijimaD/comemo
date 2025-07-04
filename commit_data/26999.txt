@@ -1,0 +1,18 @@
+commit f947429983d3906127432120b49fa3362e7de374
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Apr 19 03:24:21 2016 +0200
+
+    net: enable DualStack mode on Plan 9
+    
+    DualStack mode requires dialTCP to support cancellation,
+    which has been implemented for Plan 9 in CL 22144.
+    
+    Updates #11225.
+    Updates #11932.
+    
+    Change-Id: I6e468363dc147326b097b604c122d5af80362787
+    Reviewed-on: https://go-review.googlesource.com/22204
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

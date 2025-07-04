@@ -1,0 +1,12 @@
+commit e1cf7d6fb69223bc6e1fd0f312dfe2b4df52f896
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 6 16:32:00 2012 -0400
+
+    net: fix spurious EADDRNOTAVAIL errors
+    
+    R=golang-dev, fullung
+    CC=golang-dev
+    https://golang.org/cl/6443085
+
+ src/pkg/net/tcpsock_posix.go | 25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)

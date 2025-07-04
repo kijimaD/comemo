@@ -1,0 +1,41 @@
+commit 9fb96991e63033ba963c7b1eff10e5c4f5a93b0a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Dec 5 15:59:01 2012 +1100
+
+    net: fix data races on deadline vars
+    
+    Fixes #4434.
+    
+    This proposal replaces the previous CL 6855110. Due to issue 599, 64-bit atomic operations should probably be avoided, so use a sync.Mutex instead.
+    
+    Benchmark comparisons against 025b9d070a85 on linux/386:
+    
+    CL 6855110:
+    
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkTCPOneShot                 710024       727409   +2.45%
+    BenchmarkTCPOneShotTimeout          758178       768620   +1.38%
+    BenchmarkTCPPersistent              223464       228058   +2.06%
+    BenchmarkTCPPersistentTimeout       234494       242600   +3.46%
+    
+    This proposal:
+    
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkTCPOneShot                 710024       718492   +1.19%
+    BenchmarkTCPOneShotTimeout          758178       748783   -1.24%
+    BenchmarkTCPPersistent              223464       227628   +1.86%
+    BenchmarkTCPPersistentTimeout       234494       238321   +1.63%
+    
+    R=rsc, dvyukov, mikioh.mikioh, alex.brainman, bradfitz
+    CC=golang-dev, remyoudompheng
+    https://golang.org/cl/6866050
+
+ src/pkg/net/fd_posix_test.go    | 57 ++++++++++++++++++++++++++
+ src/pkg/net/fd_unix.go          | 88 ++++++++++++++++-------------------------
+ src/pkg/net/fd_windows.go       | 20 +++++-----
+ src/pkg/net/net.go              | 34 ++++++++++++++++
+ src/pkg/net/sendfile_freebsd.go |  2 +-
+ src/pkg/net/sendfile_linux.go   |  2 +-
+ src/pkg/net/sock_posix.go       |  6 +--
+ src/pkg/net/sockopt_posix.go    | 21 ++++------
+ 8 files changed, 147 insertions(+), 83 deletions(-)

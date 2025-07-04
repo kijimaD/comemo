@@ -1,0 +1,15 @@
+commit b7205b92c0a5ae985a3530dc8ad17e7d3a7a807d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Jul 29 19:56:10 2015 -0400
+
+    runtime/trace: test requires 'go tool addr2line'
+    
+    For the android/arm builder.
+    
+    Change-Id: Iad4881689223cd6479870da9541524a8cc458cce
+    Reviewed-on: https://go-review.googlesource.com/12859
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/trace/trace_stack_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

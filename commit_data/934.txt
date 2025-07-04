@@ -1,0 +1,12 @@
+commit 40fa690d75ea02b64c2aa299b3aff6904c14b604
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 22 13:13:01 2008 -0700
+
+    fix handling of *f() = 1
+    
+    R=ken
+    OCL=17625
+    CL=17641
+
+ src/cmd/gc/walk.c | 2 ++
+ 1 file changed, 2 insertions(+)

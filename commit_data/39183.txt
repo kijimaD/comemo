@@ -1,0 +1,45 @@
+commit 4e7bef84c1a84f60791f4b3c23bdd3f3d9392e70
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 14 16:39:43 2019 +0000
+
+    runtime: mark newly-mapped memory as scavenged
+    
+    On most platforms newly-mapped memory is untouched, meaning the pages
+    backing the region haven't been faulted in yet. However, we mark this
+    memory as unscavenged which means the background scavenger
+    aggressively "returns" this memory to the OS if the heap is small.
+    
+    The only platform where newly-mapped memory is actually unscavenged (and
+    counts toward the application's RSS) is on Windows, since
+    (*mheap).sysAlloc commits the reservation. Instead of making a special
+    case for Windows, I change the requirements a bit for a sysReserve'd
+    region. It must now be both sysMap'd and sysUsed'd, with sysMap being a
+    no-op on Windows. Comments about memory allocation have been updated to
+    include a more up-to-date mental model of which states a region of memory
+    may be in (at a very low level) and how to transition between these
+    states.
+    
+    Now this means we can correctly mark newly-mapped heap memory as
+    scavenged on every platform, reducing the load on the background
+    scavenger early on in the application for small heaps. As a result,
+    heap-growth scavenging is no longer necessary, since any actual RSS
+    growth will be accounted for on the allocation codepath.
+    
+    Finally, this change also cleans up grow a little bit to avoid
+    pretending that it's freeing an in-use span and just does the necessary
+    operations directly.
+    
+    Fixes #32012.
+    Fixes #31966.
+    Updates #26473.
+    
+    Change-Id: Ie06061eb638162e0560cdeb0b8993d94cfb4d290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177097
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go      | 91 +++++++++++++++++++++++++++++++++-------------
+ src/runtime/mem_windows.go | 35 +++++++++---------
+ src/runtime/mheap.go       | 23 ++++++------
+ 3 files changed, 95 insertions(+), 54 deletions(-)

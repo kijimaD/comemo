@@ -1,0 +1,23 @@
+commit 0b702937f1fae92818531c601e366bf6a767672b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 22 10:22:38 2011 -0500
+
+    dashboard: horizontal crunch
+    
+    * group builders in to columns by OS
+    * drop builder suffix (moved to hover title)
+    * cut all domain names from email (full name+email in hover title)
+    * make ok smaller
+    
+    This should easily give us room for netbsd and plan9,
+    even on small laptop screens.
+    
+    Running at http://build-rsc.golang.org/.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5501064
+
+ misc/dashboard/app/build/ui.go   | 96 +++++++++++++++++++++++++++++++++++-----
+ misc/dashboard/app/build/ui.html | 37 ++++++++++++++--
+ 2 files changed, 117 insertions(+), 16 deletions(-)

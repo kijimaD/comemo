@@ -1,0 +1,16 @@
+commit d7b035f930549bc6b6192f73351bce138130350e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 21 14:33:47 2021 -0800
+
+    doc/go1.18: mention testing.F in testing package section
+    
+    For #47694
+    
+    Change-Id: I27d88d864319bd8dbabfa6675a6abf2f74c50717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373914
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+
+ doc/go1.18.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

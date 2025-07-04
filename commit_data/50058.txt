@@ -1,0 +1,21 @@
+commit cd52818487fade395c4d9189ce6e70cc03aeecb2
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sun Aug 21 20:33:42 2022 +0000
+
+    net: turn off dns compression for go resolver queries
+    
+    We don't need compression enabled here, because we only set one question in the dns message. So there is nothing to compress. Also it reduces 8 allocs per LookupHost.
+    
+    Change-Id: I0968f837011daf6d7a7b22d9af4a8cc5b2878f4c
+    GitHub-Last-Rev: 7eb3362bcaa86f47c9d975375b54c7177e8dd15e
+    GitHub-Pull-Request: golang/go#54576
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425043
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/dnsclient_unix.go | 1 -
+ 1 file changed, 1 deletion(-)

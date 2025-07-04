@@ -1,0 +1,19 @@
+commit 8ac499916e2ea58e04d756f692a85c587b11a39e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 19 15:01:50 2014 -0800
+
+    cmd/pack: dump output of command of "go env" command in test
+    Get more information to help understand build failure on Plan 9.
+    Also Windows.
+    (TestHello is failing because GOCHAR does not appear in output.
+    What does?)
+    
+    Update #7362
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/66070044
+
+ src/cmd/pack/pack_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

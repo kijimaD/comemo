@@ -1,0 +1,17 @@
+commit d9a0bc9b58eab201b462f5e308e3f472fccb29aa
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 5 13:03:46 2009 -0700
+
+    regex-dna
+    
+    R=rsc
+    DELTA=243  (242 added, 0 deleted, 1 changed)
+    OCL=32786
+    CL=32791
+
+ test/bench/regex-dna.c   | 154 +++++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/regex-dna.go  | 117 +++++++++++++++++++++++++++++++++++
+ test/bench/regex-dna.txt |  13 ++++
+ test/bench/timing.log    |   5 ++
+ test/bench/timing.sh     |  13 +++-
+ 5 files changed, 301 insertions(+), 1 deletion(-)

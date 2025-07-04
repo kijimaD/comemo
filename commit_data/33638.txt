@@ -1,0 +1,24 @@
+commit 4a3d408d18df344dd8e597b46f7ddb963a9d9ddf
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Thu Nov 16 16:19:19 2017 -0500
+
+    cmd/link: use . as DW_AT_comp_dir
+    
+    Go's DWARF usually has absolute paths, in which case DW_AT_comp_dir
+    doesn't matter. But the -trimpath flag produces relative paths, and
+    then the spec says that they are relative to _comp_dir.
+    
+    There's no way to know what the "right" value of _comp_dir is without
+    more user input, but we can at least leave the paths alone rather than
+    making them absolute.
+    
+    After this change, Delve can find sources to a program built with
+    -gcflags=-trimpath=$(pwd) as long as it's run in the right directory.
+    
+    Change-Id: I8bc7bed098e352d2c06800bfbbe14e8392e1bbed
+    Reviewed-on: https://go-review.googlesource.com/78415
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

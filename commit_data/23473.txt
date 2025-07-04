@@ -1,0 +1,16 @@
+commit d8c6dac7ca48d8f926ff55a018e5806d591c9003
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 23 14:17:59 2015 -0700
+
+    spec: clarify effect of rounding of constant expressions
+    
+    Not a language change.
+    
+    Fixes #11350.
+    
+    Change-Id: I9b905f17d1ef2722cab4bae38a037270165c7d95
+    Reviewed-on: https://go-review.googlesource.com/11369
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

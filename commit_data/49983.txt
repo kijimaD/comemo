@@ -1,0 +1,27 @@
+commit b23d469e854f36e5ba8c0de9b7406a81e82d15c1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 03:14:23 2022 -0700
+
+    cmd/compile/internal/noder: pointer shaping for unified IR
+    
+    This CL implements pointer shaping in unified IR, corresponding to the
+    existing pointer shaping implemented in the non-unified frontend.
+    
+    For example, if `func F[T any]` is instantiated as both `F[*int]` and
+    `F[*string]`, we'll now generate a single `F[go.shape.*uint8]` shaped
+    function that can be used by both.
+    
+    Fixes #54513.
+    
+    Change-Id: I2cef5ae411919e6dc5bcb3cac912abecb4cd5218
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424734
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/reader.go   | 64 +++++++++++++++++++-----------
+ src/cmd/compile/internal/noder/writer.go   | 19 +++++++++
+ src/cmd/compile/internal/test/inst_test.go |  4 --
+ 3 files changed, 59 insertions(+), 28 deletions(-)

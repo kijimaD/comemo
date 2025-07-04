@@ -1,0 +1,24 @@
+commit 2643f742a5b7c5db8a51fbe0b5b824190c9d5571
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 11 15:02:15 2009 -0800
+
+    make.bash: detect and warn about SELinux policy that crashes us.
+    
+    The default SELinux policy on Fedora 12 (at least) disallows stack
+    pages to be +x. This causes all binaries written by 6g/6l to segfault
+    immedately. The 'true' way to fix this issue is to mark binaries with
+    the correct type. However, that assumes that 6l is going to detect
+    SELinux, figure out the correct type for the current distribution and
+    set the type (without libselinux).
+    
+    For now we'll warn users and point them towards the way to enable
+    execstack for the whole system.
+    
+    http://code.google.com/p/go/issues/detail?id=47
+    
+    R=rsc
+    CC=golang-dev
+    http://codereview.prom.corp.google.com/1026041
+
+ src/make.bash | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

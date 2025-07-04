@@ -1,0 +1,14 @@
+commit 30d60936d97423af0403f2d5395c604ac0ff3757
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 6 00:55:57 2014 -0500
+
+    syscall: update NetBSD/ARM port to EABI.
+    
+    LGTM=jsing
+    R=golang-codereviews, jsing
+    CC=golang-codereviews
+    https://golang.org/cl/70720043
+
+ src/pkg/syscall/zsyscall_netbsd_arm.go |  2 +-
+ src/pkg/syscall/ztypes_netbsd_arm.go   | 29 +++++++++++++++++------------
+ 2 files changed, 18 insertions(+), 13 deletions(-)

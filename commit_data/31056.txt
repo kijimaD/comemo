@@ -1,0 +1,20 @@
+commit 5de5dd8d25d17fa8893ee7244c1cb02e87d5ccfd
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Mar 8 08:11:33 2017 +0900
+
+    mime: fix panic parsing 'encoded-word'
+    
+    https://go-review.googlesource.com/37812 says fix panic parsing.
+    Actually, it doesn't. so fix it.
+    
+    Fixes #19416
+    
+    Change-Id: Ie0c4241f10e5ebcbac20e184c2a7b13b22632eab
+    Reviewed-on: https://go-review.googlesource.com/37912
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/encodedword.go      | 6 +++---
+ src/mime/encodedword_test.go | 1 +
+ 2 files changed, 4 insertions(+), 3 deletions(-)

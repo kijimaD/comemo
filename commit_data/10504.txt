@@ -1,0 +1,13 @@
+commit 1f83c2b6d5db4ae8bd053b16574edbb849d62385
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 25 10:50:19 2011 -0500
+
+    C+A: add Gustav Paul (individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5432076
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

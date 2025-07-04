@@ -1,0 +1,13 @@
+commit 2795282b50272b0f4d65513658bda5539d07b8a1
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jun 28 16:30:55 2010 -0700
+
+    compiler fatal error in switch.
+    fixes #867.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1691045
+
+ src/cmd/gc/swt.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

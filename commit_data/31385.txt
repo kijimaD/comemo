@@ -1,0 +1,27 @@
+commit 1989921aef60c83e6f9127a8448fb5ede10e9acc
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Apr 26 14:49:58 2017 +1000
+
+    os: do not report ModeDir for symlinks on windows
+    
+    When using Lstat against symlinks that point to a directory,
+    the function returns FileInfo with both ModeDir and ModeSymlink set.
+    Change that to never set ModeDir if ModeSymlink is set.
+    
+    Fixes #10424
+    Fixes #17540
+    Fixes #17541
+    
+    Change-Id: Iba280888aad108360b8c1f18180a24493fe7ad2b
+    Reviewed-on: https://go-review.googlesource.com/41830
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/tar_test.go            |  4 ----
+ src/os/os_windows_test.go              | 14 ++++++++++++++
+ src/os/types_windows.go                |  8 ++++----
+ src/path/filepath/path_test.go         |  3 ---
+ src/path/filepath/path_windows_test.go |  2 --
+ 5 files changed, 18 insertions(+), 13 deletions(-)

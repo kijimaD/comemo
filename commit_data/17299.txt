@@ -1,0 +1,12 @@
+commit a96d850a5b17a912c105edfcb358e8319fbea720
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 16 22:42:54 2013 +0400
+
+    doc: describe halt_on_error race detector parameter
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13067043
+
+ doc/articles/race_detector.html | 5 +++++
+ 1 file changed, 5 insertions(+)

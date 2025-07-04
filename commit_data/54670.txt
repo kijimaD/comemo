@@ -1,0 +1,43 @@
+commit 7e1713e93c626f7026d1de09258f03748c726e79
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Sep 11 02:03:10 2021 +1000
+
+    cmd/link/internal/ld: assign temporary addresses to per-package text
+    
+    If trampolines may be required, the current text addressing second
+    pass resets all assigned addresses, before assigning addresses and
+    laying down trampolines in a linear fashion. However, this approach
+    means that intra-package calls are to a symbol that has not yet
+    been assigned an address, when the symbol is ahead of the current
+    function.
+    
+    In the case of RISC-V the JAL instruction is limited to +/-1MiB.
+    As such, if a call is to a symbol with no address currently assigned,
+    we have to assume that a trampoline will be required. During the
+    relocation phase we can fix up and avoid trampolines in some cases,
+    however this results in unused trampolines that are still present
+    in the binary (since removing them would change text addresses).
+    
+    In order to significantly reduce the number of unused trampolines,
+    assign temporary addresses to functions within the same package,
+    based on the maximum number of trampolines that may be required by
+    a function. This allows for better decisions to be made regarding
+    the requirement for intra-package trampolines, as we reset the
+    addressing for a function, assign its final address and lay down
+    any resulting trampolines.
+    
+    This results in ~2,300 unused trampolines being removed from the
+    Go binary and ~5,600 unused trampolines being removed from the
+    compile binary, on linux/riscv64.
+    
+    Change-Id: I8a9cf035dea82e1e1e66ae5b1093dce78e4ff0d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349650
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go    | 87 ++++++++++++++++++++++++++-----------
+ src/cmd/link/internal/ld/ld_test.go | 68 +++++++++++++++++++++++++++++
+ 2 files changed, 130 insertions(+), 25 deletions(-)

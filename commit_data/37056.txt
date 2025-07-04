@@ -1,0 +1,20 @@
+commit 9258c3f93c92d7b66abe84d2452ad1ce4d80ff7e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 17:21:57 2018 +0200
+
+    cmd/go: add AIX operating system
+    
+    This commit adds AIX operating system to cmd/go package for ppc64
+    architecture.
+    
+    Updates: #25893
+    
+    Change-Id: I2605d10a7833fa2eb197f6db4a52d5919cf93614
+    Reviewed-on: https://go-review.googlesource.com/c/138732
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/base/signal_unix.go | 2 +-
+ src/cmd/go/internal/work/exec.go        | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit c52b7db470880681d8467e87830dc24a1196be63
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 1 13:59:57 2011 -0500
+
+    gofix: add time+fileinfo fix
+    
+    R=adg, rogpeppe, r, cw
+    CC=golang-dev
+    https://golang.org/cl/5450050
+
+ src/cmd/gofix/Makefile             |   1 +
+ src/cmd/gofix/timefileinfo.go      | 298 +++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/timefileinfo_test.go | 161 ++++++++++++++++++++
+ 3 files changed, 460 insertions(+)

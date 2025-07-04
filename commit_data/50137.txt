@@ -1,0 +1,23 @@
+commit f1f9e45143bd01a55ff81313fb3dfde72c448cc9
+Author: ianwoolf <btw515wolf2@gmail.com>
+Date:   Sun Jul 24 18:25:18 2022 +0800
+
+    cmd/test2json: add signal handler
+    
+    Updates #53563
+    
+    Change-Id: I35a3fd56718e198f68cbf73075a78b2fbc66bd7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419295
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ryan Schuster <shuey19831@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/go/testdata/script/test2json_interrupt.txt | 55 ++++++++++++++++++++++
+ src/cmd/test2json/main.go                          |  7 +++
+ src/cmd/test2json/signal_notunix.go                | 13 +++++
+ src/cmd/test2json/signal_unix.go                   | 14 ++++++
+ 4 files changed, 89 insertions(+)

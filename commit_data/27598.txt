@@ -1,0 +1,16 @@
+commit bd2dc2d819b85beb8887466a165242e2d540e4b9
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Wed Jun 1 09:44:38 2016 -0300
+
+    doc: rename Unshare to Unshareflags in go1.7 release notes
+    
+    Implementation changed in https://golang.org/cl/23612.
+    
+    Updates #15810
+    
+    Change-Id: I8fff9e3aa3e54162546bb9ec1cc2ebba2b6d9fed
+    Reviewed-on: https://go-review.googlesource.com/23614
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

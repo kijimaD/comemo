@@ -1,0 +1,22 @@
+commit c2633dfe7749fbb6ff82cccd3bc719b973d8d8ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 25 13:58:41 2023 -0700
+
+    doc/go1.21: mention syscall package changes
+    
+    One of the changes also affects the os package, so mention it
+    there too.
+    
+    For #46259
+    
+    Change-Id: I8041a5ce009725ab210118ee668fc94196d9ff82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498376
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.21.html | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

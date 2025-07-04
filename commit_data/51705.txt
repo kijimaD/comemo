@@ -1,0 +1,22 @@
+commit e7495d873703b0f1602d796b147e56b5c432b1d5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Dec 2 13:33:04 2022 -0500
+
+    cmd/dist: remove GOTESTONLY environment variable
+    
+    This hook was added for the Go build system (x/build) to be able to set
+    the run flag value, but it's no longer used anywhere. Remove it for now.
+    
+    Updates #46054.
+    
+    Change-Id: I64e7d68d2b270303f3bd54f73079600f209e350a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455519
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

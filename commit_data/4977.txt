@@ -1,0 +1,17 @@
+commit b73e592ed1e0f242a824d7bf4ed865fcb1dea916
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Wed Mar 3 15:25:26 2010 +1100
+
+    net: correct DNS configuration
+    
+    Set defaults to the same values as various C DNS resolver libraries.
+    Use the timeout value from the configuration.
+    Fixes #632.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/223094
+
+ src/pkg/net/dnsclient.go | 2 +-
+ src/pkg/net/dnsconfig.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

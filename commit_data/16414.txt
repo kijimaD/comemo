@@ -1,0 +1,12 @@
+commit 82ef961af59fdabc1a956ba6d7bc0c0b961172b2
+Author: Bill Neubauer <wcn@golang.org>
+Date:   Tue May 28 05:03:10 2013 +0800
+
+    runtime: fix runtime·netpoll() to call runtime·netpollready() only once per event.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/9808043
+
+ src/pkg/runtime/netpoll_kqueue.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

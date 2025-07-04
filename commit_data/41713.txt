@@ -1,0 +1,30 @@
+commit 830ee4792e52cc8c7c0a4d54259f55fa3629271a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 20 15:26:46 2020 +0000
+
+    cmd/compile: declare runtime bit func aliases after math/bits intrinsics
+    
+    Currently runtime/internal/sys bit-manipulation functions are aliased to
+    math/bits functions, which are intrinsified. Unfortunately these aliases
+    are declared before the intrinsified versions are generated, resulting
+    in the generic version of the code being copied over.
+    
+    This change moves the aliases for bit operations in runtime/internal/sys
+    after the addF calls to generate those intrinsics in SSA, so that the
+    intrinsified SSA representation of those functions actually get copied
+    over.
+    
+    This should improve the overall performance of the runtime (especially
+    the page allocator) since these bit operations will actually be
+    intrinsified now.
+    
+    Change-Id: I4377da13f9a7bb6aee608e50df0297148bf8f806
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224437
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,17 @@
+commit d1060d8e82a320725e961f2648e62034d7f768e4
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Mar 25 10:33:21 2022 +1100
+
+    compress/zlib: tighten header CINFO check
+    
+    RFC 1950 section 2.2 "Data format" says "CINFO (Compression info)... For
+    CM = 8... Values of CINFO above 7 are not allowed".
+    
+    Change-Id: Ibbc1213125c7dc045f09901ee7746660e90b5fcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395734
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Nigel Tao <nigeltao@golang.org>
+
+ src/compress/zlib/reader.go      | 7 +++++--
+ src/compress/zlib/reader_test.go | 9 ++++++++-
+ 2 files changed, 13 insertions(+), 3 deletions(-)

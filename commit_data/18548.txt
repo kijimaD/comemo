@@ -1,0 +1,42 @@
+commit ecf700b5ee878519344fc521cb0d02837a943c0d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 17 20:12:40 2014 -0500
+
+    cmd/gc, runtime: enable precisestack by default
+    
+    Precisestack makes stack collection completely precise,
+    in the sense that there are no "used and not set" errors
+    in the collection of stack frames, no times where the collector
+    reads a pointer from a stack word that has not actually been
+    initialized with a pointer (possibly a nil pointer) in that function.
+    
+    The most important part is interfaces: precisestack means
+    that if reading an interface value, the interface value is guaranteed
+    to be initialized, meaning that the type word can be relied
+    upon to be either nil or a valid interface type word describing
+    the data word.
+    
+    This requires additional zeroing of certain values on the stack
+    on entry, which right now costs about 5% overall execution
+    time in all.bash. That cost will come down before Go 1.3
+    (issue 7345).
+    
+    There are at least two known garbage collector bugs right now,
+    issues 7343 and 7344. The first happens even without precisestack.
+    The second I have only seen with precisestack, but that does not
+    mean that precisestack is what causes it. In fact it is very difficult
+    to explain by what precisestack does directly. Precisestack may
+    be exacerbating an existing problem. Both of those issues are
+    marked for Go 1.3 as well.
+    
+    The reasons for enabling precisestack now are to give it more
+    time to soak and because the copying stack work depends on it.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews, iant, khr
+    https://golang.org/cl/64100044
+
+ src/cmd/gc/lex.c       | 6 ++++--
+ src/pkg/runtime/proc.c | 2 +-
+ 2 files changed, 5 insertions(+), 3 deletions(-)

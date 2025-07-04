@@ -1,0 +1,41 @@
+commit 8998c55ec071ae36f2d32c8852a945f032239c4c
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 4 14:55:31 2018 -0400
+
+    cmd/link: separate virtual address layout from file layout
+    
+    Currently these two forms of layout are done in a single pass. This
+    makes it difficult to compress DWARF sections because that must be
+    done after relocations are applied, which must happen after virtual
+    address layout, but we can't layout the file until we've compressed
+    the DWARF sections.
+    
+    Fix this by separating the two layout steps. In the process, we can
+    also unify the copy-pasted code in Link.address to compute file
+    offsets, which currently has some unnecessary variation.
+    
+    Unlike the current file offset computation, which depends on virtual
+    addresses, the new computation only uses file offsets and sizes. This
+    will let us compress the file representation of a segment and create
+    the file layout based on its on-disk size rather than its original
+    in-memory size.
+    
+    Tested by comparing the test binary for the "strings" package on all
+    supported GOOS/GOARCH combinations. All binaries are identical
+    (except, of course, their build IDs).
+    
+    This is a second attempt at CL 111682.
+    
+    For #11799.
+    Fixes #25863.
+    
+    Change-Id: If09f28771bb4d78dd392fd58b8d7c9d5f22b0b9e
+    Reviewed-on: https://go-review.googlesource.com/118716
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 75 +++++++++++++++++++++++++---------------
+ src/cmd/link/internal/ld/main.go |  3 +-
+ 2 files changed, 49 insertions(+), 29 deletions(-)

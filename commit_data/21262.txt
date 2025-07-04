@@ -1,0 +1,20 @@
+commit 882f21d6aef78c55265662dbac3af1d38d6f7c82
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 14 22:20:03 2015 +0100
+
+    runtime: define netpollinited on Plan 9
+    
+    Since CL 2750, the build is broken on Plan 9,
+    because a new function netpollinited was added
+    and called from findrunnable in proc1.go.
+    However, netpoll is not implemented on Plan 9.
+    Thus, we define netpollinited in netpoll_stub.go.
+    
+    Fixes #9590
+    
+    Change-Id: I0895607b86cbc7e94c1bfb2def2b1a368a8efbe6
+    Reviewed-on: https://go-review.googlesource.com/2759
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/netpoll_stub.go | 4 ++++
+ 1 file changed, 4 insertions(+)

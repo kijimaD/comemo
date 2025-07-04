@@ -1,0 +1,12 @@
+commit ddbc802b075466b4663f142b40a52d2ac014ca6e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 29 14:46:47 2015 -0700
+
+    cmd/compile/internal/gc: fix complex literal overflow
+    
+    Change-Id: Ibb15282a2baeb58439b085d70b82797d8c71de36
+    Reviewed-on: https://go-review.googlesource.com/16502
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 80e7f972067b3da542ba86f969719456139f111d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 21 19:28:02 2014 +1000
+
+    cmd/ld: correct addresses in windows pe symbol table
+    
+    This should have been part of 36eb4a62fbb6,
+    but I later discovered that addresses are all wrong.
+    Appropriate test added now.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/89470043
+
+ src/cmd/ld/pe.c       | 13 ++++++++++++-
+ src/cmd/nm/nm_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 1 deletion(-)

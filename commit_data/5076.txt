@@ -1,0 +1,20 @@
+commit 90f7209548ee73dd1e918a4a03a375e6818081ad
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 19 13:01:45 2010 -0700
+
+    godoc: improved comment formatting: recognize URLs
+    and highlight special words, if provided. Also:
+    
+    - related cleanups in src/pkg/go/doc/comment.go
+    - fix typos in src/cmd/goinstall/doc.go
+    
+    Fixes #672.
+    
+    R=rsc
+    CC=adg, golang-dev
+    https://golang.org/cl/601042
+
+ src/cmd/godoc/godoc.go    |   4 +-
+ src/cmd/goinstall/doc.go  |   2 +-
+ src/pkg/go/doc/comment.go | 174 +++++++++++++++++++++++++++++++++++-----------
+ 3 files changed, 139 insertions(+), 41 deletions(-)

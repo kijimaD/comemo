@@ -1,0 +1,21 @@
+commit f32f2954fbabbb29ce1f7d25c223a9ce25e1e317
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 10 15:24:59 2015 -0500
+
+    runtime: never allocate new M when jumping time forward
+    
+    When we're jumping time forward, it means everyone is asleep, so there
+    should always be an M available. Furthermore, this causes both
+    allocation and write barriers in contexts that may be running without
+    a P (such as in sysmon).
+    
+    Hence, replace this allocation with a throw.
+    
+    Updates #10600.
+    
+    Change-Id: I2cee70d5db828d0044082878995949edb25dda5f
+    Reviewed-on: https://go-review.googlesource.com/16815
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

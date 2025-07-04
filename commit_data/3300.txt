@@ -1,0 +1,14 @@
+commit da961881b4f5c1e89e4e66d92c8af5ee1192e4df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 17 11:01:50 2009 -0700
+
+    - silence ebnflint: mark syntax section as "ebnf" instead of "grammar"
+    - re-use MethodName production
+    
+    R=r
+    DELTA=4  (1 added, 1 deleted, 2 changed)
+    OCL=34734
+    CL=34734
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

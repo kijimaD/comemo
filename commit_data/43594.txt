@@ -1,0 +1,29 @@
+commit 49a210eb87da6b7ac960cac990337ef4dc113b0d
+Author: imxyb <xyb4638@gmail.com>
+Date:   Wed Oct 28 21:26:04 2020 +0000
+
+    net/url: improve performance for resolvePath
+    
+    benchmark compare results:
+    
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkResolvePath-12     297           141           -52.53%
+    
+    benchmark                   old allocs     new allocs     delta
+    BenchmarkResolvePath-12     5              3              -40.00%
+    
+    benchmark                   old bytes     new bytes     delta
+    BenchmarkResolvePath-12     181           24            -86.74%
+    
+    Change-Id: Ia69e9fb36abb5930ed49217b5219be62b57ec429
+    GitHub-Last-Rev: e16dd9f7415178120f67f472bf45a2b006e00a93
+    GitHub-Pull-Request: golang/go#42180
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264817
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/url/url.go      | 55 ++++++++++++++++++++++++++++++++++++-------------
+ src/net/url/url_test.go |  8 +++++++
+ 2 files changed, 49 insertions(+), 14 deletions(-)

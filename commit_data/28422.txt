@@ -1,0 +1,18 @@
+commit 1df438f79c440ddf9bdd342f089a55567254bc9a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Aug 26 09:04:27 2016 -0400
+
+    misc/cgo/testplugin: add test of -buildmode=plugin
+    
+    Change-Id: Ie9fea9814c850b084562ab2349b54d9ad9fa1f4a
+    Reviewed-on: https://go-review.googlesource.com/27825
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/common/common.go   | 11 +++++++
+ misc/cgo/testplugin/src/host/host.go       | 51 ++++++++++++++++++++++++++++++
+ misc/cgo/testplugin/src/plugin1/plugin1.go | 25 +++++++++++++++
+ misc/cgo/testplugin/test.bash              | 27 ++++++++++++++++
+ src/cmd/dist/test.go                       |  9 ++++++
+ 5 files changed, 123 insertions(+)

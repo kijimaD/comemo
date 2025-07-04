@@ -1,0 +1,14 @@
+commit b260916a55ea09fcce98ee62654cf74eec9f8d3d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 13 14:14:50 2009 -0700
+
+    internal compiler error
+    
+    R=rsc
+    DELTA=18  (18 added, 0 deleted, 0 changed)
+    OCL=26266
+    CL=26266
+
+ test/bugs/bug139.go | 17 +++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 22 insertions(+)

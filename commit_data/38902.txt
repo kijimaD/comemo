@@ -1,0 +1,32 @@
+commit 4598c23c6c7a0062a21da1bad9fe73d149733da5
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 19 17:50:37 2019 -0400
+
+    runtime: switch to P 0 before destroying current P
+    
+    Ps are strictly numbered from 0 to GOMAXPROCS-1, so if procresize
+    happens to be running on a P that's being destroyed, it moves itself
+    to P 0.
+    
+    However, currently procresize destroys the unused Ps *before* moving
+    itself to P 0. This means it may briefly run on a destroyed P. This is
+    basically harmless, but has at least one very confusing consequence:
+    since destroying a P has write barriers, it may enqueue pointers to a
+    destroyed write barrier buffer. As far as I can tell, there are no
+    negative consequences of this, but this seems really fragile.
+    
+    This CL swaps the order of things, so now procresize moves itself to P
+    0 if necessary before destroying Ps. This ensures it always has a
+    valid P.
+    
+    This is part of refactoring for #10958 and #24543, but is a good
+    cleanup regardless.
+    
+    Change-Id: I91a23dd6ed27e372f8d6291feec9bc991bcf9812
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173941
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 48 +++++++++++++++++++++++++++---------------------
+ 1 file changed, 27 insertions(+), 21 deletions(-)

@@ -1,0 +1,22 @@
+commit 09d3df0183a78a3900a888873519cc7d994d5e19
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Sep 21 08:39:17 2021 -0500
+
+    cmd/compile/internal/ppc64: add initial spill support
+    
+    This adds some initial support for spilling and reloading
+    registers in the new ABI for PPC64.
+    - Code has been added to allow argument registers
+    to be spilled around the morestack call in the prolog.
+    - Functions for loadRegResult and spillRegArg have been
+    added and set in the arch config for PPC64.
+    
+    Change-Id: I4ede3c61468857aaf06f804b5e7c3dd9da9cf36b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351189
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ppc64/galign.go |  2 ++
+ src/cmd/compile/internal/ppc64/ssa.go    | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+)

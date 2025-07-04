@@ -1,0 +1,48 @@
+commit c2ec9583a0abe0a74d5cb8dd01631ca0911aa3aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 6 19:41:51 2009 -0700
+
+    apply gofmt to go, gob, hash, http, image, io, json, log
+    
+    R=gri
+    DELTA=1359  (138 added, 32 deleted, 1189 changed)
+    OCL=35408
+    CL=35420
+
+ src/pkg/go/ast/ast.go                | 497 +++++++++++++++++++----------------
+ src/pkg/go/ast/filter.go             |  22 +-
+ src/pkg/go/parser/interface.go       |  26 +-
+ src/pkg/go/parser/parser_test.go     |   6 +-
+ src/pkg/go/scanner/errors.go         |  26 +-
+ src/pkg/go/scanner/scanner.go        | 167 +++++++-----
+ src/pkg/gob/decode.go                | 147 ++++++-----
+ src/pkg/gob/decoder.go               |  26 +-
+ src/pkg/gob/encode.go                |  68 ++---
+ src/pkg/gob/encoder.go               |  40 +--
+ src/pkg/gob/type.go                  | 128 ++++-----
+ src/pkg/gob/type_test.go             |  47 ++--
+ src/pkg/hash/adler32/adler32_test.go |  71 +++--
+ src/pkg/hash/crc32/crc32.go          |  20 +-
+ src/pkg/hash/crc32/crc32_test.go     |  69 +++--
+ src/pkg/hash/hash.go                 |   3 +-
+ src/pkg/http/client.go               |  22 +-
+ src/pkg/http/request_test.go         |  44 ++--
+ src/pkg/http/server.go               | 100 +++----
+ src/pkg/http/triv.go                 |  18 +-
+ src/pkg/http/url.go                  |  74 +++---
+ src/pkg/image/color.go               |  37 ++-
+ src/pkg/image/image.go               |  23 +-
+ src/pkg/image/png/reader.go          |  83 +++---
+ src/pkg/image/png/writer.go          |  41 ++-
+ src/pkg/io/io.go                     |  48 ++--
+ src/pkg/io/pipe.go                   |  31 ++-
+ src/pkg/io/pipe_test.go              |  43 ++-
+ src/pkg/io/utils_test.go             |  13 +-
+ src/pkg/json/generic.go              | 176 ++++++++-----
+ src/pkg/json/generic_test.go         |   6 +-
+ src/pkg/json/parse.go                |  62 +++--
+ src/pkg/json/struct.go               |  45 ++--
+ src/pkg/json/struct_test.go          |  87 +++---
+ src/pkg/log/log.go                   |  60 ++---
+ src/pkg/log/log_test.go              |  42 +--
+ 36 files changed, 1262 insertions(+), 1156 deletions(-)

@@ -1,0 +1,23 @@
+commit 2dc27839df7d51b0544c0ac8b2a0b8f030b7a90c
+Author: Carl Henrik Lunde <chlunde@ifi.uio.no>
+Date:   Wed May 17 19:37:33 2017 +0200
+
+    runtime/pprof: deflake TestGoroutineCounts
+    
+    TestGoroutineCounts was flaky when running on a system under load.
+    This happened on three builds the last couple of days.
+    
+    Fix this by running this test with a single operating system thread, so
+    we do not depend on the operating system scheduler.  50 000 tests ran
+    without failure with the new version, the old version failed 0.5% of the
+    time.
+    
+    Fixes #15156.
+    
+    Change-Id: I1e5a18d0fef4f72cc9a56e376822b2849cdb0f8b
+    Reviewed-on: https://go-review.googlesource.com/43590
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/pprof/pprof_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

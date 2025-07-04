@@ -1,0 +1,13 @@
+commit 94950afdf8d94fd4ff3fba7e84bf4ce4b16854d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 15 13:33:00 2014 -0400
+
+    reflect: add fast path for FieldByIndex with len(index) = 1
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/152640043
+
+ src/reflect/value.go | 3 +++
+ 1 file changed, 3 insertions(+)

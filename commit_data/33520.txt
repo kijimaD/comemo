@@ -1,0 +1,30 @@
+commit f768693f58dd7f98bb95e696cd0aae185a47db66
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 10 14:44:31 2017 -0500
+
+    cmd/go: cache and replay command output during build
+    
+    It's nice that
+    
+            go build -gcflags=-m errors
+            go build -gcflags=-m errors
+    
+    uses the cache for the second command.
+    
+    Even nicer is to make the second command
+    print the same output as the first command.
+    
+    Fixes #22587.
+    
+    Change-Id: I64350839f01c86c9a095d9d22f6924cd7a0b9105
+    Reviewed-on: https://go-review.googlesource.com/77110
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go               | 26 ++++++++++++
+ src/cmd/go/internal/cache/hash.go   | 20 +++++++++
+ src/cmd/go/internal/work/action.go  |  1 +
+ src/cmd/go/internal/work/buildid.go | 41 ++++++++++++++++---
+ src/cmd/go/internal/work/exec.go    | 82 +++++++++++++++++++++----------------
+ src/cmd/go/internal/work/gc.go      | 14 +++----
+ src/cmd/go/internal/work/gccgo.go   | 14 +++----
+ 7 files changed, 143 insertions(+), 55 deletions(-)

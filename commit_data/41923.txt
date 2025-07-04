@@ -1,0 +1,18 @@
+commit 7242428509ba2d947ee2bed79f60bf0301720fef
+Author: chainhelen <chainhelen@gmail.com>
+Date:   Sun Apr 12 08:38:21 2020 +0000
+
+    doc/debugging_with_gdb: fix the link of delve
+    
+    The repository of delve has already switched from the personal
+    account github.com/derekparker/delve to the organization account
+    github.com/go-delve/delve. According to go-delve/delve#1456.
+    
+    Change-Id: Ie64f72c2808a8aca5059a75e2c2f11d8691e66b3
+    GitHub-Last-Rev: f90120c3b33f2134a572a62aaf291aa2abe58749
+    GitHub-Pull-Request: golang/go#38387
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227999
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/debugging_with_gdb.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

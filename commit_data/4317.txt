@@ -1,0 +1,11 @@
+commit 4ed57173b4c21e113bf8cae4984623eea220aa15
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 4 00:26:08 2009 -0800
+
+    avoid an allocation inside bytes.Buffer by providing a static array.
+    
+    R=rsc
+    https://golang.org/cl/165058
+
+ src/pkg/bytes/buffer.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

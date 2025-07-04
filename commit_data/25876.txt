@@ -1,0 +1,16 @@
+commit 0625fc8e8229f64a98c45c652fe35119048925cc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jun 8 10:17:38 2015 -0700
+
+    cmd/compile: clean up getlinepragma
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ia497b51c74a9c760a873e1ed690e4408fd0fe596
+    Reviewed-on: https://go-review.googlesource.com/19844
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 89 ++++++++++++--------------------------
+ 1 file changed, 28 insertions(+), 61 deletions(-)

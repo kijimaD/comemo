@@ -1,0 +1,26 @@
+commit 8679d5f2b5a621099af285587601d9f0c3f9b93b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 31 20:00:33 2013 +0400
+
+    cmd/gc: record argument size for all indirect function calls
+    This is required to properly unwind reflect.methodValueCall/makeFuncStub.
+    Fixes #5954.
+    Stats for 'go install std':
+    61849 total INSTCALL
+    24655 currently have ArgSize metadata
+    27278 have ArgSize metadata with this change
+    godoc size before: 11351888, after: 11364288
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12163043
+
+ src/cmd/5g/ggen.c               | 7 ++++++-
+ src/cmd/6g/ggen.c               | 7 ++++++-
+ src/cmd/8g/ggen.c               | 7 ++++++-
+ src/pkg/reflect/asm_386.s       | 2 ++
+ src/pkg/reflect/asm_amd64.s     | 2 ++
+ src/pkg/reflect/asm_arm.s       | 2 ++
+ src/pkg/runtime/traceback_arm.c | 2 +-
+ src/pkg/runtime/traceback_x86.c | 2 +-
+ 8 files changed, 26 insertions(+), 5 deletions(-)

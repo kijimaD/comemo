@@ -1,0 +1,26 @@
+commit b83ef36d6acb351ac50c5c7199fd683fb5226983
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 25 12:49:22 2018 -0700
+
+    go/build: move isStandardPackage to new internal/goroot package
+    
+    The module code in cmd/go sometimes needs to know whether it is
+    looking at a standard package, and currently uses gc-specific code for
+    that. This CL moves the existing isStandardPackage code in the
+    go/build package, which works for both gc and gccgo, into a new
+    internal/goroot package so that cmd/go can call it. The changes to
+    cmd/go will be in a subsequent CL.
+    
+    Change-Id: Ic1ce4c022a932c6b3e99fa062631577085cc6ecb
+    Reviewed-on: https://go-review.googlesource.com/137435
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/build.go        |   3 +-
+ src/go/build/deps_test.go    |   3 +-
+ src/go/build/gc.go           | 120 -------------------------------------
+ src/go/build/gccgo.go        |   6 --
+ src/internal/goroot/gc.go    | 140 +++++++++++++++++++++++++++++++++++++++++++
+ src/internal/goroot/gccgo.go |  27 +++++++++
+ 6 files changed, 171 insertions(+), 128 deletions(-)

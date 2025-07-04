@@ -1,0 +1,18 @@
+commit 17211b64b6a601ff14cb714362c054434aa86f5a
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Nov 6 14:18:43 2023 -0500
+
+    cmd/link/internal/loadpe: allocate comdat definitions map lazily
+    
+    Switch the "comdatDefinitions" map to lazy allocation; we only need it
+    for loading PE objects, no point doing an allocation during package
+    init if we don't need it.
+    
+    Change-Id: Ie33f2c56e964f35ac2e137840ac021cfaaa897c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540255
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+
+ src/cmd/link/internal/loadpe/ldpe.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

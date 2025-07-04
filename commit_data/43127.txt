@@ -1,0 +1,19 @@
+commit 15c8925df0a1017ee6db96d551f7febae74318bf
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 29 00:45:12 2020 +0200
+
+    cmd/go/internal/lockedfile/internal/filelock: remove stale TODO comment
+    
+    This was addressed by CL 255258.
+    
+    Updates #35618
+    
+    Change-Id: I8dd5b30a846f2d16a3d4752304861d7d2178d1cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257940
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/lockedfile/internal/filelock/filelock_fcntl.go | 3 ---
+ 1 file changed, 3 deletions(-)

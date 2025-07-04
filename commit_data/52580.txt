@@ -1,0 +1,43 @@
+commit a3dd95922913e51e7f0d4a20b8993fde710eb20e
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Sat Dec 3 21:16:49 2022 +0800
+
+    cmd/internal/obj/loong64, cmd/link/internal: switch to LoongArch ELF psABI v2 relocs
+    
+    The LoongArch ELF psABI v2 [1] relocs are vastly simplified from the v1
+    which involved a stack machine for computing the reloc values, but the
+    details of PC-relative addressing are changed as well. Specifically, the
+    `pcaddu12i` instruction is substituted with the `pcalau12i`, which is
+    like arm64's `adrp` -- meaning the lower bits of a symbol's address now
+    have to be absolute and not PC-relative.
+    
+    However, apart from the little bit of added complexity, the obvious
+    advantage is that only 1 reloc needs to be emitted for every kind of
+    external reloc we care about. This can mean substantial space savings
+    (each RELA reloc occupies 24 bytes), and no open-coded stack ops has to
+    remain any more.
+    
+    While at it, update the preset value for the output ELF's flags to
+    indicate the psABI update.
+    
+    Fixes #58784
+    
+    [1]: https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html
+    
+    Change-Id: I5c13bc710eaf58293a32e930dd33feff2ef14c28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455017
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc2.s |  38 +++----
+ src/cmd/internal/obj/loong64/asm.go             |  10 +-
+ src/cmd/link/internal/ld/elf.go                 |   2 +-
+ src/cmd/link/internal/loong64/asm.go            | 135 ++++++++----------------
+ 4 files changed, 67 insertions(+), 118 deletions(-)

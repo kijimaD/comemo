@@ -1,0 +1,12 @@
+commit aecbcd0914bb99553862071ffeb0b355b8907f34
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Fri Feb 15 14:01:12 2013 +1100
+
+    doc/contribute: fix some tags, remove extra space.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7327048
+
+ doc/contribute.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

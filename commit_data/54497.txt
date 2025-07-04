@@ -1,0 +1,19 @@
+commit c6312973257928acdc5f89662a0dd8f8e61ce19c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 18 17:41:55 2023 +0200
+
+    os/exec: adjust function name in fatal message
+    
+    CL 481620 changed the test to use LookPath.
+    
+    Change-Id: Ie7b3110775b586701b6df6aeee38f26402227eb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529095
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/lp_linux_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

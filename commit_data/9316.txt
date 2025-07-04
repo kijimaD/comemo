@@ -1,0 +1,14 @@
+commit 1adda4601aa9c28199f265d5826fd9c31ee73f64
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 9 17:07:29 2011 +1000
+
+    exp/template: do not take address of interface variable to find methods.
+    Also allow struct values as "with" targets.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4809086
+
+ src/pkg/exp/template/exec.go      |  8 +++++---
+ src/pkg/exp/template/exec_test.go | 25 ++++++++++++++++---------
+ 2 files changed, 21 insertions(+), 12 deletions(-)

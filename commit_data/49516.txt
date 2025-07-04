@@ -1,0 +1,22 @@
+commit aca37d16a5a5c1d24e374245f0e5b6404379db96
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 22 15:19:54 2022 -0400
+
+    cmd/go: avoid indexing modules in GOROOT
+    
+    Scanning GOROOT modules for changes appears to be causing Windows
+    builders to time out in x/tools tests. We may try a per-package index
+    instead, but for now just skip GOROOT modules (as we do for main
+    modules).
+    
+    Fixes #53493.
+    
+    Change-Id: Ic5bb90b4ce173a24fc6564e85fcde96e1f9b975f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413634
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/go_test.go                | 14 ---------
+ src/cmd/go/internal/modindex/read.go | 58 +++++++-----------------------------
+ 2 files changed, 11 insertions(+), 61 deletions(-)

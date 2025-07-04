@@ -1,0 +1,16 @@
+commit d9fdbf48207e24c1d0d771250f2cc811ef97adff
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 23:00:41 2016 -0500
+
+    runtime: guard against array out of bounds in GoroutineProfile
+    
+    The previous CL is the real fix. This one is just insurance.
+    
+    Fixes #14046 again.
+    
+    Change-Id: I553349504bb1789e4b66c888dbe4034568918ad6
+    Reviewed-on: https://go-review.googlesource.com/18977
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mprof.go | 5 +++++
+ 1 file changed, 5 insertions(+)

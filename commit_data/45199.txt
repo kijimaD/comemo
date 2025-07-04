@@ -1,0 +1,30 @@
+commit f6e7fe2711849e2e57f79b89ee7928b8806618c8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Apr 7 10:15:33 2021 -0400
+
+    runtime: move findrunnable timer delay computation closer to use
+    
+    findrunnable has a couple places where delta is recomputed from a new
+    pollUntil value. This proves to be a pain in refactoring, as it is easy
+    to forget to do properly.
+    
+    Move computation of delta closer to its use, where it is more logical
+    anyways.
+    
+    This CL should have no functional changes.
+    
+    For #43997.
+    For #44313.
+    
+    Change-Id: I89980fd7f40f8a4c56c7540cae03ff99e12e1422
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307910
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/lock_futex.go |  2 +-
+ src/runtime/lock_js.go    |  7 ++++++-
+ src/runtime/lock_sema.go  |  2 +-
+ src/runtime/proc.go       | 31 +++++++++++++------------------
+ 4 files changed, 21 insertions(+), 21 deletions(-)

@@ -1,0 +1,19 @@
+commit e87af8c43d5801c20e698aeb8c96577c4e881755
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jul 29 12:08:19 2013 +1000
+
+    misc/dashboard: don't update tip tag for release branch commits.
+    
+    This will mean that sub-repositories won't get built against the
+    release branch. They are often not compatible because the subrepos
+    often run ahead of the current release (e.g. go.tools is using
+    new additions to go/ast, and go.net is using new things in syscall)
+    so there's little point in checking them against cherrypick commits
+    when they'll be tested against those commits on tip anyway.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/12001043
+
+ misc/dashboard/app/build/handler.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit a1a048a8abca89c39b0507c3a28c7d46a05bb6e3
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat May 20 01:14:32 2023 +0800
+
+    maps: enhance the robustness of the tests
+    
+    Change-Id: I908e11196f55069d6dca6a19cd206629618e9f37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496079
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/maps/maps_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

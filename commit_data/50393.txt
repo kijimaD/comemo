@@ -1,0 +1,18 @@
+commit df9d53d93b7ae8fb4ba510fe259a58d873f06c70
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 20:16:04 2022 +0800
+
+    cmd/vet: use strings.Builder
+    
+    Change-Id: I583e167dac033037e82e55a9ae6c6f0c47a34c7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428293
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Run-TryBot: Tim King <taking@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/vet/vet_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

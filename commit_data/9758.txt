@@ -1,0 +1,12 @@
+commit 86e65bac5c9368fc807f8c0356fe5162fb68b09e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 20 13:26:57 2011 -0700
+
+    reflect: add comment about the doubled semantics of Value.String.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5091044
+
+ src/pkg/reflect/value.go | 2 ++
+ 1 file changed, 2 insertions(+)

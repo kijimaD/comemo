@@ -1,0 +1,18 @@
+commit b01cb72eb7728faa95fbb82bae1183df137f5867
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Oct 4 13:53:31 2023 +0200
+
+    crypto/x509: avoid Android root store paths on other Linuxes
+    
+    Updates #58922
+    
+    Change-Id: I0eb2c97babb05b2d9bc36ed8af03579094bc02ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531878
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+
+ src/crypto/x509/root_linux.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

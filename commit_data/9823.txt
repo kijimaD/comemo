@@ -1,0 +1,23 @@
+commit 582bb304662f2da08f99bf7d05d3fbb634bb531b
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Wed Sep 28 13:32:56 2011 -0700
+
+    exp/template/html: don't normalize '<' in doctypes.
+    
+    The normalization that prevents element name and comment injection in
+      <{{.}}
+    by converting it to
+      &lt;{{.}}
+    breaks
+      <!DOCTYPE html>
+    
+    Instead of splitting states to have a start of document state and a text
+    state, I whitelist <!DOCTYPE.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5131051
+
+ src/pkg/exp/template/html/escape.go      |  4 +++-
+ src/pkg/exp/template/html/escape_test.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

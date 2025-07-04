@@ -1,0 +1,16 @@
+commit 027367ac50be74ea6237ef88188365125acec8d7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 12 15:47:39 2020 +0200
+
+    time: add ios build constraint to zoneinfo_ios.go
+    
+    This allows to build the time package using a Go version which doesn't
+    know GOOS=ios yet.
+    
+    Change-Id: Ib1b00687432f3309bac8fd8bf5c02b9c62f049a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261362
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/time/zoneinfo_ios.go | 2 ++
+ 1 file changed, 2 insertions(+)

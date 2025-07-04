@@ -1,0 +1,30 @@
+commit f81ae3b22ca9cab78251b38fe52eacfea57e08f5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Apr 6 13:09:06 2016 -0400
+
+    cmd/link: shorter type symbol names
+    
+    Use (part of) a SHA-1 checksum to replace type symbol names.
+    
+    In typical programs this has no effect because types are not included
+    in the symbol table. But when dynamically linking, types are in the
+    table to make sure there is only one *rtype per Go type.
+    
+    Eventually we may be able to get rid of all pointers to rtype values in
+    the binary, but probably not by 1.7. And this has a nice effect on
+    binary size today:
+    
+    libstd.so:
+            before 27.4MB
+            after  26.2MB
+    
+    For #6853.
+    
+    Change-Id: I603d7f3e5baad84f59f2fd37eeb1e4ae5acfe44a
+    Reviewed-on: https://go-review.googlesource.com/21583
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/objfile.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

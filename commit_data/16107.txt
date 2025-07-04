@@ -1,0 +1,21 @@
+commit 2d3216f4a860c74eb1973ad08c782cf30363b88b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Apr 5 21:24:07 2013 +0200
+
+    cmd/gc: fix Offsetof computation.
+    
+    The offset of an embedded field s.X must be relative to s
+    and not to the implicit s.Field of which X is a direct field.
+    Moreover, no indirections may happen on the path.
+    
+    Fixes #4909.
+    
+    R=nigeltao, ality, daniel.morsing, iant, gri, r
+    CC=golang-dev
+    https://golang.org/cl/8287043
+
+ src/cmd/gc/unsafe.c          |  40 +++++++++++--
+ test/fixedbugs/issue4909a.go |  35 +++++++++++
+ test/fixedbugs/issue4909b.go |  80 +++++++++++++++++++++++++
+ test/sizeof.go               | 137 ++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 286 insertions(+), 6 deletions(-)

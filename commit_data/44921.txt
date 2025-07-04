@@ -1,0 +1,20 @@
+commit 01821137c24750ddc7a58d3469bfd8c5e9d6bd47
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 14:59:39 2021 -0700
+
+    cmd/compile/internal/types2: review of errors.go
+    
+    The changes between (equivalent, and reviewed) go/types/errors.go
+    and errors.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
+    
+    The go/types version is significantly different as it handles
+    error codes but doesn't have some of the types2 changes.
+    
+    Change-Id: I48f79ce31490db938c830df7d38e247d55d54f2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305577
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/errors.go | 1 -
+ 1 file changed, 1 deletion(-)

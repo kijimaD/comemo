@@ -1,0 +1,13 @@
+commit b46e7c4d3c4ba8f5bfaff0489490833b120c4071
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue May 26 19:48:39 2009 -0700
+
+    bug 152
+    
+    R=r
+    OCL=29419
+    CL=29419
+
+ src/cmd/gc/sinit.c |  4 ++--
+ src/cmd/gc/walk.c  | 31 ++++++++++++++++++++-----------
+ 2 files changed, 22 insertions(+), 13 deletions(-)

@@ -1,0 +1,14 @@
+commit 85066acca144625e239294e2ce07bb2cfbc800c2
+Author: OlgaVlPetrova <OVPpetrova@gmail.com>
+Date:   Sat Oct 13 14:53:45 2018 +0300
+
+    src/cmd/compile/internal/ssa: replace `s = s + x' => 's += x'.
+    
+    Change-Id: I1f399a8a0aa200bfda01f97f920b1345e59956ba
+    Reviewed-on: https://go-review.googlesource.com/c/142057
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/ssa/sparsetree.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

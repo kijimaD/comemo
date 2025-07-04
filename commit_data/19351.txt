@@ -1,0 +1,18 @@
+commit 1476686cdb6acafdf62aad7672c3839bc4ca7033
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 14 13:46:58 2014 -0700
+
+    doc/effective_go.html: a little more about errors
+    Make it a little clearer how they are used, in particular that
+    it is not enough just to return a nil pointer on error, but also
+    to return an error value explaining the problem.
+    
+    Fixes #1963.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/97360045
+
+ doc/effective_go.html | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

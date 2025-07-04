@@ -1,0 +1,14 @@
+commit d9ffbc4b3d7f4bf4ba3b695bb8c9ffc04bd16c82
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 13 18:34:22 2011 -0800
+
+    godoc: remove tab before <pre>-formatted section
+    
+    Fixes #1321.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4003042
+
+ lib/godoc/package.html | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

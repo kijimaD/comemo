@@ -1,0 +1,46 @@
+commit b5f2c0f50297fa5cd14af668ddd7fd923626cf8c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Mar 17 20:34:51 2020 -0400
+
+    crypto/rsa,crypto/ecdsa,crypto/ed25519: implement PublicKey.Equal
+    
+    This makes all modern public keys in the standard library implement a
+    common interface (below) that can be used by applications for better
+    type safety and allows for checking that public (and private keys via
+    Public()) are equivalent.
+    
+    interface {
+        Equal(crypto.PublicKey) bool
+    }
+    
+    Equality for ECDSA keys is complicated, we take a strict interpretation
+    that works for all secure applications (the ones not using the
+    unfortunate non-constant time CurveParams implementation) and fails
+    closed otherwise.
+    
+    Tests in separate files to make them x_tests and avoid an import loop
+    with crypto/x509.
+    
+    Re-landing of CL 223754. Dropped the test that was assuming named curves
+    are not implemented by CurveParams, because it's not true for all
+    curves, and anyway is not a property we need to test. There is still a
+    test to check that different curves make keys not Equal.
+    
+    Fixes #21704
+    Fixes #38035
+    
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223754
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Change-Id: I736759b145bfb4f7f8eecd78c324315d5a05385c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225460
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/ecdsa/ecdsa.go          | 18 +++++++++++
+ src/crypto/ecdsa/equal_test.go     | 66 ++++++++++++++++++++++++++++++++++++++
+ src/crypto/ed25519/ed25519.go      |  9 ++++++
+ src/crypto/ed25519/ed25519_test.go | 16 +++++++++
+ src/crypto/rsa/equal_test.go       | 42 ++++++++++++++++++++++++
+ src/crypto/rsa/rsa.go              |  9 ++++++
+ 6 files changed, 160 insertions(+)

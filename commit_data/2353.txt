@@ -1,0 +1,15 @@
+commit 34d12bfbaeb1670ac523e1e38355bef5220e7b10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 1 19:00:07 2009 -0700
+
+    io.ReadFile
+    
+    R=r,rsc
+    DELTA=64  (63 added, 0 deleted, 1 changed)
+    OCL=29702
+    CL=29702
+
+ src/lib/io/Makefile      |  3 ++-
+ src/lib/io/utils.go      | 27 +++++++++++++++++++++++++++
+ src/lib/io/utils_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 66 insertions(+), 1 deletion(-)

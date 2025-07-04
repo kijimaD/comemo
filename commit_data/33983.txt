@@ -1,0 +1,20 @@
+commit c9517688c7dbe224bd606050dd7511ad1b10f55a
+Author: Samuel Tan <samueltan@google.com>
+Date:   Wed Dec 13 22:38:18 2017 -0800
+
+    html/template: check for duplicates when inserting escapers
+    
+    Ensure that we do not insert any escapers into pipelines that
+    already contain an equivalent escaper. This prevents overescaping
+    from occuring even when an aliased parse tree that has already
+    been escaped is escaped again.
+    
+    Fixes #21844
+    
+    Change-Id: Ic00d5e01c97ef09a4e49407009cf71b0d07f5c0e
+    Reviewed-on: https://go-review.googlesource.com/83920
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/html/template/escape.go      | 32 ++++++++++++++++++++++++--------
+ src/html/template/escape_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 8 deletions(-)

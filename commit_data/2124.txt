@@ -1,0 +1,13 @@
+commit 4f18549c0223ac6ea96f008a58cb2e2f5e61102d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 1 17:00:16 2009 -0700
+
+    clarifying ambiguity of evaluation order
+    
+    R=r
+    DELTA=16  (0 added, 3 deleted, 13 changed)
+    OCL=28133
+    CL=28178
+
+ doc/go_spec.html | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)

@@ -1,0 +1,17 @@
+commit e3d4491ad611a3cc3a78a8356ec467bb35f2de68
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sun Mar 10 13:05:30 2024 +0000
+
+    cmd/preprofile: fix typo in comment
+    
+    Change-Id: Ib44e9e6345fa8df7f46bc9cbdc19ad8ba73c8b83
+    GitHub-Last-Rev: 5a37ad798807c1bbc1600086ff162dc7019d1bca
+    GitHub-Pull-Request: golang/go#66233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570415
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/pgo/irgraph.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

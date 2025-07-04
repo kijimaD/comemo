@@ -1,0 +1,22 @@
+commit f7a39a54e9c75207bdf2f54fbb5e41d947e058f1
+Author: David Chase <drchase@google.com>
+Date:   Wed Sep 30 14:41:00 2015 -0400
+
+    cmd/compile: escape analysis, don't always escape variadic args
+    
+    Turns out the summary information for the ... args was
+    already correctly computed, all that lacked was to make
+    use of it and correct tests that documented our prior
+    deficiencies.
+    
+    Fixes #12006
+    
+    Change-Id: Ie8adfab7547f179391d470679598f0904aabf9f7
+    Reviewed-on: https://go-review.googlesource.com/15200
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/compile/internal/gc/esc.go |  23 +++--
+ test/escape2.go                    |  34 ++++----
+ test/escape2n.go                   |  34 ++++----
+ test/fixedbugs/issue12006.go       | 174 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 221 insertions(+), 44 deletions(-)

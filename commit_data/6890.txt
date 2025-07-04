@@ -1,0 +1,13 @@
+commit 5a8f2ba727e57720a67df24a7290942b1f556ece
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 14:36:45 2010 -0500
+
+    fix build: more libcgo references
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3448043
+
+ src/clean.bash | 2 +-
+ src/make.bash  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

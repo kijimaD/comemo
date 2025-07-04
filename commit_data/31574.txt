@@ -1,0 +1,15 @@
+commit d5e01c044f8674ab6cc62ae6f886163eee572884
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 15 10:41:25 2017 -0700
+
+    test: add test of deferred delete
+    
+    Updates #19710
+    
+    Change-Id: I37d19a4a02b9010cb5f9062b3d141d5d65e12e01
+    Reviewed-on: https://go-review.googlesource.com/43497
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue19710.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

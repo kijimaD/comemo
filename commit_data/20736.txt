@@ -1,0 +1,33 @@
+commit 5e713062b42110b9f7ccd1c326fab0e42b5b8c35
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 17 09:00:07 2014 -0700
+
+    encoding/gob: speed up encoding of arrays and slices
+    
+    We borrow a trick from the fmt package and avoid reflection
+    to walk the elements when possible. We could push further with
+    unsafe (and we may) but this is a good start.
+    Decode can benefit similarly; it will be done separately.
+    
+    Use go generate (engen.go) to produce the helper functions
+    (enc_helpers.go).
+    
+    benchmark                            old ns/op     new ns/op     delta
+    BenchmarkEndToEndPipe                6593          6482          -1.68%
+    BenchmarkEndToEndByteBuffer          3662          3684          +0.60%
+    BenchmarkEndToEndSliceByteBuffer     350306        351693        +0.40%
+    BenchmarkComplex128Slice             96347         80045         -16.92%
+    BenchmarkInt32Slice                  42484         26008         -38.78%
+    BenchmarkFloat64Slice                51143         36265         -29.09%
+    BenchmarkStringSlice                 53402         35077         -34.32%
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/156310043
+
+ src/encoding/gob/enc_helpers.go | 414 ++++++++++++++++++++++++++++++++++++++++
+ src/encoding/gob/encgen.go      | 218 +++++++++++++++++++++
+ src/encoding/gob/encode.go      |  15 +-
+ src/encoding/gob/timing_test.go |  64 +++++++
+ 4 files changed, 708 insertions(+), 3 deletions(-)

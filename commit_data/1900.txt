@@ -1,0 +1,13 @@
+commit 5019a8db7fc5de588ae2070be8f7f3a794e9b610
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 27 09:49:11 2009 -0700
+
+    integrate feedback from rsc
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=26810
+    CL=26834
+
+ src/lib/utf8.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

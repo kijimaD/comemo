@@ -1,0 +1,22 @@
+commit 8b859be9c3fd1068b659afa1db76dadb210c63de
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 12 10:02:37 2021 -0700
+
+    internal/poll: ensure that newPoolPipe doesn't return a nil pointer
+    
+    The function could occasionally return a nil pointer as a non-nil
+    interface, confusing the calling code.
+    
+    Fixes #45520
+    
+    Change-Id: Ifd35613728efa2cee9903177e85d369155074804
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309429
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Andy Pan <panjf2000@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/internal/poll/splice_linux.go      |  5 +++--
+ src/internal/poll/splice_linux_test.go | 16 ++++++++++++++--
+ 2 files changed, 17 insertions(+), 4 deletions(-)

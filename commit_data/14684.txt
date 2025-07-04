@@ -1,0 +1,36 @@
+commit 70e967b7bc6583735c098a91395b9f42b017e006
+Author: Jingcheng Zhang <diogin@gmail.com>
+Date:   Wed Dec 19 00:30:29 2012 +0800
+
+    runtime: use "mp" and "gp" instead of "m" and "g" for local variable name to avoid confusion with the global "m" and "g".
+    
+    R=golang-dev, minux.ma, rsc
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/6939064
+
+ src/pkg/runtime/cgocall.c             |  8 +++---
+ src/pkg/runtime/malloc.goc            | 22 ++++++++---------
+ src/pkg/runtime/mgc0.c                | 26 ++++++++++----------
+ src/pkg/runtime/mprof.goc             | 12 ++++-----
+ src/pkg/runtime/os_plan9.h            |  2 +-
+ src/pkg/runtime/proc.c                | 46 +++++++++++++++++------------------
+ src/pkg/runtime/runtime.h             |  2 +-
+ src/pkg/runtime/signal_netbsd_386.c   |  6 ++---
+ src/pkg/runtime/signal_netbsd_amd64.c |  6 ++---
+ src/pkg/runtime/sys_darwin_386.s      |  2 +-
+ src/pkg/runtime/sys_darwin_amd64.s    |  2 +-
+ src/pkg/runtime/sys_linux_386.s       |  4 +--
+ src/pkg/runtime/sys_linux_amd64.s     |  4 +--
+ src/pkg/runtime/sys_linux_arm.s       |  4 +--
+ src/pkg/runtime/sys_openbsd_386.s     |  4 +--
+ src/pkg/runtime/sys_openbsd_amd64.s   |  4 +--
+ src/pkg/runtime/thread_darwin.c       |  8 +++---
+ src/pkg/runtime/thread_freebsd.c      | 20 +++++++--------
+ src/pkg/runtime/thread_linux.c        |  8 +++---
+ src/pkg/runtime/thread_netbsd.c       | 12 ++++-----
+ src/pkg/runtime/thread_openbsd.c      | 14 +++++------
+ src/pkg/runtime/thread_plan9.c        | 16 ++++++------
+ src/pkg/runtime/thread_windows.c      |  8 +++---
+ src/pkg/runtime/traceback_arm.c       | 24 +++++++++---------
+ src/pkg/runtime/traceback_x86.c       | 26 ++++++++++----------
+ 25 files changed, 145 insertions(+), 145 deletions(-)

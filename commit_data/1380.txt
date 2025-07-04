@@ -1,0 +1,13 @@
+commit cbff09d6666bf4c2e4152fba5c858ae481a263d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 19 09:03:44 2008 -0800
+
+    g4 open sysimport.c before writing it
+    
+    R=r
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=21577
+    CL=21603
+
+ src/cmd/gc/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

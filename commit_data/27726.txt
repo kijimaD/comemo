@@ -1,0 +1,20 @@
+commit 83e839f86fcc0762ea513f8d5dd9a50a8338e9c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 24 13:19:46 2016 -0700
+
+    cmd/pprof: ignore symbols with address 0 and size 0
+    
+    Handling a symbol with address 0 and size 0, such as an ELF STT_FILE
+    symbols, was causing us to disassemble the entire program.  We started
+    adding STT_FILE symbols to help fix issue #13247.
+    
+    Fixes #16154.
+    
+    Change-Id: I174b9614e66ddc3d65801f7c1af7650f291ac2af
+    Reviewed-on: https://go-review.googlesource.com/24460
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/cmd/pprof/pprof.go | 5 +++++
+ 1 file changed, 5 insertions(+)

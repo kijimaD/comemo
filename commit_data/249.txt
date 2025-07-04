@@ -1,0 +1,15 @@
+commit f977e251fa3f782ad640889bbe72336af83399dd
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 27 11:36:40 2008 -0700
+
+    add a test
+    fix make.bash for runtime - sysfile.6 depends on OS so simplest thing is to build just our own version
+    
+    SVN=125130
+
+ src/lib/fmt.go                     | 10 +++++-----
+ src/runtime/make.bash              |  6 ++----
+ test/{bugs => fixedbugs}/bug058.go |  0
+ test/golden.out                    | 17 +++++++----------
+ test/sieve.go                      | 10 +++++-----
+ 5 files changed, 19 insertions(+), 24 deletions(-)

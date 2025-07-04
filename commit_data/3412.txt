@@ -1,0 +1,22 @@
+commit e67a5084b8b9a56f5a46b76e6b59b4799ff05ace
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 30 13:47:15 2009 -0700
+
+    cgo working on linux/386
+    
+    R=r
+    DELTA=70  (47 added, 4 deleted, 19 changed)
+    OCL=35167
+    CL=35171
+
+ misc/cgo/gmp/Makefile           |  6 ++++++
+ src/Make.pkg                    |  9 ++++++---
+ src/cmd/8c/swt.c                | 11 +++++++++++
+ src/cmd/8l/asm.c                | 11 +++++------
+ src/cmd/cgo/ast.go              |  1 +
+ src/cmd/cgo/gcc.go              | 12 ++++++------
+ src/cmd/cgo/main.go             | 18 ++++++++++++++++--
+ src/cmd/cgo/out.go              |  8 ++++----
+ src/libcgo/Makefile             |  6 ++++--
+ src/pkg/runtime/linux/386/rt0.s |  7 +++++++
+ 10 files changed, 66 insertions(+), 23 deletions(-)

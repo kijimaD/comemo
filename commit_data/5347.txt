@@ -1,0 +1,36 @@
+commit 47a05334117db4f1e9df6be8aeef9598d7a07124
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 26 22:15:25 2010 -0700
+
+    net: introduce net.Error interface
+    
+    Adds two more methods, Timeout and Temporary.
+    Implemented by os.Errno too.  The intent is to make
+    the checks for os.EAGAIN a little less clunky.
+    It should also let us clean up a bug that Mike Solomon
+    pointed out: if a network server gets an "out of file descriptors"
+    error from Accept, the listener should not stop.
+    It will be able to check this because that error would
+    have Temporary() == true.
+    
+    Also clean up some underscore names.
+    
+    Fixes #442.
+    
+    R=r
+    CC=golang-dev, msolo
+    https://golang.org/cl/957045
+
+ src/pkg/net/dnsclient.go    |  79 +++++++--------
+ src/pkg/net/dnsconfig.go    |  22 ++++-
+ src/pkg/net/dnsmsg.go       | 234 ++++++++++++++++++++++----------------------
+ src/pkg/net/fd.go           |  66 ++++++++-----
+ src/pkg/net/ipsock.go       |  22 +++--
+ src/pkg/net/net.go          |  72 +++++++++++---
+ src/pkg/net/server_test.go  |  12 +--
+ src/pkg/net/tcpsock.go      |  23 +----
+ src/pkg/net/timeout_test.go |   4 +-
+ src/pkg/net/udpsock.go      |  53 +++-------
+ src/pkg/net/unixsock.go     |  69 +++++--------
+ src/pkg/os/error.go         |  12 ++-
+ 12 files changed, 350 insertions(+), 318 deletions(-)

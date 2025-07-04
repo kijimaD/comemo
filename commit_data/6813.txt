@@ -1,0 +1,23 @@
+commit 5e4882a3257b4885d6a91dad348f00c843db6e66
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 1 17:10:40 2010 -0800
+
+    template: implement multi-word variable instantation for formatters.
+    Before one could say
+            {field}
+    or
+            {field|formatter}
+    Now one can also say
+            {field1 field2 field3}
+    or
+            {field1 field2 field3|formatter}
+    and the fields are passed as successive arguments to the formatter,
+    analogous to fmt.Print.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/3385041
+
+ src/pkg/template/template.go      | 43 +++++++++++++++++++++++----------------
+ src/pkg/template/template_test.go | 18 ++++++++++++++++
+ 2 files changed, 44 insertions(+), 17 deletions(-)

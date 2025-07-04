@@ -1,0 +1,14 @@
+commit d152321cea4ebee18b7b819d29d0718dbc139212
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 5 01:31:23 2012 +0800
+
+    lib9: fix memory leak in p9getwd()
+            although the comment says it uses libc's getenv, without NOPLAN9DEFINES
+            it actually uses p9getenv which strdups.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6285046
+
+ src/lib9/getwd.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

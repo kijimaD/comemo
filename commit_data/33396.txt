@@ -1,0 +1,22 @@
+commit 3039bff9d07ce05dc9af8c155c6929ae5e53a231
+Author: Tom Bergan <tombergan@google.com>
+Date:   Thu Nov 2 15:41:10 2017 -0700
+
+    net/http: clarify when it is safe to reuse a request
+    
+    The godoc for RoundTrip already specifies when it's ok to reuse a
+    request that contains a body: the caller must wait until RoundTrip
+    calls Close on Request.Body.
+    
+    This CL adds a small clarification: If the request does not have a
+    body, it can be reused as long as the caller does not mutate the
+    Request until RoundTrip fails or the Response.Body is closed.
+    
+    Fixes #19653
+    
+    Change-Id: I56652a9369978d11650e2e6314104831c2ce5e78
+    Reviewed-on: https://go-review.googlesource.com/75671
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 51daa25c6c3441dc9e5a10f65896f553e3f7a862
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 31 09:59:29 2017 -0400
+
+    cmd/dist: avoid darwin_amd64 assumption in debug prints
+    
+    Noted in CL 73212 review by crawshaw.
+    Neglected to update CL 73212 before submitting.
+    
+    Also fix printing of target goos/goarch for cross-compile build.
+    
+    Change-Id: If702f23071a4456810f1de6abb9115b38933c5c1
+    Reviewed-on: https://go-review.googlesource.com/74631
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/build.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

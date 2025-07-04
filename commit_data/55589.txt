@@ -1,0 +1,22 @@
+commit 69d6c7b8ee62b4db5a8f6399e15f27d47b209a29
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Feb 12 11:04:24 2024 +0100
+
+    net: skip TestModeSocket on older Windows versions
+    
+    CL 561937 taught os.Stat about IO_REPARSE_TAG_AF_UNIX and added a
+    test for it, TestModeSocket. This test fails on Windows older than
+    10.0.17063, in which AF_UNIX support was added. Skip the test on those
+    versions.
+    
+    Some CI builders use Windows 10.0.14393, so CL 561937 broke them,
+    e.g. https://build.golang.org/log/5ea4f6422779f32eccfef3a25df54283ddd4e65e.
+    
+    Change-Id: I6c21a78a1454d2d88321478288c0da1b8a93e590
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/net/unixsock_windows_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

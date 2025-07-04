@@ -1,0 +1,20 @@
+commit 75f6a0c759e21b3a0fd7ef7c52b73fa24d91eb2e
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Thu Aug 5 23:11:06 2010 +1000
+
+    bytes: add IndexRune, FieldsFunc and To*Special
+    
+    Basically these functions are implemented the same way as the
+    corresponding functions in the strings package.  Test functions
+    are implemented for IndexRune and FieldsFunc.
+    
+    Additionally two typos are fixed in packages bytes and strings.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1696062
+
+ src/pkg/bytes/bytes.go      | 49 +++++++++++++++++++++++++++++++++++++++++----
+ src/pkg/bytes/bytes_test.go | 37 ++++++++++++++++++++++++++++++++++
+ src/pkg/strings/strings.go  |  2 +-
+ 3 files changed, 83 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit 75176947d6791e8f2c128e8ae8847f05507b6336
+Author: Jess Frazelle <me@jessfraz.com>
+Date:   Thu Apr 13 21:22:22 2017 +0000
+
+    syscall: fix TestGroupCleanup{UserNamespace} on Alpine
+    
+    This updates TestGroupCleanup and TestGroupCleanupUserNamespace to pass in the
+    Alpine builder.
+    
+    Updates #19938
+    
+    Change-Id: Iacbfd73782eccd57f872f9e85726c6024529c277
+    Reviewed-on: https://go-review.googlesource.com/40692
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

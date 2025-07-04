@@ -1,0 +1,14 @@
+commit 89a7c87e664580b7281b6eabeb1bffefa716e906
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 8 12:15:19 2013 -0800
+
+    all: use io.ByteWriter now that it exists
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7079043
+
+ src/pkg/compress/lzw/writer.go | 2 +-
+ src/pkg/exp/html/render.go     | 2 +-
+ src/pkg/image/jpeg/writer.go   | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

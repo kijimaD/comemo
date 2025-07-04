@@ -1,0 +1,17 @@
+commit d029058b5912312963225c40ae4bf44e3cb4be76
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 28 18:52:35 2018 +0000
+
+    runtime: fix heap pointer invariant rules in HACKING.md
+    
+    This change fixes an error in HACKING.md which claims all pointers
+    which live in unmanaged memory but point to the heap must be marked
+    as GC roots explicitly by runtime.markroot. This isn't technically
+    necessary if the pointer is accessible through a global variable.
+    
+    Change-Id: I632b25272fdb2f789c5259dd1685d517f45fd435
+    Reviewed-on: https://go-review.googlesource.com/c/151539
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/HACKING.md | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

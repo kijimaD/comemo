@@ -1,0 +1,12 @@
+commit 873271378b835b402b011792b35ad7bb7b6f4a89
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Wed Jan 1 16:32:05 2014 +1100
+
+    encoding/hex: add Decode test case with uppercase hex characters
+    
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/46270043
+
+ src/pkg/encoding/hex/hex_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

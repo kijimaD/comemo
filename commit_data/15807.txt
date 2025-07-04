@@ -1,0 +1,15 @@
+commit 464257eeffedcf2c9e04fd8c47edc1f1fc491b62
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 15 17:08:07 2013 -0700
+
+    bytes,string: move the BUG to the comment of the function it's about
+    Avoids printing it every time we ask a question about the package from
+    the command line.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7789048
+
+ src/pkg/bytes/bytes.go     | 4 ++--
+ src/pkg/strings/strings.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

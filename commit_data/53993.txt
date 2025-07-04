@@ -1,0 +1,26 @@
+commit f123f5c7689f8b631686f74ebcbce15a8c650e74
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 11 14:22:56 2023 -0700
+
+    cmd/compile: mark generated eq/hash functions as //go:noinline
+    
+    Instead of having the inliner specially recognize that eq/hash
+    functions can't be inlined, change the geneq and genhash to mark them
+    as //go:noinline.
+    
+    This is a prereq for a subsequent CL that will move more logic for
+    handling rtypes from package types to package reflectdata.
+    
+    Change-Id: I091a9ededcc083fe8305cf5443a9af7d3a9053b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518955
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/inline/inl.go      | 7 -------
+ src/cmd/compile/internal/ir/func.go         | 8 --------
+ src/cmd/compile/internal/reflectdata/alg.go | 4 ++++
+ src/cmd/compile/internal/types/type.go      | 5 -----
+ 4 files changed, 4 insertions(+), 20 deletions(-)

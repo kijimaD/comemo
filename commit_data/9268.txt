@@ -1,0 +1,25 @@
+commit 1d0c141d7d838774c34c03729fddc44c65749902
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Aug 1 10:26:46 2011 +1000
+
+    html: parse doctype tokens; merge adjacent text nodes.
+    
+    The test case input is "<!DOCTYPE html><span><button>foo</span>bar".
+    The correct parse is:
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <span>
+    |       <button>
+    |         "foobar"
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4794063
+
+ src/pkg/html/node.go       |   1 +
+ src/pkg/html/parse.go      |  23 ++++-
+ src/pkg/html/parse_test.go |   4 +-
+ src/pkg/html/token.go      | 244 +++++++++++++++++++++++++++------------------
+ 4 files changed, 170 insertions(+), 102 deletions(-)

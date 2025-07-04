@@ -1,0 +1,53 @@
+commit 8b220d8ef1ad8fdedd2728fe047ec7c2f55e8aa6
+Author: Jed Denlea <jed@fastly.com>
+Date:   Wed Oct 4 17:50:29 2017 -0700
+
+    image/gif: write fewer, bigger blocks
+    
+    The indexed bitmap of a frame is encoded into a GIF by first LZW
+    compression, and then packaged by a simple block mechanism.  Each block
+    of up-to-256 bytes starts with one byte, which indicates the size of the
+    block (0x01-0xff). The sequence of blocks is terminated by a 0x00.
+    
+    While the format supports it, there is no good reason why any particular
+    image should be anything but a sequence of 255-byte blocks with one last
+    block less than 255-bytes.
+    
+    The old blockWriter implementation would not buffer between Write()s,
+    meaning if the lzw Writer needs to flush more than one chunk of data via
+    a Write, multiple short blocks might exist in the middle of a stream.
+    
+    Separate but related, the old implementation also forces lzw.NewWriter
+    to allocate a bufio.Writer because the blockWriter is not an
+    io.ByteWriter itself.  But, even though it doesn't effectively buffer
+    data between Writes, it does make extra copies of sub-blocks during the
+    course of writing them to the GIF's writer.
+    
+    Now, the blockWriter shall continue to use the encoder's [256]byte buf,
+    but use it to effectively buffer a series of WriteByte calls from the
+    lzw Writer.  Once a WriteByte fills the buffer, the staged block is
+    Write()n to the underlying GIF writer.  After the lzw Writer is Closed,
+    the blockWriter should also be closed, which will flush any remaining
+    block along with the block terminator.
+    
+    BenchmarkEncode indicates slight improvements:
+    
+    name      old time/op    new time/op    delta
+    Encode-8    7.71ms ± 0%    7.38ms ± 0%   -4.27%  (p=0.008 n=5+5)
+    
+    name      old speed      new speed      delta
+    Encode-8   159MB/s ± 0%   167MB/s ± 0%   +4.46%  (p=0.008 n=5+5)
+    
+    name      old alloc/op   new alloc/op   delta
+    Encode-8    84.1kB ± 0%    80.0kB ± 0%   -4.94%  (p=0.008 n=5+5)
+    
+    name      old allocs/op  new allocs/op  delta
+    Encode-8      9.00 ± 0%      7.00 ± 0%  -22.22%  (p=0.008 n=5+5)
+    
+    Change-Id: I9eb9367d41d7c3d4d7f0adc9b720fc24fb50006a
+    Reviewed-on: https://go-review.googlesource.com/68351
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/gif/writer.go      | 63 +++++++++++++++++++++++++++++++++-----------
+ src/image/gif/writer_test.go |  4 +++
+ 2 files changed, 51 insertions(+), 16 deletions(-)

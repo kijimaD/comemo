@@ -1,0 +1,21 @@
+commit fdb3dc471d099cf04cfa575a2bc8d51999917e1e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jan 23 13:31:00 2023 -0500
+
+    cmd/internal/obj/arm: handle HAUTO etc. in addpool
+    
+    HAUTO should be handled the same way as other stack offsets for
+    adding to constant pool. Add the missing cases.
+    
+    Fixes #57955.
+    
+    Change-Id: If7fc82cafb2bbf0a6121e73e353b8825cb36b5bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463138
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm/asm5.go | 11 ++++++----
+ test/fixedbugs/issue57955.go     | 43 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 4 deletions(-)

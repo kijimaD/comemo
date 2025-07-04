@@ -1,0 +1,17 @@
+commit 9edabbe03832e1203d0819c27542b6316ca39d0d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 14:10:42 2012 -0800
+
+    go/token: replaced Files() with Iterate()
+    
+    - Use a faster closure-based iterator rather than a channel-based one.
+    - Otherwise: better code organization, but no other API changes.
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/5557051
+
+ src/pkg/exp/types/check_test.go   |  18 +--
+ src/pkg/go/token/position.go      | 271 ++++++++++++++++++++------------------
+ src/pkg/go/token/position_test.go |   9 +-
+ 3 files changed, 152 insertions(+), 146 deletions(-)

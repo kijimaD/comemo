@@ -1,0 +1,17 @@
+commit 90a2dcf1dbc0c3ed46a76547c3c9578a73aeb822
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Thu Mar 14 03:16:12 2024 +0000
+
+    cmd/compile/internal/syntax: replace bytes.Compare call with bytes.Equal
+    
+    Change-Id: I783e02e215efaebf4936146c6aaa032634fdfa64
+    GitHub-Last-Rev: 24680a73ee22fe03d7e33c122c95ed1372a2b406
+    GitHub-Pull-Request: golang/go#66304
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571595
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/syntax/parser_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

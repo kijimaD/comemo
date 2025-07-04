@@ -1,0 +1,28 @@
+commit f74b52cf505cba5ba8d3af0deae3bb1199c91aac
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Aug 31 13:49:43 2017 +0900
+
+    cmd/cgo: support large unsigned macro again
+    
+    The approach of https://golang.org/cl/43476 turned out incorrect.
+    The problem is that the sniff introduced by the CL only work for simple
+    expression. And when it fails it fallback to uint64, not int64, which
+    breaks backward compatibility.
+    In this CL, we use DWARF for guessing kind instead. That should be more
+    reliable than previous approach. And importanly, it fallbacks to int64 even
+    if it fails to guess kind.
+    
+    Fixes #21708
+    
+    Change-Id: I39a18cb2efbe4faa9becdcf53d5ac68dba180d46
+    Reviewed-on: https://go-review.googlesource.com/60510
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue21708.go | 16 ++++++++++++++++
+ src/cmd/cgo/doc.go          |  5 -----
+ src/cmd/cgo/gcc.go          | 39 ++++++++++-----------------------------
+ src/cmd/cgo/main.go         |  4 ++--
+ 5 files changed, 29 insertions(+), 36 deletions(-)

@@ -1,0 +1,16 @@
+commit a52db6403c5e34ef76eb3fd01dc078718531d7bf
+Author: Thomas Symborski <thomas.symborski@gmail.com>
+Date:   Mon Dec 23 23:55:43 2019 +0000
+
+    strings: update Join parameter name for clarity
+    
+    Change-Id: I83f806e76ef4d268b187bd273d78ceb41b7e8fa5
+    GitHub-Last-Rev: ee82eaae64536cecb631df328aafe2541f71d3f2
+    GitHub-Pull-Request: golang/go#36194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211799
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strings/strings.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

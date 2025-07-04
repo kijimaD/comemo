@@ -1,0 +1,25 @@
+commit cc3b303a6f255a7c488ca54449e11e2f3b632ed4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jun 11 22:02:27 2020 -0400
+
+    cmd/compile/internal/ssa: skip TestNexting with old Delve on linux/386
+    
+    Support for linux/386 was added to Delve in version 1.4.1, but the
+    version of Delve currently installed on the linux-386-longtest
+    builder is 1.2.0. That isn't new enough, which causes the test
+    to fail. Skip it on that builder until it can be made to work.
+    
+    The only reason it used to pass on the linux-386-longtest builder
+    before is because that builder was misconfigured to run tests for
+    linux/amd64. This was resolved in CL 234520.
+    
+    Also improve internal documentation and the text of skip reasons.
+    
+    Fixes #39309.
+    
+    Change-Id: I395cb1f076e59dd3a3feb53e1dcdce5101e9a0f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237603
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)

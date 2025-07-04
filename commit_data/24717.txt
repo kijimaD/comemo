@@ -1,0 +1,19 @@
+commit e50a4c698752928cf7c0638e947c43e36d69b671
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 3 11:00:37 2015 -0800
+
+    net/http: register HTTP/2 before listening in ListenAndServe
+    
+    Change-Id: Icf9b6802945051aa484fb9ebcce71704f5655474
+    Reviewed-on: https://go-review.googlesource.com/16630
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go         |  2 +-
+ src/net/http/export_test.go       |  2 ++
+ src/net/http/httptest/server.go   | 39 ++----------------------
+ src/net/http/internal/testcert.go | 41 ++++++++++++++++++++++++++
+ src/net/http/serve_test.go        | 62 ++++++++++++++++++++++++++++++++++++++-
+ src/net/http/server.go            | 43 +++++++++++++++++++++------
+ 6 files changed, 141 insertions(+), 48 deletions(-)

@@ -1,0 +1,12 @@
+commit 73b657e96e498e0b6314e6054795f81400de4afc
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 2 15:23:26 2020 -0500
+
+    doc/go1.14: mention sync.Mutex changes
+    
+    Change-Id: Icd92d115e5d7f00b2100598baf2522ebebcdb223
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213125
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,23 @@
+commit f13701bf2f32fe48f6dcf9149b35b9ce3effe022
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 15 13:04:50 2016 -0700
+
+    test: make SSA tests unconditional
+    
+    Delete legacy backend tests, make SSA tests unconditional.
+    
+    Next CL will remove _ssa from the file names.
+    
+    Update #16357
+    
+    Change-Id: I2a7f5dcbc69455f63b5e6e6b2725df26ab86c8dd
+    Reviewed-on: https://go-review.googlesource.com/29231
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/live.go        | 656 ----------------------------------------------------
+ test/live_ssa.go    |   1 -
+ test/nilptr3.go     | 224 ------------------
+ test/nilptr3_ssa.go |   1 -
+ 4 files changed, 882 deletions(-)

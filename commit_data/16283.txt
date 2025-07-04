@@ -1,0 +1,12 @@
+commit 0ae5036b268648305496acc09e0875b258c95e0d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun May 12 21:58:27 2013 -0700
+
+    doc: add a "New packages" section to the 1.1 release notes.
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/9344044
+
+ doc/go1.1.html | 45 ++++++++++++++++++++++++++++++---------------
+ 1 file changed, 30 insertions(+), 15 deletions(-)

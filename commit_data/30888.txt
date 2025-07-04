@@ -1,0 +1,97 @@
+commit 6e9ec14186cad6058625415abba2744e2bd83ec7
+Author: Rick Hudson <rlh@golang.org>
+Date:   Mon Mar 27 14:20:35 2017 -0400
+
+    runtime: redo insert/remove of large spans
+    
+    Currently for spans with up to 1 MBytes (128 pages) we
+    maintain an array indexed by the number of pages in the
+    span. This is efficient both in terms of space as well
+    as time to insert or remove a span of a particular size.
+    
+    Unfortunately for spans larger than 1 MByte we currently
+    place them on a separate linked list. This results in
+    O(n) behavior. Now that we are seeing heaps approaching
+    100 GBytes n is large enough to be noticed in real programs.
+    
+    This change replaces the linked list now used with a balanced
+    binary tree structure called a treap. A treap is a
+    probabilistically balanced tree offering O(logN) behavior for
+    inserting and removing spans.
+    
+    To verify that this approach will work we start with noting
+    that only spans with sizes > 1MByte will be put into the treap.
+    This means that to support 1 TByte a treap will need at most
+    1 million nodes and can ideally be held in a treap with a
+    depth of 20. Experiments with adding and removing randomly
+    sized spans from the treap seem to result in treaps with
+    depths of about twice the ideal or 40. A petabyte would
+    require a tree of only twice again that depth again so this
+    algorithm should last well into the future.
+    
+    Fixes #19393
+    
+    Go1 benchmarks indicate this is basically an overall wash.
+    Tue Mar 28 21:29:21 EDT 2017
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              2.42s ± 1%     2.42s ± 1%    ~     (p=0.980 n=21+21)
+    Fannkuch11-4                3.00s ± 1%     3.18s ± 4%  +6.10%  (p=0.000 n=22+24)
+    FmtFprintfEmpty-4          40.5ns ± 1%    40.3ns ± 3%    ~     (p=0.692 n=22+25)
+    FmtFprintfString-4         65.9ns ± 3%    64.6ns ± 1%  -1.98%  (p=0.000 n=24+23)
+    FmtFprintfInt-4            69.6ns ± 1%    68.0ns ± 7%  -2.30%  (p=0.001 n=21+22)
+    FmtFprintfIntInt-4          102ns ± 2%      99ns ± 1%  -3.07%  (p=0.000 n=23+23)
+    FmtFprintfPrefixedInt-4     126ns ± 0%     125ns ± 0%  -0.79%  (p=0.000 n=19+17)
+    FmtFprintfFloat-4           206ns ± 2%     205ns ± 1%    ~     (p=0.671 n=23+21)
+    FmtManyArgs-4               441ns ± 1%     445ns ± 1%  +0.88%  (p=0.000 n=22+23)
+    GobDecode-4                5.73ms ± 1%    5.86ms ± 1%  +2.37%  (p=0.000 n=23+22)
+    GobEncode-4                4.51ms ± 1%    4.89ms ± 1%  +8.32%  (p=0.000 n=22+22)
+    Gzip-4                      197ms ± 0%     202ms ± 1%  +2.75%  (p=0.000 n=23+24)
+    Gunzip-4                   32.9ms ± 8%    32.7ms ± 2%    ~     (p=0.466 n=23+24)
+    HTTPClientServer-4         57.3µs ± 1%    56.7µs ± 1%  -0.94%  (p=0.000 n=21+22)
+    JSONEncode-4               13.8ms ± 1%    13.9ms ± 2%  +1.14%  (p=0.000 n=22+23)
+    JSONDecode-4               47.4ms ± 1%    48.1ms ± 1%  +1.49%  (p=0.000 n=23+23)
+    Mandelbrot200-4            3.92ms ± 0%    3.92ms ± 1%  +0.21%  (p=0.000 n=22+22)
+    GoParse-4                  2.89ms ± 1%    2.87ms ± 1%  -0.68%  (p=0.000 n=21+22)
+    RegexpMatchEasy0_32-4      73.6ns ± 1%    72.0ns ± 2%  -2.15%  (p=0.000 n=21+22)
+    RegexpMatchEasy0_1K-4       173ns ± 1%     173ns ± 1%    ~     (p=0.847 n=22+24)
+    RegexpMatchEasy1_32-4      71.9ns ± 1%    69.8ns ± 1%  -2.99%  (p=0.000 n=23+20)
+    RegexpMatchEasy1_1K-4       314ns ± 1%     308ns ± 1%  -1.91%  (p=0.000 n=22+23)
+    RegexpMatchMedium_32-4      106ns ± 0%     105ns ± 1%  -0.58%  (p=0.000 n=19+21)
+    RegexpMatchMedium_1K-4     34.3µs ± 1%    34.3µs ± 1%    ~     (p=0.871 n=23+22)
+    RegexpMatchHard_32-4       1.67µs ± 1%    1.67µs ± 7%    ~     (p=0.224 n=22+23)
+    RegexpMatchHard_1K-4       51.5µs ± 1%    50.4µs ± 1%  -1.99%  (p=0.000 n=22+23)
+    Revcomp-4                   383ms ± 1%     415ms ± 0%  +8.51%  (p=0.000 n=22+22)
+    Template-4                 51.5ms ± 1%    51.5ms ± 1%    ~     (p=0.555 n=20+23)
+    TimeParse-4                 279ns ± 2%     277ns ± 1%  -0.95%  (p=0.000 n=24+22)
+    TimeFormat-4                294ns ± 1%     296ns ± 1%  +0.58%  (p=0.003 n=24+23)
+    [Geo mean]                 43.7µs         43.8µs       +0.32%
+    
+    name                     old speed      new speed      delta
+    GobDecode-4               134MB/s ± 1%   131MB/s ± 1%  -2.32%  (p=0.000 n=23+22)
+    GobEncode-4               170MB/s ± 1%   157MB/s ± 1%  -7.68%  (p=0.000 n=22+22)
+    Gzip-4                   98.7MB/s ± 0%  96.1MB/s ± 1%  -2.68%  (p=0.000 n=23+24)
+    Gunzip-4                  590MB/s ± 7%   593MB/s ± 2%    ~     (p=0.466 n=23+24)
+    JSONEncode-4              141MB/s ± 1%   139MB/s ± 2%  -1.13%  (p=0.000 n=22+23)
+    JSONDecode-4             40.9MB/s ± 1%  40.3MB/s ± 0%  -1.47%  (p=0.000 n=23+23)
+    GoParse-4                20.1MB/s ± 1%  20.2MB/s ± 1%  +0.69%  (p=0.000 n=21+22)
+    RegexpMatchEasy0_32-4     435MB/s ± 1%   444MB/s ± 2%  +2.21%  (p=0.000 n=21+22)
+    RegexpMatchEasy0_1K-4    5.89GB/s ± 1%  5.89GB/s ± 1%    ~     (p=0.439 n=22+24)
+    RegexpMatchEasy1_32-4     445MB/s ± 1%   459MB/s ± 1%  +3.06%  (p=0.000 n=23+20)
+    RegexpMatchEasy1_1K-4    3.26GB/s ± 1%  3.32GB/s ± 1%  +1.97%  (p=0.000 n=22+23)
+    RegexpMatchMedium_32-4   9.40MB/s ± 1%  9.44MB/s ± 1%  +0.43%  (p=0.000 n=23+21)
+    RegexpMatchMedium_1K-4   29.8MB/s ± 1%  29.8MB/s ± 1%    ~     (p=0.826 n=23+22)
+    RegexpMatchHard_32-4     19.1MB/s ± 1%  19.1MB/s ± 7%    ~     (p=0.233 n=22+23)
+    RegexpMatchHard_1K-4     19.9MB/s ± 1%  20.3MB/s ± 1%  +2.03%  (p=0.000 n=22+23)
+    Revcomp-4                 664MB/s ± 1%   612MB/s ± 0%  -7.85%  (p=0.000 n=22+22)
+    Template-4               37.6MB/s ± 1%  37.7MB/s ± 1%    ~     (p=0.558 n=20+23)
+    [Geo mean]                134MB/s        133MB/s       -0.76%
+    Tue Mar 28 22:16:54 EDT 2017
+    
+    Change-Id: I4a4f5c2b53d3fb85ef76c98522d3ed5cf8ae5b7e
+    Reviewed-on: https://go-review.googlesource.com/38732
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mfixalloc.go |  10 +-
+ src/runtime/mgclarge.go  | 327 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mheap.go     | 156 ++++++++++++++--------
+ 3 files changed, 433 insertions(+), 60 deletions(-)

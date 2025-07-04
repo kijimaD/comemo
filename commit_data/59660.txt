@@ -1,0 +1,25 @@
+commit 50484d3b4e691d361d009d5e4a07c182b35471a0
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 21 12:20:59 2025 -0400
+
+    cmd/go/internal/doc: ignore SIGINT and SIGQUIT
+    
+    Just like we do in cmd/doc when we start pkgsite, ignore SIGINT (and
+    SIGQUIT on unix) when we start cmd/doc so that it's handled by cmd/doc
+    (if pkgsite is not started, and before it is started) or pkgsite, if it
+    is started. Also exit with the exit status of the command, rather than
+    using base.Errorf so that we don't print an extra error message to the
+    terminal.
+    
+    For #68106
+    
+    Change-Id: If968e88b95031761432d13dc47c5febe3391945d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675076
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Auto-Submit: Michael Matloob <matloob@google.com>
+
+ src/cmd/go/internal/base/base.go | 16 ++++++++++++----
+ src/cmd/go/internal/doc/doc.go   | 13 ++++++++++++-
+ 2 files changed, 24 insertions(+), 5 deletions(-)

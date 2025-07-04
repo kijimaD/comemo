@@ -1,0 +1,16 @@
+commit 4358a53a9727f508c986cb675cba04e1858b83d3
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 11 11:15:53 2021 -0500
+
+    runtime: trivial replacements of _g_ in proc.go
+    
+    Generated with global replace: 's/_g_/gp/g'.
+    
+    Change-Id: Ia91606a0a8a5773be7c6e5152160510ae9bb221e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418584
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go | 356 ++++++++++++++++++++++++++--------------------------
+ 1 file changed, 178 insertions(+), 178 deletions(-)

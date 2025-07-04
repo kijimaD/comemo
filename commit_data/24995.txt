@@ -1,0 +1,14 @@
+commit f4ccddddae448518e21496ba99f60650a48e76e2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 19 22:07:53 2015 -0800
+
+    test: add another test that gccgo failed to compile
+    
+    Change-Id: Ife9e019063473bb0a976cfef4b6e78d951fcb09e
+    Reviewed-on: https://go-review.googlesource.com/17081
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ test/fixedbugs/bug496.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

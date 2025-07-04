@@ -1,0 +1,35 @@
+commit 61bc17f04e232a62204b78b68e839db7029338d7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 28 10:19:21 2023 -0700
+
+    cmd/compile: don't assume pointer of a slice is non-nil
+    
+    unsafe.SliceData can return pointers which are nil. That function gets
+    lowered to the SSA OpSlicePtr, which the compiler assumes is non-nil.
+    This used to be the case as OpSlicePtr was only used in situations
+    where the bounds check already passed. But with unsafe.SliceData that
+    is no longer the case.
+    
+    There are situations where we know it is nil. Use Bounded() to
+    indicate that.
+    
+    I looked through all the uses of OSPTR and added SetBounded where it
+    made sense. Most OSPTR results are passed directly to runtime calls
+    (e.g. memmove), so even if we know they are non-nil that info isn't
+    helpful.
+    
+    Fixes #59293
+    
+    Change-Id: I437a15330db48e0082acfb1f89caf8c56723fc51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479896
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ir/node.go      |  2 +-
+ src/cmd/compile/internal/ssagen/ssa.go   |  5 ++++-
+ src/cmd/compile/internal/walk/convert.go |  4 +++-
+ src/cmd/compile/internal/walk/range.go   |  1 +
+ test/fixedbugs/issue59293.go             | 28 ++++++++++++++++++++++++++++
+ 5 files changed, 37 insertions(+), 3 deletions(-)

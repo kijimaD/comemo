@@ -1,0 +1,14 @@
+commit 8e0c4639f11e9febd34fc1e2465138b37411b9d5
+Author: Odin Ugedal <odin@ugedal.com>
+Date:   Wed Dec 7 09:54:42 2016 +0100
+
+    fmt: remove unnecessary else statement
+    
+    Change-Id: If30ccfcf56d56fb40102ad567a980793bd39f320
+    Reviewed-on: https://go-review.googlesource.com/34071
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/fmt/print.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

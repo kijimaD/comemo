@@ -1,0 +1,20 @@
+commit 43e69b330a71e0d101bd57f0a1ea83bc4da259f3
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Aug 24 11:18:18 2023 +0800
+
+    cmd/compile/internal: fix receiver names are different
+    
+    Change-Id: I78a7d34a6e2558ecff0274170bffaa51e038d0bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522415
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/writer.go             | 14 +++++++-------
+ src/cmd/compile/internal/pgo/internal/graph/graph.go | 10 +++++-----
+ src/cmd/compile/internal/ssa/debug.go                |  4 ++--
+ src/cmd/compile/internal/ssa/expand_calls.go         | 12 ++++++------
+ 4 files changed, 20 insertions(+), 20 deletions(-)

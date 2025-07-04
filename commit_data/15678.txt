@@ -1,0 +1,13 @@
+commit 14a295c8172aa12b19944d85e92835c7e9f904cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 12:21:46 2013 -0400
+
+    sync/atomic: make unaligned 64-bit atomics crash on 386
+    
+    R=golang-dev, bradfitz, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/7702043
+
+ src/pkg/sync/atomic/asm_386.s      | 12 ++++++++++++
+ src/pkg/sync/atomic/atomic_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)

@@ -1,0 +1,29 @@
+commit a5caa7c94eda915ee5e5ff82d81a22b8392d84aa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 21 13:59:35 2015 -0700
+
+    cmd/go: for get -t and list, look up path in vendor directories
+    
+    This is needed to handle vendor directories correctly.  It was already
+    done for the regular imports when the package was loaded, but not for
+    the test-only imports.
+    
+    It would be nice to do this while loading the package, but that breaks
+    the code that checks for direct references to vendor packages when
+    running go test.  This change is relatively contained.
+    
+    While we're at it, skip "C" test imports in go get.
+    
+    Fixes #11628.
+    Fixes #11717.
+    
+    Change-Id: I9cc308cf45683e3ff905320c2b5cb45db7716846
+    Reviewed-on: https://go-review.googlesource.com/12488
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/get.go         | 12 ++++++++++++
+ src/cmd/go/list.go        | 12 ++++++++++++
+ src/cmd/go/vendor_test.go | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 55 insertions(+)

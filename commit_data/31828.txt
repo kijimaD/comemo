@@ -1,0 +1,28 @@
+commit 952ecbe0a27aadd184ca3e2c342beb464d6b1653
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 21:32:41 2017 +0000
+
+    cmd/go: disable tool version check during bootstrap
+    
+    The check that the go tool version matched the go compiler version was
+    too aggressive and didn't cover the bootstrapping case with make.bash.
+    
+    We never noticed because we never had a VERSION file in place.
+    
+    Repro:
+    
+    $ echo "go1.9beta1" > $GOROOT/VERSION
+    $ cd $GOROOT/src
+    $ ./make.bash
+    
+    No test, because x/build/cmd/release catches it.
+    
+    Updates #19064
+    Fixes #20674
+    
+    Change-Id: Ibdd7a92377f4cc77d71ed548f02d48bde6550f67
+    Reviewed-on: https://go-review.googlesource.com/45778
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/cmd/go/internal/work/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

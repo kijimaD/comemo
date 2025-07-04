@@ -1,0 +1,22 @@
+commit 8d09f7c5178b04bade2859d32d0710233a620d4f
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Aug 13 09:01:13 2021 -0700
+
+    runtime: use per-thread profiler for SetCgoTraceback platforms
+    
+    Updates #35057
+    
+    Change-Id: I61d772a2cbfb27540fb70c14676c68593076ca94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342054
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/os_linux.go         |  6 ++----
+ src/runtime/signal_unix.go      | 21 ++++++++++++++++-----
+ src/runtime/sys_darwin_amd64.s  | 23 ++++++++++++++++++++---
+ src/runtime/sys_freebsd_amd64.s | 23 ++++++++++++++++++++---
+ src/runtime/sys_linux_amd64.s   | 23 ++++++++++++++++++++---
+ src/runtime/sys_linux_ppc64x.s  |  3 +++
+ 6 files changed, 81 insertions(+), 18 deletions(-)

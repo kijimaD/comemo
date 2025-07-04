@@ -1,0 +1,12 @@
+commit 8334d107c4b95f1a241b8b49234eff02cd893683
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Jun 6 17:18:09 2010 +0200
+
+    http: fix erroneous comment
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1539042
+
+ src/pkg/http/request.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

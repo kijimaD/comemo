@@ -1,0 +1,57 @@
+commit 38143badf1d7244f1015286ba2d2d540a3a78d69
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Aug 22 10:58:24 2018 +0200
+
+    time: allow +00 as numeric timezone name and GMT offset
+    
+    A timezone with a zero offset from UTC and without a three-letter
+    abbreviation will have a numeric name in timestamps: "+00".
+    
+    There are currently two of them:
+    
+      $ zdump Atlantic/Azores America/Scoresbysund
+      Atlantic/Azores       Wed Aug 22 09:01:05 2018 +00
+      America/Scoresbysund  Wed Aug 22 09:01:05 2018 +00
+    
+    These two timestamp are rejected by Parse, since it doesn't allow for
+    zero offsets:
+    
+      parsing time "Wed Aug 22 09:01:05 2018 +00": extra text: +00
+    
+    This change modifies Parse to accept a +00 offset in numeric timezone
+    names.
+    
+    As side effect of this change, Parse also now accepts "GMT+00". It was
+    explicitely disallowed (with a unit test ensuring it got rejected),
+    but the restriction seems incorrect.
+    
+    DATE(1), for example, allows it:
+    
+      $ date --debug --date="2009-01-02 03:04:05 GMT+00"
+    
+      date: parsed date part: (Y-M-D) 2009-01-02
+      date: parsed time part: 03:04:05
+      date: parsed zone part: UTC+00
+      date: input timezone: parsed date/time string (+00)
+      date: using specified time as starting value: '03:04:05'
+      date: starting date/time: '(Y-M-D) 2009-01-02 03:04:05 TZ=+00'
+      date: '(Y-M-D) 2009-01-02 03:04:05 TZ=+00' = 1230865445 epoch-seconds
+      date: timezone: system default
+      date: final: 1230865445.000000000 (epoch-seconds)
+      date: final: (Y-M-D) 2009-01-02 03:04:05 (UTC)
+      date: final: (Y-M-D) 2009-01-02 04:04:05 (UTC+01)
+      Fri  2 Jan 04:04:05 CET 2009
+    
+    This fixes 2 of 17 time.Parse() failures listed in Issue #26032.
+    
+    Updates #26032
+    
+    Change-Id: I01cd067044371322b7bb1dae452fb3c758ed3cc2
+    Reviewed-on: https://go-review.googlesource.com/130696
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/format.go      | 6 ++++--
+ src/time/format_test.go | 7 ++++++-
+ 2 files changed, 10 insertions(+), 3 deletions(-)

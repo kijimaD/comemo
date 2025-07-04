@@ -1,0 +1,20 @@
+commit bb0d8297d76cb578baad8fa1485565d9acf44cc5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 28 14:08:12 2022 -0500
+
+    cmd/go: run the gpg command verbosely in TestScript/version_buildvcs_git_gpg
+    
+    Also update test helper programs to avoid the deprecated io/ioutil
+    package and fix minor formatting issues.
+    
+    For #49649.
+    
+    Change-Id: Id404acbb2795470420854d682f849d959d2080c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453775
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ .../testdata/script/version_buildvcs_git_gpg.txt   | 72 +++++++++++-----------
+ 1 file changed, 37 insertions(+), 35 deletions(-)

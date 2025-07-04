@@ -1,0 +1,23 @@
+commit 6a51c000def084b820756f066397fd2505e75e25
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 25 11:23:12 2023 +0000
+
+    encoding/gob: use reflect.Value.IsZero
+    
+    The reflect method was added in Go 1.13, in 2019.
+    gob's own version dates all the way back to 2011.
+    
+    The behavior appears to be the same, and all tests still pass.
+    gob does have special cases like always encoding arrays even when they
+    are the zero value, but that is done via the sendZero boolean field.
+    
+    Change-Id: I9057b7436963e231fdbf2f6c4b1edb58a2b13305
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479397
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/gob/encode.go | 37 +------------------------------------
+ 1 file changed, 1 insertion(+), 36 deletions(-)

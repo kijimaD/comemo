@@ -1,0 +1,25 @@
+commit b600de755d0c6fd01d8168654e5d77d13ee5596e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 9 17:31:35 2014 -0700
+
+    undo CL 100330043 / e4248ed0037c
+    
+    <enter reason for undo>
+    
+    ««« original CL description
+    runtime/race: fix the link for the race detector.
+    
+    LGTM=bradfitz
+    R=golang-dev, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/100330043
+    
+    »»»
+    
+    TBR=minux
+    R=minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/96200044
+
+ src/pkg/runtime/race/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

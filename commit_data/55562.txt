@@ -1,0 +1,21 @@
+commit b158ca9ae35fd98e383411633469819fdbc65eca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 7 10:23:53 2024 -0800
+
+    cmd/compile: separate inline cost analysis from applying inlining
+    
+    This CL separates the pass that computes inlinability from the pass
+    that performs inlinability. In particular, the latter can now happen
+    in any flat order, rather than bottom-up order. This also allows
+    inlining of calls exposed by devirtualization.
+    
+    Change-Id: I389c0665fdc8288a6e25129a6744bfb1ace1eff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562319
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/inline/inl.go             | 41 +++++++++-------------
+ .../internal/inline/interleaved/interleaved.go     | 25 ++++---------
+ test/fixedbugs/issue52193.go                       |  2 +-
+ 3 files changed, 24 insertions(+), 44 deletions(-)

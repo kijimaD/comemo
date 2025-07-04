@@ -1,0 +1,15 @@
+commit ca0f303f2b332aa19b80e1b9ea4fc3c6e3b8aeb7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Oct 28 13:45:36 2017 +0200
+
+    .gitignore: ignore src/cmd/dist/dist
+    
+    In case of a failed/cancelled build, src/cmd/dist/dist might be left in
+    place.
+    
+    Change-Id: Id81b5d663476a880101a2eed54fa051c40b0b0bc
+    Reviewed-on: https://go-review.googlesource.com/74150
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .gitignore | 1 +
+ 1 file changed, 1 insertion(+)

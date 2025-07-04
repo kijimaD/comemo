@@ -1,0 +1,16 @@
+commit d83af90a894cc6edaed97cea0edac62dfe8ba69a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 17 23:53:19 2017 +0000
+
+    Revert "go/types: enforce Check path restrictions via panics"
+    
+    This reverts commit b744a11a966ad3999c190fea9909ec8df0570b87.
+    
+    Reason for revert: Broke trybots. (misc-vetall builder is busted)
+    
+    Change-Id: I651d1c18db2fb3cb6ec12c2ae62024627baf8d77
+    Reviewed-on: https://go-review.googlesource.com/38332
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/api.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,29 @@
+commit 2e30218223a7bf2b560fbaf79bac8d80ea4ece1c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 26 15:43:04 2016 -0700
+
+    net/http: remove idle transport connections from Transport when server closes
+    
+    Previously the Transport would cache idle connections from the
+    Transport for later reuse, but if a peer server disconnected
+    (e.g. idle timeout), we would not proactively remove the *persistConn
+    from the Transport's idle list, leading to a waste of memory
+    (potentially forever).
+    
+    Instead, when the persistConn's readLoop terminates, remote it from
+    the idle list, if present.
+    
+    This also adds the beginning of accounting for the total number of
+    idle connections, which will be needed for Transport.MaxIdleConns
+    later.
+    
+    Updates #15461
+    
+    Change-Id: Iab091f180f8dd1ee0d78f34b9705d68743b5557b
+    Reviewed-on: https://go-review.googlesource.com/22492
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/main_test.go      | 14 ++++++++++++
+ src/net/http/transport.go      | 52 ++++++++++++++++++++++++++++++++++++++----
+ src/net/http/transport_test.go | 48 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 109 insertions(+), 5 deletions(-)

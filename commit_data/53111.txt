@@ -1,0 +1,17 @@
+commit c7d6c6000a84b61ac8bb2e38e855ad120914658a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 11 10:37:44 2023 -0400
+
+    cmd/go/internal/modfetch: avoid creating unused temp directories
+    
+    (Discovered via #60113, but this doesn't address that issue.)
+    
+    Change-Id: I8b89e74b786dcfb0aa5d71fcbd0df8af33b98f36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494375
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 110 +++++++++++---------------
+ 1 file changed, 47 insertions(+), 63 deletions(-)

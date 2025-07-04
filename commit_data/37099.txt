@@ -1,0 +1,21 @@
+commit 6761b1eb1b9fdbe5e2b865d683167dd5af3e5c0b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 23 14:45:09 2018 -0700
+
+    cmd/compile: better errors for structs with conflicting fields and methods
+    
+    If a field and method have the same name, mark the respective struct field
+    so that we don't report follow-on errors when the field/method is accessed.
+    
+    Per suggestion of @mdempsky.
+    
+    Fixes #28268.
+    
+    Change-Id: Ia1ca4cdfe9bacd3739d1fd7ca5e014ca094245ee
+    Reviewed-on: https://go-review.googlesource.com/c/144259
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go       |  5 +++--
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue28268.go             | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 34 insertions(+), 3 deletions(-)

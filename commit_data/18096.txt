@@ -1,0 +1,12 @@
+commit de4ca13eacecd65d3275ca4aec7a7bb0e8878fe7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Dec 20 09:59:51 2013 -0800
+
+    doc: fix typo in Effective Go
+    
+    R=adg, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/44430043
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

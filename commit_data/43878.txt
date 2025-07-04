@@ -1,0 +1,21 @@
+commit f0ff6d4a67ec9a956aa655d487543da034cf576b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 25 13:47:42 2020 -0800
+
+    reflect: fix Value.Convert for int-to-string conversions (regression)
+    
+    The bug was introduced by https://golang.org/cl/220844.
+    
+    Updates #42792.
+    Fixes #42835.
+    
+    Change-Id: I03065c7526488aded35ef2f800b7162e1606877a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273326
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go |  3 +++
+ src/reflect/value.go    | 12 ++++++++++--
+ 2 files changed, 13 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit 08b26e41043281fd85e4af6ac0c6e790f3336a82
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 09:56:51 2013 -0400
+
+    cmd/cgo: don't say "gcc produced no output" if we ran clang
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13420048
+
+ src/cmd/cgo/gcc.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

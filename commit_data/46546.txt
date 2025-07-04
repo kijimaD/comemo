@@ -1,0 +1,27 @@
+commit 91c2318e67da2e5948cd8ed0420863af69142c3d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 22 10:16:06 2021 -0400
+
+    runtime: call cgocallbackg indirectly on PPC64
+    
+    This is CL 312669, for PPC64.
+    
+    cgocallback calls cgocallbackg after switching the stack. Call it
+    indirectly to bypass the linker's nosplit check. The nosplit check
+    fails after CL 351271, which removes ABI aliases. It would have
+    been failing before but the linker's nosplit check didn't resolve
+    ABI alias (it should) so it didn't catch that. Removing the ABI
+    aliases exposes it. For this partuclar case it is benign as there
+    is actually a stack switch in between.
+    
+    Should fix PPC64 build.
+    
+    Change-Id: I49617aea55270663a9ee4692c54c070c5ab85470
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351469
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/asm_ppc64x.s | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,43 @@
+commit 392336f94ea783c69ac8ed43bf716ebdc0fc71cd
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 26 15:50:22 2015 -0400
+
+    runtime: disallow write barriers in handoffp and callees
+    
+    handoffp by definition runs without a P, so it's not allowed to have
+    write barriers. It doesn't have any right now, but mark it
+    nowritebarrier to disallow any creeping in in the future. handoffp in
+    turns calls startm, newm, and newosproc, all of which are "below Go"
+    and make sense to run without a P, so disallow write barriers in these
+    as well.
+    
+    For most functions, we've done this because they may race with
+    stoptheworld() and hence must not have write barriers. For these
+    functions, it's a little different: the world can't stop while we're
+    in handoffp, so this race isn't present. But we implement this
+    restriction with a somewhat broader rule that you can't have a write
+    barrier without a P. We like this rule because it's simple and means
+    that our write barriers can depend on there being a P, even though
+    this rule is actually a little broader than necessary. Hence, even
+    though there's no danger of the race in these functions, we want to
+    adhere to the broader rule.
+    
+    Change-Id: Ie22319c30eea37d703eb52f5c7ca5da872030b88
+    Reviewed-on: https://go-review.googlesource.com/8130
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/os1_darwin.go    | 2 ++
+ src/runtime/os1_dragonfly.go | 2 ++
+ src/runtime/os1_freebsd.go   | 2 ++
+ src/runtime/os1_linux.go     | 2 ++
+ src/runtime/os1_nacl.go      | 1 +
+ src/runtime/os1_netbsd.go    | 2 ++
+ src/runtime/os1_openbsd.go   | 2 ++
+ src/runtime/os1_plan9.go     | 2 ++
+ src/runtime/os1_windows.go   | 2 ++
+ src/runtime/os3_solaris.go   | 2 ++
+ src/runtime/proc1.go         | 6 ++++--
+ 11 files changed, 23 insertions(+), 2 deletions(-)

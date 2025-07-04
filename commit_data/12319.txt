@@ -1,0 +1,13 @@
+commit 9996f7f17adca8af6b34c4df6870e88d289a65a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 1 18:17:28 2012 -0500
+
+    doc: describe API changes to go/build
+    
+    R=golang-dev, gri, r
+    CC=golang-dev
+    https://golang.org/cl/5711059
+
+ doc/go1.html | 16 ++++++++++++++++
+ doc/go1.tmpl | 16 ++++++++++++++++
+ 2 files changed, 32 insertions(+)

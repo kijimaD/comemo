@@ -1,0 +1,24 @@
+commit 3c32300c4dcd50143e5aa6089c583e068c331099
+Author: Giles Lean <giles.lean@pobox.com>
+Date:   Mon May 3 01:26:39 2010 -0700
+
+    runtime: update godefs usage comment for GOARCH=386 GOOS={darwin,freebsd}
+    
+    When trying to regenerate src/pkg/runtime/darwin/386/defs.h
+    on a 64 bit capable Snow Leopard (OS X 10.6.3) system I
+    needed to add -f -m32 to godefs, as this OS and hardware
+    combination defaults to 64 bit compilation.
+    
+    For safety, make the same change to the 32 bit FreeBSD
+    instructions in .../freebsd/defs.c.  (Tested OK and no
+    problems introduced.)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/1052042
+
+ src/pkg/runtime/darwin/386/defs.h  | 2 +-
+ src/pkg/runtime/darwin/defs.c      | 2 +-
+ src/pkg/runtime/freebsd/386/defs.h | 2 +-
+ src/pkg/runtime/freebsd/defs.c     | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

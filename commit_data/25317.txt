@@ -1,0 +1,18 @@
+commit 7a2913c9f551588b351efc6d026c1c6f187442e1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Dec 16 23:10:14 2015 -0800
+
+    archive/tar: document how Reader.Read handles header-only files
+    
+    Commit dd5e14a7511465d20c6e95bf54c9b8f999abbbf6 ensured that no data
+    could be read for header-only files regardless of what the Header.Size
+    said. We should document this fact in Reader.Read.
+    
+    Updates #13647
+    
+    Change-Id: I4df9a2892bc66b49e0279693d08454bf696cfa31
+    Reviewed-on: https://go-review.googlesource.com/17913
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/archive/tar/reader.go | 4 ++++
+ 1 file changed, 4 insertions(+)

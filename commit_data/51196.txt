@@ -1,0 +1,21 @@
+commit d3726f346925e8a6ef30b2db9de013fa314492e2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 9 16:41:05 2022 -0800
+
+    cmd/compile/internal/importer: turn off debugging output
+    
+    Also, remove `debug` constant. Was not used.
+    Follow-up on CL 442303.
+    
+    Fixes #56681.
+    
+    Change-Id: Ia1499511ba553670617bcb9b7c699412e8df0669
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449238
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/importer/gcimporter.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

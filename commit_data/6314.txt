@@ -1,0 +1,14 @@
+commit 950ee183661ce8dd1dfe1bc0e85f384c849ab1a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 19 23:28:45 2010 -0400
+
+    syscall: fix NaCl
+    
+    missing from last CL, sorry
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2214043
+
+ src/pkg/syscall/mksyscall.sh | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

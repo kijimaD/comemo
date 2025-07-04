@@ -1,0 +1,16 @@
+commit c5856cfdb6ddc779e50202a6e8984427fea97281
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Oct 12 13:20:10 2015 +1300
+
+    runtime: tweaks to allow -buildmode=shared to work
+    
+    Building Go shared libraries requires that all functions that have declarations
+    without bodies have implementations and vice versa, so remove the
+    implementation of call16 and add a stub implementation of sigreturn.
+    
+    Change-Id: I4d5a30c8637a5da7991054e151a536611d5bea46
+    Reviewed-on: https://go-review.googlesource.com/15966
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_ppc64x.s | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

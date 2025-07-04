@@ -1,0 +1,12 @@
+commit 40db92f288aede5e0372776802df6a9d689e8dfa
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 15 09:01:38 2015 -0700
+
+    doc/go1.5.txt: io.CopyBuffer and new reflect.Value handling in fmt
+    
+    Change-Id: Ia0d7c2f08f8f124bcd62c7f9744227812d68903d
+    Reviewed-on: https://go-review.googlesource.com/8941
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 2 ++
+ 1 file changed, 2 insertions(+)

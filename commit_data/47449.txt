@@ -1,0 +1,18 @@
+commit c09d854f0961a997ac41a740a6e8d1892b7e6ee0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 15:50:35 2021 -0800
+
+    cmd/compile/internal/types2: set tparamsIsIface to true
+    
+    This CL enables the mode in which the underlying type of
+    type parameters is the underlying type of their constraints.
+    
+    Change-Id: Id3471578dab098695dbd1e0429356ebcc9c5e224
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363155
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/typeparam.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

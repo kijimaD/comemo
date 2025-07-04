@@ -1,0 +1,19 @@
+commit efb9739203fc0b66f5593c5edbe0bc0fd6062956
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 24 23:56:50 2019 -0700
+
+    cmd/compile: use underlying OCOMPLIT's position for OPTRLIT
+    
+    Currently, when we create an OPTRLIT node, it defaults to the
+    OCOMPLIT's final element's position. But it improves error messages to
+    use the OCOMPLIT's own position instead.
+    
+    Change-Id: Ibb031f543c7248d88d99fd0737685e01d86e2500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197119
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 2 +-
+ test/escape_iface.go                     | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

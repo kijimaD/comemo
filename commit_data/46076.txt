@@ -1,0 +1,23 @@
+commit c2bd9ee2dbec88d4fd1b21aefa21cd988d01b880
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 18 13:10:04 2021 -0700
+
+    cmd/compile: only sort methods/interfaces during export for -d=unifiedquirks
+    
+    These sorts are only important for 'toolstash -cmp' testing of unified
+    IR against -G=0 mode, but they were added before I added
+    -d=unifiedquirks to allow altering small "don't care" output details
+    like this.
+    
+    This CL should help mitigate issues with #44195 until package
+    objectpath is updated and deployed.
+    
+    Change-Id: Ia3dcf359481ff7abad5ddfca8e673fd2bb30ae01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343390
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/typecheck/iexport.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

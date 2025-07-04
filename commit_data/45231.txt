@@ -1,0 +1,19 @@
+commit fe26dfadc3630617d133b8c94bcb2ccb2e85dc1b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 19 18:39:52 2021 -0700
+
+    net: use syscall.fcntl on libc systems
+    
+    Should fix the AIX builder.
+    
+    Change-Id: I3498805fb2eee2f0ad50268b5afbbf091c5f6e63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311650
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/net/fcntl_libc_test.go       | 14 ++++++++++++++
+ src/net/fcntl_syscall_test.go    | 21 +++++++++++++++++++++
+ src/net/unixsock_readmsg_test.go | 16 ++++++++--------
+ 3 files changed, 43 insertions(+), 8 deletions(-)

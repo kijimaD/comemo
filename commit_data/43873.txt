@@ -1,0 +1,35 @@
+commit df68e01b6860e585033156e84f8f9716d2f41a28
+Author: Daniel S Fava <danielsfava@gmail.com>
+Date:   Fri Nov 20 21:23:45 2020 +0100
+
+    runtime: check channel's elemsize before calling race detector
+    
+    When c.elemsize==0 we call raceacquire() and racerelease()
+    as opposed to calling racereleaseacquire()
+    
+    The reason for this change is that, when elemsize==0, we don't
+    allocate a full buffer for the channel.  Instead of individual
+    buffer entries, the race detector uses the c.buf as the only
+    buffer entry.  This simplification prevents us following the
+    memory model's happens-before rules implemented in racereleaseacquire().
+    So, instead of calling racereleaseacquire(), we accumulate
+    happens-before information in the synchronization object associated
+    with c.buf.
+    
+    The functionality in this change is implemented in a new function
+    called racenotify()
+    
+    Fixes #42598
+    
+    Change-Id: I75b92708633fdfde658dc52e06264e2171824e51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271987
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/chan.go                    | 48 +++++++++++++++++++++++++++++-----
+ src/runtime/race/testdata/chan_test.go | 22 ++++++++++++++++
+ src/runtime/select.go                  |  4 +--
+ 3 files changed, 65 insertions(+), 9 deletions(-)

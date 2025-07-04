@@ -1,0 +1,23 @@
+commit c7d16cc4118bf0db3e4268a7ab657577911999f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 13 14:09:04 2011 -0700
+
+    http: flesh out server Expect handling + tests
+    
+    This mostly adds Expect 100-continue tests (from
+    the perspective of server correctness) that were
+    missing before.
+    
+    It also fixes a few missing cases that will
+    probably never come up in practice, but it's nice
+    to have handled correctly.
+    
+    Proper 100-continue client support remains a TODO.
+    
+    R=rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4399044
+
+ src/pkg/http/serve_test.go | 82 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/server.go     | 38 +++++++++++++++++----
+ 2 files changed, 114 insertions(+), 6 deletions(-)

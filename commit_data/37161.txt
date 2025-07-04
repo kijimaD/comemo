@@ -1,0 +1,18 @@
+commit 891682c8250e53e62d5ffe027d5ab63d21f6cd5c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Oct 29 13:49:32 2018 -0400
+
+    bufio: suggest io.ReadFull at (*Reader).Read
+    
+    Many times when using bufio.Reader I imagine, incorrectly, that it
+    implements the retry loop itself, being a high-level buffered wrapper
+    around, say, a file descriptor prone to short reads. This comment
+    would have saved me much time.
+    
+    Change-Id: I34c790e0d7c1515430a76d02ce4739b586a36ba7
+    Reviewed-on: https://go-review.googlesource.com/c/145577
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bufio/bufio.go | 2 ++
+ 1 file changed, 2 insertions(+)

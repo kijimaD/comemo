@@ -1,0 +1,23 @@
+commit d46134830fff5ab20950762f7b7371a7dbef5871
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sat Apr 26 19:54:48 2014 -0700
+
+    src: fix issues found by go vet std
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/96850043
+
+ src/cmd/link/dead_test.go              | 2 +-
+ src/cmd/link/macho_test.go             | 4 ++--
+ src/cmd/link/prog_test.go              | 4 ++--
+ src/cmd/pack/pack_test.go              | 4 ++--
+ src/pkg/archive/tar/reader_test.go     | 2 +-
+ src/pkg/crypto/x509/x509_test.go       | 2 +-
+ src/pkg/debug/macho/file_test.go       | 6 +++---
+ src/pkg/encoding/base64/base64_test.go | 2 +-
+ src/pkg/html/template/escape.go        | 1 -
+ src/pkg/net/http/serve_test.go         | 2 +-
+ src/pkg/net/http/transport_test.go     | 5 ++---
+ 11 files changed, 16 insertions(+), 18 deletions(-)

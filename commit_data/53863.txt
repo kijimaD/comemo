@@ -1,0 +1,22 @@
+commit fbf9076ee8c8f665f1e8bba08fdc473cc7a2d690
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 11 10:34:48 2023 -0400
+
+    internal/goexperiment: add "NewInliner" experiment
+    
+    Add "NewInliner" to the list of Go experiments, used for enabling an
+    updated/improved version of the function inlining phase within the Go
+    compiler.
+    
+    Updates #61502.
+    
+    Change-Id: I3218b3ae59a2d05156e8017cd9ee1d7b66cad031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/internal/goexperiment/exp_newinliner_off.go | 13 +++++++++++++
+ src/internal/goexperiment/exp_newinliner_on.go  | 13 +++++++++++++
+ src/internal/goexperiment/flags.go              |  4 ++++
+ 3 files changed, 30 insertions(+)

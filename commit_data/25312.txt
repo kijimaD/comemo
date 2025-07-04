@@ -1,0 +1,19 @@
+commit 4378746a4b4160d5851d1daa68383a514aadad6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 16 21:09:03 2015 -0500
+
+    cmd/dist: show output from failed compiler execution
+    
+    Maybe it will say something that helps the user understand the problem.
+    
+    Note that we can't use os/exec.ExitError's new Stderr field because
+    cmd/dist is compiled with Go 1.4.
+    
+    Fixes #13099.
+    
+    Change-Id: I4b5910434bf324d1b85107002a64684d8ba14dc8
+    Reviewed-on: https://go-review.googlesource.com/17940
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

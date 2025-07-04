@@ -1,0 +1,28 @@
+commit 791f7580758d9e4ea2c393dbe91b5f89fa16da18
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Dec 1 09:02:16 2022 -0800
+
+    archive/zip: tolerate compressed directories with zero uncompressed size
+    
+    In CL 449955 we made reading of directories with associated file data
+    an error, since it is a "must not" in the zip specification. It turns
+    out that a number of implementations make the mistake of not setting
+    the correct compression method on directories (in particular the Java
+    jar tool does this when storing the META-INF directory). If the
+    compression method used is not 0 (stored) then the compressed size of
+    the directory can be > 0, despite the uncompressed size still being 0.
+    
+    Since this mistake is not uncommon, we are forced to tolerate it. We
+    still fail if the recorded uncompressed size is > 0, which should be
+    a significantly harder mistake to make.
+    
+    Change-Id: Ia732b10787f26ab937ac9cf9869ac3042efb8118
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454475
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+
+ src/archive/zip/reader.go      | 11 ++++++-
+ src/archive/zip/reader_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 1 deletion(-)

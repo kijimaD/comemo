@@ -1,0 +1,17 @@
+commit acb189ea59d7f47e5db075e502dcce5eac6571dc
+Author: ian woolf <btw515wolf2@gmail.com>
+Date:   Mon Apr 12 17:19:03 2021 +0800
+
+    net/http: make ReadRequest return an error when requests have multiple Host headers
+    
+    Fixes #45513
+    
+    Change-Id: I59e717a4bbd3e71320deff519e4f9587ee5c8756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308952
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go      | 22 +++++++++++-----------
+ src/net/http/request_test.go |  4 ++++
+ src/net/http/server.go       |  5 +----
+ 3 files changed, 16 insertions(+), 15 deletions(-)

@@ -1,0 +1,25 @@
+commit 1424889921159ed28866dff40b5d54884aaddd9c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jan 17 02:51:40 2020 +1100
+
+    cmd/internal/obj/riscv: correctly split immediates for FLW/FLD/FSW/FSD
+    
+    The FLW/FLD/FSW/FSD instructions can have immediates that exceed 12-bits and
+    therefore cannot be encoded in the RISCV instruction. Handle these as we do
+    for other load/store instructions. Also add test coverage for all load/store
+    instructions with large immediates.
+    
+    Fixes compilation issue reported by Carlos Eduardo de Paula.
+    
+    Updates #27532
+    
+    Change-Id: Ifa62f19493b3acaba5a90ac31d2df209a3afea81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215037
+    Reviewed-by: Carlos Eduardo de Paula <me@carlosedp.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/asm_test.go | 54 ++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/riscv/obj.go      | 11 +++----
+ 2 files changed, 58 insertions(+), 7 deletions(-)

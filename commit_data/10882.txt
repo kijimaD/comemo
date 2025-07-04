@@ -1,0 +1,21 @@
+commit a0bd46e70fa09e8fe4749399440a2dc52e80f84a
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Dec 20 10:57:06 2011 +1100
+
+    html: ignore <caption>, <col>, <tbody> etc. when parsing table fragments
+    
+    Pass tests6.dat, test 36:
+    <caption><col><colgroup><tbody><tfoot><thead><tr>
+    
+    | <tr>
+    
+    Pass tests through test 44:
+    <body></body></html>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5494055
+
+ src/pkg/html/parse.go      | 7 +++++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

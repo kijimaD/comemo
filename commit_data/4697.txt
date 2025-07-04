@@ -1,0 +1,38 @@
+commit 2a01d7287851e988d1e093dbe5788d3631e770b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 23:13:22 2010 -0800
+
+    gc: improved syntax errors
+    
+    * example-based syntax errors (go.errors)
+    
+    * enable bison's more specific errors
+      and translate grammar token names into
+      tokens like ++
+    
+    * test cases
+    
+    R=ken2, r, ken3
+    CC=golang-dev
+    https://golang.org/cl/194085
+
+ src/cmd/gc/Makefile      |  14 ++++--
+ src/cmd/gc/bisonerrors   | 124 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/go.errors     |  46 ++++++++++++++++++
+ src/cmd/gc/go.y          |  15 +++---
+ src/cmd/gc/lex.c         |  84 ++++++++++++++++++++++++++++++++
+ src/cmd/gc/subr.c        |  38 ++++++++++++++-
+ test/golden.out          |   2 +
+ test/run                 |   2 +-
+ test/syntax/forvar.go    |  10 ++++
+ test/syntax/import.go    |  14 ++++++
+ test/syntax/interface.go |  14 ++++++
+ test/syntax/semi1.go     |  14 ++++++
+ test/syntax/semi2.go     |  14 ++++++
+ test/syntax/semi3.go     |  14 ++++++
+ test/syntax/semi4.go     |  14 ++++++
+ test/syntax/semi5.go     |  13 +++++
+ test/syntax/semi6.go     |  13 +++++
+ test/syntax/semi7.go     |  14 ++++++
+ test/syntax/slice.go     |   9 ++++
+ 19 files changed, 455 insertions(+), 13 deletions(-)

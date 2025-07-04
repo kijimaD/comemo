@@ -1,0 +1,47 @@
+commit 0b31a46f1fd89b1ede02be9fae920dca6172ffaf
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Tue Sep 12 15:44:48 2023 -0700
+
+    runtime: profile contended lock calls
+    
+    Add runtime-internal locks to the mutex contention profile.
+    
+    Store up to one call stack responsible for lock contention on the M,
+    until it's safe to contribute its value to the mprof table. Try to use
+    that limited local storage space for a relatively large source of
+    contention, and attribute any contention in stacks we're not able to
+    store to a sentinel _LostContendedLock function.
+    
+    Avoid ballooning lock contention while manipulating the mprof table by
+    attributing to that sentinel function any lock contention experienced
+    while reporting lock contention.
+    
+    Guard collecting real call stacks with GODEBUG=profileruntimelocks=1,
+    since the available data has mixed semantics; we can easily capture an
+    M's own wait time, but we'd prefer for the profile entry of each
+    critical section to describe how long it made the other Ms wait. It's
+    too late in the Go 1.22 cycle to make the required changes to
+    futex-based locks. When not enabled, attribute the time to the sentinel
+    function instead.
+    
+    Fixes #57071
+    
+    Change-Id: I3eee0ccbfc20f333b56f20d8725dfd7f3a526b41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528657
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/runtime/debug.go        |  11 ++
+ src/runtime/export_test.go  |  21 +++
+ src/runtime/extern.go       |   8 ++
+ src/runtime/lock_futex.go   |   6 +
+ src/runtime/lock_sema.go    |   4 +
+ src/runtime/metrics.go      |   2 +-
+ src/runtime/metrics_test.go | 308 ++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mprof.go        | 236 ++++++++++++++++++++++++++++++++-
+ src/runtime/proc.go         |   4 +-
+ src/runtime/runtime1.go     |  42 +++---
+ src/runtime/runtime2.go     |   8 ++
+ 11 files changed, 627 insertions(+), 23 deletions(-)

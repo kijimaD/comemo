@@ -1,0 +1,12 @@
+commit 798140693e942f10f2423ff6ee4f6b85738eacb0
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu May 20 14:33:50 2010 -0700
+
+    Fix Rectangle.Canon()
+    
+    R=rsc, r, gri
+    CC=golang-dev
+    https://golang.org/cl/1239043
+
+ src/pkg/exp/draw/arith.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

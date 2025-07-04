@@ -1,0 +1,15 @@
+commit 033b6501817aefebc6fc56b6212ff6abf14c8127
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Jan 8 19:47:52 2019 +0100
+
+    doc: update tzdata version in 1.12 release notes
+    
+    It was recently updated (again) to version 2018i. Since we're here,
+    wrap the paragraph at ~70 columns, like all the others.
+    
+    Change-Id: I0a380385f34f1df1258a9f2af447234967422f37
+    Reviewed-on: https://go-review.googlesource.com/c/156857
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

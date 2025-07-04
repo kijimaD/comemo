@@ -1,0 +1,24 @@
+commit 6b4d69e5f0dfcd8c2478e575ebd08b7f227d03e9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 4 14:46:07 2008 -0700
+
+    move old code into 'old' directory
+    add src/test dir
+    
+    SVN=121166
+
+ src/{ => old}/c/const.c  | 0
+ src/{ => old}/c/dcl.c    | 0
+ src/{ => old}/c/export.c | 0
+ src/{ => old}/c/gen.c    | 0
+ src/{ => old}/c/gen.h    | 0
+ src/{ => old}/c/go.h     | 0
+ src/{ => old}/c/go.y     | 0
+ src/{ => old}/c/gsubr.c  | 0
+ src/{ => old}/c/lex.c    | 0
+ src/{ => old}/c/mpatof.c | 0
+ src/{ => old}/c/obj.c    | 0
+ src/{ => old}/c/subr.c   | 0
+ src/{ => old}/c/test.c   | 0
+ src/{ => old}/c/walk.c   | 0
+ 14 files changed, 0 insertions(+), 0 deletions(-)

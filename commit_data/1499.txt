@@ -1,0 +1,15 @@
+commit 4b590bf985fc579e290f772cdd69c00f77d06a44
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 16 10:34:21 2009 -0800
+
+    casify a few more
+    
+    R=rsc
+    DELTA=72  (0 added, 9 deleted, 63 changed)
+    OCL=22918
+    CL=22941
+
+ src/lib/sort.go      | 32 ++++++++++----------
+ src/lib/sort_test.go | 83 +++++++++++++++++++++++-----------------------------
+ src/lib/testing.go   | 12 ++++----
+ 3 files changed, 59 insertions(+), 68 deletions(-)

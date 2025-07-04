@@ -1,0 +1,13 @@
+commit 2d64bab1ded3c17d1e73ee1dcacf1aafae223317
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jan 31 10:59:34 2012 -0500
+
+    5l: optimize the common case in patch()
+        If p->to.sym->text is non-nil, then no need to search for sym->value.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5601046
+
+ src/cmd/5l/pass.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

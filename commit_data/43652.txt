@@ -1,0 +1,30 @@
+commit 9393b5bae5944acebed3ab6f995926b7de3ce429
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Aug 21 11:59:55 2020 -0400
+
+    runtime: add heap lock assertions
+    
+    Some functions that required holding the heap lock _or_ world stop have
+    been simplified to simply requiring the heap lock. This is conceptually
+    simpler and taking the heap lock during world stop is guaranteed to not
+    contend. This was only done on functions already called on the
+    systemstack to avoid too many extra systemstack calls in GC.
+    
+    Updates #40677
+    
+    Change-Id: I15aa1dadcdd1a81aac3d2a9ecad6e7d0377befdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250262
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go | 61 +++++++++++++++++++++++++++++++++++++++++-----
+ src/runtime/malloc.go      |  2 ++
+ src/runtime/mgc.go         |  4 +++
+ src/runtime/mgcscavenge.go | 18 ++++++++++++++
+ src/runtime/mheap.go       | 29 +++++++++++++++++-----
+ src/runtime/mpagealloc.go  | 22 +++++++++++++++++
+ src/runtime/mpagecache.go  | 14 ++++++++++-
+ src/runtime/proc.go        |  2 ++
+ 8 files changed, 139 insertions(+), 13 deletions(-)

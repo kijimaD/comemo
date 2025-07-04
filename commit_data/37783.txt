@@ -1,0 +1,19 @@
+commit 3b66c00857ff77f8acfc3e6e9491dda3677858a4
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Sun Dec 23 16:48:38 2018 -0500
+
+    reflect: fix panic when Value.IsNil is called for UnsafePointer
+    
+    UnsafePointer is a valid type kind to call IsNil on.
+    
+    Fixes #29381
+    
+    Change-Id: Iaf65d582c67f4be52cd1885badf40f174920500b
+    Reviewed-on: https://go-review.googlesource.com/c/155797
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go | 1 +
+ src/reflect/value.go    | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

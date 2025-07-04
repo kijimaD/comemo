@@ -1,0 +1,18 @@
+commit 1a7582f5e980ecc8f23631336e8010db4b754c83
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 6 15:52:36 2017 -0800
+
+    cmd/internal/dwarf: use []*Var instead of linked lists
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I202b29495ca1aaf3c52879fa99fdc0a4b86703af
+    Reviewed-on: https://go-review.googlesource.com/36419
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/dwarf/dwarf.go | 13 ++++++++++---
+ src/cmd/internal/obj/objfile.go | 29 ++++++++++++++++-------------
+ 2 files changed, 26 insertions(+), 16 deletions(-)

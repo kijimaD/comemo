@@ -1,0 +1,15 @@
+commit 1246ad8390c72211e98602895791a204440227fb
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 29 12:48:24 2010 -0700
+
+    code gen bug in len(nil) and cap(nil)
+    fixes #892
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1745042
+
+ src/cmd/5g/gsubr.c | 4 ++++
+ src/cmd/6g/gsubr.c | 4 ++++
+ src/cmd/8g/gsubr.c | 4 ++++
+ 3 files changed, 12 insertions(+)

@@ -1,0 +1,17 @@
+commit 482903150dff1a4e9791330aed24ae607005fc18
+Author: Antonio Garcia <garcia.olais@gmail.com>
+Date:   Fri Mar 19 15:29:09 2021 +0000
+
+    syscall: fix typo in exec_windows_test.go
+    
+    nothign -> nothing
+    
+    Change-Id: I3f5cf20cc094d280f6cafa179eaefd745874dec1
+    GitHub-Last-Rev: a4cf42f27574ab8567d0f45bcd4dfbe018587214
+    GitHub-Pull-Request: golang/go#45118
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303269
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 520f9dea138afe3a7742f789576a42b97573f1e3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Nov 9 11:22:25 2011 +1100
+
+    fix .hgtags
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5346049
+
+ .hgtags | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

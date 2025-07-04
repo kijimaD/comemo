@@ -1,0 +1,12 @@
+commit 6358cac7d85544d77ca27597bc4a46c61d0d964e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 2 11:58:47 2009 -0800
+
+    We should not silently permit a named type to match an unnamed
+    type.  This is OK in a conversion but not in an assignment.
+    
+    R=rsc
+    http://go/go-review/1016024
+
+ test/bugs/bug212.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

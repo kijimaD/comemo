@@ -1,0 +1,49 @@
+commit 4c0e51cd43cef26d066d35eb07fb7689e9fc50b6
+Author: Rob Pike <r@golang.org>
+Date:   Sun Dec 6 12:03:52 2009 -0800
+
+    Make printing faster by avoiding mallocs and some other advances.
+    Roughly 33% faster for simple cases, probably more for complex ones.
+    
+    Before:
+    
+    mallocs per Sprintf(""): 4
+    mallocs per Sprintf("xxx"): 6
+    mallocs per Sprintf("%x"): 10
+    mallocs per Sprintf("%x %x"): 12
+    
+    Now:
+    
+    mallocs per Sprintf(""): 2
+    mallocs per Sprintf("xxx"): 3
+    mallocs per Sprintf("%x"): 5
+    mallocs per Sprintf("%x %x"): 7
+    
+    Speed improves because of avoiding mallocs and also by sharing a bytes.Buffer
+    between print.go and format.go rather than copying the data back after each
+    printed item.
+    
+    Before:
+    
+    fmt_test.BenchmarkSprintfEmpty  1000000       1346 ns/op
+    fmt_test.BenchmarkSprintfString 500000        3461 ns/op
+    fmt_test.BenchmarkSprintfInt    500000        3671 ns/op
+    
+    Now:
+    
+    fmt_test.BenchmarkSprintfEmpty   2000000               995 ns/op
+    fmt_test.BenchmarkSprintfString  1000000              2745 ns/op
+    fmt_test.BenchmarkSprintfInt     1000000              2391 ns/op
+    fmt_test.BenchmarkSprintfIntInt   500000              3751 ns/op
+    
+    I believe there is more to get but this is a good milestone.
+    
+    R=rsc
+    CC=golang-dev, hong
+    https://golang.org/cl/166076
+
+ src/pkg/bytes/buffer.go |  74 ++++-----
+ src/pkg/fmt/fmt_test.go |  36 ++++-
+ src/pkg/fmt/format.go   | 398 ++++++++++++++++++++++--------------------------
+ src/pkg/fmt/print.go    | 330 +++++++++++++++++++--------------------
+ 4 files changed, 423 insertions(+), 415 deletions(-)

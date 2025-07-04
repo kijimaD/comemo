@@ -1,0 +1,14 @@
+commit c870ac239eca599f2bb3cf76522d4a3591d0cd90
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 14 20:54:55 2008 -0700
+
+    add sys.writefile; support for darwin only in this CL
+    
+    SVN=127153
+
+ src/cmd/gc/sys.go              |   2 +
+ src/cmd/gc/sysimport.c         | 223 +++++++++++++++++++++--------------------
+ src/runtime/runtime.h          |   3 +-
+ src/runtime/sys_amd64_darwin.s |   9 ++
+ src/runtime/sys_file.c         |  31 +++++-
+ 5 files changed, 156 insertions(+), 112 deletions(-)

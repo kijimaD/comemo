@@ -1,0 +1,16 @@
+commit 2ef4a84022577ee3de1ecf91ef05603a527b9889
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 19 16:51:06 2012 +1100
+
+    path/filepath: implement Match and Glob on windows
+    
+    As discussed on golang-dev, windows will use
+    "\" as path separator. No escaping allowed.
+    
+    R=golang-dev, r, mattn.jp, rsc, rogpeppe, bsiegert, r
+    CC=golang-dev
+    https://golang.org/cl/5825044
+
+ src/pkg/path/filepath/match.go      | 24 +++++++++++++++--------
+ src/pkg/path/filepath/match_test.go | 38 ++++++++++++++++++++++---------------
+ 2 files changed, 39 insertions(+), 23 deletions(-)

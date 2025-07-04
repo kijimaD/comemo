@@ -1,0 +1,19 @@
+commit c5ccbdd22bdbdc43d541b7e7d4ed66ceb559030e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 16:53:49 2016 -0400
+
+    net/url: reject colon in first segment of relative path in Parse
+    
+    RFC 3986 §3.3 disallows relative URL paths in which the first segment
+    contains a colon, presumably to avoid confusion with scheme:foo syntax,
+    which is exactly what happened in #16822.
+    
+    Fixes #16822.
+    
+    Change-Id: Ie4449e1dd21c5e56e3b126e086c3a0b05da7ff24
+    Reviewed-on: https://go-review.googlesource.com/31582
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/net/url/url.go      | 13 +++++++++++++
+ src/net/url/url_test.go |  8 ++++++--
+ 2 files changed, 19 insertions(+), 2 deletions(-)

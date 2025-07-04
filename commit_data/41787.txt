@@ -1,0 +1,27 @@
+commit 89e13c88e4f9f3a3eea7bf105e5af475727a4c33
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Mar 28 16:11:15 2020 +0000
+
+    runtime: check the correct sanity condition in the page allocator
+    
+    Currently there are a few sanity checks in the page allocator which
+    should fail immediately but because it's a check for a negative number
+    on a uint, it's actually dead-code.
+    
+    If there's a bug in the page allocator which would cause the sanity
+    check to fail, this could cause memory corruption by returning an
+    invalid address (more precisely, one might either see a segfault, or
+    span overlap).
+    
+    This change fixes these sanity checks to check the correct condition.
+    
+    Fixes #38130.
+    
+    Change-Id: Ia19786cece783d39f26df24dec8788833a6a3f21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226297
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/mpagealloc.go | 4 ++--
+ src/runtime/mpagecache.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

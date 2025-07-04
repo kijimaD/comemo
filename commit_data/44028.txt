@@ -1,0 +1,15 @@
+commit 75e16f5127eb6affb4b473c93565a8d29a802e51
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Dec 15 17:48:38 2020 +0100
+
+    doc/go1.16: add link to reflect.StructTag
+    
+    For #40700.
+    
+    Change-Id: I67dd55b435304e428929c9a54b8881f9b78efdfb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278392
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.16.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

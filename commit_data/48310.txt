@@ -1,0 +1,38 @@
+commit 38174b3a3514629b84dcd76878b2f536b189dd7b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 6 20:31:33 2022 +0000
+
+    go/build: use static maps rather than an init func
+    
+    go/build is one of the packages that contributes the most towards
+    cmd/go's init cost, which adds up to any call to the tool.
+    
+    One piece of low-hanging fruit is knownOS and knownArch,
+    maps which are filled via an init func from a space-separated list.
+    Using GODEBUG=inittrace=1, we can get three samples:
+    
+            init go/build @0.36 ms, 0.024 ms clock, 6568 bytes, 74 allocs
+            init go/build @0.33 ms, 0.025 ms clock, 6888 bytes, 76 allocs
+            init go/build @0.36 ms, 0.025 ms clock, 6728 bytes, 75 allocs
+    
+    After using a static map instead, we see an improvement:
+    
+            init go/build @0.33 ms, 0.018 ms clock, 5096 bytes, 69 allocs
+            init go/build @0.36 ms, 0.021 ms clock, 5096 bytes, 69 allocs
+            init go/build @0.33 ms, 0.019 ms clock, 5096 bytes, 69 allocs
+    
+    The speedup isn't huge, but it helps, and also reduces allocs.
+    One can also imagine that the compiler may get better with static,
+    read-only maps in the future, whereas the init func will likely always
+    have a linear cost and extra allocations.
+    
+    Change-Id: I430212bad03d25358d2cc7b1eab4536ad88d05a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390274
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/build.go   | 12 ------------
+ src/go/build/syslist.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 46 insertions(+), 15 deletions(-)

@@ -1,0 +1,18 @@
+commit ecfd2cab7b5478f7007143801c257a85420d2883
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Aug 28 11:57:07 2023 +0000
+
+    cmd/compile: replace floating-pointer with floating-point
+    
+    Change-Id: I2b1cf35966fec255c6e0ed587f02d035783ab2ad
+    GitHub-Last-Rev: 3466a67c02613a233f14dbc39a17b9394047efb6
+    GitHub-Pull-Request: golang/go#62320
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523377
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/abi-internal.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 41861a881292d287b14e4e4c38ab21b97182e782
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 00:51:03 2009 -0800
+
+    gc: better diagnosis of initialization loops
+    
+    Fixes bug 292.
+    
+    R=ken2
+    https://golang.org/cl/164093
+
+ src/cmd/gc/closure.c     |  3 ++-
+ src/cmd/gc/dcl.c         |  1 +
+ src/cmd/gc/go.h          |  1 -
+ src/cmd/gc/sinit.c       | 69 ++++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/gc/subr.c        |  1 -
+ test/fixedbugs/bug223.go | 21 +++++++++++++++
+ 6 files changed, 88 insertions(+), 8 deletions(-)

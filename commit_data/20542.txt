@@ -1,0 +1,15 @@
+commit 2fa3e43fae867f5b8757780eb2bbf7444b56f5d5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 25 12:52:05 2014 -0700
+
+    spec: clarify scope and re-use of iteration variables
+    
+    Fixes #7834.
+    
+    LGTM=iant, rsc, r
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/148940044
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

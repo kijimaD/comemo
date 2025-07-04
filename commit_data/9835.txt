@@ -1,0 +1,18 @@
+commit 530719c06f7a5621a17f9a3f1d547d0c1b073195
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Thu Sep 29 18:09:11 2011 -0700
+
+    exp/template/html: simplify URL filtering
+    
+    This removes a few cases from escapeAction and clarifies the
+    responsibilities of urlFilter which no longer does any
+    escaping or normalization.  It is now solely a filter.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5162043
+
+ src/pkg/exp/template/html/escape.go      |  2 +-
+ src/pkg/exp/template/html/escape_test.go | 10 ++++++++--
+ src/pkg/exp/template/html/url.go         |  9 ++++-----
+ 3 files changed, 13 insertions(+), 8 deletions(-)

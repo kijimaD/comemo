@@ -1,0 +1,21 @@
+commit dc63b59630cbc7fe1b039757bac0d6f713dfc26d
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 26 14:09:07 2019 -0700
+
+    database/sql: add Conn.Raw to expose the driver Conn safely
+    
+    Exposing the underlying driver conn will allow the use of the
+    standard connection pool while still able to run special function
+    directly on the driver.
+    
+    Fixes #29835
+    
+    Change-Id: Ib6d3b9535e730f008916805ae3bf76e4494c88f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174182
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/database/sql/sql.go      | 35 ++++++++++++++++++++++++++++++++
+ src/database/sql/sql_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+)

@@ -1,0 +1,27 @@
+commit 0f29942489409ccd81619b5f82fce9c7de18165f
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 19 11:47:52 2016 -0400
+
+    cmd/compile: Repurpose old sliceopt.go for prove phase.
+    
+    Adapt old test for prove's bounds check elimination.
+    Added missing rule to generic rules that lead to differences
+    between 32 and 64 bit platforms on sliceopt test.
+    Added debugging to prove.go that was helpful-to-necessary to
+    discover that missing rule.
+    Lowered debugging level on prove.go from 3 to 1; no idea
+    why it was previously 3.
+    
+    Change-Id: I09de206aeb2fced9f2796efe2bfd4a59927eda0c
+    Reviewed-on: https://go-review.googlesource.com/23290
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             | 15 ++++--
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +
+ src/cmd/compile/internal/ssa/prove.go          | 55 ++++++++++++++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 38 ++++++++++++++
+ test/prove.go                                  |  2 +-
+ test/sliceopt.go                               | 70 ++++++++++++++++++++++++++
+ 6 files changed, 167 insertions(+), 15 deletions(-)

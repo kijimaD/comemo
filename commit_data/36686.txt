@@ -1,0 +1,16 @@
+commit f082dbfd4f23b0c95ee1de5c2b091dad2ff6d930
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sun Sep 16 03:05:35 2018 +0000
+
+    cmd/compile: fix wrong comment message in AMD64Ops.go
+    
+    According to AMD64.rules, BTS&BTR&BTC use arg1 as the bit index,
+    while BT uses arg0. This CL fixes the wrong comment message in
+    AMD64Ops.go, which indicates all bit indexes are in arg0.
+    
+    Change-Id: Idb78f4d39f7ef5ea78065ad8bc651324597e2a8a
+    Reviewed-on: https://go-review.googlesource.com/135419
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

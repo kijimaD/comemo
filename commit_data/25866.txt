@@ -1,0 +1,20 @@
+commit 8dd2ce2b980d341a4c88e4f3c95e4eca396b6a07
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 23 22:04:20 2016 -0800
+
+    cmd/compile: factor our literal lexing from main lexer function
+    
+    Further reduces complexity of lexer.next which is now readable.
+    Also removes the need to initialize various local variables in
+    each next call even if they are not used for the current token.
+    
+    No measurable performance change for `time go build -a net/http`
+    (best of 5 runs): difference < 0.3% (in the noise).
+    
+    Change-Id: I0d74caa2768920af1ceee027e0f46595119d4210
+    Reviewed-on: https://go-review.googlesource.com/19865
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/lex.go | 459 +++++++++++++++++++------------------
+ 1 file changed, 231 insertions(+), 228 deletions(-)

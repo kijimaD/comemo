@@ -1,0 +1,21 @@
+commit 878153682ecac3fb00bdad50ff8dcc296e30a701
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:55:33 2012 -0500
+
+    cmd/fix: warn about exp, old, deleted packages
+    
+    Fixes #2776.
+    
+    There was a previous attempt at CL 5592043 but that
+    seems to have stalled.  This one is simpler, and more up to date
+    (correct handling of spdy, for example).
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5645091
+
+ doc/go1.html                     |  8 --------
+ doc/go1.tmpl                     |  8 --------
+ src/cmd/fix/go1pkgrename.go      | 25 ++++++++++++++++++++++++-
+ src/cmd/fix/go1pkgrename_test.go | 10 ++++++++++
+ 4 files changed, 34 insertions(+), 17 deletions(-)

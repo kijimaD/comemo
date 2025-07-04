@@ -1,0 +1,15 @@
+commit b987f7a757f53f460973622a36eebb696f9b5060
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jun 29 20:40:08 2008 -0700
+
+    segmented stacks
+    
+    SVN=125267
+
+ src/cmd/6l/l.h                 |   3 +-
+ src/cmd/6l/list.c              |  29 ++++----
+ src/cmd/6l/pass.c              |  21 +++---
+ src/runtime/rt0_amd64_darwin.s | 156 ++++++++++++++++++++++++++++++++++++----
+ src/runtime/rt0_amd64_linux.s  | 158 ++++++++++++++++++++++++++++++++++++-----
+ src/runtime/runtime.c          |   8 +--
+ 6 files changed, 311 insertions(+), 64 deletions(-)

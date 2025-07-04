@@ -1,0 +1,17 @@
+commit ab02028b5af0b5d8966ac9bb092352a523314b08
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Wed Aug 29 05:31:46 2018 +0530
+
+    go/build: document when Context.BuildTags is used.
+    
+    Context.BuildTags is not set when you read go/build.Default.BuildTags.
+    It's only used by (*BuildTags).Import, etc.
+    
+    Fixes: #27320
+    
+    Change-Id: I97e5f1923c410b48f70be8c15938a7e04a178e3f
+    Reviewed-on: https://go-review.googlesource.com/c/131975
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/build.go | 1 +
+ 1 file changed, 1 insertion(+)

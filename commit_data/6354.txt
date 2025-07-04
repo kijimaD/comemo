@@ -1,0 +1,13 @@
+commit 81ba399a6ad45e6dcc995b83dfdd7bf17a657285
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Sep 23 20:40:11 2010 +1000
+
+    bytes, strings: change lastIndexFunc to use DecodeLastRune
+    
+    R=r
+    CC=golang-dev, rsc
+    https://golang.org/cl/2271041
+
+ src/pkg/bytes/bytes.go     | 30 ++++--------------------------
+ src/pkg/strings/strings.go | 30 ++++--------------------------
+ 2 files changed, 8 insertions(+), 52 deletions(-)

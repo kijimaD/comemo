@@ -1,0 +1,13 @@
+commit 48347cc1ebda367d52ca106210cb534d8b113509
+Author: Tetsuo Kiso <tetsuokiso9@gmail.com>
+Date:   Mon Jul 7 16:31:20 2014 +1000
+
+    doc/contribute.html: capitalize the first letter
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/109080048
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

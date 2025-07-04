@@ -1,0 +1,14 @@
+commit f7a71c65055daf6d25e8749c8be6ff0a0e7f3fc7
+Author: Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+Date:   Wed Sep 8 10:20:21 2010 -0400
+
+    http: do not cache CanonicalHeaderKey
+    
+    Fixes #1080.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2158043
+
+ src/pkg/http/request.go | 24 +++++++++++++-----------
+ 1 file changed, 13 insertions(+), 11 deletions(-)

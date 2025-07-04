@@ -1,0 +1,12 @@
+commit 7ec5499d36348925cc294faaf96c64d63b2b0628
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Feb 16 15:06:12 2012 +1100
+
+    debug/gosym: more carefully build the test binary.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5676062
+
+ src/pkg/debug/gosym/pclntab_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

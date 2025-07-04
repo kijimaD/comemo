@@ -1,0 +1,19 @@
+commit 860c2557ab7995e64e5cc0f045ff676f1fcec0a0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 18 00:26:42 2023 +0700
+
+    cmd/internal/testdir: accept build go1.x build tag
+    
+    While at it, also using "slices" package to simplify code.
+    
+    For #63489
+    
+    Change-Id: I72b325f6ad379b996c108145885fa71706f6659f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536055
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/testdir/testdir_test.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

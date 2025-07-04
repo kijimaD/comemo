@@ -1,0 +1,14 @@
+commit 00379be17e63a5b75b3237819392d2dc3b313a27
+Author: Alan Braithwaite <alan@ipaddr.org>
+Date:   Tue Aug 21 01:07:47 2018 +0000
+
+    net/http: fix cookie SameSite docs grammar
+    
+    Change-Id: I76d878343c1cc14b53c700b0476ca050c1f9e6be
+    GitHub-Last-Rev: 148a45f4b63f7f55312112bbbd982f9927ac9e6e
+    GitHub-Pull-Request: golang/go#27107
+    Reviewed-on: https://go-review.googlesource.com/130235
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/cookie.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

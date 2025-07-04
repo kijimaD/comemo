@@ -1,0 +1,13 @@
+commit ff97fde26b7b7cfc032dc4e0d29d2aeeb952f55b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 5 11:13:56 2009 -0700
+
+    a few fixups. delete the TODO block.
+    
+    R=rsc
+    DELTA=23  (0 added, 20 deleted, 3 changed)
+    OCL=35330
+    CL=35330
+
+ doc/go_lang_faq.html | 26 +++-----------------------
+ 1 file changed, 3 insertions(+), 23 deletions(-)

@@ -1,0 +1,18 @@
+commit 7903e3600c988f9d5950355a7f611dcdba004f5e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 4 08:13:39 2013 -0800
+
+    net/http/cgi: maybe improve darwin test reliability
+    
+    Use a 17 MB payload instead of a 1 MB payload, since
+    OS X can apparently buffer up to 16 MB in its pipes.
+    
+    Fixes #4958 maybe
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7453049
+
+ src/pkg/net/http/cgi/host_test.go      | 3 ---
+ src/pkg/net/http/cgi/testdata/test.cgi | 3 ++-
+ 2 files changed, 2 insertions(+), 4 deletions(-)

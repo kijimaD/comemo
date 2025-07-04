@@ -1,0 +1,16 @@
+commit 444b928405444dcba8c0c008f44e8d21b9402547
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 12 07:13:52 2014 -0700
+
+    run.bash: run misc/cgo/testgodefs/test.bash
+    
+    misc/cgo/testgodefs was added by revision d1cf884a594f, but not
+    add to run.bash.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/129760044
+
+ src/run.bash | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

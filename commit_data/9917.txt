@@ -1,0 +1,16 @@
+commit 8440fdd9047f574e10c7bb544027a1bd3d86601b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 11 11:11:47 2011 +1100
+
+    godoc: support multiple examples
+    gotest: document examples
+    go/doc: tidy comment
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5235055
+
+ src/cmd/godoc/godoc.go    |  9 +++++++--
+ src/cmd/gotest/doc.go     | 12 ++++++++++++
+ src/pkg/go/doc/example.go |  6 +++---
+ 3 files changed, 22 insertions(+), 5 deletions(-)

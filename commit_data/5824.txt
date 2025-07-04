@@ -1,0 +1,18 @@
+commit cdb446feb548da2af8c6f992b4c5ddf5a447b93e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 15 16:13:47 2010 -0700
+
+    gc: bug292
+    
+    Fixes #843.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1729051
+
+ src/cmd/gc/go.h          |  2 +-
+ src/cmd/gc/print.c       |  1 +
+ src/cmd/gc/typecheck.c   |  2 +-
+ src/cmd/gc/unsafe.c      | 20 ++++++++++++++++----
+ test/fixedbugs/bug292.go | 22 ++++++++++++++++++++++
+ 5 files changed, 41 insertions(+), 6 deletions(-)

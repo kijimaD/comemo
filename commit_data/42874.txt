@@ -1,0 +1,24 @@
+commit 27a30186abc18a8fc22b8ab40e3ee9f29d81c1d4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 29 03:25:21 2020 +0700
+
+    cmd/compile,runtime: skip zero'ing order array for select statements
+    
+    The order array was zero initialized by the compiler, but ends up being
+    overwritten by the runtime anyway.
+    
+    So let the runtime takes full responsibility for initializing, save us
+    one instruction per select.
+    
+    Fixes #40399
+    
+    Change-Id: Iec1eca27ad7180d4fcb3cc9ef97348206b7fe6b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251517
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/select.go |  4 +---
+ src/runtime/select.go                 |  1 +
+ test/codegen/select.go                | 20 ++++++++++++++++++++
+ 3 files changed, 22 insertions(+), 3 deletions(-)

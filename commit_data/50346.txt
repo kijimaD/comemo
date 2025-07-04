@@ -1,0 +1,17 @@
+commit ce8dcd9879652975d83e0843b1d3d3f593a8a4ff
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 18:37:30 2022 +0800
+
+    net/http/httputil: use strings.Builder
+    
+    Change-Id: Ifb51413894791154489bd1d4f529088958212c62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428270
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/http/httputil/dump_test.go         | 2 +-
+ src/net/http/httputil/reverseproxy_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

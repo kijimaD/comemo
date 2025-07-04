@@ -1,0 +1,21 @@
+commit 7d22c2181b4343b58e40962cefd52af1284b4294
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 26 17:27:58 2021 -0700
+
+    syscall: restore signal mask after setting foreground process group
+    
+    Fixes #37217
+    
+    Change-Id: I0151bb77fc4c4552d1b19c31d784943b72f84b80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313653
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/exec_bsd.go       |  6 ++++--
+ src/syscall/exec_libc.go      |  6 ++++--
+ src/syscall/exec_libc2.go     |  6 ++++--
+ src/syscall/exec_linux.go     |  6 ++++--
+ src/syscall/exec_unix_test.go | 41 ++++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 56 insertions(+), 9 deletions(-)

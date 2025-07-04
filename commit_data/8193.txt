@@ -1,0 +1,16 @@
+commit d5864454dc3761efd31f745f81c7b3927df4abae
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 22 14:44:18 2011 -0400
+
+    syscall: fix Ftruncate under linux/arm5
+    
+    Fixes #1714.
+    
+    R=rsc, bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4441056
+
+ src/pkg/os/os_test.go                 | 22 ++++++++++++++++++++--
+ src/pkg/syscall/syscall_linux_arm.go  | 17 ++++++++++++++---
+ src/pkg/syscall/zsyscall_linux_arm.go | 16 ----------------
+ 3 files changed, 34 insertions(+), 21 deletions(-)

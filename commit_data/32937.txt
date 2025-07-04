@@ -1,0 +1,19 @@
+commit 273b657b4e970f510afb258aa73dc2e264a701e3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Oct 1 20:28:53 2017 -0400
+
+    cmd/link: support -X values for main.* in plugins
+    
+    Fixes #19418
+    
+    Change-Id: I98205f40c1915cd68a5d20438469ba06f1efb160
+    Reviewed-on: https://go-review.googlesource.com/67432
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/issue19418/main.go   | 29 ++++++++++++++++++++++++++++
+ misc/cgo/testplugin/src/issue19418/plugin.go |  7 +++++++
+ misc/cgo/testplugin/test.bash                |  5 +++++
+ src/cmd/link/internal/ld/data.go             |  6 +++++-
+ 4 files changed, 46 insertions(+), 1 deletion(-)

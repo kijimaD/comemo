@@ -1,0 +1,20 @@
+commit e8a02230f215efb075cccd4146b3d0d1ada4870e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 13:42:47 2008 -0700
+
+    preliminary network - just Dial for now
+    
+    R=r,presotto
+    OCL=15393
+    CL=15399
+
+ src/lib/net/Makefile               |  44 ++++
+ src/lib/net/cvt.s                  |  38 +++
+ src/lib/net/ip.go                  | 431 +++++++++++++++++++++++++++++++++
+ src/lib/net/net.go                 | 483 +++++++++++++++++++++++++++++++++++++
+ src/lib/net/socket_darwin.go       | 231 ++++++++++++++++++
+ src/lib/net/socket_linux.go        | 247 +++++++++++++++++++
+ src/syscall/syscall.go             |   1 +
+ src/syscall/syscall_amd64_darwin.s |  21 ++
+ src/syscall/syscall_amd64_linux.s  |  21 ++
+ 9 files changed, 1517 insertions(+)

@@ -1,0 +1,12 @@
+commit e372be9e76effbce5cce01850433d524fd0921fd
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 6 13:54:59 2008 -0700
+
+    code gen bug in ++ and --
+    
+    SVN=121476
+
+ src/cmd/6g/gen.c  | 6 ++----
+ src/cmd/gc/go.h   | 1 -
+ src/cmd/gc/subr.c | 2 --
+ 3 files changed, 2 insertions(+), 7 deletions(-)

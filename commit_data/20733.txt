@@ -1,0 +1,13 @@
+commit ae933b04e6da9b72ec1affd9375edfa728b79d20
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 17 16:39:42 2014 +0200
+
+    CONTRIBUTORS: add James Robinson (Google CLA)
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=dvyukov, golang-codereviews, jamesr, nigeltao
+    https://golang.org/cl/155530043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

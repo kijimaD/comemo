@@ -1,0 +1,79 @@
+commit 8d0265dd32c729822db377a5a2cc5d2abbe40648
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 10 19:12:10 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    The gccgo compiler does not always generate a "cannot use"
+    error message.  It only does so for named types.  Maybe that
+    should change, but in any case it is irrelevant for this test.
+    
+    assign1.go:105:4: error: incompatible types in assignment (cannot use type A1 as type A)
+    assign1.go:107:5: error: incompatible types in assignment (cannot use type A as type A1)
+    assign1.go:112:4: error: incompatible types in assignment (cannot use type B1 as type B)
+    assign1.go:114:5: error: incompatible types in assignment (cannot use type B as type B1)
+    assign1.go:119:4: error: incompatible types in assignment (cannot use type C1 as type C)
+    assign1.go:121:5: error: incompatible types in assignment (cannot use type C as type C1)
+    assign1.go:126:4: error: incompatible types in assignment (cannot use type F1 as type F)
+    assign1.go:128:5: error: incompatible types in assignment (cannot use type F as type F1)
+    assign1.go:140:4: error: incompatible types in assignment (cannot use type M1 as type M)
+    assign1.go:142:5: error: incompatible types in assignment (cannot use type M as type M1)
+    assign1.go:147:4: error: incompatible types in assignment (cannot use type P1 as type P)
+    assign1.go:149:5: error: incompatible types in assignment (cannot use type P as type P1)
+    assign1.go:154:4: error: incompatible types in assignment (cannot use type S1 as type S)
+    assign1.go:156:5: error: incompatible types in assignment (cannot use type S as type S1)
+    assign1.go:158:6: error: incompatible types in assignment
+    assign1.go:159:6: error: incompatible types in assignment
+    assign1.go:160:5: error: incompatible types in assignment
+    assign1.go:161:5: error: incompatible types in assignment
+    assign1.go:162:6: error: incompatible types in assignment
+    assign1.go:163:6: error: incompatible types in assignment
+    assign1.go:165:6: error: incompatible types in assignment
+    assign1.go:166:6: error: incompatible types in assignment
+    assign1.go:167:5: error: incompatible types in assignment
+    assign1.go:168:5: error: incompatible types in assignment
+    assign1.go:169:6: error: incompatible types in assignment
+    assign1.go:170:6: error: incompatible types in assignment
+    assign1.go:172:6: error: incompatible types in assignment
+    assign1.go:173:6: error: incompatible types in assignment
+    assign1.go:174:5: error: incompatible types in assignment
+    assign1.go:175:5: error: incompatible types in assignment
+    assign1.go:176:6: error: incompatible types in assignment
+    assign1.go:177:6: error: incompatible types in assignment
+    assign1.go:179:6: error: incompatible types in assignment
+    assign1.go:180:6: error: incompatible types in assignment
+    assign1.go:181:5: error: incompatible types in assignment
+    assign1.go:182:5: error: incompatible types in assignment
+    assign1.go:183:6: error: incompatible types in assignment
+    assign1.go:184:6: error: incompatible types in assignment
+    assign1.go:186:6: error: incompatible types in assignment
+    assign1.go:187:6: error: incompatible types in assignment
+    assign1.go:188:5: error: incompatible types in assignment
+    assign1.go:189:5: error: incompatible types in assignment
+    assign1.go:190:6: error: incompatible types in assignment
+    assign1.go:191:6: error: incompatible types in assignment
+    assign1.go:193:6: error: incompatible types in assignment
+    assign1.go:194:6: error: incompatible types in assignment
+    assign1.go:195:5: error: incompatible types in assignment
+    assign1.go:196:5: error: incompatible types in assignment
+    assign1.go:197:6: error: incompatible types in assignment
+    assign1.go:198:6: error: incompatible types in assignment
+    assign1.go:200:6: error: incompatible types in assignment
+    assign1.go:201:6: error: incompatible types in assignment
+    assign1.go:202:5: error: incompatible types in assignment
+    assign1.go:203:5: error: incompatible types in assignment
+    assign1.go:204:6: error: incompatible types in assignment
+    assign1.go:205:6: error: incompatible types in assignment
+    assign1.go:207:6: error: incompatible types in assignment
+    assign1.go:208:6: error: incompatible types in assignment
+    assign1.go:209:5: error: incompatible types in assignment
+    assign1.go:210:5: error: incompatible types in assignment
+    assign1.go:211:6: error: incompatible types in assignment
+    assign1.go:212:6: error: incompatible types in assignment
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2163044
+
+ test/assign1.go | 110 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 55 insertions(+), 55 deletions(-)

@@ -1,0 +1,31 @@
+commit 0fdd371e6b310bcf1f93d226dca61591630afe12
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Mar 22 22:10:13 2021 -0400
+
+    go/parser: add data-driven tests for object resolution
+    
+    Add new tests for object resolution driven by source files with
+    declarations and uses marked via special comments. This made it easier
+    to add test coverage while refactoring object resolution for #45104.
+    
+    Tests are added to a new resolver_test.go file. In a subsequent CL the
+    resolver.go file will be added, making this choice of file name more
+    sensible.
+    
+    For #45104
+    For #45136
+    For #45160
+    
+    Change-Id: I240fccc0de95aa8f2d03e39c77146d4c61f1ef9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304450
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/parser/resolver_test.go                   | 170 +++++++++++++++++++++++
+ src/go/parser/testdata/resolution/issue45136.src |  29 ++++
+ src/go/parser/testdata/resolution/issue45160.src |  25 ++++
+ src/go/parser/testdata/resolution/resolution.src |  50 +++++++
+ 4 files changed, 274 insertions(+)

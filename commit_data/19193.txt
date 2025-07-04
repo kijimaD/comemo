@@ -1,0 +1,15 @@
+commit 827aab07b80cd8ad26548a6fa234b7d038537d33
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 16 20:28:53 2014 -0700
+
+    cmd/ld: don't pass -rdynamic to external linker if -static is used
+    
+    Fixes #7800.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/87790051
+
+ src/cmd/ld/lib.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

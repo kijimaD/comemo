@@ -1,0 +1,16 @@
+commit c50074e5104563d23455a27ece2430bef2d4c844
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Wed Feb 29 15:07:52 2012 -0800
+
+    doc: add a bunch of missing <p> tags
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5707065
+
+ doc/code.html         | 2 +-
+ doc/effective_go.html | 9 +++++++++
+ doc/effective_go.tmpl | 9 +++++++++
+ doc/go_faq.html       | 2 ++
+ doc/go_spec.html      | 3 ++-
+ 5 files changed, 23 insertions(+), 2 deletions(-)

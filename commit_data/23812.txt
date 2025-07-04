@@ -1,0 +1,20 @@
+commit 731dcdae6dd215b853daf9b40f61aefb79333c67
+Author: David Chase <drchase@google.com>
+Date:   Thu Jul 23 14:17:07 2015 -0400
+
+    cmd/compile: prepend captured args to called-closure params
+    
+    Old code appended, did not play well with a closure
+    with a ... param.
+    
+    Fixes #11075.
+    
+    Change-Id: Ib7c8590c5c4e576e798837e7499e00f3494efb4a
+    Reviewed-on: https://go-review.googlesource.com/12580
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/closure.go | 15 +++++++++------
+ src/cmd/compile/internal/gc/walk.go    |  4 ++--
+ test/fixedbugs/issue11750.go           | 20 ++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 8 deletions(-)

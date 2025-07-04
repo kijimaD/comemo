@@ -1,0 +1,25 @@
+commit 643c6b3c74409871d7f96cbad145dabdefbbc8c1
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Oct 24 08:52:04 2016 +0900
+
+    path/filepath: make TestToNorm robust
+    
+    The old code leaves garbages in a temporary directory because it
+    cannot remove the current working directory on windows.
+    The new code changes the directory before calling os.Remove.
+    
+    Furthermore, the old code assumes that ioutil.TempDir (os.TempDir)
+    doesn't return a relative path nor an UNC path.
+    If it isn't the case, the new code calls t.Fatal earlier for preventing
+    ambiguous errors.
+    
+    Finally, the old code reassigns the variable which is used by the defer
+    function. It could cause unexpected results, so avoid that.
+    
+    Change-Id: I5fc3902059ecaf18dc1341ecc4979d1206034cd7
+    Reviewed-on: https://go-review.googlesource.com/31790
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/path/filepath/path_windows_test.go | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)

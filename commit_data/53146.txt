@@ -1,0 +1,23 @@
+commit b60db8f7d92fb2c87b6f416ebb38a6924978aa8c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 12 21:13:06 2023 +0000
+
+    runtime: formalize the trace clock
+    
+    Currently the trace clock is cputicks() with comments sprinkled in
+    different places as to which clock to use. Since the execution tracer
+    redesign will use a different clock, it seems like a good time to clean
+    that up.
+    
+    Also, rename the start/end timestamps to be more readable (i.e.
+    startTime vs. timeStart).
+    
+    Change-Id: If43533eddd0e5f68885bb75cdbadb38da42e7584
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494775
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go  |   2 +-
+ src/runtime/trace.go | 103 +++++++++++++++++++++++++++------------------------
+ 2 files changed, 56 insertions(+), 49 deletions(-)

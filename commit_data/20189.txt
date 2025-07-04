@@ -1,0 +1,19 @@
+commit f2e7fa9d7711ca91865ef5b54f7a9d13fc30c91a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 28 22:40:57 2014 -0400
+
+    misc/cgo/test: disable issue 8428 regress test on darwin
+    
+    Clang 3.2 and older (as shipped with OS X Mountain Lion and older)
+    outputs ambiguous DWARF debug info that makes it impossible for us to
+    reconstruct accurate type information as required for this test.
+    
+    Fixes #8611.
+    
+    LGTM=rsc
+    R=r, rsc, minux
+    CC=golang-codereviews
+    https://golang.org/cl/135990043
+
+ misc/cgo/test/issue8428.go | 4 ++++
+ 1 file changed, 4 insertions(+)

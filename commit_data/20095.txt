@@ -1,0 +1,16 @@
+commit a6950fe0f9c23fe681109db746038092b5a04728
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Aug 24 12:41:23 2014 +0400
+
+    runtime: convert synchronous semaphores to Go
+    
+    LGTM=rsc
+    R=golang-codereviews, khr, rsc
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/130340043
+
+ src/pkg/runtime/sema.go  | 117 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/sema.goc |  90 ------------------------------------
+ src/pkg/runtime/thunk.s  |  21 +++++++++
+ src/pkg/sync/runtime.go  |   8 +++-
+ 4 files changed, 144 insertions(+), 92 deletions(-)

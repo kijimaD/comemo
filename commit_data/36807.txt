@@ -1,0 +1,26 @@
+commit ecc365960ba7ff72f650b32190f40a1f1b6ff992
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 14 17:04:04 2018 -0400
+
+    runtime: avoid using STW GC mechanism for checkmarks mode
+    
+    Currently, checkmarks mode uses the full STW GC infrastructure to
+    perform mark checking. We're about to remove that infrastructure and,
+    furthermore, since checkmarks is about doing the simplest thing
+    possible to check concurrent GC, it's valuable for it to be simpler.
+    
+    Hence, this CL makes checkmarks even simpler by making it non-parallel
+    and divorcing it from the STW GC infrastructure (including the
+    gchelper mechanism).
+    
+    Updates #26903. This is preparation for unifying STW GC and concurrent
+    GC.
+    
+    Change-Id: Iad21158123e025e3f97d7986d577315e994bd43e
+    Reviewed-on: https://go-review.googlesource.com/c/134776
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

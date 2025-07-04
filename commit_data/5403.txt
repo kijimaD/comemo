@@ -1,0 +1,12 @@
+commit 05cf357dd95475cd0483b40a0bb90d717b3a3539
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Apr 30 18:45:04 2010 +1000
+
+    Add EWOULDBLOCK to sycall_nacl.go.
+    
+    R=rsc
+    CC=go-dev, golang-dev
+    https://golang.org/cl/1006045
+
+ src/pkg/syscall/syscall_nacl.go | 4 ++++
+ 1 file changed, 4 insertions(+)

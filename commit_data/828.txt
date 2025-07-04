@@ -1,0 +1,19 @@
+commit f4a8db667be985eb8b9f0d0e1e8674b751df5121
+Author: Cary Hull <chull@google.com>
+Date:   Wed Oct 8 09:34:50 2008 -0700
+
+    Fixes breakage caused by semicolon restriction.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=50  (4 added, 0 deleted, 46 changed)
+    OCL=16707
+    CL=16725
+
+ src/lib/http/Makefile   |  4 ++++
+ src/lib/http/conn.go    |  4 ++--
+ src/lib/http/request.go | 38 +++++++++++++++++++-------------------
+ src/lib/http/server.go  | 12 ++++++------
+ src/lib/http/triv.go    |  2 +-
+ src/lib/http/url.go     | 36 ++++++++++++++++++------------------
+ 6 files changed, 50 insertions(+), 46 deletions(-)

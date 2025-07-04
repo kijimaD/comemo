@@ -1,0 +1,19 @@
+commit 83f0b718ed97502832b81d883ee12952f15bedd9
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 1 20:47:03 2009 -0800
+
+    fixups in the tutorial
+    also add a section about compiling programs because some found it surprising not to have one
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018011
+
+ doc/go_tutorial.html   | 104 ++++++++++++++++++++++++++++++++-----------------
+ doc/go_tutorial.txt    |  77 ++++++++++++++++++++++++------------
+ doc/progs/cat.go       |   6 +--
+ doc/progs/cat_rot13.go |   6 +--
+ doc/progs/echo.go      |   8 ++--
+ doc/progs/file.go      |   2 +-
+ doc/progs/sortmain.go  |   6 +--
+ 7 files changed, 135 insertions(+), 74 deletions(-)

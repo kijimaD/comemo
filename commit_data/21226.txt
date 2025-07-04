@@ -1,0 +1,18 @@
+commit 2feff0038bb7060bf7050a12b03b827194528732
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 9 15:16:14 2015 -0800
+
+    cmd/gc: fix ARM build
+    
+    CL 2520 omitted to set the type for an OCONVNOP node.
+    Typechecking obviously cannot do it for us.
+    
+    5g inserts float64 <--> [u]int64 conversions at walk time.
+    The missing type caused it to crash.
+    
+    Change-Id: Idce381f219bfef2e3a3be38d3ba3c258b71310ae
+    Reviewed-on: https://go-review.googlesource.com/2640
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/gc/range.c | 1 +
+ 1 file changed, 1 insertion(+)

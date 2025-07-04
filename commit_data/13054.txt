@@ -1,0 +1,19 @@
+commit 95643647ae980f6d55e92d9ca22f262efa6bcde5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri May 11 10:50:03 2012 +0400
+
+    runtime: add parallel for algorithm
+    This is factored out part of:
+    https://golang.org/cl/5279048/
+    (parallel GC)
+    
+    R=bsiegert, mpimenov, rsc, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/5986054
+
+ src/cmd/dist/buildruntime.c    |   1 +
+ src/pkg/runtime/export_test.go |  25 +++++
+ src/pkg/runtime/parfor.c       | 210 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/parfor_test.go | 117 +++++++++++++++++++++++
+ src/pkg/runtime/runtime.h      |  35 +++++++
+ 5 files changed, 388 insertions(+)

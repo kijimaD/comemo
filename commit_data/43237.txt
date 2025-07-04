@@ -1,0 +1,15 @@
+commit bb46b60d294e8759de19da6d824af315dafca22c
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 12 12:58:07 2020 -0400
+
+    cmd/compile: enable late expansion in openDeferExit
+    
+    Change-Id: I4ce9e914d22b519b00d7e19d93091f6ac0b60938
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248188
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 57 ++++++++++++++++++++++++++++++--------
+ 1 file changed, 46 insertions(+), 11 deletions(-)

@@ -1,0 +1,32 @@
+commit 1de46564a766f9647b22ebab0f35bccd14291460
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 8 08:46:24 2024 +0100
+
+    runtime: make netpoll events sources identifiable on Windows
+    
+    This is another attempt at CL 558895, but without adding stale pollDescs
+    protection, which deviates from the original goal of the CL and adds
+    complexity without proper testing.
+    
+    It is currently not possible to distinguish between a netpollBreak,
+    an internal/poll WSA operation, and an external WSA operation (as
+    in #58870). This can cause spurious wakeups when external WSA operations
+    are retrieved from the queue, as they are treated as netpollBreak
+    events.
+    
+    This CL makes use of completion keys to identify the source of the
+    event.
+    
+    While here, fix TestWSASocketConflict, which was not properly
+    exercising the "external WSA operation" case.
+    
+    Change-Id: I91f746d300d32eb7fed3c8f27266fef379360d98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561895
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/poll/fd_windows_test.go |  25 +++------
+ src/runtime/netpoll_windows.go       | 101 ++++++++++++++++++++++++++++++-----
+ 2 files changed, 93 insertions(+), 33 deletions(-)

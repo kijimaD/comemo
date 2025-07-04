@@ -1,0 +1,22 @@
+commit 6f7ec484f67b7128b4158babd48cbf47f4443f32
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Thu Apr 19 09:08:24 2018 -0600
+
+    math/big: handle negative moduli in ModInverse
+    
+    Currently, there is no check for a negative modulus in ModInverse.
+    Negative moduli are passed internally to GCD, which returns 0 for
+    negative arguments. Mod is symmetric with respect to negative moduli,
+    so the calculation can be done by just negating the modulus before
+    passing the arguments to GCD.
+    
+    Fixes #24949
+    
+    Change-Id: Ifd1e64c9b2343f0489c04ab65504e73a623378c7
+    Reviewed-on: https://go-review.googlesource.com/108115
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go      | 6 +++++-
+ src/math/big/int_test.go | 6 ++++--
+ 2 files changed, 9 insertions(+), 3 deletions(-)

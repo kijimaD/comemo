@@ -1,0 +1,16 @@
+commit 310fb9e8087471f6ab65d8c464df10572c0d38ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 26 11:44:18 2015 -0700
+
+    spec: removed TODOs (invisible html comment) in favor of issues
+    
+    - no "visible" change to spec but for updated date
+    - retired several outdated TODO items
+    - filed non-urgent issues 10953, 10954, 10955 for current TODOs
+    
+    Change-Id: If87ad0fb546c6955a6d4b5801e06e5c7d5695ea2
+    Reviewed-on: https://go-review.googlesource.com/10382
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 17 +----------------
+ 1 file changed, 1 insertion(+), 16 deletions(-)

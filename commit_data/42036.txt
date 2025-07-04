@@ -1,0 +1,26 @@
+commit 17fbc818ff0f528d60d1abec2087af714de6e050
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Apr 19 10:45:04 2020 +0200
+
+    cmd/compile: switch to typed aux for 386 optimization rules
+    
+    Convert first section of 386 optimization rules to the typed aux form.
+    
+    Adds addOffset{32,64} functions that returns ValAndOffs and a
+    ValAndOff.canAdd32 function that takes an int32.
+    
+    Passes
+    
+      GOARCH=386 gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: I69d2a8ace6936d5e8ba6ba047183002bf07dd5be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228825
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules |  509 +++---
+ src/cmd/compile/internal/ssa/op.go         |   19 +
+ src/cmd/compile/internal/ssa/rewrite.go    |    2 +
+ src/cmd/compile/internal/ssa/rewrite386.go | 2674 ++++++++++++++--------------
+ 4 files changed, 1615 insertions(+), 1589 deletions(-)

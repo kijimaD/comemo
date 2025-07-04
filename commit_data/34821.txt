@@ -1,0 +1,21 @@
+commit b846edfd5979d1cf53d55ea8fd6e4bbcfefb2e75
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Apr 2 01:45:53 2018 +0200
+
+    cmd/compile: in prove, make addRestrictions more generic
+    
+    addRestrictions was taking a branch parameter, binding its logic
+    to that of addBranchRestrictions. Since we will need to use it
+    for updating the facts table for induction variables, refactor it
+    to remove the branch parameter.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Iaaec350a8becd1919d03d8574ffd1bbbd906d068
+    Reviewed-on: https://go-review.googlesource.com/104036
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

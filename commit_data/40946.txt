@@ -1,0 +1,27 @@
+commit b81e01dc2ee9cb586b971f6a86cf0f32a0af69ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 2 09:38:03 2019 -0800
+
+    go/types: print package path in error messages if package name is not unique
+    
+    Change package qualification to print the full package path for packages
+    that have non-unique names (that is, where multiple different packages
+    have the same name). Use the package name as qualifier in all other cases
+    (but don't print any qualification if we're talking about the package
+    being type-checked).
+    
+    This matches the behavior of the compiler.
+    
+    Fixes #35895.
+    
+    Change-Id: I33ab8e7adfae1378907c01e33cabda114f65887f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209578
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/types/check.go            |  2 ++
+ src/go/types/errors.go           |  9 +++++++--
+ src/go/types/resolver.go         |  1 +
+ src/go/types/testdata/issues.src | 22 +++++++++++++++++++---
+ 4 files changed, 29 insertions(+), 5 deletions(-)

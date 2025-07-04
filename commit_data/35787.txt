@@ -1,0 +1,25 @@
+commit 7d50abf0394dbcd2d86ac9c1c5c527ef5117e351
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 22 17:36:12 2018 +0000
+
+    cmd/dist: skip non-std tests on js/wasm
+    
+    After the std tests, most of the rest of the tests aren't applicable
+    to js/wasm. (anything with -cpu=>1, cgo, etc)
+    
+    Skip them all for now. We can incrementally re-enable them over time
+    as the js/wasm port is fleshed out. But let's get the builder column
+    black again so we can enable trybots and keep it black.
+    
+    Updates #26014
+    Updates #26015
+    Updates #18892
+    
+    Change-Id: I8992ed3888f598fa42273ce8646a32d62ce45b1d
+    Reviewed-on: https://go-review.googlesource.com/120575
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

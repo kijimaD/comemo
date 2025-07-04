@@ -1,0 +1,24 @@
+commit 8da54a4eec860b2b96d43abe3a40f1c08edb6493
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Tue Mar 17 09:47:01 2015 -0700
+
+    cmd: linker changes for shared library initialization
+    
+    Suggested by iant@, this change:
+      - looks for a symbol _rt0_<GOARCH>_<GOOS>_lib,
+      - if the symbol is present, adds a new entry into the .init_array ELF
+        section that points to the symbol.
+    
+    The end-effect is that the symbol _rt0_<GOARCH>_<GOOS>_lib will be
+    invoked as soon as the (ELF) shared library is loaded, which will in turn
+    initialize the runtime. (To be implemented.)
+    
+    Change-Id: I99911a180215a6df18f8a18483d12b9b497b48f4
+    Reviewed-on: https://go-review.googlesource.com/7692
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/data.go   | 14 ++++++++++++++
+ src/cmd/internal/ld/lib.go    |  1 +
+ src/runtime/rt0_linux_amd64.s |  7 +++++++
+ 3 files changed, 22 insertions(+)

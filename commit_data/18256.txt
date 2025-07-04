@@ -1,0 +1,15 @@
+commit 89c9d6b7f858cea20a4f564d88ff7831c4375403
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 14 19:08:40 2014 -0800
+
+    net/http: return UnexpectedEOF instead of EOF on truncated resposne
+    
+    Fixes #6564
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/52420043
+
+ src/pkg/net/http/response.go      | 3 +++
+ src/pkg/net/http/response_test.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

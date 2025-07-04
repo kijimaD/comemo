@@ -1,0 +1,26 @@
+commit c468f94672af25bc34975ba96309e20e972fa340
+Author: Marko Tiikkaja <marko@joh.to>
+Date:   Fri Mar 27 19:45:12 2015 +0100
+
+    database/sql: Retry with a fresh connection after maxBadConnRetries
+    
+    Previously if the connection pool was larger than maxBadConnRetries
+    and there were a lot of bad connections in the pool (for example if
+    the database server was restarted), a query might have failed with an
+    ErrBadConn unnecessarily.  Instead of trying to guess how many times
+    to retry, try maxBadConnRetries times and then force a fresh
+    connection to be used for the last attempt.  At the same time, lower
+    maxBadConnRetries to a smaller value now that it's not that important
+    to retry so many times from the free connection list.
+    
+    Fixes #8834
+    
+    Change-Id: I6542f151a766a658980fb396fa4880ecf5874e3d
+    Reviewed-on: https://go-review.googlesource.com/2034
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/fakedb_test.go | 23 ++++++-----
+ src/database/sql/sql.go         | 87 +++++++++++++++++++++++++++--------------
+ src/database/sql/sql_test.go    | 79 +++++++++++++++++++++++++++++++++++--
+ 3 files changed, 147 insertions(+), 42 deletions(-)

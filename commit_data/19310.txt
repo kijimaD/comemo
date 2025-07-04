@@ -1,0 +1,13 @@
+commit cdabca325e29641e41706a6e89c00a8c86b4ce46
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Sat May 10 07:13:42 2014 +0900
+
+    bytes: fix typos
+    
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/94240045
+
+ src/pkg/bytes/bytes_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,25 @@
+commit 650abbc0b03c3000fa1a068466eb104bef88b54d
+Author: Manuel Sabin <msabin27@gmail.com>
+Date:   Wed Jun 19 12:49:32 2024 -0400
+
+    crypto/internal/cryptotest: add tests for the cipher.Block interface
+    
+    This CL creates tests for the cipher.Block interface in the cryptotest
+    package.  This set of tests is called from the tests of implementation
+    of the Block interface e.g. aes_test.go and des_test.go.
+    
+    Updates #25309
+    
+    Change-Id: Ieea3752147c8163fc73a849cfcb8fa011205d2c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594018
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/aes/aes_test.go              |  35 ++---
+ src/crypto/des/des_test.go              |  12 ++
+ src/crypto/internal/cryptotest/block.go | 254 ++++++++++++++++++++++++++++++++
+ 3 files changed, 275 insertions(+), 26 deletions(-)

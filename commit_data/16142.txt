@@ -1,0 +1,14 @@
+commit 26312afd7b7f92201afa5f10e1c54803f27dbcf5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Apr 9 12:48:04 2013 +1000
+
+    misc/dashboard/builder: add -race builder support
+    
+    If the build key contains -race, the builder will invoke to the race.{bat,bash} build command. This allows {darwin,linux,windows}-amd64 builders to do race and non race builds in sequence.
+    
+    R=adg, dvyukov, fullung
+    CC=golang-dev
+    https://golang.org/cl/8266046
+
+ misc/dashboard/builder/main.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

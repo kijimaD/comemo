@@ -1,0 +1,32 @@
+commit 17e97322fb0605206d8503a321bd24eca17afd34
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Jan 8 18:23:51 2020 -0500
+
+    runtime: overwrite asyncPreempt PC when injecting sigpanic on Windows
+    
+    On Windows, it might be possible that SuspendThread suspends a
+    thread right between when an exception happens and when the
+    exception handler runs. (This is my guess. I don't know the
+    implementation detail of Windows exceptions to be sure.) In this
+    case, we may inject a call to asyncPreempt before the exception
+    handler runs. The exception handler will inject a sigpanic call,
+    which will make the stack trace looks like
+    
+    sigpanic
+    asyncPreempt
+    actual panicking function
+    
+    i.e. it appears asyncPreempt panicked.
+    
+    Instead, just overwrite the PC, without pushing another frame.
+    
+    Fixes #35773.
+    
+    Change-Id: Ief4e964dcb7f45670b5f93c4dcf285cc1c737514
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213879
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/signal_windows.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

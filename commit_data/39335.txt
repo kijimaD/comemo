@@ -1,0 +1,26 @@
+commit b23ff2c8f98cb0c8d93397623243ce53b937ac72
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri May 31 10:46:00 2019 +0100
+
+    cmd/go: recommend -d when -m is used
+    
+    In #32038, it was decided to remove get's -m, since one former use case
+    is removed, and the other can be done via -d, as pointed by Russ.
+    
+    However, a user getting this short error might not realise that they can
+    switch to -d to skip building packages. Add a short mention to point
+    them in the right direction.
+    
+    It's important to note "packages", because -m was a flag that acted on
+    modules, while -d acts on packages. Simply replacing -m with -d might
+    not be enough in some cases because of that distinction.
+    
+    Change-Id: I0947b25c4223bdad3cd0e535848527da8db8a16d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179361
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modget/get.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

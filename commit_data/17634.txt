@@ -1,0 +1,14 @@
+commit c757020b555fa4f2233eea2d06d544373077d2c4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 17 15:22:42 2013 -0700
+
+    reflect: test method calls on pointers to pointers
+    
+    Gccgo got this wrong, and evidently nothing else tests it.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13709045
+
+ src/pkg/reflect/all_test.go | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)

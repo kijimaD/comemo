@@ -1,0 +1,15 @@
+commit 85b7419211d9d46cc7a73c3f8595f2a3e9ca15ff
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Nov 10 11:42:01 2011 -0800
+
+    runtime: fix semasleep() duration for openbsd
+    
+    The timespec passed to thrsleep() needs to be an absolute/realtime
+    value, so add the current nanotime to ns.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5374048
+
+ src/pkg/runtime/openbsd/thread.c | 1 +
+ 1 file changed, 1 insertion(+)

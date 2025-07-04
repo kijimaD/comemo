@@ -1,0 +1,12 @@
+commit 6766a293ef1719a4b15f804b177b86e631e1eee5
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Dec 29 17:52:33 2015 +0900
+
+    os: add missing copyright notice
+    
+    Change-Id: I496b701e2fcc944c764002643c7b0b2ce9e08806
+    Reviewed-on: https://go-review.googlesource.com/18182
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/os/os_windows_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

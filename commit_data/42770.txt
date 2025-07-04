@@ -1,0 +1,24 @@
+commit 46ca7b5ee2a8582736f1ddac27d8660e1104c345
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 15 08:08:37 2020 -0700
+
+    cmd/internal/obj: stop removing NOPs from instruction stream
+    
+    This has already been done for s390x, ppc64. This CL is for
+    all the other architectures.
+    
+    Fixes #40796
+    
+    Change-Id: Idd1816e057df63022d47e99fa06617811d8c8489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248684
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm/asm5.go   |  3 ++
+ src/cmd/internal/obj/arm/obj5.go   | 46 -------------------------------
+ src/cmd/internal/obj/arm64/asm7.go |  3 ++
+ src/cmd/internal/obj/arm64/obj7.go | 56 ++------------------------------------
+ src/cmd/internal/obj/mips/asm0.go  |  3 ++
+ src/cmd/internal/obj/mips/obj0.go  | 26 ++----------------
+ 6 files changed, 14 insertions(+), 123 deletions(-)

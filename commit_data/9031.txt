@@ -1,0 +1,27 @@
+commit c9152a8568fd49b2e7a5dd689005098487a6178d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 12 09:24:32 2011 -0700
+
+    runtime: eliminate contention during stack allocation
+    Standard-sized stack frames use plain malloc/free
+    instead of centralized lock-protected FixAlloc.
+    Benchmark results on HP Z600 (2 x Xeon E5620, 8 HT cores, 2.40GHz)
+    are as follows:
+    benchmark                                        old ns/op    new ns/op    delta
+    BenchmarkStackGrowth                               1045.00       949.00   -9.19%
+    BenchmarkStackGrowth-2                             3450.00       800.00  -76.81%
+    BenchmarkStackGrowth-4                             5076.00       513.00  -89.89%
+    BenchmarkStackGrowth-8                             7805.00       471.00  -93.97%
+    BenchmarkStackGrowth-16                           11751.00       321.00  -97.27%
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4657091
+
+ src/pkg/runtime/malloc.goc   | 50 ++++++++++++++++++--------------------------
+ src/pkg/runtime/malloc.h     |  1 -
+ src/pkg/runtime/proc.c       | 23 +++++++++++++-------
+ src/pkg/runtime/proc_test.go | 29 +++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h    |  2 ++
+ src/pkg/runtime/stack.h      |  1 +
+ 6 files changed, 67 insertions(+), 39 deletions(-)

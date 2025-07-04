@@ -1,0 +1,16 @@
+commit f7245c062668199fcb505de47d694ceaed512394
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 22 16:39:39 2014 -0500
+
+    runtime: fix typo in ARM code
+    
+    The typo was introduced by one of Dmitriy's CLs this morning.
+    The fix makes the ARM build compile again; it still won't pass
+    its tests, but one thing at a time.
+    
+    TBR=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/55770044
+
+ src/pkg/runtime/atomic_arm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

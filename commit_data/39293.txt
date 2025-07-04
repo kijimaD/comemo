@@ -1,0 +1,24 @@
+commit 98100c56da0da1503e7612921eff821409aa6cce
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri May 31 16:58:44 2019 +1000
+
+    cmd/cover: fix counting of blocks split by goto statements
+    
+    When adding coverage counters to a block, the block's statement list is
+    mutated. CL 77150 removed the part where the mutated list is assigned
+    back to its parent node; this was confusing ast.Walk, which would then
+    lose its place and stop walking the current block, dropping counters in
+    the process.
+    
+    This change has addCounters make a copy of the list before mutating
+    it, so that the original list doesn't change under Walk's feet.
+    
+    Fix #32200
+    
+    Change-Id: Ia3b67d8cee860ceb7caf8748cb7a80ff9c6276e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179581
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/cover/cover.go         | 3 +++
+ src/cmd/cover/testdata/test.go | 4 ++++
+ 2 files changed, 7 insertions(+)

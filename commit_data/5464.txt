@@ -1,0 +1,21 @@
+commit d7a6d22852168c94986ec1a4ca81efdfd8752970
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 10 10:32:08 2010 +1000
+
+    exp/draw fast path for glyph images.
+    
+    To draw.Draw a 32x32 image.Alpha 10000 times,
+    Before: 633ms with 10000 mallocs
+    After: 49ms with 0 mallocs
+    
+    These times are just blitting an image.Alpha, and do not include
+    rasterizing a glyph's vector contours to an image.Alpha.
+    
+    The "generic" test case in draw_test.go tests this fast path.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1122043
+
+ src/pkg/exp/draw/draw.go | 44 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 43 insertions(+), 1 deletion(-)

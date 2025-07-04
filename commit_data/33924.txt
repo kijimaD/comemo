@@ -1,0 +1,24 @@
+commit 5305bdd86bbe31d61c72e62f4e6729e3562ae178
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Sat Dec 30 01:27:28 2017 -0700
+
+    math: correct result for Pow(x, ±.5)
+    
+    Fixes #23224
+    
+    The previous Pow code had an optimization for
+    powers equal to ±0.5 that used Sqrt for
+    increased accuracy/speed.  This caused special
+    cases involving powers of ±0.5 to disagree with
+    the Pow spec.  This change places the Sqrt optimization
+    after all of the special case handling.
+    
+    Change-Id: I6bf757f6248256b29cc21725a84e27705d855369
+    Reviewed-on: https://go-review.googlesource.com/85660
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/all_test.go | 6 ++++++
+ src/math/pow.go      | 8 ++++----
+ 2 files changed, 10 insertions(+), 4 deletions(-)

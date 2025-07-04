@@ -1,0 +1,12 @@
+commit 98a5a20c5eccd5c36566363d77ad4c6790a31a61
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Sun Apr 11 10:19:32 2010 -0700
+
+    nacl: update documentation to match current coding style
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/822047
+
+ src/pkg/exp/nacl/srpc/client.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

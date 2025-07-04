@@ -1,0 +1,21 @@
+commit 94471f6324d25e2562c9125aeeeb2af6f2a51fd4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 27 13:30:09 2017 -0400
+
+    runtime: shorten tests in all.bash
+    
+    This cuts 23 seconds from all.bash on my MacBook Pro.
+    
+    Change-Id: Ibc4d7c01660b9e9ebd088dd55ba993f0d7ec6aa3
+    Reviewed-on: https://go-review.googlesource.com/73991
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go                         |  4 ++--
+ src/runtime/crash_test.go                    | 11 +++++++++++
+ src/runtime/map_test.go                      |  2 +-
+ src/runtime/memmove_test.go                  |  9 +++++++++
+ src/runtime/mfinal_test.go                   |  4 ++++
+ src/runtime/runtime_test.go                  |  3 +++
+ src/runtime/testdata/testprogcgo/callback.go |  6 +++++-
+ src/runtime/testdata/testprogcgo/cgo.go      |  6 +++++-
+ 8 files changed, 40 insertions(+), 5 deletions(-)

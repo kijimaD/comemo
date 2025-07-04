@@ -1,0 +1,22 @@
+commit 95aaca6708f719e03ab71f553981da2451142ec7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 18 14:40:47 2013 -0800
+
+    go/types: Pkg *Package field for all objects
+    
+    The field is nil for predeclared (universe)
+    objects and parameter/result variables.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7312093
+
+ src/pkg/go/types/check.go         | 12 ++++++------
+ src/pkg/go/types/check_test.go    |  1 +
+ src/pkg/go/types/gcimporter.go    | 32 ++++++++++++++++++--------------
+ src/pkg/go/types/objects.go       | 22 +++++++++++++++++-----
+ src/pkg/go/types/resolve.go       |  5 +++--
+ src/pkg/go/types/resolver_test.go |  6 +++---
+ src/pkg/go/types/stmt.go          |  2 +-
+ src/pkg/go/types/universe.go      | 17 +++++++++++++----
+ 8 files changed, 62 insertions(+), 35 deletions(-)

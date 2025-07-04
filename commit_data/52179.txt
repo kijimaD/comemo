@@ -1,0 +1,48 @@
+commit 14015be5bb4ef69c710ac5a4fad5a5d2a548e3fb
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Thu Mar 2 13:33:21 2023 +0800
+
+    cmd/compile: optimize multiplication on loong64
+    
+    Previously, multiplication on loong64 architecture was performed using
+    MULV and MULHVU instructions to calculate the low 64-bit and high
+    64-bit of a multiplication respectively. However, in most cases, only
+    the low 64-bits are needed. This commit enalbes only computating the low
+    64-bit result with the MULV instruction.
+    
+    Reduce the binary size slightly.
+    
+    file      before    after     Δ       %
+    addr2line 2833777   2833849   +72     +0.003%
+    asm       5267499   5266963   -536    -0.010%
+    buildid   2579706   2579402   -304    -0.012%
+    cgo       4798260   4797444   -816    -0.017%
+    compile   25247419  25175030  -72389  -0.287%
+    cover     4973091   4972027   -1064   -0.021%
+    dist      3631013   3565653   -65360  -1.800%
+    doc       4076036   4074004   -2032   -0.050%
+    fix       3496378   3496066   -312    -0.009%
+    link      6984102   6983214   -888    -0.013%
+    nm        2743820   2743516   -304    -0.011%
+    objdump   4277171   4277035   -136    -0.003%
+    pack      2379248   2378872   -376    -0.016%
+    pprof     14419090  14419874  +784    +0.005%
+    test2json 2684386   2684018   -368    -0.014%
+    trace     13640018  13631034  -8984   -0.066%
+    vet       7748918   7752630   +3712   +0.048%
+    go        15643850  15638098  -5752   -0.037%
+    total     127423782 127268729 -155053 -0.122%
+    
+    Change-Id: Ifce4a9a3ed1d03c170681e39cb6f3541db9882dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472775
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/loong64/ssa.go         |  29 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  27 +-
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   9 +-
+ src/cmd/compile/internal/ssa/opGen.go           |  44 ++-
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 392 +++++++++---------------
+ 5 files changed, 192 insertions(+), 309 deletions(-)

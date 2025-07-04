@@ -1,0 +1,13 @@
+commit cb897436eb50f4dd472c86182c9fbd38dc692ac4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 16 14:39:19 2009 -0700
+
+    fix nesting level for parameters
+    
+    R=rsc
+    DELTA=8  (4 added, 2 deleted, 2 changed)
+    OCL=30365
+    CL=30368
+
+ src/pkg/go/printer/printer.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit cd8f4cd2068964bfa12e10cd094d41ddd725af4f
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 4 10:22:49 2010 +1000
+
+    tutorial: regenerate HTML to pick up change to progs/file.go.
+    
+    Fixes #1075.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2104048
+
+ doc/go_tutorial.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

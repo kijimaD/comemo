@@ -1,0 +1,18 @@
+commit a68f9113a2d4043ef28d2e4395485ee187e5532d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:47:00 2022 -0500
+
+    cmd/pprof: use the test binary as 'pprof' instead of rebuilding it
+    
+    This not only reduces the latency of the test, but also respects
+    build flags like '-race' and '-cover' passed to the 'go test' command.
+    
+    Change-Id: Icdf256420c4dce2da7a187513b7dd08393b76146
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450708
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/pprof/pprof_test.go | 59 ++++++++++++++++++++-------------------------
+ 1 file changed, 26 insertions(+), 33 deletions(-)

@@ -1,0 +1,14 @@
+commit dc6a95e9798216b803145eb9e998304fda7126a4
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 1 14:44:21 2010 -0700
+
+    strconv.Uitob64: allow conversion of 64-bit binaries (buffer was too small).
+    panic if base is invalid.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1702050
+
+ src/pkg/strconv/itoa.go      | 5 ++++-
+ src/pkg/strconv/itoa_test.go | 2 ++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

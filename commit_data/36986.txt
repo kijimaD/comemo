@@ -1,0 +1,44 @@
+commit a1ca4893ff755d6b0b3bf4b026196d55251ea846
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Jan 27 11:55:34 2018 +0100
+
+    cmd/compile: add intrinsics for runtime/internal/math on 386 and amd64
+    
+    Add generic, 386 and amd64 specific ops and SSA rules for multiplication
+    with overflow and branching based on overflow flags. Use these to intrinsify
+    runtime/internal/math.MulUinptr.
+    
+    On amd64
+      mul, overflow := math.MulUintptr(a, b)
+      if overflow {
+    is lowered to two instructions:
+      MULQ SI
+      JO 0x10ee35c
+    
+    No codegen tests as codegen can not currently test unexported internal runtime
+    functions.
+    
+    amd64:
+    name              old time/op  new time/op  delta
+    MulUintptr/small  1.16ns ± 5%  0.88ns ± 6%  -24.36%  (p=0.000 n=19+20)
+    MulUintptr/large  10.7ns ± 1%   1.1ns ± 1%  -89.28%  (p=0.000 n=17+19)
+    
+    Change-Id: If60739a86f820e5044d677276c21df90d3c7a86a
+    Reviewed-on: https://go-review.googlesource.com/c/141820
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go          |  13 ++-
+ src/cmd/compile/internal/gc/ssa.go             |   8 ++
+ src/cmd/compile/internal/ssa/gen/386.rules     |   5 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |   5 +
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |   6 +
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   6 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   3 +
+ src/cmd/compile/internal/ssa/opGen.go          | 101 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewrite386.go     | 123 ++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 150 +++++++++++++++++++++++++
+ src/cmd/compile/internal/x86/ssa.go            |  13 ++-
+ src/runtime/internal/math/math_test.go         |  28 +++++
+ 12 files changed, 459 insertions(+), 2 deletions(-)

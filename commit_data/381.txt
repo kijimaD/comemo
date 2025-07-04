@@ -1,0 +1,13 @@
+commit d88c759e87a043807ddd1088baa10c8299386298
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 17 14:53:13 2008 -0700
+
+    - moved package code into globals.go, adjusted deps
+    
+    SVN=127887
+
+ usr/gri/gosrc/compilation.go | 10 +++++-----
+ usr/gri/gosrc/export.go      |  7 +++----
+ usr/gri/gosrc/globals.go     | 24 +++++++++++++++++++++---
+ usr/gri/gosrc/package.go     | 24 ------------------------
+ 4 files changed, 29 insertions(+), 36 deletions(-)

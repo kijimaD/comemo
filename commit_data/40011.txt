@@ -1,0 +1,21 @@
+commit 95cbcc5c1c5db05e659b769784e57db777c4cd6a
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Fri Sep 6 18:04:51 2019 +0300
+
+    text/template: support all comparable types in eq
+    
+    Extends the built-in eq function to support all Go
+    comparable types.
+    
+    Fixes #33740
+    
+    Change-Id: I522310e313e251c4dc6a013d33d7c2034fe2ec8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193837
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/doc.go       | 14 ++++++--------
+ src/text/template/exec_test.go | 36 +++++++++++++++++++++++++++++-------
+ src/text/template/funcs.go     | 22 ++++++++++++++--------
+ 3 files changed, 49 insertions(+), 23 deletions(-)

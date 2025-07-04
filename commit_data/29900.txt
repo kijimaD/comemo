@@ -1,0 +1,15 @@
+commit 2815045a50862276082048714337f95c46e98605
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 4 21:23:00 2017 +0000
+
+    net/http/httputil: make DumpRequest and DumpRequestOut recognize http.NoBody
+    
+    Fixes #18506
+    
+    Change-Id: I6b0b107296311178938609e878e1ef47a30a463f
+    Reviewed-on: https://go-review.googlesource.com/34814
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httputil/dump.go      | 13 +++++++++----
+ src/net/http/httputil/dump_test.go | 12 ++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

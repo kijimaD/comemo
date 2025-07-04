@@ -1,0 +1,22 @@
+commit 734d4637c5925826904ffe7406cd411568928cb4
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Mar 6 00:07:16 2014 +1100
+
+    net: fix non-blocking connect handling on dragonfly
+    
+    Performing multiple connect system calls on a non-blocking socket
+    under DragonFly BSD does not necessarily result in errors from earlier
+    connect calls being returned, particularly if we are connecting to
+    localhost. Instead, once netpoll tells us that the socket is ready,
+    get the SO_ERROR socket option to see if the connection succeeded
+    or failed.
+    
+    Fixes #7474
+    
+    LGTM=mikioh.mikioh
+    R=mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/69340044
+
+ src/pkg/net/fd_unix.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

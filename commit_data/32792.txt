@@ -1,0 +1,21 @@
+commit 99c757adb591b5fe3d94673cf7bd8b5fab9e5fce
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 30 11:12:52 2017 -0400
+
+    cmd/compile: use a counter to track whether writebarrier rewriting is done
+    
+    Use a counter, instead of a loop, to see whether there are more
+    writebarrier ops in the current block that need to be rewritten.
+    
+    No visible change in normal compiler speed benchmarks.
+    
+    Passes toolstash -cmp on std cmd.
+    
+    Fixes #20416.
+    
+    Change-Id: Ifbbde23611cd668c35b8a4a3e9a92726bfe19956
+    Reviewed-on: https://go-review.googlesource.com/60310
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

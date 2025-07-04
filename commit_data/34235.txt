@@ -1,0 +1,17 @@
+commit ba99433d333a2babbbfa63ead19d43282a3243f4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Feb 16 10:26:00 2018 +0100
+
+    runtime: only run TestArenaCollision if the target can exec
+    
+    Replace the test for nacl with testenv.MustHaveExec to also skip
+    test on iOS.
+    
+    Change-Id: I6822714f6d71533d1b18bbb7894f6ad339d8aea1
+    Reviewed-on: https://go-review.googlesource.com/94755
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

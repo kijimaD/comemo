@@ -1,0 +1,30 @@
+commit 1d5e14632edc2ba76156c8a771a2a1a5c5387326
+Author: Victor Michel <victor@optimyze.cloud>
+Date:   Sun Jan 24 05:53:36 2021 +0000
+
+    os: further document limitations around naked file descriptors
+    
+    NewFile requires the file descriptor to be either closed
+    through the returned File instance, or to stay valid at least
+    until the finalizer runs during garbage collection.
+    
+    These requirements are easily violated when file descriptors
+    are closed via unix.Close, or when the *File returned by
+    NewFile is garbage collected while the underlying file descriptor is
+    still in use.
+    
+    This commit adds further documentation for NewFile and Fd, making it
+    explicit that using naked file descriptors is subject to constraints
+    due to garbage collection of File objects.
+    
+    Fixes #43863
+    
+    Change-Id: I49ea1f0054eb2d2a72b616450c8e83476f4d07fb
+    GitHub-Last-Rev: 180d0130ae9009456914fb265b4bafa0e599de0e
+    GitHub-Pull-Request: golang/go#43867
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286032
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/file_unix.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

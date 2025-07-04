@@ -1,0 +1,44 @@
+commit d87878c62b2db318a12e5bd2126a82c117961156
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Dec 9 19:21:48 2024 +0000
+
+    runtime: make special offset a uintptr
+    
+    Currently specials try to save on space by only encoding the offset from
+    the base of the span in a uint16. This worked fine up until Go 1.24.
+    - Most specials have an offset of 0 (mem profile, finalizers, etc.)
+    - Cleanups do not care about the offset at all, so even if it's wrong,
+      it's OK.
+    - Weak pointers *do* care, but the unique package always makes a new
+      allocation, so the weak pointer handle offset it makes is always zero.
+    
+    With Go 1.24 and general weak pointers now available, nothing is
+    stopping someone from just creating a weak pointer that is >64 KiB
+    offset from the start of an object, and this weak pointer must be
+    distinct from others.
+    
+    Fix this problem by just increasing the size of a special and making the
+    offset a uintptr, to capture all possible offsets. Since we're in the
+    freeze, this is the safest thing to do. Specials aren't so common that I
+    expect a substantial memory increase from this change. In a future
+    release (or if there is a problem) we can almost certainly pack the
+    special's kind and offset together. There was already a bunch of wasted
+    space due to padding, so this would bring us back to the same memory
+    footprint before this change.
+    
+    Also, add tests for equality of basic weak interior pointers. This
+    works, but we really should've had tests for it.
+    
+    Fixes #70739.
+    
+    Change-Id: Ib49a7f8f0f1ec3db4571a7afb0f4d94c8a93aa40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634598
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mheap.go     |  4 ++--
+ src/runtime/pinner.go    |  2 +-
+ src/weak/pointer_test.go | 17 +++++++++++++++++
+ 3 files changed, 20 insertions(+), 3 deletions(-)

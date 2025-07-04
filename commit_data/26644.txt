@@ -1,0 +1,22 @@
+commit a3537522d67a1cc01f0e533acb8384341e80f5e0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 31 05:49:23 2016 -0700
+
+    net/http: update bundled http2
+    
+    Updates x/net/http2 to git rev 31df19d6 for changes since Go 1.6.
+    
+    The main change was https://go-review.googlesource.com/19726 (move
+    merging of HEADERS and CONTINUATION into Framer), but there were a few
+    garbage reduction changes too.
+    
+    Change-Id: I882443d20749f8638f637a2835efe92538c95d31
+    Reviewed-on: https://go-review.googlesource.com/21365
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/h2_bundle.go                         | 972 ++++++++++++----------
+ src/vendor/golang.org/x/net/http2/hpack/encode.go |   2 +-
+ src/vendor/golang.org/x/net/http2/hpack/hpack.go  |  15 +-
+ 3 files changed, 538 insertions(+), 451 deletions(-)

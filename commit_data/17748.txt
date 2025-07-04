@@ -1,0 +1,16 @@
+commit ef4e12a4ba5377c8462b73af73043e0f78411e47
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 4 13:12:50 2013 -0700
+
+    reflect: test using a MakeFunc value in a couple of different ways
+    
+    The gccgo implementation mishandled calling Interface on a
+    value created by MakeFunc.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14401043
+
+ src/pkg/reflect/all_test.go | 18 ++++++++++++++++++
+ src/pkg/reflect/makefunc.go |  2 +-
+ 2 files changed, 19 insertions(+), 1 deletion(-)

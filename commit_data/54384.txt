@@ -1,0 +1,27 @@
+commit dc0548f92fa23fe61dbf165e29bcbad09d7fb499
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 18 11:45:42 2023 -0400
+
+    cmd/compile/internal/inline: add call site flag generation
+    
+    Add code to detect call sites that are nested in loops, call sites
+    that are on an unconditional path to panic/exit, and call sites within
+    "init" functions. The panic-path processing reuses some of the
+    logic+state already present for the function flag version of "calls
+    panic/exit".
+    
+    Updates #61502.
+    
+    Change-Id: I1d728e0763282d3616a9cbc0a07c5cda115660f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511565
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go |   2 +-
+ .../inline/inlheur/analyze_func_callsites.go       | 137 ++++++++++++++++++--
+ .../internal/inline/inlheur/analyze_func_flags.go  |  16 ++-
+ .../internal/inline/inlheur/funcprops_test.go      |   4 +-
+ .../inline/inlheur/testdata/props/README.txt       |   6 +-
+ .../inline/inlheur/testdata/props/calls.go         | 142 +++++++++++++++++++++
+ .../inline/inlheur/testdata/props/funcflags.go     |  27 ++--
+ 7 files changed, 305 insertions(+), 29 deletions(-)

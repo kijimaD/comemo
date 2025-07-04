@@ -1,0 +1,15 @@
+commit 6044dbdf1b627fc1f30422add87216137b709bae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 3 16:06:24 2012 -0700
+
+    reflect: reflect.Zero results are neither addressable nor settable
+    
+    This could be deduced from "The Laws of Reflection" but it seems
+    worthwhile highlighting it.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6350073
+
+ src/pkg/reflect/value.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

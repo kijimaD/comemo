@@ -1,0 +1,14 @@
+commit d1e726c58325e9c9f40162a436decab40d77656a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 5 10:34:22 2012 +1100
+
+    doc: change menu, tweak front page
+    
+    R=golang-dev, kyle, r
+    CC=golang-dev
+    https://golang.org/cl/5729052
+
+ doc/root.html        | 44 ++++++++++++++++++++++----------------------
+ doc/style.css        | 14 +++++++-------
+ lib/godoc/godoc.html |  9 +++++----
+ 3 files changed, 34 insertions(+), 33 deletions(-)

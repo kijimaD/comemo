@@ -1,0 +1,26 @@
+commit d2e0587f77e1cbbd5c7966242c85edba83b37157
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri May 13 23:52:48 2022 +0800
+
+    cmd/compile: derive relation between x+delta and x in prove
+    
+    If x+delta cannot overflow/underflow, we can derive:
+      x+delta < x if delta<0 (this CL included)
+      x+delta > x if delta>0 (this CL not included due to
+      a recursive stack overflow)
+    
+    Remove 95 bounds checks during ./make.bat
+    
+    Fixes #51622
+    
+    Change-Id: I60d9bd84c5d7e81bbf808508afd09be596644f09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406175
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 20 ++++++++++++++------
+ test/prove.go                         | 15 ++++++++++++---
+ 2 files changed, 26 insertions(+), 9 deletions(-)

@@ -1,0 +1,25 @@
+commit c2e2296dd7dea68de4a45d8dc82b1920130eb74a
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Nov 2 21:20:24 2019 +0100
+
+    syscall/js: handle interleaved functions correctly
+    
+    Because of concurrent goroutines it is possible for multiple event
+    handlers to return at the same time. This was not properly supported
+    and caused the wrong goroutine to continue, which in turn caused
+    memory corruption.
+    
+    This change adds a stack of events so it is always clear which is the
+    innermost event that needs to return next.
+    
+    Fixes #35256
+    
+    Change-Id: Ia527da3b91673bc14e84174cdc407f5c9d5a3d09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204662
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/lock_js.go    | 63 ++++++++++++++++++++++++++---------------------
+ src/syscall/js/js_test.go | 19 ++++++++++++++
+ 2 files changed, 54 insertions(+), 28 deletions(-)

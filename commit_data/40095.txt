@@ -1,0 +1,20 @@
+commit 09c9bced825593aedfd79af5c35916392f43113c
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Sep 30 11:24:19 2019 +0200
+
+    cmd/internal/obj/ppc64: Fix ADUFFxxxx generation on aix/ppc64
+    
+    ADUFFCOPY and ADUFFZERO instructions weren't handled by rewriteToUseTOC.
+    These instructions are considered as a simple branch except with -dynlink
+    where they become an indirect call.
+    
+    Fixes #34604
+    
+    Change-Id: I16ca6a152164966fb9cbf792219a8a39aad2b53b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197842
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/ppc64/obj9.go | 62 ++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 59 insertions(+), 3 deletions(-)

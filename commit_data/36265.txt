@@ -1,0 +1,19 @@
+commit 6502c112863bda754ca3a52ead739f7d6c259117
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Aug 16 16:55:32 2018 +0200
+
+    cmd/go: fix typos in go help mod subpages
+    
+    mkalldocs.sh was run and it also picked up a doc change introduced in
+    CL 128935, where it wasn't run.
+    
+    Fixes #27030
+    
+    Change-Id: Ie13fdb71cd7d5481366a02eb711ca48f094026fd
+    Reviewed-on: https://go-review.googlesource.com/129576
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go                  | 7 ++++---
+ src/cmd/go/internal/list/list.go       | 2 +-
+ src/cmd/go/internal/modcmd/download.go | 2 +-
+ 3 files changed, 6 insertions(+), 5 deletions(-)

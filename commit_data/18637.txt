@@ -1,0 +1,21 @@
+commit b05f3de56f018370ce347c2e565ce16cd724f7c3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 25 23:02:19 2014 +0900
+
+    syscall: add mmap test
+    
+    This CL adds a test that calls Mmap and Munmap through Syscall9
+    as the canary that detects assembly fragment breakage. For now
+    there is no package test that uses Syscall9 in the standard
+    library across all Unix-like systems.
+    
+    Note that the package runtime owns its assembly fragments, so
+    this canary never works for runtime breakage.
+    
+    LGTM=iant, bradfitz
+    R=iant, minux.ma, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/61520049
+
+ src/pkg/syscall/syscall_unix_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

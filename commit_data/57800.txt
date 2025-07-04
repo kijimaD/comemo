@@ -1,0 +1,74 @@
+commit 579eb79f62d92db872d730f5fe954ca2b7dce8ae
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 28 17:23:40 2024 +0000
+
+    all: skip and fix various tests with -asan and -msan
+    
+    First, skip all the allocation count tests.
+    
+    In some cases this aligns with existing skips for -race, but in others
+    we've got new issues. These are debug modes, so some performance loss is
+    expected, and this is clearly no worse than today where the tests fail.
+    
+    Next, skip internal linking and static linking tests for msan and asan.
+    
+    With asan we get an explicit failure that neither are supported by the C
+    and/or Go compilers. With msan, we only get the Go compiler telling us
+    internal linking is unavailable. With static linking, we segfault
+    instead. Filed #70080 to track that.
+    
+    Next, skip some malloc tests with asan that don't quite work because of
+    the redzone.
+    
+    This is because of some sizeclass assumptions that get broken with the
+    redzone and the fact that the tiny allocator is effectively disabled
+    (again, due to the redzone).
+    
+    Next, skip some runtime/pprof tests with asan, because of extra
+    allocations.
+    
+    Next, skip some malloc tests with asan that also fail because of extra
+    allocations.
+    
+    Next, fix up memstats accounting for arenas when asan is enabled. There
+    is a bug where more is added to the stats than subtracted. This also
+    simplifies the accounting a little.
+    
+    Next, skip race tests with msan or asan enabled; they're mutually
+    incompatible.
+    
+    Fixes #70054.
+    Fixes #64256.
+    Fixes #64257.
+    For #70079.
+    For #70080.
+    
+    Change-Id: I99c02a0b9d621e44f1f918b307aa4a4944c3ec60
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-asan-clang15,gotip-linux-amd64-msan-clang15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622855
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+
+ src/bufio/bufio_test.go                          |  4 ++++
+ src/cmd/cgo/internal/test/test.go                |  4 ++++
+ src/cmd/compile/internal/test/issue53888_test.go |  2 +-
+ src/cmd/dist/test.go                             | 21 +++++++++++++++++----
+ src/crypto/rand/rand_test.go                     |  6 ++++--
+ src/database/sql/convert_test.go                 |  4 ++++
+ src/encoding/binary/binary_test.go               |  7 +++++++
+ src/log/slog/attr_test.go                        |  4 ++++
+ src/log/slog/logger_test.go                      |  6 ++++--
+ src/log/slog/value_test.go                       |  5 +++++
+ src/net/netip/netip_test.go                      |  5 +++++
+ src/net/udpsock_test.go                          |  4 ++++
+ src/reflect/all_test.go                          | 15 ++++++++++++++-
+ src/runtime/arena.go                             | 10 ++++++----
+ src/runtime/debug_test.go                        | 10 ++++++++++
+ src/runtime/gc_test.go                           |  7 +++++++
+ src/runtime/malloc_test.go                       |  7 +++++++
+ src/runtime/mfinal_test.go                       |  7 +++++++
+ src/runtime/pprof/mprof_test.go                  | 23 ++++++++++++++---------
+ src/runtime/pprof/protomem_test.go               |  7 +++++++
+ src/slices/slices_test.go                        |  8 +++++---
+ src/strings/builder_test.go                      | 11 +++++++++++
+ 22 files changed, 151 insertions(+), 26 deletions(-)

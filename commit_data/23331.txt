@@ -1,0 +1,16 @@
+commit ab89378cb73003058d1f9707535610af468752fc
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jun 3 16:04:01 2015 -0700
+
+    encoding/csv: skip blank lines when FieldsPerRecord >= 0
+    
+    Fixes #11050.
+    
+    Change-Id: Ie5d16960a1f829af947d82a63fe414924cd02ff6
+    Reviewed-on: https://go-review.googlesource.com/10666
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/csv/reader.go      | 11 +++++------
+ src/encoding/csv/reader_test.go |  9 +++++++++
+ 2 files changed, 14 insertions(+), 6 deletions(-)

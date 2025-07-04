@@ -1,0 +1,24 @@
+commit 51c8d969bd8a9992002a11373f91564c326e6d77
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Mon Sep 9 09:00:53 2019 +0300
+
+    src: gofmt -s
+    
+    Change-Id: I56d7eeaf777ac30886ee77428ca1ac72b77fbf7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193849
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/objfile/goobj.go        |  2 +-
+ src/cmd/internal/objfile/objfile.go      |  2 +-
+ src/crypto/x509/name_constraints_test.go |  4 +-
+ src/debug/dwarf/type_test.go             |  2 +-
+ src/encoding/csv/fuzz.go                 | 14 ++---
+ src/encoding/gob/codec_test.go           |  2 +-
+ src/encoding/json/encode_test.go         |  4 +-
+ src/go/build/deps_test.go                | 90 ++++++++++++++++----------------
+ src/internal/fmtsort/sort_test.go        |  2 +-
+ src/os/os_windows_test.go                |  2 +-
+ src/runtime/map_test.go                  | 10 ++--
+ 11 files changed, 67 insertions(+), 67 deletions(-)

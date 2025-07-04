@@ -1,0 +1,21 @@
+commit 70b2da98ca097598326d5d01406b287bcd5eb6ee
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 29 21:21:36 2014 -0700
+
+    runtime: initialize traceback variables earlier
+    
+    Our traceback code needs to know the PC of several special
+    functions, including goexit, mcall, etc.  Make sure that
+    these PCs are initialized before any traceback occurs.
+    
+    Fixes #8766
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc, khr, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/145570043
+
+ src/runtime/proc.c       |  1 +
+ src/runtime/runtime.h    |  1 +
+ src/runtime/traceback.go | 39 +++++++++++++++++++++++++++++----------
+ 3 files changed, 31 insertions(+), 10 deletions(-)

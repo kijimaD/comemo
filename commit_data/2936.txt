@@ -1,0 +1,15 @@
+commit 0dbd8971a28eeefb3fb14554c0d26ccd9045490d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 10 17:44:46 2009 -0700
+
+    - use in-place bignum operations where available
+    - runs approx. 30% faster
+    
+    R=r
+    DELTA=24  (10 added, 2 deleted, 12 changed)
+    OCL=32984
+    CL=33005
+
+ test/bench/pidigits.go | 29 +++++++++++++++--------------
+ test/bench/timing.log  |  7 +++++++
+ 2 files changed, 22 insertions(+), 14 deletions(-)

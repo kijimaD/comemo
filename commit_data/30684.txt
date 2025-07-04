@@ -1,0 +1,18 @@
+commit f37ee0f33ba461dbaa58645c3ebdf148a43911a5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 16 10:43:54 2017 -0700
+
+    cmd/compile/internal/syntax: track column position at function end
+    
+    Fixes #19576.
+    
+    Change-Id: I11034fb08e989f6eb7d54bde873b92804223598d
+    Reviewed-on: https://go-review.googlesource.com/38291
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go      |  6 +++---
+ src/cmd/compile/internal/syntax/nodes.go  | 24 +++++++++++-----------
+ src/cmd/compile/internal/syntax/parser.go | 34 +++++++++++++++----------------
+ 3 files changed, 31 insertions(+), 33 deletions(-)

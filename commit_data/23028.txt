@@ -1,0 +1,13 @@
+commit 37eb1d1964049df2feb847ccef501f2807fdf618
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 15 09:39:16 2015 +0900
+
+    cmd/doc: fix build
+    
+    Change-Id: Ic8437a1d2aeb424d6d5ce9e608c1293bba4c7bbc
+    Reviewed-on: https://go-review.googlesource.com/10093
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/doc/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

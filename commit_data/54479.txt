@@ -1,0 +1,21 @@
+commit eac1f3e46115b42e564b4160ae38fec9872e68d0
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Aug 1 12:04:12 2023 -0400
+
+    cmd/compile/internal/inl: use func-level "never returns" flag
+    
+    Make use of the "never returns" flag bit in ir.Func when computing
+    function properties: update the bit when we're done looking at a given
+    function, and read the bit from imported functions during flag
+    analysis. The advantage of using the ir.Func flag is that it will get
+    set (and will propagate through to export data) for all functions,
+    nost just those that are inline candidates.
+    
+    Change-Id: I7002364b2c4ff5424ed70748fad87fad1a9e4786
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518257
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze.go            | 1 +
+ src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

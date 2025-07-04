@@ -1,0 +1,16 @@
+commit c3aeeef584abb98e9d442193ab37bc89a5f5300b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 29 11:38:03 2017 +0100
+
+    syscall: add missing err check in test
+    
+    Follow CL 75810 which did the same for x/sys/unix.
+    
+    Change-Id: I6314a97989631d589369c7b6001d1523ec2cc242
+    Reviewed-on: https://go-review.googlesource.com/80555
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_unix_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

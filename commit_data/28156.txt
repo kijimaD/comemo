@@ -1,0 +1,15 @@
+commit 69e7e8a696825fa818b70587563ac68e52f8b1a1
+Author: Edward Muller <edwardam@interlix.com>
+Date:   Tue Aug 30 19:14:46 2016 -0700
+
+    doc: update go tour installation instructions
+    
+    Fixes #16933
+    
+    Change-Id: I2054abd28bc555b018309934774fc4ecc44826b3
+    Reviewed-on: https://go-review.googlesource.com/28217
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/docs.html | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

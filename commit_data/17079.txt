@@ -1,0 +1,25 @@
+commit d5e97ea2f51f145e041a86db9eb7bfbc3f1adb75
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 7 13:49:37 2013 -0700
+
+    build: change how cmd/api is run in run.bash and run.bat
+    
+    In prep for Robert's forthcoming cmd/api rewrite which
+    depends on the go.tools subrepo, we'll need to be more
+    careful about how and when we run cmd/api.
+    
+    Rather than implement this policy in both run.bash and
+    run.bat, this change moves the policy and mechanism into
+    cmd/api/run.go, which will then evolve.
+    
+    The plan is in a TODO in run.go.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/12482044
+
+ misc/dist/bindist.go |  1 -
+ src/cmd/api/run.go   | 65 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/run.bash         |  9 +++-----
+ src/run.bat          |  2 +-
+ 4 files changed, 69 insertions(+), 8 deletions(-)

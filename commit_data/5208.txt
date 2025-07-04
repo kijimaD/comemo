@@ -1,0 +1,12 @@
+commit d4a1619733e4a5b3678f9fdc316be0860bc5e7fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 1 12:48:34 2010 -0700
+
+    go spec: correct clarification of type declaration
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/855043
+
+ doc/go_spec.html | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

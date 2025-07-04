@@ -1,0 +1,16 @@
+commit 09dd2b004aadb95887c4d6047ecb1a675a569ad2
+Author: surechen <surechen17@gmail.com>
+Date:   Thu Sep 17 09:02:59 2020 +0800
+
+    cmd/compile: add type check for ssa genericOps
+    
+    Change-Id: I2233a6a157ec8feffaefd6a8ee65b1c38778c1cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255238
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/ssa/check.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

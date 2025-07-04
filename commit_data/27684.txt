@@ -1,0 +1,18 @@
+commit 68697a3e82e19fef04c6af4a02340a1aa6e3bcf2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 14 15:32:39 2016 -0700
+
+    net: don't run TestLookupDotsWithLocalSource in short mode
+    
+    Do run it on the builders, though.
+    
+    Fixes #15881.
+    
+    Change-Id: Ie42204d553cb18547ffd6441afc261717bbd9205
+    Reviewed-on: https://go-review.googlesource.com/24111
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/lookup_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

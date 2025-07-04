@@ -1,0 +1,23 @@
+commit 8205d83fe29e315eeb8f64f095a4d2594c9cd1c6
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 1 10:27:18 2022 -0400
+
+    cmd/link: improved host archive debug trace output
+    
+    When ctxt.Debugvlog > 1, produce additional trace output to describe
+    which object files are being pulled out of host archive libraries and
+    why they were pulled (e.g. which symbol had a reference to something
+    in a library). Intended to make it easier to debug problems with cgo
+    internal linking.
+    
+    Change-Id: Icd64aff244b9145162a00cb51642ef32f26adfba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451736
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/ar.go         | 11 +++++++----
+ src/cmd/link/internal/ld/lib.go        | 16 +++++++++++++---
+ src/cmd/link/internal/loader/loader.go | 20 ++++++++++++--------
+ 3 files changed, 32 insertions(+), 15 deletions(-)

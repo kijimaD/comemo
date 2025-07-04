@@ -1,0 +1,47 @@
+commit 0793c81009569bec37e0a1d32bdc98a11ef6988f
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed May 8 15:44:49 2019 -0400
+
+    cmd/link: fix link time regression in object file reading
+    
+    In CL 173938, the linker's object file reader was switched over to
+    selectively create strings backed with read-only mmap'd memory.
+    In the process a call to r.rd.Offset() was added to readSymName(),
+    which greatly increased the number of system calls (Offset does a
+    seek system call).
+    
+    This patch changes the object file reader so that all reads are done
+    directly from the mmap'd data if it is present, and adds logic to keep
+    track of the offset within the rodata consumed so far. Doing this gets
+    rid of the calls to r.rd.Offset() and the corresponding seek system
+    calls.
+    
+    Also as part of this change, hoist the calls to objabi.PathToPrefix
+    up into the initial setup code for object reading, and store the
+    result in the reader (since objabi.PathToPrefix was also coming up
+    as hot in the profile).
+    
+    Numbers for this change from compilebench:
+    
+    benchmark                 old ns/op       new ns/op       delta
+    BenchmarkTemplate         172053975       170357597       -0.99%
+    BenchmarkUnicode          64564850        64333653        -0.36%
+    BenchmarkGoTypes          627931042       628043673       +0.02%
+    BenchmarkCompiler         2982468893      2924575043      -1.94%
+    BenchmarkSSA              9701681721      9799342557      +1.01%
+    BenchmarkFlate            106847240       107509414       +0.62%
+    BenchmarkGoParser         132082319       130734905       -1.02%
+    BenchmarkReflect          386810586       383036621       -0.98%
+    BenchmarkTar              154360072       152670594       -1.09%
+    BenchmarkXML              217725693       216858727       -0.40%
+    BenchmarkLinkCompiler     908813802       734363234       -19.20%
+    BenchmarkStdCmd           32378532486     31222542974     -3.57%
+    
+    Fixes #31898.
+    
+    Change-Id: Ibf253a52ce9213325f42b1c2b20d0410f5c88c3b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176039
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/objfile/objfile.go | 68 +++++++++++++++++++++-----------
+ 1 file changed, 46 insertions(+), 22 deletions(-)

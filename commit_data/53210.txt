@@ -1,0 +1,27 @@
+commit d9f7efed7df66494ad5137b108a37ee2e0853d52
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 22 11:17:31 2023 -0400
+
+    cmd/go: download newer toolchain if needed during go install m@v
+    
+    go install m@v and go run m@v are the only commands
+    that ignore the local go.mod. As such they need to use a
+    different signal to find the Go version, namely the m@v go.mod.
+    Because there is no way to predict that Go version (no equivalent
+    of "go version" for interrogating the local go.mod), if we do switch
+    toolchains we always print about it.
+    
+    For #57001.
+    
+    Change-Id: I981a0b8fa61992b353589355ba72a3b9d55914e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497079
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/gotoolchain.go                          | 141 ++++++++++++++++++++-
+ src/cmd/go/testdata/mod/rsc.io_fortune_v0.0.1.txt  |  17 +++
+ src/cmd/go/testdata/script/gotoolchain.txt         |  22 ++++
+ src/cmd/go/testdata/script/install_dep_version.txt |   2 +
+ 4 files changed, 176 insertions(+), 6 deletions(-)

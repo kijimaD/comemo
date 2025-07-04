@@ -1,0 +1,17 @@
+commit f68c23e2bba617d8f9bbe1cb53a920aeaf8901ad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 3 21:15:15 2013 -0700
+
+    cmd/cgo: don't let #cgo directives mess up line numbering
+    
+    Fixes #5272.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13498046
+
+ misc/cgo/errors/err1.go   | 14 ++++++++++++++
+ misc/cgo/errors/test.bash | 19 +++++++++++++++++++
+ src/cmd/cgo/gcc.go        |  2 ++
+ src/run.bash              |  6 ++++++
+ 4 files changed, 41 insertions(+)

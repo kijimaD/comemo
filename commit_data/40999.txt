@@ -1,0 +1,17 @@
+commit a5bfd9da1d1b24f326399b6b75558ded14514f23
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 17 09:00:57 2019 -0500
+
+    go/build: rename WorkingDir to Dir
+    
+    Fixes #36168
+    
+    Change-Id: If2b7368671e83657a3a74dd030e66e7c68bf2361
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ api/go1.14.txt             |  2 +-
+ src/go/build/build.go      | 20 ++++++++++----------
+ src/go/build/build_test.go |  6 +++---
+ 3 files changed, 14 insertions(+), 14 deletions(-)

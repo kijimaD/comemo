@@ -1,0 +1,22 @@
+commit fa7d11a0e9c0ed469111ba5fdd86f7462a48ef49
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Oct 16 14:54:42 2021 -0700
+
+    go/types, types2: add test case for missing return
+    
+    The respective issue was fixed in types2 with CL 356189;
+    and the problem didn't exist in go/types. This CL simply
+    adds the test case to the type checkers as well.
+    
+    For #49003.
+    
+    Change-Id: Ib50ee8bb0ad21f2916f2b79d4f77593302899a3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356411
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ .../compile/internal/types2/testdata/fixedbugs/issue49003.go   | 10 ++++++++++
+ src/go/types/testdata/fixedbugs/issue49003.go                  | 10 ++++++++++
+ 2 files changed, 20 insertions(+)

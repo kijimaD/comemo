@@ -1,0 +1,12 @@
+commit b4d32d832f046fea973f508d5a6bbeb4bba4723f
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 14 22:18:29 2012 -0200
+
+    lib/godoc: fix subdirectories html reference
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5677043
+
+ lib/godoc/package.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 9aadbf5755dc8e3c3b0a224f513c92b804a1a3a7
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Tue Nov 27 16:16:43 2018 +0800
+
+    net/http: prevent transport sends two "Connection: close" headers
+    
+    There are three functions that do Connection header write:
+    1. transport.go/ persistConn.roundTrip
+    2. transfer.go/ transferWriter.writeHeader
+    3. request.go/ Request.write
+    
+    The root cause is roundTrip didn't lookup into request.Close and
+    transferWriter
+    didn't take care of extraHeaders.
+    
+    Fixes #28886
+    
+    Change-Id: I1d131019c7cd42eb1bcc972c631b7df7511c1f39
+    Reviewed-on: https://go-review.googlesource.com/c/150722
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go        |  3 +++
+ src/net/http/transport.go      |  2 +-
+ src/net/http/transport_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 58 insertions(+), 1 deletion(-)

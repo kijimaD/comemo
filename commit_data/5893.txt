@@ -1,0 +1,16 @@
+commit fc5a835b2e628c4167ac8e1fcdc25839fdade136
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jul 27 15:02:44 2010 +1000
+
+    dashboard: more aggressive caching for project/package pages
+    
+    Plus automatic package<->project association script.
+    (This is just a helper script for now. I intend to fully automate
+    the associations further down the track.)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1715054
+
+ misc/dashboard/godashboard/package.py | 176 ++++++++++++++++++++++++----------
+ 1 file changed, 124 insertions(+), 52 deletions(-)

@@ -1,0 +1,11 @@
+commit 42ec02be36d920f899516fdb5fb0ff27f3c1208f
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Dec 1 16:45:21 2009 -0800
+
+    Add 'copy' as a Go builtin function for Vim syntax highlighter spec.
+    
+    R=rsc
+    https://golang.org/cl/163049
+
+ misc/vim/go.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

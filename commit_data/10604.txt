@@ -1,0 +1,14 @@
+commit dbaeb0cf13b7e2e0d7cffe61774e069368e4f7e5
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 5 10:05:29 2011 +1100
+
+    net/mail: correctly compare parsed times in the test.
+    
+    Fixes #2522.
+    
+    R=golang-dev, bradfitz, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5449084
+
+ src/pkg/net/mail/message_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

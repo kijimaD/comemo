@@ -1,0 +1,19 @@
+commit 55dec44010bdabbbac8f58d1059b1fb83e869408
+Author: Jason LeBrun <jblebrun@gmail.com>
+Date:   Fri Jan 4 01:41:06 2019 +0000
+
+    crypto/md5: fix casting of d.nx in UnmarshalBinary
+    
+    Fixes #29545
+    
+    Change-Id: Ida98c23b8fc5c676d8bf0b3daad8320e495ebf64
+    GitHub-Last-Rev: d38e8a90c75f92031f6a8cf1f69f7bc7c28a52d8
+    GitHub-Pull-Request: golang/go#29546
+    Reviewed-on: https://go-review.googlesource.com/c/156297
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/md5/md5.go      |  2 +-
+ src/crypto/md5/md5_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 1 deletion(-)

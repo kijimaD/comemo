@@ -1,0 +1,19 @@
+commit e3f3f940a09ee99e952be43fd3b19c969cf229d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 15:58:52 2016 -0500
+
+    runtime/cgo: add cgo build tag to C files
+    
+    This makes "CGO_ENABLED=0 go list runtime/cgo" work,
+    which fixes the current cmd/go test failure.
+    
+    Change-Id: Ia55ce3ba1dbb09f618ae5f4c8547722670360f59
+    Reviewed-on: https://go-review.googlesource.com/19001
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/cgo/gcc_darwin_amd64.c | 2 ++
+ src/runtime/cgo/gcc_libinit.c      | 1 +
+ src/runtime/cgo/gcc_setenv.c       | 1 +
+ src/runtime/cgo/gcc_util.c         | 2 ++
+ 4 files changed, 6 insertions(+)

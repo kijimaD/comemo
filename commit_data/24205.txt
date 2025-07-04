@@ -1,0 +1,37 @@
+commit 5cbca8d84ba4625893c3a0b28a279d664b4125ec
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu May 21 13:07:19 2015 +1200
+
+    cmd/internal/ld: put read-only relocated data into .data.rel.ro when making a shared object
+    
+    Currently Go produces shared libraries that cannot be shared between processes
+    because they have relocations against the text segment (not text section). This
+    fixes this by moving some data to sections with magic names recognized by the
+    static linker.
+    
+    The change in genasmsym to add STYPELINK to the switch should fix things on
+    darwin/arm64.
+    
+    Fixes #10914
+    Updates #9210
+    
+    Change-Id: Iab4a6678dd04cec6114e683caac5cf31b1063309
+    Reviewed-on: https://go-review.googlesource.com/14306
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/test.bash         |   7 +++
+ misc/cgo/testshared/shared_test.go     |  39 +++++++++++++++++
+ src/cmd/internal/obj/link.go           |  20 +++++++++
+ src/cmd/link/internal/ld/data.go       |  77 ++++++++++++++++++++++++++++++---
+ src/cmd/link/internal/ld/elf.go        |  33 ++++++++++----
+ src/cmd/link/internal/ld/lib.go        |  21 ++++++++-
+ src/cmd/link/internal/ld/symtab.go     |  28 ++++++++++--
+ src/cmd/newlink/testdata/autosection.6 | Bin 897 -> 937 bytes
+ src/cmd/newlink/testdata/autoweak.6    | Bin 346 -> 386 bytes
+ src/cmd/newlink/testdata/dead.6        | Bin 809 -> 849 bytes
+ src/cmd/newlink/testdata/hello.6       | Bin 189 -> 229 bytes
+ src/cmd/newlink/testdata/layout.6      | Bin 356 -> 396 bytes
+ src/cmd/newlink/testdata/pclntab.6     | Bin 3764 -> 3804 bytes
+ 13 files changed, 207 insertions(+), 18 deletions(-)

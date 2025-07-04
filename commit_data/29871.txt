@@ -1,0 +1,26 @@
+commit f24384f686745f95086e7f400e884a218f4456d3
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 20 15:37:56 2016 -0500
+
+    runtime: avoid CreateThread panic when exiting process
+    
+    On Windows, CreateThread occasionally fails with ERROR_ACCESS_DENIED.
+    We're not sure why this is, but the Wine source code suggests that
+    this can happen when there's a concurrent CreateThread and ExitProcess
+    in the same process.
+    
+    Fix this by setting a flag right before calling ExitProcess and
+    halting if CreateThread fails and this flag is set.
+    
+    Updates #18253 (might fix it, but we're not sure this is the issue and
+    can't reproduce it on demand).
+    
+    Change-Id: I1945b989e73a16cf28a35bf2613ffab07577ed4e
+    Reviewed-on: https://go-review.googlesource.com/34616
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_windows.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

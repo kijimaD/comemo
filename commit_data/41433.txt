@@ -1,0 +1,19 @@
+commit 2ed96d0958a2efb0bb7a0b010fc152b557ce9844
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 14:28:04 2020 -0800
+
+    cmd/compile: use ellipses in RISCV64 rules
+    
+    Also, explicitly zero AuxInt in some ops (like Div),
+    to make it clear why they do not use an ellipsis.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Iefd8891fca5d7be8aa1bb91eb1fe2c99c8bf9c88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217011
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  190 +--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 1502 ++++--------------------
+ 2 files changed, 308 insertions(+), 1384 deletions(-)

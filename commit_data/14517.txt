@@ -1,0 +1,14 @@
+commit 16a5934540864a687ed709b969ea32f1e6e8c238
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Nov 28 17:01:22 2012 +1100
+
+    exp/winfsnotify: fix data race in TestNotifyClose
+    
+    Fixes #4342.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6850080
+
+ src/pkg/exp/winfsnotify/winfsnotify_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

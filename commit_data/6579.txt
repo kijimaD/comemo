@@ -1,0 +1,14 @@
+commit 06492d47cbc3f4fe503f80c8cd7a97772566324a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 21 10:46:10 2010 +1100
+
+    build: add gobuilder and goplay to run.bash
+    gobuilder: fix build to work with new log package
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2592041
+
+ misc/dashboard/builder/main.go | 18 +++++++++---------
+ src/run.bash                   |  8 ++++++++
+ 2 files changed, 17 insertions(+), 9 deletions(-)

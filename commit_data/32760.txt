@@ -1,0 +1,34 @@
+commit 7c8a9615c0512815060489a491265c275127b79f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 18 23:02:02 2017 -0700
+
+    cmd/compile: fix stack frame info for calls in receiver slot
+    
+    Previously, after inlining a call, we made a second pass to rewrite
+    the AST's position information to record the inlined stack frame. The
+    call arguments were part of this AST, but it would be incorrect to
+    rewrite them too, so extra effort was made to temporarily remove them
+    while the position rewriting was done.
+    
+    However, this extra logic was only done for regular arguments: it was
+    not done for receiver arguments. Consequently if m was inlined in
+    "f().m(g(), h())", g and h would have correct call frames, but f would
+    appear to be called by m.
+    
+    The fix taken by this CL is to merge setpos into inlsubst and only
+    rewrite position information for nodes that were actually copied from
+    the original function AST body. As a side benefit, this eliminates an
+    extra AST pass and some AST walking code.
+    
+    Fixes #21879.
+    
+    Change-Id: I22b25c208313fc25c358d3a2eebfc9b012400084
+    Reviewed-on: https://go-review.googlesource.com/64470
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 94 +++++++++++---------------------------
+ test/fixedbugs/issue21879.go       | 37 +++++++++++++++
+ test/fixedbugs/issue21879.out      |  2 +
+ 3 files changed, 65 insertions(+), 68 deletions(-)

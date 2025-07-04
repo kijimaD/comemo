@@ -1,0 +1,119 @@
+commit 3c8b824453b4119829d1a68eec02a0143611913d
+Author: Ben Shi <powerman1st@163.com>
+Date:   Mon Feb 19 13:13:13 2018 +0000
+
+    cmd/compile: optimize ARM64 code with MNEG
+    
+    A pair of MUL/NEG instructions can be combined to a single MNEG on ARM64.
+    This CL implements this optimization.
+    
+    1. A special test case gets big improvement.
+    (https://github.com/benshi001/ugo1/blob/master/mneg_test.go)
+    name                     old time/op    new time/op    delta
+    MNEG-4                      315µs ± 0%     260µs ± 0%  -17.39%  (p=0.000 n=24+25)
+    
+    2. There is little change in the go1 benchmark, excluding noise.
+    name                     old time/op    new time/op    delta
+    BinaryTree17-4              42.2s ± 2%     41.9s ± 2%  -0.82%  (p=0.001 n=30+26)
+    Fannkuch11-4                32.9s ± 0%     32.9s ± 0%  -0.01%  (p=0.006 n=20+26)
+    FmtFprintfEmpty-4           541ns ± 3%     534ns ± 0%  -1.24%  (p=0.003 n=30+26)
+    FmtFprintfString-4         1.09µs ± 0%    1.10µs ± 3%    ~     (p=0.142 n=23+30)
+    FmtFprintfInt-4            1.14µs ± 0%    1.14µs ± 0%    ~     (p=0.435 n=24+24)
+    FmtFprintfIntInt-4         1.76µs ± 0%    1.76µs ± 0%    ~     (p=0.508 n=24+26)
+    FmtFprintfPrefixedInt-4    2.20µs ± 3%    2.17µs ± 0%  -1.10%  (p=0.017 n=30+24)
+    FmtFprintfFloat-4          3.28µs ± 0%    3.28µs ± 0%    ~     (p=0.579 n=24+24)
+    FmtManyArgs-4              7.30µs ± 0%    7.30µs ± 0%    ~     (p=0.662 n=26+27)
+    GobDecode-4                94.8ms ± 0%    94.8ms ± 0%  +0.07%  (p=0.010 n=25+23)
+    GobEncode-4                80.9ms ± 4%    80.6ms ± 4%    ~     (p=0.901 n=30+30)
+    Gzip-4                      4.45s ± 0%     4.49s ± 0%  +0.98%  (p=0.000 n=25+24)
+    Gunzip-4                    450ms ± 3%     443ms ± 0%    ~     (p=0.942 n=30+26)
+    HTTPClientServer-4          548µs ± 1%     551µs ± 1%  +0.60%  (p=0.000 n=29+30)
+    JSONEncode-4                210ms ± 0%     211ms ± 0%  +0.03%  (p=0.000 n=23+25)
+    JSONDecode-4                866ms ± 5%     877ms ± 5%    ~     (p=0.187 n=30+30)
+    Mandelbrot200-4            51.4ms ± 0%    52.0ms ± 3%  +1.15%  (p=0.001 n=24+30)
+    GoParse-4                  42.9ms ± 5%    41.9ms ± 0%  -2.24%  (p=0.000 n=30+26)
+    RegexpMatchEasy0_32-4      1.02µs ± 3%    1.01µs ± 0%    ~     (p=0.247 n=30+26)
+    RegexpMatchEasy0_1K-4      3.90µs ± 0%    3.90µs ± 0%    ~     (p=0.062 n=24+24)
+    RegexpMatchEasy1_32-4       955ns ± 0%     956ns ± 0%  +0.16%  (p=0.000 n=25+23)
+    RegexpMatchEasy1_1K-4      6.42µs ± 3%    6.37µs ± 0%  -0.81%  (p=0.012 n=30+24)
+    RegexpMatchMedium_32-4     1.77µs ± 3%    1.79µs ± 0%  +1.28%  (p=0.003 n=30+24)
+    RegexpMatchMedium_1K-4      561µs ± 0%     569µs ± 3%  +1.50%  (p=0.000 n=25+30)
+    RegexpMatchHard_32-4       31.0µs ± 4%    30.8µs ± 0%    ~     (p=1.000 n=26+26)
+    RegexpMatchHard_1K-4        945µs ± 3%     945µs ± 3%    ~     (p=0.513 n=30+30)
+    Revcomp-4                   7.76s ± 4%     7.68s ± 0%    ~     (p=0.464 n=29+23)
+    Template-4                  903ms ± 5%     904ms ± 5%    ~     (p=0.248 n=30+30)
+    TimeParse-4                4.80µs ± 0%    4.80µs ± 0%    ~     (p=0.081 n=25+26)
+    TimeFormat-4               4.70µs ± 1%    4.70µs ± 1%    ~     (p=0.763 n=24+26)
+    [Geo mean]                  709µs          708µs       -0.09%
+    
+    name                     old speed      new speed      delta
+    GobDecode-4              8.10MB/s ± 0%  8.09MB/s ± 0%    ~     (p=0.160 n=25+23)
+    GobEncode-4              9.49MB/s ± 4%  9.53MB/s ± 4%    ~     (p=0.360 n=30+30)
+    Gzip-4                   4.36MB/s ± 0%  4.32MB/s ± 0%  -0.92%  (p=0.000 n=25+24)
+    Gunzip-4                 43.2MB/s ± 3%  43.8MB/s ± 0%    ~     (p=0.980 n=30+26)
+    JSONEncode-4             9.22MB/s ± 0%  9.22MB/s ± 0%  -0.04%  (p=0.005 n=23+25)
+    JSONDecode-4             2.24MB/s ± 5%  2.21MB/s ± 4%    ~     (p=0.252 n=30+30)
+    GoParse-4                1.35MB/s ± 5%  1.38MB/s ± 0%  +2.00%  (p=0.003 n=30+26)
+    RegexpMatchEasy0_32-4    31.5MB/s ± 3%  31.8MB/s ± 0%    ~     (p=0.110 n=30+26)
+    RegexpMatchEasy0_1K-4     263MB/s ± 0%   263MB/s ± 0%    ~     (p=0.111 n=24+24)
+    RegexpMatchEasy1_32-4    33.5MB/s ± 0%  33.4MB/s ± 0%  -0.16%  (p=0.003 n=25+23)
+    RegexpMatchEasy1_1K-4     160MB/s ± 3%   161MB/s ± 0%  +0.78%  (p=0.012 n=30+24)
+    RegexpMatchMedium_32-4    565kB/s ± 3%   560kB/s ± 0%  -0.83%  (p=0.001 n=30+24)
+    RegexpMatchMedium_1K-4   1.83MB/s ± 0%  1.80MB/s ± 3%  -1.56%  (p=0.000 n=25+30)
+    RegexpMatchHard_32-4     1.03MB/s ± 3%  1.04MB/s ± 0%  +1.46%  (p=0.000 n=30+26)
+    RegexpMatchHard_1K-4     1.08MB/s ± 3%  1.09MB/s ± 3%    ~     (p=0.444 n=30+30)
+    Revcomp-4                32.8MB/s ± 4%  33.1MB/s ± 0%    ~     (p=0.858 n=29+23)
+    Template-4               2.15MB/s ± 5%  2.15MB/s ± 5%    ~     (p=0.646 n=30+30)
+    [Geo mean]               7.79MB/s       7.81MB/s       +0.21%
+    
+    3. There is no regression in the compilecmp benchmark.
+    name        old time/op       new time/op       delta
+    Template          2.35s ± 4%        2.33s ± 3%    ~     (p=0.796 n=10+10)
+    Unicode           1.35s ± 6%        1.35s ± 5%    ~     (p=1.000 n=9+10)
+    GoTypes           8.10s ± 3%        8.14s ± 3%    ~     (p=0.604 n=9+10)
+    Compiler          40.5s ± 2%        40.2s ± 2%    ~     (p=0.065 n=10+9)
+    SSA                115s ± 2%         115s ± 2%    ~     (p=0.447 n=9+10)
+    Flate             1.45s ± 3%        1.45s ± 4%    ~     (p=0.739 n=10+10)
+    GoParser          1.85s ± 3%        1.86s ± 2%    ~     (p=0.853 n=10+10)
+    Reflect           5.11s ± 2%        5.10s ± 2%    ~     (p=0.971 n=10+10)
+    Tar               2.23s ± 5%        2.23s ± 3%    ~     (p=0.796 n=10+10)
+    XML               2.67s ± 2%        2.69s ± 2%    ~     (p=0.549 n=9+10)
+    [Geo mean]        5.00s             5.00s       +0.02%
+    
+    name        old user-time/op  new user-time/op  delta
+    Template          2.88s ± 2%        2.86s ± 2%    ~     (p=0.529 n=10+10)
+    Unicode           1.70s ± 7%        1.69s ± 5%    ~     (p=0.853 n=10+10)
+    GoTypes           9.72s ± 1%        9.73s ± 1%    ~     (p=0.684 n=10+10)
+    Compiler          49.0s ± 1%        48.9s ± 1%    ~     (p=0.631 n=10+10)
+    SSA                144s ± 1%         144s ± 2%    ~     (p=0.684 n=10+10)
+    Flate             1.71s ± 4%        1.72s ± 4%    ~     (p=0.853 n=10+10)
+    GoParser          2.23s ± 2%        2.23s ± 2%    ~     (p=0.971 n=10+10)
+    Reflect           5.98s ± 2%        5.96s ± 2%    ~     (p=0.481 n=10+10)
+    Tar               2.68s ± 3%        2.67s ± 2%    ~     (p=0.393 n=10+10)
+    XML               3.21s ± 3%        3.22s ± 1%    ~     (p=0.604 n=10+9)
+    [Geo mean]        6.05s             6.05s       -0.04%
+    
+    name        old text-bytes    new text-bytes    delta
+    HelloSize         641kB ± 0%        641kB ± 0%    ~     (all equal)
+    
+    name        old data-bytes    new data-bytes    delta
+    HelloSize        9.46kB ± 0%       9.46kB ± 0%    ~     (all equal)
+    
+    name        old bss-bytes     new bss-bytes     delta
+    HelloSize         125kB ± 0%        125kB ± 0%    ~     (all equal)
+    
+    name        old exe-bytes     new exe-bytes     delta
+    HelloSize        1.24MB ± 0%       1.24MB ± 0%    ~     (all equal)
+    
+    Change-Id: I9ed9128f0114e0f1ebb08ca2d042c90fcb2b1dcd
+    Reviewed-on: https://go-review.googlesource.com/95075
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/arm64/ssa.go        |    2 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   31 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |    2 +
+ src/cmd/compile/internal/ssa/opGen.go        |   32 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 1124 +++++++++++++++++++++++++-
+ 5 files changed, 1175 insertions(+), 16 deletions(-)

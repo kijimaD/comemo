@@ -1,0 +1,17 @@
+commit 72f92def89b4d417182bc008d2fa0f817746f3bf
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 3 16:26:07 2020 -0500
+
+    cmd/go/testdata: remove directory badmod
+    
+    It doesn't seem to be used anywhere.
+    
+    Change-Id: If979b6d69c9bf5261afd980d96f67991c417d46d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213218
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/badmod/go.mod | 1 -
+ src/cmd/go/testdata/badmod/x.go   | 4 ----
+ 2 files changed, 5 deletions(-)

@@ -1,0 +1,17 @@
+commit 5c224ec92102d7803c03ed2b482a68fad91b954b
+Author: korzhao <korzhao95@gmail.com>
+Date:   Mon Aug 2 16:53:25 2021 +0000
+
+    database/sql: improve the documentation of Conn.Raw
+    
+    Fixes #47500
+    
+    Change-Id: Ibd44e4db15ea45bb53a6651a6567edfe6104d3d6
+    GitHub-Last-Rev: 61b8abbc28908fc807af7188e19089ac454b4817
+    GitHub-Pull-Request: golang/go#47503
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338970
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

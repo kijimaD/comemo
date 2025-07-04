@@ -1,0 +1,15 @@
+commit fba47dc3b10e7649e3ad0129b357d83cc2db228e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jul 25 10:49:50 2012 -0700
+
+    cmd/godoc: delete -path flag
+    
+    Fixes #3453.
+    
+    R=golang-dev, gri, jeff, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6350086
+
+ src/cmd/godoc/doc.go   | 18 ++----------------
+ src/cmd/godoc/godoc.go | 11 -----------
+ 2 files changed, 2 insertions(+), 27 deletions(-)

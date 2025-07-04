@@ -1,0 +1,12 @@
+commit 2ed7087c8d2739d8a79779333c245e5b50526d38
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 15 17:15:57 2012 -0400
+
+    reflect: document PkgPath, Method, StructField
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5824053
+
+ src/pkg/reflect/type.go | 42 ++++++++++++++++++++++++++++--------------
+ 1 file changed, 28 insertions(+), 14 deletions(-)

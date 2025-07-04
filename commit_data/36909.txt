@@ -1,0 +1,28 @@
+commit f3bb4cbfd5a02b14a8660aa7e6a08801bcb9fbaf
+Author: Austin Clements <austin@google.com>
+Date:   Tue Sep 25 17:32:03 2018 -0400
+
+    runtime: eliminate gosweepone
+    
+    gosweepone just switches to the system stack and calls sweepone.
+    sweepone doesn't need to run on the system stack, so this is pretty
+    pointless.
+    
+    Historically, this was necessary because the sweeper was written in C
+    and hence needed to run on the system stack. gosweepone was the
+    function that Go code (specifically, bgsweep) used to call into the C
+    sweeper implementation. This probably became unnecessary in 2014 with
+    CL golang.org/cl/167540043, which ported the sweeper to Go.
+    
+    This CL changes all callers of gosweepone to call sweepone and
+    eliminates gosweepone.
+    
+    Change-Id: I26b8ef0c7d060b4c0c5dedbb25ecfc936acc7269
+    Reviewed-on: https://go-review.googlesource.com/c/138657
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mgc.go      |  4 ++--
+ src/runtime/mgcsweep.go | 18 ++++--------------
+ 2 files changed, 6 insertions(+), 16 deletions(-)

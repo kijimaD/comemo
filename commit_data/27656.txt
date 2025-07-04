@@ -1,0 +1,19 @@
+commit f3689d138256c36dbe0004459f79d570f5345f74
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 6 16:00:33 2016 -0400
+
+    cmd/compile: nilcheck interface value in go/defer interface call for SSA
+    
+    This matches the behavior of the legacy backend.
+    
+    Fixes #15975 (if this is the intended behavior)
+    
+    Change-Id: Id277959069b8b8bf9958fa8f2cbc762c752a1a19
+    Reviewed-on: https://go-review.googlesource.com/23820
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go |  3 +++
+ test/fixedbugs/issue15975.go       | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

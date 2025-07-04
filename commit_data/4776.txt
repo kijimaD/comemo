@@ -1,0 +1,12 @@
+commit 188b2ac839f828254678d0f05a3ea953dc5d0621
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 3 20:12:39 2010 -0800
+
+    add apple's .DS_Store to ignored list
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/198102
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

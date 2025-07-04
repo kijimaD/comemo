@@ -1,0 +1,17 @@
+commit 1d47a1184a4718a34ab1df4d9bf05a284aba4c70
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 26 07:36:09 2021 -0800
+
+    bufio: mention that panic at slicing means underlying reader is broken
+    
+    Fixes #49795
+    
+    Change-Id: I2b4fd14f0ed36b643522559bebf5ce52b1d7b304
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367214
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/bufio.go | 2 ++
+ 1 file changed, 2 insertions(+)

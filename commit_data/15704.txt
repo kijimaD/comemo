@@ -1,0 +1,12 @@
+commit 2f2271db7a1cb434845f6bbfbc5d4aa732f2aef5
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 12 11:18:18 2013 +1100
+
+    net/http: add tests for ParseHTTPVersion
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7739043
+
+ src/pkg/net/http/request_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

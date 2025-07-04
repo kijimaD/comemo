@@ -1,0 +1,22 @@
+commit 96d1e4ab5938d263457a9c18fdf6fdf0581c6ec6
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 14 14:09:56 2014 -0700
+
+    math/big: Allow non-prime modulus for ModInverse
+    
+    The inverse is defined whenever the element and the
+    modulus are relatively prime.  The code already handles
+    this situation, but the spec does not.
+    
+    Test that it does indeed work.
+    
+    Fixes #8875
+    
+    LGTM=agl
+    R=agl
+    CC=golang-codereviews
+    https://golang.org/cl/155010043
+
+ src/math/big/int.go      | 15 ++++++++-------
+ src/math/big/int_test.go | 36 ++++++++++++++++++++++++++----------
+ 2 files changed, 34 insertions(+), 17 deletions(-)

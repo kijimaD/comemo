@@ -1,0 +1,15 @@
+commit f5ab890c189fae6f149a5621adf1cdd8016216b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 9 06:18:43 2016 -0800
+
+    cmd/go: only check SWIG intsize once per build
+    
+    Besides being more efficient in a large build, this avoids a possible
+    race when creating the input file.
+    
+    Change-Id: Ifc2cb055925a76be9c90eac56d84ebd9e14f2bbc
+    Reviewed-on: https://go-review.googlesource.com/19392
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/go/build.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

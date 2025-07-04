@@ -1,0 +1,32 @@
+commit a6219737e3eb062282e6483a915c395affb30c69
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Jul 29 22:14:53 2022 +0800
+
+    cmd/compile: intrinsify Sub64 on riscv64
+    
+    After this CL, the performance difference in crypto/elliptic
+    benchmarks on linux/riscv64 are:
+    
+    name                 old time/op    new time/op    delta
+    ScalarBaseMult/P256    1.64ms ± 1%    1.60ms ± 1%   -2.36%  (p=0.008 n=5+5)
+    ScalarBaseMult/P224    1.53ms ± 1%    1.47ms ± 2%   -4.24%  (p=0.008 n=5+5)
+    ScalarBaseMult/P384    5.12ms ± 2%    5.03ms ± 2%     ~     (p=0.095 n=5+5)
+    ScalarBaseMult/P521    22.3ms ± 2%    13.8ms ± 1%  -37.89%  (p=0.008 n=5+5)
+    ScalarMult/P256        4.49ms ± 2%    4.26ms ± 2%   -5.13%  (p=0.008 n=5+5)
+    ScalarMult/P224        4.33ms ± 1%    4.09ms ± 1%   -5.59%  (p=0.008 n=5+5)
+    ScalarMult/P384        16.3ms ± 1%    15.5ms ± 2%   -4.78%  (p=0.008 n=5+5)
+    ScalarMult/P521         101ms ± 0%      47ms ± 2%  -53.36%  (p=0.008 n=5+5)
+    
+    Change-Id: I31cf0506e27f9d85f576af1813630a19c20dda8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420095
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  4 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 36 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go         |  4 +--
+ test/codegen/mathbits.go                       |  8 ++++++
+ 4 files changed, 50 insertions(+), 2 deletions(-)

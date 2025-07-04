@@ -1,0 +1,13 @@
+commit 2355395550fcb9782ead3713a7cccdbc6263217c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 14 10:42:45 2008 -0800
+
+    handle nils safely
+    
+    R=rsc
+    DELTA=38  (14 added, 10 deleted, 14 changed)
+    OCL=19242
+    CL=19242
+
+ src/lib/fmt/print.go | 48 ++++++++++++++++++++++++++----------------------
+ 1 file changed, 26 insertions(+), 22 deletions(-)

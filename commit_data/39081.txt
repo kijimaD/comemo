@@ -1,0 +1,27 @@
+commit 856b57e0d42f104e762b5df7701133c0aef4dc5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 30 16:04:50 2019 -0400
+
+    cmd/go: diagnose go.mod and vendor out of sync in std and cmd
+    
+    The most common failure mode of the current std/cmd setup is
+    going to be people running "go get m@latest" and then not running
+    "go mod vendor" and being confused about getting the old m.
+    Diagnose and report what to do.
+    
+    Also, having done the check, when in the standard library,
+    switch the go command to -mod=vendor mode.
+    This avoids some network accesses I saw when running
+    'go clean -modcache' before doing some work in cmd.
+    
+    Change-Id: I0ba4a66637b67225a9b97a1c89f26f9015b41673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174528
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go | 39 ++++++++++++++++++++++++++++++++++++-
+ src/go.mod                          |  1 -
+ src/go.sum                          | 11 -----------
+ src/vendor/modules.txt              |  8 ++++----
+ 4 files changed, 42 insertions(+), 17 deletions(-)

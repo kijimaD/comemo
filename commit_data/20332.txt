@@ -1,0 +1,14 @@
+commit fb818eab7fde33270bbbcf06d984af6db1c3eb0a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 08:59:20 2014 -0400
+
+    liblink: fix arm wrapper prologue
+    
+    Fixes arm build.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/132700043
+
+ src/liblink/obj5.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

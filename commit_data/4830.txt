@@ -1,0 +1,22 @@
+commit f25586a306cab6bf06fee66336ba77c0fac471c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 10 00:00:12 2010 -0800
+
+    runtime: garbage collection + malloc performance
+      * add bit tracking finalizer status, avoiding getfinalizer lookup
+      * add ability to allocate uncleared memory
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/207044
+
+ src/pkg/runtime/iface.c    |  4 ++--
+ src/pkg/runtime/malloc.cgo | 36 +++++++++++++++++++--------------
+ src/pkg/runtime/malloc.h   | 23 ++++++++++++++++-----
+ src/pkg/runtime/mcache.c   | 12 ++++++++++-
+ src/pkg/runtime/mcentral.c | 14 +++++++++----
+ src/pkg/runtime/mfinal.c   | 38 +++++++++++++++++++++++++----------
+ src/pkg/runtime/mgc0.c     | 50 +++++++++++++++++++++-------------------------
+ src/pkg/runtime/proc.c     | 36 +++++++++++++++------------------
+ src/pkg/runtime/slice.c    |  4 ++--
+ 9 files changed, 131 insertions(+), 86 deletions(-)

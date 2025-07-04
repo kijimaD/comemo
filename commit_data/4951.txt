@@ -1,0 +1,19 @@
+commit 3910161307f79fd821148652fb2a77872e7efd52
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 25 15:11:07 2010 -0800
+
+    gc: implement []int(string) and []byte(string)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/224060
+
+ src/cmd/gc/builtin.c.boot  |  2 ++
+ src/cmd/gc/go.h            |  5 ++--
+ src/cmd/gc/runtime.go      |  2 ++
+ src/cmd/gc/typecheck.c     | 60 ++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/gc/walk.c          | 32 +++++++++++++++++--------
+ src/pkg/runtime/string.cgo | 31 ++++++++++++++++++++++++
+ test/convlit.go            | 27 +++++++++++++++++++++
+ test/string_lit.go         | 30 +++++++++++++++++++++++
+ 8 files changed, 175 insertions(+), 14 deletions(-)

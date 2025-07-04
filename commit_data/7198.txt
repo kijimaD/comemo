@@ -1,0 +1,15 @@
+commit f1751e7de5c842deecd6f8c96f85f8269e5776cc
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Jan 20 11:28:30 2011 -0500
+
+    8l: emit DWARF in Windows PE.
+    
+    R=rsc, lvd, brainman, Joe Poirier
+    CC=golang-dev
+    https://golang.org/cl/2124041
+
+ src/cmd/ld/dwarf.c | 47 +++++++++++++++++++++++++++++++++++----
+ src/cmd/ld/dwarf.h |  1 +
+ src/cmd/ld/pe.c    | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/pe.h    |  3 +++
+ 4 files changed, 111 insertions(+), 4 deletions(-)

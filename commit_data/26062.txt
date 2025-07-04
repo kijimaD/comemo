@@ -1,0 +1,34 @@
+commit 9ab9053344598598913ba6f93c7f2945182be8d1
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 1 15:09:24 2016 -0500
+
+    runtime: reset mark state before stopping the world
+    
+    Currently we reset the mark state during STW sweep termination. This
+    involves looping over all of the goroutines. Each iteration of this
+    loop takes ~25ns, so at around 400k goroutines, we'll exceed our 10ms
+    pause goal.
+    
+    However, it's safe to do this before we stop the world for sweep
+    termination because nothing is consuming this state yet. Hence, move
+    the reset to just before STW.
+    
+    This isn't perfect: a long reset can still delay allocating goroutines
+    that block on GC starting. But it's certainly better to block some
+    things eventually than to block everything immediately.
+    
+    For 1.6.x.
+    
+    Fixes #14420.
+    
+    name \ 95%ile-time/sweepTerm           old          new  delta
+    500kIdleGs-12                 11312µs ± 6%  18.9µs ± 6%  -99.83%  (p=0.000 n=16+20)
+    
+    Change-Id: I9815c4d8d9b0d3c3e94dfdab78049cefe0dcc93c
+    Reviewed-on: https://go-review.googlesource.com/20147
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

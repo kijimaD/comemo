@@ -1,0 +1,16 @@
+commit e653280cad5638d5ceea576fc2a02b186b15c074
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Aug 27 13:11:06 2009 -0700
+
+    Utilities to bridge native types and functions into
+    interpreter values.  Also, print nil values properly.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=173  (173 added, 0 deleted, 0 changed)
+    OCL=33837
+    CL=33973
+
+ usr/austin/eval/bridge.go | 168 ++++++++++++++++++++++++++++++++++++++++++++++
+ usr/austin/eval/value.go  |   9 +++
+ 2 files changed, 177 insertions(+)

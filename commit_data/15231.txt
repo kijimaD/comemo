@@ -1,0 +1,16 @@
+commit e5dae3baaa34c8cd596eb34d6619272921122f4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 13 22:31:45 2013 -0500
+
+    runtime: tweak addfinroots to preserve original pointer
+    
+    Use local variable so that stack trace will show value of v.
+    
+    Fixes #4790.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7300106
+
+ src/pkg/runtime/mgc0.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

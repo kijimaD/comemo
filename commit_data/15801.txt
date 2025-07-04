@@ -1,0 +1,24 @@
+commit 58e21ddaf9498462acb5c552c48e0c52073e1db3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 15 13:55:50 2013 -0700
+
+    spec: remove special int rule for shifts
+    
+    The rule is not concistently followed by gc.
+    It appears that gccgo is ignoring it. go/types
+    does not implement this rule. However, both
+    gccgo and now go/types can compile/type-check
+    the entire std library (and thus all the shift
+    expressions occuring in it) w/o errors. For
+    more details see the discussion in issue 4883.
+    
+    Fixes #4880.
+    Fixes #4881.
+    Fixes #4883.
+    
+    R=rsc, r, iant, ken, ken, mtj, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/7707043
+
+ doc/go_spec.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

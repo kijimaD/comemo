@@ -1,0 +1,16 @@
+commit 430cee7cd2c2cd4b458fbf2b2dcc4604a3ed8c05
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue May 5 16:20:56 2020 -0400
+
+    cmd/link: fix loop variable capturing in TestDeadcode
+    
+    Fixes #38884.
+    
+    Change-Id: Id5ab9977b6404d0dbf71f13e3e4fefb6868ac802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232377
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/deadcode_test.go | 1 +
+ 1 file changed, 1 insertion(+)

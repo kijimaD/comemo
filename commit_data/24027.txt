@@ -1,0 +1,16 @@
+commit 16c3838cf6b0f4020f3ca3f8ca9415ee7aff5422
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 17 21:32:40 2015 -0400
+
+    doc/go1.5.html: refer to ppc64 as 64-bit PowerPC, not Power 64
+    
+    Saying "Power 64" was wrong for reasons I don't remember.
+    (Those reasons are why we stopped using GOARCH=power64.)
+    
+    Change-Id: Ifaac78d5733bfc780df01b1a66da766af0b17726
+    Reviewed-on: https://go-review.googlesource.com/13675
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/asm.html   | 4 ++--
+ doc/go1.5.html | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

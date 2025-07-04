@@ -1,0 +1,15 @@
+commit d9c914e98563a3e7358133842ccef3b1e4b9eda6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 30 18:17:07 2009 -0700
+
+    dotted names
+    
+    R=rsc
+    DELTA=28  (19 added, 0 deleted, 9 changed)
+    OCL=32550
+    CL=32554
+
+ src/pkg/rpc/debug.go              |  4 ++--
+ src/pkg/template/template.go      | 18 +++++++++++++-----
+ src/pkg/template/template_test.go | 11 +++++++++++
+ 3 files changed, 26 insertions(+), 7 deletions(-)

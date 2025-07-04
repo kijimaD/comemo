@@ -1,0 +1,29 @@
+commit 3aacfce6cf7e5f0346906e5236433852f4075368
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Mar 25 10:34:57 2019 +0100
+
+    runtime, cmd/dist, misc/cgo: enable c-archive for aix/ppc64
+    
+    Change-Id: Ib9a40d5596f5735a00483e2d2db965402f05671b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169120
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 23 +++++++++++++++--------
+ misc/cgo/testcarchive/testdata/main4.c | 15 +++++++++++----
+ misc/cgo/testcarchive/testdata/main5.c |  4 +++-
+ src/cmd/dist/test.go                   |  3 ++-
+ src/runtime/os3_solaris.go             |  1 +
+ src/runtime/os_aix.go                  |  8 ++++++++
+ src/runtime/os_dragonfly.go            |  1 +
+ src/runtime/os_freebsd.go              |  1 +
+ src/runtime/os_linux.go                |  1 +
+ src/runtime/os_netbsd.go               |  1 +
+ src/runtime/os_openbsd.go              |  1 +
+ src/runtime/signal_darwin_386.go       |  1 +
+ src/runtime/signal_darwin_amd64.go     |  1 +
+ src/runtime/signal_darwin_arm.go       |  1 +
+ src/runtime/signal_darwin_arm64.go     |  1 +
+ src/runtime/signal_unix.go             |  1 +
+ 16 files changed, 50 insertions(+), 14 deletions(-)

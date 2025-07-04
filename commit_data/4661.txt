@@ -1,0 +1,15 @@
+commit 5c7b0caa1719adb0856422a5c0b59ab1bb171589
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 25 13:46:57 2010 +1100
+
+    list awk in the dependencies needed for installation
+    (it is installed by apt-get install gawk, I believe)
+    
+    Fixes #557.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194050
+
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

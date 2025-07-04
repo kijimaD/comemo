@@ -1,0 +1,22 @@
+commit ac55d58fca4312fe4f84fa3a4761800803bc25e0
+Author: witchard <witchard@hotmail.co.uk>
+Date:   Sun Aug 30 18:15:03 2020 +0000
+
+    cmd/go/internal/get: add GOINSECURE support
+    
+    Adds support for the GOINSECURE environment variable to GOPATH mode.
+    
+    Updates #37519.
+    
+    Change-Id: Ibe3f52b7f30b1395edb000998905ee93abe6cada
+    GitHub-Last-Rev: e298c0009eb5eba537bb00185a8778d2aab696ba
+    GitHub-Pull-Request: golang/go#38628
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229758
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                           |  5 ++++-
+ src/cmd/go/internal/get/get.go                  | 16 ++++++++------
+ src/cmd/go/testdata/script/get_insecure_env.txt | 29 +++++++++++++++++++++++++
+ 3 files changed, 42 insertions(+), 8 deletions(-)

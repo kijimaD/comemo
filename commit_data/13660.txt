@@ -1,0 +1,17 @@
+commit 46c9346d749d159190ed8058625e1bdb3a614989
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Aug 21 11:46:07 2012 +1000
+
+    net/http: fix misplaced defer and example
+    
+    Moves the defer (again).
+    
+    Also, correct the example documentation to match.
+    
+    R=r, robert.hencke, iant, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6458158
+
+ src/pkg/net/http/example_test.go   | 2 +-
+ src/pkg/net/http/transport_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit dd59088193cc040aa16165dc29b907c6f0d9fe31
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Aug 3 13:40:34 2022 +0000
+
+    crypto/tls: delete unnecessary line of return
+    
+    Fixes #53198
+    
+    Change-Id: I0c35fb278543bd487d19ae15c8175e88c45e2c1e
+    GitHub-Last-Rev: a3e29d2332ad444cfa83c3412857952203738a2c
+    GitHub-Pull-Request: golang/go#54216
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420935
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/tls/generate_cert.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,14 @@
+commit de6da4a8bdce935ba71f585bb458272cc781dd9a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 25 17:40:29 2013 -0700
+
+    5c: fix pc recalculation in the presence of AFUNCDATA
+    
+    This makes CL 11683043 not break arm anymore.
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/11888043
+
+ src/cmd/5c/reg.c | 1 +
+ 1 file changed, 1 insertion(+)

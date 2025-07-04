@@ -1,0 +1,16 @@
+commit 48b90bbc55889ab12239ef0b3c884316d8f31b1b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 00:18:20 2013 -0400
+
+    encoding: new package
+    
+    See golang.org/s/go12encoding for design.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/12541051
+
+ src/cmd/dist/build.c          |  4 ++++
+ src/pkg/encoding/encoding.go  | 48 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/build/deps_test.go |  5 +++--
+ 3 files changed, 55 insertions(+), 2 deletions(-)

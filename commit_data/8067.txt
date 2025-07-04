@@ -1,0 +1,20 @@
+commit 1d26908d3f625e7bb932fb297e50857f6af224cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 13 16:18:09 2011 -0400
+
+    build: use gcc -Werror
+    
+    Better to fix the warnings that we find.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/4406042
+
+ src/cmd/5c/peep.c | 4 ++--
+ src/cmd/5c/txt.c  | 4 ++++
+ src/cmd/6c/peep.c | 4 ++--
+ src/cmd/6c/txt.c  | 6 ++++--
+ src/cmd/8c/peep.c | 2 +-
+ src/cmd/8c/txt.c  | 4 ++++
+ src/quietgcc.bash | 7 +------
+ 7 files changed, 18 insertions(+), 13 deletions(-)

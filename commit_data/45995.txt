@@ -1,0 +1,17 @@
+commit 48dfddbab3569798267798a5d8828bf35355eb9d
+Author: 180909 <734461790@qq.com>
+Date:   Sun Aug 15 01:57:33 2021 +0000
+
+    lib/time: fix RFC 6557 url
+    
+    Change-Id: I59406ee7dbab7b2a0404b62061af552b6b4ecf5f
+    GitHub-Last-Rev: 7cad5ae9bac19fdffb072413095fe5b223c95eca
+    GitHub-Pull-Request: golang/go#47696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342209
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ lib/time/README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

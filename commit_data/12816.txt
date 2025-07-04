@@ -1,0 +1,12 @@
+commit 48a76e13a5996a84b8c64349df9fa2b8c4b076a6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 3 08:10:51 2012 +1000
+
+    misc/dashboard: set api_version to go1
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5952046
+
+ misc/dashboard/app/app.yaml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

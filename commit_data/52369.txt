@@ -1,0 +1,33 @@
+commit 91a2e921dd0bdb4d6437091f82b4b22527cafa94
+Author: erifan01 <eric.fang@arm.com>
+Date:   Tue Mar 7 08:44:08 2023 +0800
+
+    cmd/compile: fix incorrect truncating when converting CMP to TST on arm64
+    
+    CL 420434 optimized CMP into TST in some situations, but it has a bug,
+    these four rules are not correct:
+    (LessThan (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessThan (TSTconst [c] y))
+    (LessEqual (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessEqual (TSTconst [c] y))
+    (GreaterThan (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterThan (TSTconst [c] y))
+    (GreaterEqual (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterEqual (TSTconst [c] y))
+    
+    But due to the existence of this rule
+    (LessThan (CMPWconst [0] x:(ANDconst [c] y))) && x.Uses == 1 =>
+    (LessThan (TSTWconst [int32(c)] y)), the above rules have never been
+    fired. This CL corrects them as:
+    (LessThan (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessThan (TSTconst [c] y))
+    (LessEqual (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (LessEqual (TSTconst [c] y))
+    (GreaterThan (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterThan (TSTconst [c] y))
+    (GreaterEqual (CMPconst [0] x:(ANDconst [c] y))) && x.Uses == 1 => (GreaterEqual (TSTconst [c] y))
+    
+    Change-Id: I7d60bcc9a266ee58388baeaab9f493b57cf1ad55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473617
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  8 ++++----
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 16 ++++++++--------
+ test/codegen/comparisons.go                   |  4 ++++
+ 3 files changed, 16 insertions(+), 12 deletions(-)

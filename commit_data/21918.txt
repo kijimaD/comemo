@@ -1,0 +1,22 @@
+commit 8afb3967a3c241d6824403190b1888415e8a091e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 22:58:27 2015 -0500
+
+    cmd/8g, cmd/old8a: stop renaming x86 import to i386
+    
+    Change-Id: If2872e73da4daa4ff1912883d30c8fc9754ef552
+    Reviewed-on: https://go-review.googlesource.com/6894
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/8g/cgen.go        |   76 +--
+ src/cmd/8g/cgen64.go      |  236 ++++-----
+ src/cmd/8g/galign.go      |    8 +-
+ src/cmd/8g/gg.go          |    4 +-
+ src/cmd/8g/ggen.go        |  128 ++---
+ src/cmd/8g/gsubr.go       |  552 ++++++++++-----------
+ src/cmd/8g/peep.go        |  174 +++----
+ src/cmd/8g/prog.go        |  416 ++++++++--------
+ src/cmd/8g/reg.go         |   28 +-
+ src/cmd/dist/buildtool.go |    3 +-
+ src/cmd/old8a/lex.go      | 1200 ++++++++++++++++++++++-----------------------
+ 11 files changed, 1412 insertions(+), 1413 deletions(-)

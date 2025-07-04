@@ -1,0 +1,14 @@
+commit df7b93c1757cd15c861657190c8cdf4932f64c97
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Sun Aug 18 08:11:34 2013 +1000
+
+    net/textproto: use ReadDotBytes instead of non-existent ReadDotAll.
+    
+    Fixes #5893.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13086043
+
+ src/pkg/net/textproto/textproto.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

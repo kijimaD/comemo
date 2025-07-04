@@ -1,0 +1,19 @@
+commit 1a423bec00915fd45dc6f7ee67860abbfc2bbdb2
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Aug 26 07:15:34 2019 -0600
+
+    ld: fix up header copy and paste error
+    
+    Some constants were added above the initial copyright blurb, and then
+    later a new copyright blurb was added on top of that. So we wound up
+    with two header sections, one of which contained a useful comment that
+    became obscured. This commit fixes up that mistake.
+    
+    Change-Id: I8b9b8c34495cdceae959e151e8ccdee3137f6ca4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191841
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

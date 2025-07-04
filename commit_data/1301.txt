@@ -1,0 +1,13 @@
+commit f58567d6e2a7df9c4d6145a70cd536c9fbf44d79
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 9 10:27:30 2008 -0800
+
+    more impossible time errors
+    
+    R=r
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=20788
+    CL=20818
+
+ src/lib/time/time.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

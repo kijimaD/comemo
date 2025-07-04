@@ -1,0 +1,22 @@
+commit b459166219b77857dc6d9366366b015d84e17bbe
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Apr 12 08:55:16 2018 +0200
+
+    encoding/xml: add check of namespaces to detect field names conflicts
+    
+    Test added.
+    
+    Fixes #8535
+    
+    Change-Id: Ic89c2781e81d963a653180812748b3fc95fb7fae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/106575
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/encoding/xml/typeinfo.go |  2 +-
+ src/encoding/xml/xml_test.go | 90 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 91 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 6146a73d279d73b6138191929d2f1fad22188f51
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 13 14:15:53 2023 -0800
+
+    go/types, types2: report error for range over int if Go version < 1.22
+    
+    Fixes #64704.
+    
+    Change-Id: Ied3af46ab534343cdafba5ee27680b9c6ef3d37a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549459
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/stmt.go             | 20 ++++++++++++++------
+ src/cmd/compile/internal/types2/version.go          |  1 +
+ src/go/types/stmt.go                                | 17 ++++++++++++-----
+ src/go/types/version.go                             |  1 +
+ src/internal/types/testdata/fixedbugs/issue64704.go | 12 ++++++++++++
+ 5 files changed, 40 insertions(+), 11 deletions(-)

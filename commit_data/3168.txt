@@ -1,0 +1,21 @@
+commit dd87082ab80059a0c4d04ca6605f15ce19ac1a89
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 1 11:51:05 2009 -0700
+
+    import debug/proc from usr/austin/ptrace
+    
+    R=austin
+    DELTA=1892  (1892 added, 0 deleted, 0 changed)
+    OCL=34183
+    CL=34197
+
+ src/pkg/debug/proc/Makefile             |   13 +
+ src/pkg/debug/proc/proc.go              |  232 ++++++
+ src/pkg/debug/proc/proc_darwin.go       |   17 +
+ src/pkg/debug/proc/proc_linux.go        | 1316 +++++++++++++++++++++++++++++++
+ src/pkg/debug/proc/ptrace-nptl.txt      |  132 ++++
+ src/pkg/debug/proc/regs_darwin_386.go   |   11 +
+ src/pkg/debug/proc/regs_darwin_amd64.go |   11 +
+ src/pkg/debug/proc/regs_linux_386.go    |   11 +
+ src/pkg/debug/proc/regs_linux_amd64.go  |  149 ++++
+ 9 files changed, 1892 insertions(+)

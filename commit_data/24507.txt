@@ -1,0 +1,12 @@
+commit 2687db109d2b9f057f9e75503d4a9325e26e84a0
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Oct 13 13:19:09 2015 -0700
+
+    compress/gzip: fix go vet warning
+    
+    Change-Id: I2ac6b178e666e34e028001078faf62ce71e12e9d
+    Reviewed-on: https://go-review.googlesource.com/15834
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/gzip/gunzip_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

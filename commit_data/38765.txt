@@ -1,0 +1,30 @@
+commit 36b0593f79c17c45985b17239e5f65d13da49949
+Author: Ivan Osadchiy <ivan.osadchii@gmail.com>
+Date:   Sat Apr 13 16:55:24 2019 +0300
+
+    crypto/sha256: Use bits.RotateLeft32 instead of ad-hoc implementation
+    
+    Improves readability of the generic implementation.
+    
+    Updates #31456.
+    
+    Benchmarks (i7-4980HQ CPU)
+    
+    name          old time/op    new time/op    delta
+    Hash8Bytes-8     339ns ± 3%     337ns ± 2%   ~     (p=0.595 n=5+5)
+    Hash1K-8        5.12µs ± 6%    4.97µs ± 6%   ~     (p=0.310 n=5+5)
+    Hash8K-8        37.6µs ± 5%    38.1µs ± 6%   ~     (p=0.841 n=5+5)
+    
+    name          old speed      new speed      delta
+    Hash8Bytes-8  23.6MB/s ± 3%  23.8MB/s ± 3%   ~     (p=0.690 n=5+5)
+    Hash1K-8       200MB/s ± 6%   206MB/s ± 5%   ~     (p=0.310 n=5+5)
+    Hash8K-8       218MB/s ± 5%   215MB/s ± 6%   ~     (p=0.841 n=5+5)
+    
+    Change-Id: Ic488841699138efde76e900bce1dd38fdbc88ec6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171731
+    Reviewed-by: Ilya Tokar <tocarip@gmail.com>
+    Run-TryBot: Ilya Tokar <tocarip@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/sha256/sha256block.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

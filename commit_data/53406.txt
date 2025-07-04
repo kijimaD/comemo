@@ -1,0 +1,20 @@
+commit e946f0e1ff09a8a31465b4e2f5add29baa4a1352
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 22 11:20:35 2023 -0500
+
+    cmd/link: support R_PPC64_REL24_P9NOTOC
+    
+    This can be treated identically to R_PPC64_REL24_NOTOC as stubs
+    are generated based on GOPPC64 and -buildmode.
+    
+    Change-Id: I3c42a9bf3c08d107fb656e6bf59b2307783bd9af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497915
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 1 +
+ src/cmd/link/internal/ppc64/asm.go     | 9 +++++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

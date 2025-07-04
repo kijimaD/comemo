@@ -1,0 +1,37 @@
+commit b5ddc42b465dd5b9532ee336d98343d81a6d35b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 12:11:29 2020 -0400
+
+    io/fs, path, path/filepath, testing/fstest: validate patterns in Match, Glob
+    
+    According to #28614, proposal review agreed in December 2018 that
+    Match should return an error for failed matches where the unmatched
+    part of the pattern has a syntax error. (The failed match has to date
+    caused the scan of the pattern to stop early.)
+    
+    This change implements that behavior: the match loop continues
+    scanning to the end of the pattern, even after a confirmed mismatch,
+    to check whether the pattern is even well-formed.
+    
+    The change applies to both path.Match and filepath.Match.
+    Then filepath.Glob and fs.Glob make a single validity-checking
+    call to Match before beginning their usual processing.
+    
+    Also update fstest.TestFS to check for correct validation in custom
+    Glob implementations.
+    
+    Fixes #28614.
+    
+    Change-Id: Ic1d35a4bb9c3565184ae83dbefc425c5c96318e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264397
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/io/fs/glob.go               |  4 +++
+ src/io/fs/glob_test.go          | 10 +++++--
+ src/path/filepath/match.go      | 61 +++++++++++++++++++++++++----------------
+ src/path/filepath/match_test.go | 12 +++++---
+ src/path/match.go               | 60 +++++++++++++++++++++++++++-------------
+ src/path/match_test.go          |  4 ++-
+ src/testing/fstest/testfs.go    |  6 ++++
+ 7 files changed, 106 insertions(+), 51 deletions(-)

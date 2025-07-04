@@ -1,0 +1,22 @@
+commit 3427f16642a1c207db4a4c3cce912dfdce2ac9f5
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Aug 27 16:48:22 2016 +0000
+
+    Revert "hash/crc32: improve the AMD64 implementation using SSE4.2"
+    
+    This reverts commit 54d7de7dd62bab764125c48fd159bb938da078e1.
+    
+    It was breaking non-amd64 builds.
+    
+    Change-Id: I22650e922498eeeba3d4fa08bb4ea40a210c8f97
+    Reviewed-on: https://go-review.googlesource.com/27925
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/hash/crc32/crc32.go          |  10 +--
+ src/hash/crc32/crc32_amd64.go    | 170 ++-------------------------------------
+ src/hash/crc32/crc32_amd64.s     |  49 +----------
+ src/hash/crc32/crc32_amd64p32.go |   9 +--
+ src/hash/crc32/crc32_generic.go  |   4 -
+ src/hash/crc32/crc32_s390x.go    |   4 -
+ src/hash/crc32/crc32_test.go     |  60 --------------
+ 7 files changed, 14 insertions(+), 292 deletions(-)

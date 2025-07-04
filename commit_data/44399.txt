@@ -1,0 +1,37 @@
+commit 7a2f3273c5598bf53e37d0c8a4cb8a8caf7c4ca4
+Author: David Chase <drchase@google.com>
+Date:   Thu Jan 21 12:04:46 2021 -0500
+
+    cmd/compile: plumb abi info into ssagen/ssa
+    
+    Plumb abi information into ssa/ssagen for plain calls
+    and plain functions (not methods).  Does not extend all the
+    way through the compiler (yet).
+    
+    One test disabled because it extends far enough to break the test.
+    
+    Normalized all the compiler's register args TODOs to
+    // TODO(register args) ...
+    
+    For #40724.
+    
+    Change-Id: I0173a4579f032ac3c9db3aef1749d40da5ea01ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293389
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go          |  11 +-
+ src/cmd/compile/internal/ir/node.go               |   2 +-
+ src/cmd/compile/internal/noder/lex.go             |   4 +-
+ src/cmd/compile/internal/ssa/func.go              |   5 +
+ src/cmd/compile/internal/ssa/loopreschedchecks.go |   3 +-
+ src/cmd/compile/internal/ssa/op.go                |  17 ++-
+ src/cmd/compile/internal/ssa/rewrite.go           |   2 +-
+ src/cmd/compile/internal/ssa/writebarrier.go      |   3 +-
+ src/cmd/compile/internal/ssagen/ssa.go            | 134 ++++++++++++++++------
+ src/cmd/compile/internal/typecheck/iexport.go     |   2 +-
+ src/cmd/compile/internal/typecheck/iimport.go     |   2 +-
+ test/abi/regabipragma.go                          |   4 +-
+ 12 files changed, 137 insertions(+), 52 deletions(-)

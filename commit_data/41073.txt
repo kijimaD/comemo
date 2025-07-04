@@ -1,0 +1,14 @@
+commit 25a14b19abd3b9e16f47c6249fda1998431ce5be
+Author: Julian Tibble <julian.tibble@gmail.com>
+Date:   Tue Jan 7 10:26:48 2020 +0000
+
+    runtime: fix typo in comment
+    
+    Change-Id: I96db053184e5e72864514d5421a97774545cc2dd
+    GitHub-Last-Rev: f1451ab626563f82f1703a559e4cb6d66665a7b6
+    GitHub-Pull-Request: golang/go#36425
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213597
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_linux.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

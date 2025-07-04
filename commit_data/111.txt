@@ -1,0 +1,18 @@
+commit 70321bf9fa46b406b5a1b4e84d370ad0f618507a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 6 17:02:01 2008 -0700
+
+    - moved some bugs into bugs directory
+    
+    SVN=121548
+
+ test/{ => bugs}/bug032.go | 0
+ test/{ => bugs}/bug033.go | 0
+ test/{ => bugs}/bug034.go | 0
+ test/{ => bugs}/bug035.go | 0
+ test/{ => bugs}/bug036.go | 0
+ test/{ => bugs}/bug037.go | 0
+ test/{ => bugs}/bug038.go | 0
+ test/{ => bugs}/bug039.go | 0
+ test/{ => bugs}/bug040.go | 0
+ 9 files changed, 0 insertions(+), 0 deletions(-)

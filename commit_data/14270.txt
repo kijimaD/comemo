@@ -1,0 +1,17 @@
+commit c128474a7ded7d988da9c229e02ff0d639faba5f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 2 03:30:49 2012 +1100
+
+    website: remove floating topbar
+    
+    This caused more problems than it was worth.
+    
+    Fixes #4301.
+    Fixes #4317.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6818076
+
+ doc/style.css | 24 ------------------------
+ 1 file changed, 24 deletions(-)

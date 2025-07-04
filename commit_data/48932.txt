@@ -1,0 +1,24 @@
+commit 15381040fa8cb2f00579595c60594964d73b09b1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Apr 29 01:08:40 2022 +0700
+
+    cmd/compile: remove go117ExportTypes constant
+    
+    Now, 1.17 is the least supported version, the compiler always write
+    type information when exporting function bodies. So we can get rid of
+    go117ExportTypes constant and all its conditional checking codes.
+    
+    Change-Id: I9ac616509c30601e94f99426049d814328253395
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402974
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/inline/inl.go        |   4 -
+ src/cmd/compile/internal/typecheck/func.go    |  13 --
+ src/cmd/compile/internal/typecheck/iexport.go | 180 ++++-----------
+ src/cmd/compile/internal/typecheck/iimport.go | 313 +++++++++-----------------
+ 4 files changed, 155 insertions(+), 355 deletions(-)

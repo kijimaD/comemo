@@ -1,0 +1,19 @@
+commit d9e2ba4fcce0a405e2d103e43c19f01fa1a5401d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 19 07:03:04 2018 -0800
+
+    cmd/cgo: ensure the command passed to run retains a trailing dash
+    
+    This was accidentally broken by CL 127755.
+    
+    Fixes #29333
+    
+    Change-Id: I5e92048c64a55c1699d6c38eb4dbbd51c817b820
+    Reviewed-on: https://go-review.googlesource.com/c/155037
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/issue4339.go | 3 ++-
+ src/cmd/cgo/gcc.go         | 4 +++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

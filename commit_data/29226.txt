@@ -1,0 +1,14 @@
+commit cf28726c8d692bf74af1bd2366a6320f964a025f
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 28 13:28:56 2016 -0400
+
+    test: add test for gccgo issue #17640
+    
+    Change-Id: Iec35f9b62982da40de400397bc456149216303dc
+    Reviewed-on: https://go-review.googlesource.com/32297
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue17640.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

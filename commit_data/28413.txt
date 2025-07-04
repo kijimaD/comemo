@@ -1,0 +1,20 @@
+commit 9658de32c6141ca036a741006da5b83b4b2c6af5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 15 19:48:53 2016 -0700
+
+    cmd/compile: remove unused cases in Naddr
+    
+    Gins, and in turn Naddr, is only used with ONAME and OLITERAL Nodes,
+    so we can drastically simplify Naddr.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: I2deb7eb771fd55e7c7f00040a9aee54588fcac11
+    Reviewed-on: https://go-review.googlesource.com/29247
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/gsubr.go | 98 ------------------------------------
+ 1 file changed, 98 deletions(-)

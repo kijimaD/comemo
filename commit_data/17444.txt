@@ -1,0 +1,51 @@
+commit 79dca0327ed8a7f65f3680e72cb1dcf4caaed457
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 30 15:46:12 2013 +0400
+
+    libbio, all cmd: consistently use BGETC/BPUTC instead of Bgetc/Bputc
+    Also introduce BGET2/4, BPUT2/4 as they are widely used.
+    Slightly improve BGETC/BPUTC implementation.
+    This gives ~5% CPU time improvement on go install -a -p1 std.
+    Before:
+    real            user            sys
+    0m23.561s       0m16.625s       0m5.848s
+    0m23.766s       0m16.624s       0m5.846s
+    0m23.742s       0m16.621s       0m5.868s
+    after:
+    0m22.999s       0m15.841s       0m5.889s
+    0m22.845s       0m15.808s       0m5.850s
+    0m22.889s       0m15.832s       0m5.848s
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12745047
+
+ include/bio.h         | 26 +++++++++++++++--
+ src/cmd/5a/lex.c      | 76 +++++++++++++++++++-----------------------------
+ src/cmd/5c/swt.c      | 10 +++----
+ src/cmd/5g/gobj.c     | 79 ++++++++++++++++++--------------------------------
+ src/cmd/5l/obj.c      | 18 ++++++------
+ src/cmd/6a/lex.c      | 70 ++++++++++++++++----------------------------
+ src/cmd/6c/swt.c      | 78 +++++++++++++++++--------------------------------
+ src/cmd/6g/gobj.c     | 70 +++++++++++++++-----------------------------
+ src/cmd/6l/obj.c      | 12 ++++----
+ src/cmd/8a/lex.c      | 72 ++++++++++++++++------------------------------
+ src/cmd/8c/swt.c      | 80 +++++++++++++++++----------------------------------
+ src/cmd/8g/gobj.c     | 70 +++++++++++++++-----------------------------
+ src/cmd/8l/obj.c      | 12 ++++----
+ src/cmd/gc/lex.c      |  6 ++--
+ src/cmd/gc/obj.c      |  2 +-
+ src/cmd/ld/lib.c      | 24 +++++-----------
+ src/cmd/ld/lib.h      |  1 -
+ src/cmd/pack/ar.c     | 25 +++++++---------
+ src/libbio/bgetc.c    | 20 +++++++++++++
+ src/libbio/bgetd.c    |  2 +-
+ src/libbio/bgetrune.c |  4 +--
+ src/libbio/bputc.c    | 14 +++++++++
+ src/libbio/bputrune.c |  2 +-
+ src/libmach/5obj.c    | 30 ++++++++-----------
+ src/libmach/6obj.c    | 30 ++++++++-----------
+ src/libmach/8obj.c    | 30 ++++++++-----------
+ src/libmach/obj.c     |  6 ++--
+ src/libmach/sym.c     |  6 ++--
+ 28 files changed, 355 insertions(+), 520 deletions(-)

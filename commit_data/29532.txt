@@ -1,0 +1,25 @@
+commit bb00a8d97faa70bf7a1cbdd4a43e95347a9c8709
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 14 22:11:05 2016 +0000
+
+    net/http: update bundled http2, add TestServerKeepAlivesEnabled h1/h2 tests
+    
+    Updates x/net/http2 to x/net git rev 6dfeb344 for:
+    
+       http2: make Server respect http1 Server's SetKeepAlivesEnabled
+       https://golang.org/cl/33153
+    
+    And adds a test in std.
+    
+    Fixes #17717
+    
+    Change-Id: I3ba000abb6f3f682261e105d8a4bb93bde6609fe
+    Reviewed-on: https://go-review.googlesource.com/33231
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+
+ src/net/http/clientserver_test.go | 13 +++++++++++++
+ src/net/http/h2_bundle.go         | 40 +++++++++++++++++++++++++++++++--------
+ src/net/http/serve_test.go        | 26 +++++++++++++++++++++++++
+ 3 files changed, 71 insertions(+), 8 deletions(-)

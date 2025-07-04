@@ -1,0 +1,17 @@
+commit 4c668b25c6517ff12b61c11cad1f22ddc89a9791
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jan 6 18:22:17 2021 +0000
+
+    runtime/metrics: fix panic message for Float64Histogram
+    
+    The panic message erroneously refers to float64 values.
+    
+    Change-Id: I83380f41d6c28a72bc69a94b9bcdf9d42b1503c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/281236
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

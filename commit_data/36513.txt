@@ -1,0 +1,19 @@
+commit c7271c0c258634982ac4e18cdac287fcc43f93e1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jul 6 12:45:03 2018 -0400
+
+    cmd/link: improve comments for relocsym
+    
+    This patch contains the remnants of CL (122482), which was intended to
+    reduce memory allocation in 'relocsym'. Another CL (113637) went in
+    first that included pretty much all of the code changes in 122482,
+    however there are some changes to comments that are worth preserving.
+    
+    Change-Id: Iacdbd2bfe3b7ca2656596570f06ce9a646211913
+    Reviewed-on: https://go-review.googlesource.com/122482
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 15 +++++++++-
+ src/cmd/link/internal/ld/lib.go  | 63 ++++++++++++++++++++++++++--------------
+ 2 files changed, 55 insertions(+), 23 deletions(-)

@@ -1,0 +1,12 @@
+commit 07b81912d4f7e7faaa0e2367ae834b92f4867819
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jul 18 12:00:16 2018 +0200
+
+    doc/go1.11: add time package changes to release notes
+    
+    Change-Id: I6f8d9cc8997128d0076a3a3e82fe5155d53db40d
+    Reviewed-on: https://go-review.googlesource.com/124659
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.11.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

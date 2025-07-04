@@ -1,0 +1,27 @@
+commit 39ea3d0a2365fe1619fced89f94b747ce4852540
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 23 12:51:26 2020 -0500
+
+    cmd/go: add a control case to the mod_vendor_trimpath test
+    
+    In reviewing CL 215940, it took me a while to find the control
+    condition for the test, which was located in build_cache_trimpath.txt.
+    
+    We could consolidate the two tests, but since they check for
+    regressions of separate issues (with separate root-causes), I think it
+    makes sense to keep them separate.
+    
+    However, I would like the control condition to be present in the same
+    source file, so that we'll be more likely to update both cases if the
+    behavior of one of them is changed.
+    
+    Updates #36566
+    
+    Change-Id: Ic588f1dfb7977dd78d1d5ef61b9841e22bad82e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216018
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/mod_vendor_trimpath.txt | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

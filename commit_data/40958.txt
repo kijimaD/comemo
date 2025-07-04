@@ -1,0 +1,16 @@
+commit 33d20760a23acffd3b200b922c5687ed2aeb74cc
+Author: Alex Harford <alex.harford@saucelabs.com>
+Date:   Fri Dec 6 23:27:29 2019 +0000
+
+    crypto/tls: fix a typo in TLS handshake comment
+    
+    Fix a minor typo in the TLS handshake comment.
+    
+    Change-Id: I0fd243e5440f6c77c97e844e6669a7974a2c8798
+    GitHub-Last-Rev: 21e91a1a48e8a9200e6fca89a988e1383ded7bb2
+    GitHub-Pull-Request: golang/go#36030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210289
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/conn.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

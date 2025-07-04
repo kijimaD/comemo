@@ -1,0 +1,15 @@
+commit 877e0a135f47e34a3b62a601f3d6e516a7b43179
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 16 17:16:08 2014 -0700
+
+    encoding/xml: document NewDecoder buffering
+    
+    Fixes #7225
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/88710043
+
+ src/pkg/encoding/xml/xml.go | 2 ++
+ 1 file changed, 2 insertions(+)

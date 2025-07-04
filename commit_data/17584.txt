@@ -1,0 +1,73 @@
+commit 7276c02b4193edb19bc0d2d36a786238564db03f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 12 14:00:16 2013 -0400
+
+    runtime, cmd/gc, cmd/ld: ignore method wrappers in recover
+    
+    Bug #1:
+    
+    Issue 5406 identified an interesting case:
+            defer iface.M()
+    may end up calling a wrapper that copies an indirect receiver
+    from the iface value and then calls the real M method. That's
+    two calls down, not just one, and so recover() == nil always
+    in the real M method, even during a panic.
+    
+    [For the purposes of this entire discussion, a wrapper's
+    implementation is a function containing an ordinary call, not
+    the optimized tail call form that is somtimes possible. The
+    tail call does not create a second frame, so it is already
+    handled correctly.]
+    
+    Fix this bug by introducing g->panicwrap, which counts the
+    number of bytes on current stack segment that are due to
+    wrapper calls that should not count against the recover
+    check. All wrapper functions must now adjust g->panicwrap up
+    on entry and back down on exit. This adds slightly to their
+    expense; on the x86 it is a single instruction at entry and
+    exit; on the ARM it is three. However, the alternative is to
+    make a call to recover depend on being able to walk the stack,
+    which I very much want to avoid. We have enough problems
+    walking the stack for garbage collection and profiling.
+    Also, if performance is critical in a specific case, it is already
+    faster to use a pointer receiver and avoid this kind of wrapper
+    entirely.
+    
+    Bug #2:
+    
+    The old code, which did not consider the possibility of two
+    calls, already contained a check to see if the call had split
+    its stack and so the panic-created segment was one behind the
+    current segment. In the wrapper case, both of the two calls
+    might split their stacks, so the panic-created segment can be
+    two behind the current segment.
+    
+    Fix this by propagating the Stktop.panic flag forward during
+    stack splits instead of looking backward during recover.
+    
+    Fixes #5406.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13367052
+
+ src/cmd/5l/noop.c           |  59 ++++++++++++
+ src/cmd/6l/pass.c           |  32 ++++++-
+ src/cmd/8l/pass.c           |  32 ++++++-
+ src/cmd/gc/go.h             |   1 +
+ src/cmd/gc/pgen.c           |  13 ++-
+ src/cmd/gc/subr.c           |   1 +
+ src/cmd/ld/textflag.h       |   2 +
+ src/pkg/reflect/asm_386.s   |   4 +-
+ src/pkg/reflect/asm_amd64.s |   4 +-
+ src/pkg/reflect/asm_arm.s   |   4 +-
+ src/pkg/reflect/value.go    |   8 ++
+ src/pkg/runtime/asm_386.s   |   2 +-
+ src/pkg/runtime/asm_amd64.s |   2 +-
+ src/pkg/runtime/asm_arm.s   |   2 +-
+ src/pkg/runtime/panic.c     |  78 ++++------------
+ src/pkg/runtime/proc.c      |   1 +
+ src/pkg/runtime/runtime.h   |   4 +-
+ src/pkg/runtime/stack.c     |  13 ++-
+ test/recover.go             | 216 +++++++++++++++++++++++++++++++++++++++++++-
+ 19 files changed, 394 insertions(+), 84 deletions(-)

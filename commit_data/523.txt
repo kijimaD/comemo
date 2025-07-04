@@ -1,0 +1,31 @@
+commit 683ded80c9b912fd56186697a7760a19aa2882df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 11 21:20:42 2008 -0700
+
+    - changed go-in-go parser to require ()'s for panic and print
+    - adjusted much of the existing go code
+    - missing: tests
+    
+    R=r
+    DELTA=229  (1 added, 17 deleted, 211 changed)
+    OCL=14103
+    CL=14103
+
+ src/lib/container/vector.go   | 14 +++----
+ src/lib/flag.go               | 26 ++++++------
+ src/pkg/integer.go            |  8 ++--
+ src/pkg/test_integer.go       | 18 ++++----
+ usr/gri/gosrc/compilation.go  | 10 ++---
+ usr/gri/gosrc/export.go       | 40 +++++++++---------
+ usr/gri/gosrc/globals.go      | 12 +++---
+ usr/gri/gosrc/go.go           | 13 +++---
+ usr/gri/gosrc/import.go       | 36 ++++++++--------
+ usr/gri/gosrc/parser.go       | 91 ++++++++++++++++------------------------
+ usr/gri/gosrc/printer.go      | 98 +++++++++++++++++++++----------------------
+ usr/gri/gosrc/scanner.go      |  8 ++--
+ usr/gri/gosrc/test_scanner.go | 22 +++++-----
+ usr/gri/gosrc/type.go         | 10 ++---
+ usr/gri/gosrc/universe.go     |  2 +-
+ usr/gri/gosrc/utils.go        |  4 +-
+ usr/gri/gosrc/verifier.go     |  2 +-
+ 17 files changed, 199 insertions(+), 215 deletions(-)

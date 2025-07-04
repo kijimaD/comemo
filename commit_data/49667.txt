@@ -1,0 +1,23 @@
+commit 9eb3992dddb561001f27ddf0c0d9e29d8d295f66
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Jul 22 23:35:41 2022 +0200
+
+    doc/go1.19: minor fixes
+    
+    EM_LONGARCH and R_LARCH_* are defined in package debug/elf. Change the
+    definition list title accordingly.
+    
+    Format links sort.Find and sort.Search as code.
+    
+    Add a link to syscall.Getrusage.
+    
+    Change-Id: I30602baedda8ccac028101858a608f1d8ffb633b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419214
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.19.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

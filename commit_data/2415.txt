@@ -1,0 +1,15 @@
+commit 8abcdee175274a5ff0329db7384a065fc2bf131f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 19:27:48 2009 -0700
+
+    implement optional semicolons with help from the lexer,
+    instead of having to double the type and statement grammars.
+    
+    R=ken
+    OCL=29987
+    CL=29998
+
+ src/cmd/gc/go.h  |   5 +
+ src/cmd/gc/go.y  | 414 ++++++++++++++++++-------------------------------------
+ src/cmd/gc/lex.c |  44 +++++-
+ 3 files changed, 179 insertions(+), 284 deletions(-)

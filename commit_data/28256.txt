@@ -1,0 +1,14 @@
+commit 97ba3c824265bd6917c13c1ebc59be3085324b4c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 30 15:01:48 2016 -0700
+
+    cmd/compile: implement fmt.Formatter for Val formats %s, %v
+    
+    Change-Id: Id56e886793161b48b445439e9a12109142064d3f
+    Reviewed-on: https://go-review.googlesource.com/28332
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go  |  2 +-
+ src/cmd/compile/internal/gc/export.go |  2 +-
+ src/cmd/compile/internal/gc/fmt.go    | 65 +++++++++++++++++++++--------------
+ 3 files changed, 41 insertions(+), 28 deletions(-)

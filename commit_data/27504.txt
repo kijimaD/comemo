@@ -1,0 +1,42 @@
+commit a640d95172ec516a3b727a8ca796c64f5aea89ec
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 20 14:57:55 2016 -0400
+
+    runtime: update SP when jumping stacks in traceback
+    
+    When gentraceback starts on a system stack in sigprof, it is
+    configured to jump to the user stack when it reaches the end of the
+    system stack. Currently this updates the current frame's FP, but not
+    its SP. This is okay on non-LR machines (x86) because frame.sp is only
+    used to find defers, which the bottom-most frame of the user stack
+    will never have.
+    
+    However, on LR machines, we use frame.sp to find the saved LR. We then
+    use to resolve the function of the next frame, which is used to
+    resolved the size of the next frame. Since we're not updating frame.sp
+    on a stack jump, we read the saved LR from the system stack instead of
+    the user stack and wind up resolving the wrong function and hence the
+    wrong frame size for the next frame.
+    
+    This has had remarkably few ill effects (though the resulting profiles
+    must be wrong). We noticed it because of a bad interaction with stack
+    barriers. Specifically, once we get the next frame size wrong, we also
+    get the location of its LR wrong. If we happen to get a stack slot
+    that contains a stale stack barrier LR (for a stack barrier we already
+    hit) and hasn't been overwritten with something else as we re-grew the
+    stack, gentraceback will fail with a "found next stack barrier at ..."
+    error, pointing at the slot that it thinks is an LR, but isn't.
+    
+    Fixes #15138.
+    
+    Updates #15313 (might fix it).
+    
+    Change-Id: I13cfa322b44c0c2f23ac2b3d03e12631e4a6406b
+    Reviewed-on: https://go-review.googlesource.com/23291
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/traceback.go | 1 +
+ 1 file changed, 1 insertion(+)

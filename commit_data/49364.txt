@@ -1,0 +1,18 @@
+commit 74dc84a0e54f2ad1eaec07212b2908a1e55f5e93
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 27 16:51:06 2022 -0400
+
+    doc/go1.19: add a release note for CL 404134
+    
+    For #51473.
+    
+    Change-Id: I01a35e5ebc83b8b72e414ed1730e9147ea590959
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409176
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.19.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

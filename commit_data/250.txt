@@ -1,0 +1,16 @@
+commit 1f6828bcdf27a46160c12b859e6bab216cd11940
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 27 13:03:19 2008 -0700
+
+    segmented stack
+    
+    SVN=125151
+
+ src/cmd/6a/a.y                 | 35 ++++++++++++++++---
+ src/cmd/6l/6.out.h             |  1 +
+ src/cmd/6l/l.h                 |  4 +++
+ src/cmd/6l/list.c              | 44 +++++++++++++++++++++++-
+ src/cmd/6l/pass.c              | 76 ++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/rt0_amd64_darwin.s |  4 +--
+ src/runtime/rt0_amd64_linux.s  | 77 +++++++++++++++++++++++-------------------
+ 7 files changed, 199 insertions(+), 42 deletions(-)

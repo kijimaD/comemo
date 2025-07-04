@@ -1,0 +1,25 @@
+commit 65c7dc4ace97520bc02b8986cb2a825ff70ab7e1
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 24 16:52:43 2012 -0400
+
+    crypto/tls: support session ticket resumption.
+    
+    Session resumption saves a round trip and removes the need to perform
+    the public-key operations of a TLS handshake when both the client and
+    server support it (which is true of Firefox and Chrome, at least).
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6555051
+
+ src/pkg/crypto/tls/common.go                  |  19 +
+ src/pkg/crypto/tls/conn.go                    |   2 +
+ src/pkg/crypto/tls/handshake_client.go        |   5 +-
+ src/pkg/crypto/tls/handshake_messages.go      | 101 ++++-
+ src/pkg/crypto/tls/handshake_messages_test.go |  21 +
+ src/pkg/crypto/tls/handshake_server.go        | 526 +++++++++++++++++++-------
+ src/pkg/crypto/tls/handshake_server_test.go   | 413 +++++++++++++++++---
+ src/pkg/crypto/tls/prf.go                     |  21 +-
+ src/pkg/crypto/tls/prf_test.go                |  15 +-
+ src/pkg/crypto/tls/ticket.go                  | 182 +++++++++
+ 10 files changed, 1096 insertions(+), 209 deletions(-)

@@ -1,0 +1,14 @@
+commit e7fc5c278984783bf8f718974561853b732154c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 16 10:16:24 2010 -0800
+
+    gc: test & fix handling of very long string constants
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/207106
+
+ src/cmd/gc/lex.c         |    21 +-
+ src/cmd/gc/subr.c        |    24 +-
+ test/fixedbugs/bug257.go | 20070 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 20103 insertions(+), 12 deletions(-)

@@ -1,0 +1,46 @@
+commit 9a75c748367c2ff84de355b136c33760a6b6928a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 29 16:00:31 2014 -0400
+
+    runtime: include constants and defs_*_*.h types in generated Go defs
+    
+    I had to rename Kevent and Sigaction to avoid the functions of the
+    same (lowercase) name.
+    
+    LGTM=iant, r
+    R=golang-codereviews, r, iant, aram.h
+    CC=dvyukov, golang-codereviews, khr
+    https://golang.org/cl/140740043
+
+ src/cmd/cc/godefs.c                    |  4 ++--
+ src/cmd/dist/buildruntime.c            | 21 ++++++++++++++++++---
+ src/pkg/runtime/defs.c                 |  1 +
+ src/pkg/runtime/defs_darwin_386.h      |  8 ++++----
+ src/pkg/runtime/defs_darwin_amd64.h    |  8 ++++----
+ src/pkg/runtime/defs_dragonfly_386.h   |  4 ++--
+ src/pkg/runtime/defs_dragonfly_amd64.h |  4 ++--
+ src/pkg/runtime/defs_freebsd_386.h     |  4 ++--
+ src/pkg/runtime/defs_freebsd_amd64.h   |  4 ++--
+ src/pkg/runtime/defs_freebsd_arm.h     |  4 ++--
+ src/pkg/runtime/defs_linux_386.h       |  4 ++--
+ src/pkg/runtime/defs_linux_amd64.h     |  4 ++--
+ src/pkg/runtime/defs_linux_arm.h       |  4 ++--
+ src/pkg/runtime/defs_netbsd_386.h      |  4 ++--
+ src/pkg/runtime/defs_netbsd_amd64.h    |  4 ++--
+ src/pkg/runtime/defs_netbsd_arm.h      |  4 ++--
+ src/pkg/runtime/defs_openbsd_386.h     |  4 ++--
+ src/pkg/runtime/defs_openbsd_amd64.h   |  4 ++--
+ src/pkg/runtime/defs_solaris_amd64.h   |  4 ++--
+ src/pkg/runtime/malloc.go              | 16 +++++++---------
+ src/pkg/runtime/netpoll_kqueue.c       |  6 +++---
+ src/pkg/runtime/os_darwin.c            |  4 ++--
+ src/pkg/runtime/os_darwin.h            |  4 ++--
+ src/pkg/runtime/os_dragonfly.c         |  6 +++---
+ src/pkg/runtime/os_freebsd.c           |  6 +++---
+ src/pkg/runtime/os_linux.c             |  4 ++--
+ src/pkg/runtime/os_linux.h             |  4 ++--
+ src/pkg/runtime/os_netbsd.c            |  6 +++---
+ src/pkg/runtime/os_openbsd.c           |  6 +++---
+ src/pkg/runtime/os_solaris.c           |  6 +++---
+ src/pkg/runtime/os_solaris.h           |  2 +-
+ 31 files changed, 91 insertions(+), 77 deletions(-)

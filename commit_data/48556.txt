@@ -1,0 +1,20 @@
+commit 460fd63cccd2f1d16fc4b1b761545b1649e14e28
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 12 16:18:23 2022 -0800
+
+    io/fs, path/filepath: honor SkipDir on second WalkDirFunc error call
+    
+    Fixes #51617
+    
+    Change-Id: I03e9e575d9bad1481e7e4f051b50a077ba5f2fe0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392154
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/io/fs/walk.go              |  3 +++
+ src/io/fs/walk_test.go         | 33 +++++++++++++++++++++++++++++++++
+ src/path/filepath/path.go      |  3 +++
+ src/path/filepath/path_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+)

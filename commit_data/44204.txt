@@ -1,0 +1,20 @@
+commit 00f2ff5c942e8f3e68cd10b5909278cda15c6bb5
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Wed Jan 27 15:26:02 2021 -0500
+
+    api/go1.16: add go/build/constraint APIs
+    
+    These APIs were added in CL 240604 as part of an approved proposal. It
+    was submitted after the initial api/go1.16.txt creation.
+    
+    For #41184
+    For #43407
+    
+    Change-Id: Ifb54df2b61c554c32bd9d17afbb74f4e42e0b228
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287412
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ api/go1.16.txt | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

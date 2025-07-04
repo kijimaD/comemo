@@ -1,0 +1,23 @@
+commit b6ad2880323191713a5525bae5eb27d62c1d1c35
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Jun 13 10:37:22 2020 +0530
+
+    net/http: avoid setting body when NoBody is set for js/wasm
+    
+    When http.NoBody is set, it is equivalent to Body being zero bytes.
+    We therefore set the body only if it is of length greater than 0.
+    
+    Manually verified with wasmbrowsertest.
+    
+    Fixes #36339
+    
+    Change-Id: I9c108c38f99409f72ea101819af572429505a8ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237758
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Johan Brandhorst <johan.brandhorst@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/roundtrip_js.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

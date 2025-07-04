@@ -1,0 +1,12 @@
+commit 593a6285729160d3ce4dc1c440e6a6be0fa87242
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Oct 4 15:14:20 2012 +0800
+
+    lib/godoc/godoc.html: try Google hosted jQuery first, fallback to locally hosted one
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6593078
+
+ lib/godoc/godoc.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

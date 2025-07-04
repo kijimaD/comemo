@@ -1,0 +1,19 @@
+commit 3d3d6eb79d94d48a6ab7a300e4e7267257733289
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 8 23:01:40 2015 +0000
+
+    net/http: update bundled http2 and add tests for two fixed issues
+    
+    Updates to http2's golang.org/cl/17590 (git rev 1796f9b8b)
+    
+    Fixes #13495
+    Fixes #13532
+    
+    Change-Id: I9b95ab438e1d895c75d031d8fcf2605921182a5e
+    Reviewed-on: https://go-review.googlesource.com/17591
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/clientserver_test.go | 49 +++++++++++++++++++++++++++++++++++----
+ src/net/http/h2_bundle.go         |  5 ++--
+ 2 files changed, 48 insertions(+), 6 deletions(-)

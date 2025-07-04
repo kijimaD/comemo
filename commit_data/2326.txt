@@ -1,0 +1,15 @@
+commit 64c3fe05bf16ea9107be5a7e4257db86addb6d08
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed May 27 15:38:02 2009 -0700
+
+    string([]int) conversion
+    
+    R=r
+    OCL=29466
+    CL=29466
+
+ src/cmd/gc/builtin.c.boot |  1 +
+ src/cmd/gc/sys.go         |  1 +
+ src/cmd/gc/walk.c         | 20 +++++++++++++++++++-
+ src/runtime/string.c      | 22 ++++++++++++++++++++++
+ 4 files changed, 43 insertions(+), 1 deletion(-)

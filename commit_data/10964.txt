@@ -1,0 +1,12 @@
+commit 98fe44bdfcd6197cd19cfe3bab000b26d521c01e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 23 00:14:59 2011 +0900
+
+    cmd/go: fix windows build
+    
+    R=golang-dev, alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/5502066
+
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

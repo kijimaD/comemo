@@ -1,0 +1,18 @@
+commit df75f082d3f18f859ddbd3d002c711a4ec507948
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Thu Jul 3 11:36:05 2014 +1000
+
+    runtime: make runtime·usleep and runtime·osyield callable from cgo callback
+    
+    runtime·usleep and runtime·osyield fall back to calling an
+    assembly wrapper for the libc functions in the absence of a m,
+    so they can be called in cgo callback context.
+    
+    LGTM=rsc
+    R=minux.ma, rsc
+    CC=dave, golang-codereviews
+    https://golang.org/cl/102620044
+
+ src/pkg/runtime/os_solaris.c        | 18 ++++++++++---
+ src/pkg/runtime/sys_solaris_amd64.s | 52 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 3 deletions(-)

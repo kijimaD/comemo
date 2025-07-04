@@ -1,0 +1,17 @@
+commit 18274e007598436e62182c72c3103bf94a8feade
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Jun 14 14:54:48 2010 -0700
+
+    Add IndexFunc and LastIndexFunc.
+    Change TrimRight and TrimLeft to use these functions.
+    Incidentally fix minor bug in TrimRight.
+    Add some test cases for this.
+    YMMV whether it's worth saving the closure allocation.
+    
+    R=r, r2
+    CC=golang-dev, hoisie, rsc
+    https://golang.org/cl/1198044
+
+ src/pkg/strings/strings.go      | 104 ++++++++++++++++++++++++++---------
+ src/pkg/strings/strings_test.go | 119 +++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 187 insertions(+), 36 deletions(-)

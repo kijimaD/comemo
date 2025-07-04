@@ -1,0 +1,26 @@
+commit c894b442d1e5e150ad33fa3ce13dbfab1c037b3a
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Tue Sep 14 15:02:55 2021 -0700
+
+    net/rpc: remove warnings on incompatible methods at registration
+    
+    When registering an RPC server, the type being registered may
+    have additional methods that are not meant to be exposed as
+    RPC endpoints. Remove the warnings net/rpc produces in
+    this case. The functionality to report warnings is kept in the code
+    with a compile-time constant that can be enabled for debugging.
+    
+    The documentation of net/rpc states that only methods
+    satisfying a set of criteria will be made available, while other
+    methods will be ignored.
+    
+    Fixes #19957
+    
+    Change-Id: I5f8a148b4be1fdfffb2cd2029871193eaf24b751
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350009
+    Reviewed-by: Daniel Lublin <daniel@lublin.se>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Carlos Amedee <carlos@golang.org>
+
+ src/net/rpc/server.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

@@ -1,0 +1,12 @@
+commit f030eb634f6c0e8de9cebd7fa7c2ac7890cabcc7
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Oct 30 09:46:36 2016 +0900
+
+    net: fix nit
+    
+    Change-Id: Iec469846dc8b5a747ad81690000f1f6f53721ea1
+    Reviewed-on: https://go-review.googlesource.com/32372
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/writev_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

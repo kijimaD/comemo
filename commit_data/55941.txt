@@ -1,0 +1,19 @@
+commit 412623c53fbb1b3ff29035022ef70374db35e826
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 14 14:24:22 2024 -0700
+
+    test/fixedbugs: add regress test for inlining failure
+    
+    Still investigating, but adding the minimized reproducer as a regress
+    test case for now.
+    
+    Updates #66261.
+    
+    Change-Id: I20715b731f8c5b95616513d4a13e3ae083709031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571815
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ test/fixedbugs/issue66261.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

@@ -1,0 +1,18 @@
+commit 5fb74fc13853b950b5102ef26d665db97f4838fd
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Jun 10 12:56:59 2019 +0200
+
+    runtime: reduce allocations when building pprof LabelSet
+    
+    Pre-allocate the slice of labels with enough capacity
+    to avoid growslice calls.
+    
+    Change-Id: I89db59ac722c03b0202e042d1f707bb041e0999f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181517
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/pprof/label.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

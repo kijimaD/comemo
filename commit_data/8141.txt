@@ -1,0 +1,15 @@
+commit 98176b7760bbdc592396f7fed6af0bc1a3a70a11
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 18 10:59:39 2011 -0700
+
+    mime: RFC 2231 continuation / non-ASCII support
+    
+    Fixes #1119.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4437052
+
+ src/pkg/mime/mediatype.go      | 153 +++++++++++++++++++++++++++++++++++++++--
+ src/pkg/mime/mediatype_test.go |  59 +++++++++++++++-
+ 2 files changed, 203 insertions(+), 9 deletions(-)

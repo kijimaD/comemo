@@ -1,0 +1,14 @@
+commit 041edbcc79ff6922436bc04cff6f8a7fe96566e0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 21 11:24:29 2012 +1100
+
+    misc/goplay: remain in work directory, build in temp directory
+    
+    Fixes #2935.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5684048
+
+ misc/goplay/goplay.go | 90 ++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 67 insertions(+), 23 deletions(-)

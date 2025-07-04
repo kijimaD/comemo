@@ -1,0 +1,202 @@
+commit ba6bd967d2445c4322ef6e37b3144d630109cdfc
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Jul 28 10:29:06 2020 +0800
+
+    cmd/compile/internal/ssa: strengthen phiopt pass
+    
+    The current phiopt pass just transforms the following code
+      x := false
+      if b { x = true}
+    into
+      x = b
+    
+    But we find code in runtime.atoi like this:
+      neg := false
+      if s[0] == '-' {
+        neg = true
+        s = s[1:]
+      }
+    
+    The current phiopt pass does not covert it into code like:
+      neg := s[0] == '-'
+      if neg { s = s[1:] }
+    
+    Therefore, this patch strengthens the phiopt pass so that the
+    boolean Phi value "neg" can be replaced with a copy of control
+    value "s[0] == '-'", thereby using "cmp+cset" instead of a branch.
+    
+    But in some cases even replacing the boolean Phis cannot eliminate
+    this branch. In the following case, this patch replaces "d" with a
+    copy of "a<0", but the regalloc pass will insert the "Load {c}"
+    value into an empty block to split the live ranges, which causes
+    the branch to not be eliminated.
+    
+    For example:
+      func test(a, b, c int) (bool, int) {
+        d := false
+        if (a<0) {
+          if (b<0) {
+            c = c+1
+          }
+          d = true
+        }
+        return d, c
+      }
+    
+    The optimized assembly code:
+      MOVD "".a(FP), R0
+      TBZ $63, R0, 48
+      MOVD "".c+16(FP), R1
+      ADD $1, R1, R2
+      MOVD "".b+8(FP), R3
+      CMP ZR, R3
+      CSEL LT, R2, R1, R1
+      CMP ZR, R0
+      CSET LT, R0
+      MOVB R0, "".~r3+24(FP)
+      MOVD R1, "".~r4+32(FP)
+      RET (R30)
+      MOVD "".c+16(FP), R1
+      JMP 28
+    
+    The benchmark:
+    
+    name          old time/op            new time/op            delta
+    pkg:cmd/compile/internal/ssa goos:linux goarch:arm64
+    PhioptPass  117783.250000ns +- 1%  117219.111111ns +- 1%   ~  (p=0.074  n=8+9)
+    
+    Statistical data from compilecmp tool:
+    
+    compilecmp local/master -> HEAD
+    local/master (a826f7dc45): debug/dwarf: support DW_FORM_rnglistx aka formRnglistx
+    HEAD (e57e003c10): cmd/compile/internal/ssa: strengthen phiopt pass
+    
+    benchstat -geomean  /tmp/2516644532 /tmp/1075915815
+    completed 50 of 50, estimated time remaining 0s (ETA 7:10PM)
+    name                      old time/op       new time/op       delta
+    Template                        554ms _ 3%        553ms _ 3%    ~     (p=0.986 n=49+48)
+    Unicode                         252ms _ 4%        249ms _ 4%  -1.33%  (p=0.002 n=47+49)
+    GoTypes                         3.16s _ 3%        3.18s _ 3%  +0.77%  (p=0.022 n=44+48)
+    Compiler                        257ms _ 4%        258ms _ 4%    ~     (p=0.121 n=50+49)
+    SSA                             24.2s _ 4%        24.2s _ 5%    ~     (p=0.694 n=49+50)
+    Flate                           338ms _ 4%        338ms _ 4%    ~     (p=0.592 n=43+46)
+    GoParser                        506ms _ 3%        507ms _ 3%    ~     (p=0.942 n=49+50)
+    Reflect                         1.37s _ 4%        1.37s _ 5%    ~     (p=0.408 n=50+50)
+    Tar                             486ms _ 3%        487ms _ 4%    ~     (p=0.911 n=47+50)
+    XML                             619ms _ 2%        619ms _ 3%    ~     (p=0.368 n=46+48)
+    LinkCompiler                    1.29s _31%        1.32s _23%    ~     (p=0.306 n=49+44)
+    ExternalLinkCompiler            3.39s _10%        3.36s _ 6%    ~     (p=0.311 n=48+46)
+    LinkWithoutDebugCompiler        846ms _37%        793ms _24%  -6.29%  (p=0.040 n=50+49)
+    [Geo mean]                      974ms             971ms       -0.36%
+    
+    name                      old user-time/op  new user-time/op  delta
+    Template                        910ms _12%        893ms _13%    ~     (p=0.098 n=49+49)
+    Unicode                         495ms _28%        492ms _18%    ~     (p=0.562 n=50+46)
+    GoTypes                         4.42s _15%        4.39s _13%    ~     (p=0.684 n=49+50)
+    Compiler                        419ms _22%        422ms _16%    ~     (p=0.579 n=48+50)
+    SSA                             36.5s _ 7%        36.6s _ 8%    ~     (p=0.465 n=50+47)
+    Flate                           521ms _21%        523ms _16%    ~     (p=0.889 n=50+47)
+    GoParser                        810ms _12%        792ms _15%    ~     (p=0.149 n=50+50)
+    Reflect                         1.98s _13%        2.02s _13%    ~     (p=0.144 n=47+50)
+    Tar                             826ms _15%        806ms _19%    ~     (p=0.115 n=49+49)
+    XML                             988ms _14%       1003ms _14%    ~     (p=0.179 n=50+50)
+    LinkCompiler                    1.79s _ 8%        1.84s _11%  +2.81%  (p=0.001 n=49+49)
+    ExternalLinkCompiler            3.69s _ 4%        3.71s _ 3%    ~     (p=0.261 n=50+50)
+    LinkWithoutDebugCompiler        838ms _10%        827ms _11%    ~     (p=0.323 n=50+48)
+    [Geo mean]                      1.44s             1.44s       -0.05%
+    
+    name                      old alloc/op      new alloc/op      delta
+    Template                       39.0MB _ 1%       39.0MB _ 1%    ~     (p=0.445 n=50+49)
+    Unicode                        28.5MB _ 0%       28.5MB _ 0%    ~     (p=0.460 n=50+50)
+    GoTypes                         169MB _ 1%        169MB _ 1%    ~     (p=0.092 n=48+50)
+    Compiler                       23.4MB _ 1%       23.4MB _ 1%  -0.19%  (p=0.032 n=50+49)
+    SSA                            1.54GB _ 0%       1.55GB _ 1%  +0.14%  (p=0.001 n=50+50)
+    Flate                          23.8MB _ 1%       23.8MB _ 2%    ~     (p=0.702 n=49+49)
+    GoParser                       35.4MB _ 1%       35.4MB _ 1%    ~     (p=0.786 n=50+50)
+    Reflect                        85.3MB _ 1%       85.3MB _ 1%    ~     (p=0.298 n=50+50)
+    Tar                            34.6MB _ 2%       34.6MB _ 2%    ~     (p=0.683 n=50+50)
+    XML                            44.5MB _ 3%       44.0MB _ 2%  -1.05%  (p=0.000 n=50+46)
+    LinkCompiler                    136MB _ 0%        136MB _ 0%  +0.01%  (p=0.005 n=50+50)
+    ExternalLinkCompiler            128MB _ 0%        128MB _ 0%    ~     (p=0.179 n=50+50)
+    LinkWithoutDebugCompiler       84.3MB _ 0%       84.3MB _ 0%  +0.01%  (p=0.006 n=50+50)
+    [Geo mean]                     70.7MB            70.6MB       -0.07%
+    
+    name                      old allocs/op     new allocs/op     delta
+    Template                         410k _ 0%         410k _ 0%    ~     (p=0.606 n=48+49)
+    Unicode                          310k _ 0%         310k _ 0%    ~     (p=0.674 n=50+50)
+    GoTypes                         1.81M _ 0%        1.81M _ 0%    ~     (p=0.674 n=50+50)
+    Compiler                         202k _ 0%         202k _ 0%  +0.02%  (p=0.046 n=50+50)
+    SSA                             16.3M _ 0%        16.3M _ 0%  +0.10%  (p=0.000 n=50+50)
+    Flate                            244k _ 0%         244k _ 0%    ~     (p=0.834 n=49+50)
+    GoParser                         380k _ 0%         380k _ 0%    ~     (p=0.410 n=50+50)
+    Reflect                         1.08M _ 0%        1.08M _ 0%    ~     (p=0.782 n=48+50)
+    Tar                              368k _ 0%         368k _ 0%    ~     (p=0.585 n=50+49)
+    XML                              453k _ 0%         453k _ 0%  -0.01%  (p=0.025 n=49+49)
+    LinkCompiler                     713k _ 0%         713k _ 0%  +0.01%  (p=0.044 n=50+50)
+    ExternalLinkCompiler             794k _ 0%         794k _ 0%  +0.01%  (p=0.000 n=50+49)
+    LinkWithoutDebugCompiler         251k _ 0%         251k _ 0%    ~     (p=0.092 n=47+50)
+    [Geo mean]                       615k              615k       +0.01%
+    
+    name                      old maxRSS/op     new maxRSS/op     delta
+    Template                        37.0M _ 4%        37.2M _ 3%    ~     (p=0.062 n=48+48)
+    Unicode                         36.9M _ 5%        37.3M _ 4%  +1.10%  (p=0.021 n=50+47)
+    GoTypes                         94.3M _ 3%        94.9M _ 4%  +0.69%  (p=0.022 n=45+46)
+    Compiler                        33.4M _ 3%        33.4M _ 5%    ~     (p=0.964 n=49+50)
+    SSA                              741M _ 3%         738M _ 3%    ~     (p=0.164 n=50+50)
+    Flate                           28.5M _ 6%        28.8M _ 4%  +1.07%  (p=0.009 n=50+49)
+    GoParser                        35.0M _ 3%        35.3M _ 4%  +0.83%  (p=0.010 n=50+48)
+    Reflect                         57.2M _ 6%        57.1M _ 4%    ~     (p=0.815 n=50+49)
+    Tar                             34.9M _ 3%        35.0M _ 3%    ~     (p=0.134 n=49+48)
+    XML                             39.5M _ 5%        40.0M _ 3%  +1.35%  (p=0.001 n=50+48)
+    LinkCompiler                     220M _ 2%         220M _ 2%    ~     (p=0.547 n=49+48)
+    ExternalLinkCompiler             235M _ 2%         236M _ 2%    ~     (p=0.538 n=47+44)
+    LinkWithoutDebugCompiler         179M _ 1%         179M _ 1%    ~     (p=0.775 n=50+50)
+    [Geo mean]                      74.9M             75.2M       +0.43%
+    
+    name                      old text-bytes    new text-bytes    delta
+    HelloSize                       784kB _ 0%        784kB _ 0%  +0.01%  (p=0.000 n=50+50)
+    
+    name                      old data-bytes    new data-bytes    delta
+    HelloSize                      13.1kB _ 0%       13.1kB _ 0%    ~     (all equal)
+    
+    name                      old bss-bytes     new bss-bytes     delta
+    HelloSize                       206kB _ 0%        206kB _ 0%    ~     (all equal)
+    
+    name                      old exe-bytes     new exe-bytes     delta
+    HelloSize                      1.28MB _ 0%       1.28MB _ 0%  +0.00%  (p=0.000 n=50+50)
+    
+    file      before    after     _       %
+    addr2line 4006300   4004484   -1816   -0.045%
+    api       5029956   5029324   -632    -0.013%
+    asm       4936311   4939423   +3112   +0.063%
+    buildid   2595059   2595291   +232    +0.009%
+    cgo       4401029   4397333   -3696   -0.084%
+    compile   22246677  22246863  +186    +0.001%
+    cover     4443825   4443065   -760    -0.017%
+    dist      3366078   3365838   -240    -0.007%
+    doc       3776391   3776615   +224    +0.006%
+    fix       3218800   3218648   -152    -0.005%
+    link      6365321   6365345   +24     +0.000%
+    nm        3923625   3923857   +232    +0.006%
+    objdump   4295569   4295041   -528    -0.012%
+    pack      2390745   2389217   -1528   -0.064%
+    pprof     12870094  12866942  -3152   -0.024%
+    test2json 2587265   2587073   -192    -0.007%
+    trace     9612629   9613981   +1352   +0.014%
+    vet       6791008   6792072   +1064   +0.016%
+    total     106856682 106850412 -6270   -0.006%
+    
+    Update #37608
+    
+    Change-Id: Ic6206b22fd1faf570be9fd3c2511aa6c4ce38cdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252937
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/bench_test.go |  32 +++++++
+ src/cmd/compile/internal/ssa/phiopt.go     | 149 ++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/sparsetree.go |   6 ++
+ test/phiopt.go                             |  26 ++++-
+ 4 files changed, 211 insertions(+), 2 deletions(-)

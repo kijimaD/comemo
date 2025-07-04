@@ -1,0 +1,18 @@
+commit 504da53c858eb89fceaaa41f53db7e6a3e6c2f81
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 28 17:17:38 2011 -0500
+
+    runtime: select bug
+    
+    The sanity checking in pass 2 is wrong
+    when a select is offering to communicate in
+    either direction on a channel and neither case
+    is immediately ready.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3991047
+
+ src/pkg/runtime/chan.c | 15 +--------------
+ test/chan/select3.go   |  9 +++++++++
+ 2 files changed, 10 insertions(+), 14 deletions(-)

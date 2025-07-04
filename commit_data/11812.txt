@@ -1,0 +1,14 @@
+commit 8bd0109dd078800a0d1b3827b58ba1369530424e
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Sat Feb 11 20:02:50 2012 -0800
+
+    build: get rid of deps.bash
+    
+    It doesn't work anymore and it's not used.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5652073
+
+ src/pkg/deps.bash | 54 ------------------------------------------------------
+ 1 file changed, 54 deletions(-)

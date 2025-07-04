@@ -1,0 +1,25 @@
+commit b016eba489820b9091e4f39610a84f697d8eb0f9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 7 15:50:34 2015 +0200
+
+    net/http: fix Transport data race, double cancel panic, cancel error message
+    
+    Fixes #9496
+    Fixes #9946
+    Fixes #10474
+    Fixes #10405
+    
+    Change-Id: I4e65f1706e46499811d9ebf4ad6d83a5dfb2ddaa
+    Reviewed-on: https://go-review.googlesource.com/8550
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go    |   1 +
+ src/net/http/export_test.go    |   2 +
+ src/net/http/main_test.go      |  24 +++++----
+ src/net/http/npn_test.go       |  22 +++++---
+ src/net/http/request_test.go   |   1 +
+ src/net/http/serve_test.go     |   1 +
+ src/net/http/transport.go      | 112 ++++++++++++++++++++++++-----------------
+ src/net/http/transport_test.go |  57 +++++++++++++++++++--
+ 8 files changed, 153 insertions(+), 67 deletions(-)

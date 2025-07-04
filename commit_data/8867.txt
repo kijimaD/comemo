@@ -1,0 +1,12 @@
+commit 9ded2b34516fa30ee7e79255ca8eeb5572364c19
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 27 19:07:22 2011 -0400
+
+    CONTRIBUTORS: update Rietveld address for Kyle Lemons
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/4634101
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

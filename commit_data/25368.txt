@@ -1,0 +1,14 @@
+commit 32cf985d1a74b2d5f0f79835f0c1be5c44db77ff
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 13:34:41 2015 -0800
+
+    doc: change go1.6 http heading
+    
+    Reapply golang.org/cl/17918
+    
+    Change-Id: I0df40585cdd4dae8d365ed9860a81e0cb23f21b9
+    Reviewed-on: https://go-review.googlesource.com/18032
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.6.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

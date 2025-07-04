@@ -1,0 +1,16 @@
+commit 6e4a8615f652a2020471622354be6d890404020c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Apr 25 18:31:36 2016 -0400
+
+    gc: use AbsFileLine for deterministic binary export data
+    
+    This version of the file name honors the -trimprefix flag,
+    which strips off variable parts like $WORK or $PWD.
+    The TestCgoConsistentResults test now passes.
+    
+    Change-Id: If93980b054f9b13582dd314f9d082c26eaac4f41
+    Reviewed-on: https://go-review.googlesource.com/22444
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

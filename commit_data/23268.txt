@@ -1,0 +1,18 @@
+commit aefa6cd1f9c808e778b8851d37f088db23925b50
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 21 14:42:14 2015 -0400
+
+    cmd/link: delete dead flags
+    
+    Also fix the interaction between -buildmode and -shared.
+    It's okay for -shared to change the default build mode,
+    but it's not okay for it to silently override an explicit -buildmode=exe.
+    
+    Change-Id: Id40f93d140cddf75b19e262b3ba4856ee09a07ba
+    Reviewed-on: https://go-review.googlesource.com/10315
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/link/internal/ld/lib.go  |  5 ++++-
+ src/cmd/link/internal/ld/pobj.go | 30 +++++++-----------------------
+ 2 files changed, 11 insertions(+), 24 deletions(-)

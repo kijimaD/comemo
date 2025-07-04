@@ -1,0 +1,28 @@
+commit 398b54df56ed57e3e1b333d7621dac414eda612e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Oct 16 14:35:01 2018 -0400
+
+    cmd/go: make go vet query cmd/vet for its flags
+    
+    Add -flags flag to cmd/vet that causes it to describe its flags as JSON.
+    
+    go vet's "-vettool" flag has been replaced with an environment
+    variable, GOVETTOOL, for two reasons:
+    
+      1) we need its value before flag processing,
+         because we must run vet to discover its flags.
+    
+      2) users may change the env var to opt in/out of the new vet tool
+         during the upcoming transition to vet based on the analysis API.
+    
+    Change-Id: I5d8f90817623022f4170b88fab3c92c9b2fbdc37
+    Reviewed-on: https://go-review.googlesource.com/c/142617
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/vet/vetflag.go  | 121 ++++++++++++++++++++++--------------
+ src/cmd/go/internal/work/buildid.go |   2 +-
+ src/cmd/vet/main.go                 |  30 ++++++++-
+ src/cmd/vet/vet_test.go             |   3 +-
+ 4 files changed, 105 insertions(+), 51 deletions(-)

@@ -1,0 +1,13 @@
+commit 62f54e129478f13954f92a13c4d012f23b05199f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Nov 26 20:03:24 2012 +0800
+
+    net/http: clarify docs of ParseForm and mention ParseForm in docs for FormValue
+    while we're at it, also fix a return value stutter in ParseForm.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6847074
+
+ src/pkg/net/http/request.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

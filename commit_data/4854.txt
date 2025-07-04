@@ -1,0 +1,15 @@
+commit 2f816d5b7396b96312ba43e827b44b95474073a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 16 10:19:51 2010 -0800
+
+    Don't print ()'s around a range clause's expression.
+    Fixes #605.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/207108
+
+ src/pkg/go/printer/nodes.go                   | 3 ++-
+ src/pkg/go/printer/testdata/statements.golden | 3 +++
+ src/pkg/go/printer/testdata/statements.input  | 1 +
+ 3 files changed, 6 insertions(+), 1 deletion(-)

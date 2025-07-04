@@ -1,0 +1,29 @@
+commit b83d073e9eb4cbd0cd5ca530f576668c49f6d0f1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Oct 14 18:41:16 2020 -0700
+
+    reflect: add Method.IsExported and StructField.IsExported methods
+    
+    The IsExported method is a more intuitive helper for checking whether
+    the method or field is exported than checking whether PkgPath is empty.
+    
+    In the same CL, modify the standard library to make use of this helper.
+    
+    Fixes #41563
+    
+    Change-Id: Iaacfb3b74449501f98e2707aa32095a32bd3c3c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266197
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/asn1/asn1.go    |  2 +-
+ src/encoding/asn1/marshal.go |  2 +-
+ src/encoding/json/encode.go  |  5 ++--
+ src/encoding/xml/typeinfo.go |  2 +-
+ src/net/rpc/server.go        |  2 +-
+ src/reflect/all_test.go      | 55 ++++++++++++++++++++++++++++++++++++--------
+ src/reflect/type.go          | 19 +++++++++++----
+ src/text/template/exec.go    |  2 +-
+ 8 files changed, 68 insertions(+), 21 deletions(-)

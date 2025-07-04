@@ -1,0 +1,17 @@
+commit 07cc8b9ad21a164a64139de169e8eceb1f90c61a
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Tue Feb 22 20:23:21 2011 -0800
+
+    Make.pkg, doc: Replace references to "-benchmarks" and "-match" with "-test.bench" and "-test.run".
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4197041
+
+ doc/code.html                               | 2 +-
+ src/Make.pkg                                | 2 +-
+ src/cmd/gotest/doc.go                       | 2 +-
+ src/pkg/crypto/tls/handshake_client_test.go | 2 +-
+ src/pkg/crypto/tls/handshake_server_test.go | 2 +-
+ src/pkg/testing/testing.go                  | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

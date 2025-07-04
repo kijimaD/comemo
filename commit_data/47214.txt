@@ -1,0 +1,22 @@
+commit 5f0e5d21bb1f2c1baf15bfd90ad5b090b88e6292
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Oct 29 17:35:30 2021 -0700
+
+    runtime/pprof: disable GC during calibration test
+    
+    TestCPUProfileMultithreadMagnitude compares Go's CPU profile against the
+    OS's accounting of the process's execution time, expecting them to be
+    near equal. Background work from the runtime (especially in the garbage
+    collector) can add significant noise to that measurement and flakiness
+    to the test. Disable automatic GC cycles during the test.
+    
+    Updates #49065
+    
+    Change-Id: Ie88895bfea17374278c5187f3a83e9f486bd37fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359934
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/pprof/pprof_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

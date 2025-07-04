@@ -1,0 +1,17 @@
+commit e33e476e074c3f424ca5b9d14cf67acacd5250aa
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 13:01:30 2013 +0400
+
+    syscall: disable cpu profiling around fork
+    Fixes #5517.
+    Fixes #5659.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12183044
+
+ src/pkg/runtime/pprof/pprof_test.go | 33 ++++++++++++++++++++++++++++++---
+ src/pkg/runtime/proc.c              | 31 ++++++++++++++++++++++++++++++-
+ src/pkg/syscall/exec_bsd.go         |  7 +++++++
+ src/pkg/syscall/exec_linux.go       |  7 +++++++
+ 4 files changed, 74 insertions(+), 4 deletions(-)

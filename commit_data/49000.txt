@@ -1,0 +1,33 @@
+commit 2c0a9884e0dc930c1a3596bc1decf183c8fdcf77
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Mon Apr 18 12:32:37 2022 -0700
+
+    runtime: add CPU samples to execution trace
+    
+    When the CPU profiler and execution tracer are both active, report the
+    CPU profile samples in the execution trace data stream.
+    
+    Include only samples that arrive on the threads known to the runtime,
+    but include them even when running g0 (such as near the scheduler) or if
+    there's no P (such as near syscalls).
+    
+    Render them in "go tool trace" as instantaneous events.
+    
+    For #16895
+    
+    Change-Id: I0aa501a7b450c971e510961c0290838729033f7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400795
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/trace/trace.go          |   6 +-
+ src/internal/trace/order.go     |   6 ++
+ src/internal/trace/parser.go    |  28 +++++-
+ src/runtime/cpuprof.go          |  24 ++++-
+ src/runtime/proc.go             |   6 ++
+ src/runtime/trace.go            | 190 ++++++++++++++++++++++++++++++++++++++--
+ src/runtime/trace/trace.go      |   2 +
+ src/runtime/trace/trace_test.go | 154 ++++++++++++++++++++++++++++++++
+ 8 files changed, 400 insertions(+), 16 deletions(-)

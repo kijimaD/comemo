@@ -1,0 +1,15 @@
+commit e89441ba8f98e9ce679cbb06b7ab9106a32a63ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 15:17:49 2009 -0800
+
+    net: test and fix support for 0-length datagram packets.
+    
+    Fixes #274.
+    
+    R=r
+    CC=jonathan.r.hudson
+    https://golang.org/cl/163072
+
+ src/pkg/net/fd.go          |  8 ++++++-
+ src/pkg/net/server_test.go | 56 ++++++++++++++++++++++++++--------------------
+ 2 files changed, 39 insertions(+), 25 deletions(-)

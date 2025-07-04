@@ -1,0 +1,20 @@
+commit d148cbe1ec0f4cf9060c89561daff6ac5c3e0ad0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 8 14:00:42 2018 +0200
+
+    debug/elf: add machine and OSABI constants
+    
+    Provide a complete list of EM_* and ELFOSABI_* constants.
+    
+    Compiled from the tables at
+    http://www.sco.com/developers/gabi/latest/ch4.eheader.html
+    and llvm/BinaryFormat/ELF.h from LLVM.
+    
+    Change-Id: Ice1e1476076fafdb8bb8af848caec6d80a82c452
+    Reviewed-on: https://go-review.googlesource.com/112115
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/elf/elf.go | 372 ++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 327 insertions(+), 45 deletions(-)

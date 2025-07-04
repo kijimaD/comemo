@@ -1,0 +1,41 @@
+commit b868616b63a82a4f5917400b2df63a19ebe041e2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 26 15:14:50 2017 -0700
+
+    cmd/cgo: special case C ptr types to use uintptr
+    
+    Some C types are declared as pointers, but C code
+    stores non-pointers in them.  When the Go garbage
+    collector sees such a pointer, it gets unhappy.
+    
+    Instead, for these types represent them on the Go
+    side with uintptr.
+    
+    We need this change to handle Apple's CoreFoundation
+    CF*Ref types. Users of these types might need to
+    update their code like we do in root_cgo_darwin.go.
+    The only change that is required under normal
+    circumstances is converting some nils to 0.
+    A go fix module is provided to help.
+    
+    Fixes #21897
+    
+    RELNOTE=yes
+    
+    Change-Id: I9716cfb255dc918792625f42952aa171cd31ec1b
+    Reviewed-on: https://go-review.googlesource.com/66332
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/cgo_test.go          |   1 +
+ misc/cgo/test/issue21897.go        |  56 +++++++++++
+ misc/cgo/test/issue21897b.go       |  13 +++
+ src/cmd/cgo/doc.go                 |  82 ++++++++++++++++
+ src/cmd/cgo/gcc.go                 |  59 ++++++++++++
+ src/cmd/dist/test.go               |   2 +-
+ src/cmd/fix/cftype.go              |  93 +++++++++++++++++++
+ src/cmd/fix/cftype_test.go         | 185 +++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/typecheck.go           |  56 +++++++++++
+ src/crypto/x509/root_cgo_darwin.go |   6 +-
+ 10 files changed, 549 insertions(+), 4 deletions(-)

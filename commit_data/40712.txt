@@ -1,0 +1,30 @@
+commit 42db1da8e9def3490ed904594ad80e1090bff654
+Author: witchard <witchard@hotmail.co.uk>
+Date:   Fri Nov 8 19:47:40 2019 +0000
+
+    cmd/go/internal/modfetch: add GOINSECURE
+    
+    Enables insecure fetching of dependencies whos path matches those specified in
+    the enironment variable GOINSECURE.
+    
+    Fixes #32966
+    
+    Change-Id: I378920fbd5a4436df0b5af3fb5533e663e2cc758
+    GitHub-Last-Rev: 2c87b303acbe86e273bd0b8514e338d34794b0d6
+    GitHub-Pull-Request: golang/go#35357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205238
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                              |  4 ++++
+ src/cmd/go/internal/cfg/cfg.go                     | 11 +++++-----
+ src/cmd/go/internal/envcmd/env.go                  |  1 +
+ src/cmd/go/internal/help/helpdoc.go                |  4 ++++
+ src/cmd/go/internal/modfetch/insecure.go           | 16 +++++++++++++++
+ src/cmd/go/internal/modfetch/repo.go               |  5 +++--
+ .../testdata/script/mod_convert_tsv_insecure.txt   | 24 ++++++++++++++++++++++
+ .../testdata/script/mod_get_insecure_redirect.txt  | 21 +++++++++++++++++++
+ src/cmd/go/testdata/script/mod_sumdb_cache.txt     |  7 +++++++
+ src/internal/cfg/cfg.go                            |  1 +
+ 10 files changed, 87 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit ff1eb428654b7815a8fc825f1cc29d6cf72cc2f7
+Author: Paschalis Tsilias <paschalis.tsilias@gmail.com>
+Date:   Mon Feb 3 10:47:41 2020 +0200
+
+    time: fix time.Before to reuse t.sec(), u.sec()
+    
+    Fixes #36987
+    
+    Change-Id: I91ea1a42f75302de5256a22d382ab7f1b307a498
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217360
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/time.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

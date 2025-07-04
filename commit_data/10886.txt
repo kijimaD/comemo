@@ -1,0 +1,12 @@
+commit b7e9d22528abec3529d2a28fd59beaae5e21023c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 20 11:53:24 2011 +1100
+
+    net/http: test should not leave tmp files behind on windows
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5496067
+
+ src/pkg/net/http/request_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

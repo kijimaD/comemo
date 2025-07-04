@@ -1,0 +1,12 @@
+commit b2efedbf361d5d96ad0fd74e00cbc12801253087
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 28 10:27:33 2011 -0800
+
+    template: document the delimiters better
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4248047
+
+ src/pkg/template/template.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

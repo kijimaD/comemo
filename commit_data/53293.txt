@@ -1,0 +1,19 @@
+commit 295c237b4d2bf57ff2fc52381c6439bc55b84e5e
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Apr 18 10:24:32 2023 -0700
+
+    crypto/tls: enforce 1.3 record version semantics
+    
+    1.3 expects the record version is always 1.2 (0x0303), this previously
+    wasn't enforced.
+    
+    Change-Id: I8bc88f588e76f9b862b57601336bb5c5ff08b30e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485876
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/tls/conn.go      | 10 ++++++++--
+ src/crypto/tls/conn_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 9a0a59f171d0ae1defff35440c93e1a119289c29
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 12 21:02:55 2013 -0400
+
+    cmd/6g, cmd/8g: proginfo carry fixes
+    
+    Bugs pointed out by cshapiro in CL 12637051.
+    
+    R=cshapiro
+    CC=golang-dev
+    https://golang.org/cl/12815043
+
+ src/cmd/6g/prog.c | 24 ++++++++++++------------
+ src/cmd/8g/prog.c | 18 +++++++++---------
+ 2 files changed, 21 insertions(+), 21 deletions(-)

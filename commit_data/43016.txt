@@ -1,0 +1,22 @@
+commit f554eb7bc332cc265e6cc0490a7595b2f5873cba
+Author: David Chase <drchase@google.com>
+Date:   Mon Jul 13 14:44:14 2020 -0400
+
+    cmd/compile: add variable length TRESULTS type for SSA use.
+    
+    This type is very much like TTUPLE, but not just for pairs.
+    Used to describe results of a pre-expansion function call.
+    (will later probably also be used to describe the incoming args).
+    
+    Change-Id: I811850cfcc2b3de85085eb4c2eca217c04c330b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242360
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go             | 11 +++++
+ src/cmd/compile/internal/types/etype_string.go |  7 +--
+ src/cmd/compile/internal/types/type.go         | 66 +++++++++++++++++++++++---
+ 3 files changed, 74 insertions(+), 10 deletions(-)

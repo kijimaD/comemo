@@ -1,0 +1,14 @@
+commit e8b82789cda6c9d9e3dfc9a652b4d7a823b834f2
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Mar 11 14:22:16 2021 +0800
+
+    A+C: add new e-mail addresses for Andy Pan
+    
+    Change-Id: I2be9cba124b407f27823b3a3778331b6118112cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300470
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit a0feb3256760c71c87a977bfd9d81dc52bd690b8
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 4 21:06:38 2009 -0800
+
+    remove some incorrect capitalizations.
+    add commentary.
+    
+    R=rsc
+    DELTA=231  (41 added, 24 deleted, 166 changed)
+    OCL=25724
+    CL=25726
+
+ src/lib/regexp/all_test.go |   2 +-
+ src/lib/regexp/regexp.go   | 367 ++++++++++++++++++++++++---------------------
+ 2 files changed, 193 insertions(+), 176 deletions(-)

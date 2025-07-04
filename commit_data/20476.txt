@@ -1,0 +1,16 @@
+commit 84f9c42bbbfb67c2ef78d4a4e19417329d7f8f5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 20:13:07 2014 -0400
+
+    os: skip TestRemoveAllRace on Windows
+    
+    It's just fundamentally incompatible with
+    Windows' pickiness about removing things
+    that are in use.
+    
+    TBR=brainman
+    CC=golang-codereviews
+    https://golang.org/cl/142270043
+
+ src/os/os_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

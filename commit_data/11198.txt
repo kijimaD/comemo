@@ -1,0 +1,14 @@
+commit f320eb94f9ec057639b61bd03fc655838d85f6e3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 17 16:51:02 2012 +1100
+
+    go/build: no back slash in FindTree returned pkg name
+    
+    Fixes #2652.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/5516045
+
+ src/pkg/go/build/path.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

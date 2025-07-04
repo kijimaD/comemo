@@ -1,0 +1,33 @@
+commit dce0df29dd9052c0f00ce8217b9a51a84206e892
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 4 15:57:24 2016 -0700
+
+    cmd/compile/internal/gc: change bvfoo functions into bvec methods
+    
+    plive.go (except for printeffects and livenessprintblock) and
+    reflect.go changes were prepared mechanically with gofmt -r.
+    
+    Passes toolstash.
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      44.3MB ± 0%     44.3MB ± 0%    ~           (p=0.367 n=30+30)
+    Unicode       37.4MB ± 0%     37.4MB ± 0%    ~           (p=0.665 n=30+30)
+    GoTypes        125MB ± 0%      125MB ± 0%    ~           (p=0.067 n=30+30)
+    Compiler       515MB ± 0%      515MB ± 0%    ~           (p=0.542 n=30+28)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        434k ± 0%       434k ± 0%    ~           (p=0.076 n=30+29)
+    Unicode         367k ± 0%       367k ± 0%    ~           (p=0.716 n=29+30)
+    GoTypes        1.24M ± 0%      1.24M ± 0%    ~           (p=0.428 n=29+29)
+    Compiler       4.47M ± 0%      4.47M ± 0%    ~           (p=0.225 n=28+30)
+    
+    Change-Id: Ibaf0668567b3f69fba06aa03b7997c8fb152113a
+    Reviewed-on: https://go-review.googlesource.com/30356
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bv.go      |  65 +++++++------
+ src/cmd/compile/internal/gc/plive.go   | 171 ++++++++++++++++-----------------
+ src/cmd/compile/internal/gc/reflect.go |   2 +-
+ 3 files changed, 119 insertions(+), 119 deletions(-)

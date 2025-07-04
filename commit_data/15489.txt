@@ -1,0 +1,78 @@
+commit 322214cf5434a4bd568a994eeced4f11268e330e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 28 14:58:41 2013 +0900
+
+    net: fix slow network interface manipulations
+    
+    This CL reduces unnecessary network facility lookups introduced
+    by recent changes below.
+    
+    changeset: 15798:53a4da6a4f4a
+    net: return correct point-to-point interface address on linux
+    
+    changeset: 15799:a81ef8e0cc05
+    net: set up IPv6 scoped addressing zone for network facilities
+    
+    Also adds a test case for issue 4839.
+    
+    Benchmark results on linux/amd64, virtual machine:
+    benchmark                                 old ns/op    new ns/op    delta
+    BenchmarkInterfaces-2                         80487        80382   -0.13%
+    BenchmarkInterfaceByIndex-2                   72013        71391   -0.86%
+    BenchmarkInterfaceByName-2                    79865        80101   +0.30%
+    BenchmarkInterfaceAddrs-2                     42071       829677  +1872.09%
+    BenchmarkInterfacesAndAddrs-2                 35016       607622  +1635.27%
+    BenchmarkInterfacesAndMulticastAddrs-2       169849       169082   -0.45%
+    old: 15797:9c3930413c1b, new: tip
+    
+    Benchmark results on linux/amd64, virtual machine:
+    benchmark                                 old ns/op    new ns/op    delta
+    BenchmarkInterfaces-2                         80487        81459   +1.21%
+    BenchmarkInterfaceByIndex-2                   72013        71512   -0.70%
+    BenchmarkInterfaceByName-2                    79865        80567   +0.88%
+    BenchmarkInterfaceAddrs-2                     42071       120108  +185.49%
+    BenchmarkInterfacesAndAddrs-2                 35016        33259   -5.02%
+    BenchmarkInterfacesAndMulticastAddrs-2       169849        82391  -51.49%
+    old: 15797:9c3930413c1b, new: tip+CL7400055
+    
+    Benchmark results on darwin/amd64:
+    benchmark                                 old ns/op    new ns/op    delta
+    BenchmarkInterfaces-2                         34402        34231   -0.50%
+    BenchmarkInterfaceByIndex-2                   13192        12956   -1.79%
+    BenchmarkInterfaceByName-2                    34791        34388   -1.16%
+    BenchmarkInterfaceAddrs-2                     36565        63906  +74.77%
+    BenchmarkInterfacesAndAddrs-2                 17497        31068  +77.56%
+    BenchmarkInterfacesAndMulticastAddrs-2        25276        66711  +163.93%
+    old: 15797:9c3930413c1b, new: tip
+    
+    Benchmark results on darwin/amd64:
+    benchmark                                 old ns/op    new ns/op    delta
+    BenchmarkInterfaces-2                         34402        31854   -7.41%
+    BenchmarkInterfaceByIndex-2                   13192        12950   -1.83%
+    BenchmarkInterfaceByName-2                    34791        31926   -8.23%
+    BenchmarkInterfaceAddrs-2                     36565        42144  +15.26%
+    BenchmarkInterfacesAndAddrs-2                 17497        17329   -0.96%
+    BenchmarkInterfacesAndMulticastAddrs-2        25276        24870   -1.61%
+    old: 15797:9c3930413c1b, new: tip+CL7400055
+    
+    Update #4234.
+    Fixes #4839 (again).
+    Fixes #4866.
+    
+    R=golang-dev, fullung
+    CC=golang-dev
+    https://golang.org/cl/7400055
+
+ src/pkg/net/interface.go            |  16 ++--
+ src/pkg/net/interface_bsd.go        |  56 +++++++++-----
+ src/pkg/net/interface_bsd_test.go   |  50 +++++++++++++
+ src/pkg/net/interface_darwin.go     |  19 ++---
+ src/pkg/net/interface_freebsd.go    |  19 ++---
+ src/pkg/net/interface_linux.go      |  81 +++++++++++----------
+ src/pkg/net/interface_linux_test.go |  48 +++++++++++-
+ src/pkg/net/interface_netbsd.go     |   9 +--
+ src/pkg/net/interface_openbsd.go    |   9 +--
+ src/pkg/net/interface_stub.go       |  17 ++---
+ src/pkg/net/interface_unix_test.go  | 141 ++++++++++++++++++++++++++++++++++++
+ src/pkg/net/interface_windows.go    |  22 +++---
+ 12 files changed, 366 insertions(+), 121 deletions(-)

@@ -1,0 +1,17 @@
+commit 5749c0eb5b933372c21983698bbc67b841b8b2bc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jan 22 16:34:26 2020 -0800
+
+    cmd/compile: use ellipses in ARM rules
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I390789ca5bfe45967ed156590f2690c91d416187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217005
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  121 ++-
+ src/cmd/compile/internal/ssa/rewriteARM.go | 1406 +++++-----------------------
+ 2 files changed, 272 insertions(+), 1255 deletions(-)

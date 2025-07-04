@@ -1,0 +1,14 @@
+commit b3a8beb9d1eb7bd28b22e3a26f65c6025017d7a3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 17 17:09:07 2017 -0700
+
+    cmd/compile: minor cleanup in debug code
+    
+    Change-Id: I9885606801b9c8fcb62c16d0856025c4e83e658b
+    Reviewed-on: https://go-review.googlesource.com/38650
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/func.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

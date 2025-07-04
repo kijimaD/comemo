@@ -1,0 +1,30 @@
+commit ae00df128d8434dd37f73123aaea09de786d0275
+Author: Tom Bergan <tombergan@google.com>
+Date:   Wed Feb 17 18:20:24 2016 -0800
+
+    crypto/tls: implement dynamic record sizing
+    
+    Currently, if a client of crypto/tls (e.g., net/http, http2) calls
+    tls.Conn.Write with a 33KB buffer, that ends up writing three TLS
+    records: 16KB, 16KB, and 1KB. Slow clients (such as 2G phones) must
+    download the first 16KB record before they can decrypt the first byte.
+    To improve latency, it's better to send smaller TLS records. However,
+    sending smaller records adds overhead (more overhead bytes and more
+    crypto calls), which slightly hurts throughput.
+    
+    A simple heuristic, implemented in this change, is to send small
+    records for new connections, then boost to large records after the
+    first 1MB has been written on the connection.
+    
+    Fixes #14376
+    
+    Change-Id: Ice0f6279325be6775aa55351809f88e07dd700cd
+    Reviewed-on: https://go-review.googlesource.com/19591
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/common.go    |   6 +++
+ src/crypto/tls/conn.go      |  83 ++++++++++++++++++++++++++--
+ src/crypto/tls/conn_test.go | 128 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 213 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit 86b3577a594cad40deb40d0a454f545d0c443f73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 3 13:02:35 2011 -0700
+
+    ebnf: update comment
+    
+    (pointed out by jan.mercl@nic.cz)
+    
+    R=iant, jan.mercl, rsc
+    CC=golang-dev
+    https://golang.org/cl/4515189
+
+ src/pkg/ebnf/ebnf.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

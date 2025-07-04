@@ -1,0 +1,47 @@
+commit e038c7e4189a33ae25eb2c446f608b6e2f946823
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Sat Nov 2 17:16:36 2019 +0900
+
+    runtime/pprof: correctly encode inlined functions in CPU profile
+    
+    The pprof profile proto message expects inlined functions of a PC
+    to be encoded in one Location entry using multiple Line entries.
+    https://github.com/google/pprof/blob/5e96527/proto/profile.proto#L177-L184
+    
+    runtime/pprof has encoded the symbolization information by creating
+    a Location for each PC found in the stack trace and including info
+    from all the frames expanded from the PC using runtime.CallersFrames.
+    This assumes inlined functions are represented as a single PC in the
+    stack trace. (https://go-review.googlesource.com/41256)
+    
+    In the recent years, behavior around inlining and the traceback
+    changed significantly (e.g. https://golang.org/cl/152537,
+    https://golang.org/issue/29582, and many changes). Now the PCs
+    in the stack trace represent user frames even including inline
+    marks. As a result, the profile proto started to allocate a Location
+    entry for each user frame, lose the inline information (so pprof
+    presented incorrect results when inlined functions are involved),
+    and confuse the pprof tool with those PCs made up for inline marks.
+    
+    This CL attempts to detect inlined call frames from the stack traces
+    of CPU profiles, and organize the Location information as intended.
+    Currently, runtime does not provide a reliable and convenient way to
+    detect inlined call frames and expand user frames from a given externally
+    recognizable PCs. So we use heuristics to recover the groups
+      - inlined call frames have nil Func field
+      - inlined call frames will have the same Entry point
+      - but must be careful with recursive functions that have the
+        same Entry point by definition, and non-Go functions that
+        may lack most of the fields of Frame.
+    
+    The followup CL will address the issue with other profile types.
+    
+    Change-Id: I0c9667ab016a3e898d648f31c3f82d84c15398db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204636
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/pprof/pprof_test.go                |  93 ++++++---
+ src/runtime/pprof/proto.go                     | 249 +++++++++++++++++++++++--
+ src/runtime/pprof/proto_test.go                |  11 ++
+ src/runtime/pprof/testdata/mappingtest/main.go |  13 +-
+ 4 files changed, 315 insertions(+), 51 deletions(-)

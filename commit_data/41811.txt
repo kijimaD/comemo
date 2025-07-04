@@ -1,0 +1,23 @@
+commit afc480bab447c0fefe26a69e4221d93673021e98
+Author: Bradford Lamson-Scribner <brad.lamson@gmail.com>
+Date:   Sun Mar 29 13:17:46 2020 -0600
+
+    cmd/compile: combine ssa.html columns with identical contents
+    
+    Combine columns in ssa.html output if they are identical. There
+    can now be multiple titles per column which are all clickable to
+    expand and collapse their column. Give collapsed columns some
+    padding for better readability. Some of the work in this CL was
+    started by Josh Bleecher Snyder and mailed to me in order to
+    continue to completion.
+    
+    Updates #37766
+    
+    Change-Id: I313b0917dc1bafe1eb99d91798ea915e5bcfaae9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226209
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/html.go  | 85 ++++++++++++++++++++++++-----------
+ src/cmd/compile/internal/ssa/print.go |  8 ++++
+ 2 files changed, 66 insertions(+), 27 deletions(-)

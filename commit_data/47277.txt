@@ -1,0 +1,15 @@
+commit a0d661ab0ff896abe45d6d4e79cb71df233c5319
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 5 08:18:57 2021 -0700
+
+    net: skip new alloc test on some builders
+    
+    Change-Id: Ib785212eb9e035a10d327696c180caf730d2e5e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361634
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/udpsock_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

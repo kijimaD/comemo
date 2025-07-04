@@ -1,0 +1,20 @@
+commit 38dc795074acbf2529a39e45a64fce3ab22cf8e4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 25 17:56:57 2018 -0400
+
+    cmd/go: allow unversioned paths to -dropreplace flag
+    
+    We can add unversioned paths via -replace;
+    -dropreplace must be able to drop them.
+    
+    Fixes #26417.
+    
+    Change-Id: Ic05e9ae2ad80c008e11b195695cbb9d0fc8dbc0a
+    Reviewed-on: https://go-review.googlesource.com/126155
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modcmd/mod.go       | 67 ++++++++++++++++++---------------
+ src/cmd/go/testdata/script/mod_edit.txt |  8 ++++
+ 2 files changed, 45 insertions(+), 30 deletions(-)

@@ -1,0 +1,29 @@
+commit d7b34d5f29324d77fad572676f0ea139556235e0
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Oct 30 01:54:19 2016 +0200
+
+    runtime: improve atoi implementation
+    
+    - Adds overflow checks
+    - Adds parsing of negative integers
+    - Adds boolean return value to signal parsing errors
+    - Adds atoi32 for parsing of integers that fit in an int32
+    - Adds tests
+    
+    Handling of errors to provide error messages
+    at the call sites is left to future CLs.
+    
+    Updates #17718
+    
+    Change-Id: I3cacd0ab1230b9efc5404c68edae7304d39bcbc0
+    Reviewed-on: https://go-review.googlesource.com/32390
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/export_test.go |  3 ++
+ src/runtime/mgc.go         |  8 ++--
+ src/runtime/proc.go        | 13 +++----
+ src/runtime/runtime1.go    | 13 +++++--
+ src/runtime/string.go      | 63 ++++++++++++++++++++++++++++---
+ src/runtime/string_test.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 174 insertions(+), 20 deletions(-)

@@ -1,0 +1,15 @@
+commit 2f9c48f6d16ea5105f3483d42d4e5f83e5f3ffd0
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 6 18:27:15 2009 -0700
+
+    timings for pidigits
+    
+    TBR=rsc
+    OCL=32857
+    CL=32857
+
+ test/bench/pidigits.c   | 123 ++++++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/pidigits.txt |   3 ++
+ test/bench/timing.log   |  12 +++--
+ test/bench/timing.sh    |  10 +++-
+ 4 files changed, 144 insertions(+), 4 deletions(-)

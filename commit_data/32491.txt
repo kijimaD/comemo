@@ -1,0 +1,28 @@
+commit 5d39af9d9bac91b84b9944b1edffc6fb332747fa
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Aug 15 21:15:26 2017 +0100
+
+    all: remove some unused result params
+    
+    Most of these are return values that were part of a receiving parameter,
+    so they're still accessible.
+    
+    A few others are not, but those have never had a use.
+    
+    Found with github.com/mvdan/unparam, after Kevin Burke's suggestion that
+    the tool should also warn about unused result parameters.
+    
+    Change-Id: Id8b5ed89912a99db22027703a88bd94d0b292b8b
+    Reviewed-on: https://go-review.googlesource.com/55910
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/asm/internal/asm/parse.go        | 22 +++++++++++-----------
+ src/cmd/compile/internal/gc/dcl.go       |  4 +---
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
+ src/cmd/compile/internal/ssa/trim.go     |  6 ++----
+ src/cmd/go/internal/load/pkg.go          | 13 ++++++-------
+ src/encoding/json/encode.go              |  8 ++------
+ src/testing/benchmark.go                 |  3 +--
+ 7 files changed, 27 insertions(+), 37 deletions(-)

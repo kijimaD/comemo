@@ -1,0 +1,32 @@
+commit 76036192b92b15b9f5cade8941909a4207d17507
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 15:06:43 2008 -0700
+
+    make Makefiles safe for parallel make
+    use -j4 (4-way parallel) in make.bash.
+    
+    halves time for make.bash on r45
+    
+    also add libregexp, acid to default build
+    
+    R=r
+    DELTA=90  (39 added, 37 deleted, 14 changed)
+    OCL=15485
+    CL=15487
+
+ src/clean.bash         |  2 +-
+ src/cmd/6a/Makefile    |  5 ++++-
+ src/cmd/cc/Makefile    |  5 ++++-
+ src/cmd/clean.bash     |  2 +-
+ src/cmd/gc/Makefile    |  5 ++++-
+ src/cmd/make.bash      | 52 ++++++++------------------------------------------
+ src/lib/make.bash      |  2 ++
+ src/lib/math/Makefile  |  5 +++++
+ src/lib/math/make.bash |  2 ++
+ src/lib/net/Makefile   |  3 +++
+ src/lib/os/Makefile    |  3 +++
+ src/lib/time/Makefile  |  3 +++
+ src/make.bash          |  5 ++++-
+ src/pkg/make.bash      |  2 ++
+ src/syscall/Makefile   |  3 +++
+ 15 files changed, 49 insertions(+), 50 deletions(-)

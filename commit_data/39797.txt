@@ -1,0 +1,21 @@
+commit d9a3d902ec139c95d8dc1b69977783fb8134b552
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Sep 4 13:01:16 2019 -0400
+
+    errors: fix wrong code in package doc
+    
+    You can't call Unwrap on the return value of fmt.Errorf, but
+    you can pass the result to errors.Unwrap.
+    
+    Also, move the description of the Unwrap function up so the
+    example makes sense.
+    
+    Fixes #34061.
+    
+    Change-Id: Ica07c44665c5e65deea4aa6a146fc543a5a0a99d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193298
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/errors/errors.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

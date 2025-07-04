@@ -1,0 +1,17 @@
+commit b18a5600c2f0b32a0997553b512b1c747a040cd4
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Wed Oct 28 08:10:46 2015 +0100
+
+    html/template, encoding/asn1: fix test errors
+    
+    Change-Id: I1da1d718609eb6a7b78d29b173ec780bde22c687
+    Reviewed-on: https://go-review.googlesource.com/16422
+    Reviewed-by: Ralph Corderoy <ralph@inputplus.co.uk>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/encoding/asn1/asn1_test.go  | 2 +-
+ src/html/template/clone_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

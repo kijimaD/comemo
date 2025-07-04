@@ -1,0 +1,21 @@
+commit 55e6e825d4c90544248c3a725b4dee9fb45848e7
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Tue Aug 31 20:35:35 2021 +0000
+
+    net/http: add MaxBytesHandler
+    
+    Fixes #39567
+    
+    Change-Id: I226089b678a6a13d7ce69f360a23fc5bd297d550
+    GitHub-Last-Rev: 6435fd5881fc70a276d04df5a60440e365924b49
+    GitHub-Pull-Request: golang/go#48104
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346569
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/serve_test.go | 60 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  9 +++++++
+ 2 files changed, 69 insertions(+)

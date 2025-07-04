@@ -1,0 +1,25 @@
+commit 1387b5e91d76ba6727a7434c06f7c368d6c53d5c
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Dec 16 13:24:40 2021 -0800
+
+    cmd/compile: only avoid escaping package paths for "go.shape"
+    
+    We have code that intends to avoid escaping the package path for
+    built-in packages. But it is hard to determine which packages are
+    built-in from a general rule, and we really only want to avoid escaping
+    for the "go.shape" package (since that gives ugly shape type names). So,
+    fix the code to only avoid escaping the package path specifically for
+    the "go.shape" package.
+    
+    Fixes #50200
+    
+    Change-Id: Ibaedd7690b99a173007c608c5dfa783ef82b326d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372934
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/types/pkg.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

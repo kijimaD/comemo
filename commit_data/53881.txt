@@ -1,0 +1,25 @@
+commit e59eaee2e36092c1b8df72cdc20576723905f971
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 1 18:02:41 2023 -0700
+
+    go/types, types2: collect per-file Go version in Info.FileVersions
+    
+    The go/types changes are matching but the API changes are hidden
+    for now, pending acceptance of a respective proposal.
+    
+    Change-Id: I2e38ff215ddbdcf93f182d3e70c03802d3ca4338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515135
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api.go      | 11 ++++++
+ src/cmd/compile/internal/types2/api_test.go | 39 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/check.go    | 11 +++++-
+ src/go/types/api.go                         | 11 ++++++
+ src/go/types/api_test.go                    | 52 +++++++++++++++++++++++++++++
+ src/go/types/check.go                       | 11 +++++-
+ 6 files changed, 133 insertions(+), 2 deletions(-)

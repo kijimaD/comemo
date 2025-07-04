@@ -1,0 +1,16 @@
+commit ffd4e32885c4fed50dd0420440b8e58bff32adce
+Author: David Chase <drchase@google.com>
+Date:   Wed Jan 15 17:19:17 2020 -0500
+
+    doc/go1.14: add remarks about range inference and check removal
+    
+    Mentions CLs 174704 and 196784.
+    
+    Change-Id: Ia8f821a3d90a4e08c895a6f091dbf07311e885ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214946
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.14.html | 5 +++++
+ 1 file changed, 5 insertions(+)

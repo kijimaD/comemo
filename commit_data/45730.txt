@@ -1,0 +1,19 @@
+commit 2bec019fb5a7d379772c29be6e3487640d43e6fa
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 27 10:13:00 2021 -0400
+
+    doc/go1.17: add release notes for register ABI
+    
+    Also delete the TODO for the linker section.
+    
+    Updates #44513.
+    Updates #40724.
+    
+    Change-Id: I4d62a907e8c3070831a052cdfe1e21648698df12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323289
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ doc/go1.17.html | 52 +++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 39 insertions(+), 13 deletions(-)

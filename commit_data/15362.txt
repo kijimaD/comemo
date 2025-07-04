@@ -1,0 +1,20 @@
+commit 782cbb4f90dc873eced4248e100e69a6502d7aee
+Author: Robert Dinu <r@oktett.se>
+Date:   Thu Feb 21 14:17:43 2013 -0800
+
+    testing: fix output formatting
+    
+    Revision 5e7fd762f356 has changed the output formatting in a way that
+    is no longer in line with the format described by the revision
+    ff0ade0b937b which has introduced this functionality.
+    When decorating the first line, instead of indenting the whole line,
+    the current implementation adds indentation right after the "decorate"
+    part and  before the "log" message.
+    The fix addresses this issue.
+    
+    R=golang-dev, iant, minux.ma, r, rsc, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/7304094
+
+ src/pkg/testing/testing.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

@@ -1,0 +1,22 @@
+commit 0417aafe755acc5eb0cac0a030de08216e44488b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 23:42:57 2009 -0700
+
+    insert ODCL in type switch case.
+    needed for heap allocation if variable escapes.
+    
+    package main
+    func main(){
+            var i interface{} = 42;
+            switch v := i.(type) {
+            case int:
+                    println(&v, v);
+            }
+    }
+    
+    R=ken
+    OCL=31245
+    CL=31245
+
+ src/cmd/gc/swt.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

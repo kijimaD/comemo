@@ -1,0 +1,14 @@
+commit 49c42569138d027b7c7e68dbbe58fd1864045767
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Mon Feb 8 11:53:27 2010 -0800
+
+    Fix *l/*c -V flag segfault
+    
+    *l/*c -V will segfault on macos without this trivial fix.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/205042
+
+ include/libc.h | 1 +
+ 1 file changed, 1 insertion(+)

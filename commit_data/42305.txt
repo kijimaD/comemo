@@ -1,0 +1,34 @@
+commit 6ea19bb668ee603d1a41d3fd5ab77e130118fd8b
+Author: Katie Hockman <katie@golang.org>
+Date:   Thu Apr 30 20:11:55 2020 -0400
+
+    crypto/tls: rotate session keys in older TLS versions
+    
+    Also encode the certificates in a way that's more
+    consistent with TLS 1.3 (with a 24 byte length prefix).
+    
+    Note that this will have an additional performance cost
+    requiring clients to do a full handshake every 7 days
+    where previously they were able to use the same ticket
+    indefinitely.
+    
+    Updates #25256
+    
+    Change-Id: Ic4d1ba0d92773c490b33b5f6c1320d557cc7347d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231317
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/handshake_client_test.go            |  12 ++
+ src/crypto/tls/handshake_messages_test.go          |   1 +
+ src/crypto/tls/handshake_server.go                 |   7 +
+ .../testdata/Server-TLSv10-ExportKeyingMaterial    |  83 +++++-----
+ src/crypto/tls/testdata/Server-TLSv12-ALPN         |  83 +++++-----
+ src/crypto/tls/testdata/Server-TLSv12-ALPN-NoMatch |  83 +++++-----
+ .../testdata/Server-TLSv12-ExportKeyingMaterial    |  81 +++++-----
+ src/crypto/tls/testdata/Server-TLSv12-IssueTicket  | 167 ++++++++++-----------
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   | 167 ++++++++++-----------
+ src/crypto/tls/testdata/Server-TLSv12-Resume       |  82 +++++-----
+ src/crypto/tls/ticket.go                           |  35 +++--
+ 11 files changed, 408 insertions(+), 393 deletions(-)

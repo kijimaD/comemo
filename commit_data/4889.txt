@@ -1,0 +1,13 @@
+commit 2161e3e23e963fb9bd59962016a09f514463cbb7
+Author: Fumitoshi Ukai <ukai@google.com>
+Date:   Thu Feb 18 18:32:40 2010 -0800
+
+    http: avoid server crash on malformed client request
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/206079
+
+ src/pkg/websocket/server.go         | 30 ++++++++++++++++++++++--------
+ src/pkg/websocket/websocket_test.go | 15 +++++++++++++++
+ 2 files changed, 37 insertions(+), 8 deletions(-)

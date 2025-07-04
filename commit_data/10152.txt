@@ -1,0 +1,15 @@
+commit d1f48db1cc021924e52614b5f7a71ab8bfa3f1cd
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Mon Oct 31 13:34:59 2011 -0400
+
+    syscall: fix Await msg on Plan 9
+    
+    Plan 9's await() returns '' for nil exit status but programs, most notably gotest,
+    see this as an error return.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5305079
+
+ src/pkg/syscall/syscall_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

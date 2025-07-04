@@ -1,0 +1,13 @@
+commit 07fb6fcd40a1667bd8cca7622cfc472ee3382e06
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 13 02:40:56 2013 +0800
+
+    os/signal: windows is supported, update comment
+    Fixes #5035.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7519045
+
+ src/pkg/os/signal/signal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

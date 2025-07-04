@@ -1,0 +1,12 @@
+commit 57c1485fd92a1449def5cc6abdd8a1d5d53d44b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 4 15:16:45 2015 -0800
+
+    math/big: simplified formatting logic
+    
+    Change-Id: I4329c44b829fcd77e4f1a1d45904f0f8a280a595
+    Reviewed-on: https://go-review.googlesource.com/3940
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/ftoa.go | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

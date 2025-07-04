@@ -1,0 +1,12 @@
+commit a029f1eb7ef0f8421cca28c09355fef636bfaa44
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 8 22:17:09 2009 -0700
+
+    work around link bug
+    
+    R=rsc
+    OCL=27242
+    CL=27242
+
+ src/lib/bignum_test.go | 1 +
+ 1 file changed, 1 insertion(+)

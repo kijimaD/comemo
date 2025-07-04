@@ -1,0 +1,16 @@
+commit 2e11881269d3ed30816a8ae8b7bedf9fbe55b995
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 23 14:57:09 2019 +0000
+
+    net: don't crash on Windows when Lookup name has null byte in string
+    
+    Fixes #31597
+    
+    Change-Id: I0db1f6f457632c49f9ecfa9d85b99b4cf7d91325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173362
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/lookup_test.go    | 10 ++++++++++
+ src/net/lookup_windows.go |  6 +++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)

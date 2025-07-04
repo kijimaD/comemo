@@ -1,0 +1,20 @@
+commit a58e731287d28e25eae0fdfed9090f62222923cf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 5 11:37:00 2015 +1000
+
+    cmd/vet: fix tests on windows
+    
+    Add .exe to exectable name, so it can be executed on windows.
+    Use proper windows paths when searching vet output.
+    Replace Skip with Skipf.
+    
+    Fixes build
+    
+    Change-Id: Ife40d8f5ab9d7093ca61c50683a358d4d6a3ba34
+    Reviewed-on: https://go-review.googlesource.com/10742
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Patrick Mézard <patrick@mezard.eu>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/vet_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,19 @@
+commit e5f5607b635139154584c599b2ebf71fe573ca97
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 10:51:28 2020 -0500
+
+    cmd/go: convert TestIssue11709 to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I16fb0910196c96caef6ed380f96010a548407f9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214424
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go                         | 15 ---------------
+ src/cmd/go/testdata/script/run_issue11709.txt | 15 +++++++++++++++
+ 2 files changed, 15 insertions(+), 15 deletions(-)

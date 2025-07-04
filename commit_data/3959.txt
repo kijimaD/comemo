@@ -1,0 +1,11 @@
+commit 9e0d2fa89b7e9f2b8be546e4182042e7813f9c36
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 10 15:33:59 2009 -0800
+
+    better code for a copy loop
+    
+    R=rsc
+    https://golang.org/cl/152046
+
+ src/pkg/container/vector/vector.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,27 @@
+commit 869c02ce1f635960bfc2f06bb52e2b4e17eaa199
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Wed Sep 16 15:23:58 2020 +0200
+
+    misc/ios: add support for running programs on the iOS simulator
+    
+    Update the README to mention the emulator. Remove reference to gomobile
+    while here; there are multiple ways to develop for iOS today, including
+    using the c-archive buildmode directly.
+    
+    Updates #38485
+    
+    Change-Id: Iccef75e646ea8e1b9bc3fc37419cc2d6bf3dfdf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255257
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Elias Naur <mail@eliasnaur.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/ios/README                                    |  31 ++-
+ misc/ios/clangwrap.sh                              |  20 +-
+ misc/ios/detect.go                                 |   2 +-
+ misc/ios/{go_darwin_arm_exec.go => go_ios_exec.go} | 277 ++++++++++++++-------
+ src/cmd/dist/build.go                              |   2 +-
+ src/iostest.bash                                   |   2 +-
+ src/runtime/cgo/gcc_darwin_arm64.c                 |   2 +-
+ 7 files changed, 213 insertions(+), 123 deletions(-)

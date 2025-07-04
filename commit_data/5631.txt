@@ -1,0 +1,22 @@
+commit a2a7d473f464d99b96366404a468d50131d61b9a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 9 11:00:55 2010 -0700
+
+    gc: more cleanup
+     * disallow surrogate pair runes.
+     * diagnose impossible type assertions
+     * eliminate another static buffer.
+     * do not overflow lexbuf.
+     * add -u flag to disable package unsafe.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1619042
+
+ src/cmd/gc/go.h            |  1 +
+ src/cmd/gc/lex.c           | 90 ++++++++++++++++++++++++++++++++++------------
+ src/cmd/gc/subr.c          | 30 ++++++++--------
+ src/cmd/gc/typecheck.c     | 16 ++++++++-
+ src/cmd/gc/unsafe.c        |  2 +-
+ test/interface/explicit.go | 21 ++++++++++-
+ 6 files changed, 120 insertions(+), 40 deletions(-)

@@ -1,0 +1,13 @@
+commit efd3d1ffe9d784b006f03e1961567149952b8f19
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 6 16:55:08 2013 -0500
+
+    runtime: fix netbsd, windows build
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7539043
+
+ src/pkg/runtime/rt0_netbsd_amd64.s  | 2 +-
+ src/pkg/runtime/rt0_windows_amd64.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

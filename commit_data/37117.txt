@@ -1,0 +1,15 @@
+commit 2d77600ae7449680b0d4e0171f4186caf3e8d8ab
+Author: Mark Rushakoff <mark.rushakoff@gmail.com>
+Date:   Thu Oct 25 23:46:17 2018 +0000
+
+    cmd/go: fix typo in output of "go help get"
+    
+    Change-Id: I7e109470e27eb978f920a99f858dbaffa4872eb5
+    GitHub-Last-Rev: dd684c2481b234f556a1c84c1771f2d8eb8b5ea2
+    GitHub-Pull-Request: golang/go#28401
+    Reviewed-on: https://go-review.googlesource.com/c/144837
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go             | 2 +-
+ src/cmd/go/internal/modget/get.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

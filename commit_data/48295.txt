@@ -1,0 +1,29 @@
+commit 7c292ddf1f883698b3a0bab7004368cff62a04a5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 6 20:11:21 2022 -0800
+
+    cmd/compile: fix reentrancy issue in unified IR function body reading
+    
+    We shouldn't need to read in function bodies for new functions found
+    during inlining, but something is expecting them to still be read
+    in. We should fix that code to not depend on them being read in, but
+    in the mean time reading them in anyway is at least correct, albeit
+    less efficient in time and space.
+    
+    Fixes #49536.
+    Updates #50552.
+    
+    Change-Id: I949ef45e7be09406e5a8149e251d78e015aca5fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390335
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/reader.go  | 14 ++++++-----
+ src/cmd/compile/internal/noder/unified.go | 40 +++++++++++++++++--------------
+ test/run.go                               |  1 -
+ test/typeparam/issue49536.dir/a.go        | 12 ++++++++++
+ test/typeparam/issue49536.dir/b.go        |  9 +++++++
+ test/typeparam/issue49536.go              |  7 ++++++
+ 6 files changed, 58 insertions(+), 25 deletions(-)

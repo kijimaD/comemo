@@ -1,0 +1,16 @@
+commit 2a99f2fb2a736a9a4575f937cf7af57589beba9b
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Thu Apr 4 12:04:35 2013 +1100
+
+    cmd/go: run main package when no files are listed
+    
+    Fixes 5164.
+    
+    R=golang-dev, iant, adg
+    CC=golang-dev
+    https://golang.org/cl/8119049
+
+ doc/go1.1.html    |  9 +++++++++
+ src/cmd/go/doc.go |  3 ++-
+ src/cmd/go/run.go | 17 +++++++++++++++--
+ 3 files changed, 26 insertions(+), 3 deletions(-)

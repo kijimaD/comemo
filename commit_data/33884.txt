@@ -1,0 +1,25 @@
+commit b944f91f1500b487b9d219e1b83e106cb330eb3c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 13 17:29:28 2017 -0800
+
+    cmd/cgo: don't define intgo in export prologue
+    
+    The export prologue goes into the _cgo_export.h file, where it may be
+    be #include'd by a .swig file. As SWIG defines its own type "intgo",
+    the definition of "intgo" in the export prologue could conflict.
+    Since we don't need to define "intgo" in the _cgo_export.h file, don't.
+    
+    Defining "intgo" in _cgo_export.h was new for this release, so this
+    should not break any existing code.
+    
+    No test case as I can't quite bring myself to write a test that
+    combines SWIG and cgo.
+    
+    Change-Id: I8073e8300a1860cecd5994b9ad07dd35a4298c89
+    Reviewed-on: https://go-review.googlesource.com/83936
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/out.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

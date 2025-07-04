@@ -1,0 +1,19 @@
+commit c844fec7f6097289abb657d9a334cce97786c48c
+Author: Ayan George <ayan@ayan.net>
+Date:   Fri May 8 00:13:44 2020 -0400
+
+    image/png: remove too early declaration of "n"
+    
+    Before this commit, the code declares and assigns "n" with the result of
+    io.ReadFull() -- but the value is not used.  The variable is then reused
+    later in the function.
+    
+    This commit removes the first declaration of "n" and declares it closer
+    to where it is used.
+    
+    Change-Id: I7ffe19a10f2a563c306bb6fe6562493435b9dc5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/232917
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/png/reader.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

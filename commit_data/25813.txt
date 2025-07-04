@@ -1,0 +1,19 @@
+commit 5dc053b9dec4dc25fac195065ad32462ac28a543
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Feb 21 10:46:59 2016 +0100
+
+    fmt: fix zero padding for NaN
+    
+    Makes zero padding of NaN and infinities consistent
+    by using spaces instead of zeroes to pad NaN.
+    Adds more tests for NaN formatting.
+    
+    Fixes #14421
+    
+    Change-Id: Ia20f8e878cc81ac72a744ec10d65e84b94e09c6a
+    Reviewed-on: https://go-review.googlesource.com/19723
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 11 ++++++++++-
+ src/fmt/format.go   |  8 ++++++--
+ 2 files changed, 16 insertions(+), 3 deletions(-)

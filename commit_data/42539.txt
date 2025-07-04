@@ -1,0 +1,17 @@
+commit d872bbcfec29f2585ed8144fba6262d4228619cf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 16 21:57:43 2020 -0700
+
+    reflect: handling flagIndir in DeepEqual potential cycles
+    
+    Fixes #39607
+    
+    Change-Id: Ia7e597e0da8a193a25382cc633a1c6080b4f7cbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238361
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go  |  6 ++++++
+ src/reflect/deepequal.go | 16 ++++++++++++++--
+ 2 files changed, 20 insertions(+), 2 deletions(-)

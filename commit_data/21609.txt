@@ -1,0 +1,12 @@
+commit 892286419e83dc219504dff70a6493dfa861a6ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 11 22:39:21 2015 -0500
+
+    cmd/dist: avoid trailing space in instruction name strings
+    
+    Change-Id: I2db4db852492eaddaf09dd7bae2fbd49f916e78a
+    Reviewed-on: https://go-review.googlesource.com/4648
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/dist/buildgc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

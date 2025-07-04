@@ -1,0 +1,19 @@
+commit 5a6f1b35d42dca8e3e7646ee36fa1344ce5bc775
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 21:47:57 2023 +0000
+
+    runtime: add lock partial order edge between wakeableSleep and hchan
+    
+    This is totally valid and always was, but the staticlockranking builder
+    started failing when the new execution tracer was enabled by default.
+    
+    Change-Id: I011e7d86bd968b1251bcc4d74395633036753b00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544319
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/lockrank.go   | 40 ++++++++++++++++++++--------------------
+ src/runtime/mklockrank.go |  2 +-
+ 2 files changed, 21 insertions(+), 21 deletions(-)

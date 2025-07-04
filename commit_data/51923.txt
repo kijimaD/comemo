@@ -1,0 +1,16 @@
+commit af2952a73736f8625e7b158383fe49d7a9220a4f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Dec 5 12:59:55 2022 +0100
+
+    math/big: add warning about using Int for cryptography
+    
+    Change-Id: I31bec5d2b4a79a085942c7d380678379d99cf07b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455135
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/math/big/int.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

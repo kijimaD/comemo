@@ -1,0 +1,18 @@
+commit 751b8798dd3a0b099ec403bafae0d48d5c5fae8c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 23:30:07 2022 -0500
+
+    cmd/compile/internal/amd64: fix "missing objdump" skip in TestGoAMD64v1
+    
+    The skip was erroneously applied to errors from the call to StdoutPipe
+    instead of Start, and even then was a bit too broad.
+    
+    Change-Id: I417c9a74692383230fc6d99ebb4149fdc532533e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391800
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/versions_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

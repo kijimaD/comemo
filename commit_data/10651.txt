@@ -1,0 +1,12 @@
+commit 1278c6c0556773dab1b126f35e0b5909d8d3929f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 7 15:30:01 2011 -0500
+
+    bytes: lost edit from earlier CL
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/5450125
+
+ src/pkg/bytes/asm_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 4023dce70f656fbf92b3da9da8584575bda32d2d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 14 17:41:52 2009 -0700
+
+    - remove language on forward decls
+    - remove language on (in-)complete types
+    
+    DELTA=95  (8 added, 62 deleted, 25 changed)
+    OCL=33310
+    CL=33322
+
+ doc/go_spec.html | 108 ++++++++++++++-----------------------------------------
+ 1 file changed, 27 insertions(+), 81 deletions(-)

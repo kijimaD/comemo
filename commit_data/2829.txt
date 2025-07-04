@@ -1,0 +1,12 @@
+commit 43c7fc04b8d15ebd05abe008f3bf3a79d729aec4
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 29 15:33:12 2009 -0700
+
+    fix typo
+    
+    R=rsc
+    OCL=32472
+    CL=32472
+
+ src/pkg/rpc/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit f882bc8708e52ccc1a6844294ac29d73fc04dd41
+Author: Cosmos Nicolaou <cnicolaou@google.com>
+Date:   Tue Jun 18 08:55:32 2013 -0700
+
+    os/exec: make exec_test.go:TestExtraFilesFDShuffle portable.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/9103045
+
+ src/pkg/os/exec/exec_test.go | 29 ++++++++++++++++++++++-------
+ 1 file changed, 22 insertions(+), 7 deletions(-)

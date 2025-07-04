@@ -1,0 +1,12 @@
+commit 4bae454d6865b64d189b797f4870a6c9eeb8212d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Nov 3 10:23:56 2015 +1300
+
+    cmd/link: work around arm64 linker bugs with GOT relocations against local symbols
+    
+    Change-Id: Ie14530c57720f1af1960ab77686b860e906058c6
+    Reviewed-on: https://go-review.googlesource.com/16582
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/arm64/asm.go | 34 ++++++++++++++++++++++++++++++++--
+ 1 file changed, 32 insertions(+), 2 deletions(-)

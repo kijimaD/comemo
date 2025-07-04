@@ -1,0 +1,36 @@
+commit 6c1792d1ff5fa949e39e383828c7dc666f8ac4fe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 11 15:28:23 2023 -0700
+
+    crypto/sha1: add WriteString and WriteByte method
+    
+    This can reduce allocations when hashing a string or byte
+    rather than []byte.
+    
+    For #38776
+    
+    Change-Id: I7c1fbdf15abf79d2faf360f75adf4bc550a607e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483815
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/crypto/internal/boring/sha.go    | 14 +++++++++
+ src/crypto/sha1/sha1.go              | 61 ++++++++++++++++++++++++++++++------
+ src/crypto/sha1/sha1_test.go         | 33 ++++++++++++++++++-
+ src/crypto/sha1/sha1block.go         |  2 +-
+ src/crypto/sha1/sha1block_386.s      |  6 ++--
+ src/crypto/sha1/sha1block_amd64.go   | 33 ++++++++++++++-----
+ src/crypto/sha1/sha1block_amd64.s    | 12 +++----
+ src/crypto/sha1/sha1block_arm.s      |  9 +++---
+ src/crypto/sha1/sha1block_arm64.go   | 18 +++++++++--
+ src/crypto/sha1/sha1block_arm64.s    |  8 ++---
+ src/crypto/sha1/sha1block_decl.go    | 12 ++++++-
+ src/crypto/sha1/sha1block_generic.go |  4 +++
+ src/crypto/sha1/sha1block_s390x.go   |  9 +++++-
+ src/crypto/sha1/sha1block_s390x.s    |  8 ++---
+ 14 files changed, 183 insertions(+), 46 deletions(-)

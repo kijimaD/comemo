@@ -1,0 +1,13 @@
+commit 8a2ac83cd8b936184968480a2975509dfa1c62cb
+Author: Andrew Szeto <andrew@jabagawee.com>
+Date:   Mon Apr 14 13:03:03 2014 -0700
+
+    doc/help.html: fix typo in word order
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/87460043
+
+ doc/help.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

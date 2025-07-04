@@ -1,0 +1,12 @@
+commit 12576f9e7052e278c2b6e415b97e9ef34da1e6a4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Aug 4 17:18:57 2010 -0700
+
+    goinstall: check for error from exec.*Cmd.Wait() before using its result
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/1923043
+
+ src/cmd/goinstall/main.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,15 @@
+commit 60f14fddfee107dedd76c0be6b422a3d8ccc841a
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Jun 26 10:55:19 2019 -0400
+
+    api: promote next to go1.13
+    
+    Change-Id: I394f942822a0db27418d3fbb25df6227ea199a5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183919
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ api/go1.13.txt | 8037 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt   | 8042 --------------------------------------------------------
+ 2 files changed, 8037 insertions(+), 8042 deletions(-)

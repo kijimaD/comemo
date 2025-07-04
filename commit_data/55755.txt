@@ -1,0 +1,21 @@
+commit 51df232b122b77c1bb066e53300247ec68695743
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:00 2024 -0500
+
+    runtime: use timer.lock in deltimer
+    
+    The state set is now simplified enough that all the CAS loops
+    are starting to look the same: they are just spin locks.
+    So introduce an actual timer.lock method and use it in deltimer.
+    
+    [This is one CL in a refactoring stack making very small changes
+    in each step, so that any subtle bugs that we miss can be more
+    easily pinpointed to a small change.]
+    
+    Change-Id: Ifd7f20eeede5c764ef10ecba64855c29a5ddbe39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564124
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/time.go | 178 ++++++++++++++++++++++++----------------------------
+ 1 file changed, 83 insertions(+), 95 deletions(-)

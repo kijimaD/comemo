@@ -1,0 +1,21 @@
+commit 37951d888152c6f3a2e4c11c609bfb0fbad6b15d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Nov 5 10:07:11 2021 -0700
+
+    net/netip: optimize As4 and As16
+    
+    name    old time/op  new time/op  delta
+    As16-8  2.88ns ± 3%  2.16ns ± 3%  -25.19%  (p=0.000 n=15+15)
+    
+    Fixes #49379
+    Updates #20859
+    
+    Change-Id: If4cf58d19ed0e2ac0f179da5c132ed37061e4cb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361674
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/netip/netip.go      | 16 +++++++---------
+ src/net/netip/netip_test.go |  9 +++++++++
+ 2 files changed, 16 insertions(+), 9 deletions(-)

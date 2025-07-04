@@ -1,0 +1,13 @@
+commit bbec504f60b969d371bfb9c014485b31cc8801ff
+Author: Conrad Meyer <cemeyer@cs.washington.edu>
+Date:   Mon Mar 8 18:12:30 2010 -0800
+
+    crypto/sha256: add SHA-224
+    
+    R=agl1, rsc
+    CC=golang-dev
+    https://golang.org/cl/253045
+
+ src/pkg/crypto/sha256/sha256.go      | 85 ++++++++++++++++++++++++++----------
+ src/pkg/crypto/sha256/sha256_test.go | 52 ++++++++++++++++++++++
+ 2 files changed, 114 insertions(+), 23 deletions(-)

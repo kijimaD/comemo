@@ -1,0 +1,14 @@
+commit d258bac41c05bfa320b1d124a8592772e235a48e
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Wed Nov 7 19:56:30 2018 +0530
+
+    time: document that a marshaled time does not include location name
+    
+    Fixes #28421
+    
+    Change-Id: I00878ec246d5249d910f2b57749f74cfc38dbec6
+    Reviewed-on: https://go-review.googlesource.com/c/148117
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/time/time.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,21 @@
+commit 4c3aa5d32436486dce4927d240ebf596c0bbb8aa
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Dec 4 13:07:08 2024 +0100
+
+    math/rand/v2: replace <= 0 with == 0 for Uint function docs
+    
+    This harmonize the docs with (*Rand).Uint* functions.
+    And it make it clearer, I wasn't sure if it would try to interpret
+    the uint as a signed number somehow, it does not pull any surprises
+    make that clear.
+    
+    Change-Id: I5a87a0a5563dbabfc31e536e40ee69b11f5cb6cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/math/rand/v2/rand.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit 44d38ae3c0f44449933a5e56ed4282fabb2ffb09
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Thu Feb 14 17:32:48 2013 +1100
+
+    archive/tar: add Header.FileInfo method. Add more cases to FileInfoHeader.
+    
+    FileInfoHeader can now handle fifo, setuid, setgid and sticky bits.
+    
+    Fixes #4695.
+    
+    R=golang-dev, donovanhide, r.eklind.87, minux.ma, adg
+    CC=golang-dev
+    https://golang.org/cl/7305072
+
+ src/pkg/archive/tar/common.go   | 138 +++++++++++++++++++++++++++++++++----
+ src/pkg/archive/tar/tar_test.go | 147 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 271 insertions(+), 14 deletions(-)

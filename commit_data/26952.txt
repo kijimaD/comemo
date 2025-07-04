@@ -1,0 +1,17 @@
+commit 106b9d391518fe382162559e1520a8af72564130
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Apr 14 19:44:55 2016 -0700
+
+    cmd/internal/obj, cmd/link: random style cleanups
+    
+    Identified during review of golang.org/cl/22103.
+    
+    Change-Id: I86bab4cc17204df1e45deefdb0d0f9a8f6e17073
+    Reviewed-on: https://go-review.googlesource.com/22106
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/pcln.go      | 13 ++++++-------
+ src/cmd/link/internal/ld/macho.go | 23 +++--------------------
+ 2 files changed, 9 insertions(+), 27 deletions(-)

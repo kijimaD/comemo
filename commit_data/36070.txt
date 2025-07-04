@@ -1,0 +1,26 @@
+commit 2fe2aa0983588686d11fbeedeb5acaa3fe96d03e
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 18 11:23:56 2018 -0400
+
+    cmd/compile: avoid compressed dwarf when testing for gdb on OSX
+    
+    Until we figure out how to deal with gdb on Darwin (doesn't
+    read compressed DWARF from binaries), avoid compressing
+    DWARF in that case so that the test will still yield meaningful
+    results.
+    
+    This is also reported to be a problem for Windows.
+    
+    Problem also exists for lldb, but this test doesn't check
+    lldb.
+    
+    Updates #25925
+    
+    Change-Id: I85c0e5db75f3329957290500626a3ac7f078f608
+    Reviewed-on: https://go-review.googlesource.com/124712
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/ssa/debug_test.go | 19 +++++++++++++------
+ 1 file changed, 13 insertions(+), 6 deletions(-)

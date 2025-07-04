@@ -1,0 +1,19 @@
+commit 70798eaad622d3bae5b7637df7f06d90a8a6923a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 11 23:59:36 2011 -0400
+
+    5l, 8l: add ELF symbol table to binary
+    
+    Should have been added long ago.
+    Thanks to Alex Brainman for noticing.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4538046
+
+ src/cmd/5l/asm.c | 68 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/6l/l.h   |  3 ---
+ src/cmd/8l/asm.c | 62 ++++++++++++++++++++++++++++++++++++---------------
+ src/cmd/ld/elf.h |  4 ++++
+ src/cmd/ld/lib.h |  1 +
+ 5 files changed, 111 insertions(+), 27 deletions(-)

@@ -1,0 +1,18 @@
+commit 36d412f7548d90f4764c780a6f7d7da04bb90a9e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 28 23:49:54 2020 -0400
+
+    cmd/go/internal/modload: ensure that modRoot and targetPrefix are initialized in DirImportPath
+    
+    For #37438
+    
+    Change-Id: I2e1f47d567842ac5504b7b8ed0b3fba6f92d778b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266340
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/load.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

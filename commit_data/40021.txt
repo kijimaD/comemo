@@ -1,0 +1,39 @@
+commit 262046716cf56637febf8dd6cbc27520e19d4db1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 20 15:31:13 2019 -0700
+
+    cmd/compile: optimize escape graph construction and walking
+    
+    This CL implements several optimizations for the escape analysis flow
+    graph:
+    
+    1. Instead of recognizing heapLoc specially within Escape.outlives,
+    set heapLoc.escapes = true and recognize any location with escapes
+    set. This allows us to skip adding edges from the heap to escaped
+    variables in two cases:
+    
+    1a. In newLoc, if the location is for a variable or allocation too
+    large to fit on the stack.
+    
+    1b. During walkOne, if we discover that an object's address flows
+    somewhere that naturally outlives it.
+    
+    2. When recording edges in Escape.flow, if x escapes and we're adding
+    an edge like "x = &y", we can simply mark that y escapes too.
+    
+    3. During walkOne, if we reach a location that's marked as escaping,
+    we can skip visiting it again: we've either already walked from it, or
+    it's in queue to be walked from again.
+    
+    On average, reduces the number of visited locations by 15%. Reduces
+    time spent in escape analysis for particularly hairy packages like
+    runtime and gc by about 8%. Reduces escape.go's TODO count by 22%.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Iaf86a29d76044e4b4c8ab581b916ef5bb5df4437
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196811
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/escape.go | 51 ++++++++++++++++++-----------------
+ 1 file changed, 26 insertions(+), 25 deletions(-)

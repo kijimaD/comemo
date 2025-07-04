@@ -1,0 +1,22 @@
+commit 6997671d2e69cb3d5ac26b34564d117eed472260
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Apr 8 14:31:21 2019 -0400
+
+    cmd/go: handle wildcards for unknown modules in "go get"
+    
+    For example, "go get golang.org/x/tools/cmd/..." will add a
+    requirement for "golang.org/x/tools" to go.mod and will install
+    executables from the "cmd" subdirectory.
+    
+    Fixes #29363
+    
+    Change-Id: Id53f051710708d7760ffe831d4274fd54533d2b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171138
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go               | 28 ++++++++---
+ src/cmd/go/internal/modload/query.go            | 65 +++++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_get_patterns.txt | 33 +++++++++++++
+ 3 files changed, 119 insertions(+), 7 deletions(-)

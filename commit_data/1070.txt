@@ -1,0 +1,12 @@
+commit a6af48432819fcc6c963d1ac883aefe8cd6f7555
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 5 18:04:24 2008 -0800
+
+    more runtime support for chan select default
+    
+    R=ken
+    OCL=18630
+    CL=18630
+
+ src/runtime/chan.c | 40 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 39 insertions(+), 1 deletion(-)

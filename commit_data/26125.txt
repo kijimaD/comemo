@@ -1,0 +1,12 @@
+commit 7529701d11ace94cb7c1dee105ad36bd7b4f7058
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 07:05:31 2016 +0000
+
+    cmd/compile: fix comment accuracy after recent change
+    
+    Change-Id: Ifa09bccb8482a6141d0aa862cef674fade30e2eb
+    Reviewed-on: https://go-review.googlesource.com/20355
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/ppc64/prog.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

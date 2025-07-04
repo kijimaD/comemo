@@ -1,0 +1,14 @@
+commit ce020ffacd8c43e1682e2c83db6d1e7f0c305eea
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Feb 17 17:13:16 2012 -0200
+
+    runtime: remove use of ?:
+    
+    Fixes #3061.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5656089
+
+ src/pkg/runtime/mheap.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

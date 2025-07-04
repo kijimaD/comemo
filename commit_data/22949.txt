@@ -1,0 +1,29 @@
+commit db6f88a84b126877bd523df8c45af06779ce0e42
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Apr 30 15:32:54 2015 +0100
+
+    runtime: enable profiling on g0
+    
+    Since we now have stack information for code running on the
+    systemstack, we can traceback over it. To make cpu profiles useful,
+    add a case in gentraceback to jump over systemstack switches.
+    
+    Fixes #10609.
+    
+    Change-Id: I21f47fcc802c07c5d4a1ada56374314e388a6dc7
+    Reviewed-on: https://go-review.googlesource.com/9506
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/arch1_386.go      | 15 +++++-----
+ src/runtime/arch1_amd64.go    | 15 +++++-----
+ src/runtime/arch1_amd64p32.go | 15 +++++-----
+ src/runtime/arch1_arm.go      | 15 +++++-----
+ src/runtime/arch1_arm64.go    | 15 +++++-----
+ src/runtime/arch1_ppc64.go    | 15 +++++-----
+ src/runtime/arch1_ppc64le.go  | 15 +++++-----
+ src/runtime/export_test.go    |  5 ----
+ src/runtime/proc1.go          | 64 +++++++++++++++++++++++++------------------
+ src/runtime/runtime2.go       |  5 ++--
+ src/runtime/runtime_test.go   | 52 -----------------------------------
+ src/runtime/traceback.go      | 16 ++++++++++-
+ 12 files changed, 105 insertions(+), 142 deletions(-)

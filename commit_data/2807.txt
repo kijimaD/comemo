@@ -1,0 +1,21 @@
+commit 6d3d25de2100fece265be9e76d1a3bc0a80270aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 28 14:54:49 2009 -0700
+
+    Ring ADT.
+    - Provides analogous functionality to a doubly-linked list
+      implementation.
+    - Completely symmetric set of operations.
+    - Operations on the ADT do not lead to results that are
+      outside the domain of the ADT (closed interface).
+    - Alternative to container/list.
+    
+    R=rsc
+    DELTA=489  (489 added, 0 deleted, 0 changed)
+    OCL=32284
+    CL=32323
+
+ src/pkg/container/ring/Makefile     |  61 +++++++++
+ src/pkg/container/ring/ring.go      | 174 ++++++++++++++++++++++++
+ src/pkg/container/ring/ring_test.go | 260 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 495 insertions(+)

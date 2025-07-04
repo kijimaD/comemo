@@ -1,0 +1,18 @@
+commit a81b5e4d0a843e6ef28c8b933904a03fd8666f3e
+Author: chenjie <chenjie@chenjie.info>
+Date:   Tue Mar 30 07:23:53 2021 +0000
+
+    crypto/elliptic: fix some typos
+    
+    Change-Id: I1c2900d4e1c0b6108f13c4060d994d966f3e18f3
+    GitHub-Last-Rev: 3fde453686ab3fdeb77d2f73c09e4a679056adf3
+    GitHub-Pull-Request: golang/go#45295
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305773
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/crypto/elliptic/p256.go            | 2 +-
+ src/crypto/elliptic/p256_asm_ppc64le.s | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

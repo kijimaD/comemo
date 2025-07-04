@@ -1,0 +1,12 @@
+commit b2cf7b5f6b0bf3e3336ed2e7e7b41db026ce04ab
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 13 10:46:58 2011 +1100
+
+    misc/cgo/test: fix after latest time changes
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5454047
+
+ misc/cgo/test/issue1560.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

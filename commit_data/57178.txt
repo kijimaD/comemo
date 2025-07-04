@@ -1,0 +1,32 @@
+commit 527610763b882b56c52d77acf1b75c2f4233c973
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Aug 15 18:13:58 2024 +0000
+
+    math/big,regexp: implement the encoding.TextAppender interface
+    
+    For #62384
+    
+    Change-Id: I1557704c6a0f9c6f3b9aad001374dd5cdbc99065
+    GitHub-Last-Rev: c258d18ccedab5feeb481a2431d5647bde7e5c58
+    GitHub-Pull-Request: golang/go#68893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605758
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ api/next/62384.txt                           |  4 +++
+ doc/next/6-stdlib/99-minor/math/big/62384.md |  1 +
+ doc/next/6-stdlib/99-minor/regexp/62384.md   |  1 +
+ src/math/big/floatmarsh.go                   | 16 +++++++----
+ src/math/big/floatmarsh_test.go              | 43 ++++++++++++++++++++++++++++
+ src/math/big/intmarsh.go                     | 10 ++++---
+ src/math/big/intmarsh_test.go                | 33 +++++++++++++++++++++
+ src/math/big/ratconv.go                      |  9 +++---
+ src/math/big/ratmarsh.go                     | 13 ++++++---
+ src/math/big/ratmarsh_test.go                | 23 +++++++++++++++
+ src/regexp/all_test.go                       | 15 ++++++++++
+ src/regexp/regexp.go                         | 12 ++++++--
+ 12 files changed, 161 insertions(+), 19 deletions(-)

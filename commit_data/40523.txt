@@ -1,0 +1,14 @@
+commit 5b31021525905c13ff00df19ad9ea4982d835d15
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 31 22:24:04 2019 +0100
+
+    os: gofmt
+    
+    Change-Id: Ie76303e403f0539bdfe14f6bb5f32896df916bce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204657
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/removeall_noat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

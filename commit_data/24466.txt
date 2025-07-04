@@ -1,0 +1,12 @@
+commit 46b97e7579d750b6f1f13414b47754f4344a1602
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Wed Oct 7 09:10:15 2015 -0700
+
+    text/template: fix formatting calls in tests
+    
+    Change-Id: I8e94fa57482149f6ea8f13d02ddcc82d6764ddb8
+    Reviewed-on: https://go-review.googlesource.com/15496
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/text/template/multi_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

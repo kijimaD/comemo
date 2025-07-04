@@ -1,0 +1,10 @@
+commit e9a194382e5502e8948e67721bdb5484b35b438f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 14 20:54:16 2008 -0700
+
+    disambiguate error message
+    
+    SVN=127152
+
+ src/cmd/6g/gen.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

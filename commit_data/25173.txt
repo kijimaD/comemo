@@ -1,0 +1,21 @@
+commit d2ca451873f6548f43d272c675d1b114165c394d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Dec 4 17:54:21 2015 +0900
+
+    net: adjust Lookup API test cases
+    
+    This change makes existing Lookup API test cases conform to the new
+    return value form that all the Lookup APIs except LookupTXT must return
+    a single or multiple absolute domain names.
+    
+    Updates #12189.
+    Fixes #12193.
+    
+    Change-Id: I03ca09be5bff80e818fbcdc26039daa33d5440a8
+    Reviewed-on: https://go-review.googlesource.com/17411
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 41 +++++++++++++++++++++--------------------
+ 1 file changed, 21 insertions(+), 20 deletions(-)

@@ -1,0 +1,15 @@
+commit 4f172e7a75d6deef4441c96e1e01c31159f54a6c
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Jun 25 13:48:59 2018 -0400
+
+    doc/go1.11: add note about package versioning
+    
+    It will not be present in go1.11beta1 but will be present
+    in subsequent releases.
+    
+    Change-Id: I298fb682945345bb4a34ec83802fd644f75bdd98
+    Reviewed-on: https://go-review.googlesource.com/120756
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

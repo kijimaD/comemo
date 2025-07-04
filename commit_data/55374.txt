@@ -1,0 +1,25 @@
+commit 8e658eee9c7a67a8a79a8308695920ac9917566c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 16 16:59:31 2024 -0800
+
+    cmd/compile: call types2.Unalias to be ready for GODEBUG=gotypesalias=1
+    
+    types2.Unalias is not needed if we know we have a core or underlying
+    type. Also, types of declared functions (signatures) cannot be aliases
+    (this includes tuples).
+    
+    Fixes #65125.
+    
+    Change-Id: I1faa26b66f6c646719e830dd661136fae86f3775
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556036
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/helpers.go |  5 +++--
+ src/cmd/compile/internal/noder/irgen.go   |  4 ++--
+ src/cmd/compile/internal/noder/writer.go  | 18 +++++++++---------
+ 3 files changed, 14 insertions(+), 13 deletions(-)

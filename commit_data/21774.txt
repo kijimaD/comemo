@@ -1,0 +1,12 @@
+commit be7090498b76ff50ec73858378ccf1670fec912f
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Feb 26 17:27:52 2015 -0500
+
+    net/http/cgi: skip exec test on darwin/arm
+    
+    Change-Id: I2fc3cf94b465bf9d7ff8d7bf935b45e334b401e3
+    Reviewed-on: https://go-review.googlesource.com/6180
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/net/http/cgi/matryoshka_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

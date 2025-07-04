@@ -1,0 +1,14 @@
+commit fc1cf588093ba7c687971783d3e075b6010a966b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 27 13:29:44 2011 +1000
+
+    reflect: doc fixes for obsolete types.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4802061
+
+ src/pkg/reflect/all_test.go |  4 ++--
+ src/pkg/reflect/type.go     | 12 ++++++------
+ src/pkg/unsafe/unsafe.go    |  2 +-
+ 3 files changed, 9 insertions(+), 9 deletions(-)

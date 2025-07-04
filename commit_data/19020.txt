@@ -1,0 +1,20 @@
+commit 730db0affc642530daf9129f4fbc89a4e40f9c95
+Author: David Thomas <davidthomas426@gmail.com>
+Date:   Thu Apr 3 20:01:04 2014 +0000
+
+    archive/tar: add support for GNU sparse files.
+    
+    Supports all the current GNU tar sparse formats, including the
+    old GNU format and the GNU PAX format versions 0.0, 0.1, and 1.0.
+    Fixes #3864.
+    
+    LGTM=rsc
+    R=golang-codereviews, dave, gobot, dsymonds, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/64740043
+
+ src/pkg/archive/tar/common.go                   |   1 +
+ src/pkg/archive/tar/reader.go                   | 446 +++++++++++++++++++++++-
+ src/pkg/archive/tar/reader_test.go              | 302 ++++++++++++++++
+ src/pkg/archive/tar/testdata/sparse-formats.tar | Bin 0 -> 17920 bytes
+ 4 files changed, 732 insertions(+), 17 deletions(-)

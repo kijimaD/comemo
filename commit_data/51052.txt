@@ -1,0 +1,23 @@
+commit 317f2a7df63df89455ee4fd2721620a853c7fda1
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 28 13:21:36 2022 -0400
+
+    cmd/compile: revise inliner coverage tweaks (again)
+    
+    This patch fixes a typo/bug introduced in CL 441858 where when pattern
+    matching a coverage counter access we were looking at an assingment
+    node instead of the assignment LHS, and fixes a similar problem in
+    atomic counter update pattern matching introduced in CL 444835. In
+    both of these cases the bug was not caught because the test intended
+    to lock down the behavior was written incorrectly (wasn't
+    instrumenting what the test author thought it was instrumenting,
+    ouch).
+    
+    Change-Id: I6e6ac3beacf12ef1a817de5527340b639f0bb044
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446258
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

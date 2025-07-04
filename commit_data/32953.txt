@@ -1,0 +1,20 @@
+commit d36cc9baf3c4127ef5c98bc8844b405d63064e48
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 4 11:23:18 2017 -0700
+
+    cmd/compile: refactor dtypesym to return *obj.LSym
+    
+    All of the callers want a *obj.LSym instead of a *types.Sym, and the
+    runtime type descriptors don't need Go source symbols anyway.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I8ae4b64380fbb547857f49b42465118f41884eed
+    Reviewed-on: https://go-review.googlesource.com/68251
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 50 +++++++++++++++++-----------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)

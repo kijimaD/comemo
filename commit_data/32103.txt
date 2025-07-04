@@ -1,0 +1,12 @@
+commit 5495047223935bf3ec96d7a0bd804ea8ab6f5342
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Fri Aug 4 10:12:21 2017 +0200
+
+    doc/1.9: fix broken html link in CL 53030/53210
+    
+    Change-Id: I7176becd10ad84cbfc3fb9427e190028626e5baf
+    Reviewed-on: https://go-review.googlesource.com/53291
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit a41d21695cad0e30d9c006198cd7edd8c38bf885
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 9 10:55:36 2018 -0400
+
+    regexp: revert "use sync.Pool to cache regexp.machine objects"
+    
+    Revert CL 101715.
+    
+    The size of a sync.Pool scales linearly with GOMAXPROCS,
+    making it inappropriate to put a sync.Pool in any individually
+    allocated object, as the sync.Pool documentation explains.
+    The change also broke DeepEqual on regexps.
+    
+    I have a cleaner way to do this with global sync.Pools but it's
+    too late in the cycle. Will revisit in Go 1.12. For now, revert.
+    
+    Fixes #26219.
+    
+    Change-Id: Ie632e709eb3caf489d85efceac0e4b130ec2019f
+    Reviewed-on: https://go-review.googlesource.com/122596
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/regexp.go | 62 +++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 37 insertions(+), 25 deletions(-)

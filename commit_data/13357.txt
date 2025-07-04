@@ -1,0 +1,13 @@
+commit f34748908fcfffb510b644dabd8b4480968233a4
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jun 18 11:08:31 2012 -0400
+
+    A+C: Christine Hansmann (individual CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6312045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,42 @@
+commit 035db07d7c5f1b90ebc9bae03cab694685acebb8
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Mar 10 10:29:38 2023 -0500
+
+    cmd/go,cmd/link: prefer external linking when strange cgo flags seen
+    
+    This patch changes the Go command to examine the set of compiler
+    flags feeding into the C compiler when packages that use cgo are built.
+    If any of a specific set of strange/dangerous flags are in use,
+    then the Go command generates a token file ("preferlinkext") and
+    embeds it into the compiled package's archive.
+    
+    When the Go linker reads the archives of the packages feeding into the
+    link and detects a "preferlinkext" token, it will then use external
+    linking for the program by default (although this default can be
+    overridden with an explicit "-linkmode" flag).
+    
+    The intent here is to avoid having to teach the Go linker's host object
+    reader to grok/understand the various odd symbols/sections/types that
+    can result from boutique flag use, but rather to just boot the objects
+    in question over to the C linker instead.
+    
+    Updates #58619.
+    Updates #58620.
+    Updates #58848.
+    
+    Change-Id: I56382dd305de8dac3841a7a7e664277826061eaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475375
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/work/exec.go                   |  48 +++++++
+ src/cmd/go/internal/work/security.go               |  51 +++++--
+ src/cmd/go/internal/work/security_test.go          |  33 +++++
+ src/cmd/go/scriptconds_test.go                     |   1 +
+ src/cmd/go/testdata/script/README                  |   2 +
+ .../script/cgo_suspect_flag_force_external.txt     | 155 +++++++++++++++++++++
+ src/cmd/link/internal/ld/config.go                 |   6 +-
+ src/cmd/link/internal/ld/lib.go                    |  13 ++
+ 8 files changed, 294 insertions(+), 15 deletions(-)

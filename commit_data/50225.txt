@@ -1,0 +1,24 @@
+commit ca634fa2c550cd85a1a2cc03c208304ee38c6a82
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 31 15:48:35 2022 -0700
+
+    cmd/compile: reject not-in-heap types as type arguments
+    
+    After running the types2 type checker, walk info.Instances to reject
+    any not-in-heap type arguments. This is feasible to check using the
+    types2 API now, thanks to #46731.
+    
+    Fixes #54765.
+    
+    Change-Id: Idd2acc124d102d5a76f128f13c21a6e593b6790b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427235
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/noder/helpers.go | 25 +++++++++++++++++++++++++
+ src/cmd/compile/internal/noder/irgen.go   | 26 ++++++++++++++++++++++++++
+ test/typeparam/issue54765.go              | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 79 insertions(+)

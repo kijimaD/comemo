@@ -1,0 +1,12 @@
+commit f8b7eda5f69ef8363e31d0090885a0c6dcf7add1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 16 12:19:59 2010 +1100
+
+    8l: remove unneeded windows check
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/3691042
+
+ src/cmd/ld/data.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit 0e18cf6d093c217cb7f093382cc83f0ea072c2e6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jul 20 12:59:50 2022 -0400
+
+    runtime: trivial replacements of _g_ in GC files
+    
+    Change-Id: Iedf10558d9a1d3b80a151927b99660b688ed9ccb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418585
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/heapdump.go | 8 ++++----
+ src/runtime/mbitmap.go  | 5 ++---
+ src/runtime/mgcsweep.go | 8 ++++----
+ 3 files changed, 10 insertions(+), 11 deletions(-)

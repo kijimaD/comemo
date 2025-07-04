@@ -1,0 +1,27 @@
+commit 0aa2317096fde91c51a279b885765b5e26359150
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 10 20:55:29 2010 -0700
+
+    arm: work around reg allocator bug in 5g, in two parts.
+    1) hack regalloc to leave R9 (m) and R10 (g) alone.
+    the real fix is tricker, but this gets us running
+    2) fix up the few places in the package sources that
+    the shortage of registers affects, by simplifying
+    some expressions.
+    
+    all of this should be reverted when the right fix is in.
+    
+    Fixes #1084.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2132046
+
+ src/cmd/5g/gsubr.c                           |  3 +++
+ src/pkg/compress/flate/huffman_bit_writer.go | 10 ++++++++--
+ src/pkg/gob/decode.go                        | 11 ++++++++---
+ src/pkg/log/log.go                           |  6 +++++-
+ src/pkg/net/ip.go                            | 14 ++++++++++----
+ src/pkg/time/format.go                       | 16 +++++++++++-----
+ src/pkg/xml/xml.go                           | 10 ++++++++--
+ 7 files changed, 53 insertions(+), 17 deletions(-)

@@ -1,0 +1,23 @@
+commit 6c6e22e5a9b70f22750e4fc210cd67175c6d1187
+Author: Keith Randall <khr@golang.org>
+Date:   Sat May 26 09:58:26 2018 -0700
+
+    runtime: implement time.now using libc
+    
+    Change-Id: Ibdd9202d9711ea8aab2446c9950ddb8e1f6bf4e0
+    Reviewed-on: https://go-review.googlesource.com/114799
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/all/whitelist/darwin_386.txt   |   2 -
+ src/cmd/vet/all/whitelist/darwin_amd64.txt |   1 -
+ src/runtime/sys_darwin.go                  |  10 ++
+ src/runtime/sys_darwin_386.s               | 151 ++-----------------------
+ src/runtime/sys_darwin_amd64.s             | 171 ++---------------------------
+ src/runtime/sys_darwin_arm.s               |  22 +---
+ src/runtime/sys_darwin_arm64.s             |  20 +---
+ src/runtime/timeasm.go                     |   2 +-
+ src/runtime/timestub.go                    |   1 -
+ src/runtime/timestub2.go                   |   2 +-
+ 10 files changed, 36 insertions(+), 346 deletions(-)

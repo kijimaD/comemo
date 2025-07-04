@@ -1,0 +1,22 @@
+commit eb9f090d1b543f54b319cab78027cdf2ce1a08b8
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jul 22 18:57:52 2021 -0400
+
+    cmd/link: use "CC --print-prog-name" to locate tools
+    
+    When building for macOS with external linking, we currently use
+    "xcrun" to invoke "dsymutil" and "strip" tools. That doesn't work
+    well for cross compilation. Use "CC --print-prog-name" to find the
+    tool path instead.
+    
+    Fixes #47316.
+    
+    Change-Id: Ib30c6494c48bfb6a505dc26fe644ef543d777076
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336769
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

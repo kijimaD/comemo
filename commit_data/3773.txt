@@ -1,0 +1,20 @@
+commit 26c3f6c18d3a52b0585bb33455118eb8a3ff61ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 16:50:13 2009 -0800
+
+    rename testfiles from .go -> .orig so that they won't be
+    picked up by gofmt (they should not be modified) or godoc
+    (testdata should not be considered a potential package
+    directory)
+    
+    R=rsc
+    http://go/go-review/1018045
+
+ src/pkg/go/printer/printer_test.go                       | 16 ++++++++--------
+ .../go/printer/testdata/{comments.go => comments.input}  |  0
+ .../testdata/{declarations.go => declarations.input}     |  0
+ src/pkg/go/printer/testdata/{empty.go => empty.input}    |  0
+ .../testdata/{expressions.go => expressions.input}       |  0
+ .../printer/testdata/{linebreaks.go => linebreaks.input} |  0
+ .../printer/testdata/{statements.go => statements.input} |  0
+ 7 files changed, 8 insertions(+), 8 deletions(-)

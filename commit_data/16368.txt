@@ -1,0 +1,18 @@
+commit c4cfef075edcbf9391933152ceede9948595d15a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 22 13:29:17 2013 +0400
+
+    runtime: simplify MCache
+    The nlistmin/size thresholds are copied from tcmalloc,
+    but are unnecesary for Go malloc. We do not do explicit
+    frees into MCache. For sparse cases when we do (mainly hashmap),
+    simpler logic will do.
+    
+    R=rsc, dave, iant
+    CC=gobot, golang-dev, r, remyoudompheng
+    https://golang.org/cl/9373043
+
+ src/pkg/runtime/malloc.h   |  6 +----
+ src/pkg/runtime/mcache.c   | 59 ++++++++++++----------------------------------
+ src/pkg/runtime/mcentral.c | 17 +++++--------
+ 3 files changed, 22 insertions(+), 60 deletions(-)

@@ -1,0 +1,24 @@
+commit b0321a604315d272f2f0d26d771ff7ceddfdbdec
+Author: Larry Clapp <larry@theclapp.org>
+Date:   Fri Oct 26 01:32:27 2018 +0000
+
+    syscall/js: add the Value.Truthy method
+    
+    Truthy returns the JavaScript "truthiness" of the given value.  In
+    JavaScript, false, 0, "", null, undefined, and NaN are "falsy", and
+    everything else is "truthy".
+    
+    Fixes #28264
+    
+    Change-Id: I4586f98646c05a4147d06a7c4a5d9c61d956fc83
+    GitHub-Last-Rev: 649b353ebc23b09d840faf927a2eeca41ee164bf
+    GitHub-Pull-Request: golang/go#28358
+    Reviewed-on: https://go-review.googlesource.com/c/144384
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/js/js.go      | 20 ++++++++++++++++++
+ src/syscall/js/js_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+)

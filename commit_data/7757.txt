@@ -1,0 +1,13 @@
+commit c5e474dd88c464160d7d09cbf2bfff492480c408
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 14 15:43:58 2011 -0400
+
+    5l: fix build
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4279053
+
+ src/cmd/5l/softfloat.c | 1 +
+ src/cmd/5l/thumb.c     | 1 +
+ 2 files changed, 2 insertions(+)

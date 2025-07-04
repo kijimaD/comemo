@@ -1,0 +1,18 @@
+commit c47ba5fbfb86edbf49450b8b7b173ab2d188f41f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 15 17:33:48 2020 -0400
+
+    cmd/go: test the behavior of 'go get' in module mode with package vs. module arguments
+    
+    Updates #37438
+    
+    Change-Id: I5beb380b37532571768a92bea50003f6ff1757e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255054
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ .../go/testdata/script/mod_get_ambiguous_arg.txt   | 124 +++++++++++++++++++++
+ 1 file changed, 124 insertions(+)

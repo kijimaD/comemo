@@ -1,0 +1,20 @@
+commit 725a642c2d0b42e2b4435dfbfbff6b138d37d2ce
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Jan 27 23:09:57 2021 +1100
+
+    runtime: correct syscall10/syscall10X on openbsd/amd64
+    
+    The syscall10/syscall10X implementation uses an incorrect stack offset for
+    arguments a7 to a10. Correct this so that the syscall arguments work as
+    intended.
+    
+    Updates #36435
+    Fixes #43927
+    
+    Change-Id: Ia7ae6cc8c89f50acfd951c0f271f3b3309934499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287252
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_openbsd_amd64.s | 36 ++++++++++++++++++++++--------------
+ 1 file changed, 22 insertions(+), 14 deletions(-)

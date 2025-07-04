@@ -1,0 +1,32 @@
+commit 2b3b5cf4de0d90db85ac4e618ab9a3f383c50268
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Sep 13 18:50:02 2011 -0700
+
+    template: add doc.go to Makefile
+    
+    The template package is the only one that has a doc.go not mentioned
+    in its Makefile.
+    
+    This doesn't seem to bother godoc, but seems like a bug to me.
+    
+    $ for d in $(find pkg -name doc.go); do echo $d; grep doc.go $(dirname $d)/Makefile; done
+    pkg/fmt/doc.go
+            doc.go\
+    pkg/go/doc/doc.go
+            doc.go\
+    pkg/gob/doc.go
+            doc.go\
+    pkg/html/doc.go
+            doc.go\
+    pkg/old/template/doc.go
+            doc.go\
+    pkg/sync/atomic/doc.go
+            doc.go\
+    pkg/template/doc.go
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5003047
+
+ src/pkg/template/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

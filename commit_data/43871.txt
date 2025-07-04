@@ -1,0 +1,16 @@
+commit 750b3729dcb1e0aac239bc69959355ec2242111d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 24 20:28:20 2020 -0800
+
+    go/constant: MakeFloat64(0) must return a value of Float kind
+    
+    Fixes #42641.
+    
+    Change-Id: I10fdc7c90054b37ab5b303999015262691c12927
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273126
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/constant/value.go      |  7 ++-----
+ src/go/constant/value_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 5 deletions(-)

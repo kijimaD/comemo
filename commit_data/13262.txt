@@ -1,0 +1,17 @@
+commit 5612fd770dcf0d89a43bcb01713805883493a3e4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Jun 4 15:21:58 2012 +0800
+
+    api: add Linux/ARM to go1 API
+    It's very unfortunate that the type of Data field of struct
+    RawSockaddr is [14]uint8 on Linux/ARM instead of [14]int8
+    on all the others.
+    btw, it should be [14]int8 according to my header files.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6275050
+
+ api/go1.txt          | 2227 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/api/goapi.go |    1 +
+ 2 files changed, 2227 insertions(+), 1 deletion(-)

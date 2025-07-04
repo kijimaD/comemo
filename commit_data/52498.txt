@@ -1,0 +1,23 @@
+commit 33d8cdeedc4e69cd2d4eae10f024af826a73ce47
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 10:24:11 2022 -0500
+
+    reflect: deprecate SliceHeader and StringHeader
+    
+    These are replaced by unsafe.String etc, which were added in Go 1.20.
+    Per https://go.dev/wiki/Deprecated, we must wait until Go 1.21
+    to mark them deprecated.
+    
+    Fixes #56906.
+    
+    Change-Id: I4198c3f3456e9e2031f6c7232842e187e6448892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452762
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ api/next/56906.txt   | 2 ++
+ src/reflect/value.go | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

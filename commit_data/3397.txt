@@ -1,0 +1,16 @@
+commit 9c3c140984ca47f85c4f559ba3634beef5a29a7b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 29 16:05:44 2009 -0700
+
+    disallow parens around type in struct literal syntax,
+    per discussion with gri.
+    
+    R=ken
+    OCL=35108
+    CL=35108
+
+ src/cmd/gc/go.y             | 19 +++++++++++++++++--
+ src/pkg/reflect/all_test.go | 10 +++++-----
+ test/fixedbugs/bug207.go    | 12 ++++++++++++
+ test/parentype.go           |  2 --
+ 4 files changed, 34 insertions(+), 9 deletions(-)

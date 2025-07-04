@@ -1,0 +1,14 @@
+commit 8a2dd16c7489493dab025a2edf3c58c3acab3d3e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 5 01:24:51 2014 -0500
+
+    encoding/json: mention escaping of '&'
+    Fixes #7034.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/57140043
+
+ src/pkg/encoding/json/encode.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

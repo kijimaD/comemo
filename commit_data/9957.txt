@@ -1,0 +1,18 @@
+commit 604bd70085868ad22545ae6b3f7c14cd5f3fd5d3
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Oct 13 12:25:25 2011 -0400
+
+    make.bash: more robustly detect gold 2.20
+    
+    On recent Debian systems the gold 2.20 check triggers though
+    Debian doesn't have version 2.20 but rather has:
+    
+            GNU gold (GNU Binutils for Debian 2.21.52.20110606) 1.11
+                                                    ^^^^
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/5252055
+
+ src/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

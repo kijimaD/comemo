@@ -1,0 +1,15 @@
+commit 7c5d90dfbd1a1647e94c26ba11dba779e54c1b37
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 25 22:11:01 2011 -0700
+
+    http: remove Connection header in ReverseProxy
+    
+    Fixes #2342
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5302057
+
+ src/pkg/http/reverseproxy.go      | 25 +++++++++++++++++++------
+ src/pkg/http/reverseproxy_test.go |  5 +++++
+ 2 files changed, 24 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit e9fcd6ed2b0ec7320bed95907380f3c0966da2cb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 15 00:18:51 2015 -0700
+
+    cmd/link: if -B option was used, pass it to the external linker
+    
+    Fixes #10607.
+    
+    Change-Id: Ib294cf65b07103b60f62b86b21ff2d07b25136fe
+    Reviewed-on: https://go-review.googlesource.com/12242
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/lib.go |  4 ++
+ test/fixedbugs/issue10607.go    | 31 ++++++++++++++++
+ test/fixedbugs/issue10607a.go   | 81 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 116 insertions(+)

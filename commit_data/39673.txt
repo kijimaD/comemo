@@ -1,0 +1,15 @@
+commit b9ef4c0f5605efeb5e7e0a4ab817401d5e353b94
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Jun 16 11:44:17 2019 +0530
+
+    cmd/compile: coalesce a few shift rules for wasm
+    
+    Change-Id: I1b76daba90afd474390db8d9c238445abaac7ca6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182557
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/Wasm.rules | 48 ++++++++---------------------
+ 1 file changed, 12 insertions(+), 36 deletions(-)

@@ -1,0 +1,14 @@
+commit b2dfec100afa7739dc1845f1009dad2d7163116c
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Feb 24 10:02:52 2022 +0100
+
+    doc/go1.18: fix typo in AMD64 port section
+    
+    Change-Id: I234ae7988fd3c7a41c08e72664f8db811eb23bb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387854
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

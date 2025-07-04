@@ -1,0 +1,25 @@
+commit c00043b5d8bd53130bddb5ef1e88643dccc4586f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 20 17:46:08 2014 -0700
+
+    spec: specify order of init() calls
+    
+    The spec did not specify the order in which
+    init() functions are called. Specify that
+    they are called in source order since we have
+    now also specified the initialization order
+    of independent variables.
+    
+    While technically a language change, no
+    existing code could have relied on this,
+    so this should not break anything.
+    
+    Per suggestion from rsc.
+    
+    LGTM=r, iant
+    R=rsc, iant, r, ken
+    CC=golang-codereviews
+    https://golang.org/cl/98420046
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

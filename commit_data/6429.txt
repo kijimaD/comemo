@@ -1,0 +1,12 @@
+commit 763cb8ad114a1702a376b542ac3772adf5256e7c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Sep 29 20:17:18 2010 -0700
+
+    6prof: more accurate usage message.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2323042
+
+ src/cmd/prof/main.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

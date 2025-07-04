@@ -1,0 +1,14 @@
+commit a7dc821d6447f9bdfb54e2fad2ab76f6d40873ca
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Sep 22 10:58:43 2016 +1000
+
+    crypto/rsa: clarify comment on maximum message length.
+    
+    See https://groups.google.com/d/topic/golang-nuts/stbum5gZbAc/discussion
+    
+    Change-Id: I2e78e8d0dadd78c8b0389514cad3c45d061b663b
+    Reviewed-on: https://go-review.googlesource.com/29496
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/rsa/rsa.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

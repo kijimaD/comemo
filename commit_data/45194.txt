@@ -1,0 +1,25 @@
+commit ef57834360cf69f2e8b52b32c7a05d96bf6bbba7
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Sun Mar 28 16:39:47 2021 +0100
+
+    crypto/tls: fix flaky handshake cancellation tests
+    
+    Simplified both tests significantly by removing logic for writing
+    the client/server side messages. The flake was likely because of a
+    race between the closing of the local pipe from inside the test
+    and closing of the pipe from within the handshakeContext goroutine.
+    Wait to close the local pipe in the test until after the test
+    has finished running.
+    
+    Fixes #45106
+    Fixes #45299
+    
+    Change-Id: If7ca75aeff7df70cda03c934fa9d8513276d465d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305250
+    Trust: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/handshake_client_test.go | 34 +++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server_test.go | 26 +++++++++----------------
+ 2 files changed, 43 insertions(+), 17 deletions(-)

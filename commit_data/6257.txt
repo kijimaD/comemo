@@ -1,0 +1,16 @@
+commit b155a76a407f8f3f8b48aeeb74d98b25ba27bab4
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Sun Sep 12 17:38:36 2010 +1000
+
+    exec.LookPath() unix/windows separation
+    
+    R=brainman, rsc, vcc, rsc1
+    CC=golang-dev
+    https://golang.org/cl/2068041
+
+ src/pkg/exec/Makefile      | 17 ++++++++++++
+ src/pkg/exec/exec.go       | 38 --------------------------
+ src/pkg/exec/exec_test.go  | 31 +++++++++++++++++-----
+ src/pkg/exec/lp_unix.go    | 45 +++++++++++++++++++++++++++++++
+ src/pkg/exec/lp_windows.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 153 insertions(+), 44 deletions(-)

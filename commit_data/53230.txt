@@ -1,0 +1,20 @@
+commit 8b51eb5199031f64f1de811deeab2979f59ad7dc
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue May 23 12:30:43 2023 +0200
+
+    runtime/metrics: add /gc/scan/stack:bytes
+    
+    For #56857
+    
+    Change-Id: I58187d7c4112b35951014ab14f2969bed7f4c8e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497319
+    Run-TryBot: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 5 +++++
+ src/runtime/metrics/doc.go         | 3 +++
+ 3 files changed, 14 insertions(+)

@@ -1,0 +1,15 @@
+commit efb134f8bf8fb22de6e5f0e8ad4e62d8a3671680
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 30 13:07:10 2012 +1100
+
+    cmd/go: update docs about tags for get command
+    "go1" dominates. Delete the text about weekly and release.
+    We can revisit this once the situation changes.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5969043
+
+ src/cmd/go/doc.go | 14 +++++---------
+ src/cmd/go/get.go | 14 +++++---------
+ 2 files changed, 10 insertions(+), 18 deletions(-)

@@ -1,0 +1,18 @@
+commit 7de86a1b1c7f145cb574796dce6992fb12c91381
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue May 12 16:54:39 2015 +0200
+
+    runtime: terminate exit status buffer on Plan 9
+    
+    The status buffer built by the exit function
+    was not nil-terminated.
+    
+    Fixes #10789.
+    
+    Change-Id: I2d34ac50a19d138176c4b47393497ba7070d5b61
+    Reviewed-on: https://go-review.googlesource.com/9953
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os1_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

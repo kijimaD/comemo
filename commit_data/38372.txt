@@ -1,0 +1,21 @@
+commit f54b8909ac93637159e2661f25aef5e61e8cd8fc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 12 09:27:27 2019 -0400
+
+    cmd/go/internal/modload: treat a 'std' module outside GOROOT/src as an ordinary module
+    
+    Fixes #30756
+    
+    Change-Id: I046d43df56faac8fc09d53dc1e87a014dd6d530b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167080
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/import.go         | 25 +++++++-------------
+ src/cmd/go/internal/modload/init.go           | 20 ++++++++++++----
+ src/cmd/go/internal/modload/load.go           | 34 ++++++++++++---------------
+ src/cmd/go/internal/modload/query.go          |  2 +-
+ src/cmd/go/internal/modload/search.go         | 16 ++++---------
+ src/cmd/go/testdata/script/mod_alt_goroot.txt | 20 ++++++++++++++++
+ 6 files changed, 65 insertions(+), 52 deletions(-)

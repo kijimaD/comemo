@@ -1,0 +1,17 @@
+commit 3c7bdd4d768444c349f6647b00465627d5ee1345
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jan 13 10:43:43 2015 +1100
+
+    crypto/x509: add cert SmartOS cert path
+    
+    Fix SmartOS build that was broken in 682922908f7.
+    
+    SmartOS pretends to be Ubuntu/Debian with respect to its SSL
+    certificate location.
+    
+    Change-Id: I5405c6472c8a1e812e472e7301bf6084c17549d6
+    Reviewed-on: https://go-review.googlesource.com/2704
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_solaris.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

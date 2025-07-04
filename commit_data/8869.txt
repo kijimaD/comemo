@@ -1,0 +1,15 @@
+commit 82a8afdf1411bbe5b08b09d1e94a8d1c4fb5635c
+Author: Ken Rockot <ken@oz.gs>
+Date:   Mon Jun 27 19:07:49 2011 -0400
+
+    syscall: support for tty options in StartProcess
+    
+    These are the relevant changes to exec_unix.go now that
+    mkerrors.sh outputs have been updated.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4648064
+
+ src/pkg/syscall/exec_unix.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

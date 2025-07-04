@@ -1,0 +1,32 @@
+commit 07de3465be8efafd66c96552de38c2cbb5851f28
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 20 11:56:15 2017 -0700
+
+    cmd/compile/internal/gc: handle recursive interfaces better
+    
+    Previously, we handled recursive interfaces by deferring typechecking
+    of interface methods, while eagerly expanding interface embeddings.
+    
+    This CL switches to eagerly evaluating interface methods, and
+    deferring expanding interface embeddings to dowidth. This allows us to
+    detect recursive interface embeddings with the same mechanism used for
+    detecting recursive struct embeddings.
+    
+    Updates #16369.
+    
+    Change-Id: If4c0320058047f8a2d9b52b9a79de47eb9887f95
+    Reviewed-on: https://go-review.googlesource.com/38391
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     | 56 +++++++++++++++++++-
+ src/cmd/compile/internal/gc/bimport.go   |  1 -
+ src/cmd/compile/internal/gc/dcl.go       | 87 +++++++-------------------------
+ src/cmd/compile/internal/gc/fmt.go       |  1 -
+ src/cmd/compile/internal/gc/type.go      | 10 +---
+ src/cmd/compile/internal/gc/typecheck.go | 11 +++-
+ test/fixedbugs/bug195.go                 |  8 +--
+ test/fixedbugs/bug251.go                 | 10 ++--
+ test/fixedbugs/issue18392.go             |  5 +-
+ 9 files changed, 99 insertions(+), 90 deletions(-)

@@ -1,0 +1,20 @@
+commit c8f90979acf078d2cbb18a9bf5c6f8349fab296a
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 10 14:02:24 2014 +1000
+
+    cmd/go: always build package during "go test" command
+    
+    even when there are no *_test.go files present.
+    rsc suggested this change
+    
+    Fixes #7108
+    
+    LGTM=r, adg
+    R=golang-codereviews, r, adg
+    CC=golang-codereviews
+    https://golang.org/cl/84300043
+
+ src/cmd/go/test.bash                    | 8 ++++++++
+ src/cmd/go/test.go                      | 2 +-
+ src/cmd/go/testdata/src/notest/hello.go | 6 ++++++
+ 3 files changed, 15 insertions(+), 1 deletion(-)

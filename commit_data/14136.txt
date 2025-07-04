@@ -1,0 +1,22 @@
+commit 1e9f3085457eb911cb46a13e2766697bddd9d413
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Oct 12 13:39:12 2012 +0800
+
+    cmd/5l: reorder some struct fields to reduce memory consumption
+    Valgrind Massif result when linking godoc:
+    On amd64:
+                        old          new         -/+
+    mem_heap_B       185844612    175358047    -5.7%
+    mem_heap_extra_B    773404       773137    -0.0%
+    
+    On 386/ARM:
+                        old          new         -/+
+    mem_heap_B       141775701    131289941    -7.4%
+    mem_heap_extra_B    737011       736955    -0.0%
+    
+    R=golang-dev, r, dave
+    CC=golang-dev
+    https://golang.org/cl/6655045
+
+ src/cmd/5l/l.h | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

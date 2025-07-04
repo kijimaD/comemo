@@ -1,0 +1,15 @@
+commit cb1897a58c38b435f7aa478356bc86feb78d8a02
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Dec 28 19:18:54 2014 -0500
+
+    cmd/gc: give an error if only one argument is given to complex()
+    
+    Fixes #8501
+    
+    Change-Id: I0dbbdded7f7924351c3d1841d60cb5c934b295b7
+    Reviewed-on: https://go-review.googlesource.com/2143
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/gc/typecheck.c      |  4 ++++
+ test/fixedbugs/issue8501.go | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+)

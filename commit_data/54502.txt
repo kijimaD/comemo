@@ -1,0 +1,42 @@
+commit f4e7675d1150cb683f3d2db7a96084b0d6e26e83
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Sep 15 21:15:56 2023 +0000
+
+    all: clean unnecessary casts
+    
+    Run 'unconvert -safe -apply' (https://github.com/mdempsky/unconvert)
+    
+    Change-Id: I24b7cd7d286cddce86431d8470d15c5f3f0d1106
+    GitHub-Last-Rev: 022e75384c08bb899a8951ba0daffa0f2e14d5a7
+    GitHub-Pull-Request: golang/go#62662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528696
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/archive/zip/reader.go                      |  4 ++--
+ src/go/internal/gccgoimporter/parser.go        |  2 +-
+ src/index/suffixarray/sais.go                  |  2 +-
+ src/internal/bisect/bisect.go                  |  2 +-
+ src/internal/fuzz/mutator.go                   |  2 +-
+ src/internal/syscall/windows/registry/value.go |  2 +-
+ src/runtime/arena.go                           |  2 +-
+ src/runtime/heapdump.go                        |  2 +-
+ src/runtime/mcache.go                          |  2 +-
+ src/runtime/metrics.go                         | 12 ++++++------
+ src/runtime/mfinal.go                          |  2 +-
+ src/runtime/mgcpacer.go                        |  4 ++--
+ src/runtime/mgcscavenge.go                     |  6 +++---
+ src/runtime/mheap.go                           |  4 ++--
+ src/runtime/mspanset.go                        |  2 +-
+ src/runtime/panic.go                           |  4 ++--
+ src/runtime/profbuf.go                         |  4 ++--
+ src/runtime/stkframe.go                        |  2 +-
+ src/runtime/stubs.go                           |  2 +-
+ src/runtime/time.go                            |  2 +-
+ src/runtime/trace.go                           |  2 +-
+ src/runtime/traceback.go                       |  2 +-
+ src/syscall/exec_linux.go                      | 12 ++++++------
+ src/syscall/netlink_linux.go                   |  2 +-
+ 24 files changed, 41 insertions(+), 41 deletions(-)

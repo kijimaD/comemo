@@ -1,0 +1,48 @@
+commit 72a76ca1f9c195ed39e929cf768d5df5421eada1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 11:04:21 2022 -0700
+
+    cmd/compile: restore test/nested.go test cases
+    
+    When handling a type declaration like:
+    
+    ```
+    type B A
+    ```
+    
+    unified IR has been writing out that B's underlying type is A, rather
+    than the underlying type of A.
+    
+    This is a bit awkward to implement and adds complexity to importers,
+    who need to handle resolving the underlying type themselves. But it
+    was necessary to handle when A was declared like:
+    
+    ```
+    //go:notinheap
+    type A int
+    ```
+    
+    Because we expected A's not-in-heap'ness to be conferred to B, which
+    required knowing that A was on the path from B to its actual
+    underlying type int.
+    
+    However, since #46731 was accepted, we no longer need to support this
+    case. Instead we can write out B's actual underlying type.
+    
+    One stumbling point though is the existing code for exporting
+    interfaces doesn't work for the underlying type of `comparable`, which
+    is now needed to implement `type C comparable`. As a bit of a hack, we
+    we instead export its underlying type as `interface{ comparable }`.
+    
+    Fixes #54512.
+    
+    Change-Id: I0fb892068d656f1e87bb8ef97da27756051126d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424854
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/noder/writer.go | 40 ++++++++++++++++++--------------
+ test/typeparam/nested.go                 | 26 ++++-----------------
+ 2 files changed, 28 insertions(+), 38 deletions(-)

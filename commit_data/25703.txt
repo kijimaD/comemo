@@ -1,0 +1,15 @@
+commit af15beeab5ff9cde411c3db086ca9a24ace4c898
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 29 17:45:23 2016 +0000
+
+    os: document that FindProcess always succeeds on Unix
+    
+    Fixes #14146
+    
+    Change-Id: I892ca4ccdc1ba785750e1eae800852dc5825156c
+    Reviewed-on: https://go-review.googlesource.com/19093
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/doc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

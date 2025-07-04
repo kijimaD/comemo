@@ -1,0 +1,23 @@
+commit adb29670fcf704e1b76db4d31331aaecd0db7118
+Author: Richard Miller <millerresearch@gmail.com>
+Date:   Fri Apr 4 20:48:18 2025 +0100
+
+    runtime: protect plan9 time_now function with !faketime build tag
+    
+    The introduction of monotonic time support for Plan 9 in CL 656755
+    causes a build error with multiple declaration of time_now when
+    built with tag faketime. Correct this by moving function time_now
+    into its own source file with !faketime build tag.
+    
+    Fixes #73169
+    
+    Change-Id: Id7a9a1c77e286511e25546089681f2f88a9538bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662856
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/os_plan9.go   | 16 +---------------
+ src/runtime/time_plan9.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 15 deletions(-)

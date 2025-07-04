@@ -1,0 +1,16 @@
+commit ccd9784edf556673a340f3a8d55d9a8c64b95f59
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 27 16:16:37 2021 -0700
+
+    doc/go1.17: document new debug/elf constant
+    
+    For #39677
+    For #44513
+    
+    Change-Id: I8c4193fd4359b83e6739e7e30a3a42b5f21b0f1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323275
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

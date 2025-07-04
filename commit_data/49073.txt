@@ -1,0 +1,21 @@
+commit 091e913414794d9176861b1ffcdbcfdc2d742af3
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri May 6 16:50:19 2022 +0200
+
+    crypto/rand: fix race on r.used
+    
+    This race is benign, but it still trips up the race detector, so turn
+    this into an atomic read.
+    
+    Fixes #52739.
+    
+    Change-Id: Ib53362286b456513c8c69d6d2d73c6c90ec095f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404475
+    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
+
+ src/crypto/rand/rand_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

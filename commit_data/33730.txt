@@ -1,0 +1,18 @@
+commit 8064f82a158e4416e9f32ed7017642ace4280b4f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 30 03:31:18 2017 +0000
+
+    Revert "os: remove skipped test on netbsd"
+    
+    This reverts commit a631daba5fe9d91ebdddd4148e8af82e07c1ae3e.
+    
+    Reason for revert: I was wrong. It still fails on the builders.
+    
+    I don't know what's different about my VMWare VM, but on GCE it fails.
+    
+    Change-Id: Ic6bee494b69235768bf08ba0bf59026bca41ad12
+    Reviewed-on: https://go-review.googlesource.com/80915
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

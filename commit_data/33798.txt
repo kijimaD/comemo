@@ -1,0 +1,23 @@
+commit 0b3b5113c0bbc62306a0404b235cbdf5a431bf67
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Dec 1 11:41:46 2017 -0800
+
+    encoding/csv: truncate carriage returns at EOF
+    
+    This fixes a regression where only CRLF was folded into LF at EOF.
+    Now, we also truncate trailing CR at EOF to preserve the old behavior.
+    
+    Every one of the test cases added exactly matches the behavior
+    of Go1.9, even if the results are somewhat unexpected.
+    
+    Fixes #22937
+    
+    Change-Id: I1bc6550533163ae489ea77ec1e598163267b7eec
+    Reviewed-on: https://go-review.googlesource.com/81577
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/csv/reader.go      |  4 ++++
+ src/encoding/csv/reader_test.go | 38 +++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 41 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 2450c590e9be32bef4d7a490343c9b082324fe60
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Apr 1 21:28:59 2009 -0700
+
+    typeswitch - expression evaluated
+    twice instead of once.
+    
+    R=r
+    OCL=27015
+    CL=27015
+
+ src/cmd/gc/swt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 7e886740d1c4b62bf7aea2a71048be432aeff945
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 14:56:07 2013 -0400
+
+    encoding/json: support encoding.TextMarshaler, encoding.TextUnmarshaler
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12703043
+
+ src/pkg/encoding/json/decode.go      |  66 ++++++++++++++----
+ src/pkg/encoding/json/decode_test.go |  46 ++++++++++++-
+ src/pkg/encoding/json/encode.go      | 130 +++++++++++++++++++++++++++++++++--
+ src/pkg/encoding/json/encode_test.go |  99 ++++++++++++++++++++++++--
+ 4 files changed, 315 insertions(+), 26 deletions(-)

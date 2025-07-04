@@ -1,0 +1,18 @@
+commit aa81eb5901abc545bc8ff14833f52c3e798f0b90
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 23:58:20 2013 -0400
+
+    encoding/xml: allow embedded non-structs
+    
+    The old code just assumed that the only thing
+    you can embed is a struct. Not true.
+    
+    Fixes #3803.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7743043
+
+ src/pkg/encoding/xml/marshal_test.go | 12 ++++++++++++
+ src/pkg/encoding/xml/typeinfo.go     | 21 ++++++++++-----------
+ 2 files changed, 22 insertions(+), 11 deletions(-)

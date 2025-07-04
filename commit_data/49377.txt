@@ -1,0 +1,19 @@
+commit 21f05284c79c3e823169c62d189826f735006d43
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Apr 29 14:45:46 2022 -0400
+
+    cmd/go: index standard library packages
+    
+    
+    Change-Id: I07594303a1e9833723522d5ff94577a5510ca6f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404714
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/load/pkg.go       |   3 +-
+ src/cmd/go/internal/modindex/read.go  | 128 ++++++++++++++++++++++++++++------
+ src/cmd/go/internal/modload/build.go  |   4 +-
+ src/cmd/go/internal/modload/import.go |   3 +-
+ 4 files changed, 110 insertions(+), 28 deletions(-)

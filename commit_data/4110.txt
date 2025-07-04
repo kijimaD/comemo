@@ -1,0 +1,24 @@
+commit c4606d05da2d4ae7bfb32def1e9df2092e4a9da4
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 17 20:41:44 2009 -0800
+
+    install copy predefined
+    did not test 386, but should work
+    shouldnt matter if copy is not used
+    
+    R=rsc
+    https://golang.org/cl/156055
+
+ src/cmd/gc/builtin.c.boot       |  1 +
+ src/cmd/gc/go.h                 |  1 +
+ src/cmd/gc/lex.c                |  1 +
+ src/cmd/gc/print.c              |  2 ++
+ src/cmd/gc/runtime.go           |  1 +
+ src/cmd/gc/subr.c               |  1 +
+ src/cmd/gc/typecheck.c          | 26 +++++++++++++++++
+ src/cmd/gc/walk.c               | 13 ++++++++-
+ src/pkg/runtime/Makefile        |  1 +
+ src/pkg/runtime/memmove_386.s   | 65 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/memmove_amd64.s | 65 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/slice.c         | 33 +++++++++++++++++++++
+ 12 files changed, 209 insertions(+), 1 deletion(-)

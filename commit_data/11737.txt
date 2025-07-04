@@ -1,0 +1,14 @@
+commit ce57ba9feec078191db2873017bd63f996afd835
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 9 16:45:24 2012 +1100
+
+    net/http/httptest: add a test
+    
+    Less ironic. Don't you think?
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5643069
+
+ src/pkg/net/http/httptest/server_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

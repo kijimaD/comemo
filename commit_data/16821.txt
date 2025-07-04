@@ -1,0 +1,14 @@
+commit eb04df75cd87722f396fb66583279afe5abfb1ca
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 19 18:01:33 2013 +0400
+
+    runtime: prevent GC from seeing the contents of a frame in runfinq
+    This holds the last finalized object and arguments to its finalizer.
+    Fixes #5348.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/11454044
+
+ src/pkg/runtime/mgc0.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit 751c37fd629e0ebb18c39a219fab2b224d016b70
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Oct 21 21:29:43 2020 -0400
+
+    cmd/internal/obj/{arm,s390x}: make return jump print nicer
+    
+    When a function with non-zero frame size makes a return jump
+    (RET target), it assembles to, conceptually,
+    
+    MOV (SP), LR
+    ADD $framesize, SP
+    JMP target
+    
+    We did not clear some fields in the first instruction's Prog.To,
+    causing it printed like (on ARM)
+    
+    MOVW.P  4(R13), (R14)(R14)(REG)
+    
+    Clear the fields to make it print nicer.
+    
+    Change-Id: I180901aeea41f1ff287d7c6034a6d69005927744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264343
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/cmd/internal/obj/arm/obj5.go   | 2 ++
+ src/cmd/internal/obj/s390x/objz.go | 6 ++++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

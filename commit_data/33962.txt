@@ -1,0 +1,22 @@
+commit ac53c9673d77dd37f7dd46b397fa64370129dc8c
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Nov 13 01:54:08 2017 +0100
+
+    crypto/x509: update iOS root certs.
+    
+    Apple changed the format of its support page, so we need to
+    restructure the HTML parser. The HTML table is now parsed using
+    regular expressions, and certificates are then found in macOS
+    trust store by their fingerprint.
+    
+    Fixes #22181
+    
+    Change-Id: I29e7a40d37770bb005d728f1832299c528691f7e
+    Reviewed-on: https://go-review.googlesource.com/77252
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/root_darwin_arm_gen.go |   90 +-
+ src/crypto/x509/root_darwin_armx.go    | 8131 +++++++++++++++-----------------
+ 2 files changed, 3810 insertions(+), 4411 deletions(-)

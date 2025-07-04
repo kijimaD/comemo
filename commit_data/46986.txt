@@ -1,0 +1,26 @@
+commit b8da7e4c4c9e97b3d1ebfb07506acdd61277b988
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Oct 20 13:56:15 2021 -0700
+
+    cmd/compile: fix inlining of labeled for loops
+    
+    There is already a mechanism using inlgen to rename labels insided
+    inlined functions so that they are unique and don't clash with loops in
+    the outer function. This is used for OLABEL and OGOTO. Now that we are
+    doing inlining of OFOR loops, we need to do this translation for OBREAK,
+    OCONTINUE, and OFOR. I also added the translation for ORANGE loops, in
+    anticipation of a CL that will allow inlining of ORANGE for loops.
+    
+    Fixes #49100
+    
+    Change-Id: I2ccddc3350370825c386965f4a1e4bc54d3c369b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357649
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 35 ++++++++++++++++++++++++++++------
+ test/fixedbugs/issue49100.go           | 27 ++++++++++++++++++++++++++
+ test/fixedbugs/issue49100.out          | 12 ++++++++++++
+ 3 files changed, 68 insertions(+), 6 deletions(-)

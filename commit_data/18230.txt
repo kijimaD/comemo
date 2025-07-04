@@ -1,0 +1,14 @@
+commit 5ce3e6a1efd834189057002e6b28180dee5657d4
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Mon Jan 13 13:57:38 2014 -0800
+
+    syscall: add syscall.Termios on freebsd/{386,amd64}
+    
+    R=golang-codereviews, bradfitz, mg
+    CC=golang-codereviews
+    https://golang.org/cl/51580044
+
+ src/pkg/syscall/types_freebsd.go        |  5 +++++
+ src/pkg/syscall/ztypes_freebsd_386.go   | 10 ++++++++++
+ src/pkg/syscall/ztypes_freebsd_amd64.go | 10 ++++++++++
+ 3 files changed, 25 insertions(+)

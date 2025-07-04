@@ -1,0 +1,21 @@
+commit 8d335084cc58c8167b12ce5d1791bfc6db1355f2
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Mar 16 10:57:44 2018 -0700
+
+    database/sql: add examples for opening and testing a DB pool
+    
+    Show two larger application examples. One example that
+    could be used in a CLI, the other in a long running
+    service. These demonstarates different strategies for
+    handling DB.Ping errors in context.
+    
+    Fixes #23738
+    
+    Change-Id: Id01213caf1f47917239a7506b01d30e37db74d31
+    Reviewed-on: https://go-review.googlesource.com/c/101216
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/example_cli_test.go     |  86 +++++++++++++++++
+ src/database/sql/example_service_test.go | 158 +++++++++++++++++++++++++++++++
+ src/database/sql/example_test.go         |  77 ++++++++++-----
+ 3 files changed, 298 insertions(+), 23 deletions(-)

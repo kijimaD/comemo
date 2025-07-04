@@ -1,0 +1,26 @@
+commit 7f255ba065ee7bd41da806b297cd643e3ead3fee
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Sep 28 11:50:41 2022 -0400
+
+    cmd/dist: produce intermedate .a files in a temporary location
+    
+    Before this change, the .a files for the intermediate go toolchains
+    were produced in the same location as the install target. This change
+    has them produced in a temporary location instead. This change,
+    combined with go install not producing .a files for most stdlib
+    packages by default results in a build of the distribution only
+    producing .a's for the five packages in std that require cgo. (Before
+    this change, the .a's for the final build were not being produced, but
+    stale ones from the intermediate builds were left behind.)
+    
+    For #47257
+    
+    Change-Id: I91b826cd1ce9aad9c492fb865e36d34dc8bb188e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/dist/build.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 468f244416f70c39ad07f0973b837b4dd093e843
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 13:17:28 2009 -0700
+
+    bug182 - compiler crash
+    
+    R=ken
+    OCL=32887
+    CL=32887
+
+ src/cmd/gc/typecheck.c   |  2 +-
+ test/fixedbugs/bug182.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

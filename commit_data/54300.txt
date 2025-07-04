@@ -1,0 +1,22 @@
+commit 0cd473d97ac9c94431aaece4baae539927d068f1
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Sep 3 00:08:17 2023 +0800
+
+    cmd: fix some comments
+    
+    Change-Id: I8b3eb51e31139314d222d796b56ab7d42338797f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525315
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go | 4 ++--
+ src/cmd/compile/internal/ssa/_gen/rulegen.go  | 2 +-
+ src/cmd/internal/obj/x86/asm6.go              | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

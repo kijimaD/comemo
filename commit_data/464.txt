@@ -1,0 +1,13 @@
+commit aede753cd24c3764890d80db9876ad3857121dcd
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 1 16:23:16 2008 -0700
+
+    new bug: go on a method is wrong
+    
+    R=gri
+    OCL=13741
+    CL=13741
+
+ test/bugs/bug084.go | 23 +++++++++++++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 26 insertions(+)

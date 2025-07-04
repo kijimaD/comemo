@@ -1,0 +1,15 @@
+commit 7666f24a8438937dde212da8cbd9cb2c940a1752
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 19 15:04:53 2013 -0700
+
+    cmd/gc, cmd/ld: fix build: remove unused var, use correct var in printf
+    
+    Fixes #5924.
+    
+    R=golang-dev, khr, rsc
+    CC=golang-dev
+    https://golang.org/cl/11606043
+
+ src/cmd/gc/pgen.c | 4 ++--
+ src/cmd/ld/lib.c  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

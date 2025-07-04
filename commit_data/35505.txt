@@ -1,0 +1,16 @@
+commit dbafdac0c11fa569b2143f896f169d1e37fc311c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat May 26 09:08:51 2018 +1000
+
+    runtime: implement TestCallbackInAnotherThread
+    
+    Updates #6751
+    
+    Change-Id: Ibb176a17e67c67f855bc4f3e5462dddaedaa8a58
+    Reviewed-on: https://go-review.googlesource.com/114755
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/syscall_windows_test.go | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 7a8f1e2bc787542fe6b9e87ebec9b682a0ff9973
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 13 12:58:11 2017 +1000
+
+    time: run genzabbrs.go to update zoneinfo_abbrs_windows.go
+    
+    Last time zoneinfo_abbrs_windows.go was updated in CL 27832.
+    Time for another update.
+    
+    Change-Id: I8dc3a1de6f22e90e634b2176188f257a260b6463
+    Reviewed-on: https://go-review.googlesource.com/45450
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/genzabbrs.go              |   4 +-
+ src/time/zoneinfo_abbrs_windows.go | 176 +++++++++++++++++++------------------
+ 2 files changed, 92 insertions(+), 88 deletions(-)

@@ -1,0 +1,28 @@
+commit 0cff505871434711804308152679840505e8a824
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 9 20:45:18 2016 -0800
+
+    cmd/compile: add Recv0 and Field helper methods for Type
+    
+    Accessing the n'th field of a struct is fairly common, and in
+    particular accessing the 0'th field of the receiver parameter list is
+    very common. Add helper methods for both of these tasks and update
+    code to make use of them.
+    
+    Change-Id: I81f551fecdca306b3800636caebcd0dc106f2ed7
+    Reviewed-on: https://go-review.googlesource.com/20498
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/cgen.go      |  8 +++---
+ src/cmd/compile/internal/gc/dcl.go       |  4 +--
+ src/cmd/compile/internal/gc/esc.go       |  4 +--
+ src/cmd/compile/internal/gc/export.go    |  4 +--
+ src/cmd/compile/internal/gc/gsubr.go     |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  6 ++--
+ src/cmd/compile/internal/gc/reflect.go   |  4 +--
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      |  4 +--
+ src/cmd/compile/internal/gc/type.go      | 47 +++++++++++++++++---------------
+ src/cmd/compile/internal/gc/typecheck.go |  8 +++---
+ 11 files changed, 48 insertions(+), 45 deletions(-)

@@ -1,0 +1,28 @@
+commit 7861cd6082993becfedeaab75567eaba0c9a03f8
+Author: Carlos Castillo <cookieo9@gmail.com>
+Date:   Thu Feb 13 10:11:44 2014 -0800
+
+    cmd/go, go/build: support .m files
+    
+    go/build is changed to list the .m files in a package, and match them for build constraints, adding them to a new field: Package.MFiles.
+    
+    The go tool is changed to support building .m files and linking in the results during CGO and SWIG builds. This means packages that create a C interface to calls Objective-C code from go are now go-gettable without producing and distributing .syso files. This change is analogous to the one in Go 1.2 made to support C++ built code.
+    
+    This change doesn't support .mm files (Objective C++).
+    
+    Also added support for these MFiles to go list's -json mode.
+    
+    Fixes #6536.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/60590044
+
+ doc/go1.3.txt             |  1 +
+ src/cmd/go/build.go       | 46 +++++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/go/doc.go         |  4 ++--
+ src/cmd/go/list.go        |  1 +
+ src/cmd/go/pkg.go         |  5 ++++-
+ src/pkg/go/build/build.go |  6 +++++-
+ 6 files changed, 54 insertions(+), 9 deletions(-)

@@ -1,0 +1,42 @@
+commit 9a932c5712bebb2620e0719a93773403f4fb563d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 15 16:31:02 2022 -0400
+
+    internal/buildcfg: initialize GOROOT to runtime.GOROOT
+    
+    In the beginning the Go compiler was in C, and C had a function
+    'getgoroot' that returned GOROOT from either the environment or a
+    generated constant. 'getgoroot' was mechanically converted to Go
+    (as obj.Getgoroot) in CL 3046.
+    
+    obj.Getgoroot begat obj.GOROOT. obj.GOROOT begat objabi.GOROOT,
+    which begat buildcfg.GOROOT.
+    
+    As far as I can tell, today's buildcfg.GOROOT is functionally
+    identical to runtime.GOROOT(). Let's reduce some complexity by
+    defining it in those terms.
+    
+    While we're thinking about buildcfg.GOROOT, also check whether it is
+    non-empty: if the toolchain is built with -trimpath, the value of
+    GOROOT might not be valid or meaningful if the user invokes
+    cmd/compile or cmd/link directly, or via a build tool other than
+    cmd/go that doesn't care as much about GOROOT. (As of CL 390024,
+    runtime.GOROOT will return the empty string instead of a bogus one
+    when built with -trimpath.)
+    
+    For #51461.
+    
+    Change-Id: I9fec020d5fa65d4aff0dd39b805f5ca93f86c36e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393155
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/logopt/log_opts.go | 2 +-
+ src/cmd/compile/internal/noder/reader.go    | 2 +-
+ src/cmd/internal/objabi/line.go             | 2 +-
+ src/cmd/link/internal/ld/lib.go             | 4 +++-
+ src/cmd/link/internal/ld/main.go            | 1 -
+ src/internal/buildcfg/cfg.go                | 5 ++---
+ 6 files changed, 8 insertions(+), 8 deletions(-)

@@ -1,0 +1,20 @@
+commit 1fe1512f50585d461dd9f41d8b373da5ed66c99b
+Author: Matej Baćo <matejbaco@gmail.com>
+Date:   Mon Aug 28 12:41:27 2017 +0200
+
+    regexp: examples for Regexp.Expand and Regexp.ExpandString functions
+    
+    Current documentation lacks simple examples for functions Regexp.Expand
+    and Regexp.ExpandString whose usage is unclear from description alone.
+    This commit adds examples that demonstrate usage in practical way.
+    
+    Fixes #21649
+    
+    Change-Id: I7b2c06c8ab747f69a6578f0595bf0f3c742ac479
+    Reviewed-on: https://go-review.googlesource.com/59470
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/example_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 64 insertions(+)

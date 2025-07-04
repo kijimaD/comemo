@@ -1,0 +1,23 @@
+commit b67979320a9214b7d1b75bbd2d11ea5a1aa40323
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Mar 12 18:10:31 2014 -0700
+
+    cmd/ld: give acid a fighting chance at unwinding the stack
+    
+    Acid can't produce a stack trace without .frame symbols.
+    
+    Of course, it can only unwind through linear stacks but
+    this is still better than nothing. (I wrote an acid func
+    to do the full unwind a long time ago but lost it and
+    haven't worked up the courage to write it again).
+    
+    Note that these will only be present in the native symbol
+    table for Plan 9 binaries.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/72450045
+
+ src/cmd/ld/lib.c | 3 +++
+ 1 file changed, 3 insertions(+)

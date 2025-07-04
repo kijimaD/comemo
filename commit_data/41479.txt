@@ -1,0 +1,28 @@
+commit 956f64888d650e870d03c533b47646cf911bc396
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Feb 14 11:42:58 2020 -0800
+
+    cmd/compile: make inlining intrinsics cost one
+    
+    We were assigning a cost of 2 for intrinsics:
+    One when we recognized an intrinsic,
+    and one for the OCALLFUNC node.
+    
+    I believe that the intent was that intrinsics should
+    cost 1, since they are typically an arithmetic op,
+    and because they tend to occur in performance-sensitive code.
+    (Not that any of this is particularly principled right now.)
+    
+    Stop charging when we recognize an intrinsic;
+    let the OCALLFUNC node cover the cost.
+    
+    This has a negligible impact on std+cmd.
+    
+    Change-Id: Ie6ae5c18da3ae7e40aec425aed95c6999c2831a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221357
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

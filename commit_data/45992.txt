@@ -1,0 +1,22 @@
+commit 0a0a160d4df488939892a1adaca6c530fb784cc8
+Author: Jeff Wentworth <j.wentworth@gmail.com>
+Date:   Sat Aug 14 09:46:32 2021 +0000
+
+    sync/atomic: fix documentation for CompareAndSwap
+    
+    Fixes #47699
+    
+    The documentation for CompareAndSwap atomic/value incorrectly labelled the function as CompareAndSwapPointer. This PR fixes that.
+    
+    Change-Id: I6db08fdfe166570b775248fd24550f5d28e3434e
+    GitHub-Last-Rev: 41f78707928f48c9cdac26b6a4f618d4284e1ca1
+    GitHub-Pull-Request: golang/go#47700
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342210
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/sync/atomic/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

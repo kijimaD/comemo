@@ -1,0 +1,33 @@
+commit 896e55fb49b1ec4ef924f9925ec55c090e14f34f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 5 21:30:18 2023 -0400
+
+    cmd/dist: remove stale cleanup code
+    
+    dist clean has logic to delete command binaries from the cmd
+    directories in cleanlist. However, these days the only binary it could
+    possibly remove is "$GOROOT/src/cmd/cgo/cgo". This is clearly no
+    longer necessary, so remove this stale code.
+    
+    When this logic was originally introduced in CL 5622058, it was driven
+    by cleantab (not cleanlist), which contained all of the cmd
+    directories, which were legion at the time because this was the era of
+    the [568][acgl] toolchain. CL 9154 deleted cleantab, and did the same
+    clean walk over the "cmd/" directories listed in buildorder. However,
+    buildorder was a list of packages necessary to build cmd/go, so the
+    only "cmd/" directory in buildorder at the time was "cmd/go". Hence,
+    at that CL, dist started deleting only a "$GOROOT/src/cmd/go/go"
+    binary. The modern cleanlist was introduced in CL 76021, as a list of
+    packages containing "generated files and commands". The only "cmd/"
+    directory in cleanlist the whole time has been "cmd/cgo" (and I'm
+    honestly not sure why cmd/cgo is in there), so since that CL dist has
+    only deleted "$GOROOT/src/cmd/cgo/cgo".
+    
+    Change-Id: I1915eb938d1a0e22ae6a64e7648a21894d3e6502
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501136
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 4 ----
+ 1 file changed, 4 deletions(-)

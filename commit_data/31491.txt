@@ -1,0 +1,28 @@
+commit 98b3e3a0649e749129380bf9117f20402701ec2d
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu May 4 13:58:27 2017 -0400
+
+    cmd/go, cmd/compile: match tool versions
+    
+    This change passes runtime.Version from the go tool to the compiler.
+    If the versions do not match, the compilation fails.
+    The result is a go tool from one GOROOT will complain loudly if it
+    is invoked with a different GOROOT value.
+    
+    Only release versions are checked, so that when developing Go
+    you can still use "go install cmd/go" and "go install cmd/compile"
+    separately.
+    
+    Fixes #19064
+    
+    Change-Id: I17e184d07d3c1092b1d9af53ba55ed3ecf67791d
+    Reviewed-on: https://go-review.googlesource.com/42595
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/main.go |  7 +++++++
+ src/cmd/go/go_test.go               | 11 +++++++++++
+ src/cmd/go/internal/work/build.go   |  5 +++++
+ src/cmd/go/internal/work/testgo.go  | 17 +++++++++++++++++
+ 4 files changed, 40 insertions(+)

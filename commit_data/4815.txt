@@ -1,0 +1,14 @@
+commit 4b4c6ab02de33d8e8d0fc50b590bc95af5c38f15
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 8 15:40:09 2010 -0800
+
+    Struct field ambiguity test.
+    
+    gccgo gets this wrong at the moment.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/205044
+
+ test/fixedbugs/bug253.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

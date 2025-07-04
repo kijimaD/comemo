@@ -1,0 +1,14 @@
+commit 8d3d23a124970475485c50385fc3c13780c9c306
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Nov 13 22:00:38 2016 +0100
+
+    net/http: fix error message in TestClientWriteShutdown
+    
+    Change-Id: I3c664201baef6d7dbed94dab63db0ac974bf6817
+    Reviewed-on: https://go-review.googlesource.com/33198
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

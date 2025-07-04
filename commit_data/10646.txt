@@ -1,0 +1,13 @@
+commit c3480878c48927622021ad9a7835c5c1fca22942
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 7 15:00:32 2011 -0500
+
+    A+C: Olivier Duperray, Taru Karttunen (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5451121
+
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 2 ++
+ 2 files changed, 4 insertions(+)

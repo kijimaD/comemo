@@ -1,0 +1,17 @@
+commit b13774691cfb22b1cb18263c9a35176c4a0e94b2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Jun 24 16:49:05 2020 -0400
+
+    crypto/x509: move and update the SSL_CERT_FILE and SSL_CERT_DIR docs
+    
+    Fixes #37907
+    
+    Change-Id: Ia077de6dcc74ed761d278eab4efbf45e151429b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239747
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/x509/cert_pool.go | 12 ++++++++----
+ src/crypto/x509/x509.go      |  4 ----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

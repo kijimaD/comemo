@@ -1,0 +1,14 @@
+commit 66c6b13b03215ea13d1ce57cb0f685cf7edd5cb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 6 12:13:52 2008 -0800
+
+    - implemented String() and Format functionality in Bignum
+    - added a test
+    
+    R=r
+    OCL=18687
+    CL=18687
+
+ src/lib/bignum.go   | 56 +++++++++++++++++++++++++++++++++++++++++++++++------
+ test/bignum_test.go | 42 +++++++++++++++++++++++-----------------
+ 2 files changed, 74 insertions(+), 24 deletions(-)

@@ -1,0 +1,17 @@
+commit c344f751fced679add6eec87c4dc92020484e476
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 21 18:06:34 2015 -0700
+
+    math/big: gofmt nat_test.go
+    
+    Was apparently checked in by https://go-review.googlesource.com/#/c/9253/
+    without being gofmt-ed.
+    
+    TBR: agl
+    
+    Change-Id: I4d011dbaa15b7c5e73ca71f724f32951a0302dae
+    Reviewed-on: https://go-review.googlesource.com/10353
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/nat_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

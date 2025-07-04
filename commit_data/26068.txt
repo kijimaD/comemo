@@ -1,0 +1,16 @@
+commit e3a9dca7cc61d956656d443753545d5ff03a575f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 4 22:02:27 2016 +0000
+
+    cmd/compile: don't allocate convX2X or assertX2X func names before syslook
+    
+    Change-Id: Ib632ee7ac893750bec4cfe223745bca5f31900ab
+    Reviewed-on: https://go-review.googlesource.com/20234
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 12 +++---
+ src/cmd/compile/internal/gc/walk.go | 79 ++++++++++++++++++++++++++++++-------
+ 2 files changed, 71 insertions(+), 20 deletions(-)

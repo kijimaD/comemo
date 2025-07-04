@@ -1,0 +1,13 @@
+commit 69a2e1dc52c379af46cba801414b3f9a15fd6201
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 27 17:19:15 2010 -0700
+
+    gc: better windows detection
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/944043
+
+ src/cmd/gc/go.h  |  7 -------
+ src/cmd/gc/lex.c | 21 ++++++++-------------
+ 2 files changed, 8 insertions(+), 20 deletions(-)

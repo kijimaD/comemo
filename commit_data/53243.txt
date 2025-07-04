@@ -1,0 +1,17 @@
+commit 64c95d24f0aab42b26cab0c2262274d0ea2eaa85
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun May 21 15:34:43 2023 +0100
+
+    log/slog: JSONHandler doesn't use special source format
+    
+    Fixes #60329
+    
+    Change-Id: Idb19da4830fa14c459bedbf143d550ce7c1dfdbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496815
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/json_handler.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

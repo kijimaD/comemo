@@ -1,0 +1,21 @@
+commit 596e3d9c0176db442a51202a2ae2834ac892d594
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 4 22:26:20 2018 +0000
+
+    net/http: don't validate WriteHeader code if header's already been sent
+    
+    Also vendors x/net/http git rev 42fe2e1c for:
+    
+        http2: don't check WriteHeader status if we've already sent the header
+        https://golang.org/cl/86255
+    
+    Fixes #23010
+    
+    Change-Id: I4f3dd63acb52d5a34a0350aaf847a7a376d6968f
+    Reviewed-on: https://go-review.googlesource.com/86275
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/clientserver_test.go | 56 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/h2_bundle.go         |  2 +-
+ src/net/http/server.go            |  2 +-
+ 3 files changed, 58 insertions(+), 2 deletions(-)

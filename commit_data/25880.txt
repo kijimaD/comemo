@@ -1,0 +1,14 @@
+commit 9e173f9db97b98b25efd708b72108012a8b5d7f6
+Author: Burcu Dogan <jbd@google.com>
+Date:   Wed Feb 24 15:06:03 2016 -0800
+
+    doc: add android/arm as a valid GOOS/GOARCH combination
+    
+    Fixes #14497.
+    
+    Change-Id: Ibdd55acf9e416873c64f8751c2f65f7ccdb1d500
+    Reviewed-on: https://go-review.googlesource.com/19914
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ doc/install-source.html | 3 +++
+ 1 file changed, 3 insertions(+)

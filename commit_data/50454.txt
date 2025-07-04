@@ -1,0 +1,23 @@
+commit c7a0b156592ca15612315fc71f4e287268643bfd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 16:33:08 2022 -0700
+
+    go/types, types2: consistently use _UnsupportedFeature error code
+    
+    Change-Id: Ie880871bb855e1c1f6e543508bdc7dd415451ba3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429735
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/errorcodes.go |  4 ++--
+ src/cmd/compile/internal/types2/expr.go       |  2 +-
+ src/go/types/builtins.go                      | 10 +++++-----
+ src/go/types/decl.go                          |  2 +-
+ src/go/types/errorcodes.go                    |  4 ++--
+ src/go/types/expr.go                          |  2 +-
+ src/go/types/typeset.go                       |  4 ++--
+ src/go/types/version.go                       |  8 ++++----
+ 8 files changed, 18 insertions(+), 18 deletions(-)

@@ -1,0 +1,12 @@
+commit 11bda7df47de8cb02d77750351e90419cc946173
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 24 10:22:32 2011 -0800
+
+    godoc: log errors when reading filter files
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4230042
+
+ src/cmd/godoc/godoc.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

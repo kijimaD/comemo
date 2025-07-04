@@ -1,0 +1,16 @@
+commit 83f648c9625343045da1e6b4ecc3d207c84403b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 12 22:21:46 2011 -0500
+
+    spec: allow comparison of structs, arrays containing comparable values
+    
+    Also, clarify when interface comparison panics and
+    that comparison to nil is a special syntax rather than
+    a general comparison rule.
+    
+    R=r, gri, r, iant, cw, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5440117
+
+ doc/go_spec.html | 97 +++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 64 insertions(+), 33 deletions(-)

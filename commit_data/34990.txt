@@ -1,0 +1,18 @@
+commit 01aa1d7dbe3a5b9f9a96f84cc625cbb7e372b0f0
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Apr 15 19:17:41 2018 +0200
+
+    test: migrate plan9 tests to codegen
+    
+    And remove it from asmtest. Next CL will remove the whole
+    asmtest infrastructure.
+    
+    Change-Id: I5851bf7c617456d62a3c6cffacf70252df7b056b
+    Reviewed-on: https://go-review.googlesource.com/107335
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 34 +--------------------------------
+ test/codegen/floats.go                  | 22 +++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 33 deletions(-)

@@ -1,0 +1,14 @@
+commit 0bbf0ec0ed5c17a76942d9ae8a6e6b9559dacb9e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 16:35:31 2013 -0700
+
+    database/sql: use method values instead of generating closures
+    
+    Reduces garbage.
+    
+    R=adg, r
+    CC=dsymonds, gobot, golang-dev
+    https://golang.org/cl/9088045
+
+ src/pkg/database/sql/sql.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

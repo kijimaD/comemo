@@ -1,0 +1,38 @@
+commit ee3d20129a89047ccb4a4e157688d2f24db8f343
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 26 17:05:41 2016 -0400
+
+    runtime: avoid getfull() barrier most of the time
+    
+    With the hybrid barrier, unless we're doing a STW GC or hit a very
+    rare race (~once per all.bash) that can start mark termination before
+    all of the work is drained, we don't need to drain the work queue at
+    all. Even draining an empty work queue is rather expensive since we
+    have to enter the getfull() barrier, so it's worth avoiding this.
+    
+    Conveniently, it's quite easy to detect whether or not we actually
+    need the getufull() barrier: since the world is stopped when we enter
+    mark termination, everything must have flushed its work to the work
+    queue, so we can just check the queue. If the queue is empty and we
+    haven't queued up any jobs that may create more work (which should
+    always be the case with the hybrid barrier), we can simply have all GC
+    workers perform non-blocking drains.
+    
+    Also conveniently, this solution is quite safe. If we do somehow screw
+    something up and there's work on the work queue, some worker will
+    still process it, it just may not happen in parallel.
+    
+    This is not the "right" solution, but it's simple, expedient,
+    low-risk, and maintains compatibility with debug.gcrescanstacks. When
+    we remove the gcrescanstacks fallback in Go 1.9, we should also fix
+    the race that starts mark termination early, and then we can eliminate
+    work draining from mark termination.
+    
+    Updates #17503.
+    
+    Change-Id: I7b3cd5de6a248ab29d78c2b42aed8b7443641361
+    Reviewed-on: https://go-review.googlesource.com/32186
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 47 +++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 45 insertions(+), 2 deletions(-)

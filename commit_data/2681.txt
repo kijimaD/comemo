@@ -1,0 +1,13 @@
+commit 8afc6008a8319f4b13b2fa4d50062092f274084f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 15:54:41 2009 -0700
+
+    add note about once and closures
+    
+    R=r
+    DELTA=13  (13 added, 0 deleted, 0 changed)
+    OCL=31535
+    CL=31549
+
+ src/pkg/once/once.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

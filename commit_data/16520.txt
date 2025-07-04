@@ -1,0 +1,17 @@
+commit 4f514e8691afe7557a01073d766d1a7240269634
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jun 10 09:20:27 2013 +0400
+
+    runtime: use persistentalloc instead of SysAlloc in FixAlloc
+    Also reduce FixAlloc allocation granulatiry from 128k to 16k,
+    small programs do not need that much memory for MCache's and MSpan's.
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/10140044
+
+ src/pkg/runtime/malloc.goc  | 2 +-
+ src/pkg/runtime/malloc.h    | 7 +++----
+ src/pkg/runtime/mfixalloc.c | 7 ++-----
+ src/pkg/runtime/mheap.c     | 6 +++---
+ 4 files changed, 9 insertions(+), 13 deletions(-)

@@ -1,0 +1,19 @@
+commit 78a608d785215364d16459c35a14690784438b0e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 24 09:21:04 2020 -0500
+
+    cmd/go/internal/modfetch: delete unused isVendoredPackage function
+    
+    This function is apparently unused since CL 204917.
+    
+    Updates #35290
+    Updates #37397
+    
+    Change-Id: Id7f5f5d5176fdbd1c5c6227e81d0854ceafc3f12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220640
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go | 25 -------------------------
+ 1 file changed, 25 deletions(-)

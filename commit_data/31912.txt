@@ -1,0 +1,15 @@
+commit b4dd1d965dfbbde6a46bddaf6f446f4426a04b2e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jun 24 20:54:47 2017 -0700
+
+    os/signal: check MustHaveExec in TestAtomicStop
+    
+    Change-Id: I284ecfab574b3058ba66b75f8f8d2ccdb90a8a0c
+    Reviewed-on: https://go-review.googlesource.com/46650
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/signal/signal_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

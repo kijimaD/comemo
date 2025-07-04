@@ -1,0 +1,36 @@
+commit 5cded8b3bfb9d47a4e76e6ae8f4cfed15bf49666
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Aug 24 23:02:16 2022 +0800
+
+    net/http: reduce calls to append in hexEscapeNonASCII to gain a slight performance boost
+    
+    goos: linux
+    goarch: amd64
+    pkg: net/http
+    cpu: DO-Premium-Intel
+                        │     old      │                 new                 │
+                        │    sec/op    │   sec/op     vs base                │
+    HexEscapeNonASCII-4   469.6n ± 20%   371.1n ± 9%  -20.98% (p=0.000 n=10)
+    
+                        │    old     │              new               │
+                        │    B/op    │    B/op     vs base            │
+    HexEscapeNonASCII-4   192.0 ± 0%   192.0 ± 0%  ~ (p=1.000 n=10) ¹
+    ¹ all samples are equal
+    
+                        │    old     │              new               │
+                        │ allocs/op  │ allocs/op   vs base            │
+    HexEscapeNonASCII-4   2.000 ± 0%   2.000 ± 0%  ~ (p=1.000 n=10) ¹
+    ¹ all samples are equal
+    
+    Change-Id: Ic8d2b3ddcf2cf724dec3f51a2aba205f2c6e4fe6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425786
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/http/http.go      | 10 ++++++++--
+ src/net/http/http_test.go | 10 ++++++++++
+ 2 files changed, 18 insertions(+), 2 deletions(-)

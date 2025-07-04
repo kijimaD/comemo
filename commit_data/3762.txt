@@ -1,0 +1,11 @@
+commit 6dbf7aa1291ef758bbec3ed3e144b32ef5ee29db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 10:59:25 2009 -0800
+
+    - complete html-escaping also in printer.go
+    
+    R=rsc
+    http://go/go-review/1017027
+
+ src/pkg/go/printer/printer.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

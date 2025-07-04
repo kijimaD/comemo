@@ -1,0 +1,21 @@
+commit a3c682267fe50e3091fc8a55fb4da52faa2b4e16
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 3 11:50:44 2010 -0400
+
+    gc: various bugs
+    
+    Fixes #1016.
+    Fixes #1152.
+    Fixes #1153.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2344042
+
+ src/cmd/gc/go.h          |  1 -
+ src/cmd/gc/go.y          |  2 ++
+ src/cmd/gc/print.c       |  5 +++++
+ src/cmd/gc/typecheck.c   | 24 +++++++++++++-----------
+ test/fixedbugs/bug309.go | 19 +++++++++++++++++++
+ test/fixedbugs/bug310.go | 20 ++++++++++++++++++++
+ 6 files changed, 59 insertions(+), 12 deletions(-)

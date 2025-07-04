@@ -1,0 +1,19 @@
+commit e61d17d3b9ccf4c3e8ac87add9d74da7afa76488
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 3 12:26:10 2020 -0400
+
+    cmd/link: MACHOPLT is executable
+    
+    The PLT stubs are executable. Put it together with executable
+    sections, instead of read-only data sections.
+    
+    Change-Id: I3818414aa0b87c6968c6c7eccce19b0db7c43193
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253018
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data.go            |  2 +-
+ src/cmd/link/internal/sym/symkind.go        |  2 +-
+ src/cmd/link/internal/sym/symkind_string.go | 24 ++++++++++++------------
+ 3 files changed, 14 insertions(+), 14 deletions(-)

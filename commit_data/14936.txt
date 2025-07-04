@@ -1,0 +1,25 @@
+commit 3454b6bf82a7f09aa346594a5a71b1dfed3696d8
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Jan 19 23:13:01 2013 +0900
+
+    undo CL 5687057 / 58bc8aae4abb
+    
+    Fortunately we have never seen the panic on sockaddrToTCP
+    in the past year.
+    
+    ««« original CL description
+    net: panic if sockaddrToTCP returns nil incorrectly
+    Part of diagnosing the selfConnect bug
+    TBR=dsymonds
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5687057
+    »»»
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7137063
+
+ src/pkg/net/tcpsock_posix.go | 5 -----
+ 1 file changed, 5 deletions(-)

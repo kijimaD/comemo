@@ -1,0 +1,13 @@
+commit 4aaddf8a35926a48c245b261c2295fba3572f25d
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Thu Apr 29 23:08:22 2010 -0700
+
+    syscall: mingw Sleep
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/961047
+
+ src/pkg/syscall/syscall_mingw.go      | 9 +++++++++
+ src/pkg/syscall/zsyscall_mingw_386.go | 8 +++++++-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

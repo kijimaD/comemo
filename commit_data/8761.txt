@@ -1,0 +1,15 @@
+commit 4340b57d88bec1e5dd99919475027ebb760739d7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 17 11:15:54 2011 +1000
+
+    goinstall, go/build: support building cgo packages
+    
+    Fixes #1962.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4636044
+
+ src/cmd/goinstall/main.go |  2 +-
+ src/pkg/go/build/build.go | 20 +++++++++++++++-----
+ 2 files changed, 16 insertions(+), 6 deletions(-)

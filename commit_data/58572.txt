@@ -1,0 +1,43 @@
+commit f7dbbf251980763609a65efe15ef9f8ed0cc5a95
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Sat Jan 11 17:56:04 2025 +0100
+
+    cmd/compile: distribute 8 and 16-bit multiplication
+    
+    Expand the existing rule to cover 8 and 16 bit variants.
+    
+    compilecmp linux/amd64:
+    
+    time
+    time.parseStrictRFC3339.func1 80 -> 70  (-12.50%)
+    time.Time.appendStrictRFC3339.func1 80 -> 70  (-12.50%)
+    time.Time.appendStrictRFC3339 439 -> 428  (-2.51%)
+    
+    time [cmd/compile]
+    time.parseStrictRFC3339.func1 80 -> 70  (-12.50%)
+    time.Time.appendStrictRFC3339.func1 80 -> 70  (-12.50%)
+    time.Time.appendStrictRFC3339 439 -> 428  (-2.51%)
+    
+    linux/arm64:
+    
+    time
+    time.parseStrictRFC3339.func1 changed
+    time.Time.appendStrictRFC3339.func1 changed
+    time.Time.appendStrictRFC3339 416 -> 400  (-3.85%)
+    
+    time [cmd/compile]
+    time.Time.appendStrictRFC3339 416 -> 400  (-3.85%)
+    time.parseStrictRFC3339.func1 changed
+    time.Time.appendStrictRFC3339.func1 changed
+    
+    Change-Id: I0ad3b2363a9fe8c322dd05fbc13bf151a146d8cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641756
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  4 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 68 +++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+)

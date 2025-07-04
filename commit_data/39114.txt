@@ -1,0 +1,25 @@
+commit 3b8c804164e26bdec6ca94a5ab1b5c35fa119e5e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri May 10 11:49:08 2019 -0400
+
+    cmd/go: force -coverpkg main packages to be built as libraries
+    
+    This fixes TestScript/cover_pkgall_multiple_mains, which started
+    failing after CL 174657.
+    
+    When compiling main packages with coverage instrumentation
+    (e.g., for -coverpkg all), we now pass -p with the full import path
+    instead of '-p main'. This avoids link errors
+    'duplicate symbol main.main (types 1 and 1)'.
+    
+    Fixes #31946
+    
+    Change-Id: Id147527b1dbdc14bb33ac133c30d50c250b4365c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176558
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/load/test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

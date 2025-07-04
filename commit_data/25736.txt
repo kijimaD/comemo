@@ -1,0 +1,26 @@
+commit 79d9f48c73124eb21db99efa4b97cee044f52700
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 9 20:05:10 2016 +0000
+
+    net/http: be more conservative about enabling http2 on Transports
+    
+    For now, don't enable http2 when Transport.TLSConfig != nil.
+    See background in #14275.
+    
+    Also don't enable http2 when ExpectContinueTimeout is specified for
+    now, in case somebody depends on that functionality. (It is not yet
+    implemented in http2, and was only just added to net/http too in Go
+    1.6, so nobody would be setting it yet).
+    
+    Updates #14275
+    Updates #13851
+    
+    Change-Id: I192d555f5fb0a567bd89b6ad87175bbdd7891ae3
+    Reviewed-on: https://go-review.googlesource.com/19424
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      | 16 ++++++++++++++++
+ src/net/http/transport_test.go | 37 ++++++++++++++++++++++++-------------
+ 2 files changed, 40 insertions(+), 13 deletions(-)

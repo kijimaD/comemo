@@ -1,0 +1,29 @@
+commit 6d1fffac6388d965616520eb23f36885760d5b66
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 18 18:22:02 2021 +0000
+
+    runtime: set and clear only the relevant bits in allocToCache
+    
+    Currently allocToCache ham-handedly calls pageAlloc.allocRange on the
+    full size of the cache. This is fine as long as scavenged bits are never
+    set when alloc bits are set. This is true right now, but won't be true
+    as of the next CL.
+    
+    This change makes allocToCache more carefully set the bits. Note that in
+    the allocToCache path, we were also calling update *twice*, erroneously.
+    The first time, with contig=true! Luckily today there's no correctness
+    error there because the page cache is small enough that the contig=true
+    logic doesn't matter, but this should at least improve allocation
+    performance a little bit.
+    
+    Change-Id: I3ff9590ac86d251e4c5063cfd633570238b0cdbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356609
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mpagecache.go      | 12 +++++---
+ src/runtime/mpagecache_test.go | 68 ++++++++++++++++++++++++++++--------------
+ src/runtime/mpallocbits.go     | 18 +++++++++++
+ 3 files changed, 71 insertions(+), 27 deletions(-)

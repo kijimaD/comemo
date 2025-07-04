@@ -1,0 +1,14 @@
+commit c1ef845a71fecc7b6c9072b4ac20bcfbdc516e4b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Nov 5 13:54:48 2013 +1100
+
+    doc/go1.2: link to cgo documentation
+    
+    I know it's linked in the previous sentence, but this new link is where I want it to be while reading this sentence.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/21770043
+
+ doc/go1.2.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 9daee931214a7ad68579f4bb2695bba561067c58
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sun Sep 3 11:59:18 2017 +0200
+
+    cmd/compile,cmd/link: export int global consts to DWARF
+    
+    Updates #14517
+    
+    Change-Id: I23ef88e71c89da12dffcadf5562ea2d7557b62cf
+    Reviewed-on: https://go-review.googlesource.com/61019
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/obj.go | 61 +++++++++++++++++++++++++++++---------
+ src/cmd/dist/build.go              |  2 +-
+ src/cmd/internal/dwarf/dwarf.go    | 24 +++++++++++++++
+ src/cmd/internal/obj/objfile.go    | 13 ++++++++
+ src/cmd/link/internal/ld/dwarf.go  | 44 ++++++++++++++++++---------
+ src/runtime/runtime-gdb_test.go    | 58 ++++++++++++++++++++++++++++++++++++
+ 6 files changed, 173 insertions(+), 29 deletions(-)

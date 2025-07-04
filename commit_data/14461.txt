@@ -1,0 +1,14 @@
+commit 9017765a8296238020e848addc0c0dc672f974f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 24 11:25:17 2012 -0800
+
+    cmd/go: fix typo in comment
+    
+    Fixes #4432.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6858064
+
+ src/cmd/go/get.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

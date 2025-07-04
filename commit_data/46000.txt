@@ -1,0 +1,19 @@
+commit 6a760d6c36675335eb1756cc2b3f711ec33aa2e2
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue May 18 16:01:43 2021 +1000
+
+    runtime: include pthread.h in defs_openbsd.go
+    
+    This is required now that defs_openbsd.go has pthread related references.
+    
+    Updates #36435
+    
+    Change-Id: I73cdf23eef6aceea6f9b37b7702bdb3b560aa120
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334877
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/defs_openbsd.go | 1 +
+ 1 file changed, 1 insertion(+)

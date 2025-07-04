@@ -1,0 +1,22 @@
+commit 7cb1810fe8117d4c5112ecea7a65f28f03009ef7
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Fri Jun 1 23:42:23 2018 +0300
+
+    test: skip test/fixedbugs/bug345.go on windows
+    
+    Before the CL 115277 we did not run the test on Windows,
+    so let's just go back to not running the test on Windows.
+    There is nothing OS-specific about this test,
+    so skipping it on Windows doesn't seem like a big deal.
+    
+    Updates #25693
+    Fixes #25586
+    
+    Change-Id: I1eb3e158b322d73e271ef388f8c6e2f2af0a0729
+    Reviewed-on: https://go-review.googlesource.com/115857
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/bug345.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

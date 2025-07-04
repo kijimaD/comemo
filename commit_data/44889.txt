@@ -1,0 +1,23 @@
+commit 44dd06670f522e66e7ebfa0bffe14d2b44c93ff8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Mar 9 21:13:34 2021 +0000
+
+    runtime: support register ABI Go functions from Windows callbacks
+    
+    This change modifies the system that allows Go functions to be set as
+    callbacks in various Windows systems to support the new register ABI.
+    
+    For #40724.
+    
+    Change-Id: Ie067f9e8a76c96d56177d7aa88f89cbe7223e12e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300113
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/export_test.go          |   4 +-
+ src/runtime/syscall_windows.go      | 277 ++++++++++++++++++++++++++----------
+ src/runtime/syscall_windows_test.go | 105 +++++++++++++-
+ 3 files changed, 305 insertions(+), 81 deletions(-)

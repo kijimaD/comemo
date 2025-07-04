@@ -1,0 +1,26 @@
+commit bd8a88729c7ff12725834c4411ffe5d4b337d5de
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Wed Apr 25 08:38:09 2018 +0000
+
+    cmd/compile: intrinsify runtime.getcallerpc on arm64
+    
+    Add a compiler intrinsic for getcallerpc on arm64 for better code generation.
+    
+    Change-Id: I897e670a2b8ffa1a8c2fdc638f5b2c44bda26318
+    Reviewed-on: https://go-review.googlesource.com/109276
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/asm.go              |  2 +-
+ src/cmd/compile/internal/arm64/ssa.go        |  4 ++++
+ src/cmd/compile/internal/gc/ssa.go           |  2 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |  6 ++++++
+ src/cmd/compile/internal/ssa/opGen.go        | 11 +++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 11 +++++++++++
+ src/cmd/internal/obj/arm64/obj7.go           | 13 +++++++++++++
+ src/cmd/internal/obj/link.go                 |  1 +
+ src/cmd/internal/obj/util.go                 |  1 +
+ src/runtime/asm_arm64.s                      |  5 -----
+ 11 files changed, 50 insertions(+), 7 deletions(-)

@@ -1,0 +1,22 @@
+commit 11bb2922fbb8440e8d2f3e0284c7a327ec0234a5
+Author: Michael Matloob <matloob@google.com>
+Date:   Wed May 24 14:59:01 2023 -0400
+
+    cmd/go: fix reporting of test cycles to have proper order
+    
+    and begin and end with the same package to demonstrate the cyclical
+    nature of the stack. Also fix the list_test_cycle script test
+    which was testing for the wrong behavior.
+    
+    Fixes #59970
+    
+    Change-Id: I3b3ee6762ee121fec19688ff1823cdfddae94f53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498115
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/load/test.go               | 13 ++++++++++++-
+ src/cmd/go/testdata/script/list_test_cycle.txt |  3 ++-
+ 2 files changed, 14 insertions(+), 2 deletions(-)

@@ -1,0 +1,80 @@
+commit eff2b2620db005cb58c266c0f25309d6f466cb25
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 16 15:54:21 2017 -0400
+
+    runtime: make it possible to exit Go-created threads
+    
+    Currently, threads created by the runtime exist until the whole
+    program exits. For #14592 and #20395, we want to be able to exit and
+    clean up threads created by the runtime. This commit implements that
+    mechanism.
+    
+    The main difficulty is how to clean up the g0 stack. In cgo mode and
+    on Solaris and Windows where the OS manages thread stacks, we simply
+    arrange to return from mstart and let the system clean up the thread.
+    If the runtime allocated the g0 stack, then we use a new exitThread
+    syscall wrapper that arranges to clear a flag in the M once the stack
+    can safely be reaped and call the thread termination syscall.
+    
+    exitThread is based on the existing exit1 wrapper, which was always
+    meant to terminate the calling thread. However, exit1 has never been
+    used since it was introduced 9 years ago, so it was broken on several
+    platforms. exitThread also has the additional complication of having
+    to flag that the stack is unused, which requires some tricks on
+    platforms that use the stack for syscalls.
+    
+    This still leaves the problem of how to reap the unused g0 stacks. For
+    this, we move the M from allm to a new freem list as part of the M
+    exiting. Later, allocm scans the freem list, finds Ms that are marked
+    as done with their stack, removes these from the list and frees their
+    g0 stacks. This also allows these Ms to be garbage collected.
+    
+    This CL does not yet use any of this functionality. Follow-up CLs
+    will. Likewise, there are no new tests in this CL because we'll need
+    follow-up functionality to test it.
+    
+    Change-Id: Ic851ee74227b6d39c6fc1219fc71b45d3004bc63
+    Reviewed-on: https://go-review.googlesource.com/46037
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/cgo/gcc_libinit.c     |   4 ++
+ src/runtime/os3_solaris.go        |   6 ++
+ src/runtime/os_nacl.go            |   3 +
+ src/runtime/os_netbsd.go          |   5 +-
+ src/runtime/os_plan9.go           |   6 ++
+ src/runtime/os_windows.go         |   9 +++
+ src/runtime/proc.go               | 143 +++++++++++++++++++++++++++++++++++---
+ src/runtime/runtime2.go           |  29 +++++++-
+ src/runtime/stubs.go              |   1 -
+ src/runtime/stubs2.go             |   6 ++
+ src/runtime/sys_darwin_386.s      |  24 ++++++-
+ src/runtime/sys_darwin_amd64.s    |  12 +++-
+ src/runtime/sys_darwin_arm.s      |  17 ++++-
+ src/runtime/sys_darwin_arm64.s    |  11 ++-
+ src/runtime/sys_dragonfly_amd64.s |  14 ++--
+ src/runtime/sys_freebsd_386.s     |  19 +++--
+ src/runtime/sys_freebsd_amd64.s   |  12 ++--
+ src/runtime/sys_freebsd_arm.s     |  23 ++++--
+ src/runtime/sys_linux_386.s       |  16 ++++-
+ src/runtime/sys_linux_amd64.s     |  12 +++-
+ src/runtime/sys_linux_arm.s       |  20 +++++-
+ src/runtime/sys_linux_arm64.s     |  11 ++-
+ src/runtime/sys_linux_mips64x.s   |  13 +++-
+ src/runtime/sys_linux_mipsx.s     |  13 +++-
+ src/runtime/sys_linux_ppc64x.s    |  12 +++-
+ src/runtime/sys_linux_s390x.s     |  11 ++-
+ src/runtime/sys_nacl_386.s        |   8 ++-
+ src/runtime/sys_nacl_amd64p32.s   |   8 ++-
+ src/runtime/sys_nacl_arm.s        |   8 ++-
+ src/runtime/sys_netbsd_386.s      |  11 +--
+ src/runtime/sys_netbsd_amd64.s    |   8 ++-
+ src/runtime/sys_netbsd_arm.s      |  15 +++-
+ src/runtime/sys_openbsd_386.s     |  19 +++--
+ src/runtime/sys_openbsd_amd64.s   |   8 ++-
+ src/runtime/sys_openbsd_arm.s     |  15 +++-
+ src/runtime/sys_plan9_386.s       |   8 ++-
+ src/runtime/sys_plan9_amd64.s     |   8 ++-
+ src/runtime/sys_plan9_arm.s       |  10 +--
+ 38 files changed, 476 insertions(+), 102 deletions(-)

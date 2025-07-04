@@ -1,0 +1,40 @@
+commit 82c713feb05da594567631972082af2fcba0ee4f
+Author: Aaron Gable <aaron@letsencrypt.org>
+Date:   Wed Feb 15 14:25:34 2023 -0800
+
+    crypto/x509: surface ReasonCode in RevocationList API
+    
+    Creates x509.RevocationListEntry, a new type representing a single
+    revoked certificate entry in a CRL. Like the existing Certificate and
+    RevocationList types, this new type has a field for its Raw bytes, and
+    exposes its mostly-commonly-used extension (ReasonCode) as a top-level
+    field. This provides more functionality to the user than the existing
+    pkix.RevokedCertificate type.
+    
+    Adds a RevokedCertificateEntries field which is a []RevocationListEntry
+    to RevocationList. This field deprecates the RevokedCertificates field.
+    When the RevokedCertificates field is removed in a future release, this
+    will remove one of the last places where a pkix type is directly exposed
+    in the x509 package API.
+    
+    Updates the ParseRevocationList function to populate both fields for
+    now, and updates the CreateRevocationList function to prefer the new
+    field if it is populated, but use the deprecated field if not. Finally,
+    also updates the x509 unit tests to use the new .ReasonCode field in
+    most cases.
+    
+    Fixes #53573
+    
+    Change-Id: Ia6de171802a5bd251938366508532e806772d7d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/468875
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ api/next/53573.txt           |   9 ++++
+ src/crypto/x509/parser.go    |  32 +++++++++---
+ src/crypto/x509/x509.go      | 119 +++++++++++++++++++++++++++++++++++++++----
+ src/crypto/x509/x509_test.go |  97 +++++++++++++++++++++++++++++++----
+ 4 files changed, 228 insertions(+), 29 deletions(-)

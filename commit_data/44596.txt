@@ -1,0 +1,30 @@
+commit b7f0fb6d9eb9a2c1b2beb9ecd58bdbf3571dd5cd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Sat Feb 6 00:50:55 2021 -0500
+
+    cmd/go/internal/modload: fuse upgrading with downgrading in EditBuildList
+    
+    Previosly, EditBuildList performed an mvs.Upgrade followed by an
+    mvs.Downgrade, with the Downgrade building on the result of the
+    Upgrade. Unfortunately, that approach potentially folds in irrelevant
+    dependencies from the first Upgrade, which are then preserved
+    unnecessarily by the Downgrade (see mod_get_downup_artifact.txt).
+    
+    Now, we use the initial Upgrade only to compute the maximum allowed
+    versions of transitive dependencies, and apply the module upgrades and
+    downgrades together in a single operation.
+    
+    For #36460
+    
+    Change-Id: I7590c137111fed4a3b06531c88d90efd49e6943a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290770
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/buildlist.go           |  29 +--
+ src/cmd/go/internal/modload/edit.go                | 281 +++++++++++++++++++++
+ src/cmd/go/internal/modload/mvs.go                 |  29 ++-
+ .../go/testdata/script/mod_get_downup_artifact.txt |  10 +-
+ 4 files changed, 314 insertions(+), 35 deletions(-)

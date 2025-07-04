@@ -1,0 +1,14 @@
+commit bce795fb1f89df27241745a90b795b758cdda5af
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Mon Aug 28 14:57:47 2017 +0900
+
+    cmd/link: unexport Elfadddynsym
+    
+    Change-Id: Ifc66bd8c32e788f35da3bd105bcdcfd04bd3dabc
+    Reviewed-on: https://go-review.googlesource.com/59414
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/elf.go | 2 +-
+ src/cmd/link/internal/ld/go.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

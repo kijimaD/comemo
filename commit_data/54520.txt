@@ -1,0 +1,25 @@
+commit a94347a05c74de989c9eb92d759ebc14eb12e021
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 14 10:55:06 2023 -0400
+
+    cmd/compile: implement range over integer
+    
+    Add compiler implementation of range over integers.
+    This is only reachable if GOEXPERIMENT=range is set,
+    because otherwise type checking will fail.
+    
+    For proposal #61405 (but behind a GOEXPERIMENT).
+    For #61717.
+    
+    Change-Id: I4e35a73c5df1ac57f61ffb54033a433967e5be51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/510538
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/noder/writer.go | 26 +-------------
+ src/cmd/compile/internal/types2/stmt.go  |  6 ++++
+ src/cmd/compile/internal/walk/order.go   | 11 +++---
+ src/cmd/compile/internal/walk/range.go   | 24 ++++++++++---
+ test/range3.go                           | 58 ++++++++++++++++++++++++++++++++
+ 5 files changed, 91 insertions(+), 34 deletions(-)

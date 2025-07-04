@@ -1,0 +1,13 @@
+commit 81ae666f16bb0b747d1dddef0be4f7dd8b285c49
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 4 07:55:24 2012 +1000
+
+    go/doc: rewrite whole file examples for playground
+    
+    R=gri
+    CC=gobot, golang-dev
+    https://golang.org/cl/6592061
+
+ src/pkg/go/doc/example.go | 157 +++++++++++++++++++++++++++++++---------------
+ src/pkg/go/doc/reader.go  |  73 ++++++++++++++-------
+ 2 files changed, 157 insertions(+), 73 deletions(-)

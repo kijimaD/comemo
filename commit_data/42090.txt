@@ -1,0 +1,18 @@
+commit 0ef3ebcc83a4f9d4442c0ffe251d7bb29f6de6a1
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Thu Apr 23 14:00:33 2020 -0400
+
+    cmd/compile: clean up PPC64.rules typed aux changes
+    
+    This adds a few minor changes from the first review.
+    
+    Passes toolstash-check
+    
+    Change-Id: I00f6f1b0235d0a8c686aa8793d0473b8fc6b1495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229699
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  48 +++++------
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 120 +++++++++++++--------------
+ 2 files changed, 84 insertions(+), 84 deletions(-)

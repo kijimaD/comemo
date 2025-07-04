@@ -1,0 +1,14 @@
+commit 44c9354c5a780746b4ebef8ce436a10ee37e01cc
+Author: guitarbum722 <johnkenneth.moore@gmail.com>
+Date:   Wed Jul 26 20:26:18 2017 -0700
+
+    bufio: add example for Scanner.Bytes
+    
+    Change-Id: I4a5c7573e13dd85531ee9f4dd2a0d1981bf8cdfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/51412
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/example_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

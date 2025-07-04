@@ -1,0 +1,19 @@
+commit 973befe714d43ebb3f04a583cc136ffe8909b344
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 30 17:35:46 2024 +0700
+
+    cmd/compile: check ODEREF for safe lhs in assignment during static init
+    
+    For #66585
+    
+    Change-Id: Iddc407e3ef4c3b6ecf5173963b66b3e65e43c92d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575336
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/staticinit/sched.go |  8 +++++++-
+ test/codegen/issue66585.go                   | 24 ++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)

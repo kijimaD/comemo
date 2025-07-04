@@ -1,0 +1,32 @@
+commit b5e212ffddff2f9b5a6d3779d4f6bd35fd2d2b02
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 10:29:35 2009 -0700
+
+    6g: error messages
+    
+    replace "shape error across CALL" with more information.
+    
+    x.go:7: not enough arguments to CALL
+            a int, b int
+            int
+    x.go:10: assignment count mismatch: 3 = 2
+    x.go:12: too many arguments to RETURN
+            [no arguments expected]
+            int, int, int
+    
+    also leave type alone after conversion failure,
+    for later errors:
+    
+    bug049.go:6: cannot convert nil constant to string
+    bug049.go:6: illegal types for operand: EQ
+            string
+            nil             # this used to be blank
+    
+    R=ken
+    OCL=28405
+    CL=28407
+
+ src/cmd/gc/const.c |  1 -
+ src/cmd/gc/walk.c  | 66 +++++++++++++++++++++++++++++++++++++++++++++++++-----
+ test/golden.out    |  5 +++++
+ 3 files changed, 66 insertions(+), 6 deletions(-)

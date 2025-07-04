@@ -1,0 +1,35 @@
+commit 2e29eb57dbd2bc7b022fadc33943b0a5ee69324d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 18 15:55:41 2017 +0000
+
+    runtime: remove unused *chantype parameters
+    
+    The chanrecv funcs don't use it at all. The chansend ones do, but the
+    element type is now part of the hchan struct, which is already a
+    parameter.
+    
+    hchan can be nil in chansend when sending to a nil channel, so when
+    instrumenting we must copy to the stack to be able to read the channel
+    type.
+    
+    name             old time/op  new time/op  delta
+    ChanUncontended  6.42µs ± 1%  6.22µs ± 0%  -3.06%  (p=0.000 n=19+18)
+    
+    Initially found by github.com/mvdan/unparam.
+    
+    Fixes #19591.
+    
+    Change-Id: I3a5e8a0082e8445cc3f0074695e3593fd9c88412
+    Reviewed-on: https://go-review.googlesource.com/38351
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/builtin.go         | 127 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |  12 +--
+ src/cmd/compile/internal/gc/order.go           |   8 +-
+ src/cmd/compile/internal/gc/select.go          |   6 +-
+ src/cmd/compile/internal/gc/walk.go            |   8 +-
+ src/reflect/value.go                           |   8 +-
+ src/runtime/chan.go                            |  43 ++++-----
+ 7 files changed, 106 insertions(+), 106 deletions(-)

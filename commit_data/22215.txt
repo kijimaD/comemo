@@ -1,0 +1,14 @@
+commit 130538bb9a17d6ac894aecf0f5535cc6b04bed5c
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 18:14:13 2015 +0300
+
+    test: add escape analysis tests form maps
+    
+    False positives (var incorrectly escapes) are marked with BAD.
+    
+    Change-Id: I8383fa3f77e2156d781d994968636ba9a17bb975
+    Reviewed-on: https://go-review.googlesource.com/5297
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/escape_map.go | 107 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 107 insertions(+)

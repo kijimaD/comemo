@@ -1,0 +1,13 @@
+commit a88d82813dfa3f56a6df2ecd25eaba480ef7e58e
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Tue Mar 19 13:48:07 2013 -0400
+
+    unicode: remove an extra space
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7856044
+
+ src/pkg/unicode/maketables.go | 2 +-
+ src/pkg/unicode/tables.go     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

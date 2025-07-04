@@ -1,0 +1,13 @@
+commit f0e93e8cc5c65ff57792065be11902586aad715f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 21 17:18:34 2008 -0700
+
+    fix a couple of inconsequential glitches in regexp code.
+    
+    R=rsc
+    DELTA=2  (0 added, 1 deleted, 1 changed)
+    OCL=17589
+    CL=17595
+
+ src/lib/regexp/regexp.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

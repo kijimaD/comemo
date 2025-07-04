@@ -1,0 +1,14 @@
+commit d5c41427580e12eb1f9f695d65df1549910732e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 9 15:28:09 2009 -0700
+
+    bug209.go
+    
+    R=rsc
+    DELTA=23  (22 added, 1 deleted, 0 changed)
+    OCL=35529
+    CL=35537
+
+ test/bugs/bug209.go | 18 ++++++++++++++++++
+ test/golden.out     |  5 ++++-
+ 2 files changed, 22 insertions(+), 1 deletion(-)

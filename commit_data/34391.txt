@@ -1,0 +1,16 @@
+commit 21343e07d68b8763f15ad8c9f193ba42e15d4aaa
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Feb 25 17:54:44 2018 +0900
+
+    cmd/compile: remove duplicates by using finishcompare
+    
+    Updates #23834
+    
+    Change-Id: If05001f9fd6b97d72069f440102eec6e371908dd
+    Reviewed-on: https://go-review.googlesource.com/97016
+    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/walk.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 1876b38263407ba51f9f3fa2e412ac3f84d3cb95
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Thu Dec 2 13:37:25 2021 -0500
+
+    doc/go1.18: add docs for SysProcAttr.Pdeathsig
+    
+    CL 355570
+    
+    Updates #47694
+    
+    Change-Id: I922cda28ca4cf1ae6d5e4f457cc66d5041b0e3e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368798
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ doc/go1.18.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

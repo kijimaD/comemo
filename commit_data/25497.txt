@@ -1,0 +1,18 @@
+commit 161f2e85ee4959afff3e117d9488eddc49e975cd
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Jan 7 07:45:59 2016 +0100
+
+    os: fix rename on Plan 9
+    
+    Rename should remove newname if the file already exists
+    and is not a directory.
+    
+    Fixes #13844.
+    
+    Change-Id: I85a5cc28e8d161637a8bc1de33f4a637d9154cd1
+    Reviewed-on: https://go-review.googlesource.com/18291
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/os/file_plan9.go | 11 ++++++++++-
+ src/os/os_test.go    |  3 ---
+ 2 files changed, 10 insertions(+), 4 deletions(-)

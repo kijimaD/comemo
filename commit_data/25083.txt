@@ -1,0 +1,12 @@
+commit 175bfda49f2b862f397ebfccbefa41cd6983a89a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Nov 29 18:06:23 2015 +0900
+
+    net: fix typo in test
+    
+    Change-Id: Ibc55e98c43cebe5a21ab3b280489e1bce6405b8b
+    Reviewed-on: https://go-review.googlesource.com/17218
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/lookup_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

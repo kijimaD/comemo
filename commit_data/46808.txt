@@ -1,0 +1,22 @@
+commit b69f823ece741f21d06591657f4e0a5b17d492e3
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Fri Jun 25 13:40:30 2021 -0700
+
+    testing: with -benchtime=1x, run the benchmark loop exactly once
+    
+    Like with -benchtime=1ns, if we find that the "discovery" round (run1)
+    has already crossed the -benchtime threshold, we skip running more
+    iterations.
+    
+    Fixes #32051
+    
+    Change-Id: I76aaef2ba521ba8ad6bbde2b14977e191aada5e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331089
+    Trust: Caleb Spare <cespare@gmail.com>
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/go/testdata/script/test_benchmark_1x.txt | 37 ++++++++++++++++++++++++
+ src/testing/benchmark.go                         |  7 ++++-
+ 2 files changed, 43 insertions(+), 1 deletion(-)

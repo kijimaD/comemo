@@ -1,0 +1,16 @@
+commit cf0cbfd21a925b39273454c030263b5f9dfab952
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 16 16:35:16 2012 -0400
+
+    cmd/go: don't add detail to errPrintedOutput
+    
+    This makes the last error-reporting CL a bit less
+    aggressive.  errPrintedOutput is a sentinel value
+    that should not be wrapped.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/5845052
+
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

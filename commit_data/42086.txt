@@ -1,0 +1,30 @@
+commit 91b9c2f350ffc96b644d68fd8ae389250f3668a6
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Apr 22 13:23:06 2020 -0400
+
+    cmd/asm,cmd/internal/obj/ppc64: update instructions and tests
+    
+    This change adds some instructions that were missing from the
+    ppc64 assembler, mostly power9 but a few others from earlier.
+    
+    Tests in cmd/asm for ppc64 were updated: ppc64.s includes the
+    new instructions, and ppc64enc.s now includes not only the
+    new instructions but most ppc64 opcodes to provide a more
+    complete test of the ppc64 assembler.
+    
+    The ppc64 instruction set is used for linux/ppc64le,
+    linux/ppc64, and aix/ppc64.
+    
+    Change-Id: I8695f89dbca06174847963f4ef869f2e584d5bbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229479
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s    |  32 ++
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s | 527 ++++++++++++++++++++++++++-
+ src/cmd/internal/obj/ppc64/a.out.go          |  23 ++
+ src/cmd/internal/obj/ppc64/anames.go         |  23 ++
+ src/cmd/internal/obj/ppc64/asm9.go           | 150 ++++++--
+ 5 files changed, 726 insertions(+), 29 deletions(-)

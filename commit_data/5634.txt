@@ -1,0 +1,13 @@
+commit ace5269dfec6cd7d93a5b17ae6762bbe3bd41ce6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 9 15:19:22 2010 -0700
+
+    go/scanner: report illegal escape sequences
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/1636043
+
+ src/cmd/gofmt/test.sh         |  2 +-
+ src/pkg/go/scanner/scanner.go | 49 +++++++++++++++++++++++++------------------
+ 2 files changed, 30 insertions(+), 21 deletions(-)

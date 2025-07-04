@@ -1,0 +1,14 @@
+commit 4b1f2bb688dc4a6781d54f51d5353e559707afd5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 25 13:52:26 2017 -0700
+
+    cmd/compile: document function syntax representation
+    
+    Not perfect, but it's a start.
+    
+    Change-Id: I3283385223a39ea73567b0130290bfe4de69d018
+    Reviewed-on: https://go-review.googlesource.com/73552
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/syntax.go | 42 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

@@ -1,0 +1,15 @@
+commit 4e2f2c7704141f40d2c7e4564c6aae06ae88118e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Sep 23 23:38:52 2011 +0900
+
+    syscall: add IPv4 ancillary data for linux
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5039042
+
+ src/pkg/syscall/types_linux.c         | 2 ++
+ src/pkg/syscall/ztypes_linux_386.go   | 7 +++++++
+ src/pkg/syscall/ztypes_linux_amd64.go | 7 +++++++
+ src/pkg/syscall/ztypes_linux_arm.go   | 7 +++++++
+ 4 files changed, 23 insertions(+)

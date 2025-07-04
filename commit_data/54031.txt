@@ -1,0 +1,22 @@
+commit 18b2c45b0abc81529644b7cc6b009395e1840756
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Aug 15 02:14:00 2023 +0000
+
+    sync: document why copyChecker checks the condition twice
+    
+    Fixes #40924
+    
+    Change-Id: I249a278be1ec3c67088819af4456e6c393431724
+    
+    Change-Id: I249a278be1ec3c67088819af4456e6c393431724
+    GitHub-Last-Rev: 772c7ae7e140ebd3896fc7786aae8b43ab3128c3
+    GitHub-Pull-Request: golang/go#61978
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518961
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+
+ src/sync/cond.go | 4 ++++
+ 1 file changed, 4 insertions(+)

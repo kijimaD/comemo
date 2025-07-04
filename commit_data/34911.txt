@@ -1,0 +1,15 @@
+commit 7289607b1bee260912311b4eb407d9764d9a3687
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Feb 4 20:39:39 2018 +0100
+
+    internal/cpu: align capability definitions for x86 with other architectures
+    
+    Use constant masks and align the definition of isSet with
+    arm64 and ppc64x.
+    
+    Change-Id: I0c6eae30da5e3ce797cde0dab4a39855d4d245d9
+    Reviewed-on: https://go-review.googlesource.com/94759
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/cpu/cpu_x86.go | 64 +++++++++++++++++++++++++++++++--------------
+ 1 file changed, 44 insertions(+), 20 deletions(-)

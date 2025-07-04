@@ -1,0 +1,13 @@
+commit df623d03ab2518e691d198b51380a005332d251d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Aug 7 10:00:58 2012 +0800
+
+    cmd/go: remove $WORK paths in generated binaries
+            Fixes #3748.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6357064
+
+ src/cmd/go/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

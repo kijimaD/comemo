@@ -1,0 +1,21 @@
+commit 31ee4bb28dff98f29654e7f1b43488641b3157db
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 31 12:30:14 2022 -0700
+
+    strconv: quote rune 007F as \x7f, not \u007f
+    
+    \u007f is not wrong but it's weird to use \u when we could use the
+    shorter \x.
+    
+    Fixes #52062
+    
+    Change-Id: Ica4bdc2463128051876f44e15297ed1e9edf1de8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397255
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ api/go1.1.txt             |  2 +-
+ doc/go1.19.html           | 12 +++++++++++-
+ src/strconv/quote.go      |  2 +-
+ src/strconv/quote_test.go |  1 +
+ 4 files changed, 14 insertions(+), 3 deletions(-)

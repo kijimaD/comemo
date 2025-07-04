@@ -1,0 +1,12 @@
+commit a6e60916c1a5ad15819ad34d63e0c2e064263a29
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed Jul 13 11:44:44 2011 -0700
+
+    runtime: stdcall_raw stack 16byte align for Win64
+    
+    R=alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/4681049
+
+ src/pkg/runtime/windows/amd64/sys.s | 1 +
+ 1 file changed, 1 insertion(+)

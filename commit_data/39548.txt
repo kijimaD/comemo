@@ -1,0 +1,37 @@
+commit a41ebe6e259af020d4ce7029544439b39d07936b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jul 16 20:36:33 2019 +0000
+
+    runtime: add physHugePageShift
+    
+    This change adds physHugePageShift which is defined such that
+    1 << physHugePageShift == physHugePageSize. The purpose of this variable
+    is to avoid doing expensive divisions in key functions, such as
+    (*mspan).hugePages.
+    
+    This change also does a sweep of any place we might do a division or mod
+    operation with physHugePageSize and turns it into bit shifts and other
+    bitwise operations.
+    
+    Finally, this change adds a check to mallocinit which ensures that
+    physHugePageSize is always a power of two. osinit might choose to ignore
+    non-powers-of-two for the value and replace it with zero, but mallocinit
+    will fail if it's not a power of two (or zero). It also derives
+    physHugePageShift from physHugePageSize.
+    
+    This change helps improve the performance of most applications because
+    of how often (*mspan).hugePages is called.
+    
+    Updates #32828.
+    
+    Change-Id: I1a6db113d52d563f59ae8fd4f0e130858859e68f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186598
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go      | 24 ++++++++++++++++++++++--
+ src/runtime/mem_linux.go   |  4 ++--
+ src/runtime/mgcscavenge.go |  8 ++++----
+ src/runtime/mheap.go       |  2 +-
+ 4 files changed, 29 insertions(+), 9 deletions(-)

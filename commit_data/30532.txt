@@ -1,0 +1,14 @@
+commit d4451362c0fa47b25fc2e69129e68cbbee4a6bdf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 4 16:28:59 2017 -0800
+
+    runtime: add slicebytetostring benchmark
+    
+    Change-Id: I666d2c6ea8d0b54a71260809d1a2573b122865b2
+    Reviewed-on: https://go-review.googlesource.com/37790
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/string_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

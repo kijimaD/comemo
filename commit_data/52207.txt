@@ -1,0 +1,25 @@
+commit 9f532dd0de78af91694a2d7e5e3c45b2978d1062
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 7 15:12:29 2023 -0500
+
+    cmd/go: avoid running slow tests on non-longtest builders
+    
+    Also annotate calls to tooSlow with specific reasons.
+    
+    This will somewhat reduce test coverage on the 'darwin' builders until
+    we have darwin 'longtest' builders (#35678,#49055), but still seems
+    worthwhile to avoid alert fatigue from tests that really shouldn't be
+    running in the short configurations.
+    
+    Fixes #58918.
+    Fixes #58919.
+    
+    Change-Id: I0000f0084b262beeec3eca3e9b8a45d61fab4313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474137
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 76 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 40 insertions(+), 36 deletions(-)

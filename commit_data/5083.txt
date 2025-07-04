@@ -1,0 +1,16 @@
+commit 64f33880e5d91834fc7d23a3bf8191dfce5fdc23
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Mar 19 15:21:37 2010 -0700
+
+    syscall: mingw implemntation of Errstr()
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/621041
+
+ src/pkg/syscall/Makefile              | 16 +++++++++++++++-
+ src/pkg/syscall/{errstr.go => str.go} |  8 --------
+ src/pkg/syscall/syscall_mingw.go      |  8 +++-----
+ src/pkg/syscall/syscall_unix.go       | 12 ++++++++++++
+ src/pkg/syscall/zerrors_mingw_386.go  |  5 -----
+ 5 files changed, 30 insertions(+), 19 deletions(-)

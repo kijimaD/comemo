@@ -1,0 +1,26 @@
+commit cbcc7584de99dbefd3e019d2a53442b30d5af989
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun May 10 23:11:04 2015 +0900
+
+    net: increase timeout in TestWriteTimeoutFluctuation on darwin/arm
+    
+    On darwin/arm, the test sometimes fails with:
+    
+    Process 557 resuming
+    --- FAIL: TestWriteTimeoutFluctuation (1.64s)
+            timeout_test.go:706: Write took over 1s; expected 0.1s
+    FAIL
+    Process 557 exited with status = 1 (0x00000001)
+    go_darwin_arm_exec: timeout running tests
+    
+    This change increaes timeout on iOS builders from 1s to 3s as a
+    temporarily fix.
+    
+    Updates #10775.
+    
+    Change-Id: Ifdaf99cf5b8582c1a636a0f7d5cc66bb276efd72
+    Reviewed-on: https://go-review.googlesource.com/9915
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/net/timeout_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 6fecb76eea5c680b58ec64f54ba0048ef5edac66
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 22 17:25:10 2008 -0700
+
+    embedded types
+    
+    R=r
+    OCL=17676
+    CL=17676
+
+ src/cmd/gc/go.y   |  6 +++++-
+ src/cmd/gc/walk.c | 42 +++++++++++++++++++++++++++++++-----------
+ 2 files changed, 36 insertions(+), 12 deletions(-)

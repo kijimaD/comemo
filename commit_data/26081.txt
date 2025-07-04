@@ -1,0 +1,22 @@
+commit 8f5fb95db6573f132bcfd0b3f9541faa84058fa0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Mar 6 13:04:52 2016 +1100
+
+    cmd/compile/internal/gc: assert size of important types
+    
+    Add tests to ensure that the size of important types don't change
+    unexpectedly.
+    
+    Skip the test on nacl platforms because of their unusual padding
+    requirements.
+    
+    Change-Id: Iddb127a99499e089a309b721f5073356c0da8b24
+    Reviewed-on: https://go-review.googlesource.com/20285
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sizeof_test.go | 43 ++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/sizeof_test.go        | 40 +++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+)

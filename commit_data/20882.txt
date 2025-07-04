@@ -1,0 +1,15 @@
+commit cea69d687732be20e0ca245b162b59eba26fff54
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 9 20:57:44 2014 -0800
+
+    crypto/x509: add Solaris certificate file location
+    
+    Fixes #9078.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/172920043
+
+ src/crypto/x509/root_unix.go | 1 +
+ 1 file changed, 1 insertion(+)

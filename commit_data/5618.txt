@@ -1,0 +1,12 @@
+commit 440cc95470b804ebe2ca9046a4442cdd3d2e0f10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 7 17:40:21 2010 -0700
+
+    go spec: rename "assignment compatible" -> "assignable"
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/1590041
+
+ doc/go_spec.html | 52 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 25 insertions(+), 27 deletions(-)

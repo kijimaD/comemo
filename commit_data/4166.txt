@@ -1,0 +1,44 @@
+commit bfbb31595b1621ed8f725b21863e33d59ca5489c
+Author: James Meneghello <rawrz0r@gmail.com>
+Date:   Thu Nov 19 21:08:05 2009 -0800
+
+    Map support for template.Execute().
+    
+    Allows the developer to pass a map either by itself for
+    evaluation, or inside a struct. Access to data inside
+    maps is identical to the current system for structs, ie.
+    
+    -Psuedocode-
+    
+    mp map[string]string = {
+            "header" : "A fantastic header!",
+            "footer" : "A not-so-fantastic footer!",
+    }
+    template.Execute(mp)
+    
+    ...can be accessed using {header} and {footer} in
+    the template. Similarly, for maps inside structs:
+    
+    type s struct {
+            mp map[string]string,
+    }
+    s1 = new s
+    s1.mp["header"] = "A fantastic header!";
+    template.Execute(s1)
+    
+    ...is accessed using {mp.header}. Multi-maps, ie.
+    map[string](map[string]string) and maps of structs
+    containing more maps are unsupported, but then, I'm
+    not even sure if that's supported by the language.
+    
+    Map elements can be of any type that can be written
+    by the formatters. Keys should really only be strings.
+    
+    Fixes #259.
+    
+    R=r, rsc
+    https://golang.org/cl/157088
+
+ src/pkg/template/template.go      | 29 ++++++++++++++++-----------
+ src/pkg/template/template_test.go | 42 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 12 deletions(-)

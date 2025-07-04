@@ -1,0 +1,16 @@
+commit fa3d86ca39f9d168f194b232538794bd09f887f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 22 09:00:34 2010 -0700
+
+    libmach: correct handling of .5 files with D_REGREG addresses
+    undo workaround in gc
+    
+    Fixes #943.
+    
+    R=kaib
+    CC=golang-dev
+    https://golang.org/cl/1889041
+
+ src/cmd/gc/range.c | 4 +---
+ src/libmach/5obj.c | 3 +++
+ 2 files changed, 4 insertions(+), 3 deletions(-)

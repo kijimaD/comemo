@@ -1,0 +1,12 @@
+commit af2bc8f98609f810853daedb560e2e75c23bfbe2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 08:30:53 2009 -0800
+
+    allow "no such host" and also "no answer from server";
+    seems to help on snow leopard.
+    
+    TBR=r
+    http://go/go-review/1018035
+
+ src/pkg/net/net_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

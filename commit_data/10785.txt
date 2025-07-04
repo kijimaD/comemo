@@ -1,0 +1,14 @@
+commit c0421d92c87c9428a5f3f8e5457fda88db585c90
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 14 08:43:42 2011 -0800
+
+    net/http: fix bug in error checking
+    
+    Thanks to josef86@gmail.com for pointing this out.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5477092
+
+ src/pkg/net/http/transport.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit d3a4e8ed3c7a1929eea13f9de9fb1aa3cab71ad4
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Nov 12 10:41:09 2015 -0800
+
+    compress/gzip: specify when Reader.Header is valid
+    
+    The gzip package is asymmetrical in the way it handles headers.
+    In Writer, the Header is written on the first call to Write, Flush, or Close.
+    In Reader, the Header is read on calls to NewReader or Reset as opposed to
+    after the first Read. Thus, we document this difference.
+    
+    Fixes #13211
+    
+    Change-Id: I5f87beff036e5e2fd68a02a15fdb7137e9ca4c37
+    Reviewed-on: https://go-review.googlesource.com/16838
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/gzip/gunzip.go | 5 ++++-
+ src/compress/gzip/gzip.go   | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

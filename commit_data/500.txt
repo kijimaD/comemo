@@ -1,0 +1,43 @@
+commit 907f38acfc42915d374219bfaeb7a5e8891a14a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 8 04:25:20 2008 -0700
+
+    Change generated acid to indent nested structures properly.
+    
+    Before the change:
+    
+    acid: M(m0)
+            g0      00008dd0
+            morearg 00000000
+            cret    00000000
+            curg    2aaaaaaab000
+            lastg   00000000
+    Gobuf sched {
+            SP      ffffe5e0
+            PC      7fff00001ba1
+    }
+            ...
+    acid:
+    
+    After the change:
+    
+    acid: M(m0)
+            g0      (G)00008dd0
+            morearg 00000000
+            cret    00000000
+            curg    (G)2aaaaaaab000
+            lastg   (G)00000000
+            Gobuf sched {
+                    SP      ffffe5e0
+                    PC      00001ba1
+            }
+            ...
+    acid:
+    
+    R=ken
+    DELTA=27  (14 added, 2 deleted, 11 changed)
+    OCL=13802
+    CL=13998
+
+ src/cmd/cc/acid.c | 40 ++++++++++++++++++++++++++--------------
+ 1 file changed, 26 insertions(+), 14 deletions(-)

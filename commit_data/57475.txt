@@ -1,0 +1,20 @@
+commit f6c89abf897c4adf7dbd598029f0c12452b4ca25
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 16 13:50:24 2024 -0700
+
+    go/types, types2: slightly simplify rangeKeyVal function
+    
+    Compute the signature type of an iterator function argument
+    only once. This eliminates the need for two separate toSig
+    calls.
+    
+    Change-Id: Ifeb33d21e381010d2012d74eac045856f1cca312
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go | 17 ++++++++---------
+ src/go/types/stmt.go                    | 17 ++++++++---------
+ 2 files changed, 16 insertions(+), 18 deletions(-)

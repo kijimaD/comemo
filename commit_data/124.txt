@@ -1,0 +1,14 @@
+commit f7753f16876cffe0e97b3890d8d3917bdc4a2246
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jun 7 15:21:02 2008 -0700
+
+    more code generation - mostly shift and multiply
+    
+    SVN=121585
+
+ src/cmd/6g/cgen.c     | 53 ++++++++++++++-----------------
+ src/cmd/6g/gen.c      | 82 ++++++++++++++++++++++++++++++++++++++++++------
+ src/cmd/6g/gg.h       |  1 +
+ src/cmd/6g/gsubr.c    | 86 ++++++++++++++++++++++++++++++++++++++++++---------
+ src/cmd/gc/mksys.bash |  2 +-
+ 5 files changed, 170 insertions(+), 54 deletions(-)

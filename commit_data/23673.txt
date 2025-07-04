@@ -1,0 +1,23 @@
+commit 0a3c991fd330276f6876c401541dcbacbb860985
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 13 21:21:49 2015 -0400
+
+    cmd/internal/obj: fix pc/sp information for prologue
+    
+    When the prologue call to morestack was moved down to the
+    bottom of the function, the pc/sp tables were not updated.
+    If a traceback through a call to morestack is needed, it would
+    get confused at and stop at morestack.
+    
+    Confirmed the fix by adding //go:systemstack (which calls
+    morestackc, but same issue) where it did not belong
+    and inspecting the crash.
+    
+    Change-Id: Id0294bb9dba51ef1a49154637228fb57f1086a94
+    Reviewed-on: https://go-review.googlesource.com/12144
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/arm/obj5.go   | 10 +++++++++-
+ src/cmd/internal/obj/arm64/obj7.go | 10 +++++++++-
+ src/cmd/internal/obj/x86/obj6.go   | 11 ++++++++++-
+ 3 files changed, 28 insertions(+), 3 deletions(-)

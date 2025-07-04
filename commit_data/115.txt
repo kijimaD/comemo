@@ -1,0 +1,10 @@
+commit 609cf0c3a77c847ee54a7042f775a7faa67c4eab
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 6 17:08:21 2008 -0700
+
+    fixed \\ secape in strings
+    
+    SVN=121553
+
+ src/cmd/gc/lex.c | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,21 @@
+commit ac85f2bedd405d64b54c3a248c9079b6cde57359
+Author: Mikhail Mazurskiy <mmazurskiy@gitlab.com>
+Date:   Tue Oct 31 00:17:18 2023 +0000
+
+    net/url: use quick path in URL.Encode() on empty map
+    
+    Make url.Values.Encode() slightly more efficient when url.Values
+    is an empty but non-nil map.
+    
+    Change-Id: I7f205cc7e67526a1fa0035eab4773cec5e0f2c99
+    GitHub-Last-Rev: 0530b439db8cea755464c6dc2d268a0bd567889e
+    GitHub-Pull-Request: golang/go#63836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538637
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/url/url.go      | 2 +-
+ src/net/url/url_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

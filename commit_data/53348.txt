@@ -1,0 +1,21 @@
+commit 4c1d8bf54b4c1bd1af5aa5ea0f6ffdab8fee553a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu May 25 22:43:36 2023 -0400
+
+    cmd/go/internal/modget: remove unused base.Errorf argument
+    
+    Found by the vet check that runs with 'go test cmd/go/internal/modget'.
+    
+    For #57001.
+    For #60463.
+    
+    Change-Id: I4be94f7156724459a5c47bb9745cbb5651fb972c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498270
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/internal/modget/get.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

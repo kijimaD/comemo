@@ -1,0 +1,29 @@
+commit 7381123235ec13b596633c81bd9d84342e387e10
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 29 19:08:59 2024 -0500
+
+    runtime: re-add call to ts.cleanHead (née cleantimers) during timer add
+    
+    Before CL 564118, there were two ways to add a new timer:
+    addtimer or modtimer. Much code was duplicated between them
+    and it was always valid to call modtimer instead of addtimer
+    (but not vice versa), so that CL changed all addtimer call sites
+    to use modtimer and deleted addtimer.
+    
+    One thing that was unique to addtimer, however, was that it
+    called cleantimers (now named ts.cleanHead) after locking the
+    timers, while modtimer did not. This was the only difference
+    in the duplicated code, and I missed it. Restore the call to
+    ts.cleanHead when adding a new timer.
+    
+    Also fix double-unlock in cleanHead.
+    
+    Change-Id: I26cc50d650f31f977c0c31195cd013244883dba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568338
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

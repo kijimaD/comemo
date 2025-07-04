@@ -1,0 +1,25 @@
+commit 3de6033d0e8022dffee85bd9537f90b1a5ba5e30
+Author: F Y <x1f604@gmail.com>
+Date:   Tue Oct 17 21:59:17 2023 +0000
+
+    syscall: stop counting trailing NUL for abstract addresses starting with NUL
+    
+    Changes trailing-NUL-counting behavior for abstract addresses
+    starting with the NUL character to be the same as abstract
+    addresses starting with the @ character.
+    
+    For #63579.
+    
+    Change-Id: I206e4d0d808396998cb7d92a9e26dda854cb1248
+    GitHub-Last-Rev: 0ff0a9c938a4b57cdc30b1c4f0c058108a241df8
+    GitHub-Pull-Request: golang/go#63580
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535776
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/syscall_linux.go   | 3 ++-
+ src/syscall/syscall_solaris.go | 3 ++-
+ src/syscall/syscall_windows.go | 3 ++-
+ 3 files changed, 6 insertions(+), 3 deletions(-)

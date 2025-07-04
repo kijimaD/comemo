@@ -1,0 +1,25 @@
+commit a10da772a68d692c2c8805b11aba9b6cb9920b15
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Aug 1 16:25:15 2022 -0400
+
+    runtime: don't race cmd.Wait and cmd.StdoutPipe read
+    
+    os/exec.Cmd.Wait closes the read end of os/exec.Cmd.StdoutPipe, meaning
+    that io.ReadAll can return fs.ErrClosed if the child exits too early,
+    allowing Wait to complete. The StdoutPipe docs already note this sharp
+    edge.
+    
+    Move cmd.Wait until after we finish waiting on stdout. If the child
+    crashes for some reason, the write end of the pipe will implicitly close
+    causing io.ReadAll to return as well, so we won't get stuck.
+    
+    Fixes #52725.
+    
+    Change-Id: Ifae5745d86206879af2f1523a664236972e07252
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420597
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/semasleep_test.go | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)

@@ -1,0 +1,13 @@
+commit 2f147992b4f3f8a89d1d51d48845f5d310719388
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 9 20:04:36 2009 -0800
+
+    fix Getdirentries: base comes back in r2.
+    
+    R=rsc
+    DELTA=3  (3 added, 0 deleted, 0 changed)
+    OCL=24727
+    CL=24727
+
+ src/lib/syscall/file_darwin.go | 3 +++
+ 1 file changed, 3 insertions(+)

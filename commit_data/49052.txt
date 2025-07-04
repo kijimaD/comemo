@@ -1,0 +1,31 @@
+commit 68c2e9eedeaa2ad9d9528fbb58adffb0a48365c9
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 4 09:58:56 2022 -0400
+
+    crypto/elliptic: replace generic P-256 with fiat-crypto
+    
+    For #52182
+    
+    Change-Id: I8d8b4c3d8299fbd59b0bf48e5c8b7b41c533a2cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360114
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
+
+ src/crypto/elliptic/internal/fiat/generate.go      |   19 +-
+ src/crypto/elliptic/internal/fiat/p256.go          |  135 ++
+ src/crypto/elliptic/internal/fiat/p256_fiat64.go   | 1400 ++++++++++++++++++++
+ src/crypto/elliptic/internal/fiat/p256_invert.go   |   84 ++
+ src/crypto/elliptic/internal/nistec/generate.go    |    5 +
+ src/crypto/elliptic/internal/nistec/nistec_test.go |   97 +-
+ src/crypto/elliptic/internal/nistec/p256.go        |  288 ++++
+ src/crypto/elliptic/nistec.go                      |   30 +
+ src/crypto/elliptic/p256.go                        |   32 -
+ src/crypto/elliptic/p256_asm.go                    |   20 +-
+ src/crypto/elliptic/p256_generic.go                |  477 -------
+ src/crypto/elliptic/p256_generic_field.go          |  705 ----------
+ src/crypto/elliptic/p256_noasm.go                  |   15 -
+ src/crypto/elliptic/p256_ppc64le.go                |   13 +-
+ src/crypto/elliptic/p256_s390x.go                  |   17 +-
+ 15 files changed, 2045 insertions(+), 1292 deletions(-)

@@ -1,0 +1,15 @@
+commit 98e7270a3d03c2741fc790ea619e5754c49e05ed
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Dec 4 14:14:10 2019 -0500
+
+    doc: fix typo in Go 1.12.14 document
+    
+    Change-Id: I3641a086f167a1337aaaacd2d758b6a42b84a7fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209845
+    Run-TryBot: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

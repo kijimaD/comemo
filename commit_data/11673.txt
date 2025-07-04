@@ -1,0 +1,12 @@
+commit 32ffc62348632898fa420aaea4f8b2f406979e7a
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Feb 7 17:50:04 2012 +1100
+
+    flag: describe valid input for Duration flags.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5639046
+
+ src/pkg/flag/flag.go | 1 +
+ 1 file changed, 1 insertion(+)

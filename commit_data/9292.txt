@@ -1,0 +1,16 @@
+commit b35d49fca158738a6469c2164eec23ba72e73d14
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Aug 4 23:15:19 2011 +0200
+
+    exp/norm: maketables tool for generating tables for normalization.
+    
+    R=r, bsiegert, r, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4662080
+
+ .hgignore                      |    1 +
+ src/pkg/Makefile               |    1 +
+ src/pkg/exp/norm/Makefile      |   32 +
+ src/pkg/exp/norm/maketables.go | 1013 ++++++
+ src/pkg/exp/norm/tables.go     | 7544 ++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 8591 insertions(+)

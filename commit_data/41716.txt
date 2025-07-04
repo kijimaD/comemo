@@ -1,0 +1,41 @@
+commit 67c2dcbc592f3ee03aa89ddcb1f07715b047f4b2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 27 20:41:38 2020 +0000
+
+    runtime: use OnesCount64 to count allocated objects in a span
+    
+    This change modifies the implementation of (*mspan).countAlloc by
+    using OnesCount64 (which on many systems is intrinsified). It does so by
+    using an unsafe pointer cast, but in this case we don't care about
+    endianness because we're just counting bits set.
+    
+    This change means we no longer need the popcnt table which was redundant
+    in the runtime anyway. We can also simplify the logic here significantly
+    by observing that mark bits allocations are always 8-byte aligned, so we
+    don't need to handle any edge-cases due to the fact that OnesCount64
+    operates on 64 bits at a time: all irrelevant bits will be zero.
+    
+    Overall, this implementation is significantly faster than the old one on
+    amd64, and should be similarly faster (or better!) on other systems
+    which support the intrinsic. On systems which do not, it should be
+    roughly the same performance because OnesCount64 is implemented using a
+    table in the general case.
+    
+    Results on linux/amd64:
+    
+    name                         old time/op  new time/op  delta
+    MSpanCountAlloc/bits=64-4    16.8ns ± 0%  12.7ns ± 0%  -24.40%  (p=0.000 n=5+4)
+    MSpanCountAlloc/bits=128-4   23.5ns ± 0%  12.8ns ± 0%  -45.70%  (p=0.000 n=4+5)
+    MSpanCountAlloc/bits=256-4   43.5ns ± 0%  12.8ns ± 0%  -70.67%  (p=0.000 n=4+5)
+    MSpanCountAlloc/bits=512-4   59.5ns ± 0%  15.4ns ± 0%  -74.12%  (p=0.008 n=5+5)
+    MSpanCountAlloc/bits=1024-4   116ns ± 1%    23ns ± 0%  -79.84%  (p=0.000 n=5+4)
+    
+    Change-Id: Id4c994be22224653af5333683a69b0937130ed04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216558
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mbitmap.go | 60 ++++++++++----------------------------------------
+ 1 file changed, 12 insertions(+), 48 deletions(-)

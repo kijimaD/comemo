@@ -1,0 +1,16 @@
+commit 2afebbdf35baaf289328c86a7579c8961617ecf8
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Dec 22 17:28:35 2011 -0500
+
+    strconv: fix bug in extended-float based conversion.
+    
+    A test intended for denormals erroneously returned true also for
+    infinities, leading to bad overflows and wrong error estimates.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5489091
+
+ src/pkg/strconv/atof_test.go | 5 ++++-
+ src/pkg/strconv/extfloat.go  | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

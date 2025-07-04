@@ -1,0 +1,30 @@
+commit 39c507071251dbf5ea098077ad0e791679dae548
+Author: Achille Roussel <achille.roussel@gmail.com>
+Date:   Tue Jul 4 18:15:58 2023 -0700
+
+    os: do not skip directory entries with zero inodes on wasip1
+    
+    When building programs to GOOS=wasip1, the program does not have the
+    guarantees that the underlying directories will come from a file system
+    where a zero inode value indicates that the entry was deleted but not
+    yet removed from the directory. The host runtime may be running on
+    windows or may be exposing virtual user-space file systems that do not
+    have the concept of inodes. In those setup, we assume that the host
+    runtime is in charge of dealing with edge cases such as skipping
+    directory entries with zero inodes when needed, and the guest
+    application should trust the list of entries that it sees;
+    therefore, we disable skipping over zero inodes on wasip1.
+    
+    Change-Id: I99aa562441cdb4182965f270af054cf3cf7f8f20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507915
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/os/dir_darwin.go  | 9 +++++++++
+ src/os/dir_unix.go    | 6 +++++-
+ src/syscall/dirent.go | 9 +++++++--
+ 3 files changed, 21 insertions(+), 3 deletions(-)

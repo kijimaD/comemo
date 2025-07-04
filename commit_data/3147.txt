@@ -1,0 +1,15 @@
+commit 3dc7b382f941eff01b893250d2ce33407453adb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 31 10:47:34 2009 -0700
+
+    associate const and var declarations with a type where possible
+    
+    R=rsc
+    DELTA=105  (87 added, 7 deleted, 11 changed)
+    OCL=34062
+    CL=34119
+
+ lib/godoc/package.html |   8 ++++
+ lib/godoc/package.txt  |   8 ++++
+ src/pkg/go/doc/doc.go  | 100 ++++++++++++++++++++++++++++++++++++++++---------
+ 3 files changed, 98 insertions(+), 18 deletions(-)

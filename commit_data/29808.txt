@@ -1,0 +1,12 @@
+commit fe07091f9eb9a1dcedc6eab1762de5383f520a00
+Author: Euan Kemp <euank@euank.com>
+Date:   Tue Dec 13 21:49:09 2016 -0800
+
+    crypto/aes: correct 'noescape' typo in s390x
+    
+    Change-Id: I9e24a28b4daee5d6e1e4769547922a1a253b4ffc
+    Reviewed-on: https://go-review.googlesource.com/34377
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+
+ src/crypto/aes/cipher_s390x.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

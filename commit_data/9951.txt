@@ -1,0 +1,15 @@
+commit bf9c778fe22f78925547646e71404773021c2cb9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Oct 13 11:06:55 2011 +0300
+
+    gc: pass FlagNoPointers to runtime.new
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5151043
+
+ src/cmd/gc/builtin.c.boot  | 2 +-
+ src/cmd/gc/runtime.go      | 2 +-
+ src/cmd/gc/walk.c          | 2 +-
+ src/pkg/runtime/malloc.goc | 6 ++++--
+ 4 files changed, 7 insertions(+), 5 deletions(-)

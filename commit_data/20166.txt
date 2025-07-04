@@ -1,0 +1,21 @@
+commit add7b220105ab2734244400aa0585fc80f40001c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 27 23:41:43 2014 -0400
+
+    runtime: fix nacl/386 build
+    
+    I changed all the NACL_SYSJMP to NACL_SYSCALL in
+    an earlier CL, but I missed the fact that NACL_SYSCALL
+    will push another return PC on the stack, so that the
+    arguments will no longer be in the right place.
+    Since we have to make our own call, we also have to
+    copy the arguments. Do that.
+    
+    Fixes nacl/386 build.
+    
+    TBR=minux
+    CC=golang-codereviews
+    https://golang.org/cl/135050044
+
+ src/pkg/runtime/sys_nacl_386.s | 124 +++++++++++++++++++++++++++++++++--------
+ 1 file changed, 101 insertions(+), 23 deletions(-)

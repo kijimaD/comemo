@@ -1,0 +1,16 @@
+commit 09919ac3396f1de63dd5556758ac2dd10ecb9b9f
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 00:29:30 2022 +0800
+
+    encoding/xml: use bytes.Clone
+    
+    Change-Id: I3218b1e3f8869f579facddb29471df13c835dc66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435281
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/encoding/xml/xml.go | 14 ++++----------
+ 1 file changed, 4 insertions(+), 10 deletions(-)

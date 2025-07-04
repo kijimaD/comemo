@@ -1,0 +1,21 @@
+commit 51ddeb9965e942d5909c03fef005006457156638
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 24 09:59:57 2018 -0700
+
+    math: add tests for erf and erfc
+    
+    Test large but not infinite arguments.
+    
+    This CL adds a test which breaks s390x.  Don't submit until
+    a fix for that is figured out.
+    
+    Update #26477
+    
+    Change-Id: Ic86739fe3554e87d7f8e15482875c198fcf1d59c
+    Reviewed-on: https://go-review.googlesource.com/125641
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/all_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

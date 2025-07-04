@@ -1,0 +1,18 @@
+commit 43b57b85160f310622130e9c8653dde599d839cc
+Author: Keith Randall <khr@golang.org>
+Date:   Sun Oct 29 21:00:29 2023 -0700
+
+    cmd/compile: handle constant pointer offsets in dead store elimination
+    
+    Update #63657
+    Update #45573
+    
+    Change-Id: I163c6038c13d974dc0ca9f02144472bc05331826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538595
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/deadstore.go | 64 +++++++++++++++++++++++++++----
+ src/cmd/compile/internal/ssa/rewrite.go   |  6 +++
+ 2 files changed, 62 insertions(+), 8 deletions(-)

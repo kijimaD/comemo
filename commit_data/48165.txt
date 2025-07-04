@@ -1,0 +1,23 @@
+commit 1de2344af16125ae2fabed226f2fbb40a150238c
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 14 14:57:55 2022 -0800
+
+    cmd/compile: drop column info when line number saturates
+    
+    When line number saturates, we can end up getting non-monotonic
+    position info, because the start of the next line after line=lineMax,col=2
+    is line=lineMax,col=1.
+    
+    Instead, if line==lineMax, make the column always 0 (no column info).
+    If the line number is wrong, having column info probably isn't that helpful.
+    
+    Fixes #51193
+    
+    Change-Id: If3d90472691b1f6163654f3505e2cb98467f2383
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385795
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/src/pos.go      |  5 ++++-
+ src/cmd/internal/src/pos_test.go | 14 +++++++-------
+ 2 files changed, 11 insertions(+), 8 deletions(-)

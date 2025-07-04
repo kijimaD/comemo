@@ -1,0 +1,14 @@
+commit 7e067c4c78e057d1b034e40d7edee4efe3a4ee28
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 28 12:14:49 2017 -0700
+
+    doc: mention gccgo status in 1.9 release notes
+    
+    Updates #20587
+    
+    Change-Id: If35868345d9697d4afa2e9c19b85e01d94c87908
+    Reviewed-on: https://go-review.googlesource.com/47034
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

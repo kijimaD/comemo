@@ -1,0 +1,17 @@
+commit b3ee6f0c2e8be8701ec15f3fb91397e086f106ae
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 14 18:27:15 2017 +0000
+
+    internal/cpu: fix arm64 build
+    
+    I submitted two CLs which broke the build. Add temporary placeholder
+    with false bools to fix the build and restore old behavior.
+    
+    Updates golang/go#22718 (details of why it broke)
+    
+    Change-Id: I1f30624e14f631a95f4eff5aae462f1091f723a2
+    Reviewed-on: https://go-review.googlesource.com/77590
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/cpu/cpu_arm64.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

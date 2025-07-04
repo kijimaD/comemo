@@ -1,0 +1,21 @@
+commit 2e51f6f25cfc37f1e1d6fd3a90f0570979939a21
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Mar 11 12:03:28 2023 -0800
+
+    encoding/json: make use of Buffer.AvailableBuffer
+    
+    Use the explicit API for acquiring an empty available buffer,
+    rather than the hack that's implemented in terms of Bytes and Len.
+    
+    Change-Id: If286ed42693acd61ffe28dc849ed4b76c3ae4434
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476337
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/json/encode.go |  8 ++------
+ src/encoding/json/indent.go | 11 +++--------
+ 2 files changed, 5 insertions(+), 14 deletions(-)

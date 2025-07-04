@@ -1,0 +1,14 @@
+commit 3735cf7b09e029bb04995d082eeee12ff5834a80
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 16 17:49:58 2012 -0500
+
+    exp/terminal: fix build on non-Linux using Makefiles
+    
+    The Makefiles will go away soon.
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/5544081
+
+ src/pkg/exp/terminal/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

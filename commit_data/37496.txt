@@ -1,0 +1,18 @@
+commit 7d7e839a76227db321761ca7ca882429f30f39f9
+Author: David Tolpin <david.tolpin@gmail.com>
+Date:   Tue Nov 27 00:17:32 2018 +0000
+
+    go/printer: print parenthesized declarations if len(d.Specs) > 1
+    
+    Parenthesized declaration must be printed if len(d.Specs) > 1 even if d.Lparen==token.NoPos. This happens if the node tree is created programmatically. Otherwise, all but the first specifications just silently disappear from the output.
+    
+    Change-Id: I17ab24bb1cd56fe1e611199698535ca60a97f5ea
+    GitHub-Last-Rev: 2f168dc7ad4a29149685efc70f180987523271e4
+    GitHub-Pull-Request: golang/go#28533
+    Reviewed-on: https://go-review.googlesource.com/c/146657
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/printer/nodes.go        |  2 +-
+ src/go/printer/printer_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

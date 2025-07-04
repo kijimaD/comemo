@@ -1,0 +1,17 @@
+commit c1b7f508b0f4db605bfae4216f421bc3ec00de75
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 3 12:15:14 2019 -0400
+
+    cmd/compile: modify line number printing for nodes
+    
+    add preceding "+" for a line that is certainly a statement,
+    and "_" for a line this is certainly not a statement.
+    
+    Change-Id: I831435dbc2302f25db1320b99d3513fe61fe1fa2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198737
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

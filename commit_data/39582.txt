@@ -1,0 +1,23 @@
+commit 0ca4f6be35d2abf54128b57c3aa1a1fcbd5adfe3
+Author: David Finkel <david.finkel@gmail.com>
+Date:   Wed Jul 31 09:10:28 2019 -0400
+
+    runtime/pprof: Mention goroutine label heritability
+    
+    Document goroutine label inheritance. Goroutine labels are copied upon
+    goroutine creation and there is a test enforcing this, but it was not
+    mentioned in the docstrings for `Do` or `SetGoroutineLabels`.
+    
+    Add notes to both of those functions' docstrings so it's clear that one
+    does not need to set labels as soon as a new goroutine is spawned if
+    they want to propagate tags.
+    
+    Updates #32223
+    Updates #23458
+    
+    Change-Id: Idfa33031af0104b884b03ca855ac82b98500c8b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189317
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/pprof/runtime.go | 2 ++
+ 1 file changed, 2 insertions(+)

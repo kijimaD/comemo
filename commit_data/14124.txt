@@ -1,0 +1,12 @@
+commit b13c7eec64eab277e5816c4591c1aaa9c0fc8f28
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 11 17:02:36 2012 +1100
+
+    godoc: update favicon
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6641058
+
+ favicon.ico | Bin 785 -> 1150 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

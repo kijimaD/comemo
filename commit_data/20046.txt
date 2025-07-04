@@ -1,0 +1,27 @@
+commit ff3fa1b32dba4448bed45282b1038a4f8e9c23dc
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 17:38:00 2014 +0400
+
+    runtime: make the GC bitmap a byte array
+    Half the code in the garbage collector accesses the bitmap
+    as an array of bytes instead of as an array of uintptrs.
+    This is tricky to do correctly in a portable fashion,
+    it breaks on big-endian systems.
+    Make the bitmap a byte array.
+    Simplifies markallocated, scanblock and span sweep along the way,
+    as we don't need to recalculate bitmap position for each word.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rlh, rsc
+    https://golang.org/cl/125250043
+
+ src/pkg/runtime/asm_386.s    |   8 ++
+ src/pkg/runtime/asm_amd64.s  |   8 ++
+ src/pkg/runtime/atomic_arm.c |  16 +++
+ src/pkg/runtime/heapdump.c   |  11 ++-
+ src/pkg/runtime/malloc.go    |  22 ++---
+ src/pkg/runtime/mgc0.c       | 227 +++++++++++++++++++++++--------------------
+ src/pkg/runtime/mgc0.h       |   2 +-
+ src/pkg/runtime/runtime.h    |   1 +
+ 8 files changed, 169 insertions(+), 126 deletions(-)

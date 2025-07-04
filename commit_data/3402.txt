@@ -1,0 +1,18 @@
+commit 08eefec9d636e00a58ba395649b913edf5070301
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 29 21:22:25 2009 -0700
+
+    nacl system call updates
+    
+    R=r
+    DELTA=236  (211 added, 18 deleted, 7 changed)
+    OCL=35084
+    CL=35131
+
+ src/pkg/syscall/asm_nacl_386.s       |  10 +--
+ src/pkg/syscall/syscall_nacl.go      |  82 +++++++++++++++++-----
+ src/pkg/syscall/syscall_nacl_386.go  |   8 ++-
+ src/pkg/syscall/types_nacl.c         |   7 ++
+ src/pkg/syscall/zsyscall_nacl_386.go | 129 +++++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_nacl_386.go   |   3 +
+ 6 files changed, 216 insertions(+), 23 deletions(-)

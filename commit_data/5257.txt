@@ -1,0 +1,25 @@
+commit 12e7ce95c697b85bd78a652dd6f4a7a0e81cf72a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 9 13:31:05 2010 -0700
+
+    Add //export to cgo.
+    
+    The new //export comment marks a Go function as callable from
+    C.  The syntax is "//export NAME" where NAME is the name of
+    the function as seen from C.  If such a comment is seen, cgo
+    will generate two new files: _cgo_export.h and _cgo_export.c.
+    The _cgo_export.h file provides declarations which C code may
+    use to call Go functions.  The _cgo_export.c file contains
+    wrappers, and is to be compiled with gcc.
+    
+    The changes to Make.pkg support using this from a Go Makefile,
+    though it could probably be more convenient.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/853042
+
+ src/Make.pkg       |  14 ++-
+ src/cmd/cgo/ast.go |  45 ++++++++
+ src/cmd/cgo/out.go | 308 ++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 361 insertions(+), 6 deletions(-)

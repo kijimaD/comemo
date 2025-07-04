@@ -1,0 +1,19 @@
+commit 363cd66d6049aa8199c1e89bcc8ce00915e5a429
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Tue Jan 14 08:57:03 2020 +0100
+
+    cmd/compile: assign correct declaration line to DIE of captured vars
+    
+    Fixes the declaration line reported in the DW_AT_decl_line for
+    variables captured in a closure.
+    
+    Fixes #36542
+    
+    Change-Id: I228d32b57121fd62c4615c2ef71a6e8da616a1e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214637
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go       | 42 ++++++++++---------
+ src/cmd/compile/internal/gc/scope_test.go | 67 ++++++++++++++++++++++++++-----
+ 2 files changed, 79 insertions(+), 30 deletions(-)

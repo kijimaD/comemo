@@ -1,0 +1,13 @@
+commit 1ccefcd1b879df2e1603812594cd351978367295
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 16 21:22:20 2015 +1300
+
+    cmd/link, runtime: implement & call addmoduledata on ppc64le
+    
+    Change-Id: I3980d82c7df95e69522c3d2c90311f89c6fef0e1
+    Reviewed-on: https://go-review.googlesource.com/15972
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ppc64/asm.go | 80 +++++++++++++++++++++++++++++++++++++-
+ src/runtime/asm_ppc64x.s           | 10 +++++
+ 2 files changed, 89 insertions(+), 1 deletion(-)

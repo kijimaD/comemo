@@ -1,0 +1,12 @@
+commit 479cbd6d34c213b6bdfc4bd3c2bc282bd195d5bd
+Author: Joe Poirier <jdpoirier@gmail.com>
+Date:   Mon Sep 13 13:36:51 2010 +1000
+
+    (windows) disable tests that cause the build to fail
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/2171044
+
+ src/run.bash | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

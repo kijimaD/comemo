@@ -1,0 +1,18 @@
+commit 633b38c5d2bd66e0a4688d80f13ccd3c0837948d
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Feb 12 17:00:01 2018 -0500
+
+    runtime/internal/atomic: add early nil check on ARM
+    
+    If nil, fault before taking the lock or calling into the kernel.
+    
+    Change-Id: I013d78a5f9233c2a9197660025f679940655d384
+    Reviewed-on: https://go-review.googlesource.com/93636
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/internal/atomic/atomic_arm.go   | 5 +++++
+ src/runtime/internal/atomic/sys_linux_arm.s | 5 ++++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

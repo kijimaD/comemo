@@ -1,0 +1,17 @@
+commit 43da336b151993fa3b0d17dc443f5ba9d29d482f
+Author: Steven Elliot Harris <seharris@gmail.com>
+Date:   Wed Feb 20 14:42:37 2013 -0800
+
+    misc/emacs: Present "godoc" documentation buffers using view-mode.
+    
+    Mimic the Emacs convention of presenting read-only files meant
+    for browsing using view-mode, rather than Fundamental mode
+    which mistakenly allows editing of the "godoc" content.
+    Fixes #4322.
+    
+    R=golang-dev, bradfitz, sameer
+    CC=golang-dev
+    https://golang.org/cl/7231055
+
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

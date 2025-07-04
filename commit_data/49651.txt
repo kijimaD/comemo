@@ -1,0 +1,18 @@
+commit 28be440d3434a440d0c144ba2128b30ce9771ecf
+Author: yanweizhi <yanweizhi@bytedance.com>
+Date:   Tue Jul 19 18:56:23 2022 +0800
+
+    A+C: add Weizhi Yan
+    
+    Change-Id: I2cef8fa2a61fc69b9b21ff75428af428d99ae2f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418174
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

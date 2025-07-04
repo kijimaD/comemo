@@ -1,0 +1,34 @@
+commit 17762557421b912490498b815f28f71646b411fe
+Author: Julian Zhu <jz531210@gmail.com>
+Date:   Thu Feb 20 21:55:28 2025 +0800
+
+    internal/bytealg: add assembly implementation of Count/CountString for mips64x
+    
+    Add a simple assembly implementation of Count/CountString for mips64x.
+    
+    name            old sec/op    new sec/op     vs base
+    CountSingle/10-4   31.16n ±  0%    41.69n ±  0%  +33.79% (p=0.000 n=11)
+    CountSingle/32-4   69.58n ±  0%    59.61n ±  0%  -14.33% (p=0.000 n=11)
+    CountSingle/4K-4   7.428µ ±  0%    5.153µ ±  0%  -30.63% (p=0.000 n=11)
+    CountSingle/4M-4   7.634m ±  0%    5.300m ±  0%  -30.58% (p=0.000 n=11)
+    CountSingle/64M-4   134.4m ±  0%    100.8m ±  3%  -24.99% (p=0.000 n=11)
+    
+    name             old B/s      new B/s       vs base
+    CountSingle/10-4   306.1Mi ±  0%    228.8Mi ±  0%  -25.25% (p=0.000 n=11)
+    CountSingle/32-4   438.6Mi ±  0%    512.0Mi ±  0%  +16.74% (p=0.000 n=11)
+    CountSingle/4K-4   525.9Mi ±  0%    758.0Mi ±  0%  +44.15% (p=0.000 n=11)
+    CountSingle/4M-4   523.9Mi ±  0%    754.7Mi ±  0%  +44.05% (p=0.000 n=11)
+    CountSingle/64M-4  476.3Mi ±  0%    635.0Mi ±  0%  +33.31% (p=0.000 n=11)
+    
+    Change-Id: Id5ddbea0d080e2903156ef8dc86c030a8179115b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650995
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/internal/bytealg/count_generic.go |  2 +-
+ src/internal/bytealg/count_mips64x.s  | 52 +++++++++++++++++++++++++++++++++++
+ src/internal/bytealg/count_native.go  |  2 +-
+ 3 files changed, 54 insertions(+), 2 deletions(-)

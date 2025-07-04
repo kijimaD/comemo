@@ -1,0 +1,30 @@
+commit 2d58fbac2f4c5c77b219e4d94b89c218ffa6f98f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 18 15:24:50 2018 -0700
+
+    cmd/compile: extract gc.eqtype as types.Identical
+    
+    For symmetry with go/types.Identical.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Id19c3956e44ed8e2d9f203d15824322cc5842d3d
+    Reviewed-on: https://go-review.googlesource.com/c/143180
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go     |   4 +-
+ src/cmd/compile/internal/gc/const.go       |   2 +-
+ src/cmd/compile/internal/gc/dcl.go         |   2 +-
+ src/cmd/compile/internal/gc/esc.go         |   2 +-
+ src/cmd/compile/internal/gc/export.go      |   2 +-
+ src/cmd/compile/internal/gc/order.go       |   2 +-
+ src/cmd/compile/internal/gc/reflect.go     |   4 +-
+ src/cmd/compile/internal/gc/sinit.go       |   6 +-
+ src/cmd/compile/internal/gc/subr.go        | 131 ++---------------------------
+ src/cmd/compile/internal/gc/swt.go         |   2 +-
+ src/cmd/compile/internal/gc/typecheck.go   |  28 +++---
+ src/cmd/compile/internal/gc/walk.go        |  12 +--
+ src/cmd/compile/internal/types/identity.go | 119 ++++++++++++++++++++++++++
+ 13 files changed, 161 insertions(+), 155 deletions(-)

@@ -1,0 +1,18 @@
+commit 8eb88b0d8e1b76eabe37de67b7dd603da9fbaea3
+Author: Kevin Burke <kev@inburke.com>
+Date:   Fri Nov 11 08:39:33 2016 -0800
+
+    cmd/gofmt, crypto/tls: fix typos
+    
+    Fix spelling of "original" and "occurred" in new gofmt docs. The same
+    misspelling of "occurred" was also present in crypto/tls, I fixed it there as
+    well.
+    
+    Change-Id: I67b4f1c09bd1a2eb1844207d5514f08a9f525ff9
+    Reviewed-on: https://go-review.googlesource.com/33138
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/gofmt/doc.go                    | 4 ++--
+ src/crypto/tls/handshake_client.go      | 2 +-
+ src/crypto/tls/handshake_client_test.go | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 314afb417a9372290ffcf1b456f531e91b7667b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 19 08:48:26 2011 -0700
+
+    http: comment tweaks
+    
+    It hasn't been primitive in a while.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5287041
+
+ src/pkg/http/client.go    | 5 ++++-
+ src/pkg/http/transport.go | 5 +++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

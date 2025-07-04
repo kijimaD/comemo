@@ -1,0 +1,21 @@
+commit b26ad605a92af65deef30eb196ff2173566ee60f
+Author: griesemer <gri@golang.org>
+Date:   Tue Aug 15 14:44:26 2017 +0200
+
+    go/importer: make source importer more tolerant in presence of errors
+    
+    If the source importer only encounters "soft" type checking errors
+    it can safely return the type-checked package because it will be
+    completely set up. This makes the source importer slightly more
+    robust in the presence of errors.
+    
+    Fixes #20855.
+    
+    Change-Id: I5af9ccdb30eee6bca7a0fab872f6057bde521bf3
+    Reviewed-on: https://go-review.googlesource.com/55730
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/srcimporter/srcimporter.go         | 28 ++++++++++++++++------
+ src/go/internal/srcimporter/srcimporter_test.go    | 14 +++++++++++
+ .../srcimporter/testdata/issue20855/issue20855.go  |  7 ++++++
+ 3 files changed, 42 insertions(+), 7 deletions(-)

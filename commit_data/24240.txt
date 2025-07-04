@@ -1,0 +1,14 @@
+commit 63ee321059478e5744dc9c21946e764abc3c0eb3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 10 14:10:23 2015 -0700
+
+    strconv: fix comment
+    
+    Fixes #12531.
+    
+    Change-Id: I66dc7ac1b71b8f72b4a8f3ec18befa2607ef358b
+    Reviewed-on: https://go-review.googlesource.com/14494
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/strconv/itoa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

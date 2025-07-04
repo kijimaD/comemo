@@ -1,0 +1,20 @@
+commit 2d1c0332598c77097d53a1c2d564b12dcd644810
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Jan 2 09:43:41 2018 -0800
+
+    reflect: let StructOf define unexported fields
+    
+    This was missing from the original StructOf CL because I couldn't
+    think of a use for it. Now I can: even with types used entirely
+    by reflect, unexported fields can be set using UnsafeAddr.
+    
+    Change-Id: I5e7e3d81d16e8817cdd69d85796ce33930ef523b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/85661
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.14.html         | 13 +++++++++++++
+ src/reflect/all_test.go | 23 ++++++++---------------
+ src/reflect/type.go     | 19 +++++++++++--------
+ 3 files changed, 32 insertions(+), 23 deletions(-)

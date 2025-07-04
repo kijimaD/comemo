@@ -1,0 +1,18 @@
+commit 1554e87c1963ec89f81e8eac1be1dabe37afca5e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 11 10:08:19 2024 -0400
+
+    doc/next: document GOARM64 environment variable
+    
+    For #65614.
+    Updates #60905.
+    
+    Change-Id: I2dd9df3c7066357cf06268d918bad3c255b38aed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591875
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ doc/next/7-ports.md | 7 +++++++
+ doc/next/9-todo.md  | 3 ---
+ 2 files changed, 7 insertions(+), 3 deletions(-)

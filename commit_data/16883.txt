@@ -1,0 +1,15 @@
+commit 14062efb16e3c69adaf655d0b545189036929368
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 26 13:54:44 2013 -0400
+
+    runtime: handle runtime.Goexit during init
+    
+    Fixes #5963.
+    
+    R=golang-dev, dsymonds, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/11879045
+
+ src/pkg/runtime/proc.c      | 18 ++++++++++++++++
+ test/fixedbugs/issue5963.go | 50 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

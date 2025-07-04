@@ -1,0 +1,12 @@
+commit 54c9fe88f57b78e13b420c0c583d1466eb51457d
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Thu May 17 11:19:19 2012 -0700
+
+    go/build: fix some comments
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6217044
+
+ src/pkg/go/build/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

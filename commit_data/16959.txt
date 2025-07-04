@@ -1,0 +1,31 @@
+commit b08d0c2c62c901b69637cb6f13af490c6feacbe6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 31 15:31:43 2013 -0700
+
+    undo CL 12193043 / cc5858966b08
+    
+    Breaks all ELF builds.
+    
+    ««« original CL description
+           cmd/ld: report pclntab, funcdata sizes in 6l -v output
+           Also move chatty recent additions to -v -v.
+    
+           For what it's worth:
+    
+           $ go build -o /dev/null -ldflags -v cmd/godoc
+           ...
+            0.73 pclntab=1259976 bytes, funcdata total 79788 bytes
+           ...
+           $
+    
+    R=ken2
+    CC=cshapiro, golang-dev
+    https://golang.org/cl/12193043
+    »»»
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/12202043
+
+ src/cmd/ld/lib.c | 20 +++++---------------
+ 1 file changed, 5 insertions(+), 15 deletions(-)

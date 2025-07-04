@@ -1,0 +1,22 @@
+commit 4a2391e7c965f7ed4d1ec189087293c1f6bae43c
+Author: griesemer <gri@golang.org>
+Date:   Tue Sep 19 14:35:15 2017 +0200
+
+    spec: state which predeclared types are defined or alias types (clarification)
+    
+    When we introduced the distinction between "defined" and "alias" types
+    we retained the notion of a "named" type (any type with a name). The
+    predeclared types (which all have names) simply remained named types.
+    
+    This CL clarifies the spec by stating excplicitly which predeclared
+    types are defined types (or at least "act" like defined types), and
+    which ones are alias types.
+    
+    Fixes #21785.
+    
+    Change-Id: Ia8ae133509eb5d738e6757b3442c9992355e3535
+    Reviewed-on: https://go-review.googlesource.com/64591
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go_spec.html | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

@@ -1,0 +1,17 @@
+commit c46952172dbf4a134d423134e404bd518568e99a
+Author: Kyle Shannon <kyle@pobox.com>
+Date:   Tue Jan 23 17:54:57 2018 -0700
+
+    lib/time: follow redirects in curl
+    
+    Starting on or about the 2018c archives, www.iana.org is redirected to
+    data.iana.org.  Tell curl to follow the redirect.
+    
+    Updates: #22487
+    
+    Change-Id: I00acada1a3ba01ef701d6d4ffae6cc2cbb6a068f
+    Reviewed-on: https://go-review.googlesource.com/89375
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ lib/time/update.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

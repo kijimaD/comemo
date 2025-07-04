@@ -1,0 +1,32 @@
+commit 4211384976c55f326671253c8d25d1be01fa8f23
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Sep 25 09:39:08 2009 -0700
+
+    Switch ogle to in-tree gosym package.  Delete my private sym
+    package.  If a Sym is a function symbol, include a reference
+    to the Func so it's easily accessible when you're traversing
+    the list of all symbols.  This diff is more interesting than
+    the proc switch because the gosym interface differs from the
+    old sym interface.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1957  (34 added, 1868 deleted, 55 changed)
+    OCL=34969
+    CL=35008
+
+ src/pkg/debug/gosym/symtab.go |   4 +-
+ usr/austin/ogle/cmd.go        |  16 +-
+ usr/austin/ogle/frame.go      |  12 +-
+ usr/austin/ogle/process.go    |  85 +++--
+ usr/austin/ogle/rtype.go      |   8 +-
+ usr/austin/ogle/vars.go       |  31 +-
+ usr/austin/sym/Makefile       |  14 -
+ usr/austin/sym/binary.go      | 194 -----------
+ usr/austin/sym/elf.go         | 242 --------------
+ usr/austin/sym/elffmt.go      | 389 ----------------------
+ usr/austin/sym/gosymtab.go    | 735 ------------------------------------------
+ usr/austin/sym/pclinetest.h   |   7 -
+ usr/austin/sym/pclinetest.s   |  89 -----
+ usr/austin/sym/sym_test.go    | 207 ------------
+ 14 files changed, 87 insertions(+), 1946 deletions(-)

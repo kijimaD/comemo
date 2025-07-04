@@ -1,0 +1,14 @@
+commit e495953d2b01aef2982fb8978589f84f44db6cf3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 14 17:17:42 2009 -0700
+
+    add CONTRIBUTORS file to record those
+    whose code can be accepted into the repository.
+    
+    R=r
+    DELTA=44  (44 added, 0 deleted, 0 changed)
+    OCL=35729
+    CL=35742
+
+ CONTRIBUTORS | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)

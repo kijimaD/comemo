@@ -1,0 +1,14 @@
+commit ace6074593e877a416f166ca298b597e588ee321
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Jul 31 17:28:35 2017 -0700
+
+    doc: add go1.9 to golang.org/project
+    
+    Pre-emptive. Go 1.9 is expected to be released in August.
+    
+    Change-Id: I0f58c012c4110bf490022dc2c1d69c0988d73bfa
+    Reviewed-on: https://go-review.googlesource.com/52351
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/contrib.html | 1 +
+ 1 file changed, 1 insertion(+)

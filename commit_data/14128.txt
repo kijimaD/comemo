@@ -1,0 +1,14 @@
+commit a14f87ca81682ffd0134bf25e32b874dbd1d0757
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Oct 12 09:17:56 2012 +1100
+
+    net/http: fix data race on countReader.n
+    
+    Fixes #4220.
+    
+    R=dvyukov, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6638053
+
+ src/pkg/net/http/serve_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

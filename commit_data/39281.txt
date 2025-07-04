@@ -1,0 +1,14 @@
+commit 9e2299207a4ed4de49eae173903ae88ee8da6065
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 30 18:33:14 2019 -0400
+
+    misc/cgo/errors: remove debugging println
+    
+    Change-Id: I0c7da31e94307f939e1a2f023e00d5b24bac0ea6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179604
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/errors/ptr_test.go | 1 -
+ 1 file changed, 1 deletion(-)

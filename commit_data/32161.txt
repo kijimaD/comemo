@@ -1,0 +1,19 @@
+commit d5ad7793d610bddfb3e7e09b8dafa0b0837f0cb2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 9 16:24:14 2017 +0900
+
+    go/types: remove nil check around range
+    
+    Ranging over a nil slice is a no-op, so guarding it with a nil check is
+    not useful.
+    
+    Found with honnef.co/go/tools/cmd/staticcheck.
+    
+    Change-Id: I6ce56bb6805809ca29349257f10fd69c30611643
+    Reviewed-on: https://go-review.googlesource.com/54131
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/stmt.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

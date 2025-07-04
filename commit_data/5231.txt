@@ -1,0 +1,21 @@
+commit ac3cf56d336d37357da320d1885a197bc4cfcacd
+Author: Giles Lean <giles.lean@pobox.com>
+Date:   Tue Apr 6 10:28:55 2010 -0700
+
+    syscall package: document that errno is zeroed on success
+    
+    This is a documentation enhancement only, without any code
+    change.
+    
+    The rationale for documenting this precisely is that Unix
+    programmers who "know" that errno's value is undefined after
+    a successful system call may be surprised otherwise and
+    search to be sure that a zero errno may be relied upon after
+    successful calls.
+    
+    R=r, rsc1, rsc
+    CC=golang-dev
+    https://golang.org/cl/812044
+
+ src/pkg/syscall/syscall.go | 2 ++
+ 1 file changed, 2 insertions(+)

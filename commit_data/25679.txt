@@ -1,0 +1,17 @@
+commit 867bef93b9a60ef07f068bc8d2d4398b76331e3c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 26 20:58:00 2016 +0000
+
+    database/sql: implement Scan of time.Time, document, clarify Scan error text
+    
+    Fixes #9157
+    
+    Change-Id: Iadf305a172a0ec53ae91e1b2db3f3351691a48ff
+    Reviewed-on: https://go-review.googlesource.com/18935
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/database/sql/convert.go      | 31 +++++++++++++++++---
+ src/database/sql/convert_test.go | 23 +++++++++++++--
+ src/database/sql/sql.go          | 63 ++++++++++++++++++++++++++++++++--------
+ 3 files changed, 98 insertions(+), 19 deletions(-)

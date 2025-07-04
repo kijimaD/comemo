@@ -1,0 +1,19 @@
+commit 0ad247c6f0335f44a27217d0411b8c92e367ebd8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 14 12:01:01 2017 +1100
+
+    cmd/link: delay calculating pe file parameters after Linkmode is set
+    
+    For #10776.
+    
+    Change-Id: Id64a7e35c7cdcd9be16cbe3358402fa379090e36
+    Reviewed-on: https://go-review.googlesource.com/36975
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/amd64/obj.go | 14 ++------------
+ src/cmd/link/internal/ld/lib.go    |  5 +++++
+ src/cmd/link/internal/ld/pe.go     | 14 ++++++++++++++
+ src/cmd/link/internal/x86/obj.go   | 14 ++------------
+ 4 files changed, 23 insertions(+), 24 deletions(-)

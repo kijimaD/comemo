@@ -1,0 +1,23 @@
+commit c04a32e59a001f0490082619bbe6a36e1e23ef99
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Jun 24 12:50:14 2021 +0800
+
+    net: avoid memory copy calling absDomainName
+    
+    Change-Id: I8ea9bec8bc33e29b8c265fbca40871bc23667144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330470
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/cgo_unix.go            |  2 +-
+ src/net/dnsclient.go           | 16 +++++-----------
+ src/net/hosts.go               | 15 ++++++++-------
+ src/net/hosts_test.go          |  4 ++--
+ src/net/lookup_plan9.go        | 10 +++++-----
+ src/net/lookup_windows.go      | 14 +++++++-------
+ src/net/lookup_windows_test.go | 10 +++++-----
+ src/net/parse.go               | 10 ++++++++++
+ 8 files changed, 43 insertions(+), 38 deletions(-)

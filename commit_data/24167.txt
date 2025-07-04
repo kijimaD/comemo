@@ -1,0 +1,16 @@
+commit 13e06d89c3ccba9fd4f0456d68407ff941409b57
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 4 14:09:56 2015 +1000
+
+    internal/syscall/windows/registry: do not panic when data is large
+    
+    Allow registry blobs to be as large as 500MB
+    
+    Update #12493
+    
+    Change-Id: I1d0e5c10772d25f8e7e17fed6e2e7dd12ca4e7cf
+    Reviewed-on: https://go-review.googlesource.com/14287
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/syscall/windows/registry/value.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

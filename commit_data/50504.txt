@@ -1,0 +1,18 @@
+commit b35b4a31e167a170a5ee481ed525272bc44dcc33
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 13 09:51:13 2022 -0400
+
+    cmd/go: delete useless env var setting in test
+    
+    The correct spelling is asyncpreemptoff=1,
+    but clearly this test doesn't need it.
+    
+    Change-Id: Ic69cf5be04bf90d357a6e4d8ae3f9011f1779922
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430575
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/test_cleanup_failnow.txt | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

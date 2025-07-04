@@ -1,0 +1,22 @@
+commit 9c93ad5520c4f995ee0ec8d1a80dd17c633002ae
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 15 15:32:42 2023 +0200
+
+    cmd/go/testdata/script: ensure go test -skip skips ExampleTest1
+    
+    CL 511837 added a check for go test -skip Example but it currently
+    doesn't verify that the example doesn't show up in the command output.
+    Add such a check.
+    
+    For #61482
+    
+    Change-Id: I3a8f82fc137739bf291f39bf7719ff92cfc74f9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/519595
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/testdata/script/test_skip.txt | 1 +
+ 1 file changed, 1 insertion(+)

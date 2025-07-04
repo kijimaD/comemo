@@ -1,0 +1,12 @@
+commit 369418d29c00e96af3033afba6c3a49eb5d06175
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Jun 30 17:07:44 2011 +1000
+
+    misc/vim:  allow only utf-8 for fileencoding (fix CL4625078).
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4650062
+
+ misc/vim/ftdetect/gofiletype.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

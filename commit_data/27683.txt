@@ -1,0 +1,24 @@
+commit 9208ed322459809cf26f65485d0e6d248dadb830
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jun 15 01:09:51 2016 +0900
+
+    os: fix blockUntilWaitable on freebsd/{386,arm}
+    
+    The previous fix was wrong because it had two misunderstandings on
+    freebsd32 calling convention like the following:
+    - 32-bit id1 implies that it is the upper half of 64-bit id, indeed it
+      depends on machine endianness.
+    - 32-bit ARM calling convension doesn't conform to freebsd32_args,
+      indeed it does.
+    
+    This change fixes the bugs and makes blockUntilWaitable work correctly
+    on freebsd/{386,arm}.
+    
+    Fixes #16064.
+    
+    Change-Id: I820c6d01d59a43ac4f2ab381f757c03b14bca75e
+    Reviewed-on: https://go-review.googlesource.com/24064
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/wait_wait6.go | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

@@ -1,0 +1,14 @@
+commit 0211771f2b3a36626646d08b6b8db3d1ad1ebd7a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 25 17:30:12 2014 -0700
+
+    .hgignore: delete some dregs
+    I'd rather delete the file but I doubt that will be popular.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/150100043
+
+ .hgignore | 5 -----
+ 1 file changed, 5 deletions(-)

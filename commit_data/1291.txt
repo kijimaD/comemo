@@ -1,0 +1,28 @@
+commit 3f8aa662e9710f821411dc9c6f0f0be8c756e40d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 15:24:18 2008 -0800
+
+    add support for ref counts to memory allocator.
+    
+    mark and sweep, stop the world garbage collector
+    (intermediate step in the way to ref counting).
+    can run pretty with an explicit gc after each file.
+    
+    R=r
+    DELTA=502  (346 added, 143 deleted, 13 changed)
+    OCL=20630
+    CL=20635
+
+ src/runtime/Makefile           |   2 +-
+ src/runtime/mem.c              |  96 +++++++++++++++++++++++++
+ src/runtime/proc.c             |  43 ++++++++++-
+ src/runtime/runtime.c          |  77 --------------------
+ src/runtime/runtime.h          |   8 +++
+ src/runtime/stack.c            |  19 -----
+ usr/rsc/mem/Makefile           |   5 +-
+ usr/rsc/mem/allocator.go       |   2 +
+ usr/rsc/mem/malloc.c           | 159 +++++++++++++++++++++++++++++++----------
+ usr/rsc/mem/malloc.h           |  44 ++++++++++++
+ usr/rsc/mem/{stack.c => mem.c} |  17 +++++
+ usr/rsc/mem/testrandom.go      |   8 ++-
+ 12 files changed, 341 insertions(+), 139 deletions(-)

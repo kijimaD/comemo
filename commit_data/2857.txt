@@ -1,0 +1,24 @@
+commit 62718fb5d42f6f9581b71be8f54ce6c05283dddc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 31 18:04:53 2009 -0700
+
+    printer:
+    - prepare for generation of HTML id tags and links
+    - do HTML-escaping in central print routine
+    - move tabwriter setup into printer
+    - fixed various TODOs
+    
+    godoc:
+    - removed tabwriter setup, need for various HTML-escaping
+    
+    R=rsc
+    DELTA=210  (107 added, 36 deleted, 67 changed)
+    OCL=32612
+    CL=32616
+
+ src/cmd/godoc/godoc.go             |  67 +++++++++--------
+ src/cmd/gofmt/gofmt.go             |  35 +++++----
+ src/pkg/Make.deps                  |   2 +-
+ src/pkg/go/printer/printer.go      | 146 +++++++++++++++++++++++++++----------
+ src/pkg/go/printer/printer_test.go |   9 +--
+ 5 files changed, 165 insertions(+), 94 deletions(-)

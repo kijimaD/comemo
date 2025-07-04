@@ -1,0 +1,24 @@
+commit 639f6f7e789ffbafd3d6f4327dbc10586e8163db
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 14:18:06 2023 -0700
+
+    cmd/compile/internal/ssagen: fix race added in CL 510539
+    
+    The ssagen pass runs concurrently, so it's not safe to mutate global
+    variables like this.
+    
+    Instead, turn it into a constant and add an assertion that the
+    constant has the correct value.
+    
+    Fixes #62095.
+    
+    Change-Id: Ia7f07e33582564892d194153ac3d8759429fc9ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520598
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

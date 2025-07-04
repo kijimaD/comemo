@@ -1,0 +1,18 @@
+commit eb056dbea7bf2d18ef582bb637979a7c05b9b6a4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 30 14:40:59 2012 -0400
+
+    shootout: make mandelbrot.go more like mandelbrot.c
+    
+    Surprise! The C code is using floating point values for its counters.
+    Its off the critical path, but the Go code and C code are supposed to
+    be as similar as possible to make comparisons meaningful.
+    
+    It doesn't have a significant effect.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6260058
+
+ test/bench/shootout/mandelbrot.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

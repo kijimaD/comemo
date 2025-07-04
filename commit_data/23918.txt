@@ -1,0 +1,17 @@
+commit a5d23fceab47ff3f0cfacfecbe74f2f853a6ed1c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 30 09:01:22 2015 -0700
+
+    doc: add go1.5 note about change to zero-sized fields in cgo
+    
+    This documents the change made in https://golang.org/cl/12864 for
+    https://golang.org/issue/11925.
+    
+    Update #11925.
+    
+    Change-Id: Id09f2a489ea947a725ed12c9cf793e5daef07a06
+    Reviewed-on: https://go-review.googlesource.com/12866
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ doc/go1.5.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

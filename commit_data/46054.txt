@@ -1,0 +1,23 @@
+commit 91a935ea0f525c04016dd37c45143af942ffd3fc
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 23:50:47 2021 +0000
+
+    Revert "go/types: make Interface.Complete a no-op"
+    
+    This reverts commit fda8ee8b077dd8a5819cac7c52c3af1499a0674e.
+    
+    Reason for revert: Interface.Complete is still necessary for safe concurrency.
+    
+    For #47726
+    
+    Change-Id: I8b924ca5f4af8c7d7e2b5a27bb03a5a5ed9b1d22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342710
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/internal/gcimporter/iimport.go |  4 ++++
+ src/go/types/interface.go             | 18 ++++++++++++++----
+ src/go/types/issues_test.go           |  3 +--
+ 3 files changed, 19 insertions(+), 6 deletions(-)

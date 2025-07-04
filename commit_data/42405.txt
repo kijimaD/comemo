@@ -1,0 +1,17 @@
+commit 0d20a492823211cd816ded24c98cfcd58b198faa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 21 00:09:34 2020 -0400
+
+    run.bat: use ..\bin\go instead of "go" to install std and cmd
+    
+    The paths for the other "go" commands in this file were fixed in CL 223741,
+    but this one was missed (and run.bat is not caught by the builders).
+    
+    Change-Id: Iba1efddc7d2fbe6af39c39d643508decc954bbc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234758
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/run.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

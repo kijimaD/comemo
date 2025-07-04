@@ -1,0 +1,12 @@
+commit d41d6fec10d8168363c38aeb94547cdf89c844a6
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue Mar 29 14:29:22 2011 -0400
+
+    syscall: StartProcess Chroot and Credential.
+    
+    R=rsc, iant, agl1
+    CC=golang-dev
+    https://golang.org/cl/4280065
+
+ src/pkg/syscall/exec_unix.go | 54 ++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 47 insertions(+), 7 deletions(-)

@@ -1,0 +1,22 @@
+commit 2e7e1d2e8d96ddf2aff00feb645cfa94bc9e4786
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Sep 8 16:39:17 2023 -0400
+
+    net: synchronize calls to Close in the withTCPConnPair test helper
+    
+    withTCPConnPair is supposed to return only when both peer functions
+    have completed. However, due to the use of "defer" it was closing the
+    peers' connections after the synchronization point instead of before.
+    
+    Fixes #62542.
+    
+    Change-Id: I3e06c78984664172ff2d28b0fc582b8182f710f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526977
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Commit-Queue: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/net_test.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

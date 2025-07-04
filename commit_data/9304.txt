@@ -1,0 +1,14 @@
+commit a09ba8b6387d938df871d545baa5cbf792459aec
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Aug 8 16:29:57 2011 +1000
+
+    exp/template: url filter.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4837063
+
+ src/pkg/exp/template/doc.go       |  3 +++
+ src/pkg/exp/template/exec_test.go |  3 +++
+ src/pkg/exp/template/funcs.go     | 15 +++++++++++++++
+ 3 files changed, 21 insertions(+)

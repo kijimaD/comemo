@@ -1,0 +1,18 @@
+commit 96b79bd3208078835d6a1b9b8c7050554eccc734
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Jun 2 08:49:47 2023 -0700
+
+    syscall: don't panic when argv is nil on freebsd
+    
+    The workaround in CL 69970044 introduced a panic when StartProcess is
+    called with empty argv. Check the length before trying to access it.
+    
+    Change-Id: Ic948d86c7067a21c484ba24e100d1f1f80179730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500415
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/exec_unix.go      |  2 +-
+ src/syscall/exec_unix_test.go | 12 ++++++++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 0cb585f9707f28b04314cedc8c4136172274af52
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Jun 6 17:30:17 2009 -0700
+
+    Basic HTTP POST support.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=45  (37 added, 1 deleted, 7 changed)
+    OCL=29964
+    CL=29990
+
+ src/lib/http/request.go | 31 +++++++++++++++++++++++++++----
+ src/lib/http/triv.go    | 18 ++++++++++++++++--
+ 2 files changed, 43 insertions(+), 6 deletions(-)

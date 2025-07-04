@@ -1,0 +1,28 @@
+commit 6fc5e7d4b52986f82ec25d5993ff7f8bde8b61f5
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue May 9 20:56:09 2023 -0400
+
+    log/slog: create prefix buffer earlier
+    
+    It's possible that the replacement for a built-in attribute is a Group.
+    That would cause a nil pointer exception because the handleState.prefix
+    field isn't set until later, in appendNonBuiltIns.
+    
+    So create the prefix field earlier, at the start of commonHandler.handle.
+    
+    Once we do this, we can simplify the code by creating and freeing the
+    prefix in newHandleState.
+    
+    Along the way I discovered a line that wasn't being tested:
+            state.prefix.WriteString(h.groupPrefix)
+    so I modified an existing test case to cover it.
+    
+    Change-Id: Ib385e3c13451017cb093389fd5a1647d53e610bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494037
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/handler.go      | 31 ++++++++++++++++---------------
+ src/log/slog/handler_test.go | 21 ++++++++++++++++++---
+ 2 files changed, 34 insertions(+), 18 deletions(-)

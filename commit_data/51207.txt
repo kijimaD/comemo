@@ -1,0 +1,19 @@
+commit 3fc8ed2543091693eca514b363fcdbbe5c7f2916
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 9 11:09:42 2022 +0100
+
+    internal/reflectlite: use unsafe.String in name.name and name.tag
+    
+    Same as CL 448675 did in package reflect.
+    
+    Change-Id: I26277d8dcf2d2e204724d6fa5cc6e1ad391633f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448936
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/reflectlite/type.go | 21 ++++++---------------
+ 1 file changed, 6 insertions(+), 15 deletions(-)

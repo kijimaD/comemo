@@ -1,0 +1,15 @@
+commit a01d90744fe5d12ce8b48e7d3c6e67e954a9fe55
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jul 24 14:52:57 2015 -0700
+
+    all: cleanup usage of dashes in package documentation
+    
+    Change-Id: I58453f7ed71eaca15dd3f501e4ae88d1fab19908
+    Reviewed-on: https://go-review.googlesource.com/12683
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/debug/elf/elf.go         | 2 +-
+ src/mime/multipart/writer.go | 3 ++-
+ src/net/http/request.go      | 2 +-
+ 3 files changed, 4 insertions(+), 3 deletions(-)

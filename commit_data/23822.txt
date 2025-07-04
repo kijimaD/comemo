@@ -1,0 +1,20 @@
+commit 3dcfb72fa3d7781e048a05f3ffcfceebc724332c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 24 14:37:58 2015 +1000
+
+    cmd/go: mention go tool compile etc. in the help text for build
+    
+    Not everyone is aware that go build is a wrapper for other
+    tools. Mention this in the text for go help build so people using
+    other build systems won't just wrap go build, which is usually a
+    mistake (it doesn't do incremental builds by default, for instance).
+    
+    Update #11854.
+    
+    Change-Id: I759f91f23ccd3671204c39feea12a3bfaf9f0114
+    Reviewed-on: https://go-review.googlesource.com/12625
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go | 11 +++++++++--
+ src/cmd/go/build.go   | 11 +++++++++--
+ 2 files changed, 18 insertions(+), 4 deletions(-)

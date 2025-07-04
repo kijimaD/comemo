@@ -1,0 +1,16 @@
+commit 4e15dbe0826d79223b483098bfa9aa3abf9a1261
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Thu May 23 10:19:03 2013 -0700
+
+    misc/emacs: Do not modify kill ring when programmatically deleting text
+    
+    Operations like gofmt and go-remove-unused-imports delete entire
+    lines of text. Previously this put them on the kill-ring,
+    negatively affecting user experience.
+    
+    R=adonovan
+    CC=gobot, golang-dev
+    https://golang.org/cl/9605043
+
+ misc/emacs/go-mode.el | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

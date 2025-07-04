@@ -1,0 +1,41 @@
+commit 901bf291bc90819cb6dad76064475cf9ecbc9651
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Dec 3 13:29:58 2020 +0100
+
+    runtime: allow builtin write function to be redirected with function pointer
+    
+    The x/sys/windows package currently uses go:linkname for other facilities
+    inside of runtime that are not suitable to be exposed as a public API
+    due to their dangers but are still necessary for manipulating any
+    low-level plumbing that the runtime controls.
+    
+    Logging, via the built-in println and panic handler, is one such
+    low-level plumbing feature. In this case, x/sys/windows/svc needs to be
+    able to redirect panics to the Windows event log. Because the event log
+    is a complicated interface, this requires a bit more fiddling than the
+    simple solution used on Android (baking it into runtime itself), and
+    because Windows services are very diverse, the event log might not even
+    always be a desirable destination.
+    
+    This commit accomplishes this by exposing a function pointer called
+    "overrideWrite" that low-level runtime packages like x/sys/windows/svc
+    can use to redirect output logs toward the event log or otherwise.
+    
+    It is not safe or acceptable to use as a generic mechanism, and for that
+    reason, we wouldn't want to expose this as a real stable API, similar to
+    the other instances of go:linkname in x/sys/windows. But for packages
+    that must interoperate with low-level Go runtime fundamentals, this is a
+    safety hatch for packages that are developed in tandem with the runtime.
+    x/sys/windows is one such package.
+    
+    Updates #42888.
+    
+    Change-Id: I77a32ff7e1494324e8cc38e792e007f86d32672d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278792
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/time_nofake.go | 5 +++++
+ 1 file changed, 5 insertions(+)

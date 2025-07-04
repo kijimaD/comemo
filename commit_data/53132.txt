@@ -1,0 +1,22 @@
+commit a3e90dc3775307e5f0de0e2c0726841c17363616
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 17 16:36:07 2023 +0000
+
+    runtime: add eager scavenging details to GODEBUG=scavtrace=1
+    
+    Also, clean up atomics on released-per-cycle while we're here.
+    
+    For #57069.
+    
+    Change-Id: I14026e8281f01dea1e8c8de6aa8944712b7b24d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495916
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/extern.go      | 10 ++++++----
+ src/runtime/mgcscavenge.go |  9 +++++----
+ src/runtime/mgcsweep.go    | 14 +++++++++++---
+ src/runtime/mheap.go       |  6 ++++--
+ src/runtime/mpagealloc.go  | 12 ++++++++----
+ 5 files changed, 34 insertions(+), 17 deletions(-)

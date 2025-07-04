@@ -1,0 +1,25 @@
+commit 692f2e9c44e629e84b315f10c8538c9461fd6d61
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Dec 6 20:10:51 2017 -0500
+
+    cmd/compile: fix bug in logic for computing var abstract origins
+    
+    The DWARF inline info generation code was using file/line/column (from
+    src.Pos) as a means of matching up pre- and post-optimization variable
+    nodes. This turns out to be problematic since it looks as though
+    distinct formals on the same line can be assigned the same column
+    number. Work around this issue by adding variable names to the
+    disambiguation code. Added a testpoint to the linker DWARF test that
+    checks to make sure each abstract origin offset of distinct within a
+    given DWARF DW_AT_inlined_routine body.
+    
+    Fixes #23020.
+    
+    Change-Id: Ie09bbe01dc60822d84d4085547b138e644036fb3
+    Reviewed-on: https://go-review.googlesource.com/82396
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/dwinl.go   |  6 ++++++
+ src/cmd/link/internal/ld/dwarf_test.go | 25 ++++++++++++++++++++++++-
+ 2 files changed, 30 insertions(+), 1 deletion(-)

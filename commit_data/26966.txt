@@ -1,0 +1,20 @@
+commit 585590549a3c6e26e7963081e11478a1913744a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 15 22:59:36 2016 +0000
+
+    net/http: add Transport.Dialer, plumb RoundTrip contexts to net package
+    
+    This simply connects the contexts, pushing them down the call stack.
+    Future CLs will utilize them.
+    
+    For #12580 (http.Transport tracing/analytics)
+    Updates #13021
+    
+    Change-Id: I5b2074d6eb1e87d79a767fc0609c84e7928d1a16
+    Reviewed-on: https://go-review.googlesource.com/22124
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go | 28 ++++++++++++++++++++--------
+ 1 file changed, 20 insertions(+), 8 deletions(-)

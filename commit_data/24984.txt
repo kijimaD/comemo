@@ -1,0 +1,17 @@
+commit 476aa95015326371d7863cb4c9d4a9850c326236
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 19 16:20:41 2015 -0500
+
+    cmd/go: skip TestNoteReading2K on Windows
+    
+    It's intended primarily as a torture test for OS X.
+    Apparently Windows can't take it.
+    
+    Updates fix for #12327.
+    
+    Change-Id: If2af249ea8e2f55bff8f232dce06172e6fef9f49
+    Reviewed-on: https://go-review.googlesource.com/17073
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/note_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

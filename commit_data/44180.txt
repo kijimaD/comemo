@@ -1,0 +1,22 @@
+commit ff82cc971aabd113f3b79afb054e287c0d5c5c00
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Jan 18 15:23:16 2021 +0100
+
+    os: force consistent mtime before running fstest on directory on Windows
+    
+    FindFileNext sometimes returns a different mtime than looking at the
+    file directly, because the MFT on NTFS is written to lazily. In order to
+    keep these in sync, we use GetFileInformationByHandle to get the actual
+    mtime, and then write it back to the file explicitly.
+    
+    Fixes #42637.
+    
+    Change-Id: I774016d3ac55d0dc9b0f9c1b681516c33ba0d28a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285720
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/os/os_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

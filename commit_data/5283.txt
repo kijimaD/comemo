@@ -1,0 +1,13 @@
+commit d80c78b62f8ca71355f4b57c87791e8005033ff2
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Apr 12 18:10:29 2010 -0700
+
+    test: minor updates to avoid bitrot
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/854046
+
+ test/garbage/parser.go | 10 +++++-----
+ test/garbage/peano.go  |  2 +-
+ 2 files changed, 6 insertions(+), 6 deletions(-)

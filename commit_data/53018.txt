@@ -1,0 +1,39 @@
+commit d6cc77fa2532799609cff369af65378a83ab9030
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Tue May 9 23:25:50 2023 +0000
+
+    cmd/go/internal/modload: reject the -modfile flag in workspace mode
+    
+    Currently, in workspace mode, the -modfile flag affects all the modules
+    listed in the go.work file. This is not desirable most of the time. And
+    when it results in an error, the error message does not help.
+    
+    For example, when there are more than one modules listed in the go.work
+    file, running "go list -m -modfile=path/to/go.mod" gives this error:
+      go: module example.com/foo appears multiple times in workspace
+    
+    This change reject -modfile flag explicitly with this error message:
+      go: -modfile cannot be used in workspace mode
+    
+    While at here, correct some typos in the modload package.
+    
+    Fixes #59996.
+    
+    Change-Id: Iff4cd9f3974ea359889dd713a747b6932cf42dfd
+    GitHub-Last-Rev: 7dbc9c3f2f9bfe8acab088eb3266a08d8ec1ba16
+    GitHub-Pull-Request: golang/go#60033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493315
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/buildlist.go           |  8 ++---
+ src/cmd/go/internal/modload/import.go              |  4 +--
+ src/cmd/go/internal/modload/init.go                |  5 +++-
+ src/cmd/go/internal/modload/load.go                |  4 +--
+ src/cmd/go/internal/modload/query.go               |  6 ++--
+ src/cmd/go/internal/modload/vendor.go              |  4 +--
+ src/cmd/go/testdata/script/work_reject_modfile.txt | 34 ++++++++++++++++++++++
+ 7 files changed, 51 insertions(+), 14 deletions(-)

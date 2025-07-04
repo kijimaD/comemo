@@ -1,0 +1,43 @@
+commit 9db3f78c392643769fd46fc7900a6deb1fd2692f
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Nov 1 11:42:54 2011 +1100
+
+    html: process </td> tags; foster parent at most one node per token
+    
+    Correctly close table cell when </td> is read.
+    
+    Because of reconstructing the active formatting elements, more than one
+    node may be created when reading a single token.
+    If both nodes are foster parented, they will be siblings, but the first
+    node should be the parent of the second.
+    
+    Pass tests1.dat, test 77:
+    <a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <a>
+    |       href="blah"
+    |       "aba"
+    |       <a>
+    |         href="foo"
+    |         "br"
+    |       <a>
+    |         href="foo"
+    |         "x"
+    |       <table>
+    |         <tbody>
+    |           <tr>
+    |             <td>
+    |     <a>
+    |       href="foo"
+    |       "aoe"
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5305074
+
+ src/pkg/html/parse.go      | 8 +++++++-
+ src/pkg/html/parse_test.go | 6 +++---
+ 2 files changed, 10 insertions(+), 4 deletions(-)

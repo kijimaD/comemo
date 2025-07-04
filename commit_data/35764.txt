@@ -1,0 +1,21 @@
+commit 3ca5b7c5b21574da0b29ea1d2d53ffce8711d225
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 19 20:43:24 2018 -0700
+
+    internal/poll: better panic message for lock overflow
+    
+    Instead of "inconsistent poll.fdMutex", panic with
+    "too many concurrent operations on a single file or socket (max 1048575)".
+    
+    Fixes #25558
+    
+    Change-Id: I5cad3633aa539fb6f48cca236c6656c86acfb663
+    Reviewed-on: https://go-review.googlesource.com/119956
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/internal/poll/fd_mutex.go      | 10 ++++++----
+ src/internal/poll/fd_mutex_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 4 deletions(-)

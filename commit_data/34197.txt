@@ -1,0 +1,22 @@
+commit 3658299f449e63026caf08a02eba855aab6755b6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 12 22:11:51 2017 -0800
+
+    runtime: short-circuit typedslicecopy when dstp == srcp
+    
+    If copying from a slice to itself, skip the write barriers
+    and actual memory copies.
+    
+    This happens in practice in code like this snippet from
+    the trim pass in the compiler, when k ends up being 0:
+    
+    copy(s.Values[k:], s.Values[:m])
+    
+    Change-Id: Ie6924acfd56151f874d87f1d7f1f74320b4c4f10
+    Reviewed-on: https://go-review.googlesource.com/94023
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mbarrier.go | 4 ++++
+ 1 file changed, 4 insertions(+)

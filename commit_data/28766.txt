@@ -1,0 +1,20 @@
+commit f373bf1eb9a21f843dc0094c3702c2855a2e0d3f
+Author: Shawn Walker-Salas <shawn.walker@oracle.com>
+Date:   Wed Jun 15 13:44:03 2016 -0700
+
+    cmd/link: non-executable stack support for Solaris
+    
+    Support the tagging of binaries created with the internal linker
+    on Solaris as having a non-executable stack by writing a PT_SUNWSTACK
+    program header.
+    
+    Fixes #16074
+    
+    Change-Id: I3888f2153083385d04a52f341570f93e5738b276
+    Reviewed-on: https://go-review.googlesource.com/24142
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/elf.go | 5 +++++
+ 1 file changed, 5 insertions(+)

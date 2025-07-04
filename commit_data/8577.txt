@@ -1,0 +1,14 @@
+commit 59a190589a86a3c77200e5b76c912210ff8148ac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 1 15:12:47 2011 -0700
+
+    godoc: basic setup for running godoc on local app engine emulator
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4559058
+
+ misc/godoc/README   | 22 ++++++++++++++++++++++
+ misc/godoc/app.yaml | 12 ++++++++++++
+ misc/godoc/init.go  | 35 +++++++++++++++++++++++++++++++++++
+ 3 files changed, 69 insertions(+)

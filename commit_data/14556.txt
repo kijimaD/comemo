@@ -1,0 +1,18 @@
+commit feb95a802e7a2d31f50389e1eca4b536e279203f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 4 16:51:51 2012 -0800
+
+    test: tweak bug273.go to not have constant len < cap when calling make
+    
+    The current spec says that when calling make, if both len and
+    cap are constant, it is an error if len > cap.  The gc
+    compiler does not yet implement that, but when it does this
+    will need to change.  Changing it now for the benefit of
+    gccgo.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/6867064
+
+ test/fixedbugs/bug273.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

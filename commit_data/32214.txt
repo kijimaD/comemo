@@ -1,0 +1,37 @@
+commit 5d14ac74f614631a38be95cc9724ff38068c6c76
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Wed Aug 2 19:18:30 2017 +0200
+
+    encoding/csv: report line start line in errors
+    
+    Errors returned by Reader contain the line where the Reader originally
+    encountered the error. This can be suboptimal since that line does not
+    always correspond with the line the current record/field started at.
+    
+    This can easily happen with LazyQuotes as seen in #19019, but also
+    happens for example when a quoted fields has no closing quote and
+    the parser hits EOF before it finds another quote.
+    
+    When this happens finding the erroneous field can be somewhat
+    complicated and time consuming, and in most cases it would be better to
+    report the line where the record started.
+    
+    This change updates Reader to keep track of the line on which a record
+    begins and uses it for errors instead of the current line, making it
+    easier to find errors.
+    
+    Although a user-visible change, this should have no impact on existing
+    code, since most users don't explicitly work with the line in the error
+    and probably already expect the new behaviour.
+    
+    Updates #19019
+    
+    Change-Id: Ic9bc70fad2651c69435d614d537e7a9266819b05
+    Reviewed-on: https://go-review.googlesource.com/52830
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/csv/reader.go      | 11 +++++++----
+ src/encoding/csv/reader_test.go | 14 ++++++++++++++
+ 2 files changed, 21 insertions(+), 4 deletions(-)

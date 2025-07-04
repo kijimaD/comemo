@@ -1,0 +1,16 @@
+commit aa8262d800f0cba2e4d4472a7e344eb60481b0ff
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 19 10:33:46 2022 -0700
+
+    reflect: adjust MapRange allocation test for noopt builder, take 2
+    
+    Change-Id: If2887f84b3d14fac3c059fc5bad4186ec9d69d0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401077
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/all_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

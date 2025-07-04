@@ -1,0 +1,38 @@
+commit 4fe1971b2dff1fa14cb8f5be47aed7fda76c0f7c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 4 14:35:39 2022 -0700
+
+    os: use poll.fdMutex for Plan 9 files
+    
+    This permits us to safely support concurrent access to files on Plan 9.
+    Concurrent access was already safe on other systems.
+    
+    This does introduce a change: if one goroutine calls a blocking read
+    on a pipe, and another goroutine closes the pipe, then before this CL
+    the close would occur. Now the close will be delayed until the blocking
+    read completes.
+    
+    Also add tests that concurrent I/O and Close on a pipe are OK.
+    
+    For #50436
+    For #56043
+    
+    Change-Id: I969c869ea3b8c5c2f2ef319e441a56a3c64e7bf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438347
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/internal/poll/export_test.go   |  12 ++--
+ src/internal/poll/fd_mutex_test.go |  12 ++--
+ src/internal/poll/file_plan9.go    |  42 ++++++++++++++
+ src/os/file_mutex_plan9.go         |  70 +++++++++++++++++++++++
+ src/os/file_plan9.go               |  80 +++++++++++++++++++++-----
+ src/os/os_test.go                  | 112 +++++++++++++++++++++++++++++++++++++
+ src/os/stat_plan9.go               |   4 ++
+ src/os/types_plan9.go              |   2 -
+ 8 files changed, 306 insertions(+), 28 deletions(-)

@@ -1,0 +1,24 @@
+commit 8206cce1178717adec1d56abbb0e57ee708f862a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 9 13:15:46 2011 -0800
+
+    syslog: split Unix domain support from network support.
+    
+    This is to make it easier to support Solaris syslog.  On
+    Solaris syslog messages are sent via STREAMS using putmsg to
+    /dev/conslog.  The putmsg call uses a a control buffer of type
+    log_cdtl and a data buffer which is the message, and it is in
+    general a big mess.  This CL just splits out the Unix domain
+    support so that Solaris can use a different mechanism.  I do
+    not propose to implement the Solaris support today.  This
+    split will make it possible for gccgo to just call the libc
+    function for now.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4261061
+
+ src/pkg/syslog/Makefile       |  1 +
+ src/pkg/syslog/syslog.go      | 54 ++++++++++++++++++++++++-------------------
+ src/pkg/syslog/syslog_unix.go | 31 +++++++++++++++++++++++++
+ 3 files changed, 62 insertions(+), 24 deletions(-)

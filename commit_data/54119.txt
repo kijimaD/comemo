@@ -1,0 +1,16 @@
+commit a7c3de705287d56e3bea8a84ed9a56e4102d3f39
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Aug 10 14:02:03 2023 +0800
+
+    runtime: document maxStack and m.createstack in more details
+    
+    Change-Id: If93b6cfa5a598a5f4101c879a0cd88a194e4a6aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518116
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+
+ src/runtime/mprof.go    | 5 ++++-
+ src/runtime/runtime2.go | 2 +-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

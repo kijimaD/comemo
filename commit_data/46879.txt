@@ -1,0 +1,18 @@
+commit b90d258b18e2fe728a3d7c856ad08c7fa6845fc2
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Oct 13 10:27:01 2021 -0700
+
+    cmd/compile: fix inst_test.go for riscv5
+    
+    On riscv5, apparently extra wrappers (trampolines) are created for some
+    functions with the suffix "-tramp". Modify inst_test.go to not match
+    these "-tramp" wrappers.
+    
+    Change-Id: I754c724f03555c30f8e1b5cfc08152555bbbcf17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355650
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/test/inst_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

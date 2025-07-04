@@ -1,0 +1,17 @@
+commit c4f77b11df3ab8c3a717ef7f57f957c491d57c8e
+Author: Alexander Rakoczy <alex@golang.org>
+Date:   Tue Jun 9 16:17:46 2020 -0400
+
+    api: promote next to go1.15
+    
+    Change-Id: I42e0d096b28614b95b0af21144f8f118e3eafcd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237297
+    Run-TryBot: Alexander Rakoczy <alex@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ api/go1.15.txt | 133 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt   |   3 --
+ 2 files changed, 133 insertions(+), 3 deletions(-)

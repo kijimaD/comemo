@@ -1,0 +1,32 @@
+commit 5feb8b60e7069e1b15273836b522a05a6b40edc6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 18:20:21 2023 +1000
+
+    runtime/cgo: use fatalf on dragonfly, freebsd, netbsd and openbsd
+    
+    Use fatalf consistently on freebsd. Also use it on dragonfly, netbsd
+    and openbsd.
+    
+    Change-Id: I8643c0b7bc13c3cb5173209d311d6d297913955b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518615
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/cgo/gcc_dragonfly_amd64.c | 3 +--
+ src/runtime/cgo/gcc_fatalf.c          | 2 +-
+ src/runtime/cgo/gcc_freebsd_386.c     | 3 +--
+ src/runtime/cgo/gcc_freebsd_arm.c     | 3 +--
+ src/runtime/cgo/gcc_freebsd_arm64.c   | 3 +--
+ src/runtime/cgo/gcc_freebsd_riscv64.c | 3 +--
+ src/runtime/cgo/gcc_netbsd_386.c      | 3 +--
+ src/runtime/cgo/gcc_netbsd_amd64.c    | 3 +--
+ src/runtime/cgo/gcc_netbsd_arm.c      | 3 +--
+ src/runtime/cgo/gcc_netbsd_arm64.c    | 3 +--
+ src/runtime/cgo/gcc_openbsd_386.c     | 3 +--
+ src/runtime/cgo/gcc_openbsd_amd64.c   | 3 +--
+ src/runtime/cgo/gcc_openbsd_arm.c     | 3 +--
+ src/runtime/cgo/gcc_openbsd_arm64.c   | 3 +--
+ src/runtime/cgo/gcc_openbsd_mips64.c  | 3 +--
+ 15 files changed, 15 insertions(+), 29 deletions(-)

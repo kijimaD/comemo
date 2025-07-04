@@ -1,0 +1,25 @@
+commit 9def857072bb708a79c291bb88c4b2830f0a8376
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Dec 26 11:33:46 2016 -0800
+
+    database/sql: prevent Tx.rollback from racing Tx.close
+    
+    Previously Tx.done was being set in close, but in a Tx
+    rollback and Commit are the real closing methods,
+    and Tx.close is just a helper common to both. Prior to this
+    change a multiple rollback statements could be called, one
+    would enter close and begin closing it while the other was
+    still in rollback breaking it. Fix that by setting done
+    in rollback and Commit, not in Tx.close.
+    
+    Fixes #18429
+    
+    Change-Id: Ie274f60c2aa6a4a5aa38e55109c05ea9d4fe0223
+    Reviewed-on: https://go-review.googlesource.com/34716
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go      |  9 ++++-----
+ src/database/sql/sql_test.go | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 5 deletions(-)

@@ -1,0 +1,13 @@
+commit 28c64e300663a34067d09f2e6536cd72e6e0bf01
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 29 13:49:31 2013 +1000
+
+    A+C: add Katrina Owen (individual CLA)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/9853043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

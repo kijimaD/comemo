@@ -1,0 +1,23 @@
+commit 0074125ceff19c38bcb7deb1b32bc86629f69524
+Author: Jean-Baptiste PIN <jibet.pin@gmail.com>
+Date:   Wed Sep 27 07:11:05 2023 +0000
+
+    crypto/x509: Add android user trusted CA folder
+    
+    User can trust new CA on android but it seems that go build package are not able to use it.
+    
+    This PR will add the folder where user CA trusted certificate is added to.
+    
+    Change-Id: I9ea7801b35847ea3eb4eedd875227743ba99af00
+    GitHub-Last-Rev: c49ffd270b6483b750d97e422b76237b112e508c
+    GitHub-Pull-Request: golang/go#50240
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473035
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/root_linux.go | 1 +
+ 1 file changed, 1 insertion(+)

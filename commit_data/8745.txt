@@ -1,0 +1,13 @@
+commit 5a5a7b5163112d74bd8700b1ba39808e802f67b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 01:25:49 2011 -0400
+
+    6g, 8g: fix goto fix
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4632041
+
+ src/cmd/6g/gsubr.c | 5 ++++-
+ src/cmd/8g/gsubr.c | 5 ++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

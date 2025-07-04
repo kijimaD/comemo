@@ -1,0 +1,12 @@
+commit 2adc2d1b8bd0cb389e1ecd511b4e213a5a8a7107
+Author: Kevin Burke <kev@inburke.com>
+Date:   Wed Dec 14 20:20:42 2016 -0800
+
+    net: fix typo
+    
+    Change-Id: Icef8a21654a248666c684d5b10d0337c544ddb25
+    Reviewed-on: https://go-review.googlesource.com/34388
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dial.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

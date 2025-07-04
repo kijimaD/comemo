@@ -1,0 +1,16 @@
+commit 0f1b4880935a4eddef135d4d32d2240196184e9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 15 12:30:14 2013 -0400
+
+    build: fix for 32-bit windows builds on 64-bit windows system
+    
+    Thanks to jon.forums@ for the fix.
+    
+    Fixes #5051.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7813045
+
+ include/libc.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

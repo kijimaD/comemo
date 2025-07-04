@@ -1,0 +1,27 @@
+commit e4ce08afe0a01b850e266efef52b03eab94a470f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 7 11:06:00 2017 -0700
+
+    spec: clarify restrictions on RHS of non-constant shifts
+    
+    For non-constant shifts with an untyped constant shift count, the
+    spec only said that it must "be converted to unsigned integer type".
+    go/types accepts any (arbitrarily large) integer value. Both cmd/compile
+    and gccgo require that the shift count be representable as a uint value
+    in that case (if the shift count is typed, it may be any unsigned integer
+    type).
+    
+    This change adjusts the spec to state what the compilers have been doing
+    all along. The new wording matches similar rules elsewhere (e.g., for
+    untyped array and slice indices). Also, while technically this is a
+    restriction (we could permit arbitrarily large shift counts), in practice
+    this is irrelevant.
+    
+    Fixes #14822.
+    
+    Change-Id: Ia75834c67483cf761c10025c8df758f225ef67c2
+    Reviewed-on: https://go-review.googlesource.com/45072
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

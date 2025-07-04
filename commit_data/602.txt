@@ -1,0 +1,14 @@
+commit 203b55e319203a57fb48a70249939e47502c7b87
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 10 13:24:47 2008 -0700
+
+    Eliminate duplication of MethodDecl nonterminal by renaming
+    the one associated with interface types.
+    
+    R=gri
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=15092
+    CL=15096
+
+ doc/go_spec.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

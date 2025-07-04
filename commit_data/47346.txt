@@ -1,0 +1,20 @@
+commit 5344dcae4139de85b9e3d8cea81f9b65fc2bd25f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Nov 8 15:51:05 2021 +0700
+
+    cmd/compile: remove unneeded "==" method in pre-defined "comparable" interface
+    
+    Fixes #49421
+    
+    Change-Id: Iecf3952346ecd278198c1000014a321e230f7fa7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361962
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  6 ------
+ src/cmd/compile/internal/types/universe.go      |  6 +++---
+ test/typeparam/issue49421.go                    | 27 +++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 9 deletions(-)

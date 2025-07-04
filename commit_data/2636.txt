@@ -1,0 +1,14 @@
+commit 17bc836127db65ac875ea22d5ef699fee5889a3b
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 7 15:47:01 2009 -0700
+
+    Add entry points for parsing statements and expressions.
+    
+    R=gri
+    APPROVED=gri
+    DELTA=73  (48 added, 0 deleted, 25 changed)
+    OCL=31302
+    CL=31308
+
+ src/pkg/go/parser/parser.go | 88 ++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 68 insertions(+), 20 deletions(-)

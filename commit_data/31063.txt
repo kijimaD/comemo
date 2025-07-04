@@ -1,0 +1,33 @@
+commit dcf643f1fd39f98baa4686c1b3baf5691e5773d3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 6 12:51:55 2017 -0700
+
+    cmd/internal/obj/arm: make assembler concurrency-safe
+    
+    Move global state from obj.Link
+    to a new function-local state struct arm.ctxt5.
+    
+    This ends up being cleaner than threading
+    all the state through as parameters; there's a lot of it.
+    While we're here, move newprog from a parameter to ctxt5.
+    
+    We reserve the variable name c for ctxt5,
+    so a few local variables named c have been renamed.
+    
+    Instead of lazily initializing deferreturn
+    and Sym_div and friends, initialize them up front.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: Ifb4e4b9879e4e1f25e6168d8b7b2a25a3390dc11
+    Reviewed-on: https://go-review.googlesource.com/39922
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm/asm5.go | 767 ++++++++++++++++++++-------------------
+ src/cmd/internal/obj/arm/obj5.go | 137 +++----
+ src/cmd/internal/obj/link.go     |   5 -
+ 3 files changed, 452 insertions(+), 457 deletions(-)

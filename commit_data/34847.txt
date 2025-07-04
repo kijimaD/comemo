@@ -1,0 +1,22 @@
+commit fcfea247426703e6daaa0fa3383e762bf7ec081f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 3 13:17:28 2018 +0100
+
+    cmd/compile: early return/continue to unindent some code
+    
+    While at it, also simplify a couple of switches.
+    
+    Doesn't pass toolstash -cmp on std cmd, because orderBlock(&n2.Nbody) is
+    moved further down to the n3 loop.
+    
+    Change-Id: I20a2a6c21eb9a183a59572e0fca401a5041fc40a
+    Reviewed-on: https://go-review.googlesource.com/104416
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/order.go     | 238 +++++++++++++++----------------
+ src/cmd/compile/internal/gc/sinit.go     |  41 +++---
+ src/cmd/compile/internal/gc/typecheck.go |  26 ++--
+ 3 files changed, 152 insertions(+), 153 deletions(-)

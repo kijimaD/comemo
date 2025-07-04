@@ -1,0 +1,37 @@
+commit 129b597de360d9740240d51b8dc7d215227ec802
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 3 21:00:13 2023 +0000
+
+    Revert "crypto/sha1: add WriteString and WriteByte method"
+    
+    This reverts CL 483815
+    
+    Reason for revert: can cause cgo errors when using boringcrypto.
+    See #59954.
+    
+    For #38776
+    For #59954
+    
+    Change-Id: I1f7e0fb06b627971811623927e3d98c0fdbc730b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492375
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+
+ src/crypto/internal/boring/sha.go    | 14 ---------
+ src/crypto/sha1/sha1.go              | 61 ++++++------------------------------
+ src/crypto/sha1/sha1_test.go         | 33 +------------------
+ src/crypto/sha1/sha1block.go         |  2 +-
+ src/crypto/sha1/sha1block_386.s      |  6 ++--
+ src/crypto/sha1/sha1block_amd64.go   | 33 +++++--------------
+ src/crypto/sha1/sha1block_amd64.s    | 12 +++----
+ src/crypto/sha1/sha1block_arm.s      |  9 +++---
+ src/crypto/sha1/sha1block_arm64.go   | 18 ++---------
+ src/crypto/sha1/sha1block_arm64.s    |  8 ++---
+ src/crypto/sha1/sha1block_decl.go    | 12 +------
+ src/crypto/sha1/sha1block_generic.go |  4 ---
+ src/crypto/sha1/sha1block_s390x.go   |  9 +-----
+ src/crypto/sha1/sha1block_s390x.s    |  8 ++---
+ 14 files changed, 46 insertions(+), 183 deletions(-)

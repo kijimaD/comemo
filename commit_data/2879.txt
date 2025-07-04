@@ -1,0 +1,20 @@
+commit aa347c4a0dfe285ed1dec12e77108106804fa3d4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 4 18:43:32 2009 -0700
+
+    move various bits of code around
+    and delete some dead code.
+    no actual changes here.
+    
+    R=ken
+    OCL=32764
+    CL=32764
+
+ src/cmd/gc/Makefile |   30 +-
+ src/cmd/gc/dcl.c    | 2496 ++++++++++++++++++++++-----------------------------
+ src/cmd/gc/go.h     |    4 -
+ src/cmd/gc/go.y     |    2 -
+ src/cmd/gc/init.c   |  193 ++++
+ src/cmd/gc/subr.c   |  126 ++-
+ src/cmd/gc/unsafe.c |   87 ++
+ 7 files changed, 1466 insertions(+), 1472 deletions(-)

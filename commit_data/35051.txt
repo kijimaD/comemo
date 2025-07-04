@@ -1,0 +1,17 @@
+commit d5a52e704490264a5dabb9c2f944bb67cd879db0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 19 12:12:51 2018 +0200
+
+    internal/syscall/windows: convert CRLF line endings
+    
+    CL 99337 introduced a file with CRLF line endings. Convert them to LF
+    line endings as in all other Go files.
+    
+    Change-Id: I68b28fd443f05bebbbd9280d1821c4ccd33a4a8a
+    Reviewed-on: https://go-review.googlesource.com/108075
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/syscall/windows/symlink_windows.go | 28 ++++++++++++-------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

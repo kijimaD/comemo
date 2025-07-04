@@ -1,0 +1,14 @@
+commit 8cc7540ecb592e8f9fdb429c3c7f5ede9548dfca
+Author: Keith Randall <khr@google.com>
+Date:   Mon Aug 6 10:17:52 2018 -0700
+
+    doc: describe cgo ptr->uintptr changes for 1.11.
+    
+    Fixes #26721
+    
+    Change-Id: Icc4660327a9ba668c88f8d9e0b9f206ba8f6dc27
+    Reviewed-on: https://go-review.googlesource.com/127975
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,0 +1,18 @@
+commit 354b100567e9e75488b13f5a6555bd95f299cd3b
+Author: Eden Li <eden.li@gmail.com>
+Date:   Sun Nov 29 18:14:39 2009 -0800
+
+    cgo: use C type void for opaque types if dwarf.Common().Type returns nothing
+    
+    Ideally, the C name would come from the typedef or pointer that
+    references the Size<0 type, but we can't easily generate this without
+    performing a look-ahead to see if any referencing type will become opaque.
+    
+    Fixes #334.
+    Fixes #281.
+    
+    R=rsc
+    https://golang.org/cl/161056
+
+ src/cmd/cgo/gcc.go | 3 +++
+ 1 file changed, 3 insertions(+)

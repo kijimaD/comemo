@@ -1,0 +1,12 @@
+commit f2b1536328b2135cd18c515d057d8ead25496322
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 30 15:29:55 2008 -0700
+
+    annotations on embedded types
+    
+    R=ken
+    OCL=18179
+    CL=18179
+
+ src/cmd/gc/go.y | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

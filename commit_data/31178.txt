@@ -1,0 +1,19 @@
+commit 245ef3a15739c9e0ee6ae4faf21e85574906c25a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 15 08:00:08 2017 -0700
+
+    cmd/compile: look up more runtime symbols before SSA begins
+    
+    This avoids concurrent runtime package lookups.
+    
+    Updates #15756
+    
+    Change-Id: I9e2cbd042aba44923f0d03e6ca5b4eb60fa9e7ea
+    Reviewed-on: https://go-review.googlesource.com/40853
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/go.go  |  7 ++++++-
+ src/cmd/compile/internal/gc/ssa.go | 20 +++++++++++++++++++-
+ 2 files changed, 25 insertions(+), 2 deletions(-)

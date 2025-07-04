@@ -1,0 +1,24 @@
+commit 3ffc8a25569ed107ebc1786bbd4f993dd6689601
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 30 12:47:06 2023 -0400
+
+    runtime/pprof: use testenv.Command in tests instead of exec.Command
+    
+    If the test is about to time out, testenv.Command sends SIGQUIT to the
+    child process. The runtime's SIGQUIT goroutine dump should help us to
+    determine whether the hangs observed in TestCPUProfileWithFork are a
+    symptom of #60108 or a separate bug.
+    
+    For #59995.
+    Updates #60108.
+    
+    Change-Id: I26342ca262b2b0772795c8be142cfcad8d90db30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507356
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/runtime/pprof/pprof_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit 35cee9f5d8cf9cdee2cb346f4a4ca1dd83bd2ca4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 15 14:04:47 2011 -0400
+
+    gofmt: simpler walkDir
+    
+    Swapping the goroutines lets them reuse the
+    communication completion on v instead of
+    needing a second channel (done).
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4287045
+
+ src/cmd/gofmt/gofmt.go | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

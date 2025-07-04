@@ -1,0 +1,54 @@
+commit 4f7af5d192e04d5dcca866387329160f821752b9
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Apr 3 12:11:46 2023 +0800
+
+    cmd/compiler,internal/runtime/atomic: optimize xadd{32,64} on loong64
+    
+    Use Loong64's atomic operation instruction AMADDDB{W,V} (full barrier)
+    to implement atomic.Xadd{32,64}
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A5000 @ 2500.00MHz
+              |  bench.old    |  bench.new                            |
+              |  sec/op       |  sec/op          vs base              |
+    Xadd         27.24n ± 0%     12.01n ± 0%    -55.91% (p=0.000 n=20)
+    Xadd-2       31.93n ± 0%     25.55n ± 0%    -19.98% (p=0.000 n=20)
+    Xadd-4       31.90n ± 0%     24.80n ± 0%    -22.26% (p=0.000 n=20)
+    Xadd64       27.23n ± 0%     12.01n ± 0%    -55.89% (p=0.000 n=20)
+    Xadd64-2     31.93n ± 0%     25.57n ± 0%    -19.90% (p=0.000 n=20)
+    Xadd64-4     31.89n ± 0%     24.80n ± 0%    -22.23% (p=0.000 n=20)
+    geomean      30.27n          19.67n         -35.01%
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A6000 @ 2500.00MHz
+              |  bench.old    |  bench.new                           |
+              |  sec/op       |  sec/op         vs base              |
+    Xadd         26.02n ± 0%     12.41n ± 0%   -52.31% (p=0.000 n=20)
+    Xadd-2       37.36n ± 0%     20.60n ± 0%   -44.86% (p=0.000 n=20)
+    Xadd-4       37.22n ± 0%     19.59n ± 0%   -47.37% (p=0.000 n=20)
+    Xadd64       26.42n ± 0%     12.41n ± 0%   -53.03% (p=0.000 n=20)
+    Xadd64-2     37.77n ± 0%     20.60n ± 0%   -45.46% (p=0.000 n=20)
+    Xadd64-4     37.78n ± 0%     19.59n ± 0%   -48.15% (p=0.000 n=20)
+    geomean      33.30n          17.11n        -48.62%
+    
+    Change-Id: I982539c2aa04680e9dd11b099ba8d5f215bf9b32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481937
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+
+ src/cmd/compile/internal/loong64/ssa.go         | 95 +++++--------------------
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 -
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 14 +---
+ src/cmd/compile/internal/ssa/opGen.go           | 38 ----------
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 52 --------------
+ src/internal/runtime/atomic/atomic_loong64.s    | 28 +++-----
+ 6 files changed, 29 insertions(+), 201 deletions(-)

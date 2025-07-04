@@ -1,0 +1,34 @@
+commit 9d59234cbe55c32b6b64969a4360ecccfce582fd
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 18 16:36:20 2018 -0500
+
+    runtime: move unrecoverable panic handling to the system stack
+    
+    Currently parts of unrecoverable panic handling (notably, printing
+    panic messages) can happen on the user stack. This may grow the stack,
+    which is generally fine, but if we're handling a runtime panic, it's
+    better to do as little as possible in case the runtime is in an
+    inconsistent state.
+    
+    Hence, this commit rearranges the handling of unrecoverable panics so
+    that it's done entirely on the system stack.
+    
+    This is mostly a matter of shuffling code a bit so everything can move
+    into a systemstack block. The one slight subtlety is in the "panic
+    during panic" case, where we now depend on startpanic_m's caller to
+    print the stack rather than startpanic_m itself. To make this work,
+    startpanic_m now returns a boolean indicating that the caller should
+    avoid trying to print any panic messages and get right to the stack
+    trace. Since the caller is already in a position to do this, this
+    actually simplifies things a little.
+    
+    Change-Id: Id72febe8c0a9fb31d9369b600a1816d65a49bfed
+    Reviewed-on: https://go-review.googlesource.com/93658
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/os3_plan9.go         |  2 +-
+ src/runtime/panic.go             | 77 +++++++++++++++++++++++-----------------
+ src/runtime/signal_sighandler.go |  2 +-
+ 3 files changed, 46 insertions(+), 35 deletions(-)

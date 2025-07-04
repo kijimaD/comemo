@@ -1,0 +1,29 @@
+commit 8f694f66613db1d5bf1eb6eb13a9ec00a59ef3b8
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Jul 29 11:57:46 2009 -0700
+
+    Flatten the Frame tree.  Now each function call produces a
+    single frame and non-overlapping variables reuse frame slots.
+    As a result, entering and exiting blocks no longer requires
+    code execution, which means jumps across block boundaries
+    should be doable now.  Frame slot initialization happens at
+    definition time now, instead of at frame creation time.  As an
+    added bonus, Scope's are now exclusively compile-time objects
+    and we no longer need to specially track the function
+    activation frame for access to out vars.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=313  (102 added, 90 deleted, 121 changed)
+    OCL=32416
+    CL=32420
+
+ usr/austin/eval/compiler.go |  17 ++---
+ usr/austin/eval/decls.go    |  63 +++++++++++++----
+ usr/austin/eval/expr.go     |  68 +++++++++++--------
+ usr/austin/eval/func.go     |  16 ++---
+ usr/austin/eval/scope.go    | 161 ++++++++++++++++++++------------------------
+ usr/austin/eval/stmt.go     |  83 ++++++++++-------------
+ usr/austin/eval/type.go     |   2 -
+ usr/austin/eval/typec.go    |  14 ++--
+ 8 files changed, 218 insertions(+), 206 deletions(-)

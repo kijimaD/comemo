@@ -1,0 +1,25 @@
+commit 34ab42111cc989a2951134ef12c0e71888d41270
+Author: Mark Ryan <mark.d.ryan@intel.com>
+Date:   Thu Jun 15 11:22:48 2017 +0100
+
+    encoding: report correct line numbers in tests
+    
+    Some of the _test.go files in the encoding packages contain a private
+    function called testEqual that calls testing.Errorf if the arguments
+    passed to it are unequal.   The line numbers output by such calls to
+    Errorf identify the failure as being in testEqual itself which is not
+    very useful.  This commit fixes the problem by adding a call to the
+    new t.Helper method in each of the testEqual functions.  The line
+    numbers output when errors do occur now identify the real source of
+    the error.
+    
+    Change-Id: I582d1934f40ef2b788116c3811074c67ea882021
+    Reviewed-on: https://go-review.googlesource.com/45871
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/ascii85/ascii85_test.go | 1 +
+ src/encoding/base32/base32_test.go   | 1 +
+ src/encoding/base64/base64_test.go   | 1 +
+ 3 files changed, 3 insertions(+)

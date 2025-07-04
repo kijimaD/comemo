@@ -1,0 +1,15 @@
+commit 6519a6ba5b2e9f8a4dd4fe5fa47123d1d8c968ba
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 21 18:03:49 2010 -0700
+
+    ld: add -u flag to check safe bits; discard old -u, -x flags
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/1707043
+
+ src/cmd/5l/obj.c | 10 ----------
+ src/cmd/6l/obj.c | 10 ----------
+ src/cmd/8l/obj.c | 10 ----------
+ src/cmd/ld/go.c  | 29 ++++++++++++++++++++++++++++-
+ 4 files changed, 28 insertions(+), 31 deletions(-)

@@ -1,0 +1,20 @@
+commit 23f13255f0a5a3dd34ee31b64e45fa87efadcb43
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Tue May 3 13:55:40 2022 -0700
+
+    runtime: re-add import in trace.go
+    
+    CL 400795, which uses the runtime/internal/atomic package in trace.go,
+    raced against CL 397014 removing that import. Re-add the import.
+    
+    Change-Id: If847ec23f9a0fdff91dab07e93d9fb1b2efed85b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403845
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/trace.go | 1 +
+ 1 file changed, 1 insertion(+)

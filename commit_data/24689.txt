@@ -1,0 +1,36 @@
+commit 914db9f060b1fd3eb1f74d48f3bd46a73d4ae9c7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Oct 31 14:44:48 2015 -0700
+
+    cmd/link: support new 386/amd64 relocations
+    
+    The GNU binutils recently picked up support for new 386/amd64
+    relocations.  Add support for them in the Go linker when doing an
+    internal link.
+    
+    The 386 relocation R_386_GOT32X was proposed in
+    https://groups.google.com/forum/#!topic/ia32-abi/GbJJskkid4I .  It can
+    be treated as identical to the R_386_GOT32 relocation.
+    
+    The amd64 relocations R_X86_64_GOTPCRELX and R_X86_64_REX_GOTPCRELX were
+    proposed in
+    https://groups.google.com/forum/#!topic/x86-64-abi/n9AWHogmVY0 .  They
+    can both be treated as identical to the R_X86_64_GOTPCREL relocation.
+    
+    The purpose of the new relocations is to permit additional linker
+    relaxations in some cases.  We do not attempt to support those cases.
+    
+    While we're at it, remove the unused and in some cases out of date
+    _COUNT names from ld/elf.go.
+    
+    Fixes #13114.
+    
+    Change-Id: I34ef07f6fcd00cdd2996038ecf46bb77a49e968b
+    Reviewed-on: https://go-review.googlesource.com/16529
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go |   2 +-
+ src/cmd/link/internal/ld/elf.go    | 140 +++++++++++++++++++++----------------
+ src/cmd/link/internal/ld/ldelf.go  |   3 +
+ src/cmd/link/internal/x86/asm.go   |   2 +-
+ 4 files changed, 83 insertions(+), 64 deletions(-)

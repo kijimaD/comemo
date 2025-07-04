@@ -1,0 +1,17 @@
+commit 108a4dcd75713a1a039db5bb5e21a8d840e50472
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 18 14:38:40 2014 +1100
+
+    cmd/go: make the default coverage mode -atomic if -race is set
+    Fixes #7013.
+    
+    LGTM=adg
+    R=golang-codereviews, gobot, adg
+    CC=golang-codereviews
+    https://golang.org/cl/76370043
+
+ src/cmd/go/doc.go      |  3 ++-
+ src/cmd/go/test.bash   | 31 +++++++++++++++++++++++++++++++
+ src/cmd/go/test.go     |  3 ++-
+ src/cmd/go/testflag.go |  9 ++++++++-
+ 4 files changed, 43 insertions(+), 3 deletions(-)

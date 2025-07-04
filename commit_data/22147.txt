@@ -1,0 +1,23 @@
+commit b2f29511dd1b8760de5c4a0db284e68e8e7dddcd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Mar 23 11:03:02 2015 +1100
+
+    image/internal/imageutil: new package, used by image/draw and image/jpeg.
+    
+    The imageutil.DrawYCbCr function lives in an internal package because it
+    is needed by both the image/draw and image/jpeg packages, but it doesn't
+    seem right for one of those two to depend on the other.
+    
+    It could eventually go into the image package, but that would require
+    committing to an API for the rest of Go 1.x.
+    
+    Change-Id: I7b12555c970d86409365e99eef9360702aaffa30
+    Reviewed-on: https://go-review.googlesource.com/7925
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/go/build/deps_test.go                 |  4 +-
+ src/image/draw/draw.go                    | 83 +++-----------------------
+ src/image/internal/imageutil/imageutil.go | 96 +++++++++++++++++++++++++++++++
+ src/image/jpeg/reader.go                  | 79 +------------------------
+ 4 files changed, 107 insertions(+), 155 deletions(-)

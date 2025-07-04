@@ -1,0 +1,12 @@
+commit 6aad41919bd5317d3b9d0b9a963a2cd0ced012f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 13 20:55:57 2010 -0700
+
+    go_spec updates
+    
+    R=r, iant
+    CC=golang-dev
+    https://golang.org/cl/921041
+
+ doc/go_spec.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

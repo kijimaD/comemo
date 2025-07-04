@@ -1,0 +1,12 @@
+commit c9bbee46b01ddff5ac06b290c6d5a43fe54f38b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 10 00:43:31 2010 -0800
+
+    clean new garbage collector benchmark binaries
+    
+    TBR=agl1
+    CC=golang-dev
+    https://golang.org/cl/207055
+
+ test/garbage/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

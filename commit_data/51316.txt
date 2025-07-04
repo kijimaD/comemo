@@ -1,0 +1,20 @@
+commit e6eaf39cfaf253ebaff7fff3737f0f1d91024345
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Jul 7 14:26:31 2022 -0500
+
+    cmd/internal/obj/ppc64: add ISA 3.1B opcodes
+    
+    A few new opcodes are added to support ROP mitigation on
+    Power10.
+    
+    Change-Id: I13045aebc0b6fb09c64dc234ee5741318670d7ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425597
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/ppc64_p10.s |  7 +++++
+ src/cmd/internal/obj/ppc64/asm9_gtables.go    | 44 +++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)

@@ -1,0 +1,20 @@
+commit bea730d1f9dc91904ecccb90247e9c14546fe98f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 10:49:24 2010 -0800
+
+    gc: ... T corner cases
+    
+    more to come, but should suffice for Printf work.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/197044
+
+ src/cmd/gc/closure.c   |  8 ++++--
+ src/cmd/gc/dcl.c       |  1 +
+ src/cmd/gc/reflect.c   |  1 +
+ src/cmd/gc/subr.c      |  9 +++++++
+ src/cmd/gc/typecheck.c |  4 +--
+ test/ddd.go            | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/ddd1.go           |  2 +-
+ 7 files changed, 86 insertions(+), 5 deletions(-)

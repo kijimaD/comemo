@@ -1,0 +1,16 @@
+commit c21e2f3925215a0f0dc4bcd22afb837537179dde
+Author: Yuusei Kuwana <kuwana@kumama.org>
+Date:   Thu Jul 29 14:12:04 2010 -0700
+
+    mime: add AddExtensionType
+    
+    For example:
+    mime.AddExtensionType(".m3u8", "application/x-mpegURL")
+    mime.AddExtensionType(".ts", "video/MP2T")
+    
+    R=rsc, rsc1
+    CC=golang-dev
+    https://golang.org/cl/1698046
+
+ src/pkg/mime/type.go | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)

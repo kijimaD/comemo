@@ -1,0 +1,24 @@
+commit 9d40fadb1c3245a318b155ee3e19a4de139401dc
+Author: lukechampine <luke.champine@gmail.com>
+Date:   Thu Feb 28 19:03:18 2019 +0000
+
+    fmtsort: sort interfaces deterministically
+    
+    Previously, the result of sorting a map[interface{}] containing
+    multiple concrete types was non-deterministic. To ensure consistent
+    results, sort first by type name, then by concrete value.
+    
+    Fixes #30398
+    
+    Change-Id: I10fd4b6a74eefbc87136853af6b2e689bc76ae9d
+    GitHub-Last-Rev: 1b07f0c275716e1b2834f74f9c67f897bae82882
+    GitHub-Pull-Request: golang/go#30406
+    Reviewed-on: https://go-review.googlesource.com/c/163745
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/fmtsort/sort.go      |  2 +-
+ src/internal/fmtsort/sort_test.go | 42 +++++++++++++++++++++++++++++++++++----
+ 2 files changed, 39 insertions(+), 5 deletions(-)

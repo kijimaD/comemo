@@ -1,0 +1,16 @@
+commit 12763d141d9eb83b401e847e2ba91704b8cbb32e
+Author: Park Zhou <buildpaas@gmail.com>
+Date:   Fri Feb 11 14:55:36 2022 +0800
+
+    cmd/compile: align table
+    
+    Signed-off-by: Park Zhou <buildpaas@gmail.com>
+    Change-Id: Idbbd2779264a7310b839af8291315e5e38b7ced9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402120
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/abi-internal.md | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

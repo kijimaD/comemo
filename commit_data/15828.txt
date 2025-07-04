@@ -1,0 +1,20 @@
+commit 4aeb0fc0a4dc800c57ed9f9d457de74d1158700a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Mar 20 02:40:29 2013 +0900
+
+    runtime: add missing copyright
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7884045
+
+ src/pkg/runtime/arch_386.h      | 4 ++++
+ src/pkg/runtime/arch_amd64.h    | 4 ++++
+ src/pkg/runtime/arch_arm.h      | 4 ++++
+ src/pkg/runtime/os_freebsd.c    | 5 +++--
+ src/pkg/runtime/os_freebsd.h    | 4 ++++
+ src/pkg/runtime/os_netbsd.c     | 5 +++--
+ src/pkg/runtime/os_openbsd.c    | 5 +++--
+ src/pkg/runtime/signals_plan9.h | 4 ++++
+ src/pkg/runtime/string_test.go  | 4 ++++
+ 9 files changed, 33 insertions(+), 6 deletions(-)

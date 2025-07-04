@@ -1,0 +1,17 @@
+commit 68aa7fb636d236c23be4fa05f87a898b5e7df362
+Author: Ryan Brown <ribrdb@google.com>
+Date:   Wed Feb 10 16:51:23 2016 -0800
+
+    cmd/link: fix padding for dwarf aranges on 32 bit platforms.
+    
+    Fixes #14278
+    
+    Change-Id: I6a0c1370d595f0573ff0eb933450b1eea41f4bb3
+    Reviewed-on: https://go-review.googlesource.com/19452
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go |   4 +-
+ src/runtime/runtime-lldb_test.go  | 262 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 265 insertions(+), 1 deletion(-)

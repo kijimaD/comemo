@@ -1,0 +1,30 @@
+commit c5414457c62fc11f299946a46f6c868c4f0bf2ab
+Author: Keith Randall <khr@google.com>
+Date:   Fri Dec 21 16:36:45 2018 -0800
+
+    cmd/compile: pad zero-sized stack variables
+    
+    If someone takes a pointer to a zero-sized stack variable, it can
+    be incorrectly interpreted as a pointer to the next object in the
+    stack frame. To avoid this, add some padding after zero-sized variables.
+    
+    We only need to pad if the next variable in memory (which is the
+    previous variable in the order in which we allocate variables to the
+    stack frame) has pointers. If the next variable has no pointers, it
+    won't hurt to have a pointer to it.
+    
+    Because we allocate all pointer-containing variables before all
+    non-pointer-containing variables, we should only have to pad once per
+    frame.
+    
+    Fixes #24993
+    
+    Change-Id: Ife561cdfdf964fdbf69af03ae6ba97d004e6193c
+    Reviewed-on: https://go-review.googlesource.com/c/155698
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 11 +++++++++++
+ test/codegen/zerosize.go            | 25 +++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

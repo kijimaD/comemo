@@ -1,0 +1,79 @@
+commit 3813edf26edb78620632dc9c7d66096e5b2b5019
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 2 15:18:43 2018 +0000
+
+    all: use "reports whether" consistently in the few places that didn't
+    
+    Go documentation style for boolean funcs is to say:
+    
+        // Foo reports whether ...
+        func Foo() bool
+    
+    (rather than "returns true if")
+    
+    This CL also replaces 4 uses of "iff" with the same "reports whether"
+    wording, which doesn't lose any meaning, and will prevent people from
+    sending typo fixes when they don't realize it's "if and only if". In
+    the past I think we've had the typo CLs updated to just say "reports
+    whether". So do them all at once.
+    
+    (Inspired by the addition of another "returns true if" in CL 146938
+    in fd_plan9.go)
+    
+    Created with:
+    
+    $ perl -i -npe 's/returns true if/reports whether/' $(git grep -l "returns true iff" | grep -v vendor)
+    $ perl -i -npe 's/returns true if/reports whether/' $(git grep -l "returns true if" | grep -v vendor)
+    
+    Change-Id: Ided502237f5ab0d25cb625dbab12529c361a8b9f
+    Reviewed-on: https://go-review.googlesource.com/c/147037
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/asm/internal/lex/input.go              | 2 +-
+ src/cmd/compile/internal/gc/closure.go         | 2 +-
+ src/cmd/compile/internal/gc/syntax.go          | 2 +-
+ src/cmd/compile/internal/ssa/config.go         | 2 +-
+ src/cmd/compile/internal/ssa/debug.go          | 2 +-
+ src/cmd/compile/internal/ssa/func.go           | 2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 8 ++++----
+ src/cmd/compile/internal/ssa/poset.go          | 8 ++++----
+ src/cmd/compile/internal/ssa/rewrite.go        | 2 +-
+ src/cmd/compile/internal/ssa/trim.go           | 4 ++--
+ src/cmd/fix/fix.go                             | 2 +-
+ src/cmd/internal/dwarf/dwarf.go                | 2 +-
+ src/cmd/trace/annotations.go                   | 2 +-
+ src/cmd/vet/print.go                           | 2 +-
+ src/crypto/x509/x509.go                        | 2 +-
+ src/database/sql/sql.go                        | 2 +-
+ src/encoding/asn1/asn1.go                      | 2 +-
+ src/go/printer/nodes.go                        | 2 +-
+ src/go/types/builtins.go                       | 2 +-
+ src/go/types/scope.go                          | 2 +-
+ src/go/types/type.go                           | 2 +-
+ src/html/template/js.go                        | 2 +-
+ src/html/template/url.go                       | 2 +-
+ src/internal/poll/fd_plan9.go                  | 2 +-
+ src/internal/poll/fd_poll_nacljs.go            | 2 +-
+ src/internal/poll/fd_poll_runtime.go           | 2 +-
+ src/math/big/float.go                          | 2 +-
+ src/math/cmplx/isinf.go                        | 2 +-
+ src/math/cmplx/isnan.go                        | 2 +-
+ src/math/signbit.go                            | 2 +-
+ src/os/stat_windows.go                         | 2 +-
+ src/path/filepath/match_test.go                | 2 +-
+ src/reflect/type.go                            | 2 +-
+ src/regexp/syntax/regexp.go                    | 2 +-
+ src/runtime/mbitmap.go                         | 2 +-
+ src/runtime/mcentral.go                        | 2 +-
+ src/runtime/mgc.go                             | 6 +++---
+ src/runtime/mgcwork.go                         | 4 ++--
+ src/runtime/mwbbuf.go                          | 2 +-
+ src/runtime/netpoll.go                         | 2 +-
+ src/runtime/panic.go                           | 4 ++--
+ src/runtime/pprof/internal/profile/profile.go  | 2 +-
+ src/runtime/proc.go                            | 8 ++++----
+ src/runtime/signal_windows.go                  | 2 +-
+ src/sync/runtime.go                            | 2 +-
+ src/syscall/mksyscall_windows.go               | 2 +-
+ 47 files changed, 61 insertions(+), 61 deletions(-)

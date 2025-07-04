@@ -1,0 +1,23 @@
+commit ffac3d5a88352d4f6e8e47b9a2990352960eb5ca
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Dec 3 17:02:20 2018 -0500
+
+    cmd/go: add missing gccgo checks for buildmodeInit
+    
+    Some recent failures in gccgo on linux/ppc64 identified
+    an error in buildmodeInit when buildmode=c-archive.
+    A fix went into gofrontend, and this is the
+    corresponding change for master. This change also includes
+    two other updates related to gccgo in this function that
+    were in the file from gofrontend but missing from master.
+    
+    Updates #29046
+    
+    Change-Id: I9a894e7d728e31fb9e9344cd61d50408df7faf4a
+    Reviewed-on: https://go-review.googlesource.com/c/152160
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/init.go | 33 ++++++++++++++++++++-------------
+ 1 file changed, 20 insertions(+), 13 deletions(-)

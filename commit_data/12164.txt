@@ -1,0 +1,12 @@
+commit 3391de8df7a6b2bb87acae8f1a8e82f851fc0511
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 22 23:40:28 2012 -0800
+
+    exp/types: fix package comment
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5695046
+
+ src/pkg/exp/types/types.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 75b73d68b332a90e05cf45fa2c850667b3a0f777
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Sep 24 16:06:07 2021 +0000
+
+    runtime: use atomic.Float64 for assist ratio
+    
+    Change-Id: Ie7f09a7c9545ef9dd1860b1e332c4edbcbf8165e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356170
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcmark.go  | 10 +++++-----
+ src/runtime/mgcpacer.go | 20 +++++---------------
+ src/runtime/proc.go     |  2 +-
+ 3 files changed, 11 insertions(+), 21 deletions(-)

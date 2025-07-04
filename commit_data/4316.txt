@@ -1,0 +1,11 @@
+commit f2c7a20142afdbeed1d96e074aeddeaa470f3124
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 23:29:48 2009 -0800
+
+    8l: fix print line number format, buffer overflow
+    
+    R=ken2
+    https://golang.org/cl/165059
+
+ src/cmd/8l/list.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

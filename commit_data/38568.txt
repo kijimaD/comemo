@@ -1,0 +1,29 @@
+commit d47db6dc0ce72d1371c81a677b45d7bdba39ff46
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 23 01:43:06 2019 +0700
+
+    cmd/compile: fix literal struct interface {} lost passing by value
+    
+    CL 135377 introduces pass strings and slices to convT2{E,I} by value.
+    Before that CL, all types, except interface will be allocated temporary
+    address. The CL changes the logic that only constant and type which
+    needs address (determine by convFuncName) will be allocated.
+    
+    It fails to cover the case where type is static composite literal.
+    Adding condition to check that case fixes the issue.
+    
+    Also, static composite literal node implies constant type, so consttype
+    checking can be removed.
+    
+    Fixes #30956
+    
+    Change-Id: Ifc750a029fb4889c2d06e73e44bf85e6ef4ce881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168858
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/order.go |  6 +++---
+ test/fixedbugs/issue30956.go         | 32 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue30956.out        |  1 +
+ 3 files changed, 36 insertions(+), 3 deletions(-)

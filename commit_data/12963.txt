@@ -1,0 +1,15 @@
+commit 7f7a70f225b5f08b601ce3bef091887d79a34f06
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 25 12:01:01 2012 -0700
+
+    mime: make ParseMediaType return zero results on error
+    
+    Fixes #3562
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/6119051
+
+ src/pkg/mime/mediatype.go      |  2 +-
+ src/pkg/mime/mediatype_test.go | 32 ++++++++++++++++++++++++++------
+ 2 files changed, 27 insertions(+), 7 deletions(-)

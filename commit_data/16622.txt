@@ -1,0 +1,15 @@
+commit ce5d91baa5df81f88161f3eb42b5dab7d829461c
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jun 24 10:59:41 2013 -0400
+
+    compress/bzip2: don't panic on invalid input.
+    
+    Fixes 5747.
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10401050
+
+ src/pkg/compress/bzip2/bzip2.go      |   6 ++
+ src/pkg/compress/bzip2/bzip2_test.go | 164 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 170 insertions(+)

@@ -1,0 +1,21 @@
+commit c2d9eea1f1d5bc4c49e3a97384ffcb40b7dd52bf
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Apr 28 12:16:44 2019 +0200
+
+    runtime: do not use heap arena hints on wasm
+    
+    The address space of WebAssembly's linear memory is contiguous, so
+    requesting specific addresses is not supported. Do not use heap arena
+    hints so we do not have unused memory ranges.
+    
+    This fixes go1 benchmarks on wasm which ran out of memory since
+    https://golang.org/cl/170950.
+    
+    Change-Id: I70115b18dbe43abe16dd5f57996343d97bf94760
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174203
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/mem_js.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

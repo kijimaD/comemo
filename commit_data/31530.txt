@@ -1,0 +1,22 @@
+commit 6a24b2d0c1f5a8e2fa5ddb56db5a207671e8beb8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 2 16:43:27 2017 -0700
+
+    cmd/compile: add boolean simplification rules
+    
+    These collectively fire a few hundred times during make.bash,
+    mostly rewriting XOR SETNE -> SETEQ.
+    
+    Fixes #17905.
+    
+    Change-Id: Ic5eb241ee93ed67099da3de11f59e4df9fab64a3
+    Reviewed-on: https://go-review.googlesource.com/42491
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  12 ++
+ src/cmd/compile/internal/ssa/gen/generic.rules |   1 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 165 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  38 ++++++
+ 4 files changed, 215 insertions(+), 1 deletion(-)

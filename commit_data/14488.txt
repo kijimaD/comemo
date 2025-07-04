@@ -1,0 +1,26 @@
+commit d7b0271065b043487c98e42617ff2ab53cfbdbed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 26 12:49:04 2012 -0800
+
+    exp/types: fixed field/method lookup
+    
+    also:
+    
+    - composite literal checking close to complete
+    - cleaned up parameter, method, field checking
+    - don't let panics escape type checker
+    - more TODOs eliminated
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6816083
+
+ src/pkg/exp/types/check.go            |  23 +--
+ src/pkg/exp/types/check_test.go       |   1 +
+ src/pkg/exp/types/expr.go             | 310 +++++++++++++++++++++++++---------
+ src/pkg/exp/types/operand.go          | 136 +++++++++++----
+ src/pkg/exp/types/testdata/decls0.src |   4 +-
+ src/pkg/exp/types/testdata/decls3.src | 231 +++++++++++++++++++++++++
+ src/pkg/exp/types/testdata/expr3.src  |  52 +++++-
+ src/pkg/exp/types/types.go            |   9 +
+ 8 files changed, 644 insertions(+), 122 deletions(-)

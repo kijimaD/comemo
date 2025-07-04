@@ -1,0 +1,41 @@
+commit 39263f34a307814a74823b280a313829dad374e5
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 6 13:59:35 2023 -0700
+
+    cmd/compile: add a cache to interface type switches
+    
+    That way we don't need to call into the runtime when the type being
+    switched on has been seen many times before.
+    
+    The cache is just a hash table of a sample of all the concrete types
+    that have been switched on at that source location.  We record the
+    matching case number and the resulting itab for each concrete input
+    type.
+    
+    The caches seldom get large. The only two in a run of all.bash that
+    get more than 100 entries, even with the sampling rate set to 1, are
+    
+    test/fixedbugs/issue29264.go, with 101
+    test/fixedbugs/issue29312.go, with 254
+    
+    Both happen at the type switch in fmt.(*pp).handleMethods, perhaps
+    unsurprisingly.
+    
+    name                                 old time/op  new time/op  delta
+    SwitchInterfaceTypePredictable-24    25.8ns ± 2%   2.5ns ± 3%  -90.43%  (p=0.000 n=10+10)
+    SwitchInterfaceTypeUnpredictable-24  37.5ns ± 2%  11.2ns ± 1%  -70.02%  (p=0.000 n=10+10)
+    
+    Change-Id: I4961ac9547b7f15b03be6f55cdcb972d176955eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526658
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go    | 104 +++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/test/inl_test.go |   3 +
+ src/cmd/compile/internal/walk/switch.go   |   9 ++-
+ src/internal/abi/switch.go                |  31 +++++++++
+ src/runtime/iface.go                      |  98 +++++++++++++++++++++++++++-
+ test/codegen/switch.go                    |   4 +-
+ 6 files changed, 239 insertions(+), 10 deletions(-)

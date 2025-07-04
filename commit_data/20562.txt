@@ -1,0 +1,16 @@
+commit b2487ef6a399790cfe57127c3f50fc59341460e4
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 26 12:33:05 2014 -0700
+
+    flag: allow CommandLine's Usage function to be set
+    
+    Fixes #7779.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/147210043
+
+ src/flag/flag.go      | 15 +++++++++------
+ src/flag/flag_test.go | 10 ++++++++++
+ 2 files changed, 19 insertions(+), 6 deletions(-)

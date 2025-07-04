@@ -1,0 +1,16 @@
+commit 1910a7c595f88ece1d6214037ac8356c86b48f3e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 7 16:56:21 2009 -0800
+
+    document hash
+    
+    R=rsc
+    DELTA=50  (33 added, 4 deleted, 13 changed)
+    OCL=25878
+    CL=25887
+
+ src/lib/hash/adler32.go | 26 ++++++++++++++++----------
+ src/lib/hash/crc32.go   | 19 ++++++++++++++++---
+ src/lib/hash/md5.go     |  9 +++++++--
+ src/lib/hash/sha1.go    |  9 +++++++--
+ 4 files changed, 46 insertions(+), 17 deletions(-)

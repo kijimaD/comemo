@@ -1,0 +1,15 @@
+commit c1fc4c8f378cbde337557a314c7047edb86ed6e2
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 17:21:48 2009 -0700
+
+    indirection on array elements.
+    
+    R=rsc
+    DELTA=57  (34 added, 10 deleted, 13 changed)
+    OCL=31098
+    CL=31101
+
+ src/pkg/gob/codec_test.go |  4 ++++
+ src/pkg/gob/decode.go     | 22 +++++++++++-----------
+ src/pkg/gob/encode.go     | 44 ++++++++++++++++++++++++++++++++------------
+ 3 files changed, 47 insertions(+), 23 deletions(-)

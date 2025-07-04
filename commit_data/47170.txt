@@ -1,0 +1,24 @@
+commit d39c8739662835b2f92894a8550bbcd59f83557f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 1 12:14:25 2021 -0700
+
+    cmd/compile/internal/types2: fix conversions of constants to type parameter
+    
+    When converting a constant to a type parameter, the result is never
+    constant (type parameters are not constant types), but we still need
+    to verfy that the constant is representable by each specific type in
+    the type set of the type parameter.
+    
+    Fixes #49247.
+    
+    Change-Id: I460983c7070b33baadce25dd23210e10930cfb2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360396
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go     | 39 ++++++++++++++++------
+ src/cmd/compile/internal/types2/expr.go            |  1 +
+ src/cmd/compile/internal/types2/predicates.go      |  6 ++++
+ .../types2/testdata/fixedbugs/issue49247.go2       | 20 +++++++++++
+ .../internal/types2/testdata/spec/conversions.go2  | 21 ++++++++++++
+ 5 files changed, 77 insertions(+), 10 deletions(-)

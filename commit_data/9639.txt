@@ -1,0 +1,13 @@
+commit 66b3fabf17595d68c35ee3ab761f186ebf274f48
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 8 15:00:49 2011 -0400
+
+    exp/regexp: add MustCompilePOSIX
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4962060
+
+ src/pkg/exp/regexp/exec_test.go |  2 +-
+ src/pkg/exp/regexp/regexp.go    | 21 ++++++++++++++++++++-
+ 2 files changed, 21 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit e5d9cafbe8aa071eb76020ae77a1ae090eac2a7e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jun 30 14:02:04 2015 +1000
+
+    compress/lzw: tidy up some flush calls.
+    
+    Change-Id: Ie7368188ad4a970a82c140962cf97347d24f0331
+    Reviewed-on: https://go-review.googlesource.com/14410
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/compress/lzw/reader.go | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

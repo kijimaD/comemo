@@ -1,0 +1,13 @@
+commit ec13ed1fce4164477dece0c3486bebf93c0ad1e6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 28 10:35:02 2010 -0400
+
+    gc: insert semicolon at EOF if needed
+    
+    R=ken2, gri
+    CC=golang-dev
+    https://golang.org/cl/2208053
+
+ src/cmd/gc/lex.c | 9 ++-------
+ test/eof.go      | 9 +++++++++
+ 2 files changed, 11 insertions(+), 7 deletions(-)

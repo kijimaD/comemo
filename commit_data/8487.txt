@@ -1,0 +1,20 @@
+commit 64b497c62a5a56563e09ddbf9ce1b7b5edf6937c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 08:25:33 2011 -0400
+
+    ld: add -w to disable dwarf, make errors obviously from dwarf
+    
+    Reenable dwarf output on Mac.
+    Was writing headers but no actual dwarf data.
+    
+    Fixes #1877 (accidentally).
+    Workaround for issue 1878.
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/4515139
+
+ src/cmd/6l/asm.c   |  1 +
+ src/cmd/8l/asm.c   |  1 +
+ src/cmd/ld/dwarf.c | 49 +++++++++++++++++++++++++++++++++----------------
+ 3 files changed, 35 insertions(+), 16 deletions(-)

@@ -1,0 +1,14 @@
+commit b26a4a140111260f8de73e798bff42101f54bba3
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Wed Nov 15 08:48:49 2017 +0000
+
+    compress/bzip2: use sort.Slice in huffman.go
+    
+    Change-Id: Ie4d23cdb81473a4c989a977a127479cf825084dc
+    Reviewed-on: https://go-review.googlesource.com/77850
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/bzip2/huffman.go | 60 ++++++++++++-------------------------------
+ 1 file changed, 17 insertions(+), 43 deletions(-)

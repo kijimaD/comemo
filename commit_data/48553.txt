@@ -1,0 +1,25 @@
+commit 1a9972ec87de1eba7f9f71c8ed4afa88b0c122d4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Mar 28 12:46:46 2022 -0400
+
+    cmd/internal/obj: sort relocations
+    
+    At least on some platforms (e.g. PE dynamic loader) relocations
+    need to be sorted in address order. Currently we don't always emit
+    relocations in address order: e.g. for array literal with out-of-
+    order element initializers, or out-of-order DATA instructions in
+    assembly code. Sort them.
+    
+    No test for now as I can't reproduce the failure for #51923.
+    
+    Fixes #51923.
+    
+    Change-Id: Ifec5d3476e027bb927bcefd6e45c40ebeccee4ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396195
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/obj/objfile.go | 1 +
+ 1 file changed, 1 insertion(+)

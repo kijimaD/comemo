@@ -1,0 +1,19 @@
+commit 737e96c7f35af64167072b1ff4b4ee63d009bc1c
+Author: Dmitry Chestnykh <dchest@gmail.com>
+Date:   Wed May 4 20:46:27 2011 -0700
+
+    image/png: support encoding of paletted images with alpha channel.
+    
+    Encoder now writes tRNS chunk for non-opaque paletted images.
+    CL includes new test images (basn3a08-trns.[ps]ng).
+    
+    R=nigeltao, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4432078
+
+ src/pkg/image/png/reader_test.go                   |  20 +-
+ src/pkg/image/png/testdata/pngsuite/README         |   3 +
+ .../image/png/testdata/pngsuite/basn3p08-trns.png  | Bin 0 -> 1538 bytes
+ .../image/png/testdata/pngsuite/basn3p08-trns.sng  | 301 +++++++++++++++++++++
+ src/pkg/image/png/writer.go                        |  24 +-
+ 5 files changed, 339 insertions(+), 9 deletions(-)

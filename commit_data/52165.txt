@@ -1,0 +1,26 @@
+commit b44f2222b5e3d9de0d214101bf458251ac30ffe3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 28 12:56:06 2023 -0800
+
+    go/types, types2: consider methods when unifying type parameters and constraints
+    
+    An inferred type argument must implement its type parameter's constraint's
+    methods whether or not a core type exists. This allows us to infer type
+    parameters used in method signatures.
+    
+    Fixes #51593.
+    
+    Change-Id: I1fddb05a71d442641b4311d8e30a13ea9bdb4db5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472298
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ src/cmd/compile/internal/types2/infer.go           | 25 ++++++++++++----
+ src/go/types/infer.go                              | 25 ++++++++++++----
+ src/internal/types/testdata/examples/inference.go  | 35 ++++++++++++++++++++++
+ .../types/testdata/fixedbugs/issue51593.go         |  2 +-
+ 5 files changed, 77 insertions(+), 12 deletions(-)

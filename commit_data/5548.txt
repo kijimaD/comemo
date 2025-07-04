@@ -1,0 +1,12 @@
+commit b524fdc2e2c11080bf75cfb9d370bf53c21b5da5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue May 25 14:22:12 2010 -0700
+
+    godashboard: change behaviour of top button
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1253046
+
+ misc/dashboard/godashboard/main.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 5b7827ec07d4deaf0d57f2fabf9ca91df22c8fd9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 15 14:29:45 2011 -0800
+
+    sql: document that for drivers, io.EOF means no more rows
+    
+    This was used in the sql package + tests, but never
+    documented.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5372107
+
+ src/pkg/exp/sql/driver/driver.go | 2 ++
+ 1 file changed, 2 insertions(+)

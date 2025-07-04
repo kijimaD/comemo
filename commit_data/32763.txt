@@ -1,0 +1,47 @@
+commit 1787ced8943d0c97ff9583d3f094327564b45618
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 18 14:53:56 2017 -0700
+
+    cmd/compile: remove Symbol wrappers from Aux fields
+    
+    We used to have {Arg,Auto,Extern}Symbol structs with which we wrapped
+    a *gc.Node or *obj.LSym before storing them in the Aux field
+    of an ssa.Value.  This let the SSA part of the compiler distinguish
+    between autos and args, for example.  We no longer need the wrappers
+    as we can query the underlying objects directly.
+    
+    There was also some sloppy usage, where VarDef had a *gc.Node
+    directly in its Aux field, whereas the use of that variable had
+    that *gc.Node wrapped in an AutoSymbol. Thus the Aux fields didn't
+    match (using ==) when they probably should.
+    This sloppy usage cleanup is the only thing in the CL that changes the
+    generated code - we can get rid of some more unused auto variables if
+    the matching happens reliably.
+    
+    Removing this wrapper also lets us get rid of the varsyms cache
+    (which was used to prevent wrapping the same *gc.Node twice).
+    
+    Change-Id: I0dedf8f82f84bfee413d310342b777316bd1d478
+    Reviewed-on: https://go-review.googlesource.com/64452
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/fmt_test.go                    |   1 +
+ src/cmd/compile/internal/arm/ssa.go            |   4 +-
+ src/cmd/compile/internal/arm64/ssa.go          |   4 +-
+ src/cmd/compile/internal/gc/pgen.go            |  17 ++--
+ src/cmd/compile/internal/gc/plive.go           |  25 ++----
+ src/cmd/compile/internal/gc/ssa.go             | 104 ++++++++++---------------
+ src/cmd/compile/internal/mips/ssa.go           |   4 +-
+ src/cmd/compile/internal/mips64/ssa.go         |   4 +-
+ src/cmd/compile/internal/ppc64/ssa.go          |   4 +-
+ src/cmd/compile/internal/ssa/config.go         |  13 +++-
+ src/cmd/compile/internal/ssa/deadstore.go      |  19 +++--
+ src/cmd/compile/internal/ssa/export_test.go    |   4 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  13 ++--
+ src/cmd/compile/internal/ssa/op.go             |   2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |   4 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  16 +---
+ src/cmd/compile/internal/ssa/value.go          |  33 --------
+ src/cmd/compile/internal/ssa/writebarrier.go   |  13 ++--
+ 18 files changed, 111 insertions(+), 173 deletions(-)

@@ -1,0 +1,21 @@
+commit 71517e7b4acc12a426ebe0b45899a8ba19784ae9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Oct 1 18:45:06 2011 +0900
+
+    syscall: update multicast socket options for darwin, freebsd, linux, openbsd
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/5137042
+
+ src/pkg/syscall/syscall_bsd.go          | 24 ++++++++++++++++++++++
+ src/pkg/syscall/syscall_freebsd.go      | 11 +++++++++++
+ src/pkg/syscall/syscall_linux.go        | 35 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/types_freebsd.c         |  2 ++
+ src/pkg/syscall/types_linux.c           |  2 ++
+ src/pkg/syscall/ztypes_freebsd_386.go   |  7 +++++++
+ src/pkg/syscall/ztypes_freebsd_amd64.go |  7 +++++++
+ src/pkg/syscall/ztypes_linux_386.go     |  7 +++++++
+ src/pkg/syscall/ztypes_linux_amd64.go   |  7 +++++++
+ src/pkg/syscall/ztypes_linux_arm.go     |  7 +++++++
+ 10 files changed, 109 insertions(+)

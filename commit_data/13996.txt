@@ -1,0 +1,17 @@
+commit 9070d5759ff2d9b99dbe3d44c26300b54ab021e8
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 1 17:31:35 2012 -0400
+
+    math/big: avoid some allocation in Exp
+    
+    benchmark                        old ns/op    new ns/op    delta
+    BenchmarkRSA1024Decrypt             745686       644964  -13.51%
+    BenchmarkRSA2048Decrypt            5517318      5049200   -8.48%
+    Benchmark3PrimeRSA2048Decrypt      3767386      3288048  -12.72%
+    
+    R=gri
+    CC=gobot, golang-dev
+    https://golang.org/cl/6566043
+
+ src/pkg/math/big/nat.go | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

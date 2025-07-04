@@ -1,0 +1,20 @@
+commit 2a64ebfc6d247e9177190f862b0947ac98c5eb43
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Nov 30 09:30:31 2016 -0800
+
+    database/sql: deflake query cancel tests
+    
+    Rather then using a sleep in the fake DB, go to a channel
+    select and wait for the context to be done.
+    
+    Fixes #18115
+    
+    Change-Id: I6bc3a29db58c568d0a7ea06c2a354c18c9e798b2
+    Reviewed-on: https://go-review.googlesource.com/33712
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/fakedb_test.go | 12 +++++++++++-
+ src/database/sql/sql_test.go    | 19 +++++++++++++++----
+ 2 files changed, 26 insertions(+), 5 deletions(-)

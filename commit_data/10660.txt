@@ -1,0 +1,16 @@
+commit f00340f02287456b24a414b4b10051b727c6ad2e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 7 23:38:32 2011 -0500
+
+    gc: rename %union field name from lint to i
+    
+    #define lint has special meaning to Bison;
+    having a field named lint conflicts with that.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5462044
+
+ src/cmd/gc/go.y  | 6 +++---
+ src/cmd/gc/lex.c | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

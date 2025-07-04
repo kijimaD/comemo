@@ -1,0 +1,19 @@
+commit d7440ce21a8a4937e1dd3e7d153eef298fe8dadc
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 15 15:16:57 2011 +1000
+
+    old/template: copy code from template
+    First step of moving exp/template into template: save the old code.
+    Code is unedited except for target name in Makefile.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4893042
+
+ src/pkg/old/template/Makefile         |  14 +
+ src/pkg/old/template/doc.go           |  91 ++++
+ src/pkg/old/template/execute.go       | 346 +++++++++++++++
+ src/pkg/old/template/format.go        |  77 ++++
+ src/pkg/old/template/parse.go         | 743 +++++++++++++++++++++++++++++++
+ src/pkg/old/template/template_test.go | 804 ++++++++++++++++++++++++++++++++++
+ 6 files changed, 2075 insertions(+)

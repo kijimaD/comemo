@@ -1,0 +1,15 @@
+commit 16205a3534a2787cef0bd048547211e1de350fef
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 18 15:59:14 2010 -0800
+
+    spec: mention Inf and NaN are supported at run time.
+    add hyperlink at mention of package reflect.
+    
+    Fixes #438.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/190042
+
+ doc/go_spec.html | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

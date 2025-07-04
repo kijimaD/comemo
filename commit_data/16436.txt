@@ -1,0 +1,14 @@
+commit 77d4347bf26b61bf95a842ff25c579d86b78d4c3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu May 30 12:11:17 2013 +1000
+
+    misc/dist: remove lingering ~ file
+    
+    Fixes #5405.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/9856043
+
+ misc/dist/bindist.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

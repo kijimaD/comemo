@@ -1,0 +1,14 @@
+commit c54699c977e52736adf0e0e8f0ba3fd507af90cd
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 15 17:22:30 2009 -0700
+
+    s/NewLogger/New/
+    
+    R=rsc
+    DELTA=7  (0 added, 0 deleted, 7 changed)
+    OCL=28947
+    CL=28950
+
+ src/lib/log/log.go      | 12 ++++++------
+ src/lib/log/log_test.go |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)

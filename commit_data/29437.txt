@@ -1,0 +1,14 @@
+commit b990558162fa038f3651dc0f1821f64b282dda6f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 28 18:03:21 2016 +0000
+
+    doc: reference go1.4-bootstrap-20161024.tar.gz
+    
+    Updates #16352
+    
+    Change-Id: I214c87579ef21ced8d0ba94aa170dd7780afec4b
+    Reviewed-on: https://go-review.googlesource.com/32312
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install-source.html | 41 +++++++++++++++++++++++++++--------------
+ 1 file changed, 27 insertions(+), 14 deletions(-)

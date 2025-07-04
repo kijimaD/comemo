@@ -1,0 +1,24 @@
+commit 1045351cef21a64d954b4477af9f5105ea4287d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 24 11:53:24 2015 +0200
+
+    net/http: bound the number of bytes read seeking EOF in Handler's Body.Close
+    
+    If a client sent a POST with a huge request body, calling
+    req.Body.Close in the handler (which is implicit at the end of a
+    request) would end up consuming it all.
+    
+    Put a cap on that, using the same threshold used elsewhere for similar
+    cases.
+    
+    Fixes #9662
+    
+    Change-Id: I26628413aa5f623a96ef7c2609a8d03c746669e5
+    Reviewed-on: https://go-review.googlesource.com/11412
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/request.go    |   3 +-
+ src/net/http/serve_test.go | 159 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  28 +++++++-
+ src/net/http/transfer.go   |  54 ++++++++++++---
+ 4 files changed, 231 insertions(+), 13 deletions(-)

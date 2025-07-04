@@ -1,0 +1,14 @@
+commit cbaae77184ea6615b45c141960b7de51daae026a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jun 16 14:40:34 2017 +0200
+
+    doc: note that Time.String changed in go1.9
+    
+    Fixes #20702
+    
+    Change-Id: Id90f08c33e3ccc37794b47fcd27f6c3f2f41c634
+    Reviewed-on: https://go-review.googlesource.com/46011
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

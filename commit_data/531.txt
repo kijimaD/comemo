@@ -1,0 +1,12 @@
+commit c1ab5a554ff96dc4d0846863086c2b165f4909a5
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Aug 12 14:28:58 2008 -0700
+
+    resolve go.y edits
+    
+    R=r
+    OCL=14132
+    CL=14132
+
+ src/cmd/gc/go.y | 38 ++------------------------------------
+ 1 file changed, 2 insertions(+), 36 deletions(-)

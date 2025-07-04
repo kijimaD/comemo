@@ -1,0 +1,24 @@
+commit 9e30b708a1123a6c1c7ee52992b976795c786235
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Dec 1 00:38:01 2012 +0800
+
+    all: set GOMAXPROCS to 1 when counting mallocs
+    also fix an annoying test that relies on $GOROOT be set.
+    Fixes #3690.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6844086
+
+ src/pkg/encoding/gob/timing_test.go | 2 ++
+ src/pkg/fmt/fmt_test.go             | 1 +
+ src/pkg/math/big/nat_test.go        | 1 +
+ src/pkg/net/http/header_test.go     | 3 ++-
+ src/pkg/net/rpc/server_test.go      | 1 +
+ src/pkg/path/filepath/path_test.go  | 3 ++-
+ src/pkg/path/path_test.go           | 1 +
+ src/pkg/reflect/all_test.go         | 6 ++----
+ src/pkg/runtime/gc_test.go          | 1 +
+ src/pkg/runtime/mallocrep1.go       | 1 +
+ src/pkg/strconv/strconv_test.go     | 1 +
+ 11 files changed, 15 insertions(+), 6 deletions(-)

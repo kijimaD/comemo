@@ -1,0 +1,13 @@
+commit b93f83f8e1708969bfcba523ae330aa2a99dd81b
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Jun 11 22:52:01 2014 -0700
+
+    encoding/ascii85: remove unused field
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/105890044
+
+ src/pkg/encoding/ascii85/ascii85.go | 1 -
+ 1 file changed, 1 deletion(-)

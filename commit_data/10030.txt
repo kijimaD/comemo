@@ -1,0 +1,22 @@
+commit 0e4d1c3e2cae6474a0b01a79c37b440817cbfa5f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 18 10:28:30 2011 -0700
+
+    godoc: fix ToAbsolute mapping
+    
+    The implementation of splitFirst was broken;
+    splitFirst("foo/") must be the same as splitFirst("foo").
+    As a result, ToAbsolute could be simplified, and as a side
+    effect this fixes a long-standing bug.
+    
+    Thanks to Luca Greco <luca.greco@alcacoop.it> for doing
+    the investigation.
+    
+    Fixes #1157.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5278050
+
+ src/cmd/godoc/mapping.go | 29 ++++++++++++++---------------
+ 1 file changed, 14 insertions(+), 15 deletions(-)

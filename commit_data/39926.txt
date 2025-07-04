@@ -1,0 +1,25 @@
+commit df855da653095e606fe69503b075e45d53d86ad7
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Sep 16 16:11:01 2019 -0400
+
+    debug/elf: apply more relocations when reading DWARF data sections
+    
+    The elf reader's method for reading in DWARF section data has support
+    for applying selected relocations when the debug/dwarf readers are
+    being used on relocatable objects. This patch extends the set of
+    relocations applied slightly. In particlar, prior to this for some
+    architectures we were only applying relocations whose target symbol
+    was a section symbol; now we also include some relocations that target
+    other symbols. This is needed to get meaningful values for compilation
+    unit DIE low_pc attributes, which typically target a specific function
+    symbol in text.
+    
+    Fixes #31363.
+    
+    Change-Id: I34b02e7904cd7f2dea74197f73fa648141d15212
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195679
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/dwarf_test.go |   2 +-
+ src/debug/elf/file.go      | 112 ++++++++++++++++++++++++++++-----------------
+ 2 files changed, 70 insertions(+), 44 deletions(-)

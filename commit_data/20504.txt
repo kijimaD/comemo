@@ -1,0 +1,11 @@
+commit 1392276bfb7b6100b2def909ef9d19e477970f6b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 22 12:00:37 2014 -0700
+
+    doc/go1.4.txt: text/template comparison functions allow int==uint
+    
+    CC=golang-codereviews
+    https://golang.org/cl/142450043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,20 @@
+commit 205f636e0ab491b7a06e7b7879abb897cdaaf1b4
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Aug 8 07:42:43 2022 +0000
+
+    cmd/internal/obj/arm64: tidy literal pool
+    
+    This CL cleans up the literal pool implementation and inserts an UNDEF
+    instruction before the literal pool if the last instruction of the
+    function is not an unconditional jump instruction, RET or ERET
+    instruction.
+    
+    Change-Id: Ifecb9e3372478362dde246c1bc9bc8d527a469d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424134
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go | 89 +++++++++++++++++++-------------------
+ 1 file changed, 45 insertions(+), 44 deletions(-)

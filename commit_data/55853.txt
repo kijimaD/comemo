@@ -1,0 +1,16 @@
+commit 7101fd1e97c11db3af95b1d3ac6abaabd30d8945
+Author: Alex Driuk <driukalex@google.com>
+Date:   Wed Mar 6 15:56:14 2024 +0100
+
+    sort: fix typo in sort_test.go
+    
+    
+    Change-Id: Ibc1344b678d5f7c730b924c697717305c90c26e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569537
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/sort/sort_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

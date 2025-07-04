@@ -1,0 +1,22 @@
+commit ecd7b7e991d802db2bb63ccf7cede83f62e4e1c9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 3 15:00:07 2020 +0000
+
+    Revert "cmd/go: support cgo files in overlays"
+    
+    This reverts CL 267197.
+    
+    Reason for revert: tests failing on windows-amd64-longtest builder (https://build.golang.org/log/83afde1aac3ea49debddb8996d089a741c3b1cf1).
+    
+    Change-Id: I0d7c706144e34b1715316ca2ee9662c901b7f8f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267357
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/work/exec.go                  | 48 ++-----------
+ src/cmd/go/internal/work/gc.go                    |  9 +--
+ src/cmd/go/testdata/script/build_overlay.txt      | 83 +----------------------
+ src/cmd/go/testdata/script/build_trimpath_cgo.txt | 28 --------
+ 4 files changed, 12 insertions(+), 156 deletions(-)

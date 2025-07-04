@@ -1,0 +1,20 @@
+commit fab3fcaf750445c0016a44376aa81c720133e02c
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Nov 12 06:50:24 2016 -0500
+
+    cmd/go: use build ID as plugin symbol prefix
+    
+    Updates #17821
+    
+    Change-Id: Iebd2e88b2d4f3d757ffad72456f4bfc0607d8110
+    Reviewed-on: https://go-review.googlesource.com/33162
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/host/host.go | 31 +++++++++++++++++++++++++++++++
+ misc/cgo/testplugin/test.bash        |  5 ++++-
+ misc/cgo/testplugin/unnamed1.go      | 12 ++++++++++++
+ misc/cgo/testplugin/unnamed2.go      | 12 ++++++++++++
+ src/cmd/go/build.go                  |  6 +++++-
+ 5 files changed, 64 insertions(+), 2 deletions(-)

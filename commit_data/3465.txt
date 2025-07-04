@@ -1,0 +1,24 @@
+commit 116beb2653e7b4bb6407fff4e585353f2eb6c479
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Oct 6 16:39:38 2009 -0700
+
+    - moved 3 functions from syscall_linux to _386 and _amd64 (arm lacks them)
+    - 64 bit OMINUS
+    - added bunch of missing arm syscalls
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=203  (189 added, 3 deleted, 11 changed)
+    OCL=35412
+    CL=35414
+
+ src/cmd/5g/cgen64.c                    |  33 +++++++--
+ src/cmd/5g/gg.h                        |   1 +
+ src/make-arm.bash                      |   2 +-
+ src/pkg/syscall/syscall_linux.go       |   3 -
+ src/pkg/syscall/syscall_linux_386.go   |   3 +
+ src/pkg/syscall/syscall_linux_amd64.go |   3 +
+ src/pkg/syscall/syscall_linux_arm.go   |  32 ++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go  | 132 +++++++++++++++++++++++++++++++++
+ test/arm-pass.txt                      |   1 +
+ 9 files changed, 198 insertions(+), 12 deletions(-)

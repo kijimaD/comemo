@@ -1,0 +1,16 @@
+commit 09fe28348908e9ef4f2d028b1ec82946de0e90f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 00:13:36 2009 -0700
+
+    main landing pages
+    
+    R=r
+    DELTA=55  (7 added, 34 deleted, 14 changed)
+    OCL=35984
+    CL=35986
+
+ doc/contribute.html  |  1 +
+ doc/install.html     |  1 +
+ doc/root.html        | 40 +++++++++++++++++++++++++++++
+ lib/godoc/godoc.html | 72 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 114 insertions(+)

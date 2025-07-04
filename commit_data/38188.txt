@@ -1,0 +1,16 @@
+commit c422c97b72164d7188c7b2b677ab10dd9a34ae34
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Wed Jan 30 17:36:22 2019 +0000
+
+    go/printer: add missing error checks in tests
+    
+    Change-Id: I696da3b07c8b0a2802d3d1291f475e241e4ad90a
+    GitHub-Last-Rev: df571ce03bd07a1e12203774f4c120f5017590f6
+    GitHub-Pull-Request: golang/go#30011
+    Reviewed-on: https://go-review.googlesource.com/c/160435
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/printer/printer_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

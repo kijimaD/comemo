@@ -1,0 +1,12 @@
+commit 5acde2d5aa2296bc505fb5cffa26a73a5e53716b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 18 11:40:59 2015 -0400
+
+    cmd/go: really skip TestNoteReading on linux/ppc64le
+    
+    Change-Id: Iaeba7c55bbb9e11ac30f3b61369aa597acc30190
+    Reviewed-on: https://go-review.googlesource.com/13691
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/note_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

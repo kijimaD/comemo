@@ -1,0 +1,20 @@
+commit 664cd26c89ec59cb6b686a9b3887ace7a76b0047
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 2 12:06:58 2017 -0700
+
+    cmd/vet: don't exit with failure on type checking error
+    
+    The vet tool only reports a type checking error when invoked with -v.
+    Don't let that by itself cause vet to exit with an error exit status.
+    
+    Updates #21188
+    
+    Change-Id: I172c13d46c35d49e229e96e833683d8c82a77de7
+    Reviewed-on: https://go-review.googlesource.com/52851
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/main.go              |  5 +++--
+ src/cmd/vet/testdata/cgo/cgo3.go | 13 +++++++++++++
+ src/cmd/vet/vet_test.go          | 12 ++++++++++++
+ 3 files changed, 28 insertions(+), 2 deletions(-)

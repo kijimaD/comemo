@@ -1,0 +1,14 @@
+commit b126902e84891737e7f94a547b4273dc37706065
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 13 22:42:57 2011 -0500
+
+    time: remove unused sysSleep
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5369094
+
+ src/pkg/time/sys_plan9.go   |  8 --------
+ src/pkg/time/sys_unix.go    |  8 --------
+ src/pkg/time/sys_windows.go | 13 -------------
+ 3 files changed, 29 deletions(-)

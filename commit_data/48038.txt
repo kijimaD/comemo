@@ -1,0 +1,18 @@
+commit a5c0b190809436fd196a348f85eca0416f4de7fe
+Author: zhouguangyuan <zhouguangyuan.xian@gmail.com>
+Date:   Tue Nov 2 20:23:34 2021 +0800
+
+    cmd/go: fix error message when missing import
+    
+    Fixes #48907
+    
+    Change-Id: I504f846fc2ea655ba00aedb30f90847f938c347c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360615
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/go/testdata/script/mod_go_version_missing.txt | 2 +-
+ src/go/build/build.go                                 | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

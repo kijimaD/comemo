@@ -1,0 +1,27 @@
+commit 1e4989c33674bf9570c99250a081a448c3cded65
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 21 15:54:33 2022 -0400
+
+    cmd: relocate search.MatchPattern to cmd/internal/pkgpattern
+    
+    Relocate cmd/go's search.MatchPattern helper routine to a new package
+    in cmd/internal from its current location, as to allow it to be used
+    in other tools that accept package pattern command line flags. No
+    change in functionality along the way.
+    
+    Updates #51430.
+    
+    Change-Id: I726e974ccd66a055bb5a94497b36b8d68d47cad1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432757
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    |   3 +-
+ src/cmd/go/internal/load/search.go                 |   5 +-
+ src/cmd/go/internal/modget/query.go                |   5 +-
+ src/cmd/go/internal/modload/list.go                |   3 +-
+ src/cmd/go/internal/modload/query.go               |   3 +-
+ src/cmd/go/internal/modload/search.go              |   5 +-
+ src/cmd/go/internal/search/search.go               | 108 +---------------
+ .../pkgpattern/pat_test.go}                        |  70 ++++++++---
+ src/cmd/internal/pkgpattern/pkgpattern.go          | 137 +++++++++++++++++++++
+ 9 files changed, 208 insertions(+), 131 deletions(-)

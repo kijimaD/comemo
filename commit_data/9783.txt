@@ -1,0 +1,12 @@
+commit 481e619c50219fda4118f644e966d1bbb0cd82c7
+Author: Eric Eisner <eric.d.eisner@gmail.com>
+Date:   Fri Sep 23 09:18:10 2011 -0700
+
+    suffixarray: add benchmarks for construction
+    
+    R=gri, jeff
+    CC=golang-dev
+    https://golang.org/cl/5040048
+
+ src/pkg/index/suffixarray/suffixarray_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

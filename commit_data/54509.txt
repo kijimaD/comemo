@@ -1,0 +1,17 @@
+commit 203c69a6ef7325f254c6f17dea26a72fdf40153b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 19 11:37:25 2023 -0400
+
+    cmd/go: in TestGoBuildUmask, create a file using os.WriteFile as a control
+    
+    Fixes #62724.
+    Updates #17909.
+    
+    Change-Id: Ib2e9abec4fb88f418c4251ece7fcdef315190835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529495
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/go_unix_test.go | 28 +++++++++++++++++++++++-----
+ 1 file changed, 23 insertions(+), 5 deletions(-)

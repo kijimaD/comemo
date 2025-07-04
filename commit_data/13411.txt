@@ -1,0 +1,12 @@
+commit 71643b2fdbc600fea6498ed20a17ec14bb13a841
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 27 17:32:41 2012 -0400
+
+    runtime: fix string optimization
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6354048
+
+ src/pkg/runtime/string.goc | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

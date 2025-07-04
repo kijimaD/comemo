@@ -1,0 +1,32 @@
+commit a4855812e259f91914328659a37dc3a2582da7ba
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Oct 8 21:52:03 2015 +1300
+
+    runtime: add a constant for the smallest possible stack frame
+    
+    Shared libraries on ppc64le will require a larger minimum stack frame (because
+    the ABI mandates that the TOC pointer is available at 24(R1)). So to prepare
+    for this, make a constant for the fixed part of a stack and use that where
+    necessary.
+    
+    Change-Id: I447949f4d725003bb82e7d2cf7991c1bca5aa887
+    Reviewed-on: https://go-review.googlesource.com/15523
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/arch_386.go      |  1 +
+ src/runtime/arch_amd64.go    |  1 +
+ src/runtime/arch_amd64p32.go |  1 +
+ src/runtime/arch_arm.go      |  1 +
+ src/runtime/arch_arm64.go    |  1 +
+ src/runtime/arch_ppc64.go    |  1 +
+ src/runtime/arch_ppc64le.go  |  1 +
+ src/runtime/cgocall.go       | 28 ++++++++++++++++++----------
+ src/runtime/mgcmark.go       |  4 +---
+ src/runtime/panic.go         |  2 --
+ src/runtime/proc1.go         | 11 ++++-------
+ src/runtime/signal_ppc64x.go |  2 +-
+ src/runtime/stack.go         |  4 +---
+ src/runtime/traceback.go     | 17 ++++++-----------
+ 14 files changed, 38 insertions(+), 37 deletions(-)

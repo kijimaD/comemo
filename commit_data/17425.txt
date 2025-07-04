@@ -1,0 +1,14 @@
+commit 2fb8022e58260549e8268d1bd391bfeb46544cd6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 29 12:08:11 2013 -0700
+
+    misc: add linkcheck tool
+    
+    Fixes #5378
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13247044
+
+ misc/linkcheck/linkcheck.go | 167 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 167 insertions(+)

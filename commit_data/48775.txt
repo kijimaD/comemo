@@ -1,0 +1,26 @@
+commit a78db879b31b072c37c6d46cc404d8e131d54349
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Apr 12 21:22:22 2022 -0700
+
+    crypto/x509: omit empty extensions SEQUENCE
+    
+    In CreateCertificate, if there are no extensions, don't include the
+    extensions SEQUENCE in the encoded certificate.
+    
+    Why, you might ask, does the encoding/asn1 tag 'optional' not do
+    the same thing as 'omitempty'? Good question, no clue, fixing that
+    would probably break things in horrific ways.
+    
+    Fixes #52319
+    
+    Change-Id: I84fdd5ff3e4e0b0a59e3bf86e7439753b1e1477b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399827
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/x509.go      |  2 +-
+ src/crypto/x509/x509_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

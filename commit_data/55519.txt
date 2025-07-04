@@ -1,0 +1,32 @@
+commit d3fd7ee5803078b775f8c4de6c056e4a360ea2cc
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Feb 1 16:00:51 2024 -0500
+
+    cmd/relnote: fix API relnote check
+    
+    Fix the check for release note files that correspond to API files
+    to look in the right directory, doc/next/*stdlib/*minor. Previously
+    the test looked in doc/next.
+    
+    Improve the error messages when the test fails to explain the problem
+    better and refer to further documentation.
+    
+    (These changes are actually in the x/build repo; this CL vendors
+    the latest version.)
+    
+    Lastly, re-enable the check.
+    
+    For #64169.
+    
+    Change-Id: I8bba845e9bd12afbe269ce42d6d4b17b1e3c0252
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560516
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ src/cmd/relnote/relnote_test.go                    |  3 +-
+ .../vendor/golang.org/x/build/relnote/relnote.go   | 48 +++++++++++++++++-----
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 5 files changed, 43 insertions(+), 16 deletions(-)

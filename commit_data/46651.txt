@@ -1,0 +1,15 @@
+commit 7eb0dd289a173e8fa1d6666689ebba2c91705a5c
+Author: jiahua wang <wjh180909@gmail.com>
+Date:   Sat Sep 25 09:24:04 2021 +0800
+
+    io: add examples for (*SectionReader) Read/Size
+    
+    Change-Id: Ie804f9a5d1d6beec210d2f8075c030a5c60a78ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352152
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
+
+ src/io/example_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

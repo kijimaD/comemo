@@ -1,0 +1,19 @@
+commit c91ce3cc7b13fce23edae94818e505f126036bdb
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Sep 13 13:26:46 2018 -0700
+
+    test: stress test for stack objects
+    
+    Allocate a long linked list on the stack. This tests both
+    lots of live stack objects, and lots of intra-stack pointers
+    to those objects.
+    
+    Change-Id: I169e067416455737774851633b1e5367e10e1cf2
+    Reviewed-on: https://go-review.googlesource.com/c/135296
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/stackobj2.go | 83 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 83 insertions(+)

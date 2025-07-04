@@ -1,0 +1,14 @@
+commit 79a4a779a7c2d90509ac05d31c959b7c9d7147de
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 22 10:30:43 2014 +1100
+
+    syscall: clean up TestStdcallAndCDeclCallbacks to have no warnings
+    
+    Fixes #9188
+    
+    Change-Id: Ifbf5d9fa78a4f4ceb7f92d42494fe37fa7878c45
+    Reviewed-on: https://go-review.googlesource.com/1930
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/syscall_windows_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

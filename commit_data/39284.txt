@@ -1,0 +1,16 @@
+commit 9e31b1775aaab995986c9d986704e5ba4eddbe47
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Wed May 22 17:52:24 2019 +0700
+
+    cmd/go: use the rev to resolve tags for pseudo-versions in mod init
+    
+    Fixes #32161
+    Updates #31251
+    
+    Change-Id: I22760836b48cd734b90bc43aacb23e23e38c0f4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178497
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/repo.go          |  2 +-
+ src/cmd/go/testdata/script/mod_init_glide.txt | 32 +++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

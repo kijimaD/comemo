@@ -1,0 +1,22 @@
+commit 86c4c4f00cc2ab6445ccb333c5b585bfe4a1002f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 30 14:54:09 2014 -0400
+
+    cmd/cc: generate error if #pragma pack off does anything
+    
+    We can't translate misaligned things to Go, so start rejecting them in C.
+    
+    The only one in any build appears to be EpollEvent on linux/amd64.
+    Fix that.
+    
+    LGTM=r
+    R=golang-codereviews, r, dvyukov
+    CC=golang-codereviews, iant
+    https://golang.org/cl/137020043
+
+ src/cmd/5c/swt.c                   | 9 ++++++---
+ src/cmd/6c/swt.c                   | 9 ++++++---
+ src/cmd/8c/swt.c                   | 9 ++++++---
+ src/pkg/runtime/defs_linux_amd64.h | 2 +-
+ src/pkg/runtime/netpoll_epoll.c    | 2 +-
+ 5 files changed, 20 insertions(+), 11 deletions(-)

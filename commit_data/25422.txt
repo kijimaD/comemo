@@ -1,0 +1,26 @@
+commit 2c67c8c3038ec7dddecb6c1b29f0610f3262134d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 1 15:44:12 2016 -0800
+
+    runtime: fix exit status when killed by signal
+    
+    Previously, when a program died because of a SIGHUP, SIGINT, or SIGTERM
+    signal it would exit with status 2.  This CL fixes the runtime to exit
+    with a status indicating that the program was killed by a signal.
+    
+    Change-Id: Ic2982a2562857edfdccaf68856e0e4df532af136
+    Reviewed-on: https://go-review.googlesource.com/18156
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_unix_test.go          | 18 ++++++++++++++++++
+ src/runtime/os_nacl.go                  |  4 ++++
+ src/runtime/signal1_unix.go             | 18 +++++++++++++-----
+ src/runtime/signal_386.go               |  2 +-
+ src/runtime/signal_amd64x.go            |  2 +-
+ src/runtime/signal_arm.go               |  2 +-
+ src/runtime/signal_arm64.go             |  2 +-
+ src/runtime/signal_mips64x.go           |  2 +-
+ src/runtime/signal_ppc64x.go            |  2 +-
+ src/runtime/testdata/testprog/signal.go | 17 +++++++++++++++++
+ 10 files changed, 58 insertions(+), 11 deletions(-)

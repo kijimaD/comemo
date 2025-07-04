@@ -1,0 +1,21 @@
+commit 3249b645c986849bbf72c1dc71efc4f90df465ec
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Jun 13 22:26:21 2021 +0700
+
+    cmd/compile: factor out rewrite multi-valued f()
+    
+    So next CL can reuse code to rewrite OAS2FUNC.
+    
+    Passes toolstash -cmp.
+    
+    For #46725
+    
+    Change-Id: I1113ed615b6d6b9494dd87000ce342d7a46d9e7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327650
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 31 +++++++++++++++----------
+ 1 file changed, 19 insertions(+), 12 deletions(-)

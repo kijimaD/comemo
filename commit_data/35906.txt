@@ -1,0 +1,14 @@
+commit b56e24782f81002fabe06bdf65a735ac7e2b6e1f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 8 17:02:48 2018 -0700
+
+    runtime: scale timeout in TestStackGrowth
+    
+    Updates #19381
+    
+    Change-Id: I62b8b0cd7170941af77281eb3aada3802623ec27
+    Reviewed-on: https://go-review.googlesource.com/122587
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/stack_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

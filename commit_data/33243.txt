@@ -1,0 +1,33 @@
+commit f2d52519e1fad35566afb46ef521934cf0f5e5fd
+Author: griesemer <gri@golang.org>
+Date:   Wed Oct 25 11:26:02 2017 -0700
+
+    spec: match syntax for method expressions with implementations
+    
+    A method expression is of the form T.m where T is a type and m
+    is a method of that type. The spec restricted T essentially to
+    a type name. Both cmd/compile and go/types accepted any type
+    syntactically, and a method expression was really just a form
+    of a selector expression x.f where x denotes a type.
+    
+    This CL removes the spec syntax restriction from MethodExpr
+    to match the actual implementation. It also moves MethodExpr
+    from Operand to PrimaryExpr, because that's what it is.
+    
+    It still keeps the separate notion of MethodExpr even though
+    it looks just like a selector expresion, since a MethodExpr
+    must start with a type rather than a value, and the spec's
+    syntax expresses this bit of semantics via distinct productions
+    (e.g., conversions look like calls but also must start with
+    a type).
+    
+    Fixes #9060.
+    
+    Change-Id: Idd84655b5b4f85d7ee53ebf749f73f0414a05f4a
+    Reviewed-on: https://go-review.googlesource.com/73233
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

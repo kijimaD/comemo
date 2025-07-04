@@ -1,0 +1,13 @@
+commit e2854875c559d23ab9124421c587f231787b6bc3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 12 15:43:13 2009 -0700
+
+    Review and update.  No major changes, lots of minor tweaks.
+    
+    R=go-dev
+    DELTA=176  (39 added, 9 deleted, 128 changed)
+    OCL=35612
+    CL=35623
+
+ doc/go_for_cpp_programmers.html | 228 +++++++++++++++++++++++-----------------
+ 1 file changed, 129 insertions(+), 99 deletions(-)

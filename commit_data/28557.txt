@@ -1,0 +1,24 @@
+commit 60482d8a8b11a3dfdf9b582b9f666694d84bb9c4
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Sep 22 09:37:28 2016 +0200
+
+    runtime: relax SetFinalizer documentation to allow &local
+    
+    The SetFinalizer documentation states that
+    
+    "The argument obj must be a pointer to an object allocated by calling
+    new or by taking the address of a composite literal."
+    
+    which precludes pointers to local variables. According to a comment
+    on #6591, this case is expected to work. This CL updates the documentation
+    for SetFinalizer accordingly.
+    
+    Fixes #6591
+    
+    Change-Id: Id861b3436bc1c9521361ea2d51c1ce74a121c1af
+    Reviewed-on: https://go-review.googlesource.com/29592
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mfinal.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

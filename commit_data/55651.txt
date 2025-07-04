@@ -1,0 +1,24 @@
+commit 3374dad1d9529b6c2e58eb660117df388faf8d29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 8 15:13:11 2024 -0800
+
+    go/types: generate builtins_test.go from types2 source
+    
+    Added new conversion functions to generate_test.go to handle the
+    translation of builtins_test.go.
+    
+    Simplify some existing code by using the renameMap mechanism.
+    
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 250 LOC.
+    
+    Change-Id: I1a455c1921512fb3647fd92ac7c278b1b80ea884
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562837
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/go/types/builtins_test.go |  6 ++-
+ src/go/types/generate_test.go | 85 +++++++++++++++++++++++++++++++------------
+ 2 files changed, 65 insertions(+), 26 deletions(-)

@@ -1,0 +1,14 @@
+commit 4f49b88dda80a80ec1272447e3a2ca219b6c0436
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jan 29 15:13:36 2009 -0800
+
+    optimizer bug w STOstring
+    
+    R=r
+    OCL=23820
+    CL=23820
+
+ src/cmd/6c/peep.c | 22 +++++++++++++++++++---
+ src/cmd/6g/peep.c | 22 +++++++++++++++++++---
+ src/cmd/8c/peep.c | 18 ++++++++++++++++--
+ 3 files changed, 54 insertions(+), 8 deletions(-)

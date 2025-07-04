@@ -1,0 +1,12 @@
+commit bcf43e956538e3709428b5b0a07407dbfcd26135
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Mar 8 22:44:33 2015 +0900
+
+    net: gofmt
+    
+    Change-Id: Ifcf7b96e67b63a08f410a7ba21e8bf4dd20e7d8e
+    Reviewed-on: https://go-review.googlesource.com/7122
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/net/ipsock_test.go | 68 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

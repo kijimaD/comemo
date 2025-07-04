@@ -1,0 +1,13 @@
+commit 3b6de5e847bb8bf12f2299e2026ebf35c2026463
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 30 19:47:16 2013 +0400
+
+    net: fix memory leak on unix
+    If netFD is closed by finalizer, runtime netpoll descriptor is not freed.
+    
+    R=golang-dev, dave, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12037043
+
+ src/pkg/net/fd_unix.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

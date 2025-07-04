@@ -1,0 +1,13 @@
+commit c309c89db5aa15e1dad486c49ed4fd1babd23360
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 24 10:44:39 2021 -0700
+
+    reflect: document that InterfaceData is a low-entropy RNG
+    
+    Change-Id: Ie26b9060630e2e774ac23d8492eaaf785bfca6b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330709
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/reflect/value.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

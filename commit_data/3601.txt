@@ -1,0 +1,19 @@
+commit 60ff8cc86ffd10316c4dadd3484eff8197dde753
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 20 08:27:14 2009 -0700
+
+    address bug193 and add note to spec about it.
+    
+    R=ken
+    OCL=35920
+    CL=35920
+
+ doc/go_spec.html                   | 1 +
+ src/cmd/gc/const.c                 | 4 ++--
+ src/cmd/gc/subr.c                  | 7 ++++---
+ src/cmd/gc/typecheck.c             | 2 +-
+ test/bugs/placeholder              | 2 ++
+ test/{bugs => fixedbugs}/bug193.go | 0
+ test/golden.out                    | 3 ---
+ test/run                           | 5 +++--
+ 8 files changed, 13 insertions(+), 11 deletions(-)

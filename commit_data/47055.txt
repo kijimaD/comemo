@@ -1,0 +1,16 @@
+commit bb49eb3e6a464fbbebd425c4b84c32609b27ecf2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 26 21:12:31 2021 -0700
+
+    cmd/compile/internal/syntax: fix constraint literal parsing for generic functions
+    
+    Fixes #49174.
+    
+    Change-Id: I943c370f7abd5f50a541e682f130b3526c3b5bdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359014
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go            | 14 +++++++++++++-
+ src/cmd/compile/internal/syntax/testdata/typeset.go2 | 13 ++++++++++++-
+ 2 files changed, 25 insertions(+), 2 deletions(-)

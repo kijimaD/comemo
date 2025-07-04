@@ -1,0 +1,13 @@
+commit 51b8d23e3b3fdb490e0cedd68efdb54b67f8a159
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 12 15:23:21 2011 -0800
+
+    rpc: export names in debug service so it works with template changes
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/3760049
+
+ src/pkg/rpc/debug.go  | 26 +++++++++++++-------------
+ src/pkg/rpc/server.go | 17 ++++++++++++-----
+ 2 files changed, 25 insertions(+), 18 deletions(-)

@@ -1,0 +1,17 @@
+commit 61eb7058d0bd04fe4f616ddd011e0c0cb2eaa39d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Dec 14 10:33:56 2015 +1100
+
+    path/filepath: keep walking if EvalSymlinks returns symlink
+    
+    Fixes #13582
+    
+    Change-Id: I220f3c7b9511b3c080874f5c42f2a431fdddcbb7
+    Reviewed-on: https://go-review.googlesource.com/17794
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/path/filepath/path_test.go       | 69 ++++++++++++++++++++++++++++++++++++
+ src/path/filepath/symlink.go         | 25 ++++++++++---
+ src/path/filepath/symlink_windows.go |  7 +---
+ 3 files changed, 90 insertions(+), 11 deletions(-)

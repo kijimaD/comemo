@@ -1,0 +1,15 @@
+commit c3343ef62c6bc462cdf39a0de19e7ecc4e8ccc71
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 16:33:23 2009 -0800
+
+    fix BUFSIZ redeclaration warnings
+    
+    R=r
+    https://golang.org/cl/152085
+
+ src/cmd/5a/a.h  | 2 +-
+ src/cmd/6a/a.h  | 2 +-
+ src/cmd/8a/a.h  | 2 +-
+ src/cmd/cc/cc.h | 2 +-
+ src/cmd/gc/go.h | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

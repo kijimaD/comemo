@@ -1,0 +1,23 @@
+commit 9060fa5afd52fcdb60c09e26c73f5980520ca9f9
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 17 17:21:47 2023 -0400
+
+    cmd/go: track root failing Action
+    
+    Currently, each Action tracks whether it failed, which is propagated
+    up from dependencies. Shortly, we'll need to know the root cause if a
+    test fails because of a build failure. To support this, replace the
+    Failed boolean with a Failed *Action that tracks the root Action that
+    failed and caused other Actions to fail.
+    
+    For #62067.
+    
+    Change-Id: I8f84a51067354043ae9531a4368c6f8b11d688d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536398
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/test/test.go   |  4 ++--
+ src/cmd/go/internal/work/action.go |  4 ++--
+ src/cmd/go/internal/work/exec.go   | 14 ++++++++------
+ 3 files changed, 12 insertions(+), 10 deletions(-)

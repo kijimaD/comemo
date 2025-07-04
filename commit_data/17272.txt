@@ -1,0 +1,17 @@
+commit 71eae5a46a1ecb21dfe5eacd42fcdad8145fac52
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 16 10:30:05 2013 +1000
+
+    cmd/go: delete 'go doc'
+    It's next to useless and confusing as well. Let's make godoc better instead.
+    
+    Fixes #4849.
+    
+    R=golang-dev, dsymonds, adg, rogpeppe, rsc
+    CC=golang-dev
+    https://golang.org/cl/12974043
+
+ src/cmd/go/doc.go  | 25 +------------------------
+ src/cmd/go/fmt.go  | 44 +-------------------------------------------
+ src/cmd/go/main.go |  3 ---
+ 3 files changed, 2 insertions(+), 70 deletions(-)

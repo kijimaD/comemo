@@ -1,0 +1,30 @@
+commit 997086b7e6db6c74926500aa15fd3c02bc4939b8
+Author: Dong-hee Na <donghee.na92@gmail.com>
+Date:   Mon May 6 18:53:46 2019 +0900
+
+    text/template: replace bytes.Buffer with strings.Builder
+    
+    After Go.1.10+ strings.Builder is known as more efficient in
+    concatenating and building strings than bytes.Buffer.
+    
+    In this CL,
+    there is a minor logic fix for getting advantage of strings.builder.
+    
+    name               old time/op    new time/op    delta
+    DefinedTemplate-8     543ns ± 3%     512ns ± 2%   -5.73%  (p=0.000 n=8+8)
+    
+    name               old alloc/op   new alloc/op   delta
+    DefinedTemplate-8      192B ± 0%      160B ± 0%  -16.67%  (p=0.000 n=8+8)
+    
+    name               old allocs/op  new allocs/op  delta
+    DefinedTemplate-8      5.00 ± 0%      5.00 ± 0%     ~     (all equal)
+    
+    Change-Id: Icda0054d146e6c5e32ed8a4d13221bb6850d31b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175261
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/text/template/exec.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

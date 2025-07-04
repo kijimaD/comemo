@@ -1,0 +1,14 @@
+commit e9c35ac55d68b2fa57aea392d29687a67098c934
+Author: Florian Uekermann <florian@uekermann-online.de>
+Date:   Mon Oct 18 14:09:20 2010 -0400
+
+    big: add random number generation
+    
+    Adds func (z *Int) RandIntn(src rand.Source,n *Int) *Int
+    
+    R=rsc
+    CC=golang-dev, gri
+    https://golang.org/cl/2315045
+
+ src/pkg/big/int.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

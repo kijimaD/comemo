@@ -1,0 +1,13 @@
+commit 53ab6a0ad19e76156ec79b4c0c557910dee49005
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 24 16:00:19 2009 -0800
+
+    add freebsd to the list of os'es.
+    make the GOOS/GOARCH pair a table to avoid the confusion caused when it was of the form linux/386.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/160061
+
+ doc/install.html | 41 +++++++++++++++++++++++++++++++++--------
+ 1 file changed, 33 insertions(+), 8 deletions(-)

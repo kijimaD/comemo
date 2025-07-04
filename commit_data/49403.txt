@@ -1,0 +1,14 @@
+commit 7271a0a287fdd765f29c193163b0f1305edb6205
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 6 15:45:00 2022 -0400
+
+    doc/go1.19: gc requires -p=importpath
+    
+    For #51400
+    
+    Change-Id: I07a805147a6aa0923331f3f940a9e6e5553cbea9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410676
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go1.19.html | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

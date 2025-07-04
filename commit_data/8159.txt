@@ -1,0 +1,14 @@
+commit 64787e3123ae68765e10e2044b64ccb695527b7b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 20 15:04:04 2011 -0400
+
+    reflect: update CanAddr, CanSet documentation
+    
+    CanAddr was wrong, out of date; CanSet was incomplete.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4442066
+
+ src/pkg/reflect/value.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

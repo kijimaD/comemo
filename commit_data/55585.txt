@@ -1,0 +1,16 @@
+commit 62cebb2e917a6839bad15206c4f543fa8074411c
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Feb 2 16:19:37 2024 -0800
+
+    net/http: close connection if OnProxyConnectResponse returns an error
+    
+    Fixes #64804
+    
+    Change-Id: Ibe56ab8d114b8826e477b0718470d0b9fbfef9b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560856
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/net/http/transport.go      |  1 +
+ src/net/http/transport_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

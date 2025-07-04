@@ -1,0 +1,27 @@
+commit 8ff4260777aabe4ec7a92cba8c7dcce24f7fbf2b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 30 09:12:22 2016 -0400
+
+    cmd/compile: intrinsify Ctz, Bswap on ARM
+    
+    Atomic ops on ARM are implemented with kernel calls, so they are
+    not intrinsified.
+    
+    Change-Id: I0e7cc2e5526ae1a3d24b4b89be1bd13db071f8ef
+    Reviewed-on: https://go-review.googlesource.com/28977
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/arm/prog.go               |   1 +
+ src/cmd/compile/internal/arm/ssa.go                |   3 +
+ src/cmd/compile/internal/gc/ssa.go                 |   8 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules         |  26 +++
+ src/cmd/compile/internal/ssa/gen/ARMOps.go         |   3 +
+ src/cmd/compile/internal/ssa/gen/dec64.rules       |  14 ++
+ src/cmd/compile/internal/ssa/opGen.go              |  30 +++
+ src/cmd/compile/internal/ssa/rewriteARM.go         | 203 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritedec64.go       |  62 +++++++
+ test/intrinsic.go                                  |   2 +-
+ .../atomic.go => intrinsic_atomic.go}              |   3 +-
+ 11 files changed, 349 insertions(+), 6 deletions(-)

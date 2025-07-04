@@ -1,0 +1,15 @@
+commit bb2fc21c3b818c45fad23fdf5f8bd83bbc074dce
+Author: Lizzzcai <lizzzcai1@gmail.com>
+Date:   Mon Mar 29 18:51:06 2021 +0800
+
+    runtime: fix typos in comments
+    
+    Change-Id: Ia70e8bdc6d2cf1195d7a3b5d33f180ae2db73e29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305369
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/malloc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

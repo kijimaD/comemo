@@ -1,0 +1,13 @@
+commit 01b6b4b43af63834058e43651b2ca0ff747fd293
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 29 23:57:48 2015 -0500
+
+    cmd/5l, cmd/9l: more ucontext.h fixes
+    
+    Change-Id: I32cad7358f5bfd8e107179653bdc55a69fbe772a
+    Reviewed-on: https://go-review.googlesource.com/3579
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/5l/5.out.h | 16 +++++++++++++
+ src/cmd/9l/9.out.h | 66 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+)

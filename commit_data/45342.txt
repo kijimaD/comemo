@@ -1,0 +1,22 @@
+commit c4303139925d45b3e784d61dd3901f66c41189d4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 23 19:50:42 2021 -0400
+
+    runtime: use abi.FuncPCABI0 for libc syscall wrappers
+    
+    In CL 288092 we made Darwin syscall wrappers as ABIInternal, so
+    their addresses taken from Go using funcPC are the actual function
+    entries, not the wrappers.
+    
+    As we introduced internal/abi.FuncPCABIxxx intrinsics, use that.
+    And change the assembly functions back to ABI0.
+    
+    Change-Id: I50645af74883e2d5dfcd67a5e8c739222c6f645b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313250
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/os_darwin.go       | 13 +++---
+ src/runtime/sys_darwin.go      | 97 +++++++++++++++++++++--------------------
+ src/runtime/sys_darwin_amd64.s | 98 +++++++++++++++++++++---------------------
+ 3 files changed, 106 insertions(+), 102 deletions(-)

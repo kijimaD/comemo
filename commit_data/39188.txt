@@ -1,0 +1,19 @@
+commit 37133b5d63a451e083d78187a252ed2ea3bf96fc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed May 15 04:19:26 2019 +1000
+
+    runtime: fix netbsd/arm64 assembly
+    
+    Fix various bugs in the netbsd/arm64 runtime assembly.
+    
+    Updates #30824.
+    
+    Change-Id: I5ca10926ab663a8ff4df9973530e645e2469c1aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177120
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_netbsd_arm64.s | 20 +++++++++-----------
+ 1 file changed, 9 insertions(+), 11 deletions(-)

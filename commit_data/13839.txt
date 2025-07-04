@@ -1,0 +1,17 @@
+commit 551e26382385a91cbe9cfc94b1327d29f030f254
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon Sep 17 21:29:10 2012 +0200
+
+    cmd/gc: add missing conversion from bool to interface in switches.
+    
+    In switches without an expression, the compiler would not convert the implicit true to an interface, causing codegen errors.
+    
+    Fixes #3980.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6497147
+
+ src/cmd/gc/swt.c |  7 +++++++
+ test/switch.go   | 11 +++++++++++
+ 2 files changed, 18 insertions(+)

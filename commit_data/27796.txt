@@ -1,0 +1,14 @@
+commit 219ca602ab3f9d7d857bc1640e2b9e01475cdc3d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Aug 6 10:12:03 2016 -0700
+
+    doc: fix required OS X version inconsistency for binary downloads
+    
+    Updates #16625
+    
+    Change-Id: Icac6705828bd9b29379596ba64b34d922b9002c3
+    Reviewed-on: https://go-review.googlesource.com/25548
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

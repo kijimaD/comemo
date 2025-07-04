@@ -1,0 +1,14 @@
+commit 3e3da5463302ff6f73a78e60fa7027d554095520
+Author: Francesc Campoy Flores <campoy@golang.org>
+Date:   Fri Aug 4 17:03:33 2017 -0700
+
+    math/bits: fix example for OnesCount64
+    
+    Erroneously called OnesCount instead of OnesCount64
+    
+    Change-Id: Ie877e43f213253e45d31f64931c4a15915849586
+    Reviewed-on: https://go-review.googlesource.com/53410
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/math/bits/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 185257352189939e77de0172e17aadce2c355704
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Nov 1 15:47:46 2017 +0000
+
+    go/types: sort unused declaration errors
+    
+    By position, to ensure deterministic output.
+    
+    Fixes #22525.
+    
+    Change-Id: I28777d504a622416678b52afd6fc4c3ef32c12af
+    Reviewed-on: https://go-review.googlesource.com/75090
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/types/issues_test.go | 22 ++++++++++++++++++++++
+ src/go/types/stmt.go        | 15 ++++++++++++---
+ 2 files changed, 34 insertions(+), 3 deletions(-)

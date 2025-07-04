@@ -1,0 +1,21 @@
+commit 3997495dc343c1cfca7a7e771581a09a4e1f7eb4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 11 15:59:41 2009 -0800
+
+    gc: semicolons
+    
+    Fixes #89.
+    Fixes #92.
+    Fixes #118.
+    Fixes #182.
+    Fixes #328.
+    Fixes #340.
+    
+    R=ken2, ken3
+    CC=golang-dev
+    https://golang.org/cl/172049
+
+ src/cmd/gc/go.h  |   6 +--
+ src/cmd/gc/go.y  | 119 +++++++++++++++++------------------------------
+ src/cmd/gc/lex.c | 139 +++++++++++++++++++++++--------------------------------
+ 3 files changed, 101 insertions(+), 163 deletions(-)

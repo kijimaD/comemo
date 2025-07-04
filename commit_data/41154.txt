@@ -1,0 +1,16 @@
+commit 8453844ed774b0f864d28cb83844402c63db2849
+Author: Kirill Tatchihin <kirabsuir@gmail.com>
+Date:   Thu Jan 23 16:14:40 2020 +0000
+
+    time: document how Parse handles two-digit years
+    
+    Fixes #36549
+    
+    Change-Id: Ia803330fc046d5807bbefd67acb419cb81640a13
+    GitHub-Last-Rev: bd354319083bf80c250e1915f2be6860d2f7d14b
+    GitHub-Pull-Request: golang/go#36584
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214980
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/time/format.go | 3 +++
+ 1 file changed, 3 insertions(+)

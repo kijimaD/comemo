@@ -1,0 +1,16 @@
+commit cf201ed6a00223e1e6dd69e884f9bcd25ce2b62c
+Author: Graham Miller <graham.miller@gmail.com>
+Date:   Mon Jun 20 15:42:17 2011 -0400
+
+    os: change Waitmsg String method to use pointer receiver
+    
+    Fixes #1851.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4628045
+
+ src/pkg/os/exec_plan9.go | 5 ++++-
+ src/pkg/os/exec_posix.go | 5 ++++-
+ src/pkg/os/os_test.go    | 8 ++++++++
+ 3 files changed, 16 insertions(+), 2 deletions(-)

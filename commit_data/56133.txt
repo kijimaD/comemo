@@ -1,0 +1,24 @@
+commit 0f10ffec13a1eecb2b18e0b9d75773faf42e7ebd
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Apr 4 06:59:50 2024 +0000
+
+    expvar: add the missing deletion step for keys
+    
+    In CL575777 I forgot to remove the key from the "sync.Map".
+    This did not cause the test to fail due to the lack of an associated
+    testcase. Now delete the key correctly and add the testcase.
+    
+    Change-Id: I26f770966a828caa02f1766675756b67894dc195
+    GitHub-Last-Rev: a351ce095b5256fd1351d71f09ba38fdcdfce3d9
+    GitHub-Pull-Request: golang/go#66675
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576395
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/expvar/expvar.go      | 1 +
+ src/expvar/expvar_test.go | 6 ++++++
+ 2 files changed, 7 insertions(+)

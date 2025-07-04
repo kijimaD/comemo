@@ -1,0 +1,17 @@
+commit c2ffd9d0c27e8bdecaf0e717481def74b40b364d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 12 15:28:52 2012 -0800
+
+    cmd/go: use relative paths in go fix, go fmt, go vet output
+    
+    Fixes #2686.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5528089
+
+ src/cmd/go/build.go | 28 ++++++++++++++++++----------
+ src/cmd/go/fix.go   |  2 +-
+ src/cmd/go/fmt.go   |  2 +-
+ src/cmd/go/vet.go   |  2 +-
+ 4 files changed, 21 insertions(+), 13 deletions(-)

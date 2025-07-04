@@ -1,0 +1,21 @@
+commit 1038fc207bcd8bd35a50ffd8aaa4bba40c9bca9a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 15 14:20:50 2023 -0700
+
+    cmd/compile/internal/escape: change escapes and persists into bitset
+    
+    This CL introduces a locAttr bitset type, which will make it easier to
+    add additional attributes in the near future.
+    
+    Change-Id: I2689aa623097279dc1e7b7cf2adf5184d710c5a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520258
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/escape/escape.go |  9 ++++----
+ src/cmd/compile/internal/escape/graph.go  | 36 ++++++++++++++++++++-----------
+ src/cmd/compile/internal/escape/solve.go  | 14 ++++++------
+ 3 files changed, 34 insertions(+), 25 deletions(-)

@@ -1,0 +1,49 @@
+commit 8b6e0e6e8eb3a86ef1454a52a11bf75a077c56c5
+Author: Achille Roussel <achille.roussel@gmail.com>
+Date:   Wed Oct 4 04:58:03 2023 +0000
+
+    internal/bytealg: process two AVX2 lanes per Count loop
+    
+    The branch taken by the bytealg.Count algorithm used to process a single
+    32 bytes block per loop iteration. Throughput of the algorithm can be
+    improved by unrolling two iterations per loop: the lack of data
+    dependencies between each iteration allows for better utilization of the
+    CPU pipeline. The improvement is most significant on medium size payloads
+    that fit in the L1 cache; beyond the L1 cache size, memory bandwidth is
+    likely the bottleneck and the change does not show any measurable
+    improvements.
+    
+    goos: linux
+    goarch: amd64
+    pkg: bytes
+    cpu: Intel(R) Xeon(R) CPU @ 2.60GHz
+                    │   old.txt   │               new.txt               │
+                    │   sec/op    │   sec/op     vs base                │
+    CountSingle/10    4.800n ± 0%   4.811n ± 0%   +0.23% (p=0.000 n=10)
+    CountSingle/32    5.445n ± 0%   5.430n ± 0%        ~ (p=0.085 n=10)
+    CountSingle/4K    81.38n ± 1%   63.12n ± 0%  -22.43% (p=0.000 n=10)
+    CountSingle/4M    133.0µ ± 7%   130.1µ ± 4%        ~ (p=0.280 n=10)
+    CountSingle/64M   4.079m ± 1%   4.070m ± 3%        ~ (p=0.796 n=10)
+    geomean           1.029µ        973.3n        -5.41%
+    
+                    │   old.txt    │               new.txt                │
+                    │     B/s      │     B/s       vs base                │
+    CountSingle/10    1.940Gi ± 0%   1.936Gi ± 0%   -0.22% (p=0.000 n=10)
+    CountSingle/32    5.474Gi ± 0%   5.488Gi ± 0%        ~ (p=0.075 n=10)
+    CountSingle/4K    46.88Gi ± 1%   60.43Gi ± 0%  +28.92% (p=0.000 n=10)
+    CountSingle/4M    29.39Gi ± 7%   30.02Gi ± 4%        ~ (p=0.280 n=10)
+    CountSingle/64M   15.32Gi ± 1%   15.36Gi ± 3%        ~ (p=0.796 n=10)
+    geomean           11.75Gi        12.42Gi        +5.71%
+    
+    Change-Id: I1098228c726a2ee814806dcb438b7e92febf4370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532457
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/bytealg/count_amd64.s | 43 +++++++++++++++++++++++++++-----------
+ 1 file changed, 31 insertions(+), 12 deletions(-)

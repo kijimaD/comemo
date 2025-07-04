@@ -1,0 +1,16 @@
+commit 79619c3c7eb2ba3f3512410e1808c95cd1b6abf8
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 4 11:40:44 2022 -0700
+
+    test: extend issue52124.go to also test #52139
+    
+    Change-Id: I7da79d52d50d96536a8175ba08e9da551d07fadd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398094
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/typeparam/issue52124.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

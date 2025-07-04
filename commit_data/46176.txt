@@ -1,0 +1,29 @@
+commit c9e05fdcf7fd49e9b27f8bcb16347d17d04bc4e7
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Aug 24 17:35:51 2021 -0700
+
+    cmd/compile: fix reference to generic type needed by crawler
+    
+    This problem happens when you create a new local type that uses an
+    imported generic type (maybe just by instantiating it), and then that
+    local type needed to be included as part of an export. In that case, the
+    imported generic type is does not have a declaration in the local
+    package, so it is not necessarily created in types1, so the
+    crawler/export doesn't work.
+    
+    To fix this issue, we just need to add a call to g.obj() for the base
+    generic type, to make sure that it will exist if needed later in the
+    compilation or for the crawler during export.
+    
+    Fixes #47514
+    
+    Change-Id: Ie756578f07ad0007de8a88ae909cf7534a22936e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345411
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/types.go |  7 ++++++-
+ test/typeparam/issue47514c.dir/a.go     |  5 +++++
+ test/typeparam/issue47514c.dir/main.go  | 10 ++++++++++
+ test/typeparam/issue47514c.go           |  7 +++++++
+ 4 files changed, 28 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 5acba80aa2f1444066a9c28440229baa0f2e008d
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Fri Jun 12 22:49:42 2015 +0200
+
+    archive/tar: fix slice bounds out of range
+    
+    Sanity check the pax-header size field before using it.
+    
+    Fixes #11167.
+    
+    Change-Id: I9d5d0210c3990e6fb9434c3fe333be0d507d5962
+    Reviewed-on: https://go-review.googlesource.com/10954
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/archive/tar/reader.go      |  2 +-
+ src/archive/tar/reader_test.go | 11 ++++++++---
+ 2 files changed, 9 insertions(+), 4 deletions(-)

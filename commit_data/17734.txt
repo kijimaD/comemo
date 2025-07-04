@@ -1,0 +1,24 @@
+commit 0a033a18adc0a5c79607a94cda405119a47f908b
+Author: Dave Day <djd@golang.org>
+Date:   Thu Oct 3 13:48:47 2013 +1000
+
+    cmd/gc: support -installsuffix in the compiler and builder
+    
+    Add the -installsuffix flag to gc and {5,6,8}l, which overrides -race
+    for the suffix if both are supplied.
+    Pass this flag from the go tool for build and install.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/14246044
+
+ src/cmd/5l/obj.c       |  1 +
+ src/cmd/6l/obj.c       |  1 +
+ src/cmd/8l/obj.c       |  1 +
+ src/cmd/gc/go.h        |  1 +
+ src/cmd/gc/lex.c       | 19 +++++++++++++------
+ src/cmd/go/build.go    |  6 ++++++
+ src/cmd/go/testflag.go |  1 +
+ src/cmd/ld/lib.c       | 16 +++++++++++-----
+ src/cmd/ld/lib.h       |  1 +
+ 9 files changed, 36 insertions(+), 11 deletions(-)

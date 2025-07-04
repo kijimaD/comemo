@@ -1,0 +1,21 @@
+commit 9d2de778052ecbaf042d0b01c39e41db55ca6eaa
+Author: Gustav Westling <zegl@westling.xyz>
+Date:   Sun Jul 2 13:27:47 2017 +0200
+
+    encoding/base32: support custom and disabled padding when decoding
+    
+    CL 38634 added support for custom (and disabled) padding characters
+    when encoding, but didn't update the decoding paths. This adds
+    decoding support.
+    
+    Fixes #20854
+    
+    Change-Id: I9fb1a0aaebb27f1204c9f726a780d5784eb71024
+    Reviewed-on: https://go-review.googlesource.com/47341
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/base32/base32.go      | 24 +++++++++--
+ src/encoding/base32/base32_test.go | 88 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 108 insertions(+), 4 deletions(-)

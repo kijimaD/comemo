@@ -1,0 +1,15 @@
+commit 29794b77ddf1dbecc953d547b15e29aa12374bc1
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Fri Aug 16 13:03:40 2013 -0400
+
+    misc/emacs: godef: print the entire description, not just the first line
+    
+    When identifying structs or interfaces we really want to know
+    their makeup, not just their name.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/13042043
+
+ misc/emacs/go-mode.el | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

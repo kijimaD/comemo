@@ -1,0 +1,14 @@
+commit 76fa4f430ad1768450dd052f0fefefba0cc022b7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 26 08:31:15 2012 -0800
+
+    test: add test for floating point rounding of constants
+    
+    Failed with gccgo.
+    
+    R=golang-dev, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/6855053
+
+ test/fixedbugs/bug470.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

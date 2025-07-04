@@ -1,0 +1,23 @@
+commit 22701339817a591cd352ecd43b0439b84dbe8095
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 27 11:21:14 2015 -0400
+
+    cmd/gc: allocate backing storage for non-escaping interfaces on stack
+    
+    Extend escape analysis to convT2E and conT2I. If the interface value
+    does not escape supply runtime with a stack buffer for the object copy.
+    
+    This is a straight port from .c to .go of Dmitry's patch
+    
+    Change-Id: Ic315dd50d144d94dd3324227099c116be5ca70b6
+    Reviewed-on: https://go-review.googlesource.com/8201
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/internal/gc/builtin.go         |  4 ++--
+ src/cmd/internal/gc/builtin/runtime.go |  4 ++--
+ src/cmd/internal/gc/esc.go             |  5 ++---
+ src/cmd/internal/gc/walk.go            | 18 ++++++++++++++-
+ src/runtime/iface.go                   | 12 ++++++----
+ src/runtime/iface_test.go              | 40 ++++++++++++++++++++++++++++++++++
+ test/escape2.go                        |  2 +-
+ 7 files changed, 72 insertions(+), 13 deletions(-)

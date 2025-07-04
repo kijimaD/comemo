@@ -1,0 +1,20 @@
+commit 7906e311670c1744686d05a61d9a9ae6e48ffa4e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 29 23:34:06 2010 -0700
+
+    syscall: force O_LARGEFILE in Linux open system call
+    
+    Fixes #717.
+    
+    R=adg, PeterGo
+    CC=golang-dev
+    https://golang.org/cl/1032041
+
+ src/pkg/syscall/mkall.sh                |  6 ++++++
+ src/pkg/syscall/mkerrors.sh             | 20 ++++++++++++++++----
+ src/pkg/syscall/syscall_linux.go        |  6 +++++-
+ src/pkg/syscall/zerrors_linux_386.go    | 33 ++++++++++++++++++++++-----------
+ src/pkg/syscall/zerrors_linux_amd64.go  |  4 ++--
+ src/pkg/syscall/zsyscall_linux_386.go   | 14 +++++++-------
+ src/pkg/syscall/zsyscall_linux_amd64.go | 14 +++++++-------
+ 7 files changed, 65 insertions(+), 32 deletions(-)

@@ -1,0 +1,19 @@
+commit fea7c43ea238d8e18f3bafaac2740b3fa8975ae5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 11 11:03:36 2017 -0400
+
+    sync/atomic: clarify 64-bit alignment bug
+    
+    Local variables can also be relied on the be 64-bit aligned, since
+    they will be escaped to the heap if used with any atomic operations.
+    
+    Also, allocated arrays are also aligned, just like structs and slices.
+    
+    Fixes #18955.
+    
+    Change-Id: I8a1897f6ff78922c8bfcf20d6eb4bcb17a70ba2d
+    Reviewed-on: https://go-review.googlesource.com/48112
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/sync/atomic/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

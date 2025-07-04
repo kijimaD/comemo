@@ -1,0 +1,35 @@
+commit e283473ebbebf4a80db166e7e852d03c5cff1a61
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 17 18:52:35 2022 -0400
+
+    cmd/compile: avoid using destination pointer base type in memmove optimization
+    
+    The type of the source and destination of a memmove call isn't
+    always accurate. It will always be a pointer (or an unsafe.Pointer), but
+    the base type might not be accurate. This comes about because multiple
+    copies of a pointer with different base types are coalesced into a single value.
+    
+    In the failing example, the IData selector of the input argument is a
+    *[32]byte in one branch of the type switch, and a *[]byte in the other branch.
+    During the expand_calls pass both IDatas become just copies of the input
+    register. Those copies are deduped and an arbitrary one wins (in this case,
+    *[]byte is the unfortunate winner).
+    
+    Generally an op v can rely on v.Type during rewrite rules. But relying
+    on v.Args[i].Type is discouraged.
+    
+    Fixes #55122
+    
+    Change-Id: I348fd9accf2058a87cd191eec01d39cda612f120
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431496
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 17 +++++----
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 50 +++++++++++++-------------
+ test/fixedbugs/issue55122.go                   | 42 ++++++++++++++++++++++
+ test/fixedbugs/issue55122b.go                  | 43 ++++++++++++++++++++++
+ 4 files changed, 119 insertions(+), 33 deletions(-)

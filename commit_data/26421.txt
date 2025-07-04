@@ -1,0 +1,17 @@
+commit 4fbe96adc3908668ec2ae65696941199b7e117f8
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 15:39:25 2016 -0400
+
+    cmd/dist: add "s390x" to okgoarch and cgoEnabled
+    
+    Allows the compiler to recognise s390x specific files and s390x
+    build tags.
+    
+    Change-Id: I7c62ab7361cf708181b1d9cfbe9b1fcb01be31e0
+    Reviewed-on: https://go-review.googlesource.com/20872
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 2 ++
+ 1 file changed, 2 insertions(+)

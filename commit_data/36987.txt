@@ -1,0 +1,44 @@
+commit a0f57c3fd0cff8b92ffb4257a6d1b56467bf30f1
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Jun 4 08:24:11 2018 +0200
+
+    cmd/compile: avoid string allocations when map key is struct or array literal
+    
+    x = map[string(byteslice)] is already optimized by the compiler to avoid a
+    string allocation. This CL generalizes this optimization to:
+    
+    x = map[T1{ ... Tn{..., string(byteslice), ...} ... }]
+    where T1 to Tn is a nesting of struct and array literals.
+    
+    Found in a hot code path that used a struct of strings made from []byte
+    slices to make a map lookup.
+    
+    There are no uses of the more generalized optimization in the standard library.
+    Passes toolstash -cmp.
+    
+    MapStringConversion/32/simple    21.9ns ± 2%    21.9ns ± 3%      ~     (p=0.995 n=17+20)
+    MapStringConversion/32/struct    28.8ns ± 3%    22.0ns ± 2%   -23.80%  (p=0.000 n=20+20)
+    MapStringConversion/32/array     28.5ns ± 2%    21.9ns ± 2%   -23.14%  (p=0.000 n=19+16)
+    MapStringConversion/64/simple    21.0ns ± 2%    21.1ns ± 3%      ~     (p=0.072 n=19+18)
+    MapStringConversion/64/struct    72.4ns ± 3%    21.3ns ± 2%   -70.53%  (p=0.000 n=20+20)
+    MapStringConversion/64/array     72.8ns ± 1%    21.0ns ± 2%   -71.13%  (p=0.000 n=17+19)
+    
+    name                           old allocs/op  new allocs/op  delta
+    MapStringConversion/32/simple      0.00           0.00           ~     (all equal)
+    MapStringConversion/32/struct      0.00           0.00           ~     (all equal)
+    MapStringConversion/32/array       0.00           0.00           ~     (all equal)
+    MapStringConversion/64/simple      0.00           0.00           ~     (all equal)
+    MapStringConversion/64/struct      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    MapStringConversion/64/array       1.00 ± 0%      0.00       -100.00%  (p=0.000 n=20+20)
+    
+    Change-Id: I483b4d84d8d74b1025b62c954da9a365e79b7a3a
+    Reviewed-on: https://go-review.googlesource.com/c/116275
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 77 +++++++++++++++++++++++++-----------
+ src/runtime/map_benchmark_test.go    | 34 ++++++++++++++++
+ src/runtime/string.go                |  3 +-
+ test/codegen/maps.go                 | 29 ++++++++++++++
+ 4 files changed, 119 insertions(+), 24 deletions(-)

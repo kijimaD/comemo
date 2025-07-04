@@ -1,0 +1,18 @@
+commit b07b20fbb591ac77158e1089299ce5acad71ffde
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 30 15:21:55 2025 -0800
+
+    spec: remove reference to Go 1.17 spec
+    
+    Also, delete go1.17_spec.html.
+    
+    Change-Id: I7c78029dcfbbe8dbabb4ca81052976c1c8f4ed9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645717
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+
+ doc/go1.17_spec.html | 6864 --------------------------------------------------
+ doc/go_spec.html     |    4 +-
+ 2 files changed, 1 insertion(+), 6867 deletions(-)

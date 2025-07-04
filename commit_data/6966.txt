@@ -1,0 +1,17 @@
+commit 85f5bb8216fb8971fa3bfe719a45549df2761d12
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Dec 15 09:47:13 2010 -0500
+
+    test/bench: a couple fixes to timing.sh
+    
+    - Skip the gccgo tests if we don't have it
+    - Add -lm so nbody.c will compile
+    - Pass 2098 to the meteor test (cf. the shootout site)
+    
+    R=rsc, r, iant
+    CC=golang-dev
+    https://golang.org/cl/3619042
+
+ test/bench/timing.log | 10 +++++-----
+ test/bench/timing.sh  | 24 ++++++++++++++++--------
+ 2 files changed, 21 insertions(+), 13 deletions(-)

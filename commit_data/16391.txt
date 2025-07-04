@@ -1,0 +1,12 @@
+commit 3b7dcf074f8295e0270b4ad38aa26951b3621519
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 23 14:13:39 2013 -0700
+
+    codereview: close the head tag
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/9695045
+
+ misc/dashboard/codereview/dashboard/front.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 25fc842f1759297895f8196add6545f5fdc5f9a0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 6 15:14:08 2017 -0700
+
+    cmd/compile: remove forceObjFileStability
+    
+    The textual import/export format is ancient history.
+    
+    Change-Id: Iebe90bfd9bd3074eb191186d86e5f4286ce3b1f3
+    Reviewed-on: https://go-review.googlesource.com/39850
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 8 +-------
+ src/cmd/compile/internal/gc/reflect.go | 5 -----
+ 2 files changed, 1 insertion(+), 12 deletions(-)

@@ -1,0 +1,15 @@
+commit e339d27db7e0166da7ae72d4731c966d0cab9478
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 4 15:42:39 2011 -0500
+
+    runtime: make printf work on misaligned stack
+    
+    (Shouldn't happen, but if it does, it's useful to be
+    able to use printf to debug it.)
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4250057
+
+ src/pkg/runtime/print.c | 59 ++++++++++++++++++++++---------------------------
+ 1 file changed, 27 insertions(+), 32 deletions(-)

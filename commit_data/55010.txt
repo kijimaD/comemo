@@ -1,0 +1,23 @@
+commit a95c5d37f256d2c3fb462b3e0e544bef39f83f7c
+Author: Davis Goodin <dagood@microsoft.com>
+Date:   Thu Nov 16 10:20:56 2023 -0800
+
+    cmd/link/internal/loadpe: fix xrels search "not found" detection
+    
+    Fixes findHandlerInXDataAMD64 to handle the return value of sort.Search
+    when the search fails to find anything. Otherwise, the value may later
+    be used as an index, causing an out of range error.
+    
+    Fixes #64200
+    
+    Change-Id: I4f92e76b3f4d4d5dbe5cbc707f808298c580afe1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543076
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+
+ src/cmd/link/internal/loadpe/seh.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

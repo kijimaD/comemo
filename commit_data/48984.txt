@@ -1,0 +1,35 @@
+commit b4d81147d8dc26c8f7d6822b6249311d569af1de
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 30 22:10:49 2022 +0000
+
+    runtime: make the scavenger and allocator respect the memory limit
+    
+    This change does everything necessary to make the memory allocator and
+    the scavenger respect the memory limit. In particular, it:
+    
+    - Adds a second goal for the background scavenge that's based on the
+      memory limit, setting a target 5% below the limit to make sure it's
+      working hard when the application is close to it.
+    - Makes span allocation assist the scavenger if the next allocation is
+      about to put total memory use above the memory limit.
+    - Measures any scavenge assist time and adds it to GC assist time for
+      the sake of GC CPU limiting, to avoid a death spiral as a result of
+      scavenging too much.
+    
+    All of these changes have a relatively small impact, but each is
+    intimately related and thus benefit from being done together.
+    
+    For #48409.
+    
+    Change-Id: I35517a752f74dd12a151dd620f102c77e095d3e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397017
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mgcmark.go     |   2 +-
+ src/runtime/mgcpacer.go    |   2 +-
+ src/runtime/mgcscavenge.go | 107 ++++++++++++++++++++++++++++++++++++---------
+ src/runtime/mheap.go       |  82 ++++++++++++++++++++++------------
+ src/runtime/mpagealloc.go  |   7 +++
+ 5 files changed, 151 insertions(+), 49 deletions(-)

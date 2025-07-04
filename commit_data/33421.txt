@@ -1,0 +1,77 @@
+commit 0d188752524282496ebd0ab4b382bb4ff8750c90
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 31 13:00:51 2017 -0400
+
+    cmd/go: run vet automatically during go test
+    
+    This CL adds an automatic, limited "go vet" to "go test".
+    If the building of a test package fails, vet is not run.
+    If vet fails, the test is not run.
+    The goal is that users don't notice vet as part of the "go test"
+    process at all, until vet speaks up and says something important.
+    This should help users find real problems in their code faster
+    (vet can just point to them instead of needing to debug a
+    test failure) and expands the scope of what kinds of things
+    vet can help with.
+    
+    The "go vet" runs in parallel with the linking of the test binary,
+    so for incremental builds it typically does not slow the overall
+    "go test" at all: there's spare machine capacity during the link.
+    
+    all.bash has less spare machine capacity. This CL increases
+    the time for all.bash on my laptop from 4m41s to 4m48s (+2.5%)
+    
+    To opt out for a given run, use "go test -vet=off".
+    
+    The vet checks used during "go test" are a subset of the full set,
+    restricted to ones that are 100% correct and therefore acceptable
+    to make mandatory. In this CL, that set is atomic, bool, buildtags,
+    nilfunc, and printf. Including printf is debatable, but I want to
+    include it for now and find out what needs to be scaled back.
+    (It already found one real problem in package os's tests that
+    previous go vet os had not turned up.)
+    Now that we can rely on type information it may be that printf
+    should make its function-name-based heuristic less aggressive
+    and have a whitelist of known print/printf functions.
+    Determining the exact set for Go 1.10 is #18085.
+    
+    Running vet also means that programs now have to type-check
+    with both cmd/compile and go/types in order to pass "go test".
+    We don't start vet until cmd/compile has built the test package,
+    so normally the added go/types check doesn't find anything.
+    However, there is at least one instance where go/types is more
+    precise than cmd/compile: declared and not used errors involving
+    variables captured into closures.
+    
+    This CL includes a printf fix to os/os_test.go and many declared
+    and not used fixes in the race detector tests.
+    
+    Fixes #18084.
+    
+    Change-Id: I353e00b9d1f9fec540c7557db5653e7501f5e1c9
+    Reviewed-on: https://go-review.googlesource.com/74356
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testshared/shared_test.go            |  2 +-
+ src/cmd/go/alldocs.go                         | 11 ++++
+ src/cmd/go/go_test.go                         | 35 ++++++++++
+ src/cmd/go/internal/test/test.go              | 94 +++++++++++++++++++++++++--
+ src/cmd/go/internal/test/testflag.go          | 17 +++++
+ src/cmd/go/testdata/src/testrace/race_test.go |  2 +
+ src/cmd/vet/main.go                           | 19 ++++--
+ src/cmd/vet/types.go                          | 15 +++--
+ src/os/os_test.go                             |  4 +-
+ src/runtime/race/output_test.go               |  4 +-
+ src/runtime/race/testdata/atomic_test.go      | 13 ++++
+ src/runtime/race/testdata/chan_test.go        | 22 +++++++
+ src/runtime/race/testdata/finalizer_test.go   |  1 +
+ src/runtime/race/testdata/map_test.go         |  2 +
+ src/runtime/race/testdata/mop_test.go         | 21 ++++++
+ src/runtime/race/testdata/mutex_test.go       |  5 ++
+ src/runtime/race/testdata/rwmutex_test.go     |  2 +
+ src/runtime/race/testdata/select_test.go      |  7 ++
+ src/runtime/race/testdata/sync_test.go        |  6 ++
+ src/runtime/race/testdata/waitgroup_test.go   |  8 +++
+ 20 files changed, 270 insertions(+), 20 deletions(-)

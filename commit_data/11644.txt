@@ -1,0 +1,16 @@
+commit 5efd5624cc5b22f50d2739b0f1dbce32402206cb
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Mon Feb 6 15:41:01 2012 +0100
+
+    cmd/gc: fix codegen reordering for expressions involving && and ||
+    
+    Fixes #2821.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5606061
+
+ src/cmd/gc/subr.c        |  6 ++++++
+ src/cmd/gc/walk.c        |  3 ++-
+ test/fixedbugs/bug406.go | 25 +++++++++++++++++++++++++
+ 3 files changed, 33 insertions(+), 1 deletion(-)

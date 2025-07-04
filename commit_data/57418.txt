@@ -1,0 +1,25 @@
+commit d288776d9143370567fa56b44fa875d0e8fb02b6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Sep 9 22:03:54 2024 +0700
+
+    cmd/compile: remove trivial closure reference
+    
+    Trivial closures will be converted to global functions, thus they are
+    not closures anymore. Using fn.IsClosure function is enough, allow
+    removing the trivial/non-trivial closures in the code.
+    
+    Change-Id: Iceb186dd92c1732b101e221ebc13406db35c69ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611995
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/deadlocals/deadlocals.go |  2 +-
+ src/cmd/compile/internal/inline/inl.go            |  6 +++---
+ src/cmd/compile/internal/ir/func.go               | 10 ++--------
+ src/cmd/compile/internal/ir/scc.go                |  2 +-
+ src/cmd/compile/internal/staticinit/sched.go      | 10 +++++-----
+ src/cmd/compile/internal/walk/closure.go          |  9 ++++-----
+ 6 files changed, 16 insertions(+), 23 deletions(-)

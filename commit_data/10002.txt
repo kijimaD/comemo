@@ -1,0 +1,12 @@
+commit 9a7dd719448071e8e812deeb4757ebf2abff9cff
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 14:51:45 2011 -0400
+
+    template: do not depend on map iteration order
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5268048
+
+ src/pkg/template/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

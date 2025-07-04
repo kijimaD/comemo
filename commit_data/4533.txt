@@ -1,0 +1,13 @@
+commit e324e4099fd063319d31dba25b9c733c294ad9bd
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Wed Jan 6 07:25:17 2010 -0800
+
+    Propagate error to the caller in json.Marshal. Fixes issue 445.
+    
+    R=rsc, imkrasin
+    CC=golang-dev
+    https://golang.org/cl/179125
+
+ src/pkg/json/struct.go      | 11 +++++++----
+ src/pkg/json/struct_test.go | 16 ++++++++++++++--
+ 2 files changed, 21 insertions(+), 6 deletions(-)

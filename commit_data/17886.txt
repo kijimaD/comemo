@@ -1,0 +1,12 @@
+commit bad181e2c2e4d7e1bd44899390edc7e8a90086b4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 18 12:47:37 2013 +1100
+
+    tag go1.2rc5
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/28150043
+
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

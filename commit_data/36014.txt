@@ -1,0 +1,25 @@
+commit f17220c20818f93efa22287e6f0fa8bbd7b4e5c4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 16 19:09:24 2018 -0700
+
+    cmd/go: fix handling of vet.cfg with buggyInstall
+    
+    The vet action assumes that a.Deps[0] is the compilation action for
+    which vet information should be generated. However, when using
+    -linkshared, the action graph is built with a ModeBuggyInstall action
+    to install the shared library built from the compilation action.
+    Adjust the set up of the vet action accordingly. Also don't clean up
+    the working directory after completing the buggy install.
+    
+    Updates #26400
+    
+    Change-Id: Ia51f9f6b8cde5614a6f2e41b6207478951547770
+    Reviewed-on: https://go-review.googlesource.com/124275
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ misc/cgo/testshared/shared_test.go |  6 ++++++
+ src/cmd/go/internal/work/action.go | 13 +++++++++++--
+ src/cmd/go/internal/work/exec.go   |  8 ++++++--
+ 3 files changed, 23 insertions(+), 4 deletions(-)

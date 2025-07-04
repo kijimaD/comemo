@@ -1,0 +1,16 @@
+commit 4cc6a919077f27d9255536d6539118e65c1650a2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 14 10:04:10 2021 -0700
+
+    cmd/compile/internal/types2: implement generic conversions
+    
+    Fixes #47150.
+    
+    Change-Id: I7531ca5917d4e52ca0b9211d6f2114495b19ba09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356010
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go     |  33 ++++++
+ .../types2/testdata/examples/conversions.go2       | 130 +++++++++++++++++++++
+ 2 files changed, 163 insertions(+)

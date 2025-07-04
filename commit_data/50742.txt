@@ -1,0 +1,18 @@
+commit 7aa4905bb4fd70a5b32552fd8db23a3550d3df83
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 21:37:25 2022 +0800
+
+    go/doc: use strings.TrimPrefix
+    
+    Change-Id: Ie1e76d2e99bf2af7f064c9073c1fb866086962f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436715
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/doc/comment/parse.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

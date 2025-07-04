@@ -1,0 +1,16 @@
+commit 36f879780aa086356187a7ca8a625ff37484d317
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 30 11:18:24 2015 -0500
+
+    cmd/9g: note suboptimal copy code
+    
+    9g generates needlessly complex code for small copies.  There are a
+    few other things that need to be improved about the copy code, so for
+    now just note the problem.
+    
+    Change-Id: I0f1de4b2f9197a2635e27cc4b91ecf7a6c11f457
+    Reviewed-on: https://go-review.googlesource.com/3665
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/9g/cgen.c | 5 +++++
+ 1 file changed, 5 insertions(+)

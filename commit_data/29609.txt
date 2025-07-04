@@ -1,0 +1,13 @@
+commit 6e7e8b0f0d8644b3e1981229d597cf8ac2d898c7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 21 21:29:32 2016 +0000
+
+    cmd/go: skip slow tests on mips when run under builders
+    
+    Change-Id: If754de6c44cf0ec4192101432e4065cc7a28e862
+    Reviewed-on: https://go-review.googlesource.com/33425
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

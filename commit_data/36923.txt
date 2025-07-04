@@ -1,0 +1,19 @@
+commit 05581fcc5c100cc2efa58355af8665cb93fed758
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:44:06 2018 +0200
+
+    mime: add AIX operating system
+    
+    This commit adds AIX operating system to mime package for ppc64
+    architecture.
+    
+    Updates: #25893
+    
+    Change-Id: I1b81a9204446c8c76ae24ea5c6fd33077c373ae4
+    Reviewed-on: https://go-review.googlesource.com/c/138723
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/type_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

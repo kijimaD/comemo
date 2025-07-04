@@ -1,0 +1,23 @@
+commit 3294014ae119f34c40547ed253bf4c5d25dc5f17
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 4 14:12:44 2016 -0800
+
+    cmd/compile: collapse OffPtr sequences
+    
+    This triggers an astonishing 160k times
+    during make.bash. The second biggest
+    generic rewrite triggers 100k times.
+    
+    However, this is really just moving
+    rewrites that were happening at the
+    architecture level to the generic level.
+    
+    Change-Id: Ife06fe5234f31433328460cb2e0741c071deda41
+    Reviewed-on: https://go-review.googlesource.com/20235
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 22 ++++++++++++++++++++++
+ 2 files changed, 25 insertions(+)

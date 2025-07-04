@@ -1,0 +1,21 @@
+commit 321c312d8246dec6889f5fe334b6193c320baf0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 12:34:19 2016 -0400
+
+    os: reject Rename("old", "new") where new is a directory
+    
+    Unix rejects this when new is a non-empty directory.
+    Other systems reject this when new is a directory, empty or not.
+    Make Unix reject empty directory too.
+    
+    Fixes #14527.
+    
+    Change-Id: Ice24b8065264c91c22cba24aa73e142386c29c87
+    Reviewed-on: https://go-review.googlesource.com/31358
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file_unix.go |  4 ++++
+ src/os/os_test.go   | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

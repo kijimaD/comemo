@@ -1,0 +1,15 @@
+commit cce3de79f69c4bccc606776f84f0b9a022ac1057
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 3 11:52:04 2012 +1100
+
+    encoding/base32: add DecodeString and EncodeToString helper methods.
+    
+    This makes encoding/base32 be consistent with encoding/base64.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5615053
+
+ src/pkg/encoding/base32/base32.go      | 14 ++++++++++++++
+ src/pkg/encoding/base32/base32_test.go |  9 ++++++---
+ 2 files changed, 20 insertions(+), 3 deletions(-)

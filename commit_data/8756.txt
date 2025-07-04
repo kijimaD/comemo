@@ -1,0 +1,15 @@
+commit fc77e826175c56914a6ecc9a1abb9cfa1a00aa8d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 17:56:25 2011 -0400
+
+    unicode: add case folding tables
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/4571074
+
+ src/pkg/unicode/letter.go      |  49 ++++
+ src/pkg/unicode/letter_test.go |  46 +++
+ src/pkg/unicode/maketables.go  | 301 ++++++++++++++++++-
+ src/pkg/unicode/tables.go      | 634 ++++++++++++++++++++++++++++++++++-------
+ 4 files changed, 921 insertions(+), 109 deletions(-)

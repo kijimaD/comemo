@@ -1,0 +1,17 @@
+commit e95f6af0082556bbcf01e376ae8c5f1f14ded75e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 17 12:58:10 2024 -0400
+
+    cmd/go/internal/envcmd: remove duplicate env value set
+    
+    CL 586095 wasn't needed because setting the GODEBUG value was just moved
+    lower in CL 563137. Now we set it twice. Remove the second set so that
+    it's only set once.
+    
+    Change-Id: I4a830977833b007e996d0ccaec705a1da4631e6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586477
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/envcmd/env.go | 1 -
+ 1 file changed, 1 deletion(-)

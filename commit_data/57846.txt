@@ -1,0 +1,22 @@
+commit 81f89f201137eea758715ec14f2586513ddb8380
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Wed Oct 30 15:18:35 2024 -0400
+
+    crypto/internal/fips/sha3/testdata: remove unused KATS
+    
+    When the SHA3 code was imported from x/crypto we determined the
+    keccackKats.json.deflate testcases were redundant with existing test
+    coverage and ACVP. While the testcases referencing the data were
+    already removed, we forgot to remove the data itself prior to this
+    commit.
+    
+    Change-Id: Id2da9201653ff93e618e905bef53f57cf450b5b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623655
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ .../fips/sha3/testdata/keccakKats.json.deflate         | Bin 540828 -> 0 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,25 @@
+commit 38fc0afca6139ba2e28061712f68cbe426d238e7
+Author: kawakami <kawakami.ozone@gmail.com>
+Date:   Sun Jun 23 05:30:24 2019 +0900
+
+    cmd/cgo: fix inappropriate array copy
+    
+    Ensure that during rewriting of expressions that take the address of
+    an array, that we properly recognize *ast.IndexExpr as an operation
+    to create a pointer variable and thus assign the proper addressOf
+    and deference operators as "&" and "*" respectively.
+    
+    This fixes a regression from CL 142884.
+    
+    Fixed #32579
+    
+    Change-Id: I3cb78becff4f8035d66fc5536e5b52857eacaa3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183458
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/cgo_test.go |  1 +
+ misc/cgo/test/test.go     | 12 ++++++++++++
+ src/cmd/cgo/gcc.go        |  2 ++
+ 3 files changed, 15 insertions(+)

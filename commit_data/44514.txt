@@ -1,0 +1,26 @@
+commit 5c5552c5bab55c7233cc0cc105876a982ec25b74
+Author: David Chase <drchase@google.com>
+Date:   Wed Feb 24 12:58:01 2021 -0500
+
+    cmd/compile: add register abi tests
+    
+    Change-Id: I4b2b62a8eb1c4bf47f552214127d4ed5710af196
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297030
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/abi/f_ret_z_not.go            |  6 +++
+ test/abi/many_int_input.go         |  3 ++
+ test/abi/many_intstar_input.go     | 45 ++++++++++++++++++
+ test/abi/many_intstar_input.out    |  3 ++
+ test/abi/more_intstar_input.go     | 44 ++++++++++++++++++
+ test/abi/more_intstar_input.out    |  2 +
+ test/abi/named_return_stuff.go     | 94 ++++++++++++++++++++++++++++++++++++++
+ test/abi/named_return_stuff.out    | 13 ++++++
+ test/abi/return_stuff.go           | 38 +++++++++++++++
+ test/abi/return_stuff.out          |  3 ++
+ test/abi/struct_3_string_input.go  | 40 ++++++++++++++++
+ test/abi/struct_3_string_input.out |  0
+ test/abi/uglyfib.go                |  3 ++
+ 13 files changed, 294 insertions(+)

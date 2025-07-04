@@ -1,0 +1,16 @@
+commit 1fdd1d181bb3633f64f251f354be21ca44865b5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 10 15:18:10 2015 -0400
+
+    cmd/6g: make proginfo register bits constants
+    
+    Also replace proginfo call with cheaper calls where only flags are needed.
+    
+    Change-Id: Ib6e5c12bd8752b87c0d8bcf22fa9e25e04a7941f
+    Reviewed-on: https://go-review.googlesource.com/7630
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/6g/peep.go | 19 +++++++------------
+ src/cmd/6g/prog.go | 20 +++++++++++++-------
+ src/cmd/6g/reg.go  | 10 ++++++++++
+ 3 files changed, 30 insertions(+), 19 deletions(-)

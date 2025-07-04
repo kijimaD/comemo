@@ -1,0 +1,23 @@
+commit aa464fb953beabae11e94bffde320457f0904352
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Dec 5 11:35:37 2024 -0500
+
+    doc/next: add release notes for Wasm changes
+    
+    Document wasmexport and WASI reactor/library mode. Also document
+    that we now permit more types for wasmimport.
+    
+    Fixes #65199.
+    Updates #66984.
+    For #68545.
+    
+    Change-Id: Id26a8c9496650cd154daed679b82223af1848eea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634036
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/next/7-ports.md | 16 ++++++++++++++++
+ doc/next/9-todo.md  |  2 --
+ 2 files changed, 16 insertions(+), 2 deletions(-)

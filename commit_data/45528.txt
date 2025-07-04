@@ -1,0 +1,28 @@
+commit 62d424d794e7543e84f4b6ddd7acc8e39c6c6380
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 3 16:11:24 2021 -0400
+
+    cmd: update x/tools to pull in CL 315570
+    
+    Since x/tools is now lazy, this removes a significant fraction of
+    otherwise-irrelevant dependencies from the go.sum file.
+    
+    The remaining extraneous go.sum lines come from the dependency on
+    github.com/google/pprof. Since that module is outside of the Go
+    project proper, I do not plan to submit a PR to make it lazy until
+    after the Go 1.17 release.
+    
+    For #36460
+    Updates #36905
+    
+    Change-Id: I214492cf931fca797817124ecdcbccd4ebb7505b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316452
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ src/cmd/go.mod             |  2 +-
+ src/cmd/go.sum             | 25 ++-----------------------
+ src/cmd/vendor/modules.txt |  4 ++--
+ 3 files changed, 5 insertions(+), 26 deletions(-)

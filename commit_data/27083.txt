@@ -1,0 +1,13 @@
+commit 2d342fba78d9cbddb4c8c71bfc0d1044b2e5c58a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Fri Apr 22 22:48:11 2016 +0200
+
+    runtime: fix description of trace events
+    
+    Change-Id: I037101b1921fe151695d32e9874b50dd64982298
+    Reviewed-on: https://go-review.googlesource.com/22314
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/internal/trace/parser.go | 8 ++++----
+ src/runtime/trace.go         | 6 +++---
+ 2 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,20 @@
+commit e12bdc80f2d8b2fa243a7dc362a5dc2a4b545d1e
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Oct 11 15:34:09 2023 +0700
+
+    types2, go/types: remove doc link from Func.Pkg comment
+    
+    The documentation link only works with exported identifiers. Further,
+    the built-in error interface lives in pseudo package "builtin" only,
+    thus it's not a real package that can be referred using doc links.
+    
+    Change-Id: I2116beb27fc73ba33f8352301fe77b4b6abc3ec1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534436
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/types2/object.go | 2 +-
+ src/go/types/object.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

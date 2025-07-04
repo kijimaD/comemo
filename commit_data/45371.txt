@@ -1,0 +1,30 @@
+commit 8e0023b81b81352c1f8ea5cd58eea91939924f9d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 27 03:01:08 2021 -0400
+
+    cmd/go/internal/load: treat packages with errors as potentially main packages
+    
+    If a package declares 'package main' but for some reason we fail to
+    read its name (for example, due to a permission or checksum error),
+    we may be tempted to drop the package from the output of
+    mainPackagesOnly. However, that leads to a confusing
+    "no packages loaded from …" error message.
+    
+    Instead, we will treat packages with errors as potentially-main
+    packages, and print the error. At least if we print why the package is
+    broken, the user will understand that the weird behavior is due to the
+    broken package rather than, say, a typo on their part in the command
+    arguments.
+    
+    Updates #42088
+    For #36460
+    
+    Change-Id: I033c0d28ac7d105d9df3ba5f9327e5c0c2a29954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314050
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

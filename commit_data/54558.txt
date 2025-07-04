@@ -1,0 +1,25 @@
+commit 5e9afab7df87045bd919b120c1b05476e14d8a35
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 25 09:22:48 2023 -0400
+
+    log/slog: ensure ReplaceAttr does not see a group
+    
+    The ReplaceAttr function should not see groups, only leaf attributes.
+    
+    Previously, we checked an Value for being a group, then resolved it,
+    then called ReplaceAttr. We neglected to see if it was a group
+    after resolving it.
+    
+    Now we resolve first, then check.
+    
+    Fixes #62731.
+    
+    Change-Id: I2fc40758e77c445f82deb2c9de8cae7a3b0e22cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530478
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/handler.go      |  7 ++++---
+ src/log/slog/handler_test.go | 12 ++++++++++++
+ 2 files changed, 16 insertions(+), 3 deletions(-)

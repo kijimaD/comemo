@@ -1,0 +1,26 @@
+commit 9aa7107cb58417db4b19ea5f8773875a418270f3
+Author: Mikael Urankar <mikael@FreeBSD.org>
+Date:   Sun Sep 18 17:30:51 2022 +0200
+
+    runtime: add support for freebsd/riscv64
+    
+    Updates #53466
+    
+    Change-Id: I42ca5f1d0f20b5ecfcfba70d298566b6c851fefc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431656
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
+
+ src/runtime/defs_freebsd_riscv64.go   | 263 +++++++++++++++++++++
+ src/runtime/os_freebsd_riscv64.go     |   7 +
+ src/runtime/rt0_freebsd_riscv64.s     | 112 +++++++++
+ src/runtime/signal_freebsd_riscv64.go |  63 +++++
+ src/runtime/signal_riscv64.go         |   2 +-
+ src/runtime/sys_freebsd_riscv64.s     | 430 ++++++++++++++++++++++++++++++++++
+ src/runtime/vdso_freebsd_riscv64.go   |  10 +
+ 7 files changed, 886 insertions(+), 1 deletion(-)

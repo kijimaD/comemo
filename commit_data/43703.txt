@@ -1,0 +1,24 @@
+commit fd841f65368906923e287afab91857043036459d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 29 12:20:53 2020 -0400
+
+    path/filepath: add WalkDir
+    
+    WalkDir is like Walk but can use ReadDir to read directories,
+    instead of Readdirnames + Lstat on every entry,
+    which is usually a significant performance improvement.
+    (The Lstat can still happen if the walk function calls d.Info.)
+    
+    Fixes #42027.
+    
+    Change-Id: Ie11024b23be2656e320d41fd81ff0d8810aa729e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266240
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/path/filepath/export_test.go |   2 +
+ src/path/filepath/path.go        | 213 ++++++++++++++++++++++++++++++++++-----
+ src/path/filepath/path_test.go   |  89 ++++++++++------
+ 3 files changed, 250 insertions(+), 54 deletions(-)

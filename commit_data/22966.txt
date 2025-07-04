@@ -1,0 +1,20 @@
+commit 3475ec7f36b68126310878e611c8594514b98438
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon May 11 11:24:10 2015 +1200
+
+    cmd/internal/ld: change Cpos to not flush the output buffer
+    
+    DWARF generation appears to assume Cpos is cheap and this makes linking godoc
+    about 8% faster and linking the standard library into a single shared library
+    about 22% faster on my machine.
+    
+    Updates #10571
+    
+    Change-Id: I3f81efd0174e356716e7971c4f59810b72378177
+    Reviewed-on: https://go-review.googlesource.com/9913
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/ld/lib.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

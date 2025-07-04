@@ -1,0 +1,19 @@
+commit 90c066da52f1f8f74e2f5cb2a9b65415140c5b57
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jan 28 14:12:25 2014 -0500
+
+    encoding/asn1: support set tag when unmarshaling.
+    
+    This change also addresses some places where the comments were lacking.
+    
+    Fixes #7087.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/56700043
+
+ src/pkg/encoding/asn1/asn1.go      | 17 ++++++++++++++---
+ src/pkg/encoding/asn1/asn1_test.go |  5 +++++
+ src/pkg/encoding/asn1/marshal.go   |  8 ++++++++
+ 3 files changed, 27 insertions(+), 3 deletions(-)

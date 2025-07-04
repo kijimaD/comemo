@@ -1,0 +1,16 @@
+commit 4410900a3cf4477fc91b3a09cadd215cc0fe8d3a
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Sep 6 22:05:24 2017 -0400
+
+    cmd/compile: revert "more compact representation of DW_AT_high_pc"
+    
+    This reverts commit 84188296e93dd4d26cb0a75a03a9096794e01e2f AKA CL 60530.
+    
+    Fixes #21783
+    
+    Change-Id: I68038a77de7446dea68419a40dd25982ea6d7df5
+    Reviewed-on: https://go-review.googlesource.com/62151
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/internal/dwarf/dwarf.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

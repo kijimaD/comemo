@@ -1,0 +1,12 @@
+commit a45c657db1b6ce6689ddedab6ff88c0380901379
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 26 15:09:23 2011 +1000
+
+    bytes.Buffer: clarify that NewBuffer is not for beginners
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4965048
+
+ src/pkg/bytes/buffer.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

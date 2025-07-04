@@ -1,0 +1,27 @@
+commit 067bb443af6b44cb026ab182a26d157dbd1b2dd6
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Sep 28 13:50:57 2018 -0400
+
+    compress: move benchmark text from src/testdata to src/compress/testdata
+    
+    This text is used mainly for benchmark compression testing, and in one
+    net test. The text was prevoiusly in a src/testdata directory, but since
+    that directory would only include one file, the text is moved to the
+    existing src/compression/testdata directory.
+    
+    This does not cause any change to the benchmark results.
+    
+    Updates #27151
+    
+    Change-Id: I38ab5089dfe744189a970947d15be50ef1d48517
+    Reviewed-on: https://go-review.googlesource.com/138495
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/nacl/testzip.proto                              | 2 --
+ src/compress/flate/deflate_test.go                   | 4 ++--
+ src/compress/flate/reader_test.go                    | 2 +-
+ src/{ => compress}/testdata/Isaac.Newton-Opticks.txt | 0
+ src/net/sendfile_test.go                             | 2 +-
+ 5 files changed, 4 insertions(+), 6 deletions(-)

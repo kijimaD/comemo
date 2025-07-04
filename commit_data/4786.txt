@@ -1,0 +1,18 @@
+commit 8ec9ffc742bd00ee8d09c088d7e79bc634f4dc26
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 4 12:46:11 2010 -0800
+
+    6l: move mapped symbol table lower in memory
+    Allows binary to run on some Linux system.
+    
+    Fix for issue 365.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/199096
+
+ src/cmd/5l/asm.c         | 2 +-
+ src/cmd/6l/asm.c         | 2 +-
+ src/cmd/ld/lib.h         | 3 +++
+ src/pkg/runtime/symtab.c | 7 +------
+ 4 files changed, 6 insertions(+), 8 deletions(-)

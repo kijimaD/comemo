@@ -1,0 +1,22 @@
+commit 8f71c7633fd70fffc5fa65e7865e763238fa6f46
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 2 14:27:26 2024 -0400
+
+    runtime: remove note about goid reuse
+    
+    Goids are designed to be big enough that they will never be reused:
+    a uint64 is enough to generate a new goroutine every nanosecond
+    for 500+ years before wrapping around, and after 500 years you
+    should probably stop and pick up some security updates.
+    
+    This note was added in CL 70993 and appears to have just been
+    a misunderstanding by the CL author.
+    
+    Change-Id: Ida7099b5191a4e5dbb1e3e9e44b4b86d7779fd6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/runtime/extern.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

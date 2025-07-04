@@ -1,0 +1,12 @@
+commit 79de0d00ae68a2fd272863a965dc08aec47d73b1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 17 16:59:16 2012 -0700
+
+    misc/dist: generate tarballs for Mac OS X
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6503118
+
+ misc/dist/bindist.go | 42 +++++++++++++++++++++++++++---------------
+ 1 file changed, 27 insertions(+), 15 deletions(-)

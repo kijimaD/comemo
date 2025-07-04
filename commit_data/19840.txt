@@ -1,0 +1,30 @@
+commit d7566da188daf71e2b4e8129c0d33d112864ef3e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 30 09:25:37 2014 +0900
+
+    undo CL 101460043 / 746e175af5d2
+    
+    preparing for the syscall package freeze.
+    
+    ««« original CL description
+    syscall: add source-specific multicast socket options for Darwin
+    
+    Update #8266
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/101460043
+    »»»
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/115350043
+
+ src/pkg/syscall/types_darwin.go         |  9 ---------
+ src/pkg/syscall/zerrors_darwin_386.go   |  9 ---------
+ src/pkg/syscall/zerrors_darwin_amd64.go |  9 ---------
+ src/pkg/syscall/ztypes_darwin_386.go    | 22 ----------------------
+ src/pkg/syscall/ztypes_darwin_amd64.go  | 22 ----------------------
+ 5 files changed, 71 deletions(-)

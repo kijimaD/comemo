@@ -1,0 +1,23 @@
+commit f3e6f0f296c5d0a317527ebe6471eedabc408fae
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Apr 12 09:11:59 2023 -0400
+
+    log/slog: function argument to Record.Attrs returns bool
+    
+    Record.Attrs stops as soon as its argument function returns false.
+    
+    Fixes #59060.
+    
+    Change-Id: I578d64635e0e52b0fcdbc57f6d5a27a6efac8c70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484096
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+
+ api/next/59060.txt                                |  2 ++
+ src/log/slog/handler.go                           |  3 ++-
+ src/log/slog/internal/benchmarks/handlers.go      |  3 ++-
+ src/log/slog/internal/benchmarks/handlers_test.go |  2 +-
+ src/log/slog/record.go                            | 11 ++++++++---
+ src/log/slog/record_test.go                       | 15 +++++++++++++--
+ 6 files changed, 28 insertions(+), 8 deletions(-)

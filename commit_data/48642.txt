@@ -1,0 +1,27 @@
+commit 62d4c32b7e5c1f5954c97c264d1105fc3743220e
+Author: erifan01 <eric.fang@arm.com>
+Date:   Wed Aug 12 17:41:54 2020 +0800
+
+    cmd/asm: add DC instruction on arm64
+    
+    There was only a placeholder for DC instruction in the previous code.
+    gVisor needs this instruction. This CL completes its support.
+    
+    This patch is a copy of CL 250858, contributed by Junchen Li(junchen.li@arm.com).
+    Co-authored-by: Junchen Li(junchen.li@arm.com)
+    
+    CustomizedGitHooks: yes
+    Change-Id: I76098048a227fbd08aa42c4173b028f0ab4f66e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302851
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Eric Fang <eric.fang@arm.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s          | 30 ++++++++++
+ src/cmd/asm/internal/asm/testdata/arm64enc.s       |  2 +-
+ src/cmd/asm/internal/asm/testdata/arm64error.s     |  5 ++
+ src/cmd/internal/obj/arm64/a.out.go                | 30 ++++++++++
+ src/cmd/internal/obj/arm64/asm7.go                 | 36 +++++++++--
+ .../internal/obj/arm64/specialoperand_string.go    | 70 +++++++++++++++-------
+ 6 files changed, 147 insertions(+), 26 deletions(-)

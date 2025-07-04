@@ -1,0 +1,21 @@
+commit 9c75c4b6d75a1ee76f261f4fa7f3790efdbd51e4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 29 13:56:31 2023 -0700
+
+    go/types, types2: adjust Check.funcInst signature
+    
+    Per feedback from prior CL.
+    
+    Change-Id: Icbf6149c3b61e26085caf6f368d22ad4f02c75fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480316
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go | 22 +++++++---------------
+ src/cmd/compile/internal/types2/expr.go | 10 +++++++---
+ src/go/types/call.go                    | 22 +++++++---------------
+ src/go/types/expr.go                    | 10 +++++++---
+ 4 files changed, 28 insertions(+), 36 deletions(-)

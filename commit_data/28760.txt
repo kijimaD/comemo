@@ -1,0 +1,17 @@
+commit d07345a6334def1a8273107f8bffab33f7a701bc
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 11 13:50:44 2016 -0700
+
+    cmd/compile: update ssa html help text
+    
+    Update the description of the conditions under which highlighting might
+    be misleading.
+    
+    Fixes #16754
+    
+    Change-Id: I3078a09e0b9a76d12078352e15a3f26ba3f1bbee
+    Reviewed-on: https://go-review.googlesource.com/30818
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/html.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

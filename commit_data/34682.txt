@@ -1,0 +1,37 @@
+commit ea668e18a6ee48c46fb585265086a908ef7768a1
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 22 13:51:13 2018 -0700
+
+    cmd/compile: always write pack files
+    
+    By always writing out pack files, the object file format can be
+    simplified somewhat. In particular, the export data format will no
+    longer require escaping, because the pack file provides appropriate
+    framing.
+    
+    This CL does not affect build systems that use -pack, which includes
+    all major Go build systems (cmd/go, gb, bazel).
+    
+    Also, existing package import logic already distinguishes pack/object
+    files based on file contents rather than file extension.
+    
+    The only exception is cmd/pack, which specially handled object files
+    created by cmd/compile when used with the 'c' mode. This mode is
+    extended to now recognize the pack files produced by cmd/compile and
+    handle them as before.
+    
+    Passes toolstash-check.
+    
+    Updates #21705.
+    Updates #24512.
+    
+    Change-Id: Idf131013bfebd73a5cde7e087eb19964503a9422
+    Reviewed-on: https://go-review.googlesource.com/102236
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/main.go |   2 +-
+ src/cmd/compile/internal/gc/obj.go  | 112 ++++++++++++-------------
+ src/cmd/pack/pack.go                | 157 +++++++++++++++++++++++-------------
+ 3 files changed, 152 insertions(+), 119 deletions(-)

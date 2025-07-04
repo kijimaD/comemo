@@ -1,0 +1,18 @@
+commit 2642df9a2c82b9de3e2868321cd109085d6910d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 7 08:18:16 2018 -0700
+
+    crypto/x509: re-enable TestSystemRoots on darwin
+    
+    It was apparently waiting on CL 36942, which was submitted.
+    
+    Fixes #21416
+    
+    Change-Id: I8f4ccc5a3176070abf0df019c82700c5761b5f53
+    Reviewed-on: https://go-review.googlesource.com/117055
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/x509/root_darwin_test.go | 5 -----
+ 1 file changed, 5 deletions(-)

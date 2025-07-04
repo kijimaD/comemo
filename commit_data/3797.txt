@@ -1,0 +1,12 @@
+commit 9df7d6ef1051457b5770641e53971588ddfba991
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 5 08:11:44 2009 -0800
+
+    add -l flag to hg gofmt.
+    don't apply gofmt to non-go files during upload check.
+    
+    R=r
+    http://go/go-review/1016048
+
+ lib/codereview/codereview.py | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

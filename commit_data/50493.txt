@@ -1,0 +1,29 @@
+commit 7fda98a8d90139fed07d7f8ca80d248a5cbc1e93
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Jun 13 10:59:31 2022 -0500
+
+    cmd/link: support -fno-plt compiled gcc objects on ppc64le
+    
+    This is the initial trivial implemenation. Further improvements can be
+    made for local calls.
+    
+    A test is added, but the -fno-plt option is ignored by gcc if binutils
+    does not support inline plt relocations, so the test is effectively
+    skipped on such hosts.
+    
+    Fixes #53345
+    
+    Change-Id: Ibf31c26b1a8551c942b21019df8782c00b7a563e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412714
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+
+ .../script/test_ppc64le_cgo_inline_plt.txt         | 38 +++++++++++++++++
+ src/cmd/link/internal/loadelf/ldelf.go             | 13 +++++-
+ src/cmd/link/internal/ppc64/asm.go                 | 47 ++++++++++++++++++++++
+ 3 files changed, 97 insertions(+), 1 deletion(-)

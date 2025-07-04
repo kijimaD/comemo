@@ -1,0 +1,13 @@
+commit 6ec551887a8d4bad243cf462c3cfc6aa4fa727a5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 22 12:21:42 2013 +1100
+
+    runtime: windows callback code to match new func value representation
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7393048
+
+ src/pkg/runtime/callback_windows_386.c   | 2 +-
+ src/pkg/runtime/callback_windows_amd64.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

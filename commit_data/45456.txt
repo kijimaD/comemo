@@ -1,0 +1,26 @@
+commit 95c5f4da80960d0e3511d39c9a9db7280099a37e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 30 10:20:38 2021 -0700
+
+    cmd/compile/internal/types2: list errors by default in TestManual
+    
+    TestManual is used for debugging; in this case we usually want to
+    see error messages reported rather than checked against ERROR comments
+    in the provided files. Make this the default. Use the new -verify
+    flag to verify reported errors against ERROR comments.
+    
+    With this change we cannot get an error list for the non-manual
+    tests, but that is usually not useful anyway because there are
+    usually many errors in those test files. Run those tests manually
+    instead.
+    
+    Also, corrected -lang flag synopsys: it applies to all tests, not
+    just TestManual.
+    
+    Change-Id: I56e0ea0583840fc3ea150d9ccfc330370b66191c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315729
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

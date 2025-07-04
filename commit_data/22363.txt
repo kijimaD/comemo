@@ -1,0 +1,20 @@
+commit a173357cd5d94ee88112ba46871c5d9344a2445e
+Author: Michael Matloob <matloob@google.com>
+Date:   Fri Jan 23 17:56:47 2015 -0800
+
+    runtime: fix return type for bsdthread_register in comments
+    
+    The return type for bsdthread_register is int32. See
+    runtime/os_darwin.go.
+    
+    This change also rewrites declaration comments for go functions to
+    use go syntax and fixes vet errors in sys_darwin_amd64.s.
+    
+    Change-Id: I7482105f7562929e0ede30099efac9e76babd8a3
+    Reviewed-on: https://go-review.googlesource.com/3260
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_darwin_386.s   | 23 +++++++++++------------
+ src/runtime/sys_darwin_amd64.s | 20 ++++++++++----------
+ 2 files changed, 21 insertions(+), 22 deletions(-)

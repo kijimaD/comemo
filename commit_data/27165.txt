@@ -1,0 +1,20 @@
+commit f4d38a87927f42272c7dfd10283beac8865edeab
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Mar 28 22:27:36 2016 +1300
+
+    cmd/compile: de-dup the gclocals symbols in compiler too
+    
+    These symbols are de-duplicated in the linker but the compiler generates quite
+    many duplicates too: 2425 of 13769 total symbols for runtime.a for example.
+    De-duplicating them in the compiler saves the linker a bit of work.
+    
+    Fixes #14983
+    
+    Change-Id: I5f18e5f9743563c795aad8f0a22d17a7ed147711
+    Reviewed-on: https://go-review.googlesource.com/22293
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go  | 13 -------------
+ src/cmd/compile/internal/gc/plive.go | 13 ++++++++++++-
+ src/cmd/compile/internal/gc/ssa.go   |  2 --
+ 3 files changed, 12 insertions(+), 16 deletions(-)

@@ -1,0 +1,14 @@
+commit 57b7bbe988e462715b4d15594427ea5c51a35ea7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 4 02:15:53 2012 -0500
+
+    cmd/dist: fix memory bug (fix builders?)
+    
+    Thanks, Valgrind!
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5630050
+
+ src/cmd/dist/buf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

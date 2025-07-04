@@ -1,0 +1,14 @@
+commit 3d70475833bcf1ee83e09eca21aa4a58a492d2a0
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Dec 4 23:22:26 2015 -0700
+
+    net/http: sniffWrite test also in http2 mode
+    
+    Change-Id: Ifa9f1ed6a3b8d3f7536f2d315259940335b0ee49
+    Reviewed-on: https://go-review.googlesource.com/17438
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/sniff_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

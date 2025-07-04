@@ -1,0 +1,17 @@
+commit ecf3b39c2a65eb96ca44b9a2694852f12a433747
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Feb 14 12:05:46 2022 -0500
+
+    cmd/go: have go work init use the -workfile flag
+    
+    Change-Id: Idb4795bde699c919222953ec33fa1083798b2000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385654
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/go/internal/workcmd/init.go               |  5 ++++-
+ src/cmd/go/testdata/script/work_init_workfile.txt | 15 +++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

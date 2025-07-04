@@ -1,0 +1,13 @@
+commit 4077819f558bd7020bc6d66da6827ce97ce63b99
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Oct 5 23:51:40 2012 +0800
+
+    doc/codewalk: make it work with jQuery 1.8.2
+        so that it could work with the bundled jQuery.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/6592073
+
+ doc/codewalk/codewalk.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

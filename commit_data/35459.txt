@@ -1,0 +1,25 @@
+commit 577c05ca1cba1555ee56f57065481a75aefe64ab
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 17 16:33:59 2018 -0400
+
+    cmd/compile: single pass over Blocks in Liveness.epilogue
+    
+    Currently Liveness.epilogue makes three passes over the Blocks, but
+    there's no need to do this. Combine them into a single pass. This
+    eliminates the need for blockEffects.lastbitmapindex, but, more
+    importantly, will let us incrementally compact the liveness bitmaps
+    and significantly reduce allocatons in Liveness.epilogue.
+    
+    Passes toolstash -cmp.
+    
+    Updates #24543.
+    
+    Change-Id: I27802bcd00d23aa122a7ec16cdfd739ae12dd7aa
+    Reviewed-on: https://go-review.googlesource.com/110175
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 43 ++++++++++++++----------------------
+ 1 file changed, 17 insertions(+), 26 deletions(-)

@@ -1,0 +1,15 @@
+commit 3cb64ea39e0d71fe2af554cbf4e99d14bc08d41b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 9 16:14:27 2018 -0400
+
+    cmd/go/internal/modload: emit correct module in duplication error
+    
+    Updates #26904.
+    
+    Change-Id: If7f381c3f3a41bd62c5f8bcf4f92720badcaf5c6
+    Reviewed-on: https://go-review.googlesource.com/128878
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modload/load.go        | 2 +-
+ src/cmd/go/testdata/script/mod_replace.txt | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

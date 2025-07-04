@@ -1,0 +1,16 @@
+commit e77fbd598faeffd9231c8ecd6e2c2f42312c717e
+Author: mattn <mattn.jp@gmail.com>
+Date:   Tue Jan 6 09:47:37 2015 +0900
+
+    syscall: Readlink doesn't handle junction on windows
+    
+    Fixes #9190
+    
+    Change-Id: I22177687ed834feed165454019d28c11fcbf0fa2
+    Reviewed-on: https://go-review.googlesource.com/2307
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/os_windows_test.go      | 50 +++++++++++++++++++++++++++++++++++++-----
+ src/syscall/syscall_windows.go | 19 +++++++++++-----
+ src/syscall/ztypes_windows.go  | 25 ++++++++++++++++-----
+ 3 files changed, 77 insertions(+), 17 deletions(-)

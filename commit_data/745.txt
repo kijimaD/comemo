@@ -1,0 +1,15 @@
+commit 72154b042fc0e8399b44ad15af48f1f7aa8791ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 14:10:26 2008 -0700
+
+    go/acid/go
+    
+    R=r
+    DELTA=99  (95 added, 1 deleted, 3 changed)
+    OCL=15983
+    CL=15992
+
+ src/runtime/Makefile  | 4 ++--
+ src/runtime/proc.c    | 6 +++---
+ src/runtime/runtime.h | 1 -
+ 3 files changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit df6d442c389097de00586f9d43fe9f594ff5f49a
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Apr 9 22:51:47 2023 +0800
+
+    doc: fix "are" to "or" in core types
+    
+    Fixes #59506
+    
+    Change-Id: I2f8b92e93b706b061ca0eb0bd52e5cf798ce9ede
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483358
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

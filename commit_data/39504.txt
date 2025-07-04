@@ -1,0 +1,20 @@
+commit 9d56dd8ea30068aa3b3211939b50407b10edb50e
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jul 10 09:12:24 2019 -0400
+
+    test: new testcase for gccgo compiler bug
+    
+    Updates #33013
+    
+    Change-Id: I3db062b37860bb0c6c99a553408b47cf0313531e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185517
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue33013.dir/a.go |  9 +++++++++
+ test/fixedbugs/issue33013.dir/b.go | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue33013.dir/c.go | 19 +++++++++++++++++++
+ test/fixedbugs/issue33013.dir/d.go | 16 ++++++++++++++++
+ test/fixedbugs/issue33013.go       |  9 +++++++++
+ 5 files changed, 77 insertions(+)

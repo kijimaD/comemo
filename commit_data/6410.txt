@@ -1,0 +1,12 @@
+commit 5474e166bc0b6c69a0a44730c19ecba09b1f9ed2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 28 14:44:19 2010 -0700
+
+    go spec: clarifications for range clause
+    
+    R=iant, r, rsc, rog
+    CC=golang-dev
+    https://golang.org/cl/2226047
+
+ doc/go_spec.html | 123 +++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 70 insertions(+), 53 deletions(-)

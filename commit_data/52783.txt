@@ -1,0 +1,38 @@
+commit 715d53c090ea02dbd73c301684ecbd09b476989e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Apr 20 17:30:38 2023 +0200
+
+    runtime: fallback to TEB arbitrary pointer when TLS slots are full
+    
+    The Go runtime allocates the TLS slot in the TEB TLS slots instead of
+    using the TEB arbitrary pointer. See CL 431775 for more context.
+    
+    The problem is that the TEB TLS slots array only has capacity for 64
+    indices, allocating more requires some complex logic that we don't
+    support yet.
+    
+    Although the Go runtime only allocates one index, a Go DLL can be
+    loaded in a process with more than 64 TLS slots allocated,
+    in which case it abort.
+    
+    This CL avoids aborting by falling back to the older behavior, that
+    is to use the TEB arbitrary pointer.
+    
+    Fixes #59213
+    
+    Change-Id: I39c73286fe2da95aa9c5ec5657ee0979ecbec533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486816
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/signal_windows_test.go      | 56 +++++++++++++++++++++++++++++++++
+ src/runtime/sys_windows_386.s           |  7 ++++-
+ src/runtime/sys_windows_amd64.s         |  8 ++++-
+ src/runtime/sys_windows_arm64.s         |  8 +++--
+ src/runtime/testdata/testwintls/main.c  | 29 +++++++++++++++++
+ src/runtime/testdata/testwintls/main.go | 12 +++++++
+ 6 files changed, 116 insertions(+), 4 deletions(-)

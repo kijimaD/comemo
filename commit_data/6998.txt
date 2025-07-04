@@ -1,0 +1,19 @@
+commit 6c6d53052e277bcc8f65d69a945198ba46499559
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 17 11:37:11 2010 -0800
+
+    cgo: handle references to symbols in shared libraries
+    
+    Fixes #1334.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3746041
+
+ misc/cgo/life/c-life.c |  2 ++
+ misc/cgo/life/life.go  |  2 +-
+ misc/cgo/life/life.h   |  1 +
+ misc/cgo/stdio/file.go |  4 ++++
+ src/Make.pkg           |  8 ++------
+ src/cmd/cgo/out.go     | 14 ++++++++++++--
+ 6 files changed, 22 insertions(+), 9 deletions(-)

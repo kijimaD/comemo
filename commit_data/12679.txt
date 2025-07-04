@@ -1,0 +1,16 @@
+commit 7e054266c94462be87277367ec59f1d27ed78ab0
+Author: Jeremy Jackins <jeremyjackins@gmail.com>
+Date:   Mon Mar 19 08:26:36 2012 +1100
+
+    doc: various typos, remove apostrophes from ordinals
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5845059
+
+ doc/code.html               | 2 +-
+ doc/debugging_with_gdb.html | 2 +-
+ doc/gccgo_install.html      | 2 +-
+ doc/go_mem.html             | 6 +++---
+ doc/go_spec.html            | 2 +-
+ 5 files changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,20 @@
+commit a005f998cd1a364d5d341eb8f185fb6ae5aa62cb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 17 12:53:47 2019 -0400
+
+    cmd/go/internal/mvs: retain modules required by older versions
+    
+    Fixes #29773
+    Updates #31248
+    
+    Change-Id: Ic1923119c8cf3a60c586df1b270c3af0c9095f29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/186537
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/mvs/mvs.go                   | 17 +++--
+ src/cmd/go/internal/mvs/mvs_test.go              | 28 +++++---
+ src/cmd/go/testdata/script/mod_indirect.txt      | 81 ++++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_indirect_main.txt | 65 +++++++++++++++++++
+ 4 files changed, 174 insertions(+), 17 deletions(-)

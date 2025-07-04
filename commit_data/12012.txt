@@ -1,0 +1,14 @@
+commit 6cdf0a1eab8c038b439543f45aff2bcf660b0eac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 17 11:01:16 2012 -0800
+
+    godoc: don't print spurious suggestion when running "go doc foo"
+    
+    Fixes #3041.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5671087
+
+ src/cmd/godoc/main.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

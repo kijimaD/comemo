@@ -1,0 +1,13 @@
+commit 22f71cde6a366b2a2db928ab743bef50a856ee35
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 27 15:23:14 2011 -0700
+
+    A+C: John Asmuth
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4827045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

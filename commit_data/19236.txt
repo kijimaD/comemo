@@ -1,0 +1,18 @@
+commit 4c129c083bd74dcd3192582551e168cde02e7914
+Author: Robert Obryk <robryk@gmail.com>
+Date:   Sat Apr 26 19:59:00 2014 -0700
+
+    net: Remove an unmatched unlock of ForkLock
+    
+    Remove an RUnlock of syscall.ForkLock with no matching RLock.
+    Holding ForkLock in netFD.dup is unnecessary: dupCloseOnExecOld
+    locks and unlocks the lock on its own and dupCloseOnExec doesn't
+    need the ForkLock to be held.
+    
+    LGTM=iant
+    R=golang-codereviews, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/99800044
+
+ src/pkg/net/fd_unix.go | 1 -
+ 1 file changed, 1 deletion(-)

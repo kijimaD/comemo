@@ -1,0 +1,24 @@
+commit bc5620c2e084093f3b411e0b425743ca7d751a9e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 19 15:23:43 2009 -0700
+
+    Match gccgo error messages.
+    
+    bug117.go:13:12: error: reference to undefined field or method
+    
+    import1.go:9:2: error: redefinition of '.main.bufio'
+    import1.go:8:2: note: previous definition of '.main.bufio' was here
+    import1.go:9:2: error: incompatible imported type 'bufio.Error'
+    
+    interface9.go:25:5: error: incompatible types in assignment (method P requires a pointer)
+    interface9.go:30:5: error: incompatible types in assignment (method P requires a pointer)
+    
+    R=rsc
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=29044
+    CL=29055
+
+ test/fixedbugs/bug117.go | 2 +-
+ test/import1.go          | 4 ++--
+ test/interface9.go       | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

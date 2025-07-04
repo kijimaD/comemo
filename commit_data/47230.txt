@@ -1,0 +1,24 @@
+commit e72d7150cb7f62edf6768ac5f33194d7f96443a1
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 19:49:15 2021 -0400
+
+    go/types: remove qualification from type parameter strings
+    
+    Type parameters only exist within the scope of a type or function
+    declaration, so there is really no reason to package-qualify them. It is
+    also confusing to do so, as it makes their type string look like a
+    defined type.
+    
+    Fixes #49215
+    
+    Change-Id: I986c527e78d45f3cadd75bc3b244e23dabe707ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360938
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api_test.go      | 12 ++++++------
+ src/go/types/builtins_test.go |  6 +++---
+ src/go/types/typestring.go    |  4 ----
+ 3 files changed, 9 insertions(+), 13 deletions(-)

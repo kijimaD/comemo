@@ -1,0 +1,15 @@
+commit 0acb63769c900aad6e8d7d4380f248ef40829c0b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Sep 11 15:47:56 2010 -0400
+
+    gc: const nil bug
+    
+    Fixes #1073.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2169043
+
+ src/cmd/gc/walk.c | 4 ++++
+ test/const1.go    | 2 ++
+ 2 files changed, 6 insertions(+)

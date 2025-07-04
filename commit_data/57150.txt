@@ -1,0 +1,26 @@
+commit 72735094660a475a69050b7368c56b25346f5406
+Author: khr@golang.org <khr@golang.org>
+Date:   Sun Aug 4 05:41:38 2024 -0700
+
+    cmd/compile: add additional arm64 bit field rules
+    
+    Get rid of TODO in prove pass.
+    We currently avoid marking shifts of constants as bounded, where
+    bounded means we don't have to worry about <0 or >=bitwidth shifts.
+    We do this because it causes different rule applications during lowering
+    which cause some codegen tests to fail.
+    
+    Add some new rules which ensure that we get the right final instruction
+    sequence regardless of the ordering. Then we can remove this special case.
+    
+    Change-Id: I4e962d4f09992b42ab47e123de5ded3b8b8fb205
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  30 ++++++-
+ src/cmd/compile/internal/ssa/prove.go         |   9 --
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 121 ++++++++++++++++++++++++++
+ test/codegen/comparisons.go                   |   4 +-
+ 4 files changed, 152 insertions(+), 12 deletions(-)

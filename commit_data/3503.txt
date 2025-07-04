@@ -1,0 +1,21 @@
+commit 6d0983ae46c35b4e11482ca674043948f8e626fe
+Author: Kai Backman <kaib@golang.org>
+Date:   Sun Oct 11 20:01:11 2009 -0700
+
+    64bit and float code generation. fmt compiles but
+    reflect is broken so fmt doesn't work.
+    
+    go/test: passes 83% (285/342)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=415  (240 added, 29 deleted, 146 changed)
+    OCL=35576
+    CL=35588
+
+ src/cmd/5g/cgen.c   |  43 +++++-
+ src/cmd/5g/cgen64.c | 417 +++++++++++++++++++++++++++++++++++-----------------
+ src/cmd/5g/gsubr.c  |  62 +++++---
+ src/make-arm.bash   |   2 +-
+ test/arm-pass.txt   |  13 +-
+ 5 files changed, 374 insertions(+), 163 deletions(-)

@@ -1,0 +1,20 @@
+commit d38f1d13fa413436d38d86fe86d6a146be44bb84
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 23 17:23:39 2022 -0700
+
+    doc/go1.19: Linux race detector now requires glibc 2.17
+    
+    Fixes #53522
+    
+    Change-Id: Ibed838d358a733d26a6c3d89446d7fadb1012961
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413876
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.19.html | 1 +
+ 1 file changed, 1 insertion(+)

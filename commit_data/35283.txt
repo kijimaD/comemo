@@ -1,0 +1,39 @@
+commit 2aef675000e71daeef77c0fb3379bcd142e48959
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu May 3 10:13:31 2018 +0200
+
+    runtime: ignore sigaction error on Linux if it is for SIGRTMAX
+    
+    The Go runtime registers a handler for every signal. This prevents Go
+    binaries from working on QEMU in user-emulation mode, since the hacky
+    way QEMU implements signals on Linux assumes that no-one uses signal
+    64 (SIGRTMAX).
+    
+    In the past, we had a workaround in the runtime to prevent crashes on
+    start-up when running on QEMU:
+    
+      golang.org/cl/124900043
+      golang.org/cl/16853
+    
+    but it went lost during the 1.11 dev cycle. More precisely, the test
+    for SIGRTMAX was dropped in CL 18150 when we stopped testing the
+    result of sigaction in the Linux implementation of setsig. That change
+    was made to avoid a stack split overflow because code started calling
+    setsig from nosplit functions. Then in CL 99077 we started testing the
+    result of sigaction again, this time using systemstack to avoid to
+    stack split overflow. When this test was added back, we did not bring
+    back the test of SIGRTMAX.
+    
+    As a result, Go1.10 binaries work on QEMU, while 1.11 binaries
+    immediately crash on startup.
+    
+    This change restores the QEMU workaround.
+    
+    Updates #24656
+    
+    Change-Id: I46380b1e1b4bf47db7bc7b3d313f00c4e4c11ea3
+    Reviewed-on: https://go-review.googlesource.com/111176
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_linux.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

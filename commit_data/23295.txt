@@ -1,0 +1,16 @@
+commit 13e2412876fb43ed4ccfca380840cdf281984f98
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 5 13:20:03 2015 -0700
+
+    cmd/vet: remove dependency on types.New
+    
+    - remove TODO on non-existing fmt.Formatter type
+      (type exists now)
+    - guard uses of imported types against nil
+    
+    Change-Id: I9ae8e5a448e73c84dec1606ea9d9ed5ddeee8dc6
+    Reviewed-on: https://go-review.googlesource.com/10777
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/types.go | 39 +++++++++++++++++++++------------------
+ 1 file changed, 21 insertions(+), 18 deletions(-)

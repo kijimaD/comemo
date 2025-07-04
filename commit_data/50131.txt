@@ -1,0 +1,19 @@
+commit 2883af63c28d1a4398cd60745d3c0cb7f7fbdacf
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Thu Aug 25 10:13:03 2022 +0800
+
+    runtime: convert p.statsSeq to internal atomic type
+    
+    For #53821.
+    
+    Change-Id: I1cab3671a29c218b8a927aba9064e63b65900173
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425416
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
+
+ src/runtime/mstats.go   | 6 +++---
+ src/runtime/runtime2.go | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

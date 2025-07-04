@@ -1,0 +1,17 @@
+commit 6c7978fc895099d0053ca7e994ca0936e10ba2d9
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Tue Dec 6 10:40:31 2016 +0100
+
+    reflect: add example for StructOf
+    
+    This CL adds a simple example for StructOf.
+    The example shows how StructOf can be used in a JSON roundtrip.
+    
+    Change-Id: I9ff1ea9cb8c0cf297c5fae74e68b89931076adfd
+    Reviewed-on: https://go-review.googlesource.com/33953
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/reflect/example_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

@@ -1,0 +1,28 @@
+commit 085c609a70f8f156734efe2cf4bfb5fe8bd94363
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 21 00:23:28 2021 +0700
+
+    cmd/go: fix go command fails to perform concurrent compilation
+    
+    CL 344909 fixed the bug in the order of passing gcflags from cmd/go to
+    cmd/compile. In that process, we merged the flags passed by cmd/go and
+    the flags specified by "-gcflags" to one variable. That causes the
+    gcBackendConcurrency function fails to detect concurrency level, since
+    when it expects only the latter flags.
+    
+    To fix this, just don't merge those two variables, so we can now
+    correctly detect the concurrency level and passing the right -c to
+    the compiler.
+    
+    Fixes #48490
+    
+    Change-Id: I1293a7d6b946b7fccdd5cd34a38452bf6306e115
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351049
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/gc.go                     | 24 +++++++++++-----------
+ .../testdata/script/build_concurrent_backend.txt   | 14 +++++++++++++
+ 2 files changed, 26 insertions(+), 12 deletions(-)

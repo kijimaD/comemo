@@ -1,0 +1,14 @@
+commit ecb9d9b95ccba900de9504b3699a219c84b0aa96
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 1 12:54:00 2023 -0800
+
+    doc: document changes to slices package
+    
+    Change-Id: I4e3f9812463251acd312372dd8a4f8c2cea9e289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545996
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Bypass: Keith Randall <khr@google.com>
+
+ doc/go1.22.html | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)

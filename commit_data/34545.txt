@@ -1,0 +1,24 @@
+commit cde34780b7a0bbd162321a34c41fc8a6268e2c09
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 8 17:43:55 2018 +0100
+
+    test/codegen: port math/bits.RotateLeft tests to codegen
+    
+    Only RotateLeft{64,32} were tested, and just for ppc64. This CL adds
+    tests for RotateLeft{64,32,16,8} on arm64 and amd64/386, for the cases
+    where the calls are actually instrinsified.
+    
+    RotateLeft tests (the last ones for math/bits functions) are deleted
+    from asm_test.
+    
+    This CL also adds a space between the "//" and the arch name in the
+    comments, to uniform this file to the style used in all the other
+    files.
+    
+    Change-Id: Ifc2a27261d70bcc294b4ec64490d8367f62d2b89
+    Reviewed-on: https://go-review.googlesource.com/99596
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/gc/asm_test.go |  24 +----
+ test/codegen/mathbits.go                | 164 +++++++++++++++++++-------------
+ 2 files changed, 99 insertions(+), 89 deletions(-)

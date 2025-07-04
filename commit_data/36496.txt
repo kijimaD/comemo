@@ -1,0 +1,19 @@
+commit eae5fc88c13d6902a7fe9c595fb02155eb037cbe
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Aug 25 16:53:23 2018 +0200
+
+    internal/bytealg: replace use of runtime.support_sse2 with cpu.X86.HasSSE2
+    
+    This makes the runtime.support_sse2 variable unused
+    so it is removed in this CL too.
+    
+    Change-Id: Ia8b9ffee7ac97128179f74ef244b10315e44c234
+    Reviewed-on: https://go-review.googlesource.com/131455
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/bytealg/compare_386.s | 2 +-
+ src/runtime/proc.go                | 1 -
+ src/runtime/runtime2.go            | 1 -
+ 3 files changed, 1 insertion(+), 3 deletions(-)

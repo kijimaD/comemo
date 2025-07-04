@@ -1,0 +1,12 @@
+commit f0886ab7e21c1e7c7de59085dbcbaf1cb7a48737
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 29 17:39:02 2012 -0800
+
+    test: add a couple of cases to const1.go that crashed gccgo
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5713045
+
+ test/const1.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,12 @@
+commit 125419a250ec1f6d9031792093fc2db4fb584d80
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 20 13:30:46 2011 -0700
+
+    CONTRIBUTORS: add Mike Solomon (Google CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4818041
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

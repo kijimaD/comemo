@@ -1,0 +1,15 @@
+commit c9172fb2a3fed51646897d0107c304f48a6cdbe3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 14 18:07:17 2010 -0700
+
+    runtime: correct fault for 16-bit divide on Leopard
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1703041
+
+ src/pkg/runtime/darwin/386/signal.c   |  4 +++-
+ src/pkg/runtime/darwin/amd64/signal.c |  4 +++-
+ test/golden.out                       |  4 ----
+ test/zerodivide.go                    | 12 ++++--------
+ 4 files changed, 10 insertions(+), 14 deletions(-)

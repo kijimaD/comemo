@@ -1,0 +1,14 @@
+commit 688a83128d1304c2a1fe62416ca7e6d703faad3e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Dec 8 07:55:03 2010 +1100
+
+    html: move the sanity checking of the entity map from runtime
+    (during init) to test-time (via gotest).
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3466044
+
+ src/pkg/html/entity.go      | 20 --------------------
+ src/pkg/html/entity_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 20 deletions(-)

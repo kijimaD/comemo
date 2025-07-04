@@ -1,0 +1,14 @@
+commit 306c540a28a31b38709eaee57b74ac109dec83a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 28 22:07:06 2017 +0000
+
+    time: warn that RFC3339Nano does not guarantee a natural ordering
+    
+    Fixes #19635
+    
+    Change-Id: I85e725dbc85843afd0f4d82f5127fecacc1cb524
+    Reviewed-on: https://go-review.googlesource.com/47090
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/format.go | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,47 @@
+commit 55d96f98ef139daa8d5f362668271751cf59f8e1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Aug 23 16:33:01 2022 -0400
+
+    cmd/go/internal/work: make NewBuilder safe for concurrent and repeated use
+    
+    Ever since 'go build' was added (in CL 5483069), it has used an atexit
+    handler to clean up working directories. At some point (prior to CL
+    95900044), Init was called multiple times per builder, registering
+    potentially many atexit handlers that execute asynchronously and make
+    debugging more difficult.
+    
+    The use of an AtExit handler also makes the Builder (and anything that
+    uses it) prone to races: the base.AtExit API is not designed for
+    concurrent use, but cmd/go is becoming increasingly concurrent over
+    time. The AtExit handler also makes the Builder inappropriate to use
+    within a unit-test, since the handlers do not run during the test
+    function and accumulate over time.
+    
+    This change makes NewBuilder safe for concurrent use by registering
+    the AtExit handler only once (during BuildInit, which was already not
+    safe for concurrent use), and using a sync.Map to store the set of
+    builders that need cleanup in case of an unclean exit. In addition, it
+    causes the test variant of cmd/go to fail if any Builder instance
+    leaks from a clean exit, helping to ensure that functions that create
+    Builders do not leak them indefinitely, especially in tests.
+    
+    Updates #54423.
+    
+    Change-Id: Ia227b15b8fa53c33177c71271d756ac0858feebe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425254
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/bug/bug.go     |  3 ++
+ src/cmd/go/internal/envcmd/env.go  |  6 ++++
+ src/cmd/go/internal/list/list.go   |  6 ++++
+ src/cmd/go/internal/run/run.go     |  5 +++
+ src/cmd/go/internal/test/test.go   |  8 +++++
+ src/cmd/go/internal/vet/vet.go     |  5 +++
+ src/cmd/go/internal/work/action.go | 69 +++++++++++++++++++++++++-------------
+ src/cmd/go/internal/work/build.go  | 10 ++++++
+ src/cmd/go/internal/work/init.go   |  8 +++++
+ src/cmd/go/script_test.go          |  5 +++
+ 10 files changed, 101 insertions(+), 24 deletions(-)

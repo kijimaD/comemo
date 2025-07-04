@@ -1,0 +1,20 @@
+commit 6ea87f9209973148806f1d62c0e8ea278dcbb601
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Oct 23 11:33:13 2024 -0400
+
+    doc/next: document the minimum Linux kernel version for 1.24
+    
+    The minimum Linux kernel version for Go 1.24 is now set to 3.2.
+    
+    Updates #67001
+    For #68545
+    
+    Change-Id: I509f09c8ed7f3067af14066cf139008db0cb06ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622015
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/next/7-ports.md | 5 +++++
+ 1 file changed, 5 insertions(+)

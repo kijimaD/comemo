@@ -1,0 +1,21 @@
+commit 4f15b54780af7159732794f9d67c9a8a455bbf61
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Nov 28 12:41:23 2018 -0800
+
+    cmd/compile: ensure S390X moves don't overflow int32
+    
+    Break ADDconst into ADD + MOVDconst, so that if the constant
+    is too big it won't overflow ADDconst's constant field.
+    
+    For normal sizes, other rules will recombine into an ADDconst.
+    
+    Fixes S390X breakage from CL 33909.
+    
+    Change-Id: Id804ee052365527efb580f797688b0ce83c47915
+    Reviewed-on: https://go-review.googlesource.com/c/151597
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 8 +++++---
+ 2 files changed, 6 insertions(+), 4 deletions(-)

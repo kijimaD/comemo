@@ -1,0 +1,15 @@
+commit 0e1da61cfb6bf0ca87569f98b3d5c8893bde4cea
+Author: Michael Vetter <g.bluehut@gmail.com>
+Date:   Thu Mar 12 15:49:49 2015 +0100
+
+    doc/effective_go.html: add missing newline
+    
+    When printing the type of the function there was no newline printed in
+    case of unexpected type.
+    
+    Change-Id: I5946413f0864f712a1b955f488b436793018e0e0
+    Reviewed-on: https://go-review.googlesource.com/7480
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

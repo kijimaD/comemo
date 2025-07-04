@@ -1,0 +1,14 @@
+commit cc17d1ba76e208cebe447e1b0c85e8e7702f5057
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Mar 18 19:17:42 2016 -0400
+
+    runtime/internal/sys: add s390x support
+    
+    Change-Id: I928532b406a3457d2c5f75f4de7d46a3f795192e
+    Reviewed-on: https://go-review.googlesource.com/20939
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/internal/sys/arch_s390x.go    | 18 ++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_s390x.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

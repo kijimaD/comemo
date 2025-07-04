@@ -1,0 +1,13 @@
+commit 1e85f41fd512d570b04f87d906d44e456f1c2108
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 28 11:51:34 2011 -0500
+
+    http: fix sniffing bug causing short writes
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5442045
+
+ src/pkg/net/http/server.go     |  2 +-
+ src/pkg/net/http/sniff_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

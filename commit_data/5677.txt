@@ -1,0 +1,13 @@
+commit a674c024c707cc85fa0dcd2920c5f7feb6ba1053
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 18 22:45:42 2010 -0700
+
+    nacl: fix build
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/1706044
+
+ src/pkg/exp/nacl/av/av.go    | 2 +-
+ src/pkg/exp/nacl/srpc/msg.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

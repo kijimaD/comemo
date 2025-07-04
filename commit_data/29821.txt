@@ -1,0 +1,18 @@
+commit 3444e5b3551060ab8cc0d4c70a9dce823d8f569a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Dec 14 21:35:30 2016 -0500
+
+    runtime: fix mips assembly
+    
+    I meant to say ~7, instead of ^7, in the review.
+    
+    Fix build.
+    
+    Change-Id: I5060bbcd98b4ab6f00251fdb68b6b35767e5acf1
+    Reviewed-on: https://go-review.googlesource.com/34411
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_mipsx.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

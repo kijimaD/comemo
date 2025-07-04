@@ -1,0 +1,14 @@
+commit 0b62ebfdec2aa95a57ad552fe965407e9cdba6fb
+Author: Francisco Rojas <francisco.rojas.gallegos@gmail.com>
+Date:   Sat Jul 15 14:32:15 2017 -0600
+
+    strings: add a example for Compare func
+    
+    Add a example for string.Compare that return the three possible results.
+    
+    Change-Id: I103cf39327c1868fb249538d9e22b11865ba4b70
+    Reviewed-on: https://go-review.googlesource.com/49011
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/strings/example_test.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

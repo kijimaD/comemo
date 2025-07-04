@@ -1,0 +1,26 @@
+commit ab79684cdf07bb77f06c35b563b731e26a8137b5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 3 17:16:51 2023 +0000
+
+    runtime: donate racectx to g0 in ReadMetricsSlow
+    
+    ReadMetricsSlow was updated to call the core of readMetrics on the
+    systemstack to prevent issues with stat skew if the stack gets moved
+    between readmemstats_m and readMetrics. However, readMetrics calls into
+    the map implementation, which has race instrumentation. The system stack
+    typically has no racectx set, resulting in crashes.
+    
+    Donate racectx to g0 like the tracer does, so that these accesses don't
+    crash.
+    
+    For #60607.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-race
+    Change-Id: Ic0251af2d9b60361f071fe97084508223109480c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539695
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/export_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

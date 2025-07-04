@@ -1,0 +1,22 @@
+commit 08f1a778c90b572716c6333c792e5f9bacef81c2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 23 18:06:31 2016 +0900
+
+    net: rename test files
+    
+    This change renames {ipraw,tcp,udp,unix}_test.go to
+    {ipraw,tcp,udp,unix}sock_test.go for clarification. Also moves
+    NSS-related system configuration test helpers into main_conf_test.go and
+    main_noconf_test.go.
+    
+    Change-Id: I28ba1e8ceda7b182ee3aa85f0ca3321388ba45e2
+    Reviewed-on: https://go-review.googlesource.com/19787
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/{ipraw_test.go => iprawsock_test.go}      |  0
+ src/net/main_conf_test.go                         | 38 +++++++++++++++++++++++
+ src/net/{non_unix_test.go => main_noconf_test.go} |  4 +--
+ src/net/{tcp_test.go => tcpsock_test.go}          |  0
+ src/net/{udp_test.go => udpsock_test.go}          |  0
+ src/net/{unix_test.go => unixsock_test.go}        | 31 ------------------
+ 6 files changed, 40 insertions(+), 33 deletions(-)

@@ -1,0 +1,12 @@
+commit 9a44578806436e005f2e72618f92a8d597146c52
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Tue Mar 9 14:21:34 2010 -0800
+
+    missing ';' renders the code snippet incorrectly on website
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/367041
+
+ doc/go_for_cpp_programmers.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,35 @@
+commit 0bae38e094098237c12dbb7344371f35e9663905
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 00:44:23 2016 -0500
+
+    cmd/asm: add amd64 PDEP, PEXT, and related integer VEX instructions
+    
+    Requested off-list.
+    Trivial to add and more importantly trivial to test.
+    
+    ANDNL
+    ANDNQ
+    BEXTRL
+    BEXTRQ
+    BZHIL
+    BZHIQ
+    MULXL
+    MULXQ
+    PDEPL
+    PDEPQ
+    PEXTL
+    PEXTQ
+    SARXL
+    SARXQ
+    SHRXL
+    SHRXQ
+    
+    Change-Id: I3d46a0f653b81dd003ff6d2a394d8ce96a573b63
+    Reviewed-on: https://go-review.googlesource.com/18857
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/amd64enc.s | 312 +++++++++++++--------------
+ src/cmd/internal/obj/x86/a.out.go            |  24 +++
+ src/cmd/internal/obj/x86/anames.go           |  24 +++
+ src/cmd/internal/obj/x86/asm6.go             |  34 +++
+ 4 files changed, 238 insertions(+), 156 deletions(-)

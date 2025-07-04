@@ -1,0 +1,45 @@
+commit 961eb13b6781907b5bfe4a7b22f68206020c4468
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Jun 5 08:14:57 2018 +0200
+
+    runtime: replace sys.CacheLineSize by corresponding internal/cpu const and vars
+    
+    sys here is runtime/internal/sys.
+    
+    Replace uses of sys.CacheLineSize for padding by
+    cpu.CacheLinePad or cpu.CacheLinePadSize.
+    Replace other uses of sys.CacheLineSize by cpu.CacheLineSize.
+    Remove now unused sys.CacheLineSize.
+    
+    Updates #25203
+    
+    Change-Id: I1daf410fe8f6c0493471c2ceccb9ca0a5a75ed8f
+    Reviewed-on: https://go-review.googlesource.com/126601
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/deps_test.go                   |  2 +-
+ src/internal/cpu/cpu.go                     |  2 +-
+ src/runtime/internal/atomic/atomic_arm.go   |  4 ++--
+ src/runtime/internal/atomic/atomic_mipsx.go |  4 ++--
+ src/runtime/internal/sys/arch_386.go        |  1 -
+ src/runtime/internal/sys/arch_amd64.go      |  1 -
+ src/runtime/internal/sys/arch_amd64p32.go   |  1 -
+ src/runtime/internal/sys/arch_arm.go        |  1 -
+ src/runtime/internal/sys/arch_arm64.go      |  1 -
+ src/runtime/internal/sys/arch_mips.go       |  1 -
+ src/runtime/internal/sys/arch_mips64.go     |  1 -
+ src/runtime/internal/sys/arch_mips64le.go   |  1 -
+ src/runtime/internal/sys/arch_mipsle.go     |  1 -
+ src/runtime/internal/sys/arch_ppc64.go      |  1 -
+ src/runtime/internal/sys/arch_ppc64le.go    |  1 -
+ src/runtime/internal/sys/arch_s390x.go      |  1 -
+ src/runtime/internal/sys/arch_wasm.go       |  1 -
+ src/runtime/mgc.go                          | 10 +++++-----
+ src/runtime/mgcsweepbuf.go                  |  5 +++--
+ src/runtime/mheap.go                        |  5 +++--
+ src/runtime/runtime2.go                     |  3 ++-
+ src/runtime/sema.go                         |  4 ++--
+ src/runtime/time.go                         |  4 ++--
+ 23 files changed, 23 insertions(+), 33 deletions(-)

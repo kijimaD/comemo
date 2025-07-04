@@ -1,0 +1,19 @@
+commit ace1738f9c1ad3d351c49cb9ca0811334a24585f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 5 14:19:10 2016 -0800
+
+    A+C: automated update
+    
+    These are the easy, automated cases. There were some more where we
+    need to fight Gerrit and the CLA system to extract the appropriate
+    metadata.
+    
+    Updates #12042
+    
+    Change-Id: Id63ae635ee7efeec4cd372c7d85bb5b1f557951b
+    Reviewed-on: https://go-review.googlesource.com/18264
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      |  5 +++++
+ CONTRIBUTORS | 10 ++++++++++
+ 2 files changed, 15 insertions(+)

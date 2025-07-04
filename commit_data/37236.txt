@@ -1,0 +1,17 @@
+commit ef21689a68c64cdd57a06722152848e63eeac6fe
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Oct 27 12:50:25 2018 -0400
+
+    crypto/tls: implement TLS 1.3 record layer and cipher suites
+    
+    Updates #9671
+    
+    Change-Id: I1ea7b724975c0841d01f4536eebb23956b30d5ea
+    Reviewed-on: https://go-review.googlesource.com/c/145297
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/cipher_suites.go |  92 +++++++++++++++++------
+ src/crypto/tls/common.go        |  51 +++++++++----
+ src/crypto/tls/conn.go          | 162 ++++++++++++++++++++++++++++++++--------
+ src/crypto/tls/tls_test.go      |   4 +-
+ 4 files changed, 238 insertions(+), 71 deletions(-)

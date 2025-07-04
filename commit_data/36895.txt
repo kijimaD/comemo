@@ -1,0 +1,17 @@
+commit 7c3b324d265905eec137d92e3a0a9041cad3679d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Oct 7 11:22:57 2018 +1100
+
+    net: skip TestUnixConnLocalWindows on windows/arm
+    
+    Similarly to CL 138676, skip TestUnixConnLocalWindows on windows/arm.
+    
+    Fixes #28061
+    
+    Change-Id: I2270d2f9d268e85ea567be0c0c37c48e4d482282
+    Reviewed-on: https://go-review.googlesource.com/c/140397
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/unixsock_windows_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

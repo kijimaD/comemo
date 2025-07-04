@@ -1,0 +1,18 @@
+commit 64017d10e1386c037aab2b7599e3256cab2a9188
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Wed Mar 13 01:52:03 2024 +0000
+
+    time: replace time.Now().Sub call with time.Since in test
+    
+    Change-Id: I56ca2d11637d60c6b0656fdc1d900a2384aba141
+    GitHub-Last-Rev: 686e02db77797fd81aafcde8ae40c85cee8dd817
+    GitHub-Pull-Request: golang/go#66264
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570916
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/time/sleep_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit 2eb17d78947efbb3140f8ab4e017693fc633301d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 31 14:55:57 2008 -0700
+
+    Recognize gccgo error message:
+    interface1.go:29:6: error: incompatible type in initialization (missing method Next)
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=18183
+    CL=18271
+
+ test/interface1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 6f83b75be2bf038a3a919ad7bd64eda2ee9a934a
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sun Jul 9 17:03:45 2017 +0200
+
+    cmd/compile: fix lexical scope of escaped variables
+    
+    When a local variable is moved to the heap the declaration position
+    should be preserved so that later on we can assign it to the correct
+    DW_TAG_lexical_block.
+    
+    Fixes #20959
+    
+    Change-Id: I3700ef53c68ccd506d0633f11374ad88a52b2898
+    Reviewed-on: https://go-review.googlesource.com/47852
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/esc.go        |  1 +
+ src/cmd/compile/internal/gc/scope_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+)

@@ -1,0 +1,13 @@
+commit 851100683e6eecbf8f3f06db8aeb4748dc2bfc7a
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Aug 3 13:31:06 2008 -0700
+
+    6c delete .6 file on error
+    
+    R=r
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=13785
+    CL=13785
+
+ src/cmd/cc/lex.c | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,14 @@
+commit 3599e3fc12e0b2056b15ce4286af9c332b0157dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 2 10:05:43 2011 -0700
+
+    go/printer: make tests follow syntactic restrictions
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4439087
+
+ src/pkg/go/printer/testdata/expressions.golden | 97 +++++++++++++++-----------
+ src/pkg/go/printer/testdata/expressions.input  | 97 +++++++++++++++-----------
+ src/pkg/go/printer/testdata/expressions.raw    | 97 +++++++++++++++-----------
+ 3 files changed, 174 insertions(+), 117 deletions(-)

@@ -1,0 +1,16 @@
+commit 264641711b8aa33275843268aa79ee9b45c9c83f
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Sep 1 16:17:50 2009 -0700
+
+    Switch back to returning Value from the public expression
+    interface, but implement it better this time.  Also, work
+    around a 6g bug in asInterface.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=39  (13 added, 1 deleted, 25 changed)
+    OCL=34211
+    CL=34217
+
+ usr/austin/eval/expr.go | 58 +++++++++++++++++++++++++++++--------------------
+ 1 file changed, 35 insertions(+), 23 deletions(-)

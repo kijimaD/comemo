@@ -1,0 +1,22 @@
+commit b1b6d928bd4fb368f8ada0a554fc85405e7a3688
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 12 13:27:07 2021 +0700
+
+    cmd/compile: fix missing transformEarlyCall for OXDOT in subster.node
+    
+    Like OFUNCINST, in case of OXDOT call expression, the arguments need
+    to be transformed earlier, so any needed CONVIFACE nodes are exposed.
+    
+    Fixes #49538
+    
+    Change-Id: I275ddf6f53a9cadc8708e805941cdf7bdffabba9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363554
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go | 12 ++++++++----
+ test/typeparam/issue49538.go              | 23 +++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 4 deletions(-)

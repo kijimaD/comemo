@@ -1,0 +1,17 @@
+commit 357a18a2c625d06f0f9202142b3432458368484f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 14 14:21:44 2013 -0500
+
+    cmd/go: set $PWD when running commands
+    
+    This makes os.Getwd inside those commands much faster.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7324055
+
+ src/cmd/go/build.go |  2 +-
+ src/cmd/go/main.go  | 19 +++++++++++++++++++
+ src/cmd/go/test.go  |  3 ++-
+ src/cmd/go/vcs.go   |  1 +
+ 4 files changed, 23 insertions(+), 2 deletions(-)

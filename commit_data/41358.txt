@@ -1,0 +1,31 @@
+commit bcdd5d002431a3354e95c8745f4d5771cee22483
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jan 23 21:47:42 2020 -0800
+
+    cmd/compile: use shift boundedness when lowering shifts on 386
+    
+    Minor improvements to generated code.
+    
+    file                                          before   after    Δ       %
+    runtime.s                                     451117   450977   -140    -0.031%
+    compress/bzip2.s                              10202    10194    -8      -0.078%
+    compress/lzw.s                                5924     5904     -20     -0.338%
+    compress/flate.s                              45053    45032    -21     -0.047%
+    net.s                                         236980   236970   -10     -0.004%
+    vendor/golang.org/x/crypto/cryptobyte.s       29450    29439    -11     -0.037%
+    crypto/x509.s                                 107854   107840   -14     -0.013%
+    cmd/vendor/golang.org/x/arch/arm64/arm64asm.s 102448   102434   -14     -0.014%
+    cmd/internal/obj/arm.s                        60536    60528    -8      -0.013%
+    cmd/vendor/golang.org/x/mod/sumdb/tlog.s      38273    38276    +3      +0.008%
+    net/http.s                                    462215   462201   -14     -0.003%
+    cmd/compile/internal/ssa.s                    3951732  3954683  +2951   +0.075%
+    total                                         16946051 16948745 +2694   +0.016%
+    
+    Change-Id: I9f6df1a90a295dce6fe86c8eb7576a8c96f8bb0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217000
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/386.rules |  30 +-
+ src/cmd/compile/internal/ssa/rewrite386.go | 549 +++++++++++++++++++++++++++++
+ 2 files changed, 570 insertions(+), 9 deletions(-)

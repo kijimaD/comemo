@@ -1,0 +1,21 @@
+commit 4be6b4a73d2f95752b69f5b6f6bfb4c1a7a57212
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Oct 22 15:29:28 2019 -0400
+
+    cmd/go/internal/modfile: prepare to move to x/mod
+    
+    - Deleted dead code in gopkgin.go.
+    - Minor documentation changes.
+    
+    Updates #34924
+    
+    Change-Id: Ie2c744bbf6662cae20f09163200f20d7589fd237
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202565
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfile/gopkgin.go | 47 ----------------------------------
+ src/cmd/go/internal/modfile/print.go   |  1 +
+ src/cmd/go/internal/modfile/read.go    |  3 ++-
+ 3 files changed, 3 insertions(+), 48 deletions(-)

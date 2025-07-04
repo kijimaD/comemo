@@ -1,0 +1,21 @@
+commit 5dc2e2f7c44a0b33dc34f5e47d9ca095d331c87b
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Oct 24 15:27:35 2018 +0200
+
+    misc/ios: remove note from output of detect.go
+    
+    If no GOIOS_DEV_ID is set, iostest.bash will eval the output of
+    detect.go. Prepend the note output by detect.go with # to make
+    the shell ignore it.
+    
+    Went undetected for so long because the iOS builders usually run
+    with GOIOS_DEV_ID set.
+    
+    Change-Id: I308eac94803851620ca91593f9a1aef79825187f
+    Reviewed-on: https://go-review.googlesource.com/c/144109
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ misc/ios/detect.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

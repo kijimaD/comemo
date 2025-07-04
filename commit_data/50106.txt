@@ -1,0 +1,20 @@
+commit 8a86b94aefd33bd720a337a645da8b23047b1381
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Wed Jun 1 00:30:31 2022 +0000
+
+    net/http: remove unused doneChan
+    
+    The https://golang.org/cl/43230 removed use of `getDoneChan`.
+    
+    Change-Id: I33390c0e3aea6d98367363773ebe39d9c1f64ae9
+    GitHub-Last-Rev: fe1e4154eaad4e485acfe4272f27d63367144e47
+    GitHub-Pull-Request: golang/go#53172
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/409538
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: hopehook <hopehook@qq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/server.go | 32 +-------------------------------
+ 1 file changed, 1 insertion(+), 31 deletions(-)

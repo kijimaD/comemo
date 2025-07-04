@@ -1,0 +1,12 @@
+commit ee54d5710117aa409e1608c7c97cf7d18ebfe3b2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 6 16:20:45 2015 -0700
+
+    doc/go1.5.txt: add Reader.Size to bytes and strings
+    
+    Change-Id: Idd42e0f5c6ed55be2e153ac83022439e5272c1a7
+    Reviewed-on: https://go-review.googlesource.com/8444
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

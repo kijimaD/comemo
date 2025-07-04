@@ -1,0 +1,13 @@
+commit a3695fb2273d458974a02bc19f1606f10e6ff388
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 20 11:14:45 2013 +1000
+
+    api: update next.txt, except.txt
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12926046
+
+ api/except.txt |  1 +
+ api/next.txt   | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)

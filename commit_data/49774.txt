@@ -1,0 +1,35 @@
+commit c1bfefe9d16f64ba038711796dc6445965bb257c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Aug 8 09:36:07 2022 -0500
+
+    cmd/compile: fix confusion with ANDCCconst in PPC64 rules
+    
+    Currently there is a an ANDconst and an ANDCCconst op in PPC64,
+    which is confusing since they map onto the same instruction.
+    One of these ops sets the result of the AND operation, and the
+    other sets the flag (condition register).
+    
+    This converts ANDCCconst into an op with the 2 expected results:
+    the integer result of the AND and the flag setting. The ANDconst
+    op has been removed.
+    
+    Note that in the PPC64 ISA the only variation of the 'and immediate'
+    is the one that sets the condition bit, which probably led to the
+    original (confusing) implementation.
+    
+    This also adds a few rules to improve the use of ANDCCconst with
+    ISELB and some testcases to verify those improvements.
+    
+    Change-Id: I523703fa4da2098eb995dc3ba744d36fa28e41d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422015
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go        |    5 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  194 +--
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |    7 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   14 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 2133 +++++++++++++++++---------
+ test/codegen/bool.go                         |   40 +
+ 6 files changed, 1582 insertions(+), 811 deletions(-)

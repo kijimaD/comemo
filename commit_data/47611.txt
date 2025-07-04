@@ -1,0 +1,20 @@
+commit 7e5331ac445045a70256eeeef5b7aad43886c9ec
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Nov 24 15:37:21 2021 +0100
+
+    runtime: skip TestTimePprof on illumos
+    
+    On illumos nanotime calls libc, like on the other systems for which
+    TestTimePprof is skipped.
+    
+    For #43118
+    
+    Change-Id: I370d3f098a261185920cb1e3e3402d16200e301a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366737
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

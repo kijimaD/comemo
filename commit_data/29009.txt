@@ -1,0 +1,14 @@
+commit 39690beb5885d378d98117c3d57b494e97f16eea
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 09:11:20 2016 -0400
+
+    runtime: fix invariant comment in chan.go
+    
+    Change-Id: Ic6317f186d0ee68ab1f2d15be9a966a152f61bfb
+    Reviewed-on: https://go-review.googlesource.com/31610
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/chan.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,39 @@
+commit e9b3ff15f40d6b258217b3467c662f816b078477
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jan 8 17:20:14 2024 -0500
+
+    os: relax tests and add examples for UserCacheDir and UserConfigDir
+    
+    Per https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html:
+    “If, when attempting to write a file, the destination directory is
+    non-existent an attempt should be made to create it with permission
+    0700. […] The application should be prepared to handle the case where
+    the file could not be written […]. In such case it may choose to
+    present an error message to the user.”
+    
+    In certain CI environments, these directories have well-defined
+    locations but do not exist and cannot be created. In that case,
+    we now choose to log and return from the test without failing it.
+    
+    To prevent the functions from falling back to being entirely untested,
+    we still fail the test (and “present an error message to the user”) if
+    either function returns an empty string without an error, or returns a
+    path that refers to a non-directory or results in an error other than
+    ErrNotExist.
+    
+    In addition, since the tests themselves no longer create subdirectories,
+    we add examples illustrating the suggested pattern of usage.
+    
+    Fixes #64990.
+    
+    Change-Id: Ie72106424f5ebe36eaf9288c22710d74bb14a462
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554815
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/os/example_test.go | 76 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/os_test.go      | 34 ++++++++++++----------
+ 2 files changed, 95 insertions(+), 15 deletions(-)

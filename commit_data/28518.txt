@@ -1,0 +1,17 @@
+commit 893edc9b3fceead9c31151ce46fb871ea8c225b1
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Sat Sep 24 22:06:39 2016 -0700
+
+    net/http/httptrace: remove the mention of http client
+    
+    This sentence is partially guilty why httptrace is considered as an
+    http.Client tracing package. Removing the mention.
+    
+    Updates #17152.
+    
+    Change-Id: I69f78a6e10817db933f44e464a949ae896e44ec6
+    Reviewed-on: https://go-review.googlesource.com/29755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptrace/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

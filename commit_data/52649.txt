@@ -1,0 +1,23 @@
+commit 0742e6dbc08f1ac5e7de966dcdf43cea03117c0c
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Apr 13 13:55:42 2023 +0000
+
+    Revert "go/types, types2: remove unnecessary tests for x.typ == Typ[Invalid]"
+    
+    This reverts commit 4c49d52439805c248f4a01d529b90b22e821b7d6.
+    
+    Reason for revert: it is trickier than expected to enforce an invariant that x.typ == Typ[Invalid] => x.mode == invalid. For example, builtins have invalid type until their call is evaluated.
+    
+    I think it is better to keep this defensive code for now. My bad for suggesting this strictness. I will send a follow-up CL with a test that exercises the panic discovered inside Google, and a bit more commentary about what 'invalid' means in both contexts.
+    
+    Fixes #59603
+    
+    Change-Id: If291f7268e7ef7ae6cd9bb861bb9af349a729cb2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484375
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go | 8 ++++++--
+ src/go/types/assignments.go                    | 8 ++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

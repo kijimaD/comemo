@@ -1,0 +1,18 @@
+commit 9679b307334bce77cc6e50751956a4c717e9458c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Apr 23 18:06:21 2020 -0400
+
+    cmd/go/testdata/script: make list_case_collision's behavior more clear
+    
+    Implementing the suggestion made by bcmills on a comment on golang.org/cl/228783.
+    
+    Change-Id: I314a24a002c65b582ea51610dcc1a54a69afbb8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229705
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/script_test.go                          | 38 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/README                  |  1 +
+ src/cmd/go/testdata/script/list_case_collision.txt | 25 +++++---------
+ 3 files changed, 48 insertions(+), 16 deletions(-)

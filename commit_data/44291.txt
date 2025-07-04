@@ -1,0 +1,23 @@
+commit 0c633125f25966fa749ff8003393216aa454e909
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 09:25:40 2021 -0500
+
+    cmd/dist: add windows/arm64 support
+    
+    - Add Windows SystemInfo constant for arm64
+    - Add windows/arm64 to GOOS/GOARCH list
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    
+    Change-Id: I6109bd87512b5cb1d227d7a85fd0ac20eb2259e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288819
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go       | 1 +
+ src/cmd/dist/sys_windows.go | 5 +++++
+ 2 files changed, 6 insertions(+)

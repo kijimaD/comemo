@@ -1,0 +1,32 @@
+commit d5bc3b96c6fb758561e6274c8f69232623157ca4
+Author: Hana Kim <hakim@google.com>
+Date:   Wed May 30 10:54:20 2018 -0400
+
+    cmd/vendor/.../pprof: sync at rev 1ddc9e2
+    
+    This includes changes in pprof to support
+     - the new -diff_base flag
+     - fix for a bug in handling of legacy Go heap profiles
+    
+    Update #25096
+    
+    Change-Id: I826ac9244f31cc2c4415388c44a0cbe77303e460
+    Reviewed-on: https://go-review.googlesource.com/115295
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../github.com/google/pprof/internal/driver/cli.go |  49 +++-
+ .../google/pprof/internal/driver/driver.go         |  27 ++-
+ .../google/pprof/internal/driver/driver_test.go    |   9 +-
+ .../google/pprof/internal/driver/fetch.go          |   3 +
+ .../google/pprof/internal/driver/fetch_test.go     | 240 +++++++++++++++---
+ .../pprof/internal/driver/interactive_test.go      |   8 +-
+ .../google/pprof/internal/report/report.go         |  25 +-
+ .../google/pprof/internal/report/report_test.go    | 118 +++++++++
+ .../google/pprof/profile/legacy_profile.go         |   1 +
+ .../google/pprof/profile/legacy_profile_test.go    |   2 +
+ .../github.com/google/pprof/profile/profile.go     |  30 +++
+ .../google/pprof/profile/profile_test.go           | 267 ++++++++++++++++++++-
+ src/cmd/vendor/vendor.json                         |  72 +++---
+ 13 files changed, 750 insertions(+), 101 deletions(-)

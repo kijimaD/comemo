@@ -1,0 +1,15 @@
+commit 1babba2e4cf49fce0d6bc00460020d13e94a0c4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 14 13:24:27 2015 -0500
+
+    cmd/compile: fix -race nit
+    
+    Fixes #13264.
+    
+    Change-Id: I74b941164610921a03814733fea08631f18b6178
+    Reviewed-on: https://go-review.googlesource.com/17815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/racewalk.go      |  2 +-
+ src/runtime/race/testdata/issue13264_test.go | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit e4d2cd9d0a57f8e730e21aae16ac2e6644fd3926
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Dec 6 16:52:16 2012 +1100
+
+    cmd/5g: fix fixedtests/issue4396b.go test failure on arm5
+    
+    Add missing file that should have been included in CL 6854063 / 5eac1a2d6fc3
+    
+    R=remyoudompheng, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6891049
+
+ src/cmd/5g/gsubr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

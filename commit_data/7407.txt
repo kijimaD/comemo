@@ -1,0 +1,13 @@
+commit 531fb5413e69b2f1ffcbe57cfa790f85d85b49e6
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 9 08:39:31 2011 -0500
+
+    crypto/x509: add name constraints support.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4130047
+
+ src/pkg/crypto/x509/x509.go      | 75 ++++++++++++++++++++++++++++++++++++++--
+ src/pkg/crypto/x509/x509_test.go |  7 +++-
+ 2 files changed, 79 insertions(+), 3 deletions(-)

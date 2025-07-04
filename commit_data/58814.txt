@@ -1,0 +1,38 @@
+commit af00524a6c1660e6a66fd975921df40ac1c3a415
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Feb 20 14:42:19 2025 -0500
+
+    debug/buildinfo: base64-encode test binaries
+    
+    Overzealous security scanners don't like the Go 1.17 binary because they
+    think it has every 1.17 security vulnerability. base64-encode the binary
+    to hide from them.
+    
+    I've also extended the instructions to make the binary easier to
+    reproduce.
+    
+    Since we do the Go binary, we might as well do the C binary too, as it
+    apparently makes some virus scanners unhappy.
+    
+    Fixes #71753.
+    For #71734.
+    For #71821.
+    
+    Change-Id: I6a6a636cccbf5312522f52f27f74eded64048fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/debug/buildinfo/buildinfo_test.go           |    45 +-
+ src/debug/buildinfo/testdata/go117              |   Bin 1166278 -> 0 bytes
+ src/debug/buildinfo/testdata/go117/README.md    |    15 +
+ src/debug/buildinfo/testdata/go117/go.mod       |     3 +
+ src/debug/buildinfo/testdata/go117/go117.base64 | 20314 ++++++++++++++++++++++
+ src/debug/buildinfo/testdata/go117/main.go      |     7 +
+ src/debug/buildinfo/testdata/notgo              |   Bin 15832 -> 0 bytes
+ src/debug/buildinfo/testdata/notgo/README.md    |    17 +
+ src/debug/buildinfo/testdata/notgo/main.c       |     7 +
+ src/debug/buildinfo/testdata/notgo/notgo.base64 |   278 +
+ 10 files changed, 20657 insertions(+), 29 deletions(-)

@@ -1,0 +1,13 @@
+commit 4d36ad77912018b1c1dcfeddf3e7a87d92936f8c
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 20 11:57:58 2014 -0700
+
+    doc/go_spec.html: fix broken anchor tag
+    
+    LGTM=gri
+    R=gri
+    CC=golang-codereviews
+    https://golang.org/cl/99420045
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

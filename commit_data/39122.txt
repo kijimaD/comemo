@@ -1,0 +1,16 @@
+commit 2e4edf46977994c9d26df9327f0e41c1b60f3435
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Sun May 5 12:55:47 2019 +0300
+
+    cmd/internal/obj/x86: add oclass function tests
+    
+    To make refactoring/optimizations easier in future.
+    
+    Change-Id: I158f52af7c72849df1d6bd9334b3ce9dd199318f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175357
+    Run-TryBot: Iskander Sharipov <quasilyte@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/x86/asm_test.go | 203 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 203 insertions(+)

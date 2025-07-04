@@ -1,0 +1,18 @@
+commit 0e40889796a1dc9e2393bf4d66997da68692e970
+Author: yuuji.yaginuma <yuuji.yaginuma@gmail.com>
+Date:   Wed Oct 24 05:05:15 2018 +0000
+
+    cmd/go: fix command name in error messages
+    
+    `go vendor` is now `go mod vendor`. So it should be unified to use `go mod vendor` in error messages.
+    
+    Change-Id: I9e84b9a4f4500659b183b83040867b12a8d174aa
+    GitHub-Last-Rev: 8516e246d4e7f70bf21311b4cb8cb571a561815b
+    GitHub-Pull-Request: golang/go#28347
+    Reviewed-on: https://go-review.googlesource.com/c/144379
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modcmd/vendor.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

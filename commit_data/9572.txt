@@ -1,0 +1,23 @@
+commit 0253c688d07eb8522641388b58e84d69a40646bb
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Thu Sep 1 12:03:40 2011 +1000
+
+    exp/template/html: Implement grammar for JS.
+    
+    This transitions into a JS state when entering any attribute whose
+    name starts with "on".
+    
+    It does not yet enter a JS on entry into a <script> element as script
+    element handling is introduced in another CL.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4968052
+
+ src/pkg/exp/template/html/Makefile       |   1 +
+ src/pkg/exp/template/html/context.go     |  52 ++++-
+ src/pkg/exp/template/html/escape.go      | 285 ++++++++++++++++++++++---
+ src/pkg/exp/template/html/escape_test.go | 280 +++++++++++++++++++++---
+ src/pkg/exp/template/html/js.go          | 344 ++++++++++++++++++++++++++++++
+ src/pkg/exp/template/html/js_test.go     | 352 +++++++++++++++++++++++++++++++
+ 6 files changed, 1254 insertions(+), 60 deletions(-)

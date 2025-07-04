@@ -1,0 +1,35 @@
+commit 390c096ee99728b8e1b0218a775a39651baf057e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 24 17:30:44 2020 -0800
+
+    cmd/compile: make clobber variadic
+    
+    There are often many values to clobber.
+    Allow passing them all in at once.
+    The goal is increased rule readability.
+    As a bonus, it shrinks cmd/compile by ~97k, almost half a percent.
+    Package SSA requires 1.2% less memory to compile.
+    
+    The single-line changes were make via regex,
+    and the remaining multi-line clobbers were manually combined.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ib310e9265d3616211f8192c9040b4c8933824d19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220691
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/386.rules     |  30 +--
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   | 212 ++++---------------
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   | 188 ++++-------------
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  44 ++--
+ src/cmd/compile/internal/ssa/gen/S390X.rules   | 168 +++------------
+ src/cmd/compile/internal/ssa/gen/generic.rules |  20 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  14 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     |  88 ++++----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 276 ++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 168 +++++++--------
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |  84 ++++----
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 128 ++++++------
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  44 ++--
+ 13 files changed, 551 insertions(+), 913 deletions(-)

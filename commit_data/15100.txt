@@ -1,0 +1,15 @@
+commit 2af3cbe308986005715bed3fa8ec5975e32ea7b7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 2 23:54:21 2013 -0500
+
+    cmd/gc: treat &T{} like new(T): allocate on stack if possible
+    
+    Fixes #4618.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7278048
+
+ src/cmd/gc/sinit.c          | 11 +++++++++--
+ test/fixedbugs/issue4618.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 2 deletions(-)

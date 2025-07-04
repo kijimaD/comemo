@@ -1,0 +1,23 @@
+commit b27d02c07b7bdb896f279a386fde8cb5ce284ec9
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 31 14:01:12 2024 -0500
+
+    runtime/debug: clarify SetCrashOutput dup behavior
+    
+    SetCrashOutput dup's the input file for safety, but I don't think that
+    the docs are very clear about what the caller can/should do with f. "it
+    does not close the previous file" is particularly confusing, as it does
+    close the previous FD (but not the previous passed os.File).
+    
+    Expand and attempt to clarify the explanation, borrowing wording from
+    net.FileConn, which also dup's the input os.File.
+    
+    For #42888.
+    
+    Change-Id: I1c96d2dce7899e335d8f1cd464d2d9b31aeb4e5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559800
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/debug/stack.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

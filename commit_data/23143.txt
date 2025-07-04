@@ -1,0 +1,14 @@
+commit 9262e2183bd1a6d8489f0d597053af76194ede00
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed May 27 10:30:55 2015 +1200
+
+    misc/cgo/testshared: do not capture output of go commands in verbose mode
+    
+    Change-Id: I8694ee5e5642c31815ae63cd414a3b1fcd9c95b0
+    Reviewed-on: https://go-review.googlesource.com/10411
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

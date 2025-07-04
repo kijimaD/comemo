@@ -1,0 +1,19 @@
+commit 3d92205ef5ed42147376d929e0f59c765974e345
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 21:00:19 2022 +0800
+
+    cmd/link/internal/s390: return comparison directly
+    
+    Change-Id: I171905d5cd7a121de549827ef4d5968510aa3efc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436705
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/s390x/asm.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

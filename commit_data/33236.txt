@@ -1,0 +1,23 @@
+commit eed308de31e32a42012fd916d70cfed19280bbe7
+Author: Lorenz Bauer <lmb@cloudflare.com>
+Date:   Wed Oct 18 11:15:04 2017 +0100
+
+    net: make {TCP,Unix}Listener implement syscall.Conn
+    
+    This change adds the syscall.Conn interface to Listener types, with the caveat that only RawConn.Control is supported. Custom socket options can now be set safely.
+    
+    Updates #19435
+    Fixes #22065
+    
+    Change-Id: I7e74780d00318dc54a923d1c628a18a36009acab
+    Reviewed-on: https://go-review.googlesource.com/71651
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/rawconn.go              | 16 +++++++++++++
+ src/net/rawconn_unix_test.go    | 50 ++++++++++++++++++++++++++++++++++++++
+ src/net/rawconn_windows_test.go | 53 +++++++++++++++++++++++++++++++++++++++++
+ src/net/tcpsock.go              | 12 ++++++++++
+ src/net/unixsock.go             | 12 ++++++++++
+ 5 files changed, 143 insertions(+)

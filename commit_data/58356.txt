@@ -1,0 +1,25 @@
+commit 2440717918434aee8450757c160cea5280d0bbe3
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Thu Dec 5 22:25:14 2024 -0700
+
+    cmd/go: report tool errors in go list all
+    
+    Before tools there was no way to directly import a package in another
+    module, and so missing packages were always marked as "all" due to being
+    dependencies of a package in a main module.
+    
+    Tools break that assumption, and so to report errors in tool packages
+    correctly we need to mark packages as being in "all" even if they do not
+    exist.
+    
+    Fixes #70582
+    
+    Change-Id: I3273e0ec7910894565206de77986f5c249a5658c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634155
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/load.go           | 9 ++++++---
+ src/cmd/go/testdata/script/mod_tool_70582.txt | 9 +++++++++
+ 2 files changed, 15 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit a6106eef379ef560016d0dcdbdd9c9c86b7cd39c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 15 13:59:59 2011 -0500
+
+    encoding/json: make BenchmarkSkipValue more consistent
+    
+    Move scanner allocation out of loop.
+    It's the only allocation in the test so it dominates
+    when it triggers a garbage collection.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5369117
+
+ src/pkg/encoding/json/scanner_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

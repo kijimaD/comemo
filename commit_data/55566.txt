@@ -1,0 +1,17 @@
+commit 09c62a86a96e51d535336de1c7b7e10cd3acd849
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 9 14:16:11 2024 -0500
+
+    internal/trace: fix race condition in gc-stress
+    
+    Multiple goroutines all writing to the same sink triggers the race detector,
+    rightfully so.
+    
+    Change-Id: Ia64836d0d88c0f587a6cb96ed747f656a3c1804a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562997
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/v2/testdata/testprog/gc-stress.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

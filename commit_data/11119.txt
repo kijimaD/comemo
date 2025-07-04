@@ -1,0 +1,15 @@
+commit 610757b1552d35d3e960b053ad2a5aedea85b8da
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 11 18:45:32 2012 -0800
+
+    runtime: delete duplicate implementation of pcln walker
+    
+    It's hard enough to get right once.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5533073
+
+ src/pkg/runtime/extern.go | 47 ++++-------------------------------------------
+ src/pkg/runtime/symtab.c  |  9 +++++++++
+ 2 files changed, 13 insertions(+), 43 deletions(-)

@@ -1,0 +1,28 @@
+commit 2326c24cc722f5093f40ea0964c93addd155ada0
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Mon Mar 28 11:34:37 2016 +0200
+
+    cmd/internal/obj: convert fields of LSym from uint8 to bool
+    
+    No performance regression measurable:
+    
+    name      old time/op    new time/op    delta
+    Template     432ms ± 3%     422ms ± 2%  -2.34%   (p=0.010 n=10+9)
+    GoTypes      1.46s ± 1%     1.46s ± 1%    ~     (p=0.796 n=10+10)
+    Compiler     7.15s ± 1%     7.14s ± 1%    ~      (p=0.447 n=10+9)
+    
+    Change-Id: I21b93cb989017b6fec2215de2423d87f25cf538c
+    Reviewed-on: https://go-review.googlesource.com/21220
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go |  4 ++--
+ src/cmd/internal/obj/arm/obj5.go    |  6 ++---
+ src/cmd/internal/obj/arm64/obj7.go  |  6 ++---
+ src/cmd/internal/obj/link.go        | 12 +++++-----
+ src/cmd/internal/obj/mips/obj0.go   |  6 ++---
+ src/cmd/internal/obj/objfile.go     | 48 +++++++++++++++++++++++--------------
+ src/cmd/internal/obj/ppc64/obj9.go  |  6 ++---
+ src/cmd/internal/obj/x86/obj6.go    |  8 +++----
+ 8 files changed, 54 insertions(+), 42 deletions(-)

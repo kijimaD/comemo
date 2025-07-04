@@ -1,0 +1,21 @@
+commit 394a1ad2956f0397e83b5f0234ea7e972a307848
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 18 10:26:18 2021 -0700
+
+    cmd/compile: allow importing and exporting of ODYANMICDOTTYPE[2]
+    
+    Fixes #49027
+    
+    Change-Id: I4520b5c754027bfffbc5cd92c9c27002b248c99a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356569
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/iexport.go |  8 ++++++++
+ src/cmd/compile/internal/typecheck/iimport.go |  5 +++++
+ test/typeparam/issue49027.dir/a.go            | 21 +++++++++++++++++++++
+ test/typeparam/issue49027.dir/main.go         | 25 +++++++++++++++++++++++++
+ test/typeparam/issue49027.go                  |  7 +++++++
+ 5 files changed, 66 insertions(+)

@@ -1,0 +1,12 @@
+commit a647f59c1f80dd575c6e4107618681aea65edbd2
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Sun Oct 17 22:35:55 2010 +0200
+
+    [68]l: proper end of instruction ranges in dwarf.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2542042
+
+ src/cmd/ld/dwarf.c | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)

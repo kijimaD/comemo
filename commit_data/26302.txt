@@ -1,0 +1,18 @@
+commit 5630cb7518140e58174db7c0db40f16d982ba647
+Author: Dave Day <djd@golang.org>
+Date:   Wed Mar 16 10:24:03 2016 +1100
+
+    net: make SplitHostPort return an empty host on error
+    
+    This change also refactors SplitHostPort to avoid using gotos and
+    naked returns.
+    
+    Fixes #14827
+    
+    Change-Id: I4dca528936757fd06da76c23af8a0f6175bbedd1
+    Reviewed-on: https://go-review.googlesource.com/20726
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip_test.go |  5 ++++-
+ src/net/ipsock.go  | 42 +++++++++++++++++-------------------------
+ 2 files changed, 21 insertions(+), 26 deletions(-)

@@ -1,0 +1,16 @@
+commit 8847a5913a5970b5f5c062f767c369da683648d6
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 18 17:28:04 2016 -0500
+
+    runtime: remove unused parfor code
+    
+    Change-Id: Ibbfae20cab48163f22d661604ef730705f2b97ba
+    Reviewed-on: https://go-review.googlesource.com/19661
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/export_test.go |  36 --------
+ src/runtime/parfor.go      | 217 ---------------------------------------------
+ src/runtime/parfor_test.go | 128 --------------------------
+ 3 files changed, 381 deletions(-)

@@ -1,0 +1,38 @@
+commit 07ede7a54379eef959cf29af5a87ea19c78a31fd
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 30 11:50:47 2023 -0400
+
+    syscall: serialize locks on ForkLock on platforms where forkExecPipe is not atomic
+    
+    In CL 421441, we changed syscall to allow concurrent calls to
+    forkExec.
+    
+    On platforms that support the pipe2 syscall that is the right
+    behavior, because pipe2 atomically opens the pipe with CLOEXEC already
+    set.
+    
+    However, on platforms that do not support pipe2 (currently aix and
+    darwin), syscall.forkExecPipe is not atomic, and the pipes do not
+    initially have CLOEXEC set. If two calls to forkExec proceed
+    concurrently, a pipe intended for one child process can be
+    accidentally inherited by the other. If the process is long-lived, the
+    pipe can be held open unexpectedly and prevent the parent process from
+    reaching EOF reading the child's status from the pipe.
+    
+    Fixes #61080.
+    Updates #23558.
+    Updates #54162.
+    
+    Change-Id: I83edcc80674ff267a39d06260c5697c654ff5a4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507355
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/os/exec/exec_test.go  | 72 ++++++++++++++++++++++++++++++++++++++
+ src/syscall/exec_linux.go |  5 ---
+ src/syscall/exec_unix.go  | 83 -------------------------------------------
+ src/syscall/forkpipe.go   | 11 +++++-
+ src/syscall/forkpipe2.go  | 89 ++++++++++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 170 insertions(+), 90 deletions(-)

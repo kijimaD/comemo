@@ -1,0 +1,32 @@
+commit 2da642a917c618c367a2fc01eb5b704769312199
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 27 15:15:47 2016 +1000
+
+    cmd/compile/internal/gc: unexport {J,S,F,H,B,V}conv
+    
+    Updates #15462
+    
+    Unexport Jconv, Sconv, Fconv, Hconv, Bconv, and VConv as they are
+    not referenced outside internal/gc.
+    
+    Econv was only called by EType.String, so merge it into that method.
+    
+    Change-Id: Iad9b06078eb513b85a03a43cd9eb9366477643d1
+    Reviewed-on: https://go-review.googlesource.com/22531
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go   |   2 +-
+ src/cmd/compile/internal/gc/closure.go   |   2 +-
+ src/cmd/compile/internal/gc/const.go     |  10 +--
+ src/cmd/compile/internal/gc/dcl.go       |   2 +-
+ src/cmd/compile/internal/gc/esc.go       |   6 +-
+ src/cmd/compile/internal/gc/export.go    |  18 ++---
+ src/cmd/compile/internal/gc/fmt.go       | 123 +++++++++++++++----------------
+ src/cmd/compile/internal/gc/inl.go       |   8 +-
+ src/cmd/compile/internal/gc/mpfloat.go   |   4 +-
+ src/cmd/compile/internal/gc/mpint.go     |   4 +-
+ src/cmd/compile/internal/gc/typecheck.go |   4 +-
+ src/cmd/compile/internal/gc/walk.go      |   2 +-
+ 12 files changed, 90 insertions(+), 95 deletions(-)

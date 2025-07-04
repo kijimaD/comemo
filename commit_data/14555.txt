@@ -1,0 +1,16 @@
+commit cfc0a59d6e4e11b08b7b7085e6da031643879b0a
+Author: Frithjof Schulze <schulze@math.uni-hannover.de>
+Date:   Tue Dec 4 14:11:33 2012 -0800
+
+    container/heap: Simplify the example.
+    
+    Using append simplifies the code and makes it work if
+    the initial capacity of the slice is smaller than the
+    number of items pushed.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/6869060
+
+ src/pkg/container/heap/example_test.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

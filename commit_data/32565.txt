@@ -1,0 +1,20 @@
+commit 2ac43d5be2e6b48b9806f9456d932d2884705e10
+Author: griesemer <gri@golang.org>
+Date:   Tue Aug 29 15:48:07 2017 +0200
+
+    doc: minor clarification regarding the sharing of underlying arrays
+    
+    The last sentence in the section on slice expressions could be read
+    as if it might apply to strings. Changed the sentence a bit to
+    emphasize its applicability to slices only. See also the issue for
+    more background.
+    
+    Fixes #19220.
+    
+    Change-Id: I8551f34230e4ed93f951e7b871cc81f54a5874a9
+    Reviewed-on: https://go-review.googlesource.com/59890
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

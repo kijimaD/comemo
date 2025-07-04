@@ -1,0 +1,15 @@
+commit 40c63ceaabc2883b0c40356424459a8397cddb9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 4 11:42:15 2022 -0400
+
+    go/build: use tabs consistently in deps test rules
+    
+    Change-Id: I50152fa251e599e2c95f68148aee3c16b222da60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439416
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/build/deps_test.go | 68 +++++++++++++++++++++++------------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

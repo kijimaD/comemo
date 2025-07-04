@@ -1,0 +1,80 @@
+commit 1a64574f42b95594cf9c8a12e9ca13d75585429c
+Author: Ted Painter <ted.painter@intel.com>
+Date:   Wed May 25 20:43:31 2022 -0400
+
+    crypto/sha256: add sha-ni implementation
+    
+    goos: linux
+    goarch: amd64
+    pkg: crypto/sha256
+    cpu: 11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz
+                        │  bench.old   │              bench.new              │
+                        │    sec/op    │   sec/op     vs base                │
+    Hash8Bytes/New-4      169.20n ± 7%   65.40n ± 5%  -61.35% (p=0.000 n=10)
+    Hash8Bytes/Sum224-4   166.10n ± 3%   65.20n ± 8%  -60.74% (p=0.000 n=10)
+    Hash8Bytes/Sum256-4   168.50n ± 6%   63.58n ± 7%  -62.27% (p=0.000 n=10)
+    Hash1K/New-4          2275.5n ± 5%   618.5n ± 2%  -72.82% (p=0.000 n=10)
+    Hash1K/Sum224-4       2364.5n ± 1%   618.1n ± 1%  -73.86% (p=0.000 n=10)
+    Hash1K/Sum256-4       2338.5n ± 2%   613.0n ± 2%  -73.79% (p=0.000 n=10)
+    Hash8K/New-4          17.530µ ± 2%   4.501µ ± 1%  -74.33% (p=0.000 n=10)
+    Hash8K/Sum224-4       17.456µ ± 2%   4.505µ ± 1%  -74.19% (p=0.000 n=10)
+    Hash8K/Sum256-4       17.417µ ± 2%   4.504µ ± 1%  -74.14% (p=0.000 n=10)
+    geomean                1.897µ        564.3n       -70.25%
+    
+                        │  bench.old   │               bench.new                │
+                        │     B/s      │      B/s       vs base                 │
+    Hash8Bytes/New-4      45.11Mi ± 6%   116.66Mi ± 5%  +158.62% (p=0.000 n=10)
+    Hash8Bytes/Sum224-4   45.92Mi ± 3%   117.04Mi ± 8%  +154.89% (p=0.000 n=10)
+    Hash8Bytes/Sum256-4   45.29Mi ± 6%   120.00Mi ± 7%  +164.99% (p=0.000 n=10)
+    Hash1K/New-4          429.2Mi ± 5%   1578.9Mi ± 2%  +267.92% (p=0.000 n=10)
+    Hash1K/Sum224-4       413.0Mi ± 1%   1579.8Mi ± 1%  +282.49% (p=0.000 n=10)
+    Hash1K/Sum256-4       417.6Mi ± 1%   1593.1Mi ± 2%  +281.53% (p=0.000 n=10)
+    Hash8K/New-4          445.7Mi ± 1%   1735.9Mi ± 1%  +289.50% (p=0.000 n=10)
+    Hash8K/Sum224-4       447.6Mi ± 2%   1734.5Mi ± 1%  +287.54% (p=0.000 n=10)
+    Hash8K/Sum256-4       448.6Mi ± 2%   1734.8Mi ± 1%  +286.75% (p=0.000 n=10)
+    geomean               204.3Mi         686.8Mi       +236.11%
+    
+                        │  bench.old   │              bench.new              │
+                        │     B/op     │    B/op     vs base                 │
+    Hash8Bytes/New-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash8Bytes/Sum224-4   0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash8Bytes/Sum256-4   0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash1K/New-4          0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash1K/Sum224-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash1K/Sum256-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash8K/New-4          0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash8K/Sum224-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash8K/Sum256-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    geomean                          ²               +0.00%                ²
+    ¹ all samples are equal
+    ² summaries must be >0 to compute geomean
+    
+                        │  bench.old   │              bench.new              │
+                        │  allocs/op   │ allocs/op   vs base                 │
+    Hash8Bytes/New-4      0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash8Bytes/Sum224-4   0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash8Bytes/Sum256-4   0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash1K/New-4          0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash1K/Sum224-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash1K/Sum256-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash8K/New-4          0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash8K/Sum224-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    Hash8K/Sum256-4       0.000 ± 0%     0.000 ± 0%       ~ (p=1.000 n=10) ¹
+    geomean                          ²               +0.00%                ²
+    ¹ all samples are equal
+    ² summaries must be >0 to compute geomean
+    
+    Fixes #50543.
+    
+    Change-Id: Ie9783647fe82f40fcbd91989a96a24f2d3d5b9a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408795
+    Reviewed-by: Paulo Gomes <paulo.gomes.uk@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/sha256/sha256block_amd64.go |   1 +
+ src/crypto/sha256/sha256block_amd64.s  | 160 +++++++++++++++++++++++++++++++--
+ 2 files changed, 152 insertions(+), 9 deletions(-)

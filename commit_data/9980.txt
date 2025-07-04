@@ -1,0 +1,12 @@
+commit 37e802a7c5e3c91cc572badb99f6f15f9c30b24c
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Oct 14 15:06:11 2011 -0400
+
+    asn1: accept UTF8 strings as ASN.1 ANY values
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5172042
+
+ src/pkg/asn1/asn1.go | 2 ++
+ 1 file changed, 2 insertions(+)

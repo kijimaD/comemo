@@ -1,0 +1,12 @@
+commit 13ae23751a6af70e3eaa4a4e12c4f6f0c71582da
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 29 15:05:45 2015 -0700
+
+    src: don't assume go is in PATH in buildall.bash
+    
+    Change-Id: I5569dcdefe8adba346810124b16721674956bce6
+    Reviewed-on: https://go-review.googlesource.com/9515
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/buildall.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

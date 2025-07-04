@@ -1,0 +1,35 @@
+commit d646c035f9749d647b2a3fdab48011d04e0bc2c1
+Author: Ruixin(Peter) Bao <ruixin.bao@ibm.com>
+Date:   Mon Oct 21 13:18:31 2019 -0400
+
+    crypto/ed25519: implement ed25519 on s390x using KDSA instruction
+    
+    This CL allows the usage of KDSA instruction when it is available.  The
+    instruction is designed to be resistant to side channel attacks and
+    offers performance improvement for ed25519.
+    
+    Benchmarks:
+    name              old time/op    new time/op    delta
+    Signing-8            120µs ±20%      62µs ±12%   -48.40%  (p=0.000 n=10+10)
+    Verification-8       325µs ±17%      69µs ±10%   -78.80%  (p=0.000 n=10+10)
+    
+    name              old alloc/op   new alloc/op   delta
+    Signing-8             448B ± 0%        0B       -100.00%  (p=0.000 n=10+10)
+    Verification-8        288B ± 0%        0B       -100.00%  (p=0.000 n=10+10)
+    
+    name              old allocs/op  new allocs/op  delta
+    Signing-8             5.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+    Verification-8        2.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+    
+    Change-Id: I0330ce83d807370b419ce638bc2cae4cb3c250dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202578
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/crypto/ed25519/ed25519.go       |   6 +-
+ src/crypto/ed25519/ed25519_noasm.go |  15 ++++
+ src/crypto/ed25519/ed25519_s390x.go |  53 ++++++++++++
+ src/crypto/ed25519/ed25519_s390x.s  | 163 ++++++++++++++++++++++++++++++++++++
+ src/crypto/ed25519/ed25519_test.go  |  44 ++++++++--
+ 5 files changed, 273 insertions(+), 8 deletions(-)

@@ -1,0 +1,82 @@
+commit a0bcaf4c00163e90133981dff2e1524f2133b170
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 20:24:55 2009 -0700
+
+    Change os.Error convention:
+    echo back context of call in error if likely to be useful.
+    
+    For example, if os.Open("/etc/passwd", os.O_RDONLY)
+    fails with syscall.EPERM, it returns as the os.Error
+    
+            &PathError{
+                    Op: "open",
+                    Path: "/etc/passwd"
+                    Error: os.EPERM
+            }
+    
+    which formats as
+    
+            open /etc/passwd: permission denied
+    
+    Not converted:
+    
+            datafmt
+            go/...
+            google/...
+            regexp
+            tabwriter
+            template
+    
+    R=r
+    DELTA=1153  (561 added, 156 deleted, 436 changed)
+    OCL=30738
+    CL=30781
+
+ doc/progs/file.go                 |  20 +++-
+ src/cmd/gobuild/util.go           |   4 +-
+ src/pkg/Make.deps                 |   8 +-
+ src/pkg/bufio/bufio.go            |  28 +++---
+ src/pkg/compress/flate/inflate.go |  31 +++---
+ src/pkg/crypto/aes/cipher.go      |  13 ++-
+ src/pkg/crypto/block/ecb.go       |   6 ++
+ src/pkg/exec/exec.go              |   6 +-
+ src/pkg/http/client.go            |  48 +++++-----
+ src/pkg/http/client_test.go       |   3 +-
+ src/pkg/http/request.go           | 135 +++++++++++++++------------
+ src/pkg/http/url.go               |  72 +++++++++-----
+ src/pkg/http/url_test.go          |  12 +--
+ src/pkg/io/bytebuffer.go          |   2 +-
+ src/pkg/net/Makefile              |  30 +++---
+ src/pkg/net/dialgoogle_test.go    |   1 -
+ src/pkg/net/dnsclient.go          | 158 ++++++++++++++++++++-----------
+ src/pkg/net/dnsmsg.go             |   5 +-
+ src/pkg/net/fd.go                 |  76 ++++++++-------
+ src/pkg/net/fd_darwin.go          |  14 ++-
+ src/pkg/net/fd_linux.go           |  12 +--
+ src/pkg/net/net.go                | 192 ++++++++++++++++++++++++++------------
+ src/pkg/net/net_test.go           |  72 ++++++++++++++
+ src/pkg/net/parse.go              |   4 -
+ src/pkg/net/port.go               |  18 +---
+ src/pkg/net/timeout_test.go       |   2 +-
+ src/pkg/os/dir_darwin_386.go      |   4 +-
+ src/pkg/os/dir_darwin_amd64.go    |   4 +-
+ src/pkg/os/dir_linux_386.go       |   6 +-
+ src/pkg/os/dir_linux_amd64.go     |   6 +-
+ src/pkg/os/error.go               |  39 ++++++--
+ src/pkg/os/exec.go                |  14 ++-
+ src/pkg/os/file.go                | 127 ++++++++++++++++++-------
+ src/pkg/os/getwd.go               |   2 +-
+ src/pkg/os/os_test.go             |  38 ++++++++
+ src/pkg/os/path.go                |  36 +++----
+ src/pkg/os/proc.go                |   2 +-
+ src/pkg/os/time.go                |   2 +-
+ src/pkg/runtime/Makefile          |  10 +-
+ src/pkg/strconv/Makefile          |   9 +-
+ src/pkg/strconv/atof.go           |  15 +--
+ src/pkg/strconv/atof_test.go      |  18 +++-
+ src/pkg/strconv/atoi.go           |  73 ++++++++++-----
+ src/pkg/strconv/atoi_test.go      |  60 +++++++++---
+ src/pkg/time/sleep.go             |   2 +-
+ src/pkg/time/time.go              |   5 +-
+ src/pkg/time/zoneinfo.go          |  63 +++++--------
+ 47 files changed, 958 insertions(+), 549 deletions(-)

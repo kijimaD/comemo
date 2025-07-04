@@ -1,0 +1,11 @@
+commit 1975ff8b44108208ba64da1bc762a90a14ba23f5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 1 18:14:17 2008 -0700
+
+    - completed syntax for import declarations
+    - fixed a typo
+    
+    SVN=117439
+
+ doc/go_lang.txt | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit eb033b1d22eaf4dc9dbdb2839c4174d905529eb5
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Fri Mar 25 10:06:19 2016 -0700
+
+    compress/gzip: clean up zero-mtimes test
+    
+    - Fix a typo.
+    - Skip this test on -short on non-builders.
+    
+    Change-Id: Id102eceb59451694bf92b618e02ccee6603b6852
+    Reviewed-on: https://go-review.googlesource.com/21113
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/gzip/issue14937_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

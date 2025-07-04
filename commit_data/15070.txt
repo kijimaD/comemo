@@ -1,0 +1,14 @@
+commit 193ff39ac99695ea73da75d0c004e4c6d960e11e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 31 15:59:30 2013 -0800
+
+    test: add test that caused a gccgo compilation failure
+    
+    Updates #4734.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7228079
+
+ test/fixedbugs/issue4734.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

@@ -1,0 +1,16 @@
+commit 0e2bb62f23c0e1f85983a585dbccaa8f194a4dba
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 13:39:16 2011 -0400
+
+    reflect: rename Typeof, NewValue -> TypeOf, ValueOf
+    
+    R=r, bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4433066
+
+ src/pkg/reflect/all_test.go  | 232 +++++++++++++++++++++----------------------
+ src/pkg/reflect/deepequal.go |   4 +-
+ src/pkg/reflect/set_test.go  |  64 ++++++------
+ src/pkg/reflect/type.go      |   8 +-
+ src/pkg/reflect/value.go     |   8 +-
+ 5 files changed, 158 insertions(+), 158 deletions(-)

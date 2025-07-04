@@ -1,0 +1,15 @@
+commit b3f38b463023e149f2906b85c2988854d10bcab4
+Author: Anfernee Yongkun Gui <anfernee.gui@gmail.com>
+Date:   Wed Dec 18 08:26:36 2013 -0800
+
+    net: test dnsconfig_unix with sample resolv.conf
+    
+    R=golang-dev, adg, bradfitz, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/21580043
+
+ src/pkg/net/dnsclient_unix.go      |  3 ++-
+ src/pkg/net/dnsconfig_unix.go      |  5 ++--
+ src/pkg/net/dnsconfig_unix_test.go | 48 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/testdata/resolv.conf   |  5 ++++
+ 4 files changed, 57 insertions(+), 4 deletions(-)

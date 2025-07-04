@@ -1,0 +1,14 @@
+commit a9b799a22978730f5de2d5bfc99a1dc0acddcae2
+Author: adrienpetel <peteladrien@gmail.com>
+Date:   Sun Apr 1 19:22:02 2018 +0400
+
+    net: mark tests with retry as parallel
+    
+    Fixes #24580
+    
+    Change-Id: I35e2ff145f251485fd3cfd7b03b6f3fae8d97ad6
+    Reviewed-on: https://go-review.googlesource.com/103975
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

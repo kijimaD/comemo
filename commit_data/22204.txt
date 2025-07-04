@@ -1,0 +1,12 @@
+commit 2f7ad5265c4145a5b73984342cc0605bf9756622
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 27 11:11:54 2015 -0700
+
+    doc/go1.5.txt: add ExtensionByType to mime
+    
+    Change-Id: Iacbf06cf30a8a9630d8ee1f6934cbdef93ae0fc9
+    Reviewed-on: https://go-review.googlesource.com/8163
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

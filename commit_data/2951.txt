@@ -1,0 +1,15 @@
+commit f60203666bb4a222ceef2cb4418fd05da5dacdbc
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Aug 12 13:57:05 2009 -0700
+
+    Bug involving ... initializers and interface values.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=22  (22 added, 0 deleted, 0 changed)
+    OCL=33053
+    CL=33104
+
+ test/bugs/bug187.go | 19 +++++++++++++++++++
+ test/golden.out     |  7 +++++++
+ 2 files changed, 26 insertions(+)

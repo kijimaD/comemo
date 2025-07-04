@@ -1,0 +1,12 @@
+commit 873c7d39aa70b1c9174ae18ee97e33891b45e7fa
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 3 22:41:24 2013 -0500
+
+    C: add Alex Bramley (Google CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7284047
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

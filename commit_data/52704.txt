@@ -1,0 +1,36 @@
+commit 73ee0fcf375c12e52997870125dbbac7aad96284
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 3 11:42:07 2023 -0800
+
+    internal/zstd: new internal package for zstd decompression
+    
+    This package only does zstd decompression, which is starting to
+    be used for ELF debug sections. If we need zstd compression we
+    should use github.com/klauspost/compress/zstd. But for now that
+    is a very large package to vendor into the standard library.
+    
+    For #55107
+    
+    Change-Id: I60ede735357d491be653477ed419cf5f2f0d3f71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473356
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/go/build/deps_test.go        |   2 +-
+ src/internal/zstd/bits.go        | 130 ++++++++++
+ src/internal/zstd/block.go       | 436 +++++++++++++++++++++++++++++++++
+ src/internal/zstd/fse.go         | 437 +++++++++++++++++++++++++++++++++
+ src/internal/zstd/fse_test.go    |  89 +++++++
+ src/internal/zstd/fuzz_test.go   | 140 +++++++++++
+ src/internal/zstd/huff.go        | 204 ++++++++++++++++
+ src/internal/zstd/literals.go    | 330 +++++++++++++++++++++++++
+ src/internal/zstd/xxhash.go      | 148 ++++++++++++
+ src/internal/zstd/xxhash_test.go | 105 ++++++++
+ src/internal/zstd/zstd.go        | 508 +++++++++++++++++++++++++++++++++++++++
+ src/internal/zstd/zstd_test.go   | 249 +++++++++++++++++++
+ 12 files changed, 2777 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit ecaa6816bfdbcef2ad749958a11a321de5c2ebd8
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jul 24 18:34:16 2021 +0700
+
+    doc: clarify non-nil zero length slice to array pointer conversion
+    
+    There is an example for nil slice already, so adding example for non-nil
+    zero length slice, too, clarifying to the reader that the result is also
+    non-nil and different from nil slice case.
+    
+    Updates #395
+    
+    Change-Id: I019db1b1a1c0c621161ecaaacab5a4d888764b1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336890
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

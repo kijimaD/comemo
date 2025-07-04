@@ -1,0 +1,19 @@
+commit 90ce1936e32f46de4c64752dfc54df75ec5758f0
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jan 14 18:09:36 2015 -0500
+
+    strings: add Compare(x, y string) int, for symmetry with bytes.Compare
+    
+    The implementation is the same assembly (or Go) routine.
+    
+    Change-Id: Ib937c461c24ad2d5be9b692b4eed40d9eb031412
+    Reviewed-on: https://go-review.googlesource.com/2828
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/asm_386.s       |  3 ++
+ src/runtime/asm_amd64.s     |  3 ++
+ src/runtime/asm_amd64p32.s  |  3 ++
+ src/runtime/noasm.go        |  5 +++
+ src/strings/compare_test.go | 98 +++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings_decl.go |  7 ++++
+ 6 files changed, 119 insertions(+)

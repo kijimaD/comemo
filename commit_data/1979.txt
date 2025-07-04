@@ -1,0 +1,12 @@
+commit 91a2ac1f1e008b21dadcbbae723151e5ad62fc0b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 8 22:24:40 2009 -0700
+
+    undo workaround pending real fix
+    
+    R=rsc
+    OCL=27243
+    CL=27243
+
+ src/lib/bignum_test.go | 1 -
+ 1 file changed, 1 deletion(-)

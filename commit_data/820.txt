@@ -1,0 +1,17 @@
+commit 96da920f1abe2301639c6e5b7ba637f6b413d6eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 12:42:57 2008 -0700
+
+    fix bug:
+    
+            type T struct
+            export type T struct { a int }
+    
+    was not exporting T
+    
+    R=ken
+    OCL=16650
+    CL=16650
+
+ src/cmd/gc/dcl.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

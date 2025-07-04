@@ -1,0 +1,13 @@
+commit 64776da456682db445462e6d095de1b2b6652a8e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 13 15:07:17 2011 -0800
+
+    bufio: make the minimum read buffer size 16 bytes.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/5485067
+
+ src/pkg/bufio/bufio.go      |  6 ++-
+ src/pkg/bufio/bufio_test.go | 95 ++++++++++++++++++++++-----------------------
+ 2 files changed, 50 insertions(+), 51 deletions(-)

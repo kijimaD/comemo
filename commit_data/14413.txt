@@ -1,0 +1,12 @@
+commit 1395d3d9bfbba924b2bd9638860380fd380c1351
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Nov 15 19:58:49 2012 +0100
+
+    misc/git: add gofmt git pre-commit hook
+    
+    R=golang-dev, bradfitz, ftrvxmtrx, franciscossouza, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6843044
+
+ misc/git/pre-commit | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

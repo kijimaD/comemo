@@ -1,0 +1,14 @@
+commit b7bfb54eaa84a7de187df905ae8f74c8fed515f4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 20:15:40 2015 -0800
+
+    math/big: fix aliasing bug in Float.Quo
+    
+    TBR r, adonovan
+    
+    Change-Id: I1a38e2d724bf1147c7307a7e5ae855c42c60428c
+    Reviewed-on: https://go-review.googlesource.com/4875
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/float.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

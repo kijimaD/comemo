@@ -1,0 +1,30 @@
+commit 816ee0be38a08b2636a1e870cb1dc1e9b27b742e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 13 21:06:40 2023 +0000
+
+    internal/trace: add task analysis for v2 traces
+    
+    For v1 traces, cmd/trace contains code for analyzing tasks separately
+    from the goroutine analysis code present in internal/trace. As I started
+    to look into porting that code to v2 traces, I noticed that it wouldn't
+    be too hard to just generalize the existing v2 goroutine summary code to
+    generate exactly the same information.
+    
+    This change does exactly that.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: I0cdd9bf9ba11fb292a9ffc37dbf18c2a6a2483b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542076
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/trace/v2/main.go                           |   12 +-
+ src/cmd/trace/v2/pprof.go                          |    4 +-
+ src/internal/trace/{goroutinesv2.go => summary.go} |  103 +-
+ .../{goroutinesv2_test.go => summary_test.go}      |  173 ++-
+ src/internal/trace/v2/testdata/mktests.go          |  120 +-
+ .../testdata/tests/go122-annotations-stress.test   | 1179 ++++++++++++++++++++
+ 6 files changed, 1554 insertions(+), 37 deletions(-)

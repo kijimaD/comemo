@@ -1,0 +1,26 @@
+commit d4e0e8e4a41e5e1e7d0359287a1015791ce778ed
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 3 09:40:32 2021 -0700
+
+    cmd/compile: make pointers to arrays their own shape
+    
+    Pointers to arrays can be used to cast from a slice. We need
+    the shape of such type params to be different so we can compile
+    those casts correctly.
+    
+    This is kind of a big hammer to fix #49295. It would be nice to
+    only do this when we know there's a []T->*[N]T conversion.
+    
+    Fixes #49295
+    
+    Change-Id: Ibda33057fab2dd28162537aab0f1244211d68e3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361135
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go |  4 +++-
+ test/typeparam/issue49295.go               | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

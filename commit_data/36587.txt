@@ -1,0 +1,70 @@
+commit fc5edaca30801f2d1acb7a9d39943638e6d4c1c1
+Author: Ben Burkert <ben@benburkert.com>
+Date:   Mon May 21 12:56:02 2018 -0700
+
+    net: use splice(2) on Linux when reading from UnixConn, rework splice tests
+    
+    Rework the splice tests and benchmarks. Move the reading and writing of
+    the spliced connections to child processes so that the I/O is not part
+    of benchmarks or profiles.
+    
+    Enable the use of splice(2) when reading from a unix connection and
+    writing to a TCP connection. The updated benchmarks show a performance
+    gain when using splice(2) to copy large chunks of data that the original
+    benchmark did not capture.
+    
+      name                          old time/op    new time/op    delta
+      Splice/tcp-to-tcp/1024-8        5.01µs ± 2%    5.08µs ± 3%      ~     (p=0.068 n=8+10)
+      Splice/tcp-to-tcp/2048-8        4.76µs ± 5%    4.65µs ± 3%    -2.36%  (p=0.015 n=9+8)
+      Splice/tcp-to-tcp/4096-8        4.91µs ± 2%    4.98µs ± 5%      ~     (p=0.315 n=9+10)
+      Splice/tcp-to-tcp/8192-8        5.50µs ± 4%    5.44µs ± 3%      ~     (p=0.758 n=7+9)
+      Splice/tcp-to-tcp/16384-8       7.65µs ± 7%    6.53µs ± 3%   -14.65%  (p=0.000 n=10+9)
+      Splice/tcp-to-tcp/32768-8       15.3µs ± 7%     8.5µs ± 5%   -44.21%  (p=0.000 n=10+10)
+      Splice/tcp-to-tcp/65536-8       30.0µs ± 6%    15.7µs ± 1%   -47.58%  (p=0.000 n=10+8)
+      Splice/tcp-to-tcp/131072-8      59.2µs ± 2%    27.4µs ± 5%   -53.75%  (p=0.000 n=9+9)
+      Splice/tcp-to-tcp/262144-8       121µs ± 4%      54µs ±19%   -55.56%  (p=0.000 n=9+10)
+      Splice/tcp-to-tcp/524288-8       247µs ± 6%     108µs ±12%   -56.34%  (p=0.000 n=10+10)
+      Splice/tcp-to-tcp/1048576-8      490µs ± 4%     199µs ±12%   -59.31%  (p=0.000 n=8+10)
+      Splice/unix-to-tcp/1024-8       1.20µs ± 2%    1.35µs ± 7%   +12.47%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/2048-8       1.33µs ±12%    1.57µs ± 4%   +17.85%  (p=0.000 n=9+10)
+      Splice/unix-to-tcp/4096-8       2.24µs ± 4%    1.67µs ± 4%   -25.14%  (p=0.000 n=9+10)
+      Splice/unix-to-tcp/8192-8       4.59µs ± 8%    2.20µs ±10%   -52.01%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/16384-8      8.46µs ±13%    3.48µs ± 6%   -58.91%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/32768-8      18.5µs ± 9%     6.1µs ± 9%   -66.99%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/65536-8      35.9µs ± 7%    13.5µs ± 6%   -62.40%  (p=0.000 n=10+9)
+      Splice/unix-to-tcp/131072-8     79.4µs ± 6%    25.7µs ± 4%   -67.62%  (p=0.000 n=10+9)
+      Splice/unix-to-tcp/262144-8      157µs ± 4%      54µs ± 8%   -65.63%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/524288-8      311µs ± 3%     107µs ± 8%   -65.74%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/1048576-8     643µs ± 4%     185µs ±32%   -71.21%  (p=0.000 n=10+10)
+    
+      name                          old speed      new speed      delta
+      Splice/tcp-to-tcp/1024-8       204MB/s ± 2%   202MB/s ± 3%      ~     (p=0.068 n=8+10)
+      Splice/tcp-to-tcp/2048-8       430MB/s ± 5%   441MB/s ± 3%    +2.39%  (p=0.014 n=9+8)
+      Splice/tcp-to-tcp/4096-8       833MB/s ± 2%   823MB/s ± 5%      ~     (p=0.315 n=9+10)
+      Splice/tcp-to-tcp/8192-8      1.49GB/s ± 4%  1.51GB/s ± 3%      ~     (p=0.758 n=7+9)
+      Splice/tcp-to-tcp/16384-8     2.14GB/s ± 7%  2.51GB/s ± 3%   +17.03%  (p=0.000 n=10+9)
+      Splice/tcp-to-tcp/32768-8     2.15GB/s ± 7%  3.85GB/s ± 5%   +79.11%  (p=0.000 n=10+10)
+      Splice/tcp-to-tcp/65536-8     2.19GB/s ± 5%  4.17GB/s ± 1%   +90.65%  (p=0.000 n=10+8)
+      Splice/tcp-to-tcp/131072-8    2.22GB/s ± 2%  4.79GB/s ± 4%  +116.26%  (p=0.000 n=9+9)
+      Splice/tcp-to-tcp/262144-8    2.17GB/s ± 4%  4.93GB/s ±17%  +127.25%  (p=0.000 n=9+10)
+      Splice/tcp-to-tcp/524288-8    2.13GB/s ± 6%  4.89GB/s ±13%  +130.15%  (p=0.000 n=10+10)
+      Splice/tcp-to-tcp/1048576-8   2.09GB/s ±10%  5.29GB/s ±11%  +153.36%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/1024-8      850MB/s ± 2%   757MB/s ± 7%   -10.94%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/2048-8     1.54GB/s ±11%  1.31GB/s ± 3%   -15.32%  (p=0.000 n=9+10)
+      Splice/unix-to-tcp/4096-8     1.83GB/s ± 4%  2.45GB/s ± 4%   +33.59%  (p=0.000 n=9+10)
+      Splice/unix-to-tcp/8192-8     1.79GB/s ± 9%  3.73GB/s ± 9%  +108.05%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/16384-8    1.95GB/s ±13%  4.68GB/s ± 3%  +139.80%  (p=0.000 n=10+9)
+      Splice/unix-to-tcp/32768-8    1.78GB/s ± 9%  5.38GB/s ±10%  +202.71%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/65536-8    1.83GB/s ± 8%  4.85GB/s ± 6%  +165.70%  (p=0.000 n=10+9)
+      Splice/unix-to-tcp/131072-8   1.65GB/s ± 6%  5.10GB/s ± 4%  +208.77%  (p=0.000 n=10+9)
+      Splice/unix-to-tcp/262144-8   1.67GB/s ± 4%  4.87GB/s ± 7%  +191.19%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/524288-8   1.69GB/s ± 3%  4.93GB/s ± 7%  +192.38%  (p=0.000 n=10+10)
+      Splice/unix-to-tcp/1048576-8  1.63GB/s ± 3%  5.60GB/s ±44%  +243.26%  (p=0.000 n=10+9)
+    
+    Change-Id: I1eae4c3459c918558c70fc42283db22ff7e0442c
+    Reviewed-on: https://go-review.googlesource.com/113997
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/splice_linux.go |  14 +-
+ src/net/splice_test.go  | 529 +++++++++++++++++-------------------------------
+ 2 files changed, 200 insertions(+), 343 deletions(-)

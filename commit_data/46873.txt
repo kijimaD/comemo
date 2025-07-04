@@ -1,0 +1,18 @@
+commit 3986e5c8e7df958cc1412ad06afc011022da76e1
+Author: kjgorman <kieran.j.gorman@gmail.com>
+Date:   Sun Oct 10 14:30:26 2021 +0100
+
+    bytes: fix Cut godoc typo
+    
+    If sep does not appear in s, we return nil here
+    rather than the empty string. Presumably the docs
+    were copied from the  strings package implementation
+    and brought that along.
+    
+    Change-Id: I3706c94fe04abd9e2a2c8840f7cc6116386965c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354969
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+
+ src/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

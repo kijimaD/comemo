@@ -1,0 +1,16 @@
+commit fb2e3b82f47dc9be89821d16f609df65e1f5f6ab
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jan 23 03:46:00 2020 +1100
+
+    cmd/dist: mark cgo as disabled on linux/riscv64
+    
+    cgo is not currently supported on this platform.
+    
+    Updates #27532 and #36641
+    
+    Change-Id: I4b35f887e869ebc5c156dd754b1c79897a8c5800
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215838
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

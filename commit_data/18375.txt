@@ -1,0 +1,32 @@
+commit ff29be14c4c63912963c442109da56a98960ea2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 29 13:44:21 2014 +0100
+
+    net/http: read as much as possible (including EOF) during chunked reads
+    
+    This is the chunked half of https://golang.org/cl/49570044 .
+    
+    We want full reads to return EOF as early as possible, when we
+    know we're at the end, so http.Transport client connections are eagerly
+    re-used in the common case, even if no Read or Close follows.
+    
+    To do this, make the chunkedReader.Read fill up its argument p []byte
+    buffer as much as possible, as long as that doesn't involve doing
+    any more blocking reads to read chunk headers. That means if we
+    have a chunk EOF ("0\r\n") sitting in the incoming bufio.Reader,
+    we see it and set EOF on our final Read.
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/58240043
+
+ src/pkg/net/http/chunked.go               | 58 ++++++++++++++-------
+ src/pkg/net/http/chunked_test.go          | 77 +++++++++++++++++++++++++--
+ src/pkg/net/http/httputil/chunked.go      | 74 ++++++++++++++++----------
+ src/pkg/net/http/httputil/chunked_test.go | 87 +++++++++++++++++++++++++++----
+ src/pkg/net/http/httputil/httputil.go     | 32 ++++++++++++
+ src/pkg/net/http/httputil/persist.go      |  2 -
+ src/pkg/net/http/transfer_test.go         | 27 ++++++++++
+ src/pkg/net/http/transport_test.go        | 55 +++++++++++--------
+ 8 files changed, 328 insertions(+), 84 deletions(-)

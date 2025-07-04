@@ -1,0 +1,17 @@
+commit 763e8fcc8931b44db77f7bcbc7b6943a2a8fb747
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 27 16:36:31 2016 +0000
+
+    syscall: new files for plan_arm support
+    
+    Implementation closely follows plan9_386 version.
+    
+    Change-Id: Ifb76e001fb5664e6a23541cf4768d7f11b2be68b
+    Reviewed-on: https://go-review.googlesource.com/18967
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/asm_plan9_arm.s       |  97 +++++++++++++
+ src/syscall/zsyscall_plan9_arm.go | 294 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 391 insertions(+)

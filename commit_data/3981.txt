@@ -1,0 +1,12 @@
+commit d8134e73c7a8beab367ac19ae0115772edde7df6
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 11 11:44:27 2009 -0800
+
+    add a paragraph in the FAQ about the situation with Windows support
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/154059
+
+ doc/go_faq.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

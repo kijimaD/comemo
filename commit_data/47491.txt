@@ -1,0 +1,17 @@
+commit bddb79f0faa11958ff473109398be684c088a6a9
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 22:22:26 2021 -0500
+
+    go/types: use type variables consistently in Checker.conversion
+    
+    This is a clean port of CL 362895 from types2 to go/types.
+    
+    Change-Id: Icd0631127c51aec80ce9450df2be71bf4b96b2df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363987
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/conversions.go | 26 +++++++++-----------------
+ 1 file changed, 9 insertions(+), 17 deletions(-)

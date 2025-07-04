@@ -1,0 +1,13 @@
+commit acfb0a1584215c80e773256f25438131a57e74c3
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Aug 18 12:37:42 2011 -0400
+
+    runtime: ctrlhandler for windows amd64
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4825047
+
+ src/pkg/runtime/windows/amd64/signal.c |  1 +
+ src/pkg/runtime/windows/amd64/sys.s    | 38 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 37 insertions(+), 2 deletions(-)

@@ -1,0 +1,32 @@
+commit 7c2b1597c67e0b74ed9efd1f409c7368604c917c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 25 17:55:50 2010 -0700
+
+    arm: precise float64 software floating point
+    
+    Adds softfloat64 to generic runtime
+    (will be discarded by linker when unused)
+    and adds test for it.  I used the test to check
+    the software code against amd64 hardware
+    and then check the software code against
+    the arm and its simulation of hardware.
+    The latter should have been a no-op (testing
+    against itself) but turned up a bug in 5c causing
+    the vlrt.c routines to miscompile.
+    
+    These changes make the cmath, math,
+    and strconv tests pass without any special
+    accommodations for arm.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2713042
+
+ src/pkg/Makefile                    |   9 -
+ src/pkg/runtime/Makefile            |   1 +
+ src/pkg/runtime/arm/softfloat.c     | 328 +++++-------------------
+ src/pkg/runtime/export_test.go      |  17 ++
+ src/pkg/runtime/runtime.h           |  11 +
+ src/pkg/runtime/softfloat64.go      | 498 ++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/softfloat64_test.go | 198 ++++++++++++++
+ 7 files changed, 787 insertions(+), 275 deletions(-)

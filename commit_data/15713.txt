@@ -1,0 +1,15 @@
+commit 7f070af515b40fd1e7f1576b2327779df56fb782
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 12 15:19:06 2013 +0400
+
+    runtime: deflake TestStackMem
+    The problem is that there are lots of dead G's from previous tests,
+    each dead G consumes 1 stack segment.
+    Fixes #5034.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7749043
+
+ src/pkg/runtime/stack_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

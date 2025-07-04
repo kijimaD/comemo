@@ -1,0 +1,14 @@
+commit e4c1fffcb12df2eaca4dc5edd62409901e41b27a
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 21 17:53:44 2013 +1000
+
+    doc/go1.2.html: pre-emption; cgo and C++
+    
+    These were bullet points that I had neglected to flesh out.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/13816043
+
+ doc/go1.2.html | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

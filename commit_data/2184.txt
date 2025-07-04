@@ -1,0 +1,13 @@
+commit 08805934368ec919cf008c2d2f625badb2d40dcd
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 8 16:38:42 2009 -0700
+
+    gobuild: command printing bug fix
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=28583
+    CL=28590
+
+ src/cmd/gobuild/util.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

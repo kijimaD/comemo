@@ -1,0 +1,25 @@
+commit 3b6b53f493af5984ca50cc202c3f8e155ad6f526
+Author: Ehren Kret <ehren.kret@gmail.com>
+Date:   Fri Sep 6 15:09:42 2013 -0700
+
+    compress/flate: prevent panic when reinitializing huffmanDecoder with bad input
+    
+    The huffmanDecoder struct appears to be intented for reuse by calling init a
+    second time with a second sequence of code lengths. Unfortunately, it can
+    currently panic if the second sequence of code lengths has a minimum value
+    greater than 10 due to failure to reinitialize the links table.
+    
+    This change prevents the panic by resetting the huffmanDecoder struct back to
+    the struct's zero value at the beginning of the init method if the
+    huffmanDecoder is being reused (determined by checking if min has been set to a
+    non-zero value).
+    
+    Fixes #6255.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13230043
+
+ src/pkg/compress/flate/flate_test.go | 13 +++++++++++++
+ src/pkg/compress/flate/inflate.go    |  4 ++++
+ 2 files changed, 17 insertions(+)

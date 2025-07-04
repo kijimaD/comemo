@@ -1,0 +1,114 @@
+commit d4472799277102e461968fa059f49bc8b9b6e433
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 6 12:35:53 2015 -0400
+
+    cmd/internal/gc: optimize slice + write barrier
+    
+    The code generated for a slice x[i:j] or x[i:j:k] computes the entire
+    new slice (base, len, cap) and then uses it as the evaluation of the
+    slice expression.
+    
+    If the slice is part of an update x = x[i:j] or x = x[i:j:k], there are
+    opportunities to avoid computing some of these fields.
+    
+    For x = x[0:i], we know that only the len is changing;
+    base can be ignored completely, and cap can be left unmodified.
+    
+    For x = x[0:i:j], we know that only len and cap are changing;
+    base can be ignored completely.
+    
+    For x = x[i:i], we know that the resulting cap is zero, and we don't
+    adjust the base during a slice producing a zero-cap result,
+    so again base can be ignored completely.
+    
+    No write to base, no write barrier.
+    
+    The old slice code was trying to work at a Go syntax level, mainly
+    because that was how you wrote code just once instead of once
+    per architecture. Now the compiler is factored a bit better and we
+    can implement slice during code generation but still have one copy
+    of the code. So the new code is working at that lower level.
+    (It must, to update only parts of the result.)
+    
+    This CL by itself:
+    name                   old mean              new mean              delta
+    BinaryTree17            5.81s × (0.98,1.03)   5.71s × (0.96,1.05)     ~    (p=0.101)
+    Fannkuch11              4.35s × (1.00,1.00)   4.39s × (1.00,1.00)   +0.79% (p=0.000)
+    FmtFprintfEmpty        86.0ns × (0.94,1.11)  82.6ns × (0.98,1.04)   -3.86% (p=0.048)
+    FmtFprintfString        276ns × (0.98,1.04)   273ns × (0.98,1.02)     ~    (p=0.235)
+    FmtFprintfInt           274ns × (0.98,1.06)   270ns × (0.99,1.01)     ~    (p=0.119)
+    FmtFprintfIntInt        506ns × (0.99,1.01)   475ns × (0.99,1.01)   -6.02% (p=0.000)
+    FmtFprintfPrefixedInt   391ns × (0.99,1.01)   393ns × (1.00,1.01)     ~    (p=0.139)
+    FmtFprintfFloat         566ns × (0.99,1.01)   574ns × (1.00,1.01)   +1.33% (p=0.001)
+    FmtManyArgs            1.91µs × (0.99,1.01)  1.87µs × (0.99,1.02)   -1.83% (p=0.000)
+    GobDecode              15.3ms × (0.99,1.02)  15.0ms × (0.98,1.05)   -1.84% (p=0.042)
+    GobEncode              11.5ms × (0.97,1.03)  11.4ms × (0.99,1.03)     ~    (p=0.152)
+    Gzip                    645ms × (0.99,1.01)   647ms × (0.99,1.01)     ~    (p=0.265)
+    Gunzip                  142ms × (1.00,1.00)   143ms × (1.00,1.01)   +0.90% (p=0.000)
+    HTTPClientServer       90.5µs × (0.97,1.04)  88.5µs × (0.99,1.03)   -2.27% (p=0.014)
+    JSONEncode             32.0ms × (0.98,1.03)  29.6ms × (0.98,1.01)   -7.51% (p=0.000)
+    JSONDecode              114ms × (0.99,1.01)   104ms × (1.00,1.01)   -8.60% (p=0.000)
+    Mandelbrot200          6.04ms × (1.00,1.01)  6.02ms × (1.00,1.00)     ~    (p=0.057)
+    GoParse                6.47ms × (0.97,1.05)  6.37ms × (0.97,1.04)     ~    (p=0.105)
+    RegexpMatchEasy0_32     171ns × (0.93,1.07)   152ns × (0.99,1.01)  -11.09% (p=0.000)
+    RegexpMatchEasy0_1K     550ns × (0.98,1.01)   530ns × (1.00,1.00)   -3.78% (p=0.000)
+    RegexpMatchEasy1_32     135ns × (0.99,1.02)   134ns × (0.99,1.01)   -1.33% (p=0.002)
+    RegexpMatchEasy1_1K     879ns × (1.00,1.01)   865ns × (1.00,1.00)   -1.58% (p=0.000)
+    RegexpMatchMedium_32    243ns × (1.00,1.00)   233ns × (1.00,1.00)   -4.30% (p=0.000)
+    RegexpMatchMedium_1K   70.3µs × (1.00,1.00)  69.5µs × (1.00,1.00)   -1.13% (p=0.000)
+    RegexpMatchHard_32     3.82µs × (1.00,1.01)  3.74µs × (1.00,1.00)   -1.95% (p=0.000)
+    RegexpMatchHard_1K      117µs × (1.00,1.00)   115µs × (1.00,1.00)   -1.69% (p=0.000)
+    Revcomp                 917ms × (0.97,1.04)   920ms × (0.97,1.04)     ~    (p=0.786)
+    Template                114ms × (0.99,1.01)   117ms × (0.99,1.01)   +2.58% (p=0.000)
+    TimeParse               622ns × (0.99,1.01)   615ns × (0.99,1.00)   -1.06% (p=0.000)
+    TimeFormat              665ns × (0.99,1.01)   654ns × (0.99,1.00)   -1.70% (p=0.000)
+    
+    This CL and previous CL (append) combined:
+    name                   old mean              new mean              delta
+    BinaryTree17            5.68s × (0.97,1.04)   5.71s × (0.96,1.05)     ~    (p=0.638)
+    Fannkuch11              4.41s × (0.98,1.03)   4.39s × (1.00,1.00)     ~    (p=0.474)
+    FmtFprintfEmpty        92.7ns × (0.91,1.16)  82.6ns × (0.98,1.04)  -10.89% (p=0.004)
+    FmtFprintfString        281ns × (0.96,1.08)   273ns × (0.98,1.02)     ~    (p=0.078)
+    FmtFprintfInt           288ns × (0.97,1.06)   270ns × (0.99,1.01)   -6.37% (p=0.000)
+    FmtFprintfIntInt        493ns × (0.97,1.04)   475ns × (0.99,1.01)   -3.53% (p=0.002)
+    FmtFprintfPrefixedInt   423ns × (0.97,1.04)   393ns × (1.00,1.01)   -7.07% (p=0.000)
+    FmtFprintfFloat         598ns × (0.99,1.01)   574ns × (1.00,1.01)   -4.02% (p=0.000)
+    FmtManyArgs            1.89µs × (0.98,1.05)  1.87µs × (0.99,1.02)     ~    (p=0.305)
+    GobDecode              14.8ms × (0.98,1.03)  15.0ms × (0.98,1.05)     ~    (p=0.237)
+    GobEncode              12.3ms × (0.98,1.01)  11.4ms × (0.99,1.03)   -6.95% (p=0.000)
+    Gzip                    656ms × (0.99,1.05)   647ms × (0.99,1.01)     ~    (p=0.101)
+    Gunzip                  142ms × (1.00,1.00)   143ms × (1.00,1.01)   +0.58% (p=0.001)
+    HTTPClientServer       91.2µs × (0.97,1.04)  88.5µs × (0.99,1.03)   -3.02% (p=0.003)
+    JSONEncode             32.6ms × (0.97,1.08)  29.6ms × (0.98,1.01)   -9.10% (p=0.000)
+    JSONDecode              114ms × (0.97,1.05)   104ms × (1.00,1.01)   -8.74% (p=0.000)
+    Mandelbrot200          6.11ms × (0.98,1.04)  6.02ms × (1.00,1.00)     ~    (p=0.090)
+    GoParse                6.66ms × (0.97,1.04)  6.37ms × (0.97,1.04)   -4.41% (p=0.000)
+    RegexpMatchEasy0_32     159ns × (0.99,1.00)   152ns × (0.99,1.01)   -4.69% (p=0.000)
+    RegexpMatchEasy0_1K     538ns × (1.00,1.01)   530ns × (1.00,1.00)   -1.57% (p=0.000)
+    RegexpMatchEasy1_32     138ns × (1.00,1.00)   134ns × (0.99,1.01)   -2.91% (p=0.000)
+    RegexpMatchEasy1_1K     869ns × (0.99,1.01)   865ns × (1.00,1.00)   -0.51% (p=0.012)
+    RegexpMatchMedium_32    252ns × (0.99,1.01)   233ns × (1.00,1.00)   -7.85% (p=0.000)
+    RegexpMatchMedium_1K   72.7µs × (1.00,1.00)  69.5µs × (1.00,1.00)   -4.43% (p=0.000)
+    RegexpMatchHard_32     3.85µs × (1.00,1.00)  3.74µs × (1.00,1.00)   -2.74% (p=0.000)
+    RegexpMatchHard_1K      118µs × (1.00,1.00)   115µs × (1.00,1.00)   -2.24% (p=0.000)
+    Revcomp                 920ms × (0.97,1.07)   920ms × (0.97,1.04)     ~    (p=0.998)
+    Template                129ms × (0.98,1.03)   117ms × (0.99,1.01)   -9.79% (p=0.000)
+    TimeParse               619ns × (0.99,1.01)   615ns × (0.99,1.00)   -0.57% (p=0.011)
+    TimeFormat              661ns × (0.98,1.04)   654ns × (0.99,1.00)     ~    (p=0.223)
+    
+    Change-Id: If054d81ab2c71d8d62cf54b5b1fac2af66b387fc
+    Reviewed-on: https://go-review.googlesource.com/9813
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/8g/cgen.go              |   2 +-
+ src/cmd/internal/gc/cgen.go     | 574 +++++++++++++++++++++++++++++++++++++++-
+ src/cmd/internal/gc/gen.go      | 116 --------
+ src/cmd/internal/gc/lex.go      |   2 +
+ src/cmd/internal/gc/order.go    |  38 ++-
+ src/cmd/internal/gc/racewalk.go |   3 +-
+ src/cmd/internal/gc/subr.go     |   2 +-
+ src/cmd/internal/gc/walk.go     | 286 +++-----------------
+ test/sliceopt.go                |  41 ++-
+ 9 files changed, 686 insertions(+), 378 deletions(-)

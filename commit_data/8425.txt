@@ -1,0 +1,17 @@
+commit 9fa6cb2f2bb77c23043dc38dbb26a3ab1aad51f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 17 15:32:38 2011 -0700
+
+    big: better support for string conversions
+    
+    Fixes #1842.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4517081
+
+ src/pkg/big/int.go      | 22 ++++++++++++----------
+ src/pkg/big/nat.go      | 35 +++++++++++++++++++++++++----------
+ src/pkg/big/nat_test.go | 32 ++++++++++++++++++--------------
+ src/pkg/big/rat.go      |  6 +++---
+ 4 files changed, 58 insertions(+), 37 deletions(-)

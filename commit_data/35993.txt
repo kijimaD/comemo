@@ -1,0 +1,18 @@
+commit ca69a916ca588ff24f8804b1c1b91926726280ec
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 13 09:08:13 2018 +1000
+
+    doc: rearrange the description of GOMAXPROCS
+    
+    The old text was written when it was only 1 by default, which
+    changed a long time ago.
+    
+    Also add a note that GOMAXPROCS does not limit the total
+    number of threads.
+    
+    Change-Id: I104ccd7266d11335320a4d7f5671fb09ed641f88
+    Reviewed-on: https://go-review.googlesource.com/123916
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 82 +++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 44 insertions(+), 38 deletions(-)

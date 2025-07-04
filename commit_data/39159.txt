@@ -1,0 +1,20 @@
+commit ba23fa483379deb6c5f22e150679bedde95c69c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 14 09:53:24 2019 -0400
+
+    cmd/vendor: go get -u golang.org/x/tools && go mod vendor
+    
+    Picks up vet fix from CL 176357.
+    
+    Change-Id: Ia77cd4a582c4edfbe59bbc311e6ce14046df0e83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177137
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +++
+ .../go/analysis/internal/analysisflags/flags.go    | 37 ++++++++++++++++++++++
+ .../x/tools/go/analysis/passes/bools/bools.go      | 21 +++++++-----
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 5 files changed, 56 insertions(+), 10 deletions(-)

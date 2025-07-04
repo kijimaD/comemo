@@ -1,0 +1,14 @@
+commit 24996832c68b9d0aa4cd0e51189d148aae7a2772
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat May 28 02:33:23 2016 -0600
+
+    net/http/httputil: fix typos in deprecation comments
+    
+    Fixes #15868
+    
+    Change-Id: I4e4471e77091309c4ea1d546b2c4f20dfbb4314e
+    Reviewed-on: https://go-review.googlesource.com/23550
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/httputil/persist.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

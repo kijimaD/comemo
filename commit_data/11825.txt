@@ -1,0 +1,12 @@
+commit aa87d78cf6f73906f1b59ae8b639838f2989035b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:15:07 2012 -0500
+
+    cmd/dist: encoding/gob is no longer required for cmd/go
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5650068
+
+ src/cmd/dist/build.c | 2 --
+ 1 file changed, 2 deletions(-)

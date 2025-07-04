@@ -1,0 +1,15 @@
+commit dc093494f38deb14e3a8818972b8248811787272
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 6 15:22:03 2009 -0700
+
+    - simplify "needsBlanks" logic for identifiers and strings
+    
+    TBR=rsc
+    DELTA=16  (10 added, 4 deleted, 2 changed)
+    OCL=35379
+    CL=35403
+
+ src/pkg/go/printer/printer.go                  | 4 ++--
+ src/pkg/go/printer/testdata/expressions.go     | 7 +++++--
+ src/pkg/go/printer/testdata/expressions.golden | 7 +++++--
+ 3 files changed, 12 insertions(+), 6 deletions(-)

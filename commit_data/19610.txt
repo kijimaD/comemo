@@ -1,0 +1,14 @@
+commit 280eb703a2d7e2f9630755048d13f259945743e5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jun 24 17:19:10 2014 -0700
+
+    regexp: skip TestOnePassCutoff in short mode
+    Runs for 4 seconds on my mac.
+    Also this is the only test that times out on freebsd in -race mode.
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/110150045
+
+ src/pkg/regexp/all_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

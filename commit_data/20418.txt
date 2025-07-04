@@ -1,0 +1,22 @@
+commit 3b4bccc82061fd1f9c70a1b6e85efbdd2ded51a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 14 22:27:03 2014 -0400
+
+    syscall: add GO_ARGS to Go-called assembly
+    
+    Fixes sporadic linux/386 build failure (untyped args)
+    and probably some others we haven't observed yet.
+    
+    Fixes #8727.
+    
+    TBR=iant
+    R=golang-codereviews
+    CC=bradfitz, golang-codereviews, iant, khr, r
+    https://golang.org/cl/143930043
+
+ src/syscall/asm_linux_386.s   | 3 +++
+ src/syscall/asm_linux_amd64.s | 1 +
+ src/syscall/asm_linux_arm.s   | 1 +
+ src/syscall/asm_plan9_386.s   | 3 +++
+ src/syscall/asm_plan9_amd64.s | 3 +++
+ 5 files changed, 11 insertions(+)

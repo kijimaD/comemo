@@ -1,0 +1,24 @@
+commit 5e954047bcb77b219629676db3e5d057bed48360
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 24 11:43:08 2017 -0700
+
+    cmd/compile: be slightly more tolerant in case of certain syntax errors
+    
+    Avoid construction of incorrect syntax trees in presence of errors.
+    
+    For #19663.
+    
+    Change-Id: I43025a3cf0fe02cae9a57e8bb9489b5f628c3fd7
+    Reviewed-on: https://go-review.googlesource.com/38604
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go        |  4 ++--
+ src/cmd/compile/internal/gc/main.go       |  2 +-
+ src/cmd/compile/internal/syntax/parser.go | 35 +++++++++++++++++--------------
+ src/cmd/compile/internal/syntax/syntax.go |  5 +++--
+ test/fixedbugs/bug217.go                  |  2 ++
+ test/fixedbugs/issue18393.go              |  2 +-
+ test/import5.go                           |  8 +++----
+ 7 files changed, 32 insertions(+), 26 deletions(-)

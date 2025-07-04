@@ -1,0 +1,18 @@
+commit 2e32efc44ac86cce3bd0808e6049d8c9b0225ba8
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri May 6 00:53:42 2016 -0400
+
+    runtime: get randomness from AT_RANDOM AUXV on linux/mips64x
+    
+    Fixes #15148.
+    
+    Change-Id: If3b628f30521adeec1625689dbc98aaf4a9ec858
+    Reviewed-on: https://go-review.googlesource.com/22811
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_linux_mips64x.go | 11 +++++++++++
+ src/runtime/os_linux_noauxv.go  |  2 +-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

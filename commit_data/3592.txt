@@ -1,0 +1,14 @@
+commit 1be74762c18bd699e369b33e8c2a94b6f23b4c3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 19 19:55:17 2009 -0700
+
+    bug169
+    
+    R=ken
+    OCL=35899
+    CL=35899
+
+ src/cmd/gc/lex.c                   | 6 ++++--
+ test/{bugs => fixedbugs}/bug169.go | 0
+ test/golden.out                    | 3 ---
+ 3 files changed, 4 insertions(+), 5 deletions(-)

@@ -1,0 +1,28 @@
+commit eb070d7483f5d206008aa05921652e595b8425f2
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat Sep 23 17:05:42 2023 -0400
+
+    net/http: add GODEBUG setting for old ServeMux behavior
+    
+    Add the GODEBUG setting httpmuxgo121.
+    When set to "1", ServeMux behaves exactly like it did in Go 1.21.
+    
+    Implemented by defining a new, unexported type, serveMux121, that
+    uses the original code.
+    
+    Updates #61410.
+    
+    Change-Id: I0a9d0fe2a2286e442d680393e62895ab50683cea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530461
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ doc/godebug.md                 |   6 ++
+ src/internal/godebugs/table.go |   1 +
+ src/net/http/request_test.go   |  51 ----------
+ src/net/http/servemux121.go    | 211 +++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go         |  29 +++++-
+ src/net/http/server_test.go    |  62 ++++++++++++
+ src/runtime/metrics/doc.go     |   4 +
+ 7 files changed, 309 insertions(+), 55 deletions(-)

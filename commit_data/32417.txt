@@ -1,0 +1,22 @@
+commit f6944c780f5104114a7a5e404115478f8deb739b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Aug 20 10:17:02 2017 -0700
+
+    runtime: add TestIntendedInlining
+    
+    The intent is to allow more aggressive refactoring
+    in the runtime without silent performance changes.
+    
+    The test would be useful for many functions.
+    I've seeded it with the runtime functions tophash and add;
+    it will grow organically (or wither!) from here.
+    
+    Updates #21536 and #17566
+    
+    Change-Id: Ib26d9cfd395e7a8844150224da0856add7bedc42
+    Reviewed-on: https://go-review.googlesource.com/57410
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

@@ -1,0 +1,20 @@
+commit 33a89b5fdad1917e292b7a8aea5f164c1460177d
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Wed May 23 11:11:34 2012 +1000
+
+    exp/html: adjust the last few insertion modes to match the spec
+    
+    Handle text, comment, and doctype tokens in afterBodyIM, afterAfterBodyIM,
+    and afterAfterFramesetIM.
+    
+    Pass three more tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6231043
+
+ src/pkg/exp/html/parse.go                  | 22 ++++++++++++++++++----
+ src/pkg/exp/html/testlogs/tests18.dat.log  |  2 +-
+ src/pkg/exp/html/testlogs/tests19.dat.log  |  2 +-
+ src/pkg/exp/html/testlogs/webkit01.dat.log |  2 +-
+ 4 files changed, 21 insertions(+), 7 deletions(-)

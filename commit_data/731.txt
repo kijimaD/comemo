@@ -1,0 +1,14 @@
+commit b6429768c65eed9f0c16faba3ceeb21ea112a951
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 25 15:45:19 2008 -0700
+
+    bug: package identifier not visible
+    (should be in the scope chain like any other identifier)
+    
+    R=r
+    DELTA=16  (16 added, 0 deleted, 0 changed)
+    OCL=15884
+    CL=15884
+
+ test/bugs/bug105.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

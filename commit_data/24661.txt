@@ -1,0 +1,14 @@
+commit 8537ff8a397aae19dc16ab223a95153304894631
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Sep 4 08:31:03 2015 +1200
+
+    runtime/cgo: export _cgo_reginit on ppc64x
+    
+    This is needed to make external linking work.
+    
+    Change-Id: I4cf7edb4ea318849cab92a697952f8745eed40c4
+    Reviewed-on: https://go-review.googlesource.com/14237
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo_ppc64x.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

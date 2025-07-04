@@ -1,0 +1,39 @@
+commit 15131caeaa83e57fd8bdf87dde2801443f5602db
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Fri May 8 10:51:29 2020 +0800
+
+    cmd/internal/obj/arm64: add CASx/CASPx instructions
+    
+    This patch adds support for CASx and CASPx atomic instructions.
+    
+      go syntax                 gnu syntax
+    CASD Rs, (Rn|RSP), Rt => cas Xs, Xt, (Xn|SP)
+    CASALW Rs, (Rn|RSP), Rt => casal Ws, Wt, (Xn|SP)
+    CASPD (Rs, Rs+1), (Rn|RSP), (Rt, Rt+1) => casp Xs, Xs+1, Xt, Xt+1, (Xn|SP)
+    CASPW (Rs, Rs+1), (Rn|RSP), (Rt, Rt+1) => casp Ws, Ws+1, Wt, Wt+1, (Xn|SP)
+    
+    This patch changes the type of prog.RestArgs from "[]Addr" to
+    "[]struct{Addr, Pos}", Pos is a enum, indicating the position of
+    the operand.
+    
+    This patch also adds test cases.
+    
+    Change-Id: Ib971cfda7890b7aa895d17bab22dea326c7fcaa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233277
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/arch/arm64.go             |  13 ++-
+ src/cmd/asm/internal/asm/asm.go                |  18 +++-
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  18 ++++
+ src/cmd/asm/internal/asm/testdata/arm64error.s |   4 +
+ src/cmd/compile/internal/s390x/ssa.go          |  12 +--
+ src/cmd/internal/obj/arm64/a.out.go            |  14 +++
+ src/cmd/internal/obj/arm64/anames.go           |  14 +++
+ src/cmd/internal/obj/arm64/asm7.go             | 132 +++++++++++++++++++------
+ src/cmd/internal/obj/link.go                   |  84 +++++++++++-----
+ src/cmd/internal/obj/riscv/obj.go              |   8 +-
+ src/cmd/internal/obj/s390x/asmz.go             |   2 +-
+ src/cmd/internal/obj/util.go                   |  15 ++-
+ src/cmd/internal/obj/x86/asm6.go               |   6 +-
+ 13 files changed, 266 insertions(+), 74 deletions(-)

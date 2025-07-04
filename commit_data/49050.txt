@@ -1,0 +1,25 @@
+commit c9f67c289faba2d3876bc166dbcc3b325d3c5ecc
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed May 4 10:07:38 2022 -0500
+
+    cmd/compile/internal: intrinsify publicationBarrier on ppc64x
+    
+    This enables publicationBarrier to be used as an intrinsic
+    on ppc64le/ppc64.
+    
+    A call to this appears in test/bench/go1 BinaryTree17
+    
+    Change-Id: If53528a82de99688270473cbe23472f37046ad65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404056
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go        | 4 ++++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 3 +++
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 1 +
+ src/cmd/compile/internal/ssa/opGen.go        | 8 ++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 3 +++
+ src/cmd/compile/internal/ssagen/ssa.go       | 2 +-
+ 6 files changed, 20 insertions(+), 1 deletion(-)

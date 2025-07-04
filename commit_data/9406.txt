@@ -1,0 +1,12 @@
+commit 8380ff34edc2e8e84fff3a5933e19c4335052731
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 18 11:01:43 2011 +1000
+
+    http: remove a TODO due to new behavior of nil maps
+    
+    R=golang-dev, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/4907049
+
+ src/pkg/http/request.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

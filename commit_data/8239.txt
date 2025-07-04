@@ -1,0 +1,12 @@
+commit 5eeaca12d36e7556054b7694a41787c67e7b309c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 27 09:20:53 2011 -0400
+
+    gopack: preserve safe flag when not adding unsafe objects to archive
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4436060
+
+ src/cmd/gopack/ar.c | 41 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 37 insertions(+), 4 deletions(-)

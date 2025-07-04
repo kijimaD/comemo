@@ -1,0 +1,15 @@
+commit e9ba9470bc0c7042e2e5aac6838aa86f2f514ca3
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Wed Mar 12 11:02:42 2014 -0400
+
+    misc/emacs: correctly fontify methods when go-fontify-function-calls is nil
+    
+    We were fontifying the wrong part of method declarations
+    
+    LGTM=adonovan
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/66120043
+
+ misc/emacs/go-mode.el | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

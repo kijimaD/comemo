@@ -1,0 +1,15 @@
+commit 475f3df43fa6f89413bc142c61a5551d3f8bd281
+Author: Stéphane Travostino <stephane.travostino@gmail.com>
+Date:   Sat Dec 22 13:36:55 2012 -0500
+
+    encoding/json: A JSON tag can be any valid JSON string.
+    
+    Fixes #3887.
+    
+    R=golang-dev, daniel.morsing, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/6997045
+
+ src/pkg/encoding/json/encode.go      |  2 +-
+ src/pkg/encoding/json/tagkey_test.go | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

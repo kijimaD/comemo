@@ -1,0 +1,17 @@
+commit 47db3bb443774c0b0df2cab188aa3d76b361dca2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 23 16:30:17 2021 -0800
+
+    runtime: skip TestTimePprof if nanotime calls libc
+    
+    Fixes #43118
+    
+    Change-Id: I499bf335904e2b72a2a8876d0368fff5e69aa7fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366759
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/crash_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

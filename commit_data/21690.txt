@@ -1,0 +1,14 @@
+commit 96333a7e4841c37d4c70cdab8748f9e69012cf29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 23 10:20:20 2015 -0800
+
+    go/token: document that column positions and file offsets are in bytes
+    
+    Fixes #9948.
+    
+    Change-Id: I7b354fccd5e933eeeb2253a66acec050ebff6e41
+    Reviewed-on: https://go-review.googlesource.com/5611
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/token/position.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

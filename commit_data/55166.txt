@@ -1,0 +1,20 @@
+commit c418da34cd82e041066259af123e6e36e7c2915f
+Author: Peter Feichtinger <shippo@gmx.at>
+Date:   Fri Nov 24 12:15:54 2023 +0000
+
+    runtime: docfix countAlloc
+    
+    fix typo in `countAlloc` doc
+    
+    Change-Id: I9f0752412b7a7dfae4915870edeab4ac52e38b2d
+    GitHub-Last-Rev: 6080d3c03ba6cacb1874af9724cfeb7cae27b78f
+    GitHub-Pull-Request: golang/go#64357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544755
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Hiro Hamada <laciferin@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

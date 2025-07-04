@@ -1,0 +1,19 @@
+commit df035a8d866cf4cef339a60d37c6f937d4c6b9f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 8 11:16:19 2016 -0800
+
+    cmd/compile: fix bug in vmatch1 list traversal nodeSeq change
+    
+    Bug accidentally inserted in https://golang.org/cl/20210.  Doesn't seem
+    to make a difference, but restore original code anyhow.
+    
+    Update #14473.
+    
+    Change-Id: I9cf87987ff158e27c7231027819317cdde8c132c
+    Reviewed-on: https://go-review.googlesource.com/20401
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

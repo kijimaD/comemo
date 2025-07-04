@@ -1,0 +1,16 @@
+commit ac0ee77d630c4a692b02cad630a61e974b0c52ce
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 28 19:01:48 2016 +1000
+
+    image/gif: be stricter on parsing graphic control extensions.
+    
+    See Section 23. Graphic Control Extension of the spec:
+    https://www.w3.org/Graphics/GIF/spec-gif89a.txt
+    
+    Change-Id: Ie78b4ff4aa97e1b332ade67ae4fa25f7c0770610
+    Reviewed-on: https://go-review.googlesource.com/22547
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/gif/reader.go      | 6 ++++++
+ src/image/gif/reader_test.go | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

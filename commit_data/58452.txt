@@ -1,0 +1,28 @@
+commit 0d8aa8cce69f97747e7ce69b8416c1cfca5d939f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 12 15:26:54 2024 -0800
+
+    spec: describe representation of values
+    
+    Add a section on the representation of values:
+    distinguish between values that are self-contained
+    and values that contain references while avoiding
+    the notion of "reference types" which is misleading.
+    
+    Also, use "predeclared identifier nil" rather than
+    "predeclared value nil" because it is the identifier
+    that is predeclared.
+    
+    Fixes #5083.
+    
+    Change-Id: I2235673c6404f2c055f195e879f198c7ab246d58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635801
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 91 +++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 81 insertions(+), 10 deletions(-)

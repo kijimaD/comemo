@@ -1,0 +1,21 @@
+commit 01b8f5d7cf3c5ee83034135870edd8837eae4cba
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 6 18:00:13 2018 -0500
+
+    runtime: remove legacy comments and code from arm morestack
+    
+    CL 137410043 deleted support for split stacks, which means morestack
+    no longer needed to save its caller's frame or argument size or its
+    caller's argument pointer. However, this commit failed to update the
+    comment or delete the line that computed the caller's argument
+    pointer. Clean these up now.
+    
+    Change-Id: I65725d3d42c86e8adb6645d5aa80c305d473363d
+    Reviewed-on: https://go-review.googlesource.com/92437
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/vet/all/whitelist/arm.txt | 3 ---
+ src/runtime/asm_arm.s             | 4 ----
+ 2 files changed, 7 deletions(-)

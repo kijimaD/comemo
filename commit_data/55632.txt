@@ -1,0 +1,19 @@
+commit 6a36e55d4aa54a34e5b8424e88b905f631b2b921
+Author: hi-rustin <rustin.liu@gmail.com>
+Date:   Mon Feb 19 15:22:37 2024 +0000
+
+    runtime/pprof: update outdated google/pprof link
+    
+    Google/pprof changed the master branch to main, so it might be better to update it to the latest.
+    
+    Change-Id: Id29aca80a9a83a9c10da215180ad65816bc88936
+    GitHub-Last-Rev: 0023c28dc0d84a2529e24c694acfed7a363d2d0b
+    GitHub-Pull-Request: golang/go#65792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565177
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

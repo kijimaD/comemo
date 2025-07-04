@@ -1,0 +1,18 @@
+commit 8802b188c6303b0c03f200bb1489237cc40b968e
+Author: Rajath Agasthya <rajathagasthya@gmail.com>
+Date:   Sat Aug 19 18:05:10 2017 -0700
+
+    fmt: Implement pp.WriteString method
+    
+    This allows io.WriteString to make use of WriteString method
+    implemented by pp when writing a string to fmt.State.
+    
+    Fixes #20786
+    
+    Change-Id: Ice7a92bf303127ad87f05562217fa076f5c589ad
+    Reviewed-on: https://go-review.googlesource.com/61430
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 18 ++++++++++++++++++
+ src/fmt/print.go    |  7 +++++++
+ 2 files changed, 25 insertions(+)

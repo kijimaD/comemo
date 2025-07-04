@@ -1,0 +1,16 @@
+commit 642d272c3cdaea58decce1a9cf6e9668b1b16f67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 15 16:47:01 2011 -0700
+
+    godoc: remove dependency of syscall
+    
+    On app-engine, we cannot import syscall.
+    The respective constants are already defined
+    elsewhere for the same reason.
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5036042
+
+ src/cmd/godoc/godoc.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

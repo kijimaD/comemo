@@ -1,0 +1,24 @@
+commit eab57b27f5460a7e6b87fff95ce2948b7812ce05
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 9 22:29:00 2018 +0000
+
+    net/http/httputil: don't panic in ReverseProxy unless running under a Server
+    
+    Prior to the fix to #23643, the ReverseProxy didn't panic with
+    ErrAbortHandler when the copy to a client failed.
+    
+    During Go 1.11 beta testing, we found plenty of code using
+    ReverseProxy in tests that were unprepared for a panic.
+    
+    Change the behavior to only panic when running under the http.Server
+    that'll handle the panic.
+    
+    Updates #23643
+    
+    Change-Id: Ic1fa8405fd54c858ce8c797cec79d006833a9f7d
+    Reviewed-on: https://go-review.googlesource.com/122819
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 28 +++++++++++++++++++++++++++-
+ src/net/http/httputil/reverseproxy_test.go |  1 +
+ 2 files changed, 28 insertions(+), 1 deletion(-)

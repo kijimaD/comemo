@@ -1,0 +1,18 @@
+commit ed969a0c27dff40ac959c1b1e42a0820fe505722
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 1 22:59:11 2018 +0000
+
+    Revert "misc/wasm: add polyfill for TextEncoder/TextDecoder for Edge support"
+    
+    This reverts CL 131718, commit a0e7f12771c2e84e626dcf5e30da5d62a3b1adf6.
+    
+    Reason for revert: adds request overhead & dependency on third-party service for all users regardless of whether it's necessary.
+    
+    Updates #27295
+    
+    Change-Id: I4a8a9b0c8e4a3198c884dfbd90ba36734f70a9a9
+    Reviewed-on: https://go-review.googlesource.com/138937
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.html | 5 -----
+ 1 file changed, 5 deletions(-)

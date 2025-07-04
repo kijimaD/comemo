@@ -1,0 +1,15 @@
+commit 2296928fe7c43896518e8e04ae60a381215fa7f0
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Jul 18 20:59:55 2014 -0400
+
+    test: add test for issue8347
+    
+    Fixes #8347.
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/109600044
+
+ test/fixedbugs/issue8347.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

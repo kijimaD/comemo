@@ -1,0 +1,44 @@
+commit 2e5c32518ce6facc507862f4156d4e6ac776754f
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Tue Aug 21 04:57:03 2018 +0000
+
+    cmd/compile: optimize math.Copysign on arm64
+    
+    Add rewrite rules to optimize math.Copysign() when the second
+    argument is negative floating point constant.
+    
+    For example, math.Copysign(c, -2): The previous compile output is
+    "AND $9223372036854775807, R0, R0; ORR $-9223372036854775808, R0, R0".
+    The optimized compile output is "ORR $-9223372036854775808, R0, R0"
+    
+    Math package benchmark results.
+    name                   old time/op  new time/op  delta
+    Copysign-8             2.61ns ± 2%  2.49ns ± 0%  -4.55%  (p=0.000 n=10+10)
+    Cos-8                  43.0ns ± 0%  41.5ns ± 0%  -3.49%  (p=0.000 n=10+10)
+    Cosh-8                 98.6ns ± 0%  98.1ns ± 0%  -0.51%  (p=0.000 n=10+10)
+    ExpGo-8                 107ns ± 0%   105ns ± 0%  -1.87%  (p=0.000 n=10+10)
+    Exp2Go-8                100ns ± 0%   100ns ± 0%  +0.39%  (p=0.000 n=10+8)
+    Max-8                  6.56ns ± 2%  6.45ns ± 1%  -1.63%  (p=0.002 n=10+10)
+    Min-8                  6.66ns ± 3%  6.47ns ± 2%  -2.82%  (p=0.006 n=10+10)
+    Mod-8                   107ns ± 1%   104ns ± 1%  -2.72%  (p=0.000 n=10+10)
+    Frexp-8                11.5ns ± 1%  11.0ns ± 0%  -4.56%  (p=0.000 n=8+10)
+    HypotGo-8              19.4ns ± 0%  19.4ns ± 0%  +0.36%  (p=0.019 n=10+10)
+    Ilogb-8                8.63ns ± 0%  8.51ns ± 0%  -1.36%  (p=0.000 n=10+10)
+    Jn-8                    584ns ± 0%   585ns ± 0%  +0.17%  (p=0.000 n=7+8)
+    Ldexp-8                13.8ns ± 0%  13.5ns ± 0%  -2.17%  (p=0.002 n=8+10)
+    Logb-8                 10.2ns ± 0%   9.9ns ± 0%  -2.65%  (p=0.000 n=10+7)
+    Nextafter64-8          7.54ns ± 0%  7.51ns ± 0%  -0.37%  (p=0.000 n=10+10)
+    Remainder-8            73.5ns ± 1%  70.4ns ± 1%  -4.27%  (p=0.000 n=10+10)
+    SqrtGoLatency-8        79.6ns ± 0%  76.2ns ± 0%  -4.30%  (p=0.000 n=9+10)
+    Yn-8                    582ns ± 0%   579ns ± 0%  -0.52%  (p=0.000 n=10+10)
+    
+    Change-Id: I0c9cd1ea87435e7b8bab94b4e79e6e29785f25b1
+    Reviewed-on: https://go-review.googlesource.com/132915
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  5 ++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 45 ++++++++++++++++++++++++++++
+ test/codegen/math.go                         |  1 +
+ 3 files changed, 51 insertions(+)

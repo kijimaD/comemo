@@ -1,0 +1,25 @@
+commit adff422779709c83db91700fdcc0a0bd5dee6a21
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 25 22:59:19 2016 -0400
+
+    cmd/link/internal/ld: fix DWARF offsets with GOEXPERIMENT=framepointer
+    
+    The offsets computed by the DWARF expressions for local variables
+    currently don't account for the extra stack slot used by the frame
+    pointer when GOEXPERIMENT=framepointer is enabled.
+    
+    Fix this by adding the extra stack slot to the offset.
+    
+    This fixes TestGdbPython with GOEXPERIMENT=framepointer.
+    
+    Updates #15840.
+    
+    Change-Id: I1b2ebb2750cd22266f4a89ec8d9e8bfa05fabd19
+    Reviewed-on: https://go-review.googlesource.com/23458
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

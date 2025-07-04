@@ -1,0 +1,14 @@
+commit 2c050571d8e386a23f853420de59e854edece6c8
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 29 20:25:34 2008 -0700
+
+    shift bugs
+    
+    R=r
+    OCL=18095
+    CL=18095
+
+ src/cmd/gc/const.c    | 2 +-
+ src/cmd/gc/mparith2.c | 4 ++--
+ src/cmd/gc/walk.c     | 8 ++++++--
+ 3 files changed, 9 insertions(+), 5 deletions(-)

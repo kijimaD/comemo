@@ -1,0 +1,27 @@
+commit c2de759581aef5d14fd07b843caf76db3c8a115b
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Sep 28 21:14:17 2021 -0700
+
+    cmd/compile: make sure shapes have proper indexes for sub-instantiation
+    
+    The computation for determining the shapes to use at the top of
+    getInstantation was not always creating shapes with the proper indexes.
+    If an instantiation is being called from another instantiated function,
+    we cannot just copy the shape types unchanged, because their indexes may
+    have changed. So, for type args that already shapes, we still call
+    Shapify() with the correct index.
+    
+    Fixes #48645
+    
+    Change-Id: Ibb61c6f9a3c317220fb85135ca87eb5ad4dcff9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353030
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/stencil.go | 15 ++----
+ test/typeparam/issue48645a.go             | 31 ++++++++++++
+ test/typeparam/issue48645a.out            |  1 +
+ test/typeparam/issue48645b.go             | 81 +++++++++++++++++++++++++++++++
+ 4 files changed, 118 insertions(+), 10 deletions(-)

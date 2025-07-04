@@ -1,0 +1,14 @@
+commit 58baf648277730f57debc3be521652d30770ab34
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 9 12:05:39 2011 +1000
+
+    exp/template: variable evaluation.
+    Still need to do static checking of declarations during parse.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/4667070
+
+ src/pkg/exp/template/exec.go      | 93 +++++++++++++++++++++++++++++++++++----
+ src/pkg/exp/template/exec_test.go |  9 ++++
+ 2 files changed, 94 insertions(+), 8 deletions(-)

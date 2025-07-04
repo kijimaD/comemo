@@ -1,0 +1,12 @@
+commit 4d44d6a3d603ffe79bdd58981400b649c3b41670
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 9 21:39:20 2009 -0800
+
+    missed a couple of files in test
+    
+    R=rsc, r
+    https://golang.org/cl/172045
+
+ test/chan/powser2.go | 36 ++++++++++++++++++++++++------------
+ test/simassign.go    |  9 +++------
+ 2 files changed, 27 insertions(+), 18 deletions(-)

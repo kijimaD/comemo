@@ -1,0 +1,15 @@
+commit b4eb22d76457bacc1b4131a31f9ae369a5f8f177
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 19 13:32:07 2014 -0700
+
+    spec: clarify panic behavior when deferring nil functions
+    
+    Fixes #8107.
+    
+    LGTM=iant, rsc, r
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/145960043
+
+ doc/go_spec.html | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

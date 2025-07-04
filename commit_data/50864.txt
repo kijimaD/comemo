@@ -1,0 +1,20 @@
+commit 5bef938125d8604593ccacc59474db0b1403f6aa
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Oct 12 08:28:06 2022 -0700
+
+    net/http: fix some test flakes caused by test refactoring
+    
+    Skip TestTransportPersistConnLeakShortBody in HTTP/2 mode;
+    it's flaky and was previously HTTP/1-only.
+    
+    Don't run TestTransportEventTrace and TestTransportIgnores408
+    in parallel.
+    
+    Change-Id: I76bc540fac9317185ef7d414c9deafb35bc926b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442495
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/transport_test.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

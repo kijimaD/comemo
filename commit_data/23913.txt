@@ -1,0 +1,26 @@
+commit 6f6bcadc17087f564f1d5d915f08765b0a1e7263
+Author: David Chase <drchase@google.com>
+Date:   Thu Jul 30 12:31:18 2015 -0400
+
+    cmd/compile: add case for ODOTTYPE to escwalk
+    
+    ODOTTYPE should be treated a whole lot like ODOT,
+    but it was missing completely from the switch in
+    escwalk and thus escape status did not propagate
+    to fields.
+    
+    Since interfaces are required to trigger this bug,
+    the test was added to escape_iface.go.
+    
+    Fixes #11931.
+    
+    Change-Id: Id0383981cc4b1a160f6ad447192a112eed084538
+    Reviewed-on: https://go-review.googlesource.com/12921
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go |  1 +
+ test/escape_iface.go               | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)

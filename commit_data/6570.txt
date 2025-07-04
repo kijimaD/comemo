@@ -1,0 +1,12 @@
+commit 4ae93111749aed9b14e9926708dd08a099ab34ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 20 11:43:27 2010 -0400
+
+    arm: more tests pass
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2606041
+
+ src/pkg/Makefile | 42 ++++++++++++++++--------------------------
+ 1 file changed, 16 insertions(+), 26 deletions(-)

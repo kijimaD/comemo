@@ -1,0 +1,22 @@
+commit 66cdc699b28c44a448a6a502b0ee69c9a942f959
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 10 15:01:02 2010 -0800
+
+    arm: fix build on android
+    
+    R=kaib
+    CC=golang-dev
+    https://golang.org/cl/206059
+
+ src/cmd/5l/5.out.h              |   9 +-
+ src/cmd/5l/Makefile             |   2 +
+ src/cmd/5l/asm.c                | 757 +++++++++++++++++++++++++++-------------
+ src/cmd/5l/l.h                  |  24 +-
+ src/cmd/5l/obj.c                |  14 +-
+ src/cmd/5l/pass.c               |   3 +
+ src/pkg/runtime/linux/arm/sys.s |  28 ++
+ test/arm-pass.txt               |   4 -
+ test/golden-arm.out             | 141 ++++++++
+ test/run                        |   8 +-
+ test/run-arm                    |  25 +-
+ 11 files changed, 742 insertions(+), 273 deletions(-)

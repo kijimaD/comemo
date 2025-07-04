@@ -1,0 +1,20 @@
+commit b2d43caa7a1a2697f09187a133ef724d9f822634
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 17 21:44:18 2013 -0500
+
+    cmd/dist: avoid use of 'go tool pack'
+    
+    All packages now use the -pack option to the compiler.
+    For a pure Go package, that's enough.
+    For a package with additional C and assembly files, the extra
+    archive entries can be added directly (by concatenation)
+    instead of by invoking go tool pack.
+    
+    These changes make it possible to rewrite cmd/pack in Go.
+    
+    R=iant, r
+    CC=golang-dev
+    https://golang.org/cl/42890043
+
+ src/cmd/dist/build.c | 62 +++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 57 insertions(+), 5 deletions(-)

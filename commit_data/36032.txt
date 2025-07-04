@@ -1,0 +1,31 @@
+commit 5760ffc7ef4c292acf0f85a04e2496a4af504ddb
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 15 23:42:16 2018 -0400
+
+    cmd/go/internal/modfetch: do not rely on file system for case sensitivity
+    
+    Over time there may exist two modules with names that differ only in case.
+    On systems with case-insensitive file systems, we need to make sure those
+    modules do not collide in the download cache.
+    
+    Do this by using the new "safe encoding" for file system paths as well as
+    proxy paths.
+    
+    Fixes #25992.
+    
+    Change-Id: I717a9987a87ad5c6927d063bf30d10d9229498c9
+    Reviewed-on: https://go-review.googlesource.com/124379
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/verify.go               | 13 ++--
+ src/cmd/go/internal/modfetch/cache.go              | 53 ++++++++++++-
+ src/cmd/go/internal/modfetch/fetch.go              | 26 +++++--
+ src/cmd/go/internal/modfetch/proxy.go              | 11 ++-
+ src/cmd/go/internal/modfetch/repo.go               |  2 +-
+ src/cmd/go/internal/modload/build.go               |  8 +-
+ src/cmd/go/mod_test.go                             | 21 ++++++
+ src/cmd/go/proxy_test.go                           | 25 +++++-
+ .../go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt   | 88 ++++++++++++++++++++++
+ 9 files changed, 220 insertions(+), 27 deletions(-)

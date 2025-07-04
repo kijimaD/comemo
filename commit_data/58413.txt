@@ -1,0 +1,16 @@
+commit e977b83b320b3aedca218566c42ee94c5fad6bb0
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Tue Dec 17 20:14:16 2024 +0200
+
+    cmd/go/internal/help: use secure link to swig.org
+    
+    Change-Id: Ifd315128ceeddf92bc16647869c3ace77ed1f430
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637195
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/help/helpdoc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

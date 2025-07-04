@@ -1,0 +1,21 @@
+commit a15074c4dc909c6e27a98f8464b79863f446e8cc
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Jul 16 09:04:20 2013 +0200
+
+    cmd/gc: fix race detector instrumentation of type switches.
+    
+    A type switch on a value with map index expressions,
+    could get a spurious instrumentation from a OTYPESW node.
+    These nodes do not need instrumentation because after
+    walk the type switch has been turned into a sequence
+    of ifs.
+    
+    Fixes #5890.
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/11308043
+
+ src/cmd/gc/racewalk.c                     |  5 +----
+ src/pkg/runtime/race/testdata/mop_test.go | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 4 deletions(-)

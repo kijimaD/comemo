@@ -1,0 +1,30 @@
+commit 86463c157b063de47c8faef51a2f7c6de5fe4e7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 22:57:45 2019 -0400
+
+    cmd/vet/all: delete
+    
+    The work of running full vet on std and cmd during local development
+    has moved to go test, which of course runs during all.bash.
+    
+    For errors in other GOOS/GOARCH combinations, the misc-compile
+    builders (running buildall.bash) also now run go vet std cmd.
+    
+    The vetall builder need not do anything anymore.
+    Make it a no-op until it can be retired, and remove
+    cmd/vet/all and its special case in the go command.
+    
+    Fixes #31916.
+    
+    Change-Id: I8f30d184c382ea7c2c8f520e5618f680db633968
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176440
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go                 |  16 --
+ src/cmd/go/internal/modload/init.go  |   2 +-
+ src/cmd/vet/all/main.go              | 423 -----------------------------------
+ src/cmd/vet/all/whitelist/all.txt    |  20 --
+ src/cmd/vet/all/whitelist/readme.txt |   4 -
+ 5 files changed, 1 insertion(+), 464 deletions(-)

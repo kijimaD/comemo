@@ -1,0 +1,19 @@
+commit 94589054d3ed88c049fbe468d58b995e0e154f1d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 29 11:59:56 2016 -0400
+
+    cmd/trace: label mark termination spans as such
+    
+    Currently these are labeled "MARK", which was accurate in the STW
+    collector, but these really indicate mark termination now, since
+    marking happens for the full duration of the concurrent GC. Re-label
+    them as "MARK TERMINATION" to clarify this.
+    
+    Change-Id: Ie98bd961195acde49598b4fa3f9e7d90d757c0a6
+    Reviewed-on: https://go-review.googlesource.com/30018
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/trace/trace.go       | 2 +-
+ src/internal/trace/parser.go | 4 ++--
+ src/runtime/trace.go         | 4 ++--
+ 3 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,14 @@
+commit 1f3e842c73e2430a93223cb899f5d8b7ab3e2eba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 29 18:41:30 2008 -0700
+
+    Some initial language towards embedded types and methods for all types.
+    More to come.
+    
+    R=r
+    DELTA=74  (47 added, 8 deleted, 19 changed)
+    OCL=16156
+    CL=16159
+
+ doc/go_spec.txt | 97 ++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 68 insertions(+), 29 deletions(-)

@@ -1,0 +1,14 @@
+commit 6763e5b6cde9fbd4f65527a2c01f3d700d8e90fd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jun 5 11:56:32 2012 +1000
+
+    gc: fix typo.
+    
+    There already is a "Phase 6" a few lines above.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6270054
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

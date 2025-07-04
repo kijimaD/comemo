@@ -1,0 +1,12 @@
+commit 8194187a2de9b693af6656ca956762437c2f9c64
+Author: matsuyoshi <sfbgwm30@gmail.com>
+Date:   Sat May 23 16:23:04 2020 +0900
+
+    os: use same link in UserCacheDir/UserConfigDir doc
+    
+    Change-Id: I94c385243c37589f56aadaa30336b400adf31308
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234959
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

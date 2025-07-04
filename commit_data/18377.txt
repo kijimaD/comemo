@@ -1,0 +1,19 @@
+commit 289d46399b794a15be12f57a8162fa514bd8f306
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 29 16:14:45 2014 -0800
+
+    cmd/8g: don't crash if Prog->u.branch is nil
+    The code is copied from cmd/6g.
+    Empirically, all branch targets are nil in this code so
+    something is still wrong, but at least this stops 8g -S
+    from crashing.
+    
+    Update #7178
+    
+    LGTM=dave, iant
+    R=iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/58400043
+
+ src/cmd/8g/list.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

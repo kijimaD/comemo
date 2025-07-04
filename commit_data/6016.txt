@@ -1,0 +1,13 @@
+commit 7886318ca0cacf445ba0ba8969f744ae7442e540
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 12 14:58:38 2010 -0700
+
+    codereview: do not send "Abanoned" mail if this CL has
+    not been mailed out for review.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1962046
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

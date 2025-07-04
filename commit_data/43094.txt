@@ -1,0 +1,18 @@
+commit 0f55d37d440d83f206bfc00b4a2521c1a0bb258b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Sep 24 12:00:43 2020 +0200
+
+    cmd/compile: use typed rules for const folding on amd64
+    
+    Passes
+    
+      gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: I78cfe2962786604bdd78e02a2c33de68512cfeb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256997
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  98 +++++------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 242 +++++++++++++--------------
+ 2 files changed, 170 insertions(+), 170 deletions(-)

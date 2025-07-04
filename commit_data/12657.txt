@@ -1,0 +1,14 @@
+commit c898c519b0fe4660519a1785552dbf578e8a94f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 15 15:10:01 2012 -0700
+
+    cmd/go: quiet some logging
+    
+    This should've been behind -v before but was missed.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5836046
+
+ src/cmd/go/http.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

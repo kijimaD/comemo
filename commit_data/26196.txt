@@ -1,0 +1,15 @@
+commit 7a05fa8a70d0ddc109b246b4a3f0421ce2d64ea6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Mar 10 02:36:28 2016 -0500
+
+    doc: fix dead links in FAQ
+    
+    Fixes #14741.
+    
+    Change-Id: Idb8de8b0c1059c15e4c3df4a60bbd340d4e74aba
+    Reviewed-on: https://go-review.googlesource.com/20487
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go_faq.html | 17 +++++++++--------
+ 1 file changed, 9 insertions(+), 8 deletions(-)

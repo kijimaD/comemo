@@ -1,0 +1,18 @@
+commit 75f0ad705f9de544b74a35c2fbfc3417c497c8d6
+Author: Geoff Berry <gberry.qdt@qualcommdatacenter.com>
+Date:   Thu Dec 14 13:35:59 2017 -0500
+
+    cmd/compile/internal/ssa: group dump files alphabetically
+    
+    Change dump file names to group them alphabetically in directory
+    listings, in pass run order.
+    
+    Change-Id: I8070578a5b4a3a7983dcc527ea1cfdb10a6d7d24
+    Reviewed-on: https://go-review.googlesource.com/83958
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/fmt_test.go             | 1 +
+ src/cmd/compile/internal/ssa/compile.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

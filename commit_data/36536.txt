@@ -1,0 +1,16 @@
+commit d3b9572759770443d6f89f8e07c1a98eec1cf769
+Author: Venil Noronha <veniln@vmware.com>
+Date:   Thu Aug 30 12:24:05 2018 -0600
+
+    fmt: add an example for Sprintf
+    
+    Signed-off-by: Venil Noronha <veniln@vmware.com>
+    
+    Change-Id: Ie5f50bc31db1eee11582b70b0e25c726090d4037
+    Reviewed-on: https://go-review.googlesource.com/132236
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/example_test.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

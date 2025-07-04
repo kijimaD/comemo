@@ -1,0 +1,21 @@
+commit 3ca78afb3bf4f28af1ca76875c0a15d6b87a5c50
+Author: Austin Clements <austin@google.com>
+Date:   Sun Nov 17 22:41:03 2024 -0500
+
+    cmd/go: temporarily disable build JSON in test output
+    
+    Unfortunately, this is tripping up the LUCI test output processor, so
+    we need to disable it until we can figure that out.
+    
+    For #70402.
+    Updates #62067.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-arm64_13,gotip-linux-amd64-longtest
+    Change-Id: I9ae722218e98b8060b8b4c46358f23381ac8537a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628955
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/internal/test/testflag.go           | 4 ++--
+ src/cmd/go/testdata/script/test_json_build.txt | 3 +++
+ 2 files changed, 5 insertions(+), 2 deletions(-)

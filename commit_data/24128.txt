@@ -1,0 +1,18 @@
+commit af799d94f9a913b1c6411cbd100ccbb544a70655
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Aug 3 14:08:17 2015 +1200
+
+    cmd/link: pass value being relocated to archreloc
+    
+    And clean up the mess on arm64 (the mess on arm is too confusing).
+    
+    See issue #10050
+    
+    Change-Id: I2ce813fe8646d4e818eb660612a7e4b2bb04de4c
+    Reviewed-on: https://go-review.googlesource.com/13884
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/arm64/asm7.go |  2 +-
+ src/cmd/link/internal/arm64/asm.go | 49 +++++++++++++++++++++++---------------
+ src/cmd/link/internal/ld/data.go   | 13 +++++++++-
+ 3 files changed, 43 insertions(+), 21 deletions(-)

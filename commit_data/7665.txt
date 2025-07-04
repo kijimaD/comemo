@@ -1,0 +1,12 @@
+commit c4407b7552f272f79eb43d0441f2e43f54f7e681
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 00:14:40 2011 -0500
+
+    http: close after responding to HTTP/1.0 request without Connection: keep-alive
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4245065
+
+ src/pkg/http/server.go | 3 +++
+ 1 file changed, 3 insertions(+)

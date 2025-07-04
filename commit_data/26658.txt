@@ -1,0 +1,30 @@
+commit 3a0783c5046eb2d9036671671e89608d9f644d2f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 31 14:46:04 2016 -0700
+
+    cmd/compile: use NumElem instead of Type.Bound
+    
+    This eliminates all direct reads of Type.Bound
+    outside type.go.
+    
+    Change-Id: I0a9a72539f8f4c0de7f5e05e1821936bf7db5eb7
+    Reviewed-on: https://go-review.googlesource.com/21421
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/alg.go       |  2 +-
+ src/cmd/compile/internal/gc/align.go     |  4 ++--
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/cgen.go      | 10 +++++-----
+ src/cmd/compile/internal/gc/fmt.go       |  8 +++++++-
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/plive.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   | 14 +++++++-------
+ src/cmd/compile/internal/gc/sinit.go     |  6 +++---
+ src/cmd/compile/internal/gc/ssa.go       |  6 +++---
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/type.go      |  8 +++-----
+ src/cmd/compile/internal/gc/typecheck.go | 14 +++++++-------
+ src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
+ 14 files changed, 48 insertions(+), 44 deletions(-)

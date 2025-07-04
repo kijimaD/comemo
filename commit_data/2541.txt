@@ -1,0 +1,22 @@
+commit b2871b727efcf01dbcb252ec6d59121363216081
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Jun 26 22:04:30 2009 -0700
+
+    working on bgen
+    - removed smallint optimizations
+    - lifted raddr from 5c
+    - add back %R, was used in gc/* causing -g to crash
+    - changed naddr OREGISTER to emit D_REG instead of D_OREG
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=74  (38 added, 28 deleted, 8 changed)
+    OCL=30799
+    CL=30822
+
+ src/cmd/5g/cgen.c  | 38 +++++++++++++-------------------------
+ src/cmd/5g/gg.h    |  1 +
+ src/cmd/5g/ggen.c  | 10 ----------
+ src/cmd/5g/gsubr.c | 21 ++++++++++++++++++++-
+ src/cmd/5g/list.c  | 12 ++++++++++++
+ 5 files changed, 46 insertions(+), 36 deletions(-)

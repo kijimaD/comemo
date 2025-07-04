@@ -1,0 +1,26 @@
+commit 8c896aa46655cfbdfd9971fb16a830046fcdf81c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 3 09:33:13 2019 -0400
+
+    cmd/go/internal/lockedfile: add a sync.Mutex to lockedfile.Mutex
+    
+    The compiler (and race detector) don't interpret locking a file as a
+    synchronization operation, so we add an explicit (and redundant)
+    sync.Mutex to make that property clear.
+    
+    The additional synchronization makes it safe to parallelize the tests
+    in cmd/go/internal/modfetch/coderepo_test.go, which cuts the wall time
+    of that test by around 50%.
+    
+    Updates #30550
+    
+    Change-Id: Ief3479020ebf9e0fee524a4aae5568697727c683
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170597
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/lockedfile/mutex.go       |  11 +-
+ src/cmd/go/internal/modfetch/coderepo_test.go | 321 ++++++++++++++------------
+ 2 files changed, 180 insertions(+), 152 deletions(-)

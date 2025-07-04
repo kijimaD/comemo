@@ -1,0 +1,12 @@
+commit 735cf529833c3600a9518505977c2a25f32bb901
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Jul 11 15:55:08 2013 -0400
+
+    net/rpc: fix a test bug
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/10855043
+
+ src/pkg/net/rpc/server_test.go | 23 ++++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)

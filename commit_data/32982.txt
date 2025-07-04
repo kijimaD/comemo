@@ -1,0 +1,19 @@
+commit 07e36af7d6a34d2d70fa794dda44ad2b087c21e1
+Author: Afanasev Stanislav <phpprogger@gmail.com>
+Date:   Tue Oct 3 22:40:28 2017 +0300
+
+    bytes: panic in ReadFrom with more information with negative Read counts
+    
+    This is only to aid in human debugging, and for that reason we maintain a panic, and not return an error.
+    
+    Fixes #22097
+    
+    Change-Id: If72e4d1e47ec9125ca7bc97d5fe4cedb7f76ae72
+    Reviewed-on: https://go-review.googlesource.com/67970
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/buffer.go      |  5 +++++
+ src/bytes/buffer_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

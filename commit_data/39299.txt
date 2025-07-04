@@ -1,0 +1,17 @@
+commit 8343a0934df8f437938c55a6f0ff120c7c24a8bb
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Tue Jun 4 09:26:35 2019 +0530
+
+    doc: fix missing anchor links in contribute.html
+    
+    Some <h3>s were missing ids due to which the anchor links
+    weren't getting generated.
+    
+    Fixes #32415
+    
+    Change-Id: Ica21425c1a7c49735231c1de96b6c77dd594ce64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180397
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/contribute.html | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

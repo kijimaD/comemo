@@ -1,0 +1,33 @@
+commit a6f3f8d97306dc77144b6d3be8cf706c11e2de8f
+Author: John Bampton <jbampton@gmail.com>
+Date:   Tue May 17 17:09:28 2022 +0000
+
+    all: fix spelling
+    
+    Change-Id: I68538a50c22b02cdb5aa2a889f9440fed7b94c54
+    GitHub-Last-Rev: aaac9e78340ac482e9cd1b506a035f271c29648c
+    GitHub-Pull-Request: golang/go#52944
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406835
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go                         | 4 ++--
+ src/cmd/compile/internal/test/reproduciblebuilds_test.go      | 2 +-
+ src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt          | 4 ++--
+ src/cmd/go/testdata/script/version.txt                        | 2 +-
+ src/cmd/link/internal/ld/outbuf.go                            | 2 +-
+ src/cmd/objdump/objdump_test.go                               | 2 +-
+ src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go | 2 +-
+ src/compress/flate/huffman_code.go                            | 2 +-
+ src/crypto/tls/handshake_server_test.go                       | 2 +-
+ src/database/sql/sql_test.go                                  | 2 +-
+ src/encoding/xml/xml.go                                       | 2 +-
+ src/runtime/mgcpacer.go                                       | 2 +-
+ src/runtime/pprof/label.go                                    | 2 +-
+ src/runtime/race_ppc64le.s                                    | 2 +-
+ src/runtime/sys_aix_ppc64.s                                   | 2 +-
+ test/live_uintptrkeepalive.go                                 | 2 +-
+ 16 files changed, 18 insertions(+), 18 deletions(-)

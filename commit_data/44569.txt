@@ -1,0 +1,23 @@
+commit 5eb99120844c0494d655678262e1fb41949a2b99
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 5 19:56:13 2021 -0500
+
+    cmd/compile: fix OpArg decomposer for registers in expandCalls
+    
+    Includes test taken from
+    https://github.com/golang/go/issues/44816#issuecomment-791618179
+    and improved debugging output.
+    
+    Updates #44816
+    
+    Change-Id: I94aeb9c5255f175fe80727be29d218bad54bf7ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299389
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go | 162 +++++++++++++++++++++------
+ test/abi/double_nested_struct.go             |   9 +-
+ test/abi/struct_lower_1.go                   |  30 +++++
+ test/abi/struct_lower_1.out                  |   1 +
+ test/abi/too_big_to_ssa.go                   |   7 +-
+ 5 files changed, 166 insertions(+), 43 deletions(-)

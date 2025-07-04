@@ -1,0 +1,21 @@
+commit 1d5298d46a695219ab4622ae5aa59898459fd0f5
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 26 11:28:01 2021 -0700
+
+    doc/go1.17: document net/... changes
+    
+    For #44513.
+    Fixes #46014.
+    Fixes #46015.
+    Fixes #46016.
+    Fixes #46017.
+    
+    Change-Id: I356483d68d07159281dfe2ea1e49430ddf200973
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/322891
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.17.html     | 23 +++++++++++++++++------
+ src/os/pipe_test.go |  2 +-
+ 2 files changed, 18 insertions(+), 7 deletions(-)

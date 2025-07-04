@@ -1,0 +1,21 @@
+commit 68c86a00967fb83c4c8fca74498432967c91f778
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 11 17:12:31 2016 -0800
+
+    cmd/compile: remove structpkg global variable
+    
+    The structpkg global variable was only used to verify internal
+    consistency when declaring methods during import. Track the
+    value in the parser and binary importer directly and pass it
+    to the relevant function as an argument.
+    
+    Change-Id: I7e5e006f9046d84f9a3959616f073798fda36c97
+    Reviewed-on: https://go-review.googlesource.com/20606
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go   |  9 +--------
+ src/cmd/compile/internal/gc/dcl.go       | 29 +++++++++++++++--------------
+ src/cmd/compile/internal/gc/go.go        |  2 --
+ src/cmd/compile/internal/gc/parser.go    | 14 +++++++-------
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ 5 files changed, 24 insertions(+), 32 deletions(-)

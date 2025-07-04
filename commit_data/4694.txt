@@ -1,0 +1,13 @@
+commit 3e0ee6b594d08773001a75688c1aa8359db314c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 17:49:33 2010 -0800
+
+    patch: handle text diffs from git
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/194094
+
+ src/pkg/patch/patch.go      |  5 ++++-
+ src/pkg/patch/patch_test.go | 11 +++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

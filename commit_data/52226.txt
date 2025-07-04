@@ -1,0 +1,28 @@
+commit c9389a5849d65b74287cd2746a94748d6d64cb44
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 9 16:17:30 2023 -0500
+
+    cmd/link: use only the configured C compiler in TestCGOLTO
+    
+    The test had been assuming that any 'gcc' or 'clang' command found in
+    $PATH could be used to compile cgo dependencies for the target GOARCH
+    and GOOS. That assumption does not hold in general: for example,
+    the GOARCH/GOOS configuration may be cross-compiling, which will cause
+    the test to fail if the native 'gcc' and/or 'clang' is not configured
+    for the target architecture.
+    
+    Instead, leave the 'CC' variable unset and assume only that the user
+    has configured it appropriate to the environment in which they are
+    running the test.
+    
+    For #58829.
+    
+    Change-Id: I9a1269ae3e0b4af281702114dabba844953f74bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475155
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/cgo_test.go | 41 ++++++++++++++++++++++++-----------------
+ 1 file changed, 24 insertions(+), 17 deletions(-)

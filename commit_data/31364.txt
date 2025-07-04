@@ -1,0 +1,21 @@
+commit c433c374b53fc6484b571a606581f3f067a6f97a
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Apr 25 20:21:50 2017 -0600
+
+    net: defer file.close() + minor style cleanup
+    
+    Moved the relevant file.close() usages close to after the
+    file opens and put them in defer statements, so that readers
+    don't have to think too much as to where the file is
+    being closed.
+    
+    Change-Id: Ic4190b02ea2f5ac281b9ba104e0023e9f87ca8c7
+    Reviewed-on: https://go-review.googlesource.com/41796
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/ipsock_plan9.go |  2 +-
+ src/net/lookup_unix.go  | 39 +++++++++++++++++++++------------------
+ src/net/port_unix.go    |  3 ++-
+ 3 files changed, 24 insertions(+), 20 deletions(-)

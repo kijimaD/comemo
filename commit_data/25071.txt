@@ -1,0 +1,35 @@
+commit b717090e018a6dc68c19bdca4c1cea0f5dbf3b16
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun Nov 22 02:41:49 2015 -0800
+
+    compress/flate: tweak offsetCode so that it can be inlined
+    
+    Functions with switches (#13071) cannot be inlined.
+    Functions with consts (#7655) cannot be inlined.
+    
+    benchmark                              old MB/s     new MB/s     speedup
+    BenchmarkEncodeDigitsSpeed1e4-4        10.25        10.20        1.00x
+    BenchmarkEncodeDigitsSpeed1e5-4        26.44        27.22        1.03x
+    BenchmarkEncodeDigitsSpeed1e6-4        32.28        33.51        1.04x
+    BenchmarkEncodeDigitsDefault1e4-4      8.61         8.74         1.02x
+    BenchmarkEncodeDigitsDefault1e5-4      7.03         6.98         0.99x
+    BenchmarkEncodeDigitsDefault1e6-4      6.47         6.46         1.00x
+    BenchmarkEncodeDigitsCompress1e4-4     8.62         8.73         1.01x
+    BenchmarkEncodeDigitsCompress1e5-4     7.01         6.98         1.00x
+    BenchmarkEncodeDigitsCompress1e6-4     6.43         6.53         1.02x
+    BenchmarkEncodeTwainSpeed1e4-4         9.67         10.16        1.05x
+    BenchmarkEncodeTwainSpeed1e5-4         26.46        26.94        1.02x
+    BenchmarkEncodeTwainSpeed1e6-4         33.19        34.02        1.03x
+    BenchmarkEncodeTwainDefault1e4-4       8.12         8.37         1.03x
+    BenchmarkEncodeTwainDefault1e5-4       8.22         8.21         1.00x
+    BenchmarkEncodeTwainDefault1e6-4       8.10         8.13         1.00x
+    BenchmarkEncodeTwainCompress1e4-4      8.24         8.39         1.02x
+    BenchmarkEncodeTwainCompress1e5-4      6.51         6.58         1.01x
+    BenchmarkEncodeTwainCompress1e6-4      6.16         6.13         1.00x
+    
+    Change-Id: Ibafa5e3e2de0529853b5b3180e6fd6cb7090b76f
+    Reviewed-on: https://go-review.googlesource.com/17171
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/compress/flate/token.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

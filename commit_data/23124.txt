@@ -1,0 +1,14 @@
+commit bd7c1f1fb3176a8f926ca03f9342d83353b05f83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 21 18:23:51 2015 -0700
+
+    cmd/compile/internal/gc: correctly use Float32 in mpgetfltN
+    
+    This resolves the compiler part of issue #10321.
+    
+    Change-Id: I44b9909f992b37dd34b1c5292decd12de3d3a65e
+    Reviewed-on: https://go-review.googlesource.com/10355
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/gc/mparith3.go | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)

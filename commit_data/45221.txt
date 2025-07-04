@@ -1,0 +1,39 @@
+commit e97d8eb027c0067f757860b6f766644de15941f2
+Author: HowJMay <vulxj0j8j8@gmail.com>
+Date:   Mon Apr 19 18:06:54 2021 +0000
+
+    net: pass MSG_CMSG_CLOEXEC flag in ReadMsgUnix
+    
+    As mentioned in #42765, calling "recvmsg" syscall on Linux should come
+    with "MSG_CMSG_CLOEXEC" flag.
+    
+    For other systems which not supports "MSG_CMSG_CLOEXEC". ReadMsgUnix()
+    would check the header. If the header type is "syscall.SCM_RIGHTS",
+    then ReadMsgUnix() would parse the SocketControlMessage and call each
+    fd with "syscall.CloseOnExec"
+    
+    Fixes #42765
+    
+    Change-Id: I74347db72b465685d7684bf0f32415d285845ebb
+    GitHub-Last-Rev: ca59e2c9e0e8de1ae590e9b6dc165cb768a574f5
+    GitHub-Pull-Request: golang/go#42768
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272226
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/poll/fd_unix.go      |   6 +--
+ src/internal/poll/fd_windows.go   |   3 +-
+ src/net/fd_posix.go               |   6 +--
+ src/net/iprawsock_posix.go        |   2 +-
+ src/net/net_fake.go               |   2 +-
+ src/net/udpsock_posix.go          |   2 +-
+ src/net/unixsock_posix.go         |   6 ++-
+ src/net/unixsock_readmsg_linux.go |  17 ++++++
+ src/net/unixsock_readmsg_other.go |  13 +++++
+ src/net/unixsock_readmsg_posix.go |  33 ++++++++++++
+ src/net/unixsock_readmsg_test.go  | 105 ++++++++++++++++++++++++++++++++++++++
+ src/syscall/creds_test.go         |   4 +-
+ 12 files changed, 186 insertions(+), 13 deletions(-)

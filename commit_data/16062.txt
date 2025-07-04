@@ -1,0 +1,12 @@
+commit 839c4f015933ce1291778fc1fd178b1cb8cf0e41
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Apr 3 16:49:17 2013 +1100
+
+    doc/go1.1.html: additional tweaks
+    
+    R=r, adg, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/8250043
+
+ doc/go1.1.html | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

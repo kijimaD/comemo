@@ -1,0 +1,20 @@
+commit 5088b64b07f7e8e93e3cdd3bd438c3b7e696eeae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 15 11:46:05 2017 -0700
+
+    go/types: fewer spurious "declared but not used" follow-on errors
+    
+    Mark variables as used even when they appear within an expression
+    context which we can't type-check; e.g., because the expression is
+    erroneous, or comes from an import "C" declaration.
+    
+    Fixes #20358.
+    
+    Change-Id: Ib28cc78d3867c597c7a1ace54de09ada02f5b33a
+    Reviewed-on: https://go-review.googlesource.com/43500
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/call.go             |  4 +++-
+ src/go/types/expr.go             | 13 +++++++++++++
+ src/go/types/testdata/issues.src | 21 +++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 1 deletion(-)

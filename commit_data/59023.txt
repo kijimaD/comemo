@@ -1,0 +1,19 @@
+commit d2842229fce01f8df04bc141291ec4fefb5d4bfc
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sun Mar 9 14:37:30 2025 +0100
+
+    cmd/compile: compute min's & max's limits from argument's limits inside flowLimit
+    
+    Updates #68857
+    
+    Change-Id: Ied07e656bba42f3b1b5f9b9f5442806aa2e7959b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656157
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+
+ src/cmd/compile/internal/ssa/prove.go |  83 +++++++++
+ test/prove.go                         | 311 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 394 insertions(+)

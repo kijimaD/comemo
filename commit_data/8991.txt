@@ -1,0 +1,12 @@
+commit 658a02a50cf9e16a4a570fcb2a173dc7307af6fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Jul 9 15:18:18 2011 -0700
+
+    CONTRIBUTORS: add Evan Martin (Google CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4657089
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,21 @@
+commit 0e0a872a76c89679268fadb49106a02cf234f75b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 10 15:35:43 2020 +0000
+
+    runtime: add lock rank partial order edge pollDesc -> spanSetSpine
+    
+    This change adds a missing partial order edge. This edge captures of
+    the case of `wakep` getting called in `wakeNetPoller` which may then
+    allocate.
+    
+    Fixes #42461.
+    
+    Change-Id: Ie67d868e9cd24ed3cc94381dbf8a691dd13f068d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268858
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/lockrank.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

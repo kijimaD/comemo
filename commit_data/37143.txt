@@ -1,0 +1,21 @@
+commit 81475ca256df3fdd281c0e656b4e743caacbc4e0
+Author: Diogo Pinela <diogoid7400@gmail.com>
+Date:   Sun Oct 28 17:29:29 2018 +0000
+
+    os: ensure tests pass even if GOROOT is read-only
+    
+    We achieve this by always running all tests that create files in a
+    fresh temporary directory, rather than just on darwin/{arm,arm64}.
+    As a bonus, this lets us simplify the cleanup code for these tests
+    and assume their working directory starts out empty.
+    
+    Updates #28387
+    
+    Change-Id: I952007ae390a2451c9a368da26c7f9f5af64b2ba
+    Reviewed-on: https://go-review.googlesource.com/c/145283
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go | 41 +----------------------------------------
+ 1 file changed, 1 insertion(+), 40 deletions(-)

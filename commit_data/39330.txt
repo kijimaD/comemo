@@ -1,0 +1,23 @@
+commit 82521659deafea2c03b9140662bb07f23c49a0c1
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 6 17:23:19 2019 -0400
+
+    runtime/internal/atomic: remove erroneous ABI wrappers
+    
+    CL 179862 introduced go:linkname directives to create ABI wrappers for
+    Store and Store64 on s390x, but a concurrent change (CL 180439)
+    replaced the Go definitions of these functions with assembly
+    definitions. This resulted in conflicting definitions for the ABI0
+    symbols, which led to a bootstrap linking failure.
+    
+    Fix this by removing the now-incorrect go:linkname directives for
+    Store and Store64. This should fix the linux-s390x builders.
+    
+    Updates #31230.
+    
+    Change-Id: I8de8c03c23412fc217d428c0018cc56eb2f9996f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181078
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/internal/atomic/atomic_s390x.go | 2 --
+ 1 file changed, 2 deletions(-)

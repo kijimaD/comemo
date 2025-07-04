@@ -1,0 +1,22 @@
+commit c96c2a39bb09da48b3af63de58f65fdc82865746
+Author: LotusFenn <fenn.lotus@gmail.com>
+Date:   Sat Jul 7 09:21:04 2018 +0800
+
+    bytes: vary the input alignment to Compare argument in compare_test.go
+    
+    Currently there are no tests that vary the alignment of Compare arguments.
+    Since Compare is written in assembly on most platforms (in internal/bytealg)
+    we should be testing different input alignments. This change modifies TestCompare
+    to vary the alignment of the second argument of Compare.
+    
+    Updates #26129
+    
+    Change-Id: I4c30a5adf96a41225df748675f4e9beea413b35c
+    Reviewed-on: https://go-review.googlesource.com/c/122536
+    Reviewed-by: Lotus Fenn <fenn.lotus@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/compare_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

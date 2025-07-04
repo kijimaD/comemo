@@ -1,0 +1,25 @@
+commit f98ac8519257f8e4d2e886b84ccab628eeb61244
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Oct 25 11:32:35 2018 +0200
+
+    syscall: fix TestForeground for AIX
+    
+    On AIX, sys.Pgid must be a int32 and not a int64 as on Solaris for ioctl
+    syscall.
+    Pid_t type can be used to provide the same code in both OS. But pid_t
+    must be added to ztypes_solaris_amd64.go.
+    
+    Change-Id: I1dbe57f099f9e5ac9491aaf246a521137eea5014
+    Reviewed-on: https://go-review.googlesource.com/c/144539
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_libc.go            | 4 ++--
+ src/syscall/syscall_aix.go          | 6 +++---
+ src/syscall/types_aix.go            | 2 +-
+ src/syscall/types_solaris.go        | 2 ++
+ src/syscall/zsyscall_aix_ppc64.go   | 4 ++--
+ src/syscall/ztypes_aix_ppc64.go     | 2 +-
+ src/syscall/ztypes_solaris_amd64.go | 2 ++
+ 7 files changed, 13 insertions(+), 9 deletions(-)

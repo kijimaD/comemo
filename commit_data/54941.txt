@@ -1,0 +1,83 @@
+commit 38ac7c41aa54306c0bdc04a092838103a7d09997
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Sep 11 04:07:41 2022 +0000
+
+    runtime: implement experiment to replace heap bitmap with alloc headers
+    
+    This change replaces the 1-bit-per-word heap bitmap for most size
+    classes with allocation headers for objects that contain pointers. The
+    header consists of a single pointer to a type. All allocations with
+    headers are treated as implicitly containing one or more instances of
+    the type in the header.
+    
+    As the name implies, headers are usually stored as the first word of an
+    object. There are two additional exceptions to where headers are stored
+    and how they're used.
+    
+    Objects smaller than 512 bytes do not have headers. Instead, a heap
+    bitmap is reserved at the end of spans for objects of this size. A full
+    word of overhead is too much for these small objects. The bitmap is of
+    the same format of the old bitmap, minus the noMorePtrs bits which are
+    unnecessary. All the objects <512 bytes have a bitmap less than a
+    pointer-word in size, and that was the granularity at which noMorePtrs
+    could stop scanning early anyway.
+    
+    Objects that are larger than 32 KiB (which have their own span) have
+    their headers stored directly in the span, to allow power-of-two-sized
+    allocations to not spill over into an extra page.
+    
+    The full implementation is behind GOEXPERIMENT=allocheaders.
+    
+    The purpose of this change is performance. First and foremost, with
+    headers we no longer have to unroll pointer/scalar data at allocation
+    time for most size classes. Small size classes still need some
+    unrolling, but their bitmaps are small so we can optimize that case
+    fairly well. Larger objects effectively have their pointer/scalar data
+    unrolled on-demand from type data, which is much more compactly
+    represented and results in less TLB pressure. Furthermore, since the
+    headers are usually right next to the object and where we're about to
+    start scanning, we get an additional temporal locality benefit in the
+    data cache when looking up type metadata. The pointer/scalar data is
+    now effectively unrolled on-demand, but it's also simpler to unroll than
+    before; that unrolled data is never written anywhere, and for arrays we
+    get the benefit of retreading the same data per element, as opposed to
+    looking it up from scratch for each pointer-word of bitmap. Lastly,
+    because we no longer have a heap bitmap that spans the entire heap,
+    there's a flat 1.5% memory use reduction. This is balanced slightly by
+    some objects possibly being bumped up a size class, but most objects are
+    not tightly optimized to size class sizes so there's some memory to
+    spare, making the header basically free in those cases.
+    
+    See the follow-up CL which turns on this experiment by default for
+    benchmark results. (CL 538217.)
+    
+    Change-Id: I4c9034ee200650d06d8bdecd579d5f7c1bbf1fc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/437955
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/test/inl_test.go |    3 +
+ src/reflect/all_test.go                   |   27 +-
+ src/runtime/arena.go                      |   70 +-
+ src/runtime/cgocall.go                    |   33 +-
+ src/runtime/cgocheck.go                   |   32 +-
+ src/runtime/export_test.go                |   11 +-
+ src/runtime/gc_test.go                    |    7 +
+ src/runtime/gcinfo_test.go                |   11 +-
+ src/runtime/heapdump.go                   |   31 +-
+ src/runtime/malloc.go                     |   87 ++-
+ src/runtime/map.go                        |    2 +-
+ src/runtime/mbitmap_allocheaders.go       | 1165 ++++++++++++++++++-----------
+ src/runtime/mbitmap_noallocheaders.go     |   71 +-
+ src/runtime/mfinal.go                     |    8 +-
+ src/runtime/mgcmark.go                    |   29 +-
+ src/runtime/mgcsweep.go                   |   10 +
+ src/runtime/mheap.go                      |   11 +-
+ src/runtime/msize_allocheaders.go         |   27 +-
+ src/runtime/msize_noallocheaders.go       |    4 +-
+ src/runtime/race.go                       |    1 +
+ src/runtime/slice.go                      |    9 +-
+ src/runtime/string.go                     |    4 +-
+ src/runtime/stubs.go                      |    4 +
+ 23 files changed, 1131 insertions(+), 526 deletions(-)

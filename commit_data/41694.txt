@@ -1,0 +1,23 @@
+commit 635a83047b4733f8cb3c9f5ac9d7c057622c2b52
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 23 15:02:43 2020 -0800
+
+    runtime/race: test that close synchronizes with read
+    
+    Add a test to ensure that the race detector sees that closing a
+    channel synchronizes with a read from that channel.
+    This test case failed when CL 181543 was in the tree.
+    CL 181543 was reverted in CL 216158; this adds a test to make
+    sure that we don't re-introduce the problem at a later date.
+    
+    For #32529
+    For #36714
+    
+    Change-Id: I5a40f744c67c3f8191d6ad822710c180880a7375
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216099
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/race/testdata/chan_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

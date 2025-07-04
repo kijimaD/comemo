@@ -1,0 +1,12 @@
+commit 18187e7d49502b8fde3307c3719bb77869a7bbd7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 8 14:05:46 2010 -0800
+
+    Complex values may only be compared for equality or inequality.
+    
+    R=gri, r
+    CC=golang-dev
+    https://golang.org/cl/294042
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

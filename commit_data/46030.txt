@@ -1,0 +1,18 @@
+commit 2460cf8602aa1830bf712bf70f7dc8882bbfa79c
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 12:09:56 2021 -0400
+
+    go/types: remove Named.SetTArgs
+    
+    This is a port of CL 341290 to go/types; SetTArgs is a potentially
+    error-prone API.
+    
+    Change-Id: I484e62d71a0e09be1e19f8e63994912a88364eca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342476
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/named.go | 3 ---
+ 1 file changed, 3 deletions(-)

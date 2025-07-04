@@ -1,0 +1,17 @@
+commit 1cdd9b407db0f842387dc5e4f18e6563dcd87b18
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 6 09:36:51 2014 -0500
+
+    os: document that users of Fd should keep f alive
+    
+    Fixes #9046.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/162680043
+
+ src/os/file_plan9.go   | 3 ++-
+ src/os/file_unix.go    | 1 +
+ src/os/file_windows.go | 1 +
+ 3 files changed, 4 insertions(+), 1 deletion(-)

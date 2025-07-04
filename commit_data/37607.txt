@@ -1,0 +1,17 @@
+commit 5b48ab8881928e7a23678b93836e32f961a9dddb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 5 10:20:24 2018 -0500
+
+    cmd/go/internal/module: fix validation for module paths ending with /v
+    
+    Unlike "/v1", "/v" is not likely to be mistaken for a semantic import path.
+    
+    Change-Id: I024647d78c79c7761b98ddeccdc7e259ca94b568
+    Reviewed-on: https://go-review.googlesource.com/c/152738
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/module/module.go      | 2 +-
+ src/cmd/go/internal/module/module_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

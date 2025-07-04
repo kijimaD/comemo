@@ -1,0 +1,19 @@
+commit 7f736694fe9b254efa7155a0a5da87c2c18e6078
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 20 12:54:20 2020 -0700
+
+    runtime: use GOTRACEBACK=system for TestCgoExecSignalMask
+    
+    Try to get a bit more information to understand #42093.
+    
+    For #42093
+    
+    Change-Id: I818feb08d7561151d52eba3e88c418b55b9f9c1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264018
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

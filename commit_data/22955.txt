@@ -1,0 +1,101 @@
+commit 1635ab7dfef52eb8f6666e5fa38ac5866b561a5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 5 00:26:53 2015 -0400
+
+    runtime: remove wbshadow mode
+    
+    The write barrier shadow heap was very useful for
+    developing the write barriers initially, but it's no longer used,
+    clunky, and dragging the rest of the implementation down.
+    
+    The gccheckmark mode will find bugs due to missed barriers
+    when they result in missed marks; wbshadow mode found the
+    missed barriers more aggressively, but it required an entire
+    separate copy of the heap. The gccheckmark mode requires
+    no extra memory, making it more useful in practice.
+    
+    Compared to previous CL:
+    name                   old mean              new mean              delta
+    BinaryTree17            5.91s × (0.96,1.06)   5.72s × (0.97,1.03)  -3.12% (p=0.000)
+    Fannkuch11              4.32s × (1.00,1.00)   4.36s × (1.00,1.00)  +0.91% (p=0.000)
+    FmtFprintfEmpty        89.0ns × (0.93,1.10)  86.6ns × (0.96,1.11)    ~    (p=0.077)
+    FmtFprintfString        298ns × (0.98,1.06)   283ns × (0.99,1.04)  -4.90% (p=0.000)
+    FmtFprintfInt           286ns × (0.98,1.03)   283ns × (0.98,1.04)  -1.09% (p=0.032)
+    FmtFprintfIntInt        498ns × (0.97,1.06)   480ns × (0.99,1.02)  -3.65% (p=0.000)
+    FmtFprintfPrefixedInt   408ns × (0.98,1.02)   396ns × (0.99,1.01)  -3.00% (p=0.000)
+    FmtFprintfFloat         587ns × (0.98,1.01)   562ns × (0.99,1.01)  -4.34% (p=0.000)
+    FmtManyArgs            1.94µs × (0.99,1.02)  1.89µs × (0.99,1.01)  -2.85% (p=0.000)
+    GobDecode              15.8ms × (0.98,1.03)  15.7ms × (0.99,1.02)    ~    (p=0.251)
+    GobEncode              12.0ms × (0.96,1.09)  11.8ms × (0.98,1.03)  -1.87% (p=0.024)
+    Gzip                    648ms × (0.99,1.01)   647ms × (0.99,1.01)    ~    (p=0.688)
+    Gunzip                  143ms × (1.00,1.01)   143ms × (1.00,1.01)    ~    (p=0.203)
+    HTTPClientServer       90.3µs × (0.98,1.01)  89.1µs × (0.99,1.02)  -1.30% (p=0.000)
+    JSONEncode             31.6ms × (0.99,1.01)  31.7ms × (0.98,1.02)    ~    (p=0.219)
+    JSONDecode              107ms × (1.00,1.01)   111ms × (0.99,1.01)  +3.58% (p=0.000)
+    Mandelbrot200          6.03ms × (1.00,1.01)  6.01ms × (1.00,1.00)    ~    (p=0.077)
+    GoParse                6.53ms × (0.99,1.03)  6.54ms × (0.99,1.02)    ~    (p=0.585)
+    RegexpMatchEasy0_32     161ns × (1.00,1.01)   161ns × (0.98,1.05)    ~    (p=0.948)
+    RegexpMatchEasy0_1K     541ns × (0.99,1.01)   559ns × (0.98,1.01)  +3.32% (p=0.000)
+    RegexpMatchEasy1_32     138ns × (1.00,1.00)   137ns × (0.99,1.01)  -0.55% (p=0.001)
+    RegexpMatchEasy1_1K     887ns × (0.99,1.01)   878ns × (0.99,1.01)  -0.98% (p=0.000)
+    RegexpMatchMedium_32    253ns × (0.99,1.01)   252ns × (0.99,1.01)  -0.39% (p=0.001)
+    RegexpMatchMedium_1K   72.8µs × (1.00,1.00)  72.7µs × (1.00,1.00)    ~    (p=0.485)
+    RegexpMatchHard_32     3.85µs × (1.00,1.01)  3.85µs × (1.00,1.01)    ~    (p=0.283)
+    RegexpMatchHard_1K      117µs × (1.00,1.01)   117µs × (1.00,1.00)    ~    (p=0.175)
+    Revcomp                 922ms × (0.97,1.08)   903ms × (0.98,1.05)  -2.15% (p=0.021)
+    Template                126ms × (0.99,1.01)   126ms × (0.99,1.01)    ~    (p=0.943)
+    TimeParse               628ns × (0.99,1.01)   634ns × (0.99,1.01)  +0.92% (p=0.000)
+    TimeFormat              668ns × (0.99,1.01)   698ns × (0.98,1.03)  +4.53% (p=0.000)
+    
+    It's nice that the microbenchmarks are the ones helped the most,
+    because those were the ones hurt the most by the conversion from
+    4-bit to 2-bit heap bitmaps. This CL brings the overall effect of that
+    process to (compared to CL 9706 patch set 1):
+    
+    name                   old mean              new mean              delta
+    BinaryTree17            5.87s × (0.94,1.09)   5.72s × (0.97,1.03)  -2.57% (p=0.011)
+    Fannkuch11              4.32s × (1.00,1.00)   4.36s × (1.00,1.00)  +0.87% (p=0.000)
+    FmtFprintfEmpty        89.1ns × (0.95,1.16)  86.6ns × (0.96,1.11)    ~    (p=0.090)
+    FmtFprintfString        283ns × (0.98,1.02)   283ns × (0.99,1.04)    ~    (p=0.681)
+    FmtFprintfInt           284ns × (0.98,1.04)   283ns × (0.98,1.04)    ~    (p=0.620)
+    FmtFprintfIntInt        486ns × (0.98,1.03)   480ns × (0.99,1.02)  -1.27% (p=0.002)
+    FmtFprintfPrefixedInt   400ns × (0.99,1.02)   396ns × (0.99,1.01)  -0.84% (p=0.001)
+    FmtFprintfFloat         566ns × (0.99,1.01)   562ns × (0.99,1.01)  -0.80% (p=0.000)
+    FmtManyArgs            1.91µs × (0.99,1.02)  1.89µs × (0.99,1.01)  -1.10% (p=0.000)
+    GobDecode              15.5ms × (0.98,1.05)  15.7ms × (0.99,1.02)  +1.55% (p=0.005)
+    GobEncode              11.9ms × (0.97,1.03)  11.8ms × (0.98,1.03)  -0.97% (p=0.048)
+    Gzip                    648ms × (0.99,1.01)   647ms × (0.99,1.01)    ~    (p=0.627)
+    Gunzip                  143ms × (1.00,1.00)   143ms × (1.00,1.01)    ~    (p=0.482)
+    HTTPClientServer       89.2µs × (0.99,1.02)  89.1µs × (0.99,1.02)    ~    (p=0.740)
+    JSONEncode             32.3ms × (0.97,1.06)  31.7ms × (0.98,1.02)  -1.95% (p=0.002)
+    JSONDecode              106ms × (0.99,1.01)   111ms × (0.99,1.01)  +4.22% (p=0.000)
+    Mandelbrot200          6.02ms × (1.00,1.00)  6.01ms × (1.00,1.00)    ~    (p=0.417)
+    GoParse                6.57ms × (0.97,1.06)  6.54ms × (0.99,1.02)    ~    (p=0.404)
+    RegexpMatchEasy0_32     162ns × (1.00,1.00)   161ns × (0.98,1.05)    ~    (p=0.088)
+    RegexpMatchEasy0_1K     561ns × (0.99,1.02)   559ns × (0.98,1.01)  -0.47% (p=0.034)
+    RegexpMatchEasy1_32     145ns × (0.95,1.04)   137ns × (0.99,1.01)  -5.56% (p=0.000)
+    RegexpMatchEasy1_1K     864ns × (0.99,1.04)   878ns × (0.99,1.01)  +1.57% (p=0.000)
+    RegexpMatchMedium_32    255ns × (0.99,1.04)   252ns × (0.99,1.01)  -1.43% (p=0.001)
+    RegexpMatchMedium_1K   73.9µs × (0.98,1.04)  72.7µs × (1.00,1.00)  -1.55% (p=0.004)
+    RegexpMatchHard_32     3.92µs × (0.98,1.04)  3.85µs × (1.00,1.01)  -1.80% (p=0.003)
+    RegexpMatchHard_1K      120µs × (0.98,1.04)   117µs × (1.00,1.00)  -2.13% (p=0.001)
+    Revcomp                 936ms × (0.95,1.08)   903ms × (0.98,1.05)  -3.58% (p=0.002)
+    Template                130ms × (0.98,1.04)   126ms × (0.99,1.01)  -2.98% (p=0.000)
+    TimeParse               638ns × (0.98,1.05)   634ns × (0.99,1.01)    ~    (p=0.198)
+    TimeFormat              674ns × (0.99,1.01)   698ns × (0.98,1.03)  +3.69% (p=0.000)
+    
+    Change-Id: Ia0e9b50b1d75a3c0c7556184cd966305574fe07c
+    Reviewed-on: https://go-review.googlesource.com/9706
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/atomic_pointer.go |  18 ----
+ src/runtime/extern.go         |  12 ---
+ src/runtime/malloc.go         |   7 --
+ src/runtime/mbarrier.go       | 196 +-----------------------------------------
+ src/runtime/mgc.go            |   2 +-
+ src/runtime/mgcmark.go        |   7 --
+ src/runtime/mheap.go          |   8 --
+ src/runtime/panic.go          |  16 ----
+ src/runtime/proc1.go          |   1 -
+ src/runtime/symtab.go         |   7 --
+ 10 files changed, 2 insertions(+), 272 deletions(-)

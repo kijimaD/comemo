@@ -1,0 +1,22 @@
+commit 5250279eb9a167cffbb667efed970067b47f71ac
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 4 18:14:57 2015 -0400
+
+    runtime: detect and print corrupted free lists
+    
+    Issues #10240, #10541, #10941, #11023, #11027 and possibly others are
+    indicating memory corruption in the runtime. One of the easiest places
+    to both get corruption and detect it is in the allocator's free lists
+    since they appear throughout memory and follow strict invariants. This
+    commit adds a check when sweeping a span that its free list is sane
+    and, if not, it prints the corrupted free list and panics. Hopefully
+    this will help us collect more information on these failures.
+    
+    Change-Id: I6d417bcaeedf654943a5e068bd76b58bb02d4a64
+    Reviewed-on: https://go-review.googlesource.com/10713
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/mgcsweep.go | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)

@@ -1,0 +1,15 @@
+commit 5621b09dadca86202e3c921b3a1e323ec60b2742
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 19 23:01:10 2016 -0800
+
+    cmd/compile: simplify import path handling
+    
+    Change-Id: I64c9b4c4978520a9bc989b7fd7d5708d364dc88a
+    Reviewed-on: https://go-review.googlesource.com/19755
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/go.go  |  7 -------
+ src/cmd/compile/internal/gc/lex.go | 19 +++++++------------
+ 2 files changed, 7 insertions(+), 19 deletions(-)

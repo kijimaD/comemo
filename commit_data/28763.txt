@@ -1,0 +1,22 @@
+commit d2ef288c8be22ccc39f33251bb33530105b17cfa
+Author: Tristan Ooohry <ooohry@gmail.com>
+Date:   Fri Jul 22 04:11:58 2016 +0000
+
+    cmd/go: added verbose error from matchGoImport
+    
+    The error coming out of matchGoImport does not differentiate between
+    having no imports, and having some invalid imports.
+    
+    This some extra context to the error message to help debug these issues.
+    
+    Fixes #16467
+    
+    Change-Id: I3e9a119ed73da1bed5e07365be0221ea6b7f19db
+    Reviewed-on: https://go-review.googlesource.com/25121
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/vcs.go      | 34 ++++++++++++++++++++++++----------
+ src/cmd/go/vcs_test.go |  7 +++++++
+ 2 files changed, 31 insertions(+), 10 deletions(-)

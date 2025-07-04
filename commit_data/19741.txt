@@ -1,0 +1,14 @@
+commit aa76377423ac77d025284a6c11f0c874740202e8
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 16 12:19:33 2014 +0400
+
+    runtime: start goroutine ids at 1
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews, khr
+    https://golang.org/cl/117810043
+
+ src/pkg/runtime/crash_test.go | 15 +++++++++++++++
+ src/pkg/runtime/proc.c        |  4 ++++
+ 2 files changed, 19 insertions(+)

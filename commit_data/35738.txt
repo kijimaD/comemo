@@ -1,0 +1,18 @@
+commit c34381a6581c59b8e80d2f2ef3ad9ec223b752a5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 15 20:10:47 2018 +0000
+
+    net/http: document how Hijack and Request.Context interact, take two
+    
+    Second try. The previous version (CL 115039 in git rev 3988863) wasn't
+    accurate.
+    
+    Fixes #22347
+    
+    Change-Id: I473165f308c730f50b14ba787cb215f7cb9ea364
+    Reviewed-on: https://go-review.googlesource.com/119235
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/request.go | 3 +--
+ src/net/http/server.go  | 4 +++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)

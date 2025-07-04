@@ -1,0 +1,37 @@
+commit 422f4705ca5487184c232cc5709e543ce5f37cd6
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Aug 13 13:53:50 2024 -0400
+
+    cmd/dist: set go version in bootstrap go.mod file
+    
+    The commands to build the bootstrap toolchains and go commands are run
+    from modules created by two bootstrap go.mod files: one is used when
+    building toolchain1 and go_bootstrap, and the other is used for
+    toolchain2 and toolchain3, and the final build. Currently the first has
+    a go directive specifying go 1.20, and the second one does not have a go
+    directive at all. This affects the default GODEBUG setting when building
+    the final toolchain: the default GODEBUG value is based on the go
+    version of the go.mod file, and when the go.mod file does not have a
+    version it defaults to go1.16. We should set the go directive on the
+    bootstrap used for the second half of the builds to use the current go
+    verison from the std's go.mod file (which is the same as the version on
+    cmd's go.mod file).
+    
+    The go.mod file used for the initial bootstrap should have a go
+    directive with the minimum version of the toolchain required for
+    bootstrapping. That version is the current version - 2 rounded down to
+    an even number.
+    
+    For #64751
+    Fixes #68797
+    
+    Change-Id: Ibdddf4bc36dc963291979d603c4f3fc55264f65b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604799
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/build.go      | 34 +++++++++++++++++++++++++++++++++-
+ src/cmd/dist/build_test.go | 17 +++++++++++++++++
+ src/cmd/dist/buildtool.go  |  3 ++-
+ 3 files changed, 52 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit e9fc522100e3e3109de96ddb5e0063a5124b97ba
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 7 10:53:07 2016 +1100
+
+    doc: show relevant test instructions on install page
+    
+    Fixes golang/go#12490
+    
+    Change-Id: I0861e62aaa589fc63217c83e9c227c17e35cda75
+    Reviewed-on: https://go-review.googlesource.com/18277
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/install.html | 33 ++++++++++++++++++++++++++-------
+ 1 file changed, 26 insertions(+), 7 deletions(-)

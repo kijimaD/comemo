@@ -1,0 +1,13 @@
+commit 44e86bef06397cb64f158c3561544100b70d525a
+Author: Filippo Valsorda <hi@filippo.io>
+Date:   Mon Feb 27 18:15:02 2017 +0530
+
+    crypto/cipher: extend the docs of BlockMode and Stream
+    
+    Change-Id: Iebb5b67c8defec22edd482d587edaf399a7ba82a
+    Reviewed-on: https://go-review.googlesource.com/37418
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/crypto/cipher/cipher.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

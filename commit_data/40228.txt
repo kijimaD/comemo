@@ -1,0 +1,22 @@
+commit c1ccae4d149ac23b376d17fdef486e631a92f775
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 11 11:39:30 2019 -0700
+
+    os: deflake TestFdReadRace by increasing timeout
+    
+    This timeout will never be reached if the test passes, so it doesn't
+    much matter how long it is. The test is t.Parallel so on a slow system
+    1 second may occasionally not be enough, although on my laptop the
+    test takes about 0.02 seconds.
+    
+    Fixes #34431
+    
+    Change-Id: Ia2184e6be3747933bfe83aa6c8e1f77e6b1e0bba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200764
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/os/pipe_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

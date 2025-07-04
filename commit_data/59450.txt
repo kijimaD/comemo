@@ -1,0 +1,21 @@
+commit 16d31dcc838e87d34f670ffd00e123f7a0d00d30
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 5 17:12:42 2025 -0400
+
+    hash: use testhash.TestHash in all hash functions
+    
+    For #69521
+    
+    Change-Id: I4e056253f94ad421fcef12d21edaaaf2517b64c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670179
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/hash/adler32/adler32_test.go |  6 ++++++
+ src/hash/crc32/crc32_test.go     |  5 +++++
+ src/hash/crc64/crc64_test.go     |  6 ++++++
+ src/hash/fnv/fnv_test.go         | 27 +++++++++++++++++++++++++++
+ src/hash/maphash/maphash_test.go |  5 +++++
+ 5 files changed, 49 insertions(+)

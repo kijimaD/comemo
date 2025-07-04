@@ -1,0 +1,21 @@
+commit 726a9398f7dddfb681174a6bb71d1ad7c92142b6
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Sat Mar 30 14:11:05 2019 +0000
+
+    cmd/compile/internal/gc: minor cleanup of slicing
+    
+    Tidy the code up a little bit to move variable definitions closer
+    to uses, prefer early return to else branches and some other minor
+    tweaks.
+    
+    I'd like to make some more changes to this code in the near future
+    and this CL should make those changes cleaner.
+    
+    Change-Id: Ie7d7f2e4bb1e670347941e255c9cdc1703282db5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170120
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 96 ++++++++++++++++++--------------------
+ 1 file changed, 46 insertions(+), 50 deletions(-)

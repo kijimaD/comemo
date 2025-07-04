@@ -1,0 +1,24 @@
+commit cc0930cd1d200a126a3ae8ac3d1bea986cfc30fe
+Author: kemalelmizan <kemalelmizan@gmail.com>
+Date:   Fri Aug 28 06:39:43 2020 +0700
+
+    cmd/doc: adding validation before adding comment marker
+    
+    Previous fix in issue #20929 for adding comment marker does
+    not check whether string field have // prefix or not.
+    This commit ensures string field does not contain // before adding
+    prefix to the line. Test also included in this commit.
+    
+    Fixes #40992
+    
+    Change-Id: Ibc5e8ef147eeb2ed732fb9e19815c8b21fcfb2ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251237
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go/doc/comment.go      |  2 +-
+ src/go/doc/comment_test.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

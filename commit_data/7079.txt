@@ -1,0 +1,17 @@
+commit 03b46849f2a2f4604a83707f141d5791a1db6371
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Jan 11 13:14:48 2011 -0500
+
+    goinstall: preliminary support for cgo packages
+    
+    Can handle cgo packages now but only if they
+    do not need to set CGO_LDFLAGS and CGO_CFLAGS.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/3891042
+
+ src/cmd/goinstall/main.go  | 15 ++++------
+ src/cmd/goinstall/make.go  | 55 ++++++++++++++++++++++++++++++++----
+ src/cmd/goinstall/parse.go | 69 +++++++++++++++++++++++++++++++++-------------
+ 3 files changed, 106 insertions(+), 33 deletions(-)

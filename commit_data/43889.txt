@@ -1,0 +1,21 @@
+commit d6abf298cf1ef56dc8cbec2ee9a18c071bb6eb3c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Nov 28 17:51:18 2020 -0800
+
+    test: recognize new gofrontend error message
+    
+    As of https://golang.org/cl/273886:
+    
+    fixedbugs/bug340.go:15:18: error: reference to method ‘x’ in interface with no methods
+    
+    For golang/go#10700
+    
+    Change-Id: Id29eb0e34bbb524117614229c4c27cfd17dae286
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273887
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/bug340.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 036731c170e4d3b5458ad156b52e76611fd3d13c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 14 13:19:14 2012 -0700
+
+    go/build: clearer argument name for Import (src -> srcDir)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5820052
+
+ src/pkg/go/build/build.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

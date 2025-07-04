@@ -1,0 +1,18 @@
+commit 4766a35e7c4c00dd060313080f6d85e32c9aa970
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Dec 12 07:25:07 2012 +1100
+
+    net: TestDialTimeoutFDLeak failure
+    
+    Fixes #4384.
+    
+    Implments the suggestion by rsc in comment 15, http://code.google.com/p/go/issues/detail?id=4384#c15
+    
+    An alternate suggestion would be to temporarily set GOMAXPROCS to 1 during this test.
+    
+    R=fullung, rsc
+    CC=golang-dev
+    https://golang.org/cl/6923046
+
+ src/pkg/net/dial_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

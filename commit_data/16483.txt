@@ -1,0 +1,24 @@
+commit 251baea1afc07f3ca7ca10935aaba1476cfd34d9
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jun 4 07:07:22 2013 -0700
+
+    cmd/ld: fix gcdata and gcbss symbols
+    
+    These two symbols don't show up in the Go symbol table
+    since they're defined in dodata which is called sometime
+    after symtab. They do, however, show up in the ELF symbol
+    table.
+    
+    This regression was introduced in changeset 01c40d533367.
+    
+    Also, remove the corresponding strings from the ELF strtab
+    section now that they're unused.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/8650043
+
+ src/cmd/ld/data.c   |  9 ++-------
+ src/cmd/ld/elf.c    |  6 ------
+ src/cmd/ld/symtab.c | 15 +++++++++++++--
+ 3 files changed, 15 insertions(+), 15 deletions(-)

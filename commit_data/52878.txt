@@ -1,0 +1,29 @@
+commit 13201d57283e3684ab46ccb5ee0bb6b3fe67c221
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 3 21:34:25 2023 -0700
+
+    go/types, types2: consider generic functions in inference simplify step
+    
+    After type arguments for all type parameters have been determined,
+    the type arguments are "simplified" by substituting any type parameters
+    that might occur in them with their corresponding type arguments until
+    all type parameters have been removed.
+    
+    If in this process a (formerly) generic function signature becomes
+    non-generic, make sure to nil out its (declared) type parameters.
+    
+    Fixes #59953.
+    For #59338.
+    
+    Change-Id: Ie16bffd7b0a8baed18e76e5532cdfaecd26e4278
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491797
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go            | 20 ++++++++++++++++++++
+ src/go/types/infer.go                               | 20 ++++++++++++++++++++
+ src/internal/types/testdata/fixedbugs/issue59953.go | 11 +++++++++++
+ 3 files changed, 51 insertions(+)

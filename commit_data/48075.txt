@@ -1,0 +1,21 @@
+commit 248ad855b7d0e49839b7b4281d9e60e222368583
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 3 12:43:48 2022 -0800
+
+    misc/cgo/test: disable unhelpful GCC warning
+    
+    GCC 9 warns about a change in the ABI of passing structs with bitfields,
+    but we don't care.
+    
+    Fixes #50987
+    
+    Change-Id: Ica658d04172a42a7be788f94d31a714bb8c4766f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382956
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+
+ misc/cgo/test/test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

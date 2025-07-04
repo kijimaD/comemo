@@ -1,0 +1,26 @@
+commit 87e69c1812c2197688e0d14720760ea87b3b26af
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 16 19:52:41 2023 -0400
+
+    cmd/compile: don't inline from norace packages in race mode
+    
+    In race mode (or other instrumentation mode), if the caller is in
+    a regular package and the callee is in a norace (or noinstrument)
+    package, don't inline. Otherwise, when the caller is instumented
+    it will also affect the inlined callee.
+    
+    An example is sync.(*Mutex).Unlock, which is typically not inlined
+    but with PGO it can be inlined into a regular function, which is
+    then get instrumented. But the rest of the sync package, in
+    particular, the Lock function is not instrumented, causing the
+    race detector to signal false race.
+    
+    Change-Id: Ia78bb602c6da63a34ec2909b9a82646bf20873f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495595
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go |  5 ++++-
+ src/cmd/compile/internal/types/type.go | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

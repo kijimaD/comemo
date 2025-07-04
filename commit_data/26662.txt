@@ -1,0 +1,34 @@
+commit 5cab01698a782b28933ac16fdc4c43634b1331d6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 1 14:51:02 2016 -0700
+
+    cmd/compile: rename Node.Int to Node.Int64
+    
+    gorename -from '"cmd/compile/internal/gc".Node.Int' -to 'Int64'
+    
+    Change-Id: I2fe3bf9a26ae6b0600d990d0c981e4b8b53020a4
+    Reviewed-on: https://go-review.googlesource.com/21426
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/amd64/ggen.go   |  6 +++---
+ src/cmd/compile/internal/amd64/gsubr.go  |  4 ++--
+ src/cmd/compile/internal/arm/cgen64.go   |  6 +++---
+ src/cmd/compile/internal/arm/ggen.go     |  8 ++++----
+ src/cmd/compile/internal/arm/gsubr.go    |  4 ++--
+ src/cmd/compile/internal/arm64/ggen.go   |  6 +++---
+ src/cmd/compile/internal/arm64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/gc/cgen.go      | 30 +++++++++++++++---------------
+ src/cmd/compile/internal/gc/const.go     | 12 ++++++------
+ src/cmd/compile/internal/gc/gsubr.go     |  2 +-
+ src/cmd/compile/internal/gc/sinit.go     |  8 ++++----
+ src/cmd/compile/internal/gc/ssa.go       |  8 ++++----
+ src/cmd/compile/internal/gc/subr.go      |  4 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
+ src/cmd/compile/internal/gc/walk.go      | 30 +++++++++++++++---------------
+ src/cmd/compile/internal/mips64/ggen.go  |  2 +-
+ src/cmd/compile/internal/ppc64/ggen.go   |  6 +++---
+ src/cmd/compile/internal/ppc64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/x86/cgen64.go   | 10 +++++-----
+ src/cmd/compile/internal/x86/ggen.go     |  6 +++---
+ src/cmd/compile/internal/x86/gsubr.go    |  2 +-
+ 21 files changed, 84 insertions(+), 84 deletions(-)

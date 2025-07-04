@@ -1,0 +1,15 @@
+commit 5ee4858a4c03148056bb7751e5ed21455b3eaf10
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 16 06:10:00 2017 +0000
+
+    A+C: add a missing name
+    
+    Per email from acoshift.
+    
+    Change-Id: Ieb79244d17623e112a385e6b43843d3ffb185cf6
+    Reviewed-on: https://go-review.googlesource.com/45995
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

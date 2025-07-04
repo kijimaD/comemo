@@ -1,0 +1,14 @@
+commit 0f6a3ba4201c2a39817baa4ba9cec16d302341af
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 21 13:50:01 2015 +0900
+
+    net: fix possible nil pointer dereference on ReadFrom for windows
+    
+    Fixes #10516.
+    
+    Change-Id: Ia93f53d4e752bbcca6112bc75f6c3dbe30b90dac
+    Reviewed-on: https://go-review.googlesource.com/9192
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/fd_windows.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

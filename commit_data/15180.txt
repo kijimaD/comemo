@@ -1,0 +1,13 @@
+commit 691e5e3b01706803a15350656668474e1fc2084f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 10 00:08:30 2013 +0800
+
+    bytes: annotate assembly functions with //go:noescape
+    
+    R=golang-dev, agl, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/7299064
+
+ src/pkg/bytes/bytes.go      | 4 ----
+ src/pkg/bytes/bytes_decl.go | 8 ++++++++
+ 2 files changed, 8 insertions(+), 4 deletions(-)

@@ -1,0 +1,24 @@
+commit 166b691b652356074ea346157e8bbc13933380aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 25 21:48:21 2021 -0700
+
+    cmd/compile/internal/types2: remove need for instance (struct)
+    
+    instance was only used to hold the instantiation position for
+    lazy instantiation (and encode the fact that we have a lazy
+    instantiation). Just use a (pointer to a) syntax.Pos instead.
+    
+    We could use a syntax.Pos (no pointer) and rely on the fact
+    that we have a known position (or fake position, if need be)
+    to indicate lazy instantiation. But using a pointer leads to
+    a smaller Named struct.
+    
+    Change-Id: I441a839a125f453ad6c501de1ce499b72a2f67a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345177
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go |  2 +-
+ src/cmd/compile/internal/types2/named.go       | 18 +++++-------------
+ src/cmd/compile/internal/types2/typestring.go  |  2 +-
+ 3 files changed, 7 insertions(+), 15 deletions(-)

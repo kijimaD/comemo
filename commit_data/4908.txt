@@ -1,0 +1,13 @@
+commit 0e2e066caac2b957bca22cd18206be825cbdcd94
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 19 18:39:33 2010 -0800
+
+    A+C: add Timo Savola (individual CLA)
+    
+    R=adg
+    CC=golang-dev, tsavola
+    https://golang.org/cl/217049
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

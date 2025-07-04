@@ -1,0 +1,13 @@
+commit bbd6771621247d77075cc71ad49a6a8d6cc076a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 3 14:29:03 2015 -0800
+
+    math/big: implemented decimal rounding for Float-to-string conversion
+    
+    Change-Id: Id508ca2f6c087861e8c6bc536bc39e54dce09825
+    Reviewed-on: https://go-review.googlesource.com/3840
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/decimal.go      | 88 ++++++++++++++++++++++++++++++++++++++------
+ src/math/big/decimal_test.go | 55 +++++++++++++++++++++++++++
+ 2 files changed, 131 insertions(+), 12 deletions(-)

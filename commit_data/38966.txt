@@ -1,0 +1,21 @@
+commit 0c9e0c257b121acae72b9419be64ce45196ef825
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Apr 29 16:34:34 2019 +0200
+
+    cmd/link: add .go.buildinfo in XCOFF symbol table
+    
+    .go.buildinfo must be added to the symbol table on AIX. Otherwise, ld
+    won't be able to handle its relocations.
+    
+    This patch also make ".data" the default section for all symbols inside
+    the data segment.
+    
+    Change-Id: I83ac2bf1050e0ef6ef9c96ff793efd4ddc8e98d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174298
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/lib.go   | 16 ++++++++++++++--
+ src/cmd/link/internal/ld/xcoff.go |  5 +----
+ 2 files changed, 15 insertions(+), 6 deletions(-)

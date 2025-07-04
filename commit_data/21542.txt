@@ -1,0 +1,29 @@
+commit 5c4a86d0d00bee86793ad5f750d768e98867132d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jan 14 12:25:55 2015 +1100
+
+    runtime: introduce CPU access functions on windows
+    
+    This CL introduces new methods for 'context' type, so we can
+    manipulate its values in an architecture independent way.
+    
+    Use new methods to replace both 386 and amd64 versions of
+    dosigprof with single piece of code.
+    
+    There is more similar code to be converted in the following CLs.
+    
+    Also remove os_windows_386.go and os_windows_amd64.go. These
+    contain unused functions.
+    
+    Change-Id: I28f76aeb97f6e4249843d30d3d0c33fb233d3f7f
+    Reviewed-on: https://go-review.googlesource.com/2790
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/defs_windows_386.go   |  6 ++++++
+ src/runtime/defs_windows_amd64.go |  6 ++++++
+ src/runtime/os1_windows.go        |  2 +-
+ src/runtime/os1_windows_386.go    |  4 ----
+ src/runtime/os1_windows_amd64.go  |  4 ----
+ src/runtime/os_windows_386.go     | 11 -----------
+ src/runtime/os_windows_amd64.go   | 11 -----------
+ 7 files changed, 13 insertions(+), 31 deletions(-)

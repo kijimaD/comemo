@@ -1,0 +1,18 @@
+commit ce6b75dab634e272e0449f85853fca7f1850da8b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 7 11:54:29 2014 -0700
+
+    database/sql: fix accounting of open connections
+    
+    Existing test TestMaxOpenConns was failing occasionally, especially
+    with higher values of GOMAXPROCS.
+    
+    Fixes #7532
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/95130043
+
+ src/pkg/database/sql/sql.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

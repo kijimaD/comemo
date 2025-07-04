@@ -1,0 +1,12 @@
+commit c2400e31ad7ab0c87801bb744af2c2b7b41dd702
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 10 10:25:11 2016 +1100
+
+    doc: add doc.Example.Unordered to go1.7.txt
+    
+    Change-Id: I142a9f97303e3bfbd9522fd061530c0a91305389
+    Reviewed-on: https://go-review.googlesource.com/20500
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/go1.7.txt | 1 +
+ 1 file changed, 1 insertion(+)

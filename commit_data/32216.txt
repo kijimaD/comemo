@@ -1,0 +1,16 @@
+commit d03b89bd41dbbb9f9d632839006309f4a1e9f4ca
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Aug 12 15:21:05 2017 +0900
+
+    debug/macho: add some file flags
+    
+    Fixes #21414
+    
+    Change-Id: Idff6e269ae32b33253067c9f32cac25256eb7f1c
+    Reviewed-on: https://go-review.googlesource.com/55251
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/macho/macho.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

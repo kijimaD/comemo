@@ -1,0 +1,17 @@
+commit f7b2f58cda83634ccbe043b011f4899f859756cb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 24 02:21:20 2016 +0000
+
+    database/sql: force users of NamedParam to name struct literals fields
+    
+    Or they can use sql.Param instead.
+    
+    Change-Id: Icf21dbcc87170635c3f5d3f49736429a37abe9da
+    Reviewed-on: https://go-review.googlesource.com/33576
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/database/sql/sql.go | 2 ++
+ 1 file changed, 2 insertions(+)

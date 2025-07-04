@@ -1,0 +1,149 @@
+commit b2fd76ab8dd72b9f2135c1e9b15130e6028fc838
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Oct 17 15:07:58 2023 -0400
+
+    test: migrate remaining files to go:build syntax
+    
+    Most of the test cases in the test directory use the new go:build syntax
+    already. Convert the rest. In general, try to place the build constraint
+    line below the test directive comment in more places.
+    
+    For #41184.
+    For #60268.
+    
+    Change-Id: I11c41a0642a8a26dc2eda1406da908645bbc005b
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-longtest,gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536236
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/stdlib_test.go  | 2 +-
+ src/go/types/stdlib_test.go                     | 2 +-
+ test/abi/bad_internal_offsets.go                | 1 -
+ test/abi/double_nested_addressed_struct.go      | 1 -
+ test/abi/double_nested_struct.go                | 1 -
+ test/abi/f_ret_z_not.go                         | 1 -
+ test/abi/fibish.go                              | 1 -
+ test/abi/fibish_closure.go                      | 1 -
+ test/abi/leaf.go                                | 1 -
+ test/abi/leaf2.go                               | 1 -
+ test/abi/many_int_input.go                      | 1 -
+ test/abi/many_intstar_input.go                  | 1 -
+ test/abi/more_intstar_input.go                  | 1 -
+ test/abi/named_results.go                       | 1 -
+ test/abi/named_return_stuff.go                  | 1 -
+ test/abi/reg_not_ssa.go                         | 1 -
+ test/abi/return_stuff.go                        | 1 -
+ test/abi/s_sif_sif.go                           | 1 -
+ test/abi/spills3.go                             | 1 -
+ test/abi/spills4.go                             | 1 -
+ test/abi/struct_3_string_input.go               | 1 -
+ test/abi/struct_lower_1.go                      | 1 -
+ test/abi/too_big_to_ssa.go                      | 1 -
+ test/abi/uglyfib.go                             | 1 -
+ test/abi/wrapdefer_largetmp.go                  | 1 -
+ test/chanlinear.go                              | 3 ++-
+ test/checkbce.go                                | 3 ++-
+ test/closure3.go                                | 1 -
+ test/codegen/clobberdead.go                     | 2 +-
+ test/codegen/clobberdeadreg.go                  | 2 +-
+ test/codegen/retpoline.go                       | 3 ++-
+ test/codegen/spectre.go                         | 3 ++-
+ test/codegen/structs.go                         | 1 -
+ test/fixedbugs/bug248.go                        | 3 ++-
+ test/fixedbugs/bug369.go                        | 3 ++-
+ test/fixedbugs/bug385_32.go                     | 3 ++-
+ test/fixedbugs/bug385_64.go                     | 3 ++-
+ test/fixedbugs/bug513.go                        | 4 ++--
+ test/fixedbugs/issue10607.go                    | 5 ++---
+ test/fixedbugs/issue10958.go                    | 3 ++-
+ test/fixedbugs/issue11326b.go                   | 2 +-
+ test/fixedbugs/issue11656.dir/asm.go            | 1 -
+ test/fixedbugs/issue11656.dir/asm_generic.go    | 1 -
+ test/fixedbugs/issue11656.go                    | 1 -
+ test/fixedbugs/issue11771.go                    | 3 ++-
+ test/fixedbugs/issue12411.go                    | 3 ++-
+ test/fixedbugs/issue13265.go                    | 3 ++-
+ test/fixedbugs/issue13268.go                    | 3 ++-
+ test/fixedbugs/issue14636.go                    | 3 ++-
+ test/fixedbugs/issue15002.go                    | 4 ++--
+ test/fixedbugs/issue15091.go                    | 3 ++-
+ test/fixedbugs/issue15277.go                    | 3 ++-
+ test/fixedbugs/issue15609.dir/call.go           | 2 +-
+ test/fixedbugs/issue15609.dir/call_decl.go      | 2 +-
+ test/fixedbugs/issue15609.go                    | 2 +-
+ test/fixedbugs/issue15747.go                    | 1 -
+ test/fixedbugs/issue16008.go                    | 3 ++-
+ test/fixedbugs/issue16037_run.go                | 3 ++-
+ test/fixedbugs/issue17449.go                    | 3 ++-
+ test/fixedbugs/issue19182.go                    | 3 ++-
+ test/fixedbugs/issue19261.go                    | 1 -
+ test/fixedbugs/issue19507.dir/main.go           | 2 +-
+ test/fixedbugs/issue19507.go                    | 3 ++-
+ test/fixedbugs/issue20250.go                    | 1 -
+ test/fixedbugs/issue20529.go                    | 2 +-
+ test/fixedbugs/issue20780b.go                   | 3 ++-
+ test/fixedbugs/issue21317.go                    | 3 ++-
+ test/fixedbugs/issue21576.go                    | 2 +-
+ test/fixedbugs/issue22200b.go                   | 4 ++--
+ test/fixedbugs/issue22660.go                    | 3 ++-
+ test/fixedbugs/issue22662b.go                   | 3 ++-
+ test/fixedbugs/issue23781.go                    | 3 ++-
+ test/fixedbugs/issue24187.go                    | 3 ++-
+ test/fixedbugs/issue24651a.go                   | 3 ++-
+ test/fixedbugs/issue26411.go                    | 3 ++-
+ test/fixedbugs/issue29329.go                    | 5 ++---
+ test/fixedbugs/issue30908.go                    | 1 -
+ test/fixedbugs/issue33275_run.go                | 3 ++-
+ test/fixedbugs/issue33555.go                    | 3 ++-
+ test/fixedbugs/issue34968.go                    | 3 ++-
+ test/fixedbugs/issue36437.go                    | 2 +-
+ test/fixedbugs/issue36516.go                    | 3 ++-
+ test/fixedbugs/issue36705.go                    | 3 ++-
+ test/fixedbugs/issue37513.go                    | 2 +-
+ test/fixedbugs/issue38093.go                    | 3 ++-
+ test/fixedbugs/issue4099.go                     | 1 -
+ test/fixedbugs/issue42284.go                    | 1 -
+ test/fixedbugs/issue46234.go                    | 1 -
+ test/fixedbugs/issue47185.go                    | 3 ++-
+ test/fixedbugs/issue47227.go                    | 1 -
+ test/fixedbugs/issue52127.go                    | 2 +-
+ test/fixedbugs/issue6036.go                     | 3 ++-
+ test/fixedbugs/issue8606b.go                    | 3 ++-
+ test/fixedbugs/issue9355.go                     | 3 ++-
+ test/fixedbugs/issue9604b.go                    | 2 +-
+ test/fixedbugs/issue9862_run.go                 | 3 ++-
+ test/fuse.go                                    | 3 ++-
+ test/gc2.go                                     | 3 ++-
+ test/inline.go                                  | 1 -
+ test/inline_math_bits_rotate.go                 | 3 ++-
+ test/intrinsic.go                               | 3 ++-
+ test/intrinsic_atomic.go                        | 3 ++-
+ test/linkmain.go                                | 2 +-
+ test/linkmain_run.go                            | 3 ++-
+ test/linkobj.go                                 | 3 ++-
+ test/linkx_run.go                               | 3 ++-
+ test/live.go                                    | 2 +-
+ test/live_regabi.go                             | 2 +-
+ test/live_uintptrkeepalive.go                   | 1 -
+ test/loopbce.go                                 | 3 ++-
+ test/maplinear.go                               | 3 ++-
+ test/newinline.go                               | 1 -
+ test/nilptr.go                                  | 4 +---
+ test/nilptr3.go                                 | 3 +--
+ test/nilptr5.go                                 | 1 -
+ test/nilptr5_aix.go                             | 2 +-
+ test/nilptr5_wasm.go                            | 2 +-
+ test/nilptr_aix.go                              | 2 +-
+ test/nosplit.go                                 | 3 ++-
+ test/opt_branchlikely.go                        | 3 ++-
+ test/phiopt.go                                  | 3 ++-
+ test/prove.go                                   | 1 -
+ test/prove_constant_folding.go                  | 3 ++-
+ test/prove_invert_loop_with_unused_iterators.go | 3 ++-
+ test/recover4.go                                | 3 ++-
+ test/sigchld.go                                 | 3 ++-
+ test/typeparam/issue54765.go                    | 1 -
+ 127 files changed, 147 insertions(+), 137 deletions(-)

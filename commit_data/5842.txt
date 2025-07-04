@@ -1,0 +1,12 @@
+commit dcd9d78549c3206eb1c9b883d3d58ec87a57e683
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jul 19 11:43:33 2010 +0300
+
+    minor error checking to android launcher
+    
+    R=dho
+    CC=golang-dev
+    https://golang.org/cl/1777041
+
+ misc/arm/a | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

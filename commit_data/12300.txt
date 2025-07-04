@@ -1,0 +1,12 @@
+commit 289a1638aa2af9b0cd633480c426285a10861c42
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Mar 1 17:52:05 2012 +1100
+
+    html/template: encoding/json does more escaping now, so update the html/template test that uses it.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5714052
+
+ src/pkg/html/template/escape_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

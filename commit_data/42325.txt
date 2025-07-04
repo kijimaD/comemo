@@ -1,0 +1,42 @@
+commit dba1205b2fc458829e783bd0a4d1eff7231ae16c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Feb 10 23:11:30 2020 +0000
+
+    runtime: avoid re-scanning scavenged and untouched memory
+    
+    Currently the scavenger will reset to the top of the heap every GC. This
+    means if it scavenges a bunch of memory which doesn't get used again,
+    it's going to keep re-scanning that memory on subsequent cycles. This
+    problem is especially bad when it comes to heap spikes: suppose an
+    application's heap spikes to 2x its steady-state size. The scavenger
+    will run over the top half of that heap even if the heap shrinks, for
+    the rest of the application's lifetime.
+    
+    To fix this, we maintain two numbers: a "free" high watermark, which
+    represents the highest address freed to the page allocator in that
+    cycle, and a "scavenged" low watermark, which represents how low of an
+    address the scavenger got to when scavenging. If the "free" watermark
+    exceeds the "scavenged" watermark, then we pick the "free" watermark as
+    the new "top of the heap" for the scavenger when starting the next
+    scavenger cycle. Otherwise, we have the scavenger pick up where it left
+    off.
+    
+    With this mechanism, we only ever re-scan scavenged memory if a random
+    page gets freed very high up in the heap address space while most of the
+    action is happening in the lower parts. This case should be exceedingly
+    unlikely because the page reclaimer walks over the heap from low address
+    to high addresses, and we use a first-fit address-ordered allocation
+    policy.
+    
+    Updates #35788.
+    
+    Change-Id: Id335603b526ce3a0eb79ef286d1a4e876abc9cab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218997
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/mgcscavenge.go | 26 ++++++++++++++++++++++++++
+ src/runtime/mpagealloc.go  | 17 ++++++++++++++++-
+ 2 files changed, 42 insertions(+), 1 deletion(-)

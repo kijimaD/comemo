@@ -1,0 +1,28 @@
+commit b5481dd0a635780e8ff35cb274a9b3d85fc7f608
+Author: Austin Clements <austin@google.com>
+Date:   Tue Mar 1 21:30:26 2016 -0500
+
+    runtime: disable gcMarkRootCheck debugging check during STW
+    
+    gcMarkRootCheck takes ~10ns per goroutine. This is just a debugging
+    check, so disable it (plus, if something is going to go wrong, it's
+    more likely to go wrong during concurrent mark).
+    
+    We may be able to re-enable this later, or move it to after we've
+    started the world again. (But not for 1.6.x.)
+    
+    For 1.6.x.
+    
+    Fixes #14419.
+    
+    name / 95%ile-time/markTerm          old          new  delta
+    500kIdleGs-12                24.0ms ± 0%  18.9ms ± 6%  -21.46%  (p=0.000 n=15+20)
+    
+    Change-Id: Idb2a2b1771449de772c159ef95920d6df1090666
+    Reviewed-on: https://go-review.googlesource.com/20148
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

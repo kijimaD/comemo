@@ -1,0 +1,20 @@
+commit ef82b4c94e10ea29acb90891d4ec8d4e7e892410
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Apr 9 13:39:12 2023 +0200
+
+    os: adjust wait6/waitid comment for netbsd
+    
+    CL 431855 changed (*Process).blockUntilWaitable on netbsd to use wait6
+    again.
+    
+    Update #48789
+    
+    Change-Id: I948f5445a44ab2e82c02560480a2a244d2b5f473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483396
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/wait_unimp.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

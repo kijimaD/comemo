@@ -1,0 +1,30 @@
+commit 4ac8f552e95521d292cc18ccc546739d41283b31
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Dec 3 12:22:49 2024 -0800
+
+    syscall, internal/syscall/unix: fix fstatat on linux/mips64
+    
+    On linux/mips64, the syscall.Stat_t struct does not match the
+    kernel version of the struct. Functions that operate on a Stat_t
+    translate between it and the kernel struct.
+    
+    The fstatat function was not doing this translation.
+    Make it do so.
+    
+    Export a syscall.Fstatat on mips64 for usage by
+    internal/syscall/unix. Perhaps we should just do this on all
+    architectures, but this is the smaller change for now.
+    
+    Fixes #70659
+    
+    Change-Id: I38e36473689be25861953b418c9abc5b270a7bcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633280
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/syscall/unix/at_fstatat.go  |  2 +-
+ src/internal/syscall/unix/at_fstatat2.go |  2 +-
+ src/syscall/syscall_linux_mips64x.go     | 13 ++++++++++++-
+ src/syscall/zsyscall_linux_mips64.go     | 30 +++++++++++++++---------------
+ src/syscall/zsyscall_linux_mips64le.go   | 30 +++++++++++++++---------------
+ 5 files changed, 44 insertions(+), 33 deletions(-)

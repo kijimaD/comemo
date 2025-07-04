@@ -1,0 +1,24 @@
+commit cd8aa4014947dda0eb822452d3c423b561c13eeb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 7 11:57:26 2022 -0700
+
+    go/types, types2: implement slice-to-array conversions
+    
+    For #46505.
+    
+    Change-Id: I9bc9da5dd4b76cb2d8ff41390e1567678e72d88d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428938
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/api_test.go     |  3 ++-
+ src/cmd/compile/internal/types2/conversions.go  | 22 ++++++++++++++++---
+ src/go/types/api_test.go                        |  3 ++-
+ src/go/types/conversions.go                     | 28 ++++++++++++++++++++++---
+ src/internal/types/testdata/check/go1_19.go     | 15 +++++++++++++
+ src/internal/types/testdata/spec/conversions.go |  6 ++----
+ test/convert2.go                                |  4 ++--
+ 7 files changed, 67 insertions(+), 14 deletions(-)

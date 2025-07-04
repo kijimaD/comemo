@@ -1,0 +1,50 @@
+commit 20102594a027336b08b8b38584f27656d4fc689e
+Author: Wei Xiao <Wei.Xiao@arm.com>
+Date:   Wed May 2 14:25:00 2018 +0800
+
+    cmd/compile: intrinsify runtime.getcallerpc on all link register architectures
+    
+    Add a compiler intrinsic for getcallerpc on following architectures:
+      arm
+      mips mipsle mips64 mips64le
+      ppc64 ppc64le
+      s390x
+    
+    Change-Id: I758f3d4742fc214b206bcd07d90408622c17dbef
+    Reviewed-on: https://go-review.googlesource.com/110835
+    Run-TryBot: Wei Xiao <Wei.Xiao@arm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/arm/ssa.go           |  4 ++
+ src/cmd/compile/internal/gc/ssa.go            |  5 ++-
+ src/cmd/compile/internal/mips/ssa.go          |  4 ++
+ src/cmd/compile/internal/mips64/ssa.go        |  4 ++
+ src/cmd/compile/internal/ppc64/ssa.go         |  5 +++
+ src/cmd/compile/internal/s390x/ssa.go         |  4 ++
+ src/cmd/compile/internal/ssa/gen/ARM.rules    |  1 +
+ src/cmd/compile/internal/ssa/gen/ARMOps.go    |  6 +++
+ src/cmd/compile/internal/ssa/gen/MIPS.rules   |  1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  1 +
+ src/cmd/compile/internal/ssa/gen/MIPS64Ops.go |  6 +++
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go   |  6 +++
+ src/cmd/compile/internal/ssa/gen/PPC64.rules  |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go  |  6 +++
+ src/cmd/compile/internal/ssa/gen/S390X.rules  |  1 +
+ src/cmd/compile/internal/ssa/gen/S390XOps.go  |  5 +++
+ src/cmd/compile/internal/ssa/opGen.go         | 55 +++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go    | 11 ++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go   | 11 ++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 11 ++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 11 ++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go  | 11 ++++++
+ src/cmd/internal/obj/arm/obj5.go              | 13 +++++++
+ src/cmd/internal/obj/mips/obj0.go             | 13 +++++++
+ src/cmd/internal/obj/ppc64/obj9.go            | 12 ++++++
+ src/cmd/internal/obj/s390x/objz.go            | 13 +++++++
+ src/runtime/asm_arm.s                         |  5 ---
+ src/runtime/asm_mips64x.s                     |  5 ---
+ src/runtime/asm_mipsx.s                       |  5 ---
+ src/runtime/asm_ppc64x.s                      |  5 ---
+ src/runtime/asm_s390x.s                       |  5 ---
+ 31 files changed, 219 insertions(+), 27 deletions(-)

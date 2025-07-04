@@ -1,0 +1,12 @@
+commit 8c227765f70b5677901692a71d8662f395186a83
+Author: Wèi Cōngruì <crvv.mail@gmail.com>
+Date:   Mon Dec 11 11:17:34 2017 +0800
+
+    internal/poll: fix error in increfAndClose documentation
+    
+    Change-Id: I0c387b6286bc18fd00c6ac4e42bdf175cf89ccb1
+    Reviewed-on: https://go-review.googlesource.com/83155
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_mutex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

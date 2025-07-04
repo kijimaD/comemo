@@ -1,0 +1,15 @@
+commit 0388d4303fbcc9cc0ed7949a2fb759ee4bd0ea47
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Sep 7 15:36:56 2015 +1200
+
+    runtime: remove unused FUNCDATA_DeadValueMaps
+    
+    Change-Id: Iccb0221bd9aef062d20798b952eaa09d9e60b902
+    Reviewed-on: https://go-review.googlesource.com/14345
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/funcdata.h | 11 -----------
+ src/runtime/symtab.go  |  1 -
+ 2 files changed, 12 deletions(-)

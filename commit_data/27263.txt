@@ -1,0 +1,12 @@
+commit 6e9043234221678e53d3b46ea98fb2ed56c260b7
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Tue May 3 13:49:54 2016 -0700
+
+    runtime/cgo: add context argument to crosscall2 on mips64
+    
+    Change-Id: Id018516075842afd8af12fbf207763a851d5a851
+    Reviewed-on: https://go-review.googlesource.com/22754
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/asm_mips64x.s | 86 ++++++++++++++++++++++---------------------
+ 1 file changed, 44 insertions(+), 42 deletions(-)

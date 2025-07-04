@@ -1,0 +1,13 @@
+commit 1331f8b3cbb7e9d27ed66cdc21b112985a295ca6
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Wed Apr 28 13:07:19 2010 -0700
+
+    fmt: %T print <nil> for nil
+    
+    R=r
+    CC=golang-dev, rsc
+    https://golang.org/cl/1014043
+
+ src/pkg/fmt/fmt_test.go | 1 +
+ src/pkg/fmt/print.go    | 4 ++++
+ 2 files changed, 5 insertions(+)

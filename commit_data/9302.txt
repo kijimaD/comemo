@@ -1,0 +1,13 @@
+commit 3c1040378481cae50a786a197b63223c0f5996a0
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 8 07:50:17 2011 +1000
+
+    time: parse and format fractional seconds
+    
+    R=golang-dev, rogpeppe, r, dsymonds, bradfitz, fvbommel
+    CC=golang-dev
+    https://golang.org/cl/4830065
+
+ src/pkg/time/format.go    | 66 ++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/time/time_test.go | 71 ++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 113 insertions(+), 24 deletions(-)

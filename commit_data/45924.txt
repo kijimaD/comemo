@@ -1,0 +1,16 @@
+commit aa4e0f528e1e018e2847decb549cfc5ac07ecf20
+Author: shota3506 <s.shota.710.3506@gmail.com>
+Date:   Tue Jul 13 21:27:05 2021 +0000
+
+    net/http:  correct capitalization in cancelTimeBody comment
+    
+    Change-Id: I7acda22c01c5350ebf5ddabb1c12af96d368de5d
+    GitHub-Last-Rev: 3e5c022f8764d4abf91c964ceb4fc0e01ebd1352
+    GitHub-Pull-Request: golang/go#47160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334229
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

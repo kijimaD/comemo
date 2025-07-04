@@ -1,0 +1,15 @@
+commit 41f32e0dffc3d72d223525d95a6be35dce5ffa9a
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sun Jan 6 22:44:16 2013 -0500
+
+          doc: two minor edits to contribute.html
+    
+    - Missing parenthesis
+    - Fix bad phrasing
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7063048
+
+ doc/contribute.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit e02ab89eb8994fa6f2dfa2924cdadb097633fcc1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 29 16:23:27 2020 -0700
+
+    runtime: simplify nobarrierWakeTime
+    
+    Also use the simplified nobarrierWakeTime in findrunnable, as it no
+    longer needs the current time.
+    
+    Change-Id: I77b125d6a184dde0aeb517fc068164c274f0a046
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266304
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go | 15 +++------------
+ src/runtime/time.go | 13 ++++++-------
+ 2 files changed, 9 insertions(+), 19 deletions(-)

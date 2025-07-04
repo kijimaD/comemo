@@ -1,0 +1,21 @@
+commit a555ac63322f441f19a2a5130298c4c6ee6357dc
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 9 12:42:37 2024 -0400
+
+    cmd/compile/internal/types2: revert to three-phase alias resolution
+    
+    This change reenables the legacy three-phase resolution
+    (non-alias typenames, aliases, the rest) even when
+    GODEBUG=gotypesalias=1. Unfortunately the existing test case
+    for #50259 causes the simpler logic to fail.
+    
+    Updates #50259
+    Updates #65294
+    
+    Change-Id: Ibfaf8146e46760718673a916a9b220a9d678409a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577616
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/resolver.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit f7a3683928fcfdcc0c7432b7d553b18627e40a50
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 12 23:24:54 2012 -0500
+
+    strconv: add tests for issue 2917
+    
+    Cannot reproduce the failure locally,
+    but add explicit test in case some other
+    machine can.
+    
+    Fixes #2917 (for now).
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5651071
+
+ src/pkg/strconv/atof_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

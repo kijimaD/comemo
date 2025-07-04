@@ -1,0 +1,18 @@
+commit 99276aeb5e8b40ff9cd3cafd47ce11c58ba0130c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 31 19:02:33 2023 +0000
+
+    Revert "runtime: fix ARM assembly code in cgocallback"
+    
+    This reverts CL 479255.
+    
+    Reason for revert: need to revert CL 392854, and this caused a conflict.
+    
+    Change-Id: I6cb105c62e51b47de3f652df5f5ee92673a93919
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481058
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/asm_arm.s | 1 -
+ 1 file changed, 1 deletion(-)

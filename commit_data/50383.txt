@@ -1,0 +1,20 @@
+commit ed530dbd077c8dbf680fabb1fb10da5239099e25
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Sep 4 19:18:50 2022 +0800
+
+    testing: use strings.Builder
+    
+    Change-Id: Ied8a3019f1e21c0e74c798d2b1b279a606a38554
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428279
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/testing/fuzz.go               |  4 ++--
+ src/testing/helper_test.go        |  5 ++---
+ src/testing/iotest/logger_test.go | 11 ++++++-----
+ src/testing/iotest/reader_test.go |  6 +++---
+ src/testing/iotest/writer_test.go |  4 ++--
+ src/testing/sub_test.go           |  4 ++--
+ 6 files changed, 17 insertions(+), 17 deletions(-)

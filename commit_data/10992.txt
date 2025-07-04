@@ -1,0 +1,13 @@
+commit e8ae29588d87e931e4c2848f3fe76270c9c70e7d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 23 14:09:44 2011 +1100
+
+    cmd/go: update "go help remote" to use correct Google Code urls
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5489114
+
+ src/cmd/go/help.go | 13 +++++--------
+ src/cmd/go/list.go |  6 +++---
+ 2 files changed, 8 insertions(+), 11 deletions(-)

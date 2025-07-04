@@ -1,0 +1,35 @@
+commit e58f798c0c97c252e0b800a4223d20790ef6b166
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 12 08:49:38 2013 -0400
+
+    runtime: adjust traceback / garbage collector boundary
+    
+    The garbage collection routine addframeroots is duplicating
+    logic in the traceback routine that calls it, sometimes correctly,
+    sometimes incorrectly, sometimes incompletely.
+    Pass necessary information to addframeroots instead of
+    deriving it anew.
+    
+    Should make addframeroots significantly more robust.
+    It's certainly smaller.
+    
+    Also try to standardize on uintptr for saved pc, sp values.
+    
+    Will make CL 10036044 trivial.
+    
+    R=golang-dev, dave, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/10169045
+
+ src/pkg/runtime/mgc0.c          | 114 ++++++++--------------
+ src/pkg/runtime/mprof.goc       |  14 +--
+ src/pkg/runtime/panic.c         |  14 +--
+ src/pkg/runtime/proc.c          |  20 ++--
+ src/pkg/runtime/runtime.h       |  37 ++++++--
+ src/pkg/runtime/signal_386.c    |   2 +-
+ src/pkg/runtime/signal_amd64.c  |   2 +-
+ src/pkg/runtime/signal_arm.c    |   2 +-
+ src/pkg/runtime/stack.c         |  19 ++--
+ src/pkg/runtime/traceback_arm.c | 200 ++++++++++++++++++++++++---------------
+ src/pkg/runtime/traceback_x86.c | 205 ++++++++++++++++++++++++----------------
+ 11 files changed, 351 insertions(+), 278 deletions(-)

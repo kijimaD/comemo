@@ -1,0 +1,14 @@
+commit c945d9c8a1c1b1a48a87dfc9c55b63c75db7ba89
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Jul 18 21:09:28 2011 +1000
+
+    gc: fix silent sign truncation in pgen.c
+    
+    Fixes #2076.
+    
+    R=golang-dev, r, r, dsymonds, lucio.dere
+    CC=golang-dev
+    https://golang.org/cl/4744047
+
+ src/cmd/gc/pgen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit ff7d7b271f8e53838aa7f0c0e69c782b599547ad
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 15 09:42:25 2011 +1100
+
+    runtime: detect failed thread creation on Windows
+    
+    Fixes #1495.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4182047
+
+ src/pkg/runtime/windows/thread.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

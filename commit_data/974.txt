@@ -1,0 +1,13 @@
+commit 1daad03545d3758ae16c7acf72d1f32af16542a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 27 17:57:31 2008 -0700
+
+    - bug fixes, cleanups
+    - integer string conversion
+    
+    R=r
+    OCL=17923
+    CL=17923
+
+ usr/gri/bignum/bignum.go | 60 +++++++++++++++++++++++++++---------------------
+ 1 file changed, 34 insertions(+), 26 deletions(-)

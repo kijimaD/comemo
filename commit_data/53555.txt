@@ -1,0 +1,18 @@
+commit 711ef8bc725037e95ad78ce61b8679fdd2657897
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Jun 13 14:13:01 2023 +0000
+
+    internal/xcoff: remove blank lines after final return statements
+    
+    Change-Id: I869ebcd9a134d0010e419dc51b6f91eddeaa0bbd
+    GitHub-Last-Rev: 0fc44edaeafcc2042e0fe57c8c41b4f60d4c478c
+    GitHub-Pull-Request: golang/go#60764
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502835
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/xcoff/ar.go | 2 --
+ 1 file changed, 2 deletions(-)

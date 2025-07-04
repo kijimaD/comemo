@@ -1,0 +1,15 @@
+commit 0dd7b8f879a517e9a4cb9113c27f803df3d4fb07
+Author: feilengcui008 <feilengcui008@gmail.com>
+Date:   Wed May 3 14:08:43 2017 +0800
+
+    runtime: clean redundant call of environ function
+    
+    Change-Id: Ica7179d225c1fb79381f82f58ea5050ac6418b9c
+    Reviewed-on: https://go-review.googlesource.com/42493
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/env_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

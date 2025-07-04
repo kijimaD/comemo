@@ -1,0 +1,18 @@
+commit 0c4c842eb07f65cf36c718e72a11c094b79296ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 14 11:22:39 2008 -0800
+
+    - added Init() function so that vectors can be used w/o New():
+            var v Vector.Vector;
+            v.Init();
+            ...
+    - clear vector elements in Reset
+    - removed some comments that seem redundant
+    
+    R=r
+    DELTA=16  (9 added, 5 deleted, 2 changed)
+    OCL=19247
+    CL=19247
+
+ src/lib/container/vector.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

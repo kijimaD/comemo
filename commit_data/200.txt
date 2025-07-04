@@ -1,0 +1,16 @@
+commit f997bc6eb6e640a2970571be28b48ec7875b5fa3
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 18 17:51:56 2008 -0700
+
+    stack offseet table marker
+    tacked above each TEXT entry
+    
+    SVN=123496
+
+ src/cmd/6l/6.out.h |  1 +
+ src/cmd/6l/asm.c   |  3 ++-
+ src/cmd/6l/l.h     |  1 +
+ src/cmd/6l/obj.c   |  4 +++-
+ src/cmd/6l/optab.c |  2 +-
+ src/cmd/6l/span.c  | 19 ++++++++++++++++++-
+ 6 files changed, 26 insertions(+), 4 deletions(-)

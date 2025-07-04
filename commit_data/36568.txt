@@ -1,0 +1,12 @@
+commit 860484a15f578911e2e92b4857a2229f0a257b45
+Author: Ankit Goyal <ankit3goyal@gmail.com>
+Date:   Sat Sep 1 10:56:00 2018 -0700
+
+    strconv: add example for IsGraphic
+    
+    Change-Id: I58ba1f5d5c942d6a345c19df1bca80b63fb5abf5
+    Reviewed-on: https://go-review.googlesource.com/132777
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strconv/example_test.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

@@ -1,0 +1,12 @@
+commit 57557c0d49c7153c520f0fb947378b9a573af26c
+Author: Benjamin Black <b@b3k.us>
+Date:   Fri May 18 11:06:58 2012 -0400
+
+    tls: add AES256 ciphers
+    
+    R=golang-dev, rsc, agl
+    CC=golang-dev
+    https://golang.org/cl/6188061
+
+ src/pkg/crypto/tls/cipher_suites.go | 4 ++++
+ 1 file changed, 4 insertions(+)

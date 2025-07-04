@@ -1,0 +1,13 @@
+commit 63fe9efb90a076422c67d34426b0076c2af1d8ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 10 08:12:43 2014 -0800
+
+    cmd/cgo: tweak doc to not show example of passing Go pointer
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/171360043
+
+ src/cmd/cgo/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit e84dad3f6e394f15739db46d9f319f94a1537667
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 15:36:54 2016 -0500
+
+    time: restore old error text for day out of range
+    
+    Go 1.5 and earlier said "day out of range".
+    As part of working on this code it morphed into "day of month out of range".
+    To avoid churn in the output restore the old text.
+    
+    This fixes some tests reported privately.
+    
+    Change-Id: If179676cd49f9a471a9441fec2f5220c85eb0799
+    Reviewed-on: https://go-review.googlesource.com/18386
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/format.go      | 2 +-
+ src/time/format_test.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

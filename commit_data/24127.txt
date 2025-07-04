@@ -1,0 +1,18 @@
+commit 5f2c420eb6f82545bfba835a467ee1e998ba37d1
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Aug 30 17:22:40 2015 -0400
+
+    net: add -lsendfile to cgo LDFLAGS for solaris
+    
+    Fixes external linking of net/http tests (or anything that uses
+    sendfile).
+    
+    Fixes #12390.
+    
+    Change-Id: Iee08998cf66e7b0ce851db138a00ebae6dc2395e
+    Reviewed-on: https://go-review.googlesource.com/14072
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/net/cgo_solaris.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

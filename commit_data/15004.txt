@@ -1,0 +1,17 @@
+commit 1c6b6b125eea1de587734ea7b16c05831e91ecf9
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Jan 28 15:47:25 2013 -0800
+
+    cmd/ld: avoid a segfault when dumping the symbol table
+    
+    The dumping routine incorrectly assumed that all incoming
+    symbols would be non-nil and load through it to retrieve the
+    symbol name.  Instead of using the symbol to retrieve a name,
+    use the name provided by the caller.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7224043
+
+ src/cmd/ld/symtab.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

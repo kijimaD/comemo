@@ -1,0 +1,18 @@
+commit b32ec6c961182e5bca6ae8420d6aa1204d7d2821
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 29 12:14:55 2024 -0500
+
+    fmt: update docs for %03s
+    
+    %03s zero-pads a string with spaces; always has and now always will.
+    
+    Fixes #56486.
+    
+    Change-Id: Ia336581ae7db1c3456699e69e14a3071f50c9f2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559197
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/fmt/doc.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

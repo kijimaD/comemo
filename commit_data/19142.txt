@@ -1,0 +1,18 @@
+commit aeb37527d3795b9677295bb21c0bbb3af18d6f31
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 15 08:48:40 2014 -0700
+
+    text/template: say more often that templates are safe for parallel execution
+    It was said already but apparently not enough times.
+    
+    Fixes #6985.
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/86300043
+
+ src/pkg/html/template/template.go | 2 ++
+ src/pkg/text/template/doc.go      | 2 +-
+ src/pkg/text/template/exec.go     | 2 ++
+ 3 files changed, 5 insertions(+), 1 deletion(-)

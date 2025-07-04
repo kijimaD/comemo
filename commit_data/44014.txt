@@ -1,0 +1,267 @@
+commit 5a25a3fd1d8248c039e34f5ae02cc9c8198fc6d6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 14 13:26:35 2020 -0800
+
+    test: recognize gofrontend error messages
+    
+    fixedbugs/issue26416.go:24:16: error: unknown field ‘t1f1’ in ‘t2’
+    fixedbugs/issue26416.go:25:16: error: unknown field ‘t1f2’ in ‘t3’
+    fixedbugs/issue26416.go:26:16: error: unknown field ‘t2f1’ in ‘t3’
+    
+    fixedbugs/issue26616.go:15:9: error: single variable set to multiple-value function call
+    fixedbugs/issue26616.go:9:5: error: incompatible type in initialization (multiple-value function call in single-value context)
+    fixedbugs/issue26616.go:12:13: error: incompatible type in initialization (multiple-value function call in single-value context)
+    fixedbugs/issue26616.go:13:13: error: incompatible type in initialization (multiple-value function call in single-value context)
+    fixedbugs/issue26616.go:15:9: error: incompatible type in initialization (multiple-value function call in single-value context)
+    fixedbugs/issue26616.go:14:11: error: incompatible types in assignment (multiple-value function call in single-value context)
+    
+    fixedbugs/issue26855.go:23:12: error: incompatible type for field 1 in struct construction
+    fixedbugs/issue26855.go:27:12: error: incompatible type for field 1 in struct construction
+    
+    fixedbugs/issue25958.go:14:18: error: expected ‘<-’ or ‘=’
+    fixedbugs/issue25958.go:15:35: error: expected ‘<-’ or ‘=’
+    
+    fixedbugs/issue28079b.go:13:9: error: array bound is not constant
+    fixedbugs/issue28079b.go:16:22: error: invalid context-determined non-integer type for left operand of shift
+    
+    fixedbugs/issue28079c.go:14:22: error: invalid context-determined non-integer type for left operand of shift
+    
+    fixedbugs/issue28450.go:9:19: error: ‘...’ only permits one name
+    fixedbugs/issue28450.go:10:18: error: ‘...’ must be last parameter
+    fixedbugs/issue28450.go:11:16: error: ‘...’ must be last parameter
+    fixedbugs/issue28450.go:11:24: error: ‘...’ must be last parameter
+    fixedbugs/issue28450.go:13:25: error: ‘...’ must be last parameter
+    fixedbugs/issue28450.go:15:19: error: ‘...’ must be last parameter
+    fixedbugs/issue28450.go:16:21: error: ‘...’ must be last parameter
+    fixedbugs/issue28450.go:16:31: error: ‘...’ must be last parameter
+    
+    fixedbugs/issue28268.go:20:1: error: method ‘E’ redeclares struct field name
+    fixedbugs/issue28268.go:19:1: error: method ‘b’ redeclares struct field name
+    
+    fixedbugs/issue27356.go:14:14: error: expected function
+    fixedbugs/issue27356.go:18:9: error: expected function
+    
+    fixedbugs/issue29855.go:13:11: error: unknown field ‘Name’ in ‘T’
+    
+    fixedbugs/issue27938.go:14:15: error: expected package
+    fixedbugs/issue27938.go:18:13: error: expected package
+    fixedbugs/issue27938.go:22:13: error: expected package
+    fixedbugs/issue27938.go:22:9: error: expected signature or type name
+    
+    fixedbugs/issue29870b.go:13:9: error: ‘x’ declared but not used
+    
+    fixedbugs/issue30085.go:10:18: error: wrong number of initializations
+    fixedbugs/issue30085.go:11:21: error: wrong number of initializations
+    
+    fixedbugs/issue30087.go:10:18: error: wrong number of initializations
+    fixedbugs/issue30087.go:11:11: error: number of variables does not match number of values
+    fixedbugs/issue30087.go:12:9: error: wrong number of initializations
+    fixedbugs/issue30087.go:13:9: error: wrong number of initializations
+    
+    fixedbugs/issue28926.go:16:14: error: use of undefined type ‘G’
+    fixedbugs/issue28926.go:18:14: error: use of undefined type ‘E’
+    fixedbugs/issue28926.go:22:24: error: use of undefined type ‘T’
+    
+    fixedbugs/issue30722.go:13:13: error: invalid numeric literal
+    fixedbugs/issue30722.go:14:13: error: invalid numeric literal
+    fixedbugs/issue30722.go:15:13: error: invalid numeric literal
+    
+    fixedbugs/issue33308.go:12:19: error: invalid context-determined non-integer type for left operand of shift
+    
+    fixedbugs/issue33386.go:16:9: error: expected operand
+    fixedbugs/issue33386.go:22:9: error: expected operand
+    fixedbugs/issue33386.go:26:17: error: expected operand
+    fixedbugs/issue33386.go:27:18: error: expected operand
+    fixedbugs/issue33386.go:28:29: error: expected operand
+    fixedbugs/issue33386.go:15:17: error: reference to undefined name ‘send’
+    fixedbugs/issue33386.go:27:13: error: reference to undefined name ‘a’
+    fixedbugs/issue33386.go:21:19: error: value computed is not used
+    
+    fixedbugs/issue33460.go:34:10: error: duplicate key in map literal
+    fixedbugs/issue33460.go:21:9: error: duplicate case in switch
+    fixedbugs/issue33460.go:24:9: error: duplicate case in switch
+    fixedbugs/issue33460.go:25:9: error: duplicate case in switch
+    
+    fixedbugs/issue32723.go:12:14: error: invalid comparison of non-ordered type
+    fixedbugs/issue32723.go:13:13: error: invalid comparison of non-ordered type
+    fixedbugs/issue32723.go:16:16: error: invalid comparison of non-ordered type
+    fixedbugs/issue32723.go:17:16: error: invalid comparison of non-ordered type
+    fixedbugs/issue32723.go:18:15: error: invalid comparison of non-ordered type
+    fixedbugs/issue32723.go:21:15: error: invalid comparison of non-ordered type
+    
+    fixedbugs/issue35291.go:13:9: error: duplicate value for index 1
+    
+    fixedbugs/issue38745.go:12:12: error: reference to undefined field or method ‘M’
+    fixedbugs/issue38745.go:13:16: error: reference to undefined field or method ‘M’
+    fixedbugs/issue38745.go:17:19: error: reference to undefined field or method ‘M’
+    fixedbugs/issue38745.go:17:9: error: not enough arguments to return
+    
+    fixedbugs/issue41500.go:16:22: error: incompatible types in binary expression
+    fixedbugs/issue41500.go:17:26: error: incompatible types in binary expression
+    fixedbugs/issue41500.go:18:22: error: incompatible types in binary expression
+    fixedbugs/issue41500.go:19:26: error: incompatible types in binary expression
+    
+    fixedbugs/issue41575.go:23:6: error: invalid recursive type
+    fixedbugs/issue41575.go:9:6: error: invalid recursive type ‘T1’
+    fixedbugs/issue41575.go:13:6: error: invalid recursive type ‘T2’
+    fixedbugs/issue41575.go:17:6: error: invalid recursive type ‘a’
+    fixedbugs/issue41575.go:18:6: error: invalid recursive type ‘b’
+    fixedbugs/issue41575.go:19:6: error: invalid recursive type ‘c’
+    fixedbugs/issue41575.go:25:6: error: invalid recursive type ‘g’
+    fixedbugs/issue41575.go:32:6: error: invalid recursive type ‘x’
+    fixedbugs/issue41575.go:33:6: error: invalid recursive type ‘y’
+    
+    fixedbugs/issue4215.go:10:9: error: not enough arguments to return
+    fixedbugs/issue4215.go:14:9: error: return with value in function with no return type
+    fixedbugs/issue4215.go:19:17: error: not enough arguments to return
+    fixedbugs/issue4215.go:21:9: error: not enough arguments to return
+    fixedbugs/issue4215.go:27:17: error: not enough arguments to return
+    fixedbugs/issue4215.go:29:17: error: too many values in return statement
+    fixedbugs/issue4215.go:31:17: error: not enough arguments to return
+    fixedbugs/issue4215.go:43:17: error: not enough arguments to return
+    fixedbugs/issue4215.go:46:17: error: not enough arguments to return
+    fixedbugs/issue4215.go:48:9: error: too many values in return statement
+    fixedbugs/issue4215.go:52:9: error: too many values in return statement
+    
+    fixedbugs/issue41247.go:10:16: error: incompatible type for return value 1
+    
+    fixedbugs/issue41440.go:13:9: error: too many arguments
+    
+    fixedbugs/issue6772.go:10:16: error: ‘a’ repeated on left side of :=
+    fixedbugs/issue6772.go:17:16: error: ‘a’ repeated on left side of :=
+    
+    fixedbugs/issue6402.go:12:16: error: incompatible type for return value 1
+    
+    fixedbugs/issue6403.go:13:23: error: reference to undefined identifier ‘syscall.X’
+    fixedbugs/issue6403.go:14:15: error: reference to undefined name ‘voidpkg’
+    
+    fixedbugs/issue7746.go:24:20: error: constant multiplication overflow
+    
+    fixedbugs/issue7760.go:15:7: error: invalid constant type
+    fixedbugs/issue7760.go:16:7: error: invalid constant type
+    fixedbugs/issue7760.go:18:7: error: invalid constant type
+    fixedbugs/issue7760.go:19:7: error: invalid constant type
+    fixedbugs/issue7760.go:21:11: error: expression is not constant
+    fixedbugs/issue7760.go:22:11: error: expression is not constant
+    fixedbugs/issue7760.go:24:7: error: invalid constant type
+    fixedbugs/issue7760.go:25:7: error: invalid constant type
+    
+    fixedbugs/issue7129.go:18:11: error: argument 1 has incompatible type (cannot use type bool as type int)
+    fixedbugs/issue7129.go:19:11: error: argument 1 has incompatible type (cannot use type bool as type int)
+    fixedbugs/issue7129.go:20:11: error: argument 1 has incompatible type (cannot use type bool as type int)
+    fixedbugs/issue7129.go:20:17: error: argument 2 has incompatible type (cannot use type bool as type int)
+    
+    fixedbugs/issue7150.go:12:20: error: index expression is negative
+    fixedbugs/issue7150.go:13:13: error: some element keys in composite literal are out of range
+    fixedbugs/issue7150.go:14:13: error: some element keys in composite literal are out of range
+    fixedbugs/issue7150.go:15:13: error: some element keys in composite literal are out of range
+    fixedbugs/issue7150.go:16:13: error: some element keys in composite literal are out of range
+    
+    fixedbugs/issue7675.go:16:11: error: argument 1 has incompatible type (cannot use type int as type string)
+    fixedbugs/issue7675.go:16:24: error: argument 3 has incompatible type (cannot use type string as type float64)
+    fixedbugs/issue7675.go:16:9: error: not enough arguments
+    fixedbugs/issue7675.go:16:14: error: floating-point constant truncated to integer
+    fixedbugs/issue7675.go:18:11: error: argument 1 has incompatible type (cannot use type int as type string)
+    fixedbugs/issue7675.go:18:24: error: argument 3 has incompatible type (cannot use type string as type float64)
+    fixedbugs/issue7675.go:18:28: error: argument 4 has incompatible type (cannot use type int as type string)
+    fixedbugs/issue7675.go:18:9: error: too many arguments
+    fixedbugs/issue7675.go:18:14: error: floating-point constant truncated to integer
+    fixedbugs/issue7675.go:19:11: error: argument 1 has incompatible type (cannot use type int as type string)
+    fixedbugs/issue7675.go:19:9: error: not enough arguments
+    fixedbugs/issue7675.go:19:14: error: floating-point constant truncated to integer
+    fixedbugs/issue7675.go:21:11: error: argument 1 has incompatible type (cannot use type int as type string)
+    fixedbugs/issue7675.go:21:19: error: argument 3 has incompatible type
+    fixedbugs/issue7675.go:21:14: error: floating-point constant truncated to integer
+    fixedbugs/issue7675.go:23:14: error: floating-point constant truncated to integer
+    
+    fixedbugs/issue7153.go:11:15: error: reference to undefined name ‘a’
+    fixedbugs/issue7153.go:11:18: error: incompatible type for element 1 in composite literal
+    fixedbugs/issue7153.go:11:24: error: incompatible type for element 2 in composite literal
+    
+    fixedbugs/issue7310.go:12:13: error: left argument must be a slice
+    fixedbugs/issue7310.go:13:13: error: second argument must be slice or string
+    fixedbugs/issue7310.go:14:15: error: incompatible types in binary expression
+    
+    fixedbugs/issue6964.go:10:13: error: invalid type conversion (cannot use type complex128 as type string)
+    
+    fixedbugs/issue7538a.go:14:9: error: reference to undefined label ‘_’
+    
+    fixedbugs/issue8311.go:14:9: error: increment or decrement of non-numeric type
+    
+    fixedbugs/issue8507.go:12:6: error: invalid recursive type ‘T’
+    
+    fixedbugs/issue9521.go:16:20: error: argument 2 has incompatible type
+    fixedbugs/issue9521.go:17:20: error: argument 2 has incompatible type (cannot use type float64 as type int)
+    
+    fixedbugs/issue8385.go:30:19: error: argument 1 has incompatible type (type has no methods)
+    fixedbugs/issue8385.go:30:14: error: not enough arguments
+    fixedbugs/issue8385.go:35:9: error: not enough arguments
+    fixedbugs/issue8385.go:36:9: error: not enough arguments
+    fixedbugs/issue8385.go:37:10: error: not enough arguments
+    fixedbugs/issue8385.go:38:10: error: not enough arguments
+    fixedbugs/issue8385.go:39:10: error: not enough arguments
+    fixedbugs/issue8385.go:40:10: error: not enough arguments
+    fixedbugs/issue8385.go:41:13: error: not enough arguments
+    
+    fixedbugs/issue8438.go:13:23: error: incompatible type for element 1 in composite literal
+    fixedbugs/issue8438.go:14:22: error: incompatible type for element 1 in composite literal
+    fixedbugs/issue8438.go:15:23: error: incompatible type for element 1 in composite literal
+    
+    fixedbugs/issue8440.go:10:9: error: reference to undefined name ‘n’
+    
+    Change-Id: I5707aec7d3c9178c4f4d794d4827fc907b52efb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278032
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/issue25958.go  |  4 ++--
+ test/fixedbugs/issue26416.go  |  6 +++---
+ test/fixedbugs/issue26616.go  | 10 +++++-----
+ test/fixedbugs/issue26855.go  |  4 ++--
+ test/fixedbugs/issue27356.go  |  4 ++--
+ test/fixedbugs/issue27938.go  |  6 +++---
+ test/fixedbugs/issue28079b.go |  4 ++--
+ test/fixedbugs/issue28079c.go |  2 +-
+ test/fixedbugs/issue28268.go  |  4 ++--
+ test/fixedbugs/issue28450.go  | 12 ++++++------
+ test/fixedbugs/issue28926.go  |  6 +++---
+ test/fixedbugs/issue29855.go  |  2 +-
+ test/fixedbugs/issue29870b.go |  2 +-
+ test/fixedbugs/issue30085.go  |  4 ++--
+ test/fixedbugs/issue30087.go  |  8 ++++----
+ test/fixedbugs/issue30722.go  |  6 +++---
+ test/fixedbugs/issue32723.go  | 12 ++++++------
+ test/fixedbugs/issue33308.go  |  2 +-
+ test/fixedbugs/issue33386.go  | 16 ++++++++--------
+ test/fixedbugs/issue33460.go  | 12 ++++++------
+ test/fixedbugs/issue35291.go  |  2 +-
+ test/fixedbugs/issue38745.go  |  6 +++---
+ test/fixedbugs/issue41247.go  |  2 +-
+ test/fixedbugs/issue41440.go  |  2 +-
+ test/fixedbugs/issue41500.go  |  8 ++++----
+ test/fixedbugs/issue41575.go  | 18 +++++++++---------
+ test/fixedbugs/issue42058a.go |  4 ++--
+ test/fixedbugs/issue42058b.go |  2 +-
+ test/fixedbugs/issue4215.go   | 22 +++++++++++-----------
+ test/fixedbugs/issue6402.go   |  2 +-
+ test/fixedbugs/issue6403.go   |  4 ++--
+ test/fixedbugs/issue6772.go   |  4 ++--
+ test/fixedbugs/issue6889.go   |  2 +-
+ test/fixedbugs/issue6964.go   |  2 +-
+ test/fixedbugs/issue7129.go   |  6 +++---
+ test/fixedbugs/issue7150.go   | 10 +++++-----
+ test/fixedbugs/issue7153.go   |  2 +-
+ test/fixedbugs/issue7310.go   |  6 +++---
+ test/fixedbugs/issue7538a.go  |  2 +-
+ test/fixedbugs/issue7675.go   | 10 +++++-----
+ test/fixedbugs/issue7746.go   |  4 ++--
+ test/fixedbugs/issue7760.go   | 16 ++++++++--------
+ test/fixedbugs/issue8311.go   |  2 +-
+ test/fixedbugs/issue8385.go   | 16 ++++++++--------
+ test/fixedbugs/issue8438.go   |  6 +++---
+ test/fixedbugs/issue8440.go   |  2 +-
+ test/fixedbugs/issue8507.go   |  2 +-
+ test/fixedbugs/issue9521.go   |  4 ++--
+ 48 files changed, 147 insertions(+), 147 deletions(-)

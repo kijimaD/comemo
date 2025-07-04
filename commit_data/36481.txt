@@ -1,0 +1,25 @@
+commit 78ce3a0368279653d05cbd1003e801363caba75a
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 7 20:59:04 2018 -0700
+
+    reflect: use a bigger object when we need a finalizer to run
+    
+    If an object is allocated as part of a tinyalloc, then other live
+    objects in the same tinyalloc chunk keep the finalizer from being run,
+    even if the object that has the finalizer is dead.
+    
+    Make sure the object we're setting the finalizer on is big enough
+    to not trigger tinyalloc allocation.
+    
+    Fixes #26857
+    Update #21717
+    
+    Change-Id: I56ad8679426283237ebff20a0da6c9cf64eb1c27
+    Reviewed-on: https://go-review.googlesource.com/128475
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/reflect/all_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

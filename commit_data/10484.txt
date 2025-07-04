@@ -1,0 +1,13 @@
+commit 79bce499a336471638f5aa02bd258e516019ad6f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Nov 23 08:13:05 2011 +1100
+
+    dashboard: new Go dashboard data structure design
+    
+    R=rsc, r, dsymonds, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5416056
+
+ misc/dashboard/app/app.yaml       |   8 +++
+ misc/dashboard/app/build/build.go | 133 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 141 insertions(+)

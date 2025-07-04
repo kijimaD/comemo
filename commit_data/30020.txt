@@ -1,0 +1,24 @@
+commit e56be943753d454b3eeb938c30de812266a8549e
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Dec 14 14:10:26 2016 -0800
+
+    crypto/x509: add test for v1 intermediates.
+    
+    X.509v1 certificates are ancient and should be dead. (They are even
+    prohibited by the Baseline requirements, section 7.1.1.)
+    
+    However, there are a number of v1 roots from the 1990's that are still
+    in operation. Thus crypto/x509.Certificate.CheckSignatureFrom allows
+    X.509v1 certificates to sign other certificates.
+    
+    The chain building code, however, only allows v1 certificates to sign
+    others if they're a root. This change adds a test to check that.
+    
+    Change-Id: Ib8d81e522f30d41932b89bdf3b19ef3782d8ec12
+    Reviewed-on: https://go-review.googlesource.com/34383
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/verify_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 65 insertions(+)

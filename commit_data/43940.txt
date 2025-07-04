@@ -1,0 +1,30 @@
+commit b635e4b808bf45ebd66e9f687e18b9af6bd634c1
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Dec 1 17:24:33 2020 -0500
+
+    time, runtime: don't set timer when = 0
+    
+    timer when == 0, in the context of timer0When and timerModifiedEarliest,
+    is a sentinel value meaning there are no timers on the heap.
+    TestCheckRuntimeTimerOverflow reaching into the runtime to set a timer
+    to when = 0 when it is otherwise not possible breaks this invariant.
+    
+    After golang.org/cl/258303, we will no longer detect and run this timer,
+    thus blocking any other timers lower on the heap from running. This
+    manifests as random timers failing to fire in other tests.
+    
+    The need to set this overflowed timer to when = 0 is gone with the old
+    timer proc implementation, so we can simply remove it.
+    
+    Fixes #42424
+    
+    Change-Id: Iea32100136ad8ec1bedfa77b1e7d9ed868812838
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274632
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+
+ src/runtime/time.go       |  2 ++
+ src/time/internal_test.go | 10 ----------
+ 2 files changed, 2 insertions(+), 10 deletions(-)

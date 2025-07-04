@@ -1,0 +1,20 @@
+commit 1e9665da8fd8e2e095eb0e99a3b83118f600dc0b
+Author: Bradford Lamson-Scribner <brad.lamson@gmail.com>
+Date:   Thu Feb 20 09:07:48 2020 -0700
+
+    cmd/compile: add a dark mode to ssa html generation which can be toggled
+    
+    add a tag that when clicked, toggles a dark mode. It keeps intact
+    the grayed out dead values/blocks, all the highlight colors, and ensures
+    text is always readable.
+    
+    Fixes #34325
+    
+    Change-Id: I4af1e4b5f4a5b63e54c992e90f8474cc51c63465
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220260
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/html.go | 95 ++++++++++++++++++++++++++++++------
+ 1 file changed, 81 insertions(+), 14 deletions(-)

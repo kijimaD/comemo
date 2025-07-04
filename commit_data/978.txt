@@ -1,0 +1,28 @@
+commit c21d9a1ec99e3b62e9e736bf7eb0b6ccab9f5458
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 29 12:46:44 2008 -0700
+
+    the end of life as we know it
+    int is new type
+    
+    R=r
+    OCL=18023
+    CL=18023
+
+ src/cmd/6g/align.c               |  90 +++++++++++++++++++-------------
+ src/cmd/6g/gen.c                 |   7 ++-
+ src/cmd/6g/gsubr.c               |  13 ++---
+ src/cmd/gc/const.c               |   4 +-
+ src/cmd/gc/go.h                  |  13 +++--
+ src/cmd/gc/go.y                  |  15 +++++-
+ src/cmd/gc/lex.c                 | 108 +++++++++++++++++++++++++++++----------
+ src/cmd/gc/mparith1.c            |   2 +-
+ src/cmd/gc/subr.c                |  48 +++++++++++------
+ src/cmd/gc/sys.go                |  52 +++++++++----------
+ src/cmd/gc/sysimport.c           |  46 ++++++++---------
+ src/cmd/gc/walk.c                |  68 ++++++++++++------------
+ src/lib/strings.go               |   2 +-
+ src/lib/syscall/file_linux.go    |   2 +-
+ src/lib/syscall/socket_darwin.go |   4 +-
+ src/lib/syscall/socket_linux.go  |   2 +-
+ 16 files changed, 292 insertions(+), 184 deletions(-)

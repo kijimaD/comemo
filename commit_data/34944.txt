@@ -1,0 +1,18 @@
+commit 95b4498ac0c70a2c3c2a0c60d66aa74b10bca76d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 11 14:16:52 2018 -0700
+
+    cmd/internal/obj/arm64: don't crash on trailing NOP
+    
+    Fixes #20348
+    
+    Change-Id: I831aeeee8e20d55b3e47dea67786e883b213cd58
+    Reviewed-on: https://go-review.googlesource.com/106457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm64/asm_test.go | 18 ++++++++++++++++++
+ src/cmd/internal/obj/arm64/obj7.go     |  8 +++++---
+ 2 files changed, 23 insertions(+), 3 deletions(-)

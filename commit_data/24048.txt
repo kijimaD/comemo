@@ -1,0 +1,25 @@
+commit 548041ed08a1f006e4cdac62f2b3bf4adf99f894
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 21 11:33:25 2015 -0700
+
+    cmd/compile/internal/big: update vendored math/big
+    
+    This updates the big package used by the compiler to match the
+    public big package which contains some updates and bug fixes.
+    Obtained by running vendor.bash in the internal/big directory.
+    No manual changes.
+    
+    Change-Id: I299aecc6599d4a745a721ce48def32449640dbb2
+    Reviewed-on: https://go-review.googlesource.com/13815
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/big/example_test.go   | 77 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/big/floatconv.go      |  4 +-
+ src/cmd/compile/internal/big/floatconv_test.go |  4 +-
+ src/cmd/compile/internal/big/int.go            |  8 ++-
+ src/cmd/compile/internal/big/int_test.go       | 20 +++++++
+ src/cmd/compile/internal/big/intconv.go        | 16 +++---
+ src/cmd/compile/internal/big/natconv.go        | 32 +++++------
+ src/cmd/compile/internal/big/ratconv.go        |  3 +-
+ src/cmd/compile/internal/big/ratconv_test.go   |  2 +
+ 9 files changed, 134 insertions(+), 32 deletions(-)

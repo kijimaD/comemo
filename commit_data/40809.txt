@@ -1,0 +1,22 @@
+commit 9af8794353d2c19621c0264f9a3f78d671fc86ef
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 15 13:13:16 2019 -0500
+
+    test: avoid writing temporary files to GOROOT
+    
+    Updates #28387
+    Fixes #35619
+    
+    Change-Id: I162f3427b7901c117e3f3e403df7edec7c529bd1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207352
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go        | 14 +++++++++-----
+ test/fixedbugs/bug302.go    | 24 ++++++++++++++++++------
+ test/fixedbugs/bug369.go    | 22 +++++++++++++---------
+ test/fixedbugs/issue9355.go |  3 +--
+ test/linkmain_run.go        | 44 +++++++++++++++++++++++++++-----------------
+ test/sinit_run.go           |  7 +++++--
+ 6 files changed, 73 insertions(+), 41 deletions(-)

@@ -1,0 +1,15 @@
+commit 569a1cd545ec2fbd0f8307b65576e038d35cc4cc
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 26 16:34:36 2009 -0700
+
+    Add encoding/hex
+    
+    R=rsc
+    http://go/go-review/1015012
+
+ src/pkg/Make.deps                |  11 +--
+ src/pkg/Makefile                 |   1 +
+ src/pkg/encoding/hex/Makefile    |  11 +++
+ src/pkg/encoding/hex/hex.go      | 108 ++++++++++++++++++++++++++++
+ src/pkg/encoding/hex/hex_test.go | 147 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 273 insertions(+), 5 deletions(-)

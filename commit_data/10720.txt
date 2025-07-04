@@ -1,0 +1,23 @@
+commit e6f5a90b5fd51812c31da49fe2f4950fb2ac0e0d
+Author: Sébastien Paolacci <sebastien.paolacci@gmail.com>
+Date:   Mon Dec 12 16:33:13 2011 -0500
+
+    runtime: madvise and SysUnused for Linux
+    
+    SysUnused being a direct call to madvise MADV_DONTNEED.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/5477057
+
+ src/pkg/runtime/linux/386/defs.h   |  2 ++
+ src/pkg/runtime/linux/386/sys.s    | 11 +++++++++++
+ src/pkg/runtime/linux/amd64/defs.h |  6 ++++--
+ src/pkg/runtime/linux/amd64/sys.s  | 11 +++++++++++
+ src/pkg/runtime/linux/arm/defs.h   |  1 +
+ src/pkg/runtime/linux/arm/sys.s    |  9 +++++++++
+ src/pkg/runtime/linux/defs.go      |  2 ++
+ src/pkg/runtime/linux/defs2.go     |  3 +++
+ src/pkg/runtime/linux/defs_arm.go  |  2 ++
+ src/pkg/runtime/linux/mem.c        |  4 +---
+ 10 files changed, 46 insertions(+), 5 deletions(-)

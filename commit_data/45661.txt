@@ -1,0 +1,15 @@
+commit ef1f52cc38cc8773a4ae2e4e71219140a08ce98f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 19 16:07:52 2021 -0400
+
+    doc/go1.17: add release note for windows/arm64 port
+    
+    Updates #44513, #42604.
+    
+    Change-Id: I8200e8087c219a0042ab2a6770a7275c3b17942a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321309
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

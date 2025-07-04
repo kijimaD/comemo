@@ -1,0 +1,16 @@
+commit 2ec77d3457aaa9e07ac5c765a0323fc9c3ef889f
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Mar 5 13:54:16 2017 +0100
+
+    go/doc: remove unused tok parameter
+    
+    Found via github.com/mvdan/unparam.
+    
+    Change-Id: I12cb0c35b14c880425c347fb3eb146712a86f310
+    Reviewed-on: https://go-review.googlesource.com/37834
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/doc/exports.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

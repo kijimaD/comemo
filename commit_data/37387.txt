@@ -1,0 +1,21 @@
+commit df2bb9817b2184256886d9d9458753b2273c202d
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 15 17:24:21 2018 -0700
+
+    runtime: during map delete, update entries after new last element
+    
+    When we delete an element, and it was the last element in the bucket,
+    update the slots between the new last element and the old last element
+    with the marker that says "no more elements beyond here".
+    
+    Change-Id: I8efeeddf4c9b9fc491c678f84220a5a5094c9c76
+    Reviewed-on: https://go-review.googlesource.com/c/142438
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/export_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/runtime/map.go         | 34 +++++++++++++++++++++++++++++++++-
+ src/runtime/map_fast32.go  | 32 +++++++++++++++++++++++++++++++-
+ src/runtime/map_fast64.go  | 32 +++++++++++++++++++++++++++++++-
+ src/runtime/map_faststr.go | 32 +++++++++++++++++++++++++++++++-
+ src/runtime/map_test.go    | 25 +++++++++++++++++++++++++
+ 6 files changed, 187 insertions(+), 4 deletions(-)

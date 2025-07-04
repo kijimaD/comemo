@@ -1,0 +1,17 @@
+commit d329fc5b30912456733c0396a06dfebfc5faf6b3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 30 15:27:29 2023 -0700
+
+    doc/go1.21: mention flag.BoolFunc
+    
+    For #53747
+    
+    Change-Id: Ia5e2f89c1184f2dfd6d672b838b0dbb579e6c954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499417
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

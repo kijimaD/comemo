@@ -1,0 +1,16 @@
+commit e13a213c7f9d78cfb79f91bcf9b75e3d22362a92
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 26 17:45:01 2018 -0400
+
+    runtime: distinguish semaphore wait from sync.Cond.Wait
+    
+    Updates #24362.
+    
+    Change-Id: Ided1ab31792f05d9d7a86f17c1bcbd9e9b80052c
+    Reviewed-on: https://go-review.googlesource.com/102606
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sema.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

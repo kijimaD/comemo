@@ -1,0 +1,15 @@
+commit 922c0b47557db7d686bfebe0e128a7a1dd6116e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 21 17:15:56 2012 -0400
+
+    cmd/gc: rebuild builtin.c
+    
+    Was not in sync with runtime.go, but the diffs
+    didn't really matter, so nothing broke.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6733057
+
+ src/cmd/gc/builtin.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

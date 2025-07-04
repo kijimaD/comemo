@@ -1,0 +1,23 @@
+commit b8c76effd9a3a30d66e44ed7acea789e4e95b926
+Author: zuojunwei.1024 <zuojunwei.1024@bytedance.com>
+Date:   Tue Feb 27 19:14:00 2024 +0800
+
+    cmd/compile: mark pointer to noalg type as noalg
+    
+    When the compiler writes PtrToThis field of noalg type, it generates
+    its pointer type. Mark them as noalg to prevent put them in typelinks.
+    
+    Fixes #65957
+    
+    Change-Id: Icbc3b18bc866f9138c7648e42dd500a80326f72b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567335
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/types/type.go |  3 +++
+ test/fixedbugs/issue65957.dir/a.go     | 12 ++++++++++++
+ test/fixedbugs/issue65957.dir/main.go  | 19 +++++++++++++++++++
+ test/fixedbugs/issue65957.go           |  7 +++++++
+ 4 files changed, 41 insertions(+)

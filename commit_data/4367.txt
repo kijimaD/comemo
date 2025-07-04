@@ -1,0 +1,30 @@
+commit 295ceb4526078d22f2a0e53ef341a7f5316a9e54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 9 16:54:07 2009 -0800
+
+    remove uses of string concatenation from src and misc directory
+    
+    R=rsc
+    https://golang.org/cl/172041
+
+ src/cmd/godoc/main.go                    |   2 +-
+ src/cmd/goyacc/goyacc.go                 |   4 +-
+ src/pkg/big/int_test.go                  |   4 +-
+ src/pkg/bignum/bignum_test.go            |   4 +-
+ src/pkg/compress/gzip/gunzip_test.go     |  58 ++--
+ src/pkg/container/vector/vector_test.go  |   2 +-
+ src/pkg/crypto/x509/x509_test.go         |  82 ++---
+ src/pkg/encoding/ascii85/ascii85_test.go |  14 +-
+ src/pkg/encoding/git85/git_test.go       |  16 +-
+ src/pkg/exp/datafmt/datafmt_test.go      |  68 ++--
+ src/pkg/go/parser/parser.go              |   2 +-
+ src/pkg/go/scanner/scanner_test.go       |  19 +-
+ src/pkg/io/ioutil/ioutil_test.go         |   4 +-
+ src/pkg/json/struct_test.go              |  14 +-
+ src/pkg/patch/patch_test.go              | 536 +++++++++++++++----------------
+ src/pkg/strconv/decimal_test.go          |   2 +-
+ src/pkg/tabwriter/tabwriter_test.go      | 240 +++++++-------
+ src/pkg/template/template_test.go        | 144 ++++-----
+ src/pkg/unicode/maketables.go            |  22 +-
+ src/pkg/xml/xml_test.go                  |   4 +-
+ 20 files changed, 620 insertions(+), 621 deletions(-)

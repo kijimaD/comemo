@@ -1,0 +1,15 @@
+commit f20826692bbf35ae09d3a988dbc4a028fb00a50f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Feb 17 15:21:11 2015 +1100
+
+    syscall: make mksyscall_windows.go to work even when output does not uses unsafe package
+    
+    Fixes #9900
+    
+    Change-Id: I5dd401e8d2040e84ccb97c2fe9f5c5a28095b538
+    Reviewed-on: https://go-review.googlesource.com/5005
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/syscall/mksyscall_windows.go | 2 ++
+ src/syscall/zsyscall_windows.go  | 2 ++
+ 2 files changed, 4 insertions(+)

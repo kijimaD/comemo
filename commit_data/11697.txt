@@ -1,0 +1,13 @@
+commit 1a761fd002ccdfb2bb0a24362247895052c105f5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 8 16:12:21 2012 +1100
+
+    A+C: add Andrew Pritchard (Individual CLA)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5646049
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

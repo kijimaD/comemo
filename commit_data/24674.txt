@@ -1,0 +1,16 @@
+commit c229d2fdc684e366be4b4cf17949a02ae35caaaa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 30 02:31:15 2015 +0000
+
+    net/http: update x/net/http2
+    
+    Updated bundle of golang.org/x/net/http2 to rev c95266
+    
+    Change-Id: Id6df66a8f4eadd6a100f359fd6cac981653dafa6
+    Reviewed-on: https://go-review.googlesource.com/16448
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 1100 +++++++++++++++++++++++++++++++++------------
+ 1 file changed, 825 insertions(+), 275 deletions(-)

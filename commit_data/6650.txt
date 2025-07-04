@@ -1,0 +1,12 @@
+commit e79ebb008fe3fcfd5e62dff68cc2db1c29f1cdcf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 28 08:14:31 2010 -0700
+
+    test for append() built-in
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2777041
+
+ test/append.go | 227 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 227 insertions(+)

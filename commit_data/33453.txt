@@ -1,0 +1,20 @@
+commit 1ca4768ecedb96fedc491cccbe969a2515ce950b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 19:35:14 2017 -0500
+
+    cmd/dist, cmd/go: make GODEBUG=godebughash=1 ./make.bash work better
+    
+    The change in cmd/dist ignores debug output, instead of assuming
+    any output is from the template.
+    
+    The change in cmd/go makes the debug output show the package name
+    on every line, so that interlaced prints can be deinterlaced.
+    
+    Change-Id: Ic3d59ee0256271067cb9be2fde643a0e19405375
+    Reviewed-on: https://go-review.googlesource.com/76019
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/build.go            | 6 +++---
+ src/cmd/go/internal/work/exec.go | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

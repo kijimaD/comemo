@@ -1,0 +1,17 @@
+commit 2e0f8c379f91f77272d096929cf22391b64d0e34
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 24 20:58:33 2020 -0400
+
+    runtime: update go:notinheap documentation
+    
+    The rules for go:notinheap were recently tweaked to disallow stack
+    allocation (CL 249917). This CL updates the documentation about
+    go:notinheap in runtime/HACKING.md.
+    
+    Change-Id: Ibca5d9b9d02e1c22c6af1d303aa84c6303a86d92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257357
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/HACKING.md | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

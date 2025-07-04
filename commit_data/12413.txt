@@ -1,0 +1,14 @@
+commit 9ff00c8fc99b203138747a622f7014dff317c013
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 5 21:33:44 2012 -0800
+
+    go/build: fix windows and plan9 builds
+    
+    Bit of a band-aid fix.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5757045
+
+ src/pkg/go/build/deps_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

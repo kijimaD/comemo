@@ -1,0 +1,13 @@
+commit 7f9c02a10d736d8d4c39717c82b69ec50e9677f1
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Tue Feb 19 18:05:44 2013 -0800
+
+    runtime: add conversion specifier to printf for char values
+    
+    R=r, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/7327053
+
+ src/pkg/runtime/print.c   | 10 ++++++++++
+ src/pkg/runtime/runtime.h |  1 +
+ 2 files changed, 11 insertions(+)

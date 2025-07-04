@@ -1,0 +1,35 @@
+commit e70cedfaece8b51babad7b4aa4ae9f386bb37199
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 18 15:24:24 2009 -0800
+
+    remove bytes.Copy
+    replace all calls with calls to copy
+    use copy in regexp and bytes.Buffer
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/157073
+
+ src/cmd/cgo/util.go                         |  3 +-
+ src/pkg/archive/tar/writer.go               | 33 ++++++-----
+ src/pkg/bytes/buffer.go                     |  7 ++-
+ src/pkg/bytes/bytes.go                      | 20 +------
+ src/pkg/bytes/bytes_test.go                 | 30 ----------
+ src/pkg/compress/flate/deflate.go           |  5 +-
+ src/pkg/crypto/rsa/pkcs1v15.go              |  7 +--
+ src/pkg/crypto/rsa/rsa.go                   |  7 +--
+ src/pkg/crypto/subtle/constant_time_test.go |  7 +--
+ src/pkg/crypto/tls/handshake_messages.go    | 20 +++----
+ src/pkg/crypto/tls/prf.go                   | 19 +++---
+ src/pkg/crypto/tls/record_process.go        |  5 +-
+ src/pkg/crypto/tls/tls.go                   |  3 +-
+ src/pkg/encoding/ascii85/ascii85.go         |  5 +-
+ src/pkg/encoding/base64/base64.go           |  5 +-
+ src/pkg/encoding/git85/git.go               |  4 +-
+ src/pkg/regexp/regexp.go                    | 22 +++----
+ src/pkg/strconv/decimal.go                  | 10 ++--
+ src/pkg/testing/iotest/reader.go            |  3 +-
+ src/pkg/xml/xml.go                          | 12 ++--
+ test/bench/fasta.go                         | 89 ++++++++++++++---------------
+ test/bench/reverse-complement.go            | 51 ++++++++---------
+ 22 files changed, 148 insertions(+), 219 deletions(-)

@@ -1,0 +1,34 @@
+commit 8f4c5068e07a03e16998b6d8d38a0482433fc7fe
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 14 19:15:42 2021 -0400
+
+    internal/bytealg: port more performance-critical functions to ABIInternal
+    
+    CL 308931 ported several runtime assembly functions to ABIInternal so
+    that compiler-generated ABIInternal calls don't go through ABI
+    wrappers, but it missed the runtime assembly functions that are
+    actually defined in internal/bytealg.
+    
+    This eliminates the cost of wrappers for the BleveQuery and
+    GopherLuaKNucleotide benchmarks, but there's still more to do for
+    Tile38.
+    
+                                          0-base                1-wrappers
+                                         sec/op        sec/op            vs base
+    BleveQuery                          6.507 ± 0%    6.477 ± 0%  -0.46% (p=0.004 n=20)
+    GopherLuaKNucleotide                30.39 ± 1%    30.34 ± 0%       ~ (p=0.301 n=20)
+    Tile38IntersectsCircle100kmRequest 1.038m ± 1%   1.080m ± 2%  +4.03% (p=0.000 n=20)
+    
+    For #40724.
+    
+    Change-Id: I0b722443f684fcb997b1d70802c5ed4b8d8f9829
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310184
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/dist/build.go                |  7 ++--
+ src/cmd/internal/objabi/path.go      |  4 +++
+ src/internal/bytealg/compare_amd64.s | 38 ++++++++++++++++++--
+ src/internal/bytealg/equal_amd64.s   | 70 ++++++++++++++++++++++++++++++++----
+ 4 files changed, 108 insertions(+), 11 deletions(-)

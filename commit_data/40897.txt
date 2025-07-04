@@ -1,0 +1,16 @@
+commit 5de3b97554121ce0a95763cf2b50a8ced76b051b
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Sat Nov 23 00:31:39 2019 -0500
+
+    cmd/link: fix TestStrictDup in module mode
+    
+    Fixes #35790
+    
+    Change-Id: Ie9df103c5c21b34a378821dfad60804ce4b0cad4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208517
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/link_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,36 @@
+commit 15b7046309b6d8e8ab411272d4320e51fe6dfd7d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Oct 24 16:10:53 2024 +0200
+
+    crypto/internal/alias: move to crypto/internal/fips/alias
+    
+    For #69536
+    
+    Change-Id: Id0bb46fbb39c205ebc903e72e706bbbaaeec6dbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622275
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/aes/aes_gcm.go                          | 2 +-
+ src/crypto/aes/cbc_ppc64x.go                       | 2 +-
+ src/crypto/aes/cbc_s390x.go                        | 2 +-
+ src/crypto/aes/cipher.go                           | 2 +-
+ src/crypto/aes/cipher_asm.go                       | 2 +-
+ src/crypto/aes/cipher_s390x.go                     | 2 +-
+ src/crypto/aes/ctr_s390x.go                        | 2 +-
+ src/crypto/aes/gcm_ppc64x.go                       | 2 +-
+ src/crypto/aes/gcm_s390x.go                        | 2 +-
+ src/crypto/cipher/cbc.go                           | 2 +-
+ src/crypto/cipher/cfb.go                           | 2 +-
+ src/crypto/cipher/ctr.go                           | 2 +-
+ src/crypto/cipher/gcm.go                           | 2 +-
+ src/crypto/cipher/ofb.go                           | 2 +-
+ src/crypto/des/cipher.go                           | 2 +-
+ src/crypto/internal/{ => fips}/alias/alias.go      | 0
+ src/crypto/internal/{ => fips}/alias/alias_test.go | 0
+ src/crypto/rc4/rc4.go                              | 2 +-
+ src/go/build/deps_test.go                          | 5 +++--
+ src/slices/slices.go                               | 2 +-
+ 20 files changed, 20 insertions(+), 19 deletions(-)

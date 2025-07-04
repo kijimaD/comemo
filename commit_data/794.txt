@@ -1,0 +1,13 @@
+commit cd368a259e7734f0c4101bc4283202d8d1e22b22
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 2 10:37:12 2008 -0700
+
+    add a little text clarifying the behavior of 'select'
+    
+    R=gri
+    DELTA=18  (8 added, 2 deleted, 8 changed)
+    OCL=16356
+    CL=16356
+
+ doc/go_spec.txt | 26 ++++++++++++++++----------
+ 1 file changed, 16 insertions(+), 10 deletions(-)

@@ -1,0 +1,12 @@
+commit 69c924204b210e9f6d7e3dbc8193e7aa6782ec3f
+Author: Joseph Holsten <joseph@josephholsten.com>
+Date:   Sun Jul 14 12:56:11 2013 +1000
+
+    log/syslog: fix typo: change Wanring to Warning
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11220044
+
+ src/pkg/log/syslog/syslog.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

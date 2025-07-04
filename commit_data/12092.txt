@@ -1,0 +1,13 @@
+commit 22c41ff019592edcc7f7039d1ac0fffd638c4b7b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 21 12:07:38 2012 +0900
+
+    runtime: remove an obsolete file
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5686049
+
+ src/pkg/runtime/cgo/cgo.go     | 12 ++++++++++++
+ src/pkg/runtime/cgo/trigger.go | 20 --------------------
+ 2 files changed, 12 insertions(+), 20 deletions(-)

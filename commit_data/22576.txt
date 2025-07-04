@@ -1,0 +1,102 @@
+commit 13cb62c764dceefe9bbf16817200629781f9564c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 8 09:54:15 2015 -0700
+
+    cmd/internal/gc, cmd/6g: generate boolean values without jumps
+    
+    Use SETcc instructions instead of Jcc to generate boolean values.
+    This generates shorter, jump-free code, which may in turn enable other
+    peephole optimizations.
+    
+    For example, given
+    
+    func f(i, j int) bool {
+            return i == j
+    }
+    
+    Before
+    
+    "".f t=1 size=32 value=0 args=0x18 locals=0x0
+            0x0000 00000 (x.go:3)   TEXT    "".f(SB), $0-24
+            0x0000 00000 (x.go:3)   FUNCDATA        $0, gclocals·b4c25e9b09fd0cf9bb429dcefe91c353(SB)
+            0x0000 00000 (x.go:3)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:4)   MOVQ    "".i+8(FP), BX
+            0x0005 00005 (x.go:4)   MOVQ    "".j+16(FP), BP
+            0x000a 00010 (x.go:4)   CMPQ    BX, BP
+            0x000d 00013 (x.go:4)   JEQ     21
+            0x000f 00015 (x.go:4)   MOVB    $0, "".~r2+24(FP)
+            0x0014 00020 (x.go:4)   RET
+            0x0015 00021 (x.go:4)   MOVB    $1, "".~r2+24(FP)
+            0x001a 00026 (x.go:4)   JMP     20
+    
+    After
+    
+    "".f t=1 size=32 value=0 args=0x18 locals=0x0
+            0x0000 00000 (x.go:3)   TEXT    "".f(SB), $0-24
+            0x0000 00000 (x.go:3)   FUNCDATA        $0, gclocals·b4c25e9b09fd0cf9bb429dcefe91c353(SB)
+            0x0000 00000 (x.go:3)   FUNCDATA        $1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+            0x0000 00000 (x.go:4)   MOVQ    "".i+8(FP), BX
+            0x0005 00005 (x.go:4)   MOVQ    "".j+16(FP), BP
+            0x000a 00010 (x.go:4)   CMPQ    BX, BP
+            0x000d 00013 (x.go:4)   SETEQ   "".~r2+24(FP)
+            0x0012 00018 (x.go:4)   RET
+    
+    regexp benchmarks, best of 12 runs:
+    
+    benchmark                                 old ns/op      new ns/op      delta
+    BenchmarkNotOnePassShortB                 782            733            -6.27%
+    BenchmarkLiteral                          180            171            -5.00%
+    BenchmarkNotLiteral                       2855           2721           -4.69%
+    BenchmarkMatchHard_32                     2672           2557           -4.30%
+    BenchmarkMatchHard_1K                     80182          76732          -4.30%
+    BenchmarkMatchEasy1_32M                   76440180       73304748       -4.10%
+    BenchmarkMatchEasy1_32K                   68798          66350          -3.56%
+    BenchmarkAnchoredLongMatch                482            465            -3.53%
+    BenchmarkMatchEasy1_1M                    2373042        2292692        -3.39%
+    BenchmarkReplaceAll                       2776           2690           -3.10%
+    BenchmarkNotOnePassShortA                 1397           1360           -2.65%
+    BenchmarkMatchClass_InRange               3842           3742           -2.60%
+    BenchmarkMatchEasy0_32                    125            122            -2.40%
+    BenchmarkMatchEasy0_32K                   11414          11164          -2.19%
+    BenchmarkMatchEasy0_1K                    668            654            -2.10%
+    BenchmarkAnchoredShortMatch               260            255            -1.92%
+    BenchmarkAnchoredLiteralShortNonMatch     164            161            -1.83%
+    BenchmarkOnePassShortB                    623            612            -1.77%
+    BenchmarkOnePassShortA                    801            788            -1.62%
+    BenchmarkMatchClass                       4094           4033           -1.49%
+    BenchmarkMatchEasy0_32M                   14078800       13890704       -1.34%
+    BenchmarkMatchHard_32K                    4095844        4045820        -1.22%
+    BenchmarkMatchEasy1_1K                    1663           1643           -1.20%
+    BenchmarkMatchHard_1M                     131261708      129708215      -1.18%
+    BenchmarkMatchHard_32M                    4210112412     4169292003     -0.97%
+    BenchmarkMatchMedium_32K                  2460752        2438611        -0.90%
+    BenchmarkMatchEasy0_1M                    422914         419672         -0.77%
+    BenchmarkMatchMedium_1M                   78581121       78040160       -0.69%
+    BenchmarkMatchMedium_32M                  2515287278     2498464906     -0.67%
+    BenchmarkMatchMedium_32                   1754           1746           -0.46%
+    BenchmarkMatchMedium_1K                   52105          52106          +0.00%
+    BenchmarkAnchoredLiteralLongNonMatch      185            185            +0.00%
+    BenchmarkMatchEasy1_32                    107            107            +0.00%
+    BenchmarkOnePassLongNotPrefix             505            505            +0.00%
+    BenchmarkOnePassLongPrefix                147            147            +0.00%
+    
+    The godoc binary is ~0.12% smaller after this CL.
+    
+    Updates #5729.
+    
+    toolstash -cmp passes for all architectures other than amd64 and amd64p32.
+    
+    Other architectures can be done in follow-up CLs.
+    
+    Change-Id: I0e167e259274b722958567fc0af83a17ca002da7
+    Reviewed-on: https://go-review.googlesource.com/2284
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/6g/galign.go          |  24 ++---
+ src/cmd/6g/gsubr.go           |  65 ++++++++++++-
+ src/cmd/6g/prog.go            |  16 ++++
+ src/cmd/internal/gc/cgen.go   | 206 ++++++++++++++++++++++++++++++++++--------
+ src/cmd/internal/gc/cplx.go   |  20 +++-
+ src/cmd/internal/gc/go.go     |   7 ++
+ src/cmd/internal/gc/syntax.go |   1 +
+ 7 files changed, 285 insertions(+), 54 deletions(-)

@@ -1,0 +1,14 @@
+commit e5009e29eaea99017b314f6b1e97cf6b56eb15fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 1 12:36:29 2010 -0700
+
+    6a: assemble CMPPD as 6l expects
+    libmach: disassemble CMPPD as 6a expects
+    
+    R=ken2
+    CC=Charlie Dorian, golang-dev
+    https://golang.org/cl/1704046
+
+ src/cmd/6a/a.y    |  2 +-
+ src/libmach/8db.c | 13 ++++++++++---
+ 2 files changed, 11 insertions(+), 4 deletions(-)

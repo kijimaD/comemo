@@ -1,0 +1,17 @@
+commit f5f8b38462983a06ec07d6c394834af50eef6698
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Feb 25 17:27:10 2016 -0800
+
+    cmd/compile: eliminate prectab
+    
+    While here, merge LINC and LDEC into LINCOP.
+    
+    Fixes #13244.
+    
+    Change-Id: I8ea426f986d60d35c3b1a80c056a7aa49d22d802
+    Reviewed-on: https://go-review.googlesource.com/19928
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go    | 181 ++++++++++++++++++----------------
+ src/cmd/compile/internal/gc/parser.go |  72 +++-----------
+ 2 files changed, 111 insertions(+), 142 deletions(-)

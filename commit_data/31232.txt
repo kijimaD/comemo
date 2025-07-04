@@ -1,0 +1,15 @@
+commit 865b50c982a2c8b2a790772c6777a53c3f268bab
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 21 14:20:58 2017 +0100
+
+    cmd/trace: document that trace viewer is only tested on chromium
+    
+    Fixes #19207
+    
+    Change-Id: I69b70492fd01599a13c1a3beb87f492de40a18b0
+    Reviewed-on: https://go-review.googlesource.com/37312
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/trace/doc.go  | 5 +++++
+ src/cmd/trace/main.go | 5 +++++
+ 2 files changed, 10 insertions(+)

@@ -1,0 +1,14 @@
+commit 7da88b83d59216c5dcd90c796bcda8c301643836
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 12 12:16:06 2018 -0700
+
+    cmd/internal/objfile: clean up some comments
+    
+    Change-Id: Iba6feea74d65a961f30c12fb6c677ccd3b2c3591
+    Reviewed-on: https://go-review.googlesource.com/106695
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/objfile/disasm.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

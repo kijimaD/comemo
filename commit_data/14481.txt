@@ -1,0 +1,14 @@
+commit db8d7a292db3c781d35db07e50fe32b6258cf022
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Nov 26 22:11:05 2012 +0400
+
+    cmd/go: racewalk: fix nested struct handling
+    Fixes #4424.
+    Fixes #4425.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6849093
+
+ src/cmd/gc/racewalk.c | 5 +++++
+ 1 file changed, 5 insertions(+)

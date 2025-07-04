@@ -1,0 +1,13 @@
+commit de92199648a71c7296719a847e043f3183328d7e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 28 13:18:40 2010 -0700
+
+    spec: clarify "continue" with label. the text was obvious in intent but
+    inaccurate in meaning.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/964045
+
+ doc/go_spec.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 3e8304b377c3aa34f6747c5ada6d6ffc83c1a9a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 26 14:04:50 2012 -0800
+
+    exp/types: some comment fixes
+    
+    R=adonovan, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7018046
+
+ src/pkg/exp/gotype/gotype_test.go | 4 ++--
+ src/pkg/exp/types/expr.go         | 8 ++++++++
+ src/pkg/go/parser/parser.go       | 8 ++++++--
+ 3 files changed, 16 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 8bc30e07338d8a8d4a972261e4ff25fa85cec921
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Jan 28 16:17:36 2015 +0300
+
+    net/http: fix goroutine leak in benchmark
+    
+    Race builders report goroutine leaks after addition of this benchmark:
+    http://build.golang.org/log/18e47f4cbc18ee8db125e1f1157573dd1e333c41
+    Close idle connection in default transport.
+    
+    Change-Id: I86ff7b2e0972ed47c5ebcb9fce19e7f39d3ff530
+    Reviewed-on: https://go-review.googlesource.com/3412
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 1 +
+ 1 file changed, 1 insertion(+)

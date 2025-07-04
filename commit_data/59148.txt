@@ -1,0 +1,51 @@
+commit 3ada42ffedf61343cc8a7cd7d6293bd646ecf3a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 20 16:12:15 2025 -0700
+
+    go/types, types2: align trace output a bit better for easier debugging
+    
+    Compute alignment padding rather than using a tab in trace output.
+    This aligns the ":" after the file position in typical cases (files
+    shorter than 1000 lines, lines shorter than 100 columns), resulting
+    in nicer trace output for easier debugging.
+    
+    Before this CL (example trace):
+    
+    x.go:8:2:  -- checking type A (white, objPath = )
+    x.go:8:11:  .  -- type B
+    x.go:9:2:  .  .  -- checking type B (white, objPath = A)
+    x.go:9:14:  .  .  .  -- type C[D]
+    x.go:9:13:  .  .  .  .  -- instantiating type C with [D]
+    x.go:9:13:  .  .  .  .  .  -- type C
+    x.go:10:2:  .  .  .  .  .  .  -- checking type C (white, objPath = A->B)
+    x.go:10:6:  .  .  .  .  .  .  .  -- type any
+    x.go:10:6:  .  .  .  .  .  .  .  => any (under = any) // *Alias
+    x.go:10:11:  .  .  .  .  .  .  .  -- type struct{}
+    x.go:10:11:  .  .  .  .  .  .  .  => struct{} // *Struct
+    x.go:10:2:  .  .  .  .  .  .  => type C[_ any] struct{} (black)
+    
+    With this CL:
+    
+    x.go:8:2   :  -- checking type A (white, objPath = )
+    x.go:8:11  :  .  -- type B
+    x.go:9:2   :  .  .  -- checking type B (white, objPath = A)
+    x.go:9:14  :  .  .  .  -- type C[D]
+    x.go:9:13  :  .  .  .  .  -- instantiating type C with [D]
+    x.go:9:13  :  .  .  .  .  .  -- type C
+    x.go:10:2  :  .  .  .  .  .  .  -- checking type C (white, objPath = A->B)
+    x.go:10:6  :  .  .  .  .  .  .  .  -- type any
+    x.go:10:6  :  .  .  .  .  .  .  .  => any (under = any) // *Alias
+    x.go:10:11 :  .  .  .  .  .  .  .  -- type struct{}
+    x.go:10:11 :  .  .  .  .  .  .  .  => struct{} // *Struct
+    x.go:10:2  :  .  .  .  .  .  .  => type C[_ any] struct{} (black)
+    
+    Change-Id: Ibcf346737f57ec5351d1e1e65178e2c3c155d766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659755
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/format.go | 21 ++++++++++++++++++++-
+ src/go/types/format.go                    | 25 +++++++++++++++++++++++--
+ 2 files changed, 43 insertions(+), 3 deletions(-)

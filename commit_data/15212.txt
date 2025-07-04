@@ -1,0 +1,13 @@
+commit 83da2014a84878382b213beea69ac2e4f3b0729e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 13 02:27:42 2013 +0800
+
+    encoding/xml: fix htmlAutoClose and its generating script
+    Thanks Mitică for reporting this.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7308081
+
+ src/pkg/encoding/xml/xml.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

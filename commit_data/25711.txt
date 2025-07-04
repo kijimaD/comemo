@@ -1,0 +1,16 @@
+commit eb5bfa71717b30741f2a3e94a5669a3b55498ad4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 2 16:05:47 2016 +0000
+
+    net/http: mark TestTLSServerClosesConnection as flaky on all systems
+    
+    Fixes #14195
+    
+    Change-Id: I245b3ca3fd7d1a76aa95f2e058f8432ba5ce31ee
+    Reviewed-on: https://go-review.googlesource.com/19160
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/transport_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

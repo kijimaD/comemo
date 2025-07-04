@@ -1,0 +1,17 @@
+commit d754647963d41bcd96ea4d12d824f01e8c50f076
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jul 12 14:35:55 2013 +1000
+
+    encoding/json: escape U+2028 and U+2029.
+    
+    Fixes #5836.
+    
+    R=golang-dev, bradfitz, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/10883045
+
+ src/pkg/encoding/json/decode_test.go  |  6 +++---
+ src/pkg/encoding/json/encode.go       | 32 +++++++++++++++++++++++++++++---
+ src/pkg/encoding/json/indent.go       |  9 +++++++++
+ src/pkg/encoding/json/scanner_test.go | 19 +++++++++++++++++++
+ 4 files changed, 60 insertions(+), 6 deletions(-)

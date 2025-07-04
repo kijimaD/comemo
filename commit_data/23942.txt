@@ -1,0 +1,14 @@
+commit a33b522485e263520d969a52df93e7df448f6f0f
+Author: ALTree <alb.donizetti@gmail.com>
+Date:   Sun Aug 2 17:59:31 2015 +0200
+
+    doc: update install from source instructions for go1.5
+    
+    Fixes #11983
+    
+    Change-Id: I5ee930314a43356f5be31d758d90d7ddcafc7b37
+    Reviewed-on: https://go-review.googlesource.com/12908
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/install-source.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

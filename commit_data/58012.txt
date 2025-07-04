@@ -1,0 +1,24 @@
+commit 63f762bcdea96889d8ffa406804665b84bda63ab
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Nov 14 16:58:07 2024 -0800
+
+    internal/runtime/maps: eliminate a load from the hot path
+    
+    typ.Group.Size involves two loads.
+    
+    Instead cache GroupSize as a separate fields of the map type
+    so we can get to it in just one load.
+    
+    Change-Id: I10ffdce1c7f75dcf448da14040fda78f0d75fd1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627716
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  1 +
+ src/cmd/link/internal/ld/deadcode.go              |  2 +-
+ src/internal/abi/map_swiss.go                     | 13 +++++++------
+ src/internal/runtime/maps/group.go                |  4 ++--
+ src/internal/runtime/maps/map.go                  |  2 +-
+ src/internal/runtime/maps/map_test.go             |  6 +++---
+ 6 files changed, 15 insertions(+), 13 deletions(-)

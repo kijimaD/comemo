@@ -1,0 +1,18 @@
+commit a838191406e80b3b0d665e7b1ba38197eacc7b72
+Author: gulyasm <mgulyas86@gmail.com>
+Date:   Sat Jan 7 23:30:47 2017 +0100
+
+    math: add doc note about floating point operation
+    
+    Go doesn't guarantee that the result of floating point operations will
+    be the same on different architectures. It was not stated in the
+    documentation, that can lead to confusion.
+    
+    Fixes #18354
+    
+    Change-Id: Idb1b4c256fb9a7158a74256136eca3b8ce44476f
+    Reviewed-on: https://go-review.googlesource.com/34938
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/const.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,33 @@
+commit db33959797ad8ef1e86725db62aafb40297ea725
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 22:20:02 2011 -0700
+
+    cgo, goyacc, go/build, html, http, path, path/filepath, testing/quick, test: use rune
+    
+    Nothing terribly interesting here.
+    
+    R=golang-dev, bradfitz, gri, r
+    CC=golang-dev
+    https://golang.org/cl/5300043
+
+ src/cmd/cgo/gcc.go                 | 20 +++++++++---------
+ src/cmd/cgo/util.go                |  2 +-
+ src/cmd/goyacc/goyacc.go           | 43 +++++++++++++++++++-------------------
+ src/pkg/go/build/dir.go            |  4 ++--
+ src/pkg/html/entity.go             |  4 ++--
+ src/pkg/html/escape.go             | 12 +++++------
+ src/pkg/http/cgi/host.go           | 12 +++++------
+ src/pkg/path/filepath/match.go     |  4 ++--
+ src/pkg/path/match.go              |  4 ++--
+ src/pkg/syscall/exec_windows.go    |  4 ++--
+ src/pkg/syscall/syscall_windows.go |  2 +-
+ src/pkg/testing/quick/quick.go     |  4 ++--
+ test/convlit.go                    | 12 +++++------
+ test/fixedbugs/bug204.go           | 16 +++++++-------
+ test/ken/string.go                 |  2 +-
+ test/range.go                      |  4 ++--
+ test/solitaire.go                  |  7 +------
+ test/string_lit.go                 | 22 +++++++++----------
+ test/stringrange.go                | 13 ++++++------
+ test/utf.go                        | 30 +++++++++++++++++---------
+ 20 files changed, 114 insertions(+), 107 deletions(-)

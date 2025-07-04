@@ -1,0 +1,21 @@
+commit 78143d96ccee3054ba5da9b89b069991beb53d01
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 24 12:28:25 2023 +0200
+
+    maps: move test funcs to maps_test.go
+    
+    keysForBenchmarking and valuesForBenchmarking are only used in benchmark
+    tests.
+    
+    Change-Id: Ie4fcb81e0470cc8627b395644787429b79952538
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497380
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/maps/maps.go      | 8 --------
+ src/maps/maps_test.go | 9 +++++++++
+ 2 files changed, 9 insertions(+), 8 deletions(-)

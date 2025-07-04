@@ -1,0 +1,16 @@
+commit c3dbf56a14e8d9dffab7330c203a82a66cf9722e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Sep 15 18:16:45 2014 -0700
+
+    cmd/ld: document that -X overwrites initialized variables
+    
+    Fixes #7626.
+    
+    LGTM=iant
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/144870045
+
+ src/cmd/ld/doc.go | 6 +++---
+ test/linkx.go     | 8 ++++++--
+ 2 files changed, 9 insertions(+), 5 deletions(-)

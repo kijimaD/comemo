@@ -1,0 +1,23 @@
+commit 789701e93a6f0063b6ef2c52c0557c672553d0e2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 25 12:47:06 2023 -0400
+
+    runtime: change heapObjectsCanMove to a func
+    
+    A var is problematic because the zero value is already false,
+    so if it goes away, it will appear to be false.
+    I'm also not sure about go:linkname on vars,
+    so switch to func for both reasons.
+    
+    Also add a test.
+    
+    Change-Id: I2318a5390d98577aec025152e65543491489defb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498261
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/heap_test.go | 21 +++++++++++++++++++++
+ src/runtime/mgc.go       |  8 ++++++--
+ 2 files changed, 27 insertions(+), 2 deletions(-)

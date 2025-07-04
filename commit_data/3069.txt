@@ -1,0 +1,15 @@
+commit 89f69bb3be9aee52e15ee784f60ee3b90e9f0732
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 15:20:37 2009 -0700
+
+    gc: handle iface == nil in back end
+    
+    R=ken
+    OCL=33778
+    CL=33781
+
+ src/cmd/5g/cgen.c      | 19 +++++++++++++++++++
+ src/cmd/6g/cgen.c      | 20 ++++++++++++++++++++
+ src/cmd/8g/cgen.c      | 19 +++++++++++++++++++
+ src/cmd/gc/typecheck.c | 12 ++++++++++--
+ 4 files changed, 68 insertions(+), 2 deletions(-)

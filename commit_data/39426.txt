@@ -1,0 +1,24 @@
+commit 43e53beba53547f2846a18e373c9205ededc20d2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 24 10:16:12 2019 -0400
+
+    cmd/go/internal/modfetch: treat a missing go.mod file as a “not exist” error
+    
+    If we have found a repository at the requested version but it does not
+    contain a go.mod file in an appropriate subdirectory, then the module
+    with the given path does not exist at that version. Therefore, we
+    should report it with an error equivalent to os.ErrNotExist so that
+    modload.Query will continue to check other possible module paths.
+    
+    Updates #27173
+    
+    Change-Id: Ica73f4bb97f58e611a7f7d38183ee52fef5ee69a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183618
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go           |  8 +++++++-
+ src/cmd/go/internal/modfetch/coderepo_test.go      |  2 +-
+ src/cmd/go/testdata/script/mod_invalid_version.txt | 11 +++++++++--
+ 3 files changed, 17 insertions(+), 4 deletions(-)

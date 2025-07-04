@@ -1,0 +1,22 @@
+commit 0ad88a481de7aeba15e5a8b3ee5af7141396b082
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 22 01:19:04 2013 +0900
+
+    net: add benchmarks for network interface identification
+    
+    Current results on linux/amd64:
+    BenchmarkInterfaces                      20000             80902 ns/op
+    BenchmarkInterfaceByIndex                50000             71591 ns/op
+    BenchmarkInterfaceByName                 20000             79908 ns/op
+    BenchmarkInterfaceAddrs                   2000            836413 ns/op
+    BenchmarkInterfacesAndAddrs               5000            605946 ns/op
+    BenchmarkInterfacesAndMulticastAddrs     10000            169029 ns/op
+    
+    Update #4866.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7368046
+
+ src/pkg/net/interface_test.go | 83 +++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 81 insertions(+), 2 deletions(-)

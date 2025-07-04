@@ -1,0 +1,28 @@
+commit 3a18f0ecb5748488501c565e995ec12a29e66966
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sat Sep 8 12:35:03 2018 -0700
+
+    os/user: retrieve Current username from /etc/passwd, not $USER
+    
+    Per golang/go#27524 there are situations where the username for the
+    uid does not match the value in the $USER environment variable and it
+    seems sensible to choose the value in /etc/passwd when they disagree.
+    
+    This may make the Current() call slightly more expensive, since we
+    read /etc/passwd with cgo disabled instead of just checking the
+    environment. However, we cache the result of Current() calls, so we
+    only invoke this cost once in the lifetime of the process.
+    
+    Fixes #14626.
+    Fixes #27524.
+    Updates #24884.
+    
+    Change-Id: I0dcd224cf7f61dd5292f3fcc363aa2e9656a2cb1
+    Reviewed-on: https://go-review.googlesource.com/134218
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/user/lookup_stubs.go | 11 +++++++++--
+ src/os/user/user_test.go    | 18 ++----------------
+ 2 files changed, 11 insertions(+), 18 deletions(-)

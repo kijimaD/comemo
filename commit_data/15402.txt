@@ -1,0 +1,17 @@
+commit 5a8b7dc6d009bd95f5904b4250107ef57c163c22
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 24 22:47:22 2013 +0800
+
+    runtime: remove PROT_EXEC from mmap calls.
+    Executable heap is gone on Unix!
+    
+    R=golang-dev, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7405045
+
+ src/pkg/runtime/mem_darwin.c  | 4 ++--
+ src/pkg/runtime/mem_freebsd.c | 6 +++---
+ src/pkg/runtime/mem_linux.c   | 6 +++---
+ src/pkg/runtime/mem_netbsd.c  | 6 +++---
+ src/pkg/runtime/mem_openbsd.c | 6 +++---
+ 5 files changed, 14 insertions(+), 14 deletions(-)

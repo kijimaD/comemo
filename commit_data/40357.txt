@@ -1,0 +1,23 @@
+commit 22278ca0d4f0ecdc5e9d2884b771062cbb3e837a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 22 12:44:44 2019 -0400
+
+    net: convert TestTCPServer to use subtests
+    
+    My fix in CL 202618 inadvertently violated an invariant in the inner
+    loop of TestTCPServer (namely, that len(trchs) == i). That causes a
+    panic when one or more of the channels is omitted due to a flake.
+    
+    Instead of trying to fix up the test, let's just factor out a subtest
+    and skip the whole thing if the transceiver's Dial flakes out.
+    
+    Updates #32919
+    
+    Change-Id: Ib6f274a44194311c8c5a2faf19f586cc9eccfd4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202561
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/server_test.go | 120 ++++++++++++++++++++++++-------------------------
+ 1 file changed, 60 insertions(+), 60 deletions(-)

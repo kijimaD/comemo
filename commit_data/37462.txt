@@ -1,0 +1,33 @@
+commit 9098d1d85494810a21c6342c8f501dae8fc757d6
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 19 10:37:14 2018 -0500
+
+    runtime: debug code to catch bad gcWork.puts
+    
+    This adds a debug check to throw immediately if any pointers are added
+    to the gcWork buffer after the mark completion barrier. The intent is
+    to catch the source of the cached GC work that occasionally produces
+    "P has cached GC work at end of mark termination" failures.
+    
+    The result should be that we get "throwOnGCWork" throws instead of "P
+    has cached GC work at end of mark termination" throws, but with useful
+    stack traces.
+    
+    This should be reverted before the release. I've been unable to
+    reproduce this issue locally, but this issue appears fairly regularly
+    on the builders, so the intent is to catch it on the builders.
+    
+    This probably slows down the GC slightly.
+    
+    For #27993.
+    
+    Change-Id: I5035e14058ad313bfbd3d68c41ec05179147a85c
+    Reviewed-on: https://go-review.googlesource.com/c/149969
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go |  2 +-
+ src/runtime/mgc.go                      |  6 +++++-
+ src/runtime/mgcwork.go                  | 25 +++++++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 2 deletions(-)

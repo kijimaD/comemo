@@ -1,0 +1,14 @@
+commit 1052b43213ca78035d50cdc3913a6d42c8b502d5
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Aug 11 16:36:40 2015 +1000
+
+    net/mail: fix build.
+    
+    Change-Id: I8f5c72c6c0db015c06d564523bab35d97d934578
+    Reviewed-on: https://go-review.googlesource.com/13510
+    Reviewed-by: Michael McGreevy <mcgreevy@golang.org>
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/net/mail/message.go      | 2 +-
+ src/net/mail/message_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

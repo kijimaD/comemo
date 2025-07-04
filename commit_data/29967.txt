@@ -1,0 +1,19 @@
+commit ea7d9e6a52ca64c200dcc75621e75f209ceceace
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 18 15:12:18 2017 -0500
+
+    runtime: check for nil g and m in msanread
+    
+    fixes #18707.
+    
+    Change-Id: Ibc4efef01197799f66d10bfead22faf8ac00473c
+    Reviewed-on: https://go-review.googlesource.com/35452
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/msan_shared.go | 12 ++++++++++++
+ misc/cgo/testsanitizers/test.bash      | 21 +++++++++++++++++++++
+ src/runtime/msan.go                    |  4 +++-
+ 3 files changed, 36 insertions(+), 1 deletion(-)

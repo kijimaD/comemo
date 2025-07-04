@@ -1,0 +1,149 @@
+commit 6382893890b82bbc0439eade5b132d9d1b3fb3a7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 5 23:18:31 2023 -0400
+
+    math/rand/v2: add ChaCha8
+    
+    ChaCha8 provides a cryptographically strong generator
+    alongside PCG, so that people who want stronger randomness
+    have access to that. On systems with 128-bit vector math
+    assembly (amd64 and arm64), ChaCha8 runs at about the same
+    speed as PCG (25% slower on amd64, 2% faster on arm64).
+    
+    Obviously all the claimed benchmark variation other than the
+    new ChaCha8 benchmark is a lie.
+    
+    goos: linux
+    goarch: amd64
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ afa459a2f0.amd64 │          bbb48afeb7.amd64           │
+                            │      sec/op      │    sec/op     vs base               │
+    PCG_DXSM-32                    1.488n ± 2%    1.492n ± 2%       ~ (p=0.309 n=20)
+    ChaCha8-32                                    1.861n ± 2%
+    SourceUint64-32                1.450n ± 3%    1.590n ± 2%  +9.69% (p=0.000 n=20)
+    GlobalInt64-32                 2.067n ± 2%    2.061n ± 1%       ~ (p=0.952 n=20)
+    GlobalInt64Parallel-32        0.1044n ± 2%   0.1041n ± 1%       ~ (p=0.498 n=20)
+    GlobalUint64-32                2.085n ± 0%    2.256n ± 2%  +8.23% (p=0.000 n=20)
+    GlobalUint64Parallel-32       0.1008n ± 1%   0.1018n ± 1%       ~ (p=0.041 n=20)
+    Int64-32                       1.779n ± 1%    1.779n ± 1%       ~ (p=0.410 n=20)
+    Uint64-32                      1.854n ± 2%    1.882n ± 1%       ~ (p=0.044 n=20)
+    GlobalIntN1000-32              3.140n ± 3%    3.115n ± 3%       ~ (p=0.673 n=20)
+    IntN1000-32                    2.496n ± 1%    2.509n ± 1%       ~ (p=0.171 n=20)
+    Int64N1000-32                  2.510n ± 2%    2.493n ± 1%       ~ (p=0.804 n=20)
+    Int64N1e8-32                   2.471n ± 2%    2.521n ± 1%  +1.98% (p=0.003 n=20)
+    Int64N1e9-32                   2.488n ± 2%    2.506n ± 1%       ~ (p=0.663 n=20)
+    Int64N2e9-32                   2.478n ± 2%    2.482n ± 2%       ~ (p=0.533 n=20)
+    Int64N1e18-32                  3.088n ± 1%    3.216n ± 1%  +4.15% (p=0.000 n=20)
+    Int64N2e18-32                  3.493n ± 1%    3.635n ± 2%  +4.05% (p=0.000 n=20)
+    Int64N4e18-32                  5.060n ± 2%    5.122n ± 1%  +1.22% (p=0.000 n=20)
+    Int32N1000-32                  2.620n ± 1%    2.672n ± 1%  +2.00% (p=0.002 n=20)
+    Int32N1e8-32                   2.652n ± 0%    2.646n ± 1%       ~ (p=0.743 n=20)
+    Int32N1e9-32                   2.644n ± 1%    2.660n ± 2%       ~ (p=0.163 n=20)
+    Int32N2e9-32                   2.619n ± 2%    2.652n ± 1%       ~ (p=0.132 n=20)
+    Float32-32                     2.261n ± 1%    2.267n ± 1%       ~ (p=0.516 n=20)
+    Float64-32                     2.241n ± 2%    2.276n ± 1%       ~ (p=0.080 n=20)
+    ExpFloat64-32                  3.716n ± 1%    3.779n ± 1%  +1.68% (p=0.007 n=20)
+    NormFloat64-32                 3.718n ± 1%    3.747n ± 1%       ~ (p=0.011 n=20)
+    Perm3-32                       34.11n ± 2%    34.23n ± 2%       ~ (p=0.779 n=20)
+    Perm30-32                      200.6n ± 0%    202.3n ± 2%       ~ (p=0.055 n=20)
+    Perm30ViaShuffle-32            109.7n ± 1%    115.5n ± 2%  +5.34% (p=0.000 n=20)
+    ShuffleOverhead-32             107.2n ± 1%    113.3n ± 1%  +5.74% (p=0.000 n=20)
+    Concurrent-32                  2.108n ± 6%    2.107n ± 1%       ~ (p=0.448 n=20)
+    
+    goos: darwin
+    goarch: arm64
+    pkg: math/rand/v2
+    cpu: Apple M1
+                           │ afa459a2f0.arm64 │          bbb48afeb7.arm64           │
+                           │      sec/op      │    sec/op     vs base               │
+    PCG_DXSM-8                    2.531n ± 0%    2.529n ± 0%       ~ (p=0.586 n=20)
+    ChaCha8-8                                    2.480n ± 0%
+    SourceUint64-8                2.531n ± 0%    2.534n ± 0%       ~ (p=0.227 n=20)
+    GlobalInt64-8                 2.177n ± 1%    2.173n ± 1%       ~ (p=0.733 n=20)
+    GlobalInt64Parallel-8        0.4319n ± 0%   0.4304n ± 0%  -0.32% (p=0.003 n=20)
+    GlobalUint64-8                2.185n ± 1%    2.185n ± 0%       ~ (p=0.541 n=20)
+    GlobalUint64Parallel-8       0.4295n ± 1%   0.4294n ± 0%       ~ (p=0.203 n=20)
+    Int64-8                       4.104n ± 0%    4.107n ± 0%       ~ (p=0.193 n=20)
+    Uint64-8                      4.080n ± 0%    4.081n ± 0%       ~ (p=0.053 n=20)
+    GlobalIntN1000-8              2.814n ± 1%    2.814n ± 0%       ~ (p=0.879 n=20)
+    IntN1000-8                    4.140n ± 0%    4.141n ± 0%       ~ (p=0.428 n=20)
+    Int64N1000-8                  4.139n ± 0%    4.140n ± 0%       ~ (p=0.114 n=20)
+    Int64N1e8-8                   4.140n ± 0%    4.140n ± 0%       ~ (p=0.898 n=20)
+    Int64N1e9-8                   4.139n ± 0%    4.140n ± 0%       ~ (p=0.593 n=20)
+    Int64N2e9-8                   4.140n ± 0%    4.139n ± 0%       ~ (p=0.158 n=20)
+    Int64N1e18-8                  5.273n ± 0%    5.274n ± 0%       ~ (p=0.308 n=20)
+    Int64N2e18-8                  6.059n ± 0%    6.058n ± 0%       ~ (p=0.053 n=20)
+    Int64N4e18-8                  8.803n ± 0%    8.800n ± 0%       ~ (p=0.673 n=20)
+    Int32N1000-8                  4.131n ± 0%    4.131n ± 0%       ~ (p=0.342 n=20)
+    Int32N1e8-8                   4.131n ± 0%    4.131n ± 0%       ~ (p=0.091 n=20)
+    Int32N1e9-8                   4.131n ± 0%    4.131n ± 0%       ~ (p=0.273 n=20)
+    Int32N2e9-8                   4.131n ± 0%    4.131n ± 0%       ~ (p=0.425 n=20)
+    Float32-8                     4.110n ± 0%    4.112n ± 0%       ~ (p=0.203 n=20)
+    Float64-8                     4.104n ± 0%    4.106n ± 0%       ~ (p=0.409 n=20)
+    ExpFloat64-8                  5.338n ± 0%    5.339n ± 0%       ~ (p=0.037 n=20)
+    NormFloat64-8                 5.731n ± 0%    5.733n ± 0%       ~ (p=0.692 n=20)
+    Perm3-8                       26.62n ± 0%    26.65n ± 0%  +0.09% (p=0.000 n=20)
+    Perm30-8                      194.6n ± 2%    194.9n ± 0%       ~ (p=0.141 n=20)
+    Perm30ViaShuffle-8            156.4n ± 0%    156.5n ± 0%  +0.06% (p=0.000 n=20)
+    ShuffleOverhead-8             125.8n ± 0%    125.0n ± 0%  -0.64% (p=0.000 n=20)
+    Concurrent-8                  2.654n ± 6%    2.441n ± 6%  -8.06% (p=0.009 n=20)
+    
+    goos: linux
+    goarch: 386
+    pkg: math/rand/v2
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                            │ afa459a2f0.386 │            bbb48afeb7.386            │
+                            │     sec/op     │    sec/op      vs base               │
+    PCG_DXSM-32                  7.793n ± 2%    7.647n ±  1%       ~ (p=0.021 n=20)
+    ChaCha8-32                                  11.48n ±  2%
+    SourceUint64-32              7.680n ± 1%    7.714n ±  1%       ~ (p=0.713 n=20)
+    GlobalInt64-32               3.474n ± 3%    3.491n ± 28%       ~ (p=0.337 n=20)
+    GlobalInt64Parallel-32      0.3253n ± 0%   0.3194n ±  0%  -1.81% (p=0.000 n=20)
+    GlobalUint64-32              3.433n ± 2%    3.610n ±  2%  +5.14% (p=0.000 n=20)
+    GlobalUint64Parallel-32     0.3156n ± 0%   0.3164n ±  0%       ~ (p=0.073 n=20)
+    Int64-32                     7.707n ± 1%    7.824n ±  0%  +1.52% (p=0.005 n=20)
+    Uint64-32                    7.714n ± 1%    7.732n ±  2%       ~ (p=0.441 n=20)
+    GlobalIntN1000-32            6.236n ± 1%    6.176n ±  2%       ~ (p=0.499 n=20)
+    IntN1000-32                  10.41n ± 1%    10.31n ±  2%       ~ (p=0.782 n=20)
+    Int64N1000-32                10.97n ± 2%    11.22n ±  2%  +2.19% (p=0.002 n=20)
+    Int64N1e8-32                 10.98n ± 1%    11.07n ±  1%       ~ (p=0.056 n=20)
+    Int64N1e9-32                 10.95n ± 0%    11.15n ±  2%       ~ (p=0.016 n=20)
+    Int64N2e9-32                 11.11n ± 1%    11.00n ±  1%       ~ (p=0.654 n=20)
+    Int64N1e18-32                15.18n ± 2%    14.97n ±  2%       ~ (p=0.387 n=20)
+    Int64N2e18-32                15.61n ± 1%    15.91n ±  1%  +1.92% (p=0.003 n=20)
+    Int64N4e18-32                19.23n ± 2%    18.98n ±  1%       ~ (p=1.000 n=20)
+    Int32N1000-32                10.35n ± 1%    10.31n ±  2%       ~ (p=0.081 n=20)
+    Int32N1e8-32                 10.33n ± 1%    10.38n ±  1%       ~ (p=0.335 n=20)
+    Int32N1e9-32                 10.35n ± 1%    10.37n ±  1%       ~ (p=0.497 n=20)
+    Int32N2e9-32                 10.35n ± 1%    10.41n ±  1%       ~ (p=0.605 n=20)
+    Float32-32                   13.57n ± 1%    13.78n ±  2%       ~ (p=0.047 n=20)
+    Float64-32                   22.95n ± 4%    23.43n ±  3%       ~ (p=0.218 n=20)
+    ExpFloat64-32                15.23n ± 2%    15.46n ±  1%       ~ (p=0.095 n=20)
+    NormFloat64-32               13.78n ± 1%    13.73n ±  2%       ~ (p=0.031 n=20)
+    Perm3-32                     46.62n ± 2%    47.46n ±  2%  +1.82% (p=0.004 n=20)
+    Perm30-32                    400.7n ± 1%    403.5n ±  1%       ~ (p=0.098 n=20)
+    Perm30ViaShuffle-32          350.5n ± 1%    348.1n ±  2%       ~ (p=0.703 n=20)
+    ShuffleOverhead-32           326.0n ± 2%    326.2n ±  2%       ~ (p=0.440 n=20)
+    Concurrent-32                3.290n ± 0%    3.297n ±  4%       ~ (p=0.189 n=20)
+    
+    For #61716.
+    
+    Change-Id: Id2a7e1c1db0beb81f563faaefba65fe292497269
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516859
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ api/next/61716.txt                          |   6 +
+ src/go/build/deps_test.go                   |  13 +-
+ src/internal/chacha8rand/chacha8.go         | 175 +++++++++
+ src/internal/chacha8rand/chacha8_amd64.s    | 177 ++++++++++
+ src/internal/chacha8rand/chacha8_arm64.s    | 106 ++++++
+ src/internal/chacha8rand/chacha8_generic.go | 222 ++++++++++++
+ src/internal/chacha8rand/chacha8_stub.s     |  12 +
+ src/internal/chacha8rand/export_test.go     |   8 +
+ src/internal/chacha8rand/rand_test.go       | 186 ++++++++++
+ src/math/rand/v2/chacha8.go                 |  46 +++
+ src/math/rand/v2/chacha8_test.go            | 531 ++++++++++++++++++++++++++++
+ 11 files changed, 1479 insertions(+), 3 deletions(-)

@@ -1,0 +1,43 @@
+commit 708ba22a0c7b6c2e8f46fccb35998c21c60629b9
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 13 16:00:09 2017 -0800
+
+    cmd/compile: move constant divide strength reduction to SSA rules
+    
+    Currently the conversion from constant divides to multiplies is mostly
+    done during the walk pass.  This is suboptimal because SSA can
+    determine that the value being divided by is constant more often
+    (e.g. after inlining).
+    
+    Change-Id: If1a9b993edd71be37396b9167f77da271966f85f
+    Reviewed-on: https://go-review.googlesource.com/37015
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/fmt_test.go                    |    1 +
+ src/cmd/compile/internal/gc/subr.go            |   36 -
+ src/cmd/compile/internal/gc/walk.go            |  288 +---
+ src/cmd/compile/internal/ssa/gen/386.rules     |    2 +
+ src/cmd/compile/internal/ssa/gen/386Ops.go     |    2 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |    3 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |    3 +-
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |    3 +
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules  |    3 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |    3 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |    3 +-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  329 +++-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   20 +-
+ src/cmd/compile/internal/ssa/magic.go          |  406 ++---
+ src/cmd/compile/internal/ssa/magic_test.go     |  205 +++
+ src/cmd/compile/internal/ssa/opGen.go          |   23 +
+ src/cmd/compile/internal/ssa/rewrite.go        |   18 +-
+ src/cmd/compile/internal/ssa/rewrite386.go     |   17 +
+ src/cmd/compile/internal/ssa/rewriteARM.go     |   24 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |   23 +-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |   24 +
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go  |   23 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go   |   25 +-
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |   21 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 1936 +++++++++++++++++++++---
+ src/cmd/compile/internal/x86/ssa.go            |   19 +
+ 26 files changed, 2555 insertions(+), 905 deletions(-)

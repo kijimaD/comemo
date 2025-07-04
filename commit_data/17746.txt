@@ -1,0 +1,14 @@
+commit 4207897dcc27a6badb177df115455153f8d4e843
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 4 13:53:34 2013 +1000
+
+    runtime: collect profiles even while on g0 stack
+    
+    Fixes #6417
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/14231047
+
+ src/pkg/runtime/os_windows.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,39 @@
+commit 281ed619f87fb2d3758f9c378984a16f9d822401
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 12:07:27 2021 -0400
+
+    go/types: parameterized functions must have a body
+    
+    This is a port of CL 340911 to go/types. The new check differs slightly,
+    due to go/ast storing type parameters on the function type, rather than
+    declaration. The error was positioned on the function name for
+    consistency with types2 (and because that's a better position).
+    
+    Change-Id: Icdfc76cd65fab215139180b710293a0d79709297
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342475
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/api_test.go                       | 32 ++++++++++----------
+ src/go/types/decl.go                           |  4 +++
+ src/go/types/testdata/check/issues.go2         | 12 ++------
+ src/go/types/testdata/check/map2.go2           |  4 +--
+ src/go/types/testdata/check/tinference.go2     |  8 ++---
+ src/go/types/testdata/check/typeinst2.go2      | 14 ++++-----
+ src/go/types/testdata/check/typeparams.go2     | 42 +++++++++++++-------------
+ src/go/types/testdata/examples/functions.go2   | 28 +++++++++--------
+ src/go/types/testdata/examples/inference.go2   |  8 ++---
+ src/go/types/testdata/examples/types.go2       | 14 ++++-----
+ src/go/types/testdata/fixedbugs/issue39634.go2 |  6 ++--
+ src/go/types/testdata/fixedbugs/issue39723.go2 |  2 +-
+ src/go/types/testdata/fixedbugs/issue39725.go2 |  4 +--
+ src/go/types/testdata/fixedbugs/issue39976.go2 |  2 +-
+ src/go/types/testdata/fixedbugs/issue40038.go2 |  4 +--
+ src/go/types/testdata/fixedbugs/issue40056.go2 |  2 +-
+ src/go/types/testdata/fixedbugs/issue40684.go2 |  6 ++--
+ src/go/types/testdata/fixedbugs/issue41124.go2 |  4 +--
+ src/go/types/testdata/fixedbugs/issue47127.go2 | 10 +++---
+ src/go/types/testdata/fixedbugs/issue47411.go2 |  4 +--
+ 20 files changed, 106 insertions(+), 104 deletions(-)

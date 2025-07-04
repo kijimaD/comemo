@@ -1,0 +1,15 @@
+commit a1646fd50ef92be09d3e7794683dc326169bb39d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 24 15:35:35 2009 -0700
+
+    make bytes.Copy both src- and dst- limited
+    and return the number of bytes copied.
+    
+    R=r
+    DELTA=18  (6 added, 0 deleted, 12 changed)
+    OCL=30693
+    CL=30712
+
+ src/pkg/bytes/bytes.go      | 10 +++++++---
+ src/pkg/bytes/bytes_test.go | 20 +++++++++++---------
+ 2 files changed, 18 insertions(+), 12 deletions(-)

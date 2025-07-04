@@ -1,0 +1,22 @@
+commit 1e5b7e706e4cefea8d6fbc1b697119600ea96daf
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Sun Jan 29 17:22:20 2012 -0200
+
+    cmd/goinstall: remove now that 'go get' works
+    
+    The changes to builder were not tested.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5572083
+
+ src/cmd/Makefile                   |   1 -
+ src/cmd/goinstall/Makefile         |  19 --
+ src/cmd/goinstall/doc.go           | 200 --------------
+ src/cmd/goinstall/download.go      | 537 -------------------------------------
+ src/cmd/goinstall/download_test.go | 149 ----------
+ src/cmd/goinstall/main.go          | 400 ---------------------------
+ src/cmd/goinstall/make.go          | 183 -------------
+ src/cmd/goinstall/tag_test.go      |  73 -----
+ src/pkg/Makefile                   |   1 -
+ 9 files changed, 1563 deletions(-)

@@ -1,0 +1,18 @@
+commit 8511ed454a40f861e1b2aac6acbe6d6aa8325bf3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Aug 25 14:00:00 2011 +0400
+
+    http: return 413 instead of 400 when the request body is too large
+    
+    RFC2616 says servers should return this status code when
+    rejecting requests that are too large.
+    
+    http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html#sec10.4.14
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4962041
+
+ src/pkg/http/serve_test.go | 4 ++--
+ src/pkg/http/server.go     | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

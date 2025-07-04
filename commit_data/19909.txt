@@ -1,0 +1,18 @@
+commit e5e547c71f72722ca5fdd8ee67cf75f99ee586cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 14:50:09 2014 -0400
+
+    runtime: turn off 'unexpected return pc' print on arm traceback
+    
+    It can happen legitimately if a profiling signal arrives at just the wrong moment.
+    It's harmless.
+    
+    Fixes #8153.
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews, iant, r
+    https://golang.org/cl/118670043
+
+ src/pkg/runtime/traceback_arm.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

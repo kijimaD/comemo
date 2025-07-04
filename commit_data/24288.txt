@@ -1,0 +1,14 @@
+commit f0ea976ee4591785fb028b77bcd02fb8590650ed
+Author: Tormod Erevik Lea <tormodlea@gmail.com>
+Date:   Wed Sep 16 10:54:31 2015 +0200
+
+    cmd/go: indent first test binary flag description for `go test -h`
+    
+    Fixes #12642
+    
+    Change-Id: I0b94437055b7d444f5caf7ea310e85357c467bdf
+    Reviewed-on: https://go-review.googlesource.com/14612
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

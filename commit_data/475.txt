@@ -1,0 +1,22 @@
+commit 71d50b8bf9408e3d0eb758f786a3e01ba08ee9ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 4 10:19:36 2008 -0700
+
+    - more import/export stuff
+    - use new export syntax
+    
+    R=r
+    OCL=13807
+    CL=13807
+
+ usr/gri/gosrc/compilation.go |  3 +--
+ usr/gri/gosrc/export.go      | 28 +++++++++++++-------
+ usr/gri/gosrc/globals.go     | 63 ++++++++++++++++----------------------------
+ usr/gri/gosrc/import.go      | 36 +++++++++++++------------
+ usr/gri/gosrc/object.go      |  3 +--
+ usr/gri/gosrc/parser.go      |  8 +++---
+ usr/gri/gosrc/printer.go     |  4 +--
+ usr/gri/gosrc/scanner.go     | 25 ++----------------
+ usr/gri/gosrc/type.go        | 13 ++-------
+ usr/gri/gosrc/verifier.go    |  4 +--
+ 10 files changed, 74 insertions(+), 113 deletions(-)

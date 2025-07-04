@@ -1,0 +1,22 @@
+commit c98026c104dece6cf9aa6cf3f651dd16a0156cf2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 14 10:16:51 2021 -0400
+
+    cmd/go/internal/modload: fix truncated error message from goModDirtyError
+    
+    The 'go mod tidy' hint was truncated due to a typo in CL 293689,
+    and that particular case was not covered by any existing test.
+    
+    Updates #36460
+    Updates #40775
+    
+    Change-Id: Ib6fa872a9dfdafc4e9a112e8add2ff5aecd2dbd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310089
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/init.go                |  2 +-
+ src/cmd/go/testdata/script/mod_require_exclude.txt | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

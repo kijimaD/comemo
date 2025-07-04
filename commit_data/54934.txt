@@ -1,0 +1,20 @@
+commit 6b818b08f9a3a1ecce453b94f60497986d3db27d
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Nov 8 15:04:42 2023 +0000
+
+    internal/zstd: use dynamic path resolution for xxhsum in FuzzXXHash
+    
+    Updates #64000
+    
+    Change-Id: I71fb80128d7e2a1f82322cbf04f74db01dcc631b
+    GitHub-Last-Rev: 74135946664b1b65a0de0a9228de998429dc74f9
+    GitHub-Pull-Request: golang/go#64003
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539938
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/internal/zstd/xxhash_test.go | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit 1659aef3990377081277c48304f7b63a3ce19092
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 2 17:50:36 2012 -0700
+
+    go/ast: track position of <- for channel types
+    
+    This is a backward-compatible API change.
+    
+    Without the correct <- position information,
+    certain channel types have incorrect position
+    information.
+    
+    R=iant, iant
+    CC=golang-dev
+    https://golang.org/cl/6585063
+
+ src/pkg/go/ast/ast.go           |  1 +
+ src/pkg/go/parser/parser.go     | 28 +++++++++++++---------------
+ src/pkg/go/parser/short_test.go |  2 +-
+ src/pkg/go/printer/nodes.go     |  4 ++--
+ 4 files changed, 17 insertions(+), 18 deletions(-)

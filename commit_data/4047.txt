@@ -1,0 +1,33 @@
+commit 553be8427ed619cff7f4e58e4a0dd8d858b49d26
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Sat Nov 14 15:29:09 2009 -0800
+
+    Build changes to support work on the BSDs.
+    
+    This does still contain some FreeBSD-specific bits, but
+    it's a pain to do partial diffs.
+    
+    R=rsc
+    https://golang.org/cl/152138
+
+ src/Make.pkg                |  2 +-
+ src/all-arm.bash            |  2 +-
+ src/all-nacl.bash           |  2 +-
+ src/all.bash                |  2 +-
+ src/clean.bash              |  4 ++--
+ src/cmd/clean.bash          |  4 ++--
+ src/cmd/gofmt/test.sh       |  2 +-
+ src/cmd/gotest/gotest       |  8 ++++----
+ src/cmd/make.bash           |  6 +++---
+ src/make-arm.bash           |  2 +-
+ src/make.bash               | 14 +++++++++++---
+ src/pkg/Makefile            |  8 ++++----
+ src/pkg/deps.bash           |  2 +-
+ src/pkg/exp/eval/test.bash  |  2 +-
+ src/pkg/syscall/mkall.sh    |  6 +++++-
+ src/pkg/syscall/mkerrors.sh |  7 ++++++-
+ src/quietgcc.bash           |  2 +-
+ src/run.bash                | 34 +++++++++++++++++-----------------
+ src/sudo.bash               |  2 +-
+ test/run                    |  2 +-
+ 20 files changed, 65 insertions(+), 48 deletions(-)

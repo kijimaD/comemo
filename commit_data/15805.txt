@@ -1,0 +1,16 @@
+commit 861aa4698ada865ab402b47e6c201da8f4e567b3
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sat Mar 16 00:37:28 2013 +0100
+
+    cmd/gc: missing type inference for untyped complex() calls.
+    
+    Fixes #5014.
+    
+    R=golang-dev, r, rsc, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/7664043
+
+ src/cmd/gc/const.c     | 26 ++++++++++++++++++++++++++
+ src/cmd/gc/typecheck.c |  6 ++++--
+ test/shift1.go         | 12 ++++++++++++
+ 3 files changed, 42 insertions(+), 2 deletions(-)

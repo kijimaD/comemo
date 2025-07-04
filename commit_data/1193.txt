@@ -1,0 +1,21 @@
+commit 6d30efc77215d97d57330ab2daaac338db388a17
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 19 14:38:05 2008 -0800
+
+    add a type testing.T and use it in tests.
+    update uses of gotest.
+    minor tweak to testing structure for protobuf.
+    
+    R=rsc
+    DELTA=276  (71 added, 75 deleted, 130 changed)
+    OCL=19614
+    CL=19621
+
+ src/lib/strconv/testatof.go    | 44 ++++++++++-----------
+ src/lib/strconv/testatoi.go    | 86 ++++++++++++++++++------------------------
+ src/lib/strconv/testdecimal.go | 65 ++++++++++++++-----------------
+ src/lib/strconv/testfp.go      | 14 +++----
+ src/lib/strconv/testftoa.go    | 28 +++++++-------
+ src/lib/strconv/testitoa.go    | 27 ++++++-------
+ src/lib/testing.go             | 78 ++++++++++++++++++++++++++++++++------
+ 7 files changed, 182 insertions(+), 160 deletions(-)

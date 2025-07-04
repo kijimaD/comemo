@@ -1,0 +1,33 @@
+commit 3ef0e8f8235fe938ad5d1c99859cc63470877ec7
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Sep 2 01:14:57 2016 -0700
+
+    net: remove parsing of negative decimals in IPv4 literal
+    
+    https://golang.org/cl/27206 fixed the dtoi function such that
+    it now properly parses negative number. Ironically, this causes
+    several other functions that depended on dtoi to now (incorrectly)
+    parse negative numbers.
+    
+    For example, ParseCIDR("-1.0.0.0/32") used to be rejected prior to the
+    above CL, but is now accepted even though it is an invalid CIDR notation.
+    This CL fixes that regression.
+    
+    We fix this by removing the signed parsing logic entirely from dtoi.
+    It was introduced relatively recently in https://golang.org/cl/12447
+    to fix a bug where an invalid port was improperly being parsed as OK.
+    It seems to me that the fix in that CL to the port handling logic was
+    sufficient such that a change to dtoi was unnecessary.
+    
+    Updates #16350
+    
+    Change-Id: I414bb1aa27d0a226ebd4b05a09cb40d784691b43
+    Reviewed-on: https://go-review.googlesource.com/28414
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/net/ip_test.go    | 10 ++++++++++
+ src/net/parse.go      | 14 +-------------
+ src/net/parse_test.go |  5 ++---
+ 3 files changed, 13 insertions(+), 16 deletions(-)

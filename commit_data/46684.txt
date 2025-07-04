@@ -1,0 +1,18 @@
+commit 205640ed7b6b93d88351c85f0ecfb37d075f8dcf
+Author: Changkun Ou <hi@changkun.de>
+Date:   Fri Aug 27 17:08:23 2021 +0200
+
+    runtime: avoid run TestSyscallN in parallel
+    
+    Fixes #48012
+    
+    Change-Id: Ie27eb864ac387ecf5155a3aefa81661f1448ace5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345670
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/syscall_windows_test.go | 1 -
+ 1 file changed, 1 deletion(-)

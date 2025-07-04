@@ -1,0 +1,14 @@
+commit 3e7407915126942f902d86d94430efd7bd7a1cef
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 5 14:48:57 2009 -0700
+
+    slices
+    methods on slices, pointers and values.
+    
+    R=iant,rsc,gri
+    DELTA=173  (150 added, 1 deleted, 22 changed)
+    OCL=35333
+    CL=35337
+
+ doc/effective_go.html | 193 ++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 171 insertions(+), 22 deletions(-)

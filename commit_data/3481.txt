@@ -1,0 +1,14 @@
+commit 517839aa40eaea08797a30adec98337316ac69f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 8 15:23:49 2009 -0700
+
+    - debugging support
+    
+    R=rsc
+    DELTA=110  (98 added, 0 deleted, 12 changed)
+    OCL=35487
+    CL=35490
+
+ src/pkg/tabwriter/tabwriter.go      | 41 +++++++++++++------
+ src/pkg/tabwriter/tabwriter_test.go | 81 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 110 insertions(+), 12 deletions(-)

@@ -1,0 +1,22 @@
+commit afd090c0c07b86de1cdeb2415d3fc187709832ac
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Tue Dec 19 23:59:56 2017 +0900
+
+    cmd/buildid: fix rewrite algorithm
+    
+    Update rewrite algorithm by coping code from
+    go/internal/work/buildid:updateBuildID.
+    
+    Probably, this is not the best option. We could provide high-level API
+    in cmd/internal/buildid in the future.
+    
+    Fixes #23181
+    
+    Change-Id: I336a7c50426ab39bc9998b55c372af61a4fb21a7
+    Reviewed-on: https://go-review.googlesource.com/84735
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/buildid/buildid.go          | 29 +++++++++++++++++++++++------
+ src/cmd/go/go_test.go               |  4 +++-
+ src/cmd/go/internal/work/buildid.go |  2 ++
+ 3 files changed, 28 insertions(+), 7 deletions(-)

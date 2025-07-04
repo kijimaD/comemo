@@ -1,0 +1,15 @@
+commit 42b49b1907dd9e5fd7543203cd90db4e7ca9e551
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 5 18:44:21 2009 -0800
+
+    - using doc template for gds now
+    - no interface extraction yet
+    
+    R=r
+    OCL=25808
+    CL=25808
+
+ usr/gri/pretty/printer.go    | 65 +++++++++++++++++++++++++++++++++++++++++++-
+ usr/gri/pretty/selftest2.go  |  7 +++--
+ usr/gri/pretty/template.html |  6 ++++
+ 3 files changed, 74 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit 2bcdb5a5d9220f919413ce90ec92ba4ba9167fb7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 23 11:36:57 2015 -0700
+
+    net/http: sync Get and Head's documentation
+    
+    Instead of ambiguously referring to "the Client's CheckRedirect
+    function" in Head, describe the default behavior like for Get as users
+    aren't expected to change DefaultClient.CheckRedirect.
+    
+    While here, use consistent punctuation for the Get and Head Client
+    method documentation.
+    
+    Change-Id: I9e7046c73b0d0bc4de002234924d9e7c59aceb41
+    Reviewed-on: https://go-review.googlesource.com/11362
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

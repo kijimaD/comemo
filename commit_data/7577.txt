@@ -1,0 +1,24 @@
+commit 12b7875bf2c534c7ec1659a733ec2d82a3f85076
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 25 14:29:47 2011 -0500
+
+    sync: use sync/atomic
+    
+    Remove references to custom assembly routines.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4241043
+
+ src/pkg/sync/Makefile               | 17 ----------
+ src/pkg/sync/asm_386.s              | 23 -------------
+ src/pkg/sync/asm_amd64.s            | 23 -------------
+ src/pkg/sync/asm_arm5.s             | 40 ----------------------
+ src/pkg/sync/asm_arm6.s             | 30 ----------------
+ src/pkg/sync/atomic/asm_linux_arm.s | 68 +++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/cond_test.go           |  2 +-
+ src/pkg/sync/mutex.go               | 29 +++++-----------
+ src/pkg/sync/rwmutex.go             | 12 ++++---
+ src/pkg/sync/rwmutex_test.go        | 15 ++++----
+ src/pkg/sync/xadd_test.go           |  9 -----
+ 11 files changed, 92 insertions(+), 176 deletions(-)

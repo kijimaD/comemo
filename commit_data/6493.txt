@@ -1,0 +1,25 @@
+commit e6ecf9765ae8aca669f192aff9a112b6fa10dfcb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 11 22:38:42 2010 -0400
+
+    exp/iterable: delete
+    
+    Package iterable has outlived its utility.
+    
+    It is an interesting demonstration, but it encourages
+    people to use iteration over channels where simple
+    iteration over array indices or a linked list would be
+    cheaper, simpler, and have fewer races.
+    
+    R=dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/2436041
+
+ src/pkg/Makefile                      |   1 -
+ src/pkg/container/list/list.go        |  13 --
+ src/pkg/container/list/list_test.go   |   7 +-
+ src/pkg/exp/iterable/Makefile         |  12 --
+ src/pkg/exp/iterable/array.go         |  72 -------
+ src/pkg/exp/iterable/iterable.go      | 344 ------------------------------
+ src/pkg/exp/iterable/iterable_test.go | 391 ----------------------------------
+ 7 files changed, 4 insertions(+), 836 deletions(-)

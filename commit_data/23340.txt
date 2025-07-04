@@ -1,0 +1,21 @@
+commit a1fe3b5046d9f7249c04ce942f4d2d1d771bff40
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 12 16:17:08 2015 -0700
+
+    fmt: scanning widths apply after leading spaces
+    
+    When scanning with a width, as in %5s, C skips leading spaces
+    brefore counting the 5 characters. We should do the same.
+    
+    Reword the documentation about widths to make this clear.
+    
+    Fixes #9444
+    
+    Change-Id: I443a6441adcf1c834057ef3977f9116a987a79cd
+    Reviewed-on: https://go-review.googlesource.com/10997
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/fmt/doc.go       | 19 ++++++++++++-------
+ src/fmt/scan.go      |  1 +
+ src/fmt/scan_test.go |  2 ++
+ 3 files changed, 15 insertions(+), 7 deletions(-)

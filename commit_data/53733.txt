@@ -1,0 +1,15 @@
+commit 9ceba95008f97a913e9176c6ced2b76b50db6ca5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jun 7 12:04:44 2023 -0400
+
+    runtime: print debuglog before sighandler crash
+    
+    Change-Id: I48e8c314258a033fa0dc5e533e2c5bd06c529a7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501977
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/signal_unix.go | 1 +
+ 1 file changed, 1 insertion(+)

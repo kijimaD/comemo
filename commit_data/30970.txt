@@ -1,0 +1,20 @@
+commit d96f9cbb87bfdbb809d1f4f18e0552b94475b86e
+Author: Jamie Stackhouse <contin673@gmail.com>
+Date:   Sat Apr 1 01:07:59 2017 -0300
+
+    mime/multipart: add Size to FileHeader
+    
+    This change makes it possible to retrieve the size of a file part
+    without having to Seek to determine file-size.
+    
+    Resolves #19501
+    
+    Change-Id: I7b9994c4cf41c9b06a046eb7046f8952ae1f15e9
+    Reviewed-on: https://go-review.googlesource.com/39223
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/multipart/formdata.go      | 5 ++++-
+ src/mime/multipart/formdata_test.go | 3 +++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit b3a3afc9b788597ead21ea4770c9679f31475f40
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jan 15 19:38:08 2014 +0400
+
+    runtime: fix data race in GC
+    Fixes #5139.
+    Update #7065.
+    
+    R=golang-codereviews, bradfitz, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/52090045
+
+ src/pkg/runtime/mgc0.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

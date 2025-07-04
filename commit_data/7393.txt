@@ -1,0 +1,19 @@
+commit 2a838d642474a600c2b4ba74fe6ede72f1033d30
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 8 13:31:01 2011 -0800
+
+    go spec: clarification re: method sets of newly declared pointer types
+    
+    - added an example to Type declarations section clarifying the
+      situation brought up with issue 1324
+    - slightly re-ordered paragraphs in Types section
+    - added separate heading for method set section and refer to it
+      from elsewhere in the spec
+    - no language changes
+    
+    R=rsc, r, iant, ken2, r2
+    CC=golang-dev
+    https://golang.org/cl/4145043
+
+ doc/go_spec.html | 41 ++++++++++++++++++++++++-----------------
+ 1 file changed, 24 insertions(+), 17 deletions(-)

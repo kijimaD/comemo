@@ -1,0 +1,30 @@
+commit 4c4201f0e2c1faf1d1480ac72737acadedb37e6e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 8 22:15:40 2016 +0000
+
+    all: make spelling consistent
+    
+    Fixes #17938
+    
+    Change-Id: Iad12155f4976846bd4a9a53869f89e40e5b3deb3
+    Reviewed-on: https://go-review.googlesource.com/34147
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ doc/devel/weekly.html                          | 6 +++---
+ src/cmd/compile/internal/gc/testdata/array.go  | 4 ++--
+ src/cmd/compile/internal/gc/testdata/string.go | 6 +++---
+ src/cmd/link/internal/ld/data.go               | 2 +-
+ src/cmd/link/internal/ld/elf.go                | 2 +-
+ src/cmd/pprof/internal/svg/svgpan.go           | 2 +-
+ src/context/context_test.go                    | 4 ++--
+ src/crypto/aes/gcm_s390x.go                    | 2 +-
+ src/crypto/cipher/gcm.go                       | 2 +-
+ src/crypto/x509/verify.go                      | 4 ++--
+ src/encoding/asn1/marshal.go                   | 2 +-
+ src/os/exec/exec_test.go                       | 2 +-
+ src/runtime/iface.go                           | 2 +-
+ src/runtime/panic.go                           | 2 +-
+ test/fixedbugs/issue16130.go                   | 2 +-
+ 15 files changed, 22 insertions(+), 22 deletions(-)

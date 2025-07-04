@@ -1,0 +1,24 @@
+commit 33a9a98e4d5893699749f75334c651b2adcecfb9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 5 15:23:47 2016 -0800
+
+    go/types: make sure constants valid in integer operations are in integer form
+    
+    The operation where this manifested in a crash was % (only defined on integers).
+    However, the existing code was sloppy in that it didn't retain the integer form
+    after a value (e.g., 3.0) was accepted as representable in integer form (3 for
+    the example). We would have seen a crash in such cases for / as well except
+    that there was code to fix it for just that case.
+    
+    Remove the special code for / and fix more generally by retaining the integer
+    form for all operations if applicable.
+    
+    Fixes #14229.
+    
+    Change-Id: I8bef769e6299839fade27c6e8b5ff29ad6521d0d
+    Reviewed-on: https://go-review.googlesource.com/19300
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/expr.go             |  8 +++++---
+ src/go/types/testdata/issues.src | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+), 3 deletions(-)

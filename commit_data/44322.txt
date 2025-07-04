@@ -1,0 +1,45 @@
+commit 9fd6cc105db89107bf163d2f0c1f8f55e442ec4d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 26 16:22:35 2020 -0400
+
+    go/printer: canonicalize //go:build and // +build lines while formatting
+    
+    Part of //go:build change (#41184).
+    See https://golang.org/design/draft-gobuild
+    
+    Gofmt and any other go/printer-using program will now:
+    
+     - move //go:build and //+build lines to the appropriate file location
+     - if there's no //go:build line, add one derived from the // +build lines
+     - if there is a //go:build line, recompute and replace any // +build lines
+       to match what the //go:build line says
+    
+    For Go 1.17.
+    
+    Change-Id: Ide5cc3b4a07507ba9ed6f8b0de846e840876f49f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240608
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/deps_test.go               |   8 +-
+ src/go/format/format_test.go            |   4 +
+ src/go/printer/gobuild.go               | 170 ++++++++++++++++++++++++++++++++
+ src/go/printer/printer.go               |  14 +++
+ src/go/printer/printer_test.go          |  20 ++--
+ src/go/printer/testdata/gobuild1.golden |   6 ++
+ src/go/printer/testdata/gobuild1.input  |   7 ++
+ src/go/printer/testdata/gobuild2.golden |   8 ++
+ src/go/printer/testdata/gobuild2.input  |   9 ++
+ src/go/printer/testdata/gobuild3.golden |  10 ++
+ src/go/printer/testdata/gobuild3.input  |  11 +++
+ src/go/printer/testdata/gobuild4.golden |   6 ++
+ src/go/printer/testdata/gobuild4.input  |   5 +
+ src/go/printer/testdata/gobuild5.golden |   4 +
+ src/go/printer/testdata/gobuild5.input  |   4 +
+ src/go/printer/testdata/gobuild6.golden |   5 +
+ src/go/printer/testdata/gobuild6.input  |   4 +
+ src/go/printer/testdata/gobuild7.golden |  11 +++
+ src/go/printer/testdata/gobuild7.input  |  11 +++
+ 19 files changed, 307 insertions(+), 10 deletions(-)

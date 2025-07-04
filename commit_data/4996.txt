@@ -1,0 +1,16 @@
+commit 4b22e1bdb656e8d3e337ea6e57deadede4a9db10
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 5 10:43:33 2010 -0800
+
+    Generate same output on all architectures.
+    
+    Passing an argument to bug260 will indicate which alignments
+    are wrong.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/231042
+
+ test/bugs/bug260.go | 26 ++++++++++++++++++++------
+ test/golden.out     |  5 ++---
+ 2 files changed, 22 insertions(+), 9 deletions(-)

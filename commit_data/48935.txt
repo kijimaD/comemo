@@ -1,0 +1,52 @@
+commit 74f00094220f26c80fbaab6eca28c3a664897d24
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 15 12:23:06 2022 -0400
+
+    runtime: use saved LR when unwinding through morestack
+    
+    On LR machine, consider F calling G calling H, which grows stack.
+    The stack looks like
+    ...
+    G's frame:
+            ... locals ...
+            saved LR = return PC in F  <- SP points here at morestack
+    H's frame (to be created)
+    
+    At morestack, we save
+            gp.sched.pc = H's morestack call
+            gp.sched.sp = H's entry SP (the arrow above)
+            gp.sched.lr = return PC in G
+    
+    Currently, when unwinding through morestack (if _TraceJumpStack
+    is set), we switch PC and SP but not LR. We then have
+            frame.pc = H's morestack call
+            frame.sp = H's entry SP (the arrow above)
+    As LR is not set, we load it from stack at *sp, so
+            frame.lr = return PC in F
+    As the SP hasn't decremented at the morestack call,
+            frame.fp = frame.sp = H's entry SP
+    
+    Unwinding a frame, we have
+            frame.pc = old frame.lr = return PC in F
+            frame.sp = old frame.fp = H's entry SP a.k.a. G's SP
+    The PC and SP don't match. The unwinding will go off if F and G
+    have different frame sizes.
+    
+    Fix this by preserving the LR when switching stack.
+    
+    Also add code to detect infinite loop in unwinding.
+    
+    TODO: add some test. I can reproduce the infinite loop (or throw
+    with added check) but the frequency is low.
+    
+    May fix #52116.
+    
+    Change-Id: I6e1294f1c6e55f664c962767a1cf6c466a0c0eff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400575
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/runtime/traceback.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

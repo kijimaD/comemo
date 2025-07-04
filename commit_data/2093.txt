@@ -1,0 +1,17 @@
+commit bf53e16f6d155bbbc5fda7bd439a55457572a543
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Apr 25 17:01:41 2009 -0700
+
+    - install doc in lib/go
+    - adjust dependent files
+    
+    R=rsc
+    DELTA=1132  (567 added, 562 deleted, 3 changed)
+    OCL=27862
+    CL=27862
+
+ src/lib/go/Makefile                   | 9 +++++++--
+ {usr/gri/pretty => src/lib/go}/doc.go | 0
+ usr/gri/pretty/Makefile               | 2 +-
+ usr/gri/pretty/godoc.go               | 2 +-
+ 4 files changed, 9 insertions(+), 4 deletions(-)

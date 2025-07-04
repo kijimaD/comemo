@@ -1,0 +1,21 @@
+commit 5fce1d96137e1079c393c94febfac49d1e2979b0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 27 16:07:40 2021 -0400
+
+    runtime: disable TestSegv panic check on darwin, illumos, solaris
+    
+    CL 339990 made this test more strict, exposing pre-existing issues on
+    these OSes. Skip for now until they can be resolved.
+    
+    Updates #49182
+    
+    Change-Id: I3ac400dcd21b801bf4ab4eeb630e23b5c66ba563
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359254
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

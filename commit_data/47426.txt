@@ -1,0 +1,17 @@
+commit 7bed3c7975780cad3c0adcf548d8b2d324a09265
+Author: Mikhail Faraponov <mikefaraponov@gmail.com>
+Date:   Thu Nov 11 21:45:45 2021 +0000
+
+    net: use Done rather than comparing with context.Background
+    
+    Fixes #49023
+    
+    Change-Id: I3de70f8a25f4ba8a0fb8bb96581371e33fde2f7a
+    GitHub-Last-Rev: b7ec9405adc77ec513df344f2ad33801feb2d3ca
+    GitHub-Pull-Request: golang/go#49024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356471
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+
+ src/net/fd_unix.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

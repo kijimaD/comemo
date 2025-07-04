@@ -1,0 +1,18 @@
+commit 056940d84bbc8c57db09953322ddc8a5a22a8a87
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 12:00:34 2009 -0700
+
+    convert walkexpr to take Node**; drop indir
+    
+    R=ken
+    OCL=32421
+    CL=32421
+
+ src/cmd/gc/dcl.c   |  26 ++--
+ src/cmd/gc/go.h    |   9 +-
+ src/cmd/gc/go.y    |   6 +-
+ src/cmd/gc/sinit.c |   2 +-
+ src/cmd/gc/subr.c  |  10 +-
+ src/cmd/gc/swt.c   |   6 +-
+ src/cmd/gc/walk.c  | 381 +++++++++++++++++++++++++++--------------------------
+ 7 files changed, 225 insertions(+), 215 deletions(-)

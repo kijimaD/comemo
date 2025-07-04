@@ -1,0 +1,22 @@
+commit 64350f1eabeb688e997c6cd0c103e21c02ab2a46
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Aug 18 16:26:42 2020 -0500
+
+    cmd/asm,cmd/internal/obj/ppc64: add {l,st}xvx power9 instructions
+    
+    These are the indexed vsx load operations with the
+    same endian and alignment benefits of {l,st}vx.
+    
+    Likewise, cleanup redundant comments in op{load,store}x and
+    fix ISA 3.0 typos nearby.
+    
+    Change-Id: Ie1ace17c6150cf9168a834e435114028ff6eb07c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249025
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s    |  2 ++
+ src/cmd/asm/internal/asm/testdata/ppc64enc.s |  2 ++
+ src/cmd/internal/obj/ppc64/asm9.go           | 30 ++++++++++++++++------------
+ 3 files changed, 21 insertions(+), 13 deletions(-)

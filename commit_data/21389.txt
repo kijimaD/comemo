@@ -1,0 +1,26 @@
+commit e16ed2870786c427fd9c265bc656cb01738fa63e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jan 28 11:38:05 2015 +0900
+
+    net: remove full stack test cases for IPConn
+    
+    A few packages that handle net.IPConn in golang.org/x/net sub repository
+    already implement full stack test cases with more coverage than the net
+    package. There is no need to keep duplicate code around here.
+    
+    This change removes full stack test cases for IPConn that require
+    knowing how to speak with each of protocol stack implementation of
+    supported platforms.
+    
+    Change-Id: I871119a9746fc6a2b997b69cfd733463558f5816
+    Reviewed-on: https://go-review.googlesource.com/3404
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/fd_plan9.go        |   4 --
+ src/net/fd_unix.go         |   7 --
+ src/net/fd_windows.go      |  19 -----
+ src/net/ipraw_test.go      | 174 ++-------------------------------------------
+ src/net/mockicmp_test.go   | 116 ------------------------------
+ src/net/packetconn_test.go |  26 ++-----
+ src/net/protoconn_test.go  |  35 +++------
+ 7 files changed, 21 insertions(+), 360 deletions(-)

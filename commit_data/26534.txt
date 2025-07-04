@@ -1,0 +1,17 @@
+commit 0cd9edf6e8346f63a39328c9361f4b44cee30189
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 25 18:17:37 2016 +0100
+
+    cmd/go: fix proc-count accumulation in benchmark name
+    
+    Fixes #14964
+    
+    Change-Id: I5f772426081efaa9315c4ecaf60de850af324f1d
+    Reviewed-on: https://go-review.googlesource.com/21139
+    Reviewed-by: Ahmed Waheed <oneofone@gmail.com>
+    Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/benchmark.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

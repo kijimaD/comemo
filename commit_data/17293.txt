@@ -1,0 +1,13 @@
+commit 727dd08cdf80081bcd3ba0921104cce8474d9881
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 16 16:02:55 2013 +0400
+
+    net: fix bug in fdMutex
+    Fixes #6165.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12984044
+
+ src/pkg/net/fd_mutex.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

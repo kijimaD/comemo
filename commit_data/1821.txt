@@ -1,0 +1,12 @@
+commit e20834092f1887149391c9eda84547f4b04ad2e0
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 12 18:40:07 2009 -0700
+
+    weasel words about types in shift expressions suggested by rsc
+    
+    R=rsc
+    OCL=26220
+    CL=26220
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 3a23e53387b2cdd01626e108d80ad1167e901c75
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 4 19:38:08 2009 -0700
+
+    binary tree
+    
+    R=rsc
+    DELTA=324  (323 added, 0 deleted, 1 changed)
+    OCL=32759
+    CL=32768
+
+ test/bench/binary-tree-freelist.go | 130 +++++++++++++++++++++++++++++
+ test/bench/binary-tree.c           | 165 +++++++++++++++++++++++++++++++++++++
+ test/bench/binary-tree.go          |  93 +++++++++++++++++++++
+ test/bench/binary-tree.txt         |   8 ++
+ test/bench/timing.log              |   7 ++
+ test/bench/timing.sh               |  11 ++-
+ 6 files changed, 413 insertions(+), 1 deletion(-)

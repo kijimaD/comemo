@@ -1,0 +1,51 @@
+commit a55645fa3481413b335561924d8fa626ce440ad4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 14 12:30:47 2020 -0700
+
+    math/big: don't use Float in init to help linker discard 162 KiB
+    
+    Removes 162 KiB from binaries that don't use math/big.Float:
+    
+    -rwxr-xr-x 1 bradfitz bradfitz 1916590 Apr 14 12:21 x.after
+    -rwxr-xr-x 1 bradfitz bradfitz 2082575 Apr 14 12:21 x.before
+    
+    No change in deps (this package already used sync).
+    
+    No change in benchmarks:
+    
+    name                 old time/op    new time/op    delta
+    FloatSqrt/64-8         1.06µs ±10%    1.03µs ± 6%   ~     (p=0.133 n=10+9)
+    FloatSqrt/128-8        2.26µs ± 9%    2.28µs ± 9%   ~     (p=0.460 n=10+8)
+    FloatSqrt/256-8        2.29µs ± 5%    2.31µs ± 3%   ~     (p=0.214 n=9+9)
+    FloatSqrt/1000-8       5.82µs ± 3%    5.87µs ± 7%   ~     (p=0.666 n=9+9)
+    FloatSqrt/10000-8      56.4µs ± 5%    57.0µs ± 6%   ~     (p=0.436 n=10+10)
+    FloatSqrt/100000-8     1.34ms ± 8%    1.31ms ± 3%   ~     (p=0.447 n=10+9)
+    FloatSqrt/1000000-8     106ms ± 5%     107ms ± 7%   ~     (p=0.315 n=10+10)
+    
+    name                 old alloc/op   new alloc/op   delta
+    FloatSqrt/64-8           280B ± 0%      280B ± 0%   ~     (all equal)
+    FloatSqrt/128-8          504B ± 0%      504B ± 0%   ~     (all equal)
+    FloatSqrt/256-8          344B ± 0%      344B ± 0%   ~     (all equal)
+    FloatSqrt/1000-8       1.30kB ± 0%    1.30kB ± 0%   ~     (all equal)
+    FloatSqrt/10000-8      13.5kB ± 0%    13.5kB ± 0%   ~     (p=0.403 n=10+10)
+    FloatSqrt/100000-8      123kB ± 0%     123kB ± 0%   ~     (p=0.393 n=10+10)
+    FloatSqrt/1000000-8    1.84MB ± 7%    1.84MB ± 5%   ~     (p=0.739 n=10+10)
+    
+    name                 old allocs/op  new allocs/op  delta
+    FloatSqrt/64-8           8.00 ± 0%      8.00 ± 0%   ~     (all equal)
+    FloatSqrt/128-8          11.0 ± 0%      11.0 ± 0%   ~     (all equal)
+    FloatSqrt/256-8          5.00 ± 0%      5.00 ± 0%   ~     (all equal)
+    FloatSqrt/1000-8         6.00 ± 0%      6.00 ± 0%   ~     (all equal)
+    FloatSqrt/10000-8        6.00 ± 0%      6.00 ± 0%   ~     (all equal)
+    FloatSqrt/100000-8       6.00 ± 0%      6.00 ± 0%   ~     (all equal)
+    FloatSqrt/1000000-8      10.9 ±10%      10.8 ±17%   ~     (p=0.974 n=10+10)
+    
+    Change-Id: I3337f1f531bf7b4fae192b9d90cd24ff2be14fea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228108
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/floatconv.go |  2 +-
+ src/math/big/sqrt.go      | 20 ++++++++++++++++----
+ 2 files changed, 17 insertions(+), 5 deletions(-)

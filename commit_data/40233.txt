@@ -1,0 +1,69 @@
+commit 3c56eb4083f2aca21804c341ca5f09032fe82989
+Author: zdjones <zachj1@gmail.com>
+Date:   Fri Oct 11 16:04:47 2019 +0100
+
+    cmd/compile: make poset use sufficient conditions for OrderedOrEqual
+    
+    When assessing whether A <= B, the poset's OrderedOrEqual has a passing
+    condition which permits A <= B, but is not sufficient to infer that A <= B.
+    This CL removes that incorrect passing condition.
+    
+    Having identified that A and B are in the poset, the method will report that
+    A <= B if any of these three conditions are true:
+     (1) A and B are the same node in the poset.
+            - This means we know that A == B.
+     (2) There is a directed path, strict or not, from A -> B
+            - This means we know that, at least, A <= B, but A < B is possible.
+     (3) There is a directed path from B -> A, AND that path has no strict edges.
+            - This means we know that B <= A, but do not know that B < A.
+    
+    In condition (3), we do not have enough information to say that A <= B, rather
+    we only know that B == A (which satisfies A <= B) is possible. The way I
+    understand it, a strict edge shows a known, strictly-ordered relation (<) but
+    the lack of a strict edge does not show the lack of a strictly-ordered relation.
+    
+    The difference is highlighted by the example in #34802, where a bounds check is
+    incorrectly removed by prove, such that negative indexes into a slice
+    succeed:
+    
+            n := make([]int, 1)
+            for i := -1; i <= 0; i++ {
+                fmt.Printf("i is %d\n", i)
+                n[i] = 1  // No Bounds check, program runs, assignment to n[-1] succeeds!!
+            }
+    
+    When prove is checking the negative/failed branch from the bounds check at n[i],
+    in the signed domain we learn (0 > i || i >= len(n)). Because prove can't learn
+    the OR condition, we check whether we know that i is non-negative so we can
+    learn something, namely that i >= len(n). Prove uses the poset to check whether
+    we know that i is non-negative.  At this point the poset holds the following
+    relations as a directed graph:
+    
+            -1 <= i <= 0
+            -1 < 0
+    
+    In poset.OrderedOrEqual, we are testing for 0 <= i. In this case, condition (3)
+    above is true because there is a non-strict path from i -> 0, and that path
+    does NOT have any strict edges. Because this condition is true, the poset
+    reports to prove that i is known to be >= 0. Knowing, incorrectly, that i >= 0,
+    prove learns from the failed bounds check that i >= len(n) in the signed domain.
+    
+    When the slice, n, was created, prove learned that len(n) == 1. Because i is
+    also the induction variable for the loop, upon entering the loop, prove previously
+    learned that i is in [-1,0]. So when prove attempts to learn from the failed
+    bounds check, it finds the new fact, i > len(n), unsatisfiable given that it
+    previously learned that i <= 0 and len(n) = 1.
+    
+    Fixes #34802
+    
+    Change-Id: I235f4224bef97700c3aa5c01edcc595eb9f13afc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200759
+    Run-TryBot: Zach Jones <zachj1@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/poset.go      |  3 +--
+ src/cmd/compile/internal/ssa/poset_test.go |  4 ++--
+ test/prove.go                              | 22 ++++++++++++++++++++++
+ 3 files changed, 25 insertions(+), 4 deletions(-)

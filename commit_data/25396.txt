@@ -1,0 +1,46 @@
+commit 8d5ff2e182c52c4fa6af18e536dcef6e12ad8cb2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 21 10:29:21 2015 -0500
+
+    runtime: move test programs out of source code, coalesce
+    
+    Now there are just three programs to compile instead of many,
+    and repeated tests can reuse the compilation result instead of
+    rebuilding it.
+    
+    Combined, these changes reduce the time spent testing runtime
+    during all.bash on my laptop from about 60 to about 30 seconds.
+    (All.bash itself runs in 5½ minutes.)
+    
+    For #10571.
+    
+    Change-Id: Ie2c1798b847f1a635a860d11dcdab14375319ae9
+    Reviewed-on: https://go-review.googlesource.com/18085
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/crash_cgo_test.go                      | 390 +-------------------
+ src/runtime/crash_test.go                          | 399 +++++----------------
+ src/runtime/gc_test.go                             |  48 +--
+ src/runtime/proc_test.go                           |  37 +-
+ src/runtime/string_test.go                         |  15 +-
+ src/runtime/syscall_windows_test.go                |  26 +-
+ src/runtime/testdata/testprog/crash.go             |  45 +++
+ src/runtime/testdata/testprog/deadlock.go          | 173 +++++++++
+ src/runtime/testdata/testprog/gc.go                |  74 ++++
+ src/runtime/testdata/testprog/main.go              |  35 ++
+ src/runtime/testdata/testprog/stringconcat.go      |  20 ++
+ src/runtime/testdata/testprog/syscall_windows.go   |  27 ++
+ src/runtime/testdata/testprogcgo/callback.go       |  89 +++++
+ src/runtime/testdata/testprogcgo/cgo.go            |  80 +++++
+ src/runtime/testdata/testprogcgo/crash.go          |  45 +++
+ src/runtime/testdata/testprogcgo/dll_windows.go    |  25 ++
+ src/runtime/testdata/testprogcgo/main.go           |  35 ++
+ src/runtime/testdata/testprogcgo/threadpanic.go    |  24 ++
+ .../testdata/testprogcgo/threadpanic_unix.c        |  26 ++
+ .../testdata/testprogcgo/threadpanic_windows.c     |  22 ++
+ src/runtime/testdata/testprogcgo/threadprof.go     |  93 +++++
+ src/runtime/testdata/testprogcgo/windows/win.go    |  16 +
+ src/runtime/testdata/testprognet/main.go           |  35 ++
+ src/runtime/testdata/testprognet/net.go            |  29 ++
+ 24 files changed, 991 insertions(+), 817 deletions(-)

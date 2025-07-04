@@ -1,0 +1,30 @@
+commit 71d29086486e4f5333e4cf29e973bfd71cf8bdfe
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jul 12 19:12:38 2018 +0000
+
+    net/http: update bundled http2
+    
+    Updates bundled x/net/http2 to git rev d0887baf81f4 for:
+    
+        http2: ignore unknown 1xx responses like HTTP/1
+        https://golang.org/cl/123615
+    
+        http2: fix bug in earlier CL 123615
+        https://golang.org/cl/123675
+    
+    Also along for the ride, but without any effect:
+    
+        http2: export a field of an internal type for use by net/http
+        https://golang.org/cl/123656
+    
+    Fixes #26189
+    Updates #17739
+    
+    Change-Id: I1955d844d74113efbcbbdaa7d7a7faebb2225b45
+    Reviewed-on: https://go-review.googlesource.com/123676
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/h2_bundle.go | 66 +++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 49 insertions(+), 17 deletions(-)

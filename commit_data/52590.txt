@@ -1,0 +1,36 @@
+commit c1ac63e9732a54ef8349fe0bdbb3fa47bd0847c2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Mar 28 12:45:17 2023 -0400
+
+    cmd/compile: don't inline hot calls into big functions
+    
+    Standard inlining has a reduced maximum cost of callees (20 instead of
+    80) when inlining into a "big" function, to limit how much bigger we
+    will make an already big function.
+    
+    When adding PGO hot call budget increases, we inadvertently bypassed
+    this "big" function restriction, allowing hot calls of up to
+    inlineHotMaxBudget, even into big functions.
+    
+    Add the restriction back, even for hot calls. If a function is already
+    very large, we probably shouldn't inline even more.
+    
+    A very important note here is that function "big"-ness is computed prior
+    to any inlining. One potential problem with PGO is that many hot calls
+    inline into an initially-small function and ultimately make it very
+    large. This CL does nothing to address that case, which would require
+    recomputing size after inlining.
+    
+    This CL has no impact on sweet PGO benchmarks. I specifically dug into
+    tile38, which contained 0 hot big functions. Other benchmarks are
+    probably similar.
+    
+    Change-Id: I3b6304eaf7738a219359d4b8bb121d68babfea8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482157
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 94 ++++++++++++++++++++++------------
+ 1 file changed, 61 insertions(+), 33 deletions(-)

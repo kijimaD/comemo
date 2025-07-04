@@ -1,0 +1,26 @@
+commit 773a921ccbb26324db1161edceb38507ab0c96b6
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Nov 17 23:13:49 2011 +1100
+
+    syscall: implement nametomib for openbsd.
+    
+    Move the existing darwin/freebsd specific nametomib implementation
+    into the respective operating system dependent files.
+    
+    Provide a nametomib implementation for openbsd, which operates on a
+    sysctl MIB that has been pre-generated from the various system headers
+    by mksysctl_openbsd.pl.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4935044
+
+ src/pkg/syscall/Makefile            |   1 +
+ src/pkg/syscall/mkall.sh            |   7 +
+ src/pkg/syscall/mksysctl_openbsd.pl | 257 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_bsd.go      |  25 ---
+ src/pkg/syscall/syscall_darwin.go   |  25 +++
+ src/pkg/syscall/syscall_freebsd.go  |  25 +++
+ src/pkg/syscall/syscall_openbsd.go  |  22 +++
+ src/pkg/syscall/zsysctl_openbsd.go  | 292 ++++++++++++++++++++++++++++++++++++
+ 8 files changed, 629 insertions(+), 25 deletions(-)

@@ -1,0 +1,12 @@
+commit 869774cbf9025b8553b490c9add568d459cd4d63
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 2 13:15:49 2013 -0700
+
+    api: update next.txt
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12360043
+
+ api/next.txt | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 69 insertions(+)

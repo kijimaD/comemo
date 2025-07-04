@@ -1,0 +1,14 @@
+commit 0ebfc99e9af761ecf40a3b6fbc7f9abaf1b3ae63
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 9 21:19:11 2018 +0000
+
+    api: add some more API to go1.11.txt
+    
+    Added since last update.
+    
+    Change-Id: Ic5be0e2e379d422ef72b956a794d65613a0dd7be
+    Reviewed-on: https://go-review.googlesource.com/122815
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ api/go1.11.txt | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

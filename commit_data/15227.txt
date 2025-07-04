@@ -1,0 +1,17 @@
+commit 2968e239b00e3cfa4b9f146b00f06b01134ae5a1
+Author: Julien Schmidt <google@julienschmidt.com>
+Date:   Wed Feb 13 15:25:39 2013 -0800
+
+    database/sql: Add an optional Queryer-Interface (like Execer)
+    
+    Completly the same like the Execer-Interface, just for Queries.
+    This allows Drivers to execute Queries without preparing them first
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7085056
+
+ src/pkg/database/sql/driver/driver.go |  11 ++++
+ src/pkg/database/sql/fakedb_test.go   |  12 ++++
+ src/pkg/database/sql/sql.go           | 117 ++++++++++++++++++++++++++--------
+ 3 files changed, 114 insertions(+), 26 deletions(-)

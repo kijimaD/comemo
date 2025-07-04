@@ -1,0 +1,19 @@
+commit 1f4bb6112bdab6c0320b1ecd28a7da79cf8b74e0
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Aug 10 15:07:43 2023 -0700
+
+    runtime: test that write barriers are correctly marked unpreemptible
+    
+    Followon to CL 518055.
+    
+    Change-Id: I05c4b429f49feb7012070e467fefbf3392260915
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518538
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/go/internal/test/test.go |   5 ++
+ src/runtime/export_test.go       |  19 ++++++
+ src/runtime/unsafepoint_test.go  | 122 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 146 insertions(+)

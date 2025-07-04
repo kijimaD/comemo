@@ -1,0 +1,26 @@
+commit b15a1e3cfb64aeeb90f74e0748524b38fde5ebf9
+Author: Michal Bohuslávek <mbohuslavek@gmail.com>
+Date:   Thu Aug 23 19:51:50 2018 +0200
+
+    text/template: Put bad function name in quotes in panic from (*Template).Funcs
+    
+    This turns
+    
+            panic: function name  is not a valid identifier
+    
+    into
+            panic: function name "" is not a valid identifier
+    
+    and also makes it consistent with the func signature check.
+    
+    This CL also makes the testBadFuncName func a test helper.
+    
+    Change-Id: Id967cb61ac28228de81e1cd76a39f5195a5ebd11
+    Reviewed-on: https://go-review.googlesource.com/130998
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/text/template/exec_test.go | 1 +
+ src/text/template/funcs.go     | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

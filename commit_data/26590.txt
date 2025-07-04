@@ -1,0 +1,14 @@
+commit 0a85be573c21935f5197404ad8575d9dd4f28f8c
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed Mar 30 00:52:22 2016 -0400
+
+    cmd/internal/obj: add copyright header to files
+    
+    Change-Id: I4ed33f3fdb9ad5f0f8984d3ef282c34e26eb2cde
+    Reviewed-on: https://go-review.googlesource.com/21301
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/arm64/anames7.go | 4 ++++
+ src/cmd/internal/obj/mips/anames0.go  | 4 ++++
+ src/cmd/internal/obj/ppc64/anames9.go | 4 ++++
+ 3 files changed, 12 insertions(+)

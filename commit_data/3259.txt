@@ -1,0 +1,14 @@
+commit d3013d8aa1cbea6a74cbaaa8d4fe51d09db0386d
+Author: Rob Pike <r@golang.org>
+Date:   Sun Sep 13 21:35:18 2009 -0700
+
+    Add and AddByte
+    
+    R=rsc
+    DELTA=83  (83 added, 0 deleted, 0 changed)
+    OCL=34584
+    CL=34584
+
+ src/pkg/bytes/bytes.go      | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bytes/bytes_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+)

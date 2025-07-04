@@ -1,0 +1,23 @@
+commit 1faea596e4f94e0a4170eda3d1a217b4936d8aa6
+Author: Keith Randall <khr@golang.org>
+Date:   Sun May 29 11:16:13 2016 -0700
+
+    cmd/compile: add size hint to map literal allocations
+    
+    Might as well tell the runtime how large the map is going to be.
+    This avoids grow work and allocations while the map is being built.
+    
+    Will wait for 1.8.
+    
+    Fixes #15880
+    Fixes #16279
+    
+    Change-Id: I377e3e5ec1e2e76ea2a50cc00810adda20ad0e79
+    Reviewed-on: https://go-review.googlesource.com/23558
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/sinit.go  | 2 +-
+ src/cmd/compile/internal/gc/syntax.go | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit c94db30ec917ff3db4e21be23e20a5ce030dc462
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 22 11:02:33 2011 -0700
+
+    http/cgi: pass some default environment variables
+    
+    This isn't really part of RFC 3875 but matches
+    the behavior of Apache, et al.
+    
+    R=iant, iant2
+    CC=golang-dev
+    https://golang.org/cl/4435065
+
+ src/pkg/http/cgi/host.go            | 21 +++++++++++++++++++++
+ src/pkg/http/cgi/matryoshka_test.go |  8 --------
+ 2 files changed, 21 insertions(+), 8 deletions(-)

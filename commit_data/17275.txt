@@ -1,0 +1,18 @@
+commit 67a69bce6b0492359f9279b035076fbab12945e0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 15 17:40:05 2013 -0700
+
+    net/http: don't send an automatic Content-Length on a 304 Not Modified
+    
+    Also start of some test helper unification, long overdue.
+    I refrained from cleaning up the rest in this CL.
+    
+    Fixes #6157
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/13030043
+
+ src/pkg/net/http/serve_test.go | 66 ++++++++++++++++++++++++++++++++++--------
+ src/pkg/net/http/server.go     | 10 ++++++-
+ 2 files changed, 63 insertions(+), 13 deletions(-)

@@ -1,0 +1,23 @@
+commit 01f34cbf525bcdef5ca0040960e029ac92b62642
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 22 12:22:10 2019 -0500
+
+    misc/cgo/life: fix tests in module mode
+    
+    Updates #30228
+    
+    Change-Id: Ie972694254d2195ca9760ea7ffb6073e01c52488
+    Reviewed-on: https://go-review.googlesource.com/c/163422
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ misc/cgo/life/life_test.go            | 60 ++++++++++++++++++++++++++
+ misc/cgo/life/overlaydir_test.go      | 81 +++++++++++++++++++++++++++++++++++
+ misc/cgo/life/{ => testdata}/c-life.c |  0
+ misc/cgo/life/{ => testdata}/life.go  |  2 +-
+ misc/cgo/life/{ => testdata}/life.h   |  0
+ misc/cgo/life/{ => testdata}/main.go  |  4 +-
+ misc/cgo/life/{ => testdata}/main.out |  0
+ src/cmd/dist/test.go                  |  2 +-
+ 8 files changed, 145 insertions(+), 4 deletions(-)

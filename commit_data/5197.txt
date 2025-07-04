@@ -1,0 +1,21 @@
+commit 63e878a750952d33b97e55831964f1999100467c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 31 15:55:10 2010 -0700
+
+    runtime: make type assertion a runtime.Error, the first of many
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/805043
+
+ src/pkg/runtime/386/asm.s   |  14 ------
+ src/pkg/runtime/Makefile    |   1 +
+ src/pkg/runtime/amd64/asm.s |  13 -----
+ src/pkg/runtime/arm/asm.s   |  15 ------
+ src/pkg/runtime/error.go    | 112 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/iface.c     |  55 +++++++++++++++-------
+ src/pkg/runtime/print.c     |  65 -------------------------
+ src/pkg/runtime/proc.c      |   2 +-
+ src/pkg/runtime/runtime.h   |  12 +++--
+ test/golden.out             |  12 ++---
+ 10 files changed, 166 insertions(+), 135 deletions(-)

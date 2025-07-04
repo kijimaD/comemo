@@ -1,0 +1,15 @@
+commit 6e78f7697405e8c24af796322e4c3c325ed97d95
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 24 23:24:11 2016 +0000
+
+    testing/quick, text/tabwriter: freeze packages
+    
+    Fixes #15557
+    
+    Change-Id: I02ad98068894e75d4e08e271fdd16cb420519460
+    Reviewed-on: https://go-review.googlesource.com/31910
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/testing/quick/quick.go      | 2 ++
+ src/text/tabwriter/tabwriter.go | 1 +
+ 2 files changed, 3 insertions(+)

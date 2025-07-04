@@ -1,0 +1,19 @@
+commit bc7c35a6d3bb0074d07beebedc0afcbdcebb8d3f
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Sep 13 13:07:16 2024 +0000
+
+    archive/tar: make use of maps.Clone
+    
+    Change-Id: I2a9d849410002dae1f49a53597298c1903954d12
+    GitHub-Last-Rev: 20a56b4161dd0864f67d427301cb28563f2c3d50
+    GitHub-Pull-Request: golang/go#69427
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612737
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/archive/tar/common.go | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)

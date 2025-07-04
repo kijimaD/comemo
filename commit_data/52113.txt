@@ -1,0 +1,20 @@
+commit 0ff91e03dbb7ed169915b12793cbee9ca9798d4c
+Author: RenKanai <rk2904powr@gmail.com>
+Date:   Sun Mar 27 22:06:22 2022 +0900
+
+    cmd/go: reject list when -find and -export are used together
+    
+    Fixes #51952.
+    
+    Change-Id: If2cfc41d65373ca38cfb7b0396be8988d444eb5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396074
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/alldocs.go            | 2 ++
+ src/cmd/go/internal/list/list.go | 5 +++++
+ 2 files changed, 7 insertions(+)

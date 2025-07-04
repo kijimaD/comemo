@@ -1,0 +1,25 @@
+commit 52db02bef36de3c39f32cdcf059d6d45477ae449
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 22:34:59 2012 +1100
+
+    undo CL 5699082 / 6223c9fe432b
+    
+    We decided not to record installs, for now at least.
+    
+    ««« original CL description
+    misc/dashboard: record install counts for external packages
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5699082
+    »»»
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5790044
+
+ misc/dashboard/app/app.yaml       |   4 +-
+ misc/dashboard/app/build/build.go |  52 ----------
+ misc/dashboard/app/build/pkg.go   | 201 --------------------------------------
+ misc/dashboard/app/cron.yaml      |   4 -
+ 4 files changed, 2 insertions(+), 259 deletions(-)

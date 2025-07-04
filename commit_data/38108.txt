@@ -1,0 +1,17 @@
+commit bd986286767f046ae47b6496d4dffb541e6d0cb6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 5 10:22:32 2019 -0500
+
+    math/cmplx: avoid panic in Pow(x, NaN())
+    
+    Fixes #30088
+    
+    Change-Id: I08cec17feddc86bd08532e6b135807e3c8f4c1b2
+    Reviewed-on: https://go-review.googlesource.com/c/161197
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/cmplx/cmath_test.go | 6 ++++--
+ src/math/cmplx/pow.go        | 3 +++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

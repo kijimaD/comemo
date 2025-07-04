@@ -1,0 +1,21 @@
+commit 8c94aa40e6f5e61e8a570e9d20b7d0d4ad8c382d
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Oct 22 11:56:23 2021 -0400
+
+    cmd/go/testdata/script: fix flaky test_fuzz_fuzztime test
+    
+    Previously, the test would panic if the short timeout
+    was reached before fuzzing began. Increasing the
+    timeout should stop this test from being flaky.
+    
+    Fixes #49046
+    
+    Change-Id: Iaa0b3b3e8ea29d9a42ab5fc1c801fc73fffe1675
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358055
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/test_fuzz_fuzztime.txt | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

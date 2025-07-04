@@ -1,0 +1,19 @@
+commit 4a9138751abd2dbd2c2dbe86697fdd08718535c7
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jan 29 10:14:36 2012 -0800
+
+    cmd/go: c tools not used during compilation
+    cov, nm, pprof, prof
+    
+    R=rsc, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5576067
+
+ src/Make.ctool                  | 50 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cov/Makefile            |  6 ++---
+ src/cmd/go/tool.go              |  2 +-
+ src/cmd/nm/Makefile             |  4 ++--
+ src/cmd/prof/Makefile           | 14 +++++-------
+ src/cmd/prof/{gopprof => pprof} |  0
+ src/sudo.bash                   |  9 +++++---
+ 7 files changed, 68 insertions(+), 17 deletions(-)

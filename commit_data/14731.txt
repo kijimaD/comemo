@@ -1,0 +1,17 @@
+commit b3bb4bd2925bc6715e5c91175021a2386f4017bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 16:45:35 2012 -0500
+
+    cmd/yacc: fix debug print of token name
+    
+    The array skips the first TOKSTART entries.
+    
+    Fixes #4410.
+    
+    R=golang-dev, ken2, ken
+    CC=golang-dev
+    https://golang.org/cl/6999054
+
+ src/cmd/yacc/units.y | 5 +++++
+ src/cmd/yacc/yacc.go | 7 ++++---
+ 2 files changed, 9 insertions(+), 3 deletions(-)

@@ -1,0 +1,14 @@
+commit fec6ab97262c45797af9b645f28e64c1217a593a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Dec 15 11:39:56 2010 +1100
+
+    html: parse "<h1>foo<h2>bar".
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3571043
+
+ src/pkg/html/parse.go      |  7 +++++++
+ src/pkg/html/parse_test.go | 14 ++++++++++----
+ src/pkg/html/token.go      |  5 +++--
+ 3 files changed, 20 insertions(+), 6 deletions(-)

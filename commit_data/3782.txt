@@ -1,0 +1,19 @@
+commit cc1a979272aadb3bad34a2a70081500a26b2d969
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 17:55:06 2009 -0800
+
+    package patch
+    
+    R=r
+    http://go/go-review/1018043
+
+ src/pkg/Make.deps             |   7 +-
+ src/pkg/Makefile              |   1 +
+ src/pkg/encoding/git85/git.go |   8 +-
+ src/pkg/patch/Makefile        |  14 ++
+ src/pkg/patch/apply.go        |  54 ++++++
+ src/pkg/patch/git.go          | 121 +++++++++++++
+ src/pkg/patch/patch.go        | 323 +++++++++++++++++++++++++++++++++++
+ src/pkg/patch/patch_test.go   | 382 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/patch/textdiff.go     | 171 +++++++++++++++++++
+ 9 files changed, 1074 insertions(+), 7 deletions(-)

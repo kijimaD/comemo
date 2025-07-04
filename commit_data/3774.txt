@@ -1,0 +1,18 @@
+commit 2ce57ec10ab20b224da74996abd5a555384a5412
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 17:02:05 2009 -0800
+
+    gofmt-ify src/pkg/go (excluding printer directory due to pending CL,
+    and parser.go and scanner_test.go which have minor formatting issues)
+    
+    R=rsc
+    http://go/go-review/1016042
+
+ src/pkg/go/ast/ast.go          | 187 ++++++++++++++++++-----------
+ src/pkg/go/ast/scope.go        |   8 +-
+ src/pkg/go/doc/comment.go      |  37 +++---
+ src/pkg/go/doc/doc.go          |   4 +-
+ src/pkg/go/parser/interface.go |  16 +--
+ src/pkg/go/scanner/scanner.go  |   4 +-
+ src/pkg/go/token/token.go      | 266 ++++++++++++++++++++---------------------
+ 7 files changed, 285 insertions(+), 237 deletions(-)

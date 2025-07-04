@@ -1,0 +1,21 @@
+commit b78108d5dc198a1bb8ed294b8b974f0c0d51b55c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Sep 3 18:16:52 2016 -0700
+
+    time: document in UnixNano when the value is valid
+    
+    It is unlikely that the value of UnixNano overflow in most
+    use cases. However, the max date of 2262 is also within the range
+    where it may be of concern to some users. Rather than have each
+    person recompute when this overflows to validate if its okay for
+    their use case, we just document it as within the years 1678 and
+    2262, for user's convenience.
+    
+    Fixes #16977
+    
+    Change-Id: I4988738c147f4a6d30f8b8735c3941b75113bb16
+    Reviewed-on: https://go-review.googlesource.com/28478
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/time/time.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

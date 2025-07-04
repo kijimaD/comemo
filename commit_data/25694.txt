@@ -1,0 +1,16 @@
+commit e7ce1ba88c7c2a8c02c48ecb341540b30d9e9159
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 17:24:03 2016 -0500
+
+    misc/cgo/test: disable sigaltstack test on darwin/386
+    
+    It doesn't work there ("out of memory") and doesn't really matter.
+    Fixes build (now that we enable cgo on the darwin/386 builder.)
+    
+    Change-Id: I1d91e51ecb88c54eae39ac9a76f2c0b4e45263b0
+    Reviewed-on: https://go-review.googlesource.com/19004
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/sigaltstack.go | 2 ++
+ 1 file changed, 2 insertions(+)

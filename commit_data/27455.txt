@@ -1,0 +1,23 @@
+commit 1f7a0d4b5ec7ef94b96755e9b95168abf86e9d71
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon May 16 15:39:43 2016 -0700
+
+    runtime: don't do a plain throw when throwsplit == true
+    
+    The test case in #15639 somehow causes an invalid syscall frame. The
+    failure is obscured because the throw occurs when throwsplit == true,
+    which causes a "stack split at bad time" error when trying to print the
+    throw message.
+    
+    This CL fixes the "stack split at bad time" by using systemstack. No
+    test because there shouldn't be any way to trigger this error anyhow.
+    
+    Update #15639.
+    
+    Change-Id: I4240f3fd01bdc3c112f3ffd1316b68504222d9e1
+    Reviewed-on: https://go-review.googlesource.com/23153
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

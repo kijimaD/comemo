@@ -1,0 +1,22 @@
+commit 9f2e1efd725036c2d71a5d5df39ffe42b12e9383
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 26 22:14:39 2014 -0700
+
+    net/http/httputil: tell people not to use ClientConn and ServerConn
+    
+    A very smart developer at Gophercon just asked me to help debug
+    a problem and I was horrified to learn that he was using httputil's
+    ClientConn. I forgot ClientConn and ServerConn were even included
+    in Go 1! They should've been deleted.
+    
+    Scare people away from using them. The net/http package does
+    not use them and they're unused, unmaintained and untouched in
+    4+ years.
+    
+    LGTM=r
+    R=r, adg
+    CC=golang-codereviews
+    https://golang.org/cl/92790043
+
+ src/pkg/net/http/httputil/persist.go | 19 ++++++++++++++-----
+ 1 file changed, 14 insertions(+), 5 deletions(-)

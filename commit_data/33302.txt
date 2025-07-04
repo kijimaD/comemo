@@ -1,0 +1,16 @@
+commit 7fff1db0605739fee20673475cbc1813fdf7008e
+Author: Bill O'Farrell <billo@ca.ibm.com>
+Date:   Fri Oct 27 14:40:59 2017 -0400
+
+    runtime: remove unnecessary sync from publicationBarrier on s390x
+    
+    Memory accesses on z are at least as ordered as they are on AMD64.
+    
+    Change-Id: Ia515430e571ebd07e9314de05c54dc992ab76b95
+    Reviewed-on: https://go-review.googlesource.com/74010
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/runtime/asm_s390x.s | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

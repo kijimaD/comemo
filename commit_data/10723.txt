@@ -1,0 +1,25 @@
+commit c400a0b7db53940ca1ddcafcfd83c55631e214ce
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Dec 13 09:44:06 2011 +1100
+
+    doc: add Error Handling article
+    
+    Originally published on The Go Programming Language Blog, July 12, 2011.
+    
+    http://blog.golang.org/2011/07/error-handling-and-go.html
+    
+    Update #2547
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5475060
+
+ doc/Makefile                     |   9 +-
+ doc/articles/error_handling.html | 447 +++++++++++++++++++++++++++++++++++++++
+ doc/articles/error_handling.tmpl | 312 +++++++++++++++++++++++++++
+ doc/progs/error.go               | 115 ++++++++++
+ doc/progs/error2.go              |  53 +++++
+ doc/progs/error3.go              |  60 ++++++
+ doc/progs/error4.go              |  71 +++++++
+ doc/progs/run                    |   8 +
+ 8 files changed, 1074 insertions(+), 1 deletion(-)

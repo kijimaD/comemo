@@ -1,0 +1,17 @@
+commit 81c3e8cabcf8beac12efad81376b71a2bf48c4ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 1 18:04:25 2010 -0700
+
+    gc: implement new len spec, range bug fix, optimization
+    
+    Fixes #885.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1680048
+
+ src/cmd/gc/range.c     |  17 ++++-
+ src/cmd/gc/typecheck.c |   2 +-
+ src/cmd/gc/walk.c      |  18 ++++-
+ test/range.go          | 199 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 227 insertions(+), 9 deletions(-)

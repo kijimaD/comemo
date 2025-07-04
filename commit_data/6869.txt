@@ -1,0 +1,13 @@
+commit 51a218385150c44c60d3d61c7a6493a9ca342d29
+Author: Keith Rarick <kr@xph.us>
+Date:   Tue Dec 7 18:06:31 2010 -0500
+
+    runtime: add Goroutines
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3508041
+
+ src/pkg/runtime/debug.go | 3 +++
+ src/pkg/runtime/proc.c   | 7 +++++++
+ 2 files changed, 10 insertions(+)

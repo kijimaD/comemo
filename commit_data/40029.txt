@@ -1,0 +1,37 @@
+commit 225f484c880a840046129f16102216ee29271e66
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Sep 23 17:46:38 2019 -0700
+
+    misc, runtime, test:  extra tests and benchmarks for defer
+    
+    Add a bunch of extra tests and benchmarks for defer, in preparation for new
+    low-cost (open-coded) implementation of defers (see #34481),
+    
+     - New file defer_test.go that tests a bunch more unusual defer scenarios,
+       including things that might have problems for open-coded defers.
+     - Additions to callers_test.go actually verifying what the stack trace looks like
+       for various panic or panic-recover scenarios.
+     - Additions to crash_test.go testing several more crash scenarios involving
+       recursive panics.
+     - New benchmark in runtime_test.go measuring speed of panic-recover
+     - New CGo benchmark in cgo_test.go calling from Go to C back to Go that
+       shows defer overhead
+    
+    Updates #34481
+    
+    Change-Id: I423523f3e05fc0229d4277dd00073289a5526188
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197017
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ misc/cgo/test/cgo_test.go                 |   5 +-
+ misc/cgo/test/test.go                     |  11 ++
+ src/runtime/callers_test.go               | 123 +++++++++++++++++++--
+ src/runtime/crash_test.go                 |  26 ++++-
+ src/runtime/defer_test.go                 | 176 ++++++++++++++++++++++++++++++
+ src/runtime/runtime_test.go               |  15 +++
+ src/runtime/testdata/testprog/deadlock.go |  35 ++++++
+ test/codegen/stack.go                     |   4 +
+ 8 files changed, 384 insertions(+), 11 deletions(-)

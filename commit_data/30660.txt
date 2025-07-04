@@ -1,0 +1,15 @@
+commit 91d08e3bca1c12f45d105ada3f4f46a73375dac9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 14 12:18:10 2017 -0700
+
+    cmd/compile/internal/ssa: remove unused OpFunc
+    
+    Change-Id: I0f7eec2e0c15a355422d5ae7289508a5bd33b971
+    Reviewed-on: https://go-review.googlesource.com/38171
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 7 +++----
+ src/cmd/compile/internal/ssa/opGen.go          | 8 --------
+ 2 files changed, 3 insertions(+), 12 deletions(-)

@@ -1,0 +1,20 @@
+commit 3a3f672eda6f720f68950492a85254528ac53dad
+Author: Mohit Agarwal <mohit@sdf.org>
+Date:   Tue Nov 8 17:46:10 2016 +0530
+
+    os: cleanup directories created by TestLongPath
+    
+    Add tmpdir as a parameter to the closure otherwise the subsequent
+    modifications to tmpdir causes only the last subdirectory to be
+    removed.
+    
+    Additionally, add the missing argument for the t.Fatalf call.
+    
+    Change-Id: I3df53f9051f7ea40cf3f846d47d9cefe445e9b9d
+    Reviewed-on: https://go-review.googlesource.com/32892
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

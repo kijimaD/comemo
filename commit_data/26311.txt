@@ -1,0 +1,20 @@
+commit cf08eadf9fbde7d992883d3382f4e353eebe53a9
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Fri Mar 11 08:10:55 2016 +0100
+
+    fmt: clear flags before printing extra argument errors
+    
+    Do a reset of the fmt flags before printing the extra argument
+    error message to prevent a malformed printing of extra arguments.
+    
+    Regroup tests for extra argument error strings.
+    
+    Change-Id: Ifd97f5ca36f6c97ed5a380d975cf154d17997d3f
+    Reviewed-on: https://go-review.googlesource.com/20571
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 15 ++++++---------
+ src/fmt/print.go    | 21 +++++++++++----------
+ 2 files changed, 17 insertions(+), 19 deletions(-)

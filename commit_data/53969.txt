@@ -1,0 +1,23 @@
+commit 162469b3cfbaac12b74100e80ccd3c6dd0126233
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Aug 8 18:25:59 2023 -0700
+
+    crypto/tls: add GODEBUG to control max RSA key size
+    
+    Add a new GODEBUG setting, tlsmaxrsasize, which allows controlling the
+    maximum RSA key size we will accept during TLS handshakes.
+    
+    Change-Id: I52f060be132014d219f4cd438f59990011a35c96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517495
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/godebug.md                     |  8 ++++++++
+ src/crypto/tls/conn.go             |  5 +++++
+ src/crypto/tls/handshake_client.go | 29 ++++++++++++++++++++++++-----
+ src/crypto/tls/handshake_server.go |  9 ++++++---
+ src/internal/godebugs/table.go     |  1 +
+ src/runtime/metrics/doc.go         |  4 ++++
+ 6 files changed, 48 insertions(+), 8 deletions(-)

@@ -1,0 +1,13 @@
+commit afd79150d99abe06bd56870f146842f77f279d6d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 13 12:02:43 2019 +0200
+
+    os: fix typo in Chmod godoc
+    
+    Change-Id: I3e5c20d2ffbbe604e6c8b21e2afa50dd6c9f2b7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176626
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

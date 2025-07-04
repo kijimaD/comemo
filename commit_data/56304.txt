@@ -1,0 +1,20 @@
+commit 5ff0b531748fcdc88d6667e55e021fe02e0c0089
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Apr 26 09:38:44 2024 +0200
+
+    bytes: skip TestNewBufferShallow if optimization is disabled
+    
+    TestNewBufferShallow should be skipped if optimization is disabled.
+    
+    It is currently failing on no-opt builders.
+    
+    Change-Id: Ib5e62022a56a4e5f158f247d69a6229d2cb4d99e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581915
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+
+ src/bytes/buffer_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

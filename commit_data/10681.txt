@@ -1,0 +1,14 @@
+commit 012798a3258f13e4dffe07dda01e035800501f23
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 9 00:12:07 2011 -0500
+
+    gc: rune is now an alias for int32
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5467049
+
+ src/cmd/gc/go.h  | 2 --
+ src/cmd/gc/lex.c | 7 ++-----
+ test/rune.go     | 3 ++-
+ 3 files changed, 4 insertions(+), 8 deletions(-)

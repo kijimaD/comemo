@@ -1,0 +1,14 @@
+commit 8cf1d1634a423a9509c54a6cc8e2ec632a8a6e38
+Author: Ketan Parmar <ketanbparmar@gmail.com>
+Date:   Thu Jan 31 07:28:15 2019 +0530
+
+    encoding/json: add example for json.HTMLEscape
+    
+    Change-Id: Ib00fcfd46eae27eea0a3d4cab4406f4c461fb57b
+    Reviewed-on: https://go-review.googlesource.com/c/160517
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

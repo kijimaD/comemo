@@ -1,0 +1,15 @@
+commit 8b186df7311c53a06b98e375b987f0a3b3672798
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed May 27 12:33:43 2015 -0700
+
+    test: remove arch char from nosplit
+    
+    This is dead code that was missed
+    during the 'go tool compile' migration.
+    
+    Change-Id: Ice2af8a9ef72f8fd5f82225ee261854d93b659f1
+    Reviewed-on: https://go-review.googlesource.com/10430
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/nosplit.go | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

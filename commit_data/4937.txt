@@ -1,0 +1,22 @@
+commit 1be05bbe1e8bf20442b78401bc73001e33ea9979
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 24 13:24:37 2010 -0800
+
+    gofmt: don't print ()'s around function-typed results (not needed anymore)
+    - add extra test cases to go/printer tests
+    - apply gofmt to src and misc
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/223041
+
+ src/pkg/exp/eval/expr.go                        |  8 +++---
+ src/pkg/exp/eval/expr1.go                       | 36 +++++++++++--------------
+ src/pkg/exp/eval/stmt.go                        |  2 +-
+ src/pkg/exp/iterable/iterable.go                |  2 +-
+ src/pkg/go/printer/nodes.go                     | 12 +++------
+ src/pkg/go/printer/testdata/declarations.golden |  7 +++++
+ src/pkg/go/printer/testdata/declarations.input  |  7 +++++
+ src/pkg/reflect/all_test.go                     |  2 +-
+ src/pkg/template/template_test.go               |  2 +-
+ 9 files changed, 41 insertions(+), 37 deletions(-)

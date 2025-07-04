@@ -1,0 +1,41 @@
+commit a429926159232f2e127d46698633ffce5896ae30
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Feb 27 09:41:19 2021 -0800
+
+    cmd/compile: fix escape analysis of heap-allocated results
+    
+    One of escape analysis's responsibilities is to summarize whether/how
+    each function parameter flows to the heap so we can correctly
+    incorporate those flows into callers' escape analysis data flow
+    graphs.
+    
+    As an optimization, we separately record when parameters flow to
+    result parameters, so that we can more precisely analyze parameter
+    flows based on how the results are used at the call site. However, if
+    a named result parameter itself needs to be heap allocated, this
+    optimization isn't safe and the parameter needs to be recorded as
+    flowing to heap rather than flowing to result.
+    
+    Escape analysis used to get this correct because it conservatively
+    rewalked the data-flow graph multiple times. So even though it would
+    incorrectly record the result parameter flow, it would separately find
+    a flow to the heap. However, CL 196811 (specifically, case 3)
+    optimized the walking logic to reduce unnecessary rewalks causing us
+    to stop finding the extra heap flow.
+    
+    This CL fixes the issue by correcting location.leakTo to be sensitive
+    to sink.escapes and not record result-flows when the result parameter
+    escapes to the heap.
+    
+    Fixes #44614.
+    
+    Change-Id: I48742ed35a6cab591094e2d23a439e205bd65c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297289
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/escape/escape.go |  7 ++++---
+ test/escape5.go                           | 11 +++++++++++
+ 2 files changed, 15 insertions(+), 3 deletions(-)

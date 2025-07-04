@@ -1,0 +1,15 @@
+commit 880442f110ce33b2981561461841979d58848b78
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Fri Jan 3 10:13:28 2014 -0800
+
+    encoding/json: Fix missing error when trying to unmarshal null string into int, for successive ,string option
+    
+    Fixes #7046.
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/47260043
+
+ src/pkg/encoding/json/decode.go      |  1 +
+ src/pkg/encoding/json/decode_test.go | 19 +++++++++++++++++--
+ 2 files changed, 18 insertions(+), 2 deletions(-)

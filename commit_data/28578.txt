@@ -1,0 +1,16 @@
+commit c5434f2973a87acff76bac359236e690d632ce95
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Sep 29 13:59:10 2016 +0200
+
+    time: update test for tzdata-2016g
+    
+    Fixes #17276
+    
+    Change-Id: I0188cf9bc5fdb48c71ad929cc54206d03e0b96e4
+    Reviewed-on: https://go-review.googlesource.com/29995
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/time_test.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

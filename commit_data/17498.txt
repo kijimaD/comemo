@@ -1,0 +1,14 @@
+commit 78338d8c667d7798209132a6c206051db98de83c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Sep 6 16:23:46 2013 -0700
+
+    runtime: Smhasher tests of our map hash function.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13436045
+
+ src/pkg/runtime/alg.c          |  26 +++
+ src/pkg/runtime/export_test.go |  12 +
+ src/pkg/runtime/hash_test.go   | 512 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 550 insertions(+)

@@ -1,0 +1,13 @@
+commit 663a7716a1dfda2fe8cb0d62647e549cb424d428
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Mon Mar 12 12:04:45 2012 +0900
+
+    crypto/tls, fmt: print fixes
+    
+    R=golang-dev, bradfitz, minux.ma, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5787069
+
+ src/pkg/crypto/tls/root_test.go | 2 +-
+ src/pkg/fmt/fmt_test.go         | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

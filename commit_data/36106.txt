@@ -1,0 +1,19 @@
+commit 48c79734ffc69c7137d5944eb6403b47075cfb77
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jul 20 14:25:31 2018 -0400
+
+    test: add test for gccgo bug #26495
+    
+    Gccgo produced incorrect order of evaluation for expressions
+    involving &&, || subexpressions. The fix is CL 125299.
+    
+    Updates #26495.
+    
+    Change-Id: I18d873281709f3160b3e09f0b2e46f5c120e1cab
+    Reviewed-on: https://go-review.googlesource.com/125301
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue26495.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

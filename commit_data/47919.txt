@@ -1,0 +1,29 @@
+commit 1abe9c1c73739786bb927342c4072e229affea8f
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Jan 5 15:20:50 2022 -0800
+
+    cmd/compile: print "internal compiler error" message for all compiler panics
+    
+    Change hidePanic (now renamed handlePanic) to print out the "internal
+    compiler error" message for all panics and runtime exceptions, similar
+    to what we already do for the SSA backend in ssa.Compile().
+    
+    Previously, hidePanic would not catch panics/exceptions unless it wanted
+    to completely hide the panic because there had already been some
+    compiler errors.
+    
+    Tested by manually inserting a seg fault in the compiler, and verifying
+    that the seg fault is cause and "internal compiler error" message (with
+    stack trace) is displayed proeprly.
+    
+    Updates #50423
+    
+    Change-Id: Ibe846012e147fcdcc63ac147aae4bdfc47bf5a58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376057
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

@@ -1,0 +1,30 @@
+commit 53ebd163c66db08e49c0925aed0713bc215882e9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 16:29:28 2009 -0700
+
+    more precise error message
+    
+    package main
+    
+    func main() {
+           var x interface {} = 42;
+           switch x := x.(type) {
+           case int:
+           case foo:
+           }
+    }
+    
+    before:
+    x.go:7: non-type case in type switch
+    x.go:7: inappropriate case for a type switch
+    
+    now:
+    x.go:7: foo: undefined
+    
+    R=ken
+    OCL=31221
+    CL=31221
+
+ src/cmd/gc/go.y  | 12 +++++++++++-
+ src/cmd/gc/swt.c |  2 +-
+ 2 files changed, 12 insertions(+), 2 deletions(-)

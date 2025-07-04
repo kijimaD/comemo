@@ -1,0 +1,26 @@
+commit e6358c798b3001e98b6f7f4c3e2d906cf48533b2
+Author: James Lawrence <jljatone@gmail.com>
+Date:   Sat Aug 5 06:04:19 2017 -0400
+
+    database/sql: add OpenDB to directly create a *DB without a DSN.
+    
+    The current Open method limits the ability for driver maintainers
+    to expose options for their drivers by forcing all the configuration
+    to pass through the DSN in order to create a *DB.
+    
+    This CL allows driver maintainers to write their own initialization
+    functions that return a *DB making configuration of the underlying
+    drivers easier.
+    
+    Fixes #20268
+    
+    Change-Id: Ib10b794f36a201bbb92c23999c8351815d38eedb
+    Reviewed-on: https://go-review.googlesource.com/53430
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/driver/driver.go | 23 +++++++++++++++
+ src/database/sql/sql.go           | 62 ++++++++++++++++++++++++++++++---------
+ src/database/sql/sql_test.go      | 19 ++++++++----
+ 3 files changed, 84 insertions(+), 20 deletions(-)

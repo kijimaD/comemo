@@ -1,0 +1,17 @@
+commit 1b1f39eb862187b4e3a69679cf9746ad42546e9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 23:24:48 2010 -0800
+
+    gc: bug219, bug239, bug240
+    
+    Fixes #475.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/183157
+
+ src/cmd/gc/lex.c                   | 28 ++++++++++++++++++++++------
+ test/{bugs => fixedbugs}/bug219.go |  3 +++
+ test/{bugs => fixedbugs}/bug239.go |  0
+ test/{bugs => fixedbugs}/bug240.go |  2 +-
+ 4 files changed, 26 insertions(+), 7 deletions(-)

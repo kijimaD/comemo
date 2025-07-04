@@ -1,0 +1,18 @@
+commit 00f4c6a1b5bc9ed76529d596ac28ecdaf890fb52
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 3 16:30:45 2010 -0800
+
+    ld: include main and runtime in the library loop
+    
+    Fixes #585.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/195075
+
+ src/cmd/5l/obj.c |  2 +-
+ src/cmd/6l/obj.c |  2 +-
+ src/cmd/8l/obj.c |  2 +-
+ src/cmd/ld/lib.c | 46 ++++++++++++++++++++++++++++++++--------------
+ src/cmd/ld/lib.h |  1 +
+ 5 files changed, 36 insertions(+), 17 deletions(-)

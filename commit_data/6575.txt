@@ -1,0 +1,16 @@
+commit 0db8d3df4c87fe2a06d53cea04d52c0aab2df14a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 20 16:38:25 2010 -0400
+
+    gc: select receive with implicit conversion
+    
+    Fixes #1172.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2615041
+
+ src/cmd/gc/select.c      |  9 ++++++++-
+ src/cmd/gc/subr.c        |  4 ++++
+ test/fixedbugs/bug312.go | 22 ++++++++++++++++++++++
+ 3 files changed, 34 insertions(+), 1 deletion(-)

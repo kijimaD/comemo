@@ -1,0 +1,100 @@
+commit b1678e508bf04b32fcd8153d09c39ff25b51d287
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 13 09:22:35 2022 -0500
+
+    cmd/compile: handle simple inlined calls in staticinit
+    
+    Global variable initializers like
+    
+            var myErr error = &myError{"msg"}
+    
+    have been converted to statically initialized data
+    from the earliest days of Go: there is no init-time
+    execution or allocation for that line of code.
+    
+    But if the expression is moved into an inlinable function,
+    the static initialization no longer happens.
+    That is, this code has always executed and allocated
+    at init time, even after we added inlining to the compiler,
+    which should in theory make this code equivalent to
+    the original:
+    
+            func NewError(s string) error { return &myError{s} }
+            var myErr2 = NewError("msg")
+    
+    This CL makes the static initialization rewriter understand
+    inlined functions consisting of a single return statement,
+    like in this example, so that myErr2 can be implemented as
+    statically initialized data too, just like myErr, with no init-time
+    execution or allocation.
+    
+    A real example of code that benefits from this rewrite is
+    all globally declared errors created with errors.New, like
+    
+            package io
+            var EOF = errors.New("EOF")
+    
+    Package io no longer has to allocate and initialize EOF each
+    time a program starts.
+    
+    Another example of code that benefits is any globally declared
+    godebug setting (using the API from CL 449504), like
+    
+            package http
+            var http2server = godebug.New("http2server")
+    
+    These are no longer allocated and initialized at program startup either.
+    
+    The list of functions that are inlined into static initializers when
+    compiling std and cmd (along with how many times each occurs) is:
+    
+            cmd/compile/internal/ssa.StringToAux (3)
+            cmd/compile/internal/walk.mkmapnames (4)
+            errors.New (360)
+            go/ast.NewIdent (1)
+            go/constant.MakeBool (4)
+            go/constant.MakeInt64 (3)
+            image.NewUniform (4)
+            image/color.ModelFunc (11)
+            internal/godebug.New (12)
+            vendor/golang.org/x/text/unicode/bidi.newBidiTrie (1)
+            vendor/golang.org/x/text/unicode/norm.newNfcTrie (1)
+            vendor/golang.org/x/text/unicode/norm.newNfkcTrie (1)
+    
+    For the cmd/go binary, this CL cuts the number of init-time
+    allocations from about 1920 to about 1620 (a 15% reduction).
+    
+    The total executable code footprint of init functions is reduced
+    by 24kB, from 137kB to 113kB (an 18% reduction).
+    The overall binary size is reduced by 45kB,
+    from 15.335MB to 15.290MB (a 0.3% reduction).
+    (The binary size savings is larger than the executable code savings
+    because every byte of executable code also requires corresponding
+    runtime tables for unwinding, source-line mapping, and so on.)
+    
+    Also merge test/sinit_run.go, which had stopped testing anything
+    at all as of CL 161337 (Feb 2019) and initempty.go into a new test
+    noinit.go.
+    
+    Fixes #30820.
+    
+    Change-Id: I52f7275b1ac2a0a32e22c29f9095071c7b1fac20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450136
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/base/flag.go        |   4 +-
+ src/cmd/compile/internal/ssagen/phi.go       |   2 +-
+ src/cmd/compile/internal/staticinit/sched.go | 368 +++++++++++++++++++++------
+ test/initempty.go                            |  40 ---
+ test/initialize.go                           |  87 +++++--
+ test/inline.go                               |   3 +
+ test/{sinit.go => noinit.go}                 |  82 +++++-
+ test/sinit_run.go                            |  45 ----
+ 8 files changed, 429 insertions(+), 202 deletions(-)

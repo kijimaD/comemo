@@ -1,0 +1,14 @@
+commit 81dc0b65b2f6b5b86fa4f4b02a5c26c8956ff3d8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 20 09:40:56 2013 -0700
+
+    test/fixedbugs/bug295.go: fix test in anticipation of future gc fix
+    
+    See also issue 6428.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/13794043
+
+ test/fixedbugs/bug295.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

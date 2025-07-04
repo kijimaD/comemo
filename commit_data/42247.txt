@@ -1,0 +1,15 @@
+commit d1b36c8d8670c49c70bd8219efa2da762de08337
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri May 1 16:48:25 2020 +0200
+
+    internal/unsafeheader: fix reference in godoc comment for type String
+    
+    Refer to reflect.StringHeader in the godoc comment for type String
+    instead of reflect.SliceHeader.
+    
+    Change-Id: I40fc016c7365510a12c41d4ca596f66d2892c3f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231537
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/unsafeheader/unsafeheader.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

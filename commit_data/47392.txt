@@ -1,0 +1,18 @@
+commit b2d826c09f0f73cd9dc0022a2b052543e8bf4c06
+Author: emahiro <ema.hiro@gmail.com>
+Date:   Thu Oct 21 18:01:10 2021 +0900
+
+    internal/cache: document 'go clean -fuzzcache' in README
+    
+    Fixes: #48900
+    
+    Change-Id: I9235441886ed7cbdfdcbd283480f52d9216c3ea2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357233
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+
+ src/cmd/go/internal/cache/default.go | 1 +
+ 1 file changed, 1 insertion(+)

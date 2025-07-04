@@ -1,0 +1,17 @@
+commit 122a558f4701efc1841f7a5bc2d7c65ed4606fc1
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Aug 21 10:41:31 2012 +1000
+
+    os: fix data race on Process.done
+    
+    Fixes #3969.
+    
+    R=dvyukov, r, alex.brainman, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6462081
+
+ src/pkg/os/exec.go         | 11 ++++++++++-
+ src/pkg/os/exec_plan9.go   |  4 ++--
+ src/pkg/os/exec_unix.go    |  4 ++--
+ src/pkg/os/exec_windows.go |  4 ++--
+ 4 files changed, 16 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit 6ea3adc3babc210014299138dfbf4691780a754f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 5 15:23:52 2015 +1100
+
+    reflect: for struct tags, reject control chars (including tabs) in keys,
+    and empty keys. Also reject malformed (quoted) values.
+    
+    See also https://go-review.googlesource.com/3952
+    
+    Change-Id: Ice6de33b09f9904b28e410a680a90aa6c8c76fed
+    Reviewed-on: https://go-review.googlesource.com/3953
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/reflect/all_test.go |  2 ++
+ src/reflect/type.go     | 22 +++++++++++++++-------
+ 2 files changed, 17 insertions(+), 7 deletions(-)

@@ -1,0 +1,21 @@
+commit aa00ca12fe5f342f97fe7335e107848f1b7880bd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 6 16:20:10 2018 -0800
+
+    cmd/compile: cleanup funccompile and compile
+    
+    Bring these functions next to each other, and clean them up a little
+    bit. Also, change emitptrargsmap to take Curfn as a parameter instead
+    of a global.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ib9c94fda3b2cb6f0dcec1585622b33b4f311b5e9
+    Reviewed-on: https://go-review.googlesource.com/99075
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go  | 23 -----------------
+ src/cmd/compile/internal/gc/pgen.go | 51 +++++++++++++++++++++++++++----------
+ 2 files changed, 37 insertions(+), 37 deletions(-)

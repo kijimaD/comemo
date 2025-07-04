@@ -1,0 +1,23 @@
+commit 77a1104975ebf5646f38978a054afe7ca4501fd8
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Sep 12 18:36:44 2023 -0700
+
+    cmd/go/internal/fsys: improve initOverlay test helper
+    
+    1. Remove the use of fmt.Sprintf from t.Fatal.
+    
+    2. Check for errors from initFromJSON.
+    
+    3. Move 'overlay=0' to a separate cleanup function, for clarity.
+    
+    Change-Id: I4d0daad248e8f26b6f159b4cc7e77fd60dc1ed98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527700
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/fsys/fsys_test.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

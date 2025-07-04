@@ -1,0 +1,12 @@
+commit 438ce713a1c8e4d24aea547b6fcf907b5dbf0bec
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 6 23:34:32 2016 -0700
+
+    cmd/link/internal/amd64: remove empty source file
+    
+    Change-Id: I2da012ed996c669db513a462f014c6f3ffa396ee
+    Reviewed-on: https://go-review.googlesource.com/21646
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/cmd/link/internal/amd64/z.go | 1 -
+ 1 file changed, 1 deletion(-)

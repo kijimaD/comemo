@@ -1,0 +1,26 @@
+commit 493517bb5c84e8f88ba74d4d2e8c3ac58fda7839
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 11 14:49:43 2024 -0700
+
+    runtime, reflect: avoid allocation in structType.Field common cases
+    
+    Use assembler to make runtime.staticuint64s into a readonly array
+    so that the reflect package can safely create a slice without requiring
+    any allocation.
+    
+    Fixes #2320
+    Fixes #68380
+    
+    Change-Id: If2c97238eca782d0632db265c840581d4ecb9d18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597855
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go |  28 +++++
+ src/reflect/type.go     |  35 +++++--
+ src/runtime/iface.go    |  43 ++------
+ src/runtime/ints.s      | 264 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 329 insertions(+), 41 deletions(-)

@@ -1,0 +1,14 @@
+commit d0a91f230591a3c5225d9258e62371c13092bd92
+Author: 沈涛 <shentaoskyking@gmail.com>
+Date:   Thu Nov 8 11:25:20 2018 +0000
+
+    strings: remove empty line
+    
+    Change-Id: Ibdca4f7002585b00d7f69d710285a8e0f69c598a
+    GitHub-Last-Rev: eb8f800c986c8ac4a81705158ecc730c35e1c5c2
+    GitHub-Pull-Request: golang/go#28659
+    Reviewed-on: https://go-review.googlesource.com/c/148477
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/strings/strings.go | 1 -
+ 1 file changed, 1 deletion(-)

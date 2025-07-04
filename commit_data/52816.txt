@@ -1,0 +1,19 @@
+commit 19fd96512c4ff96415cd4dacb5fac1854422e1fa
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 28 13:46:38 2023 -0400
+
+    cmd/link: put zero-sized data symbols at same address as runtime.zerobase
+    
+    Put zero-sized data symbols at same address as runtime.zerobase,
+    so zero-sized global variables have the same address as zero-sized
+    allocations.
+    
+    Change-Id: Ib3145dc1b663a9794dfabc0e6abd2384960f2c49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490435
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 12 +++++++++---
+ test/zerosize.go                 | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

@@ -1,0 +1,23 @@
+commit 8b20fd000d7e894865442134f9d6d197ac5dabed
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Tue Apr 12 18:24:34 2016 +0200
+
+    cmd/compile: transform some Phis into Or8.
+    
+    func f(a, b bool) bool {
+              return a || b
+    }
+    
+    is now a single instructions (excluding loading and unloading the arguments):
+          v10 = ORB <bool> v11 v12 : AX
+    
+    Change-Id: Iff63399410cb46909f4318ea1c3f45a029f4aa5e
+    Reviewed-on: https://go-review.googlesource.com/21872
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/compile.go |  3 +-
+ src/cmd/compile/internal/ssa/phiopt.go  | 57 ++++++++++++++++++---------------
+ test/phiopt.go                          | 40 ++++++++++++++++++++---
+ test/prove.go                           |  4 +++
+ 4 files changed, 74 insertions(+), 30 deletions(-)

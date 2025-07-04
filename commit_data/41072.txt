@@ -1,0 +1,19 @@
+commit edf3ec987ff51584c3bfdaeef7d0a24646d0fb4b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jan 7 04:31:23 2020 +1100
+
+    runtime: correct setNonblock on linux/arm64
+    
+    The current code uses EOR (exclusive OR), which will result in the O_NONBLOCK
+    flag being toggled rather than being set. Other implementations use OR, hence
+    this is likely a bug.
+    
+    Change-Id: I5dafa9c572452070bd37789c8a731ad6d04a86cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212766
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_linux_arm64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

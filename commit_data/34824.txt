@@ -1,0 +1,16 @@
+commit 4637699e92af1d80fd1d1e2250fbf418e137b531
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 3 14:39:10 2018 -0700
+
+    cmd/compile/internal/syntax: better error message for incorrect if/switch header
+    
+    Fixes #23664.
+    
+    Change-Id: Ic0637e9f896b2fc6502dfbab2d1c4de3c62c0bd2
+    Reviewed-on: https://go-review.googlesource.com/104616
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/syntax/parser.go |  3 ++-
+ test/fixedbugs/issue23664.go              | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

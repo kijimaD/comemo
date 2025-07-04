@@ -1,0 +1,15 @@
+commit 2981fc7f1676ca79e487ba3c1df06e5e60723483
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Tue Dec 21 21:49:50 2021 +1030
+
+    math: don't use integer division that truncates to zero
+    
+    Change-Id: I7389da0c3a63fea3be5c820f2ce0d0168a95ab4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373377
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/all_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

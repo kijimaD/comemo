@@ -1,0 +1,18 @@
+commit 7eff30f0f032cc802f03b816ab3007c2a2d15cf8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 29 13:21:00 2008 -0700
+
+    - updated test cases to latest compiler changes
+    
+    R=r
+    DELTA=185  (59 added, 33 deleted, 93 changed)
+    OCL=14655
+    CL=14655
+
+ test/{fixedbugs => bugs}/bug020.go |   6 +-
+ test/bugs/bug061.go                |   5 +
+ test/fixedbugs/bug016.go           |   4 +-
+ test/{bugs => fixedbugs}/bug073.go |   0
+ test/golden.out                    |  37 +++++--
+ test/hashmap.go                    | 198 +++++++++++++++++++------------------
+ 6 files changed, 138 insertions(+), 112 deletions(-)

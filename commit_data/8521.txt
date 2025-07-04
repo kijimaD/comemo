@@ -1,0 +1,13 @@
+commit 685a8157e6b2c523ea008d067373fb54a143bdb6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 27 12:58:59 2011 -0700
+
+    os: yet more Readdir tests and fix earlier regression
+    
+    R=golang-dev, fshahriar
+    CC=golang-dev
+    https://golang.org/cl/4548068
+
+ src/pkg/os/dir_unix.go |  6 +++---
+ src/pkg/os/os_test.go  | 19 +++++++++++++------
+ 2 files changed, 16 insertions(+), 9 deletions(-)

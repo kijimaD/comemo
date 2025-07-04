@@ -1,0 +1,26 @@
+commit 3f51350c706c8ff663f12867bcfec98aa9fc46bf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 19 23:17:55 2019 -0500
+
+    cmd/go/internal/modfetch/codehost: replace a dubious call to semver.Max
+    
+    The documentation for RecentTag indicates that it returns an actual
+    tag, not a canonicalized prefix+version blob equivalent to a tag,
+    so the canonicalization due to semver.Max seems like a bug here.
+    
+    Fortunately, RecentTag is not currently ever actually used as a tag,
+    so the removal of metadata does not result in a user-facing bug.
+    Nonetheless, it may be a subtle source of confusion for maintainers
+    in the future.
+    
+    Updates #32700
+    
+    Change-Id: I525423c1c0c7ec7c36c09e53b180034474f74e5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212202
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 7 +++++--
+ src/cmd/go/internal/modload/query_test.go    | 3 ++-
+ 2 files changed, 7 insertions(+), 3 deletions(-)

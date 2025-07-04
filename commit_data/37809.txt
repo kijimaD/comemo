@@ -1,0 +1,16 @@
+commit 1f035d036c2a49c1b858af3260552ccaac80858d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 2 18:53:23 2019 +0000
+
+    runtime: disable GDB tests on freebsd/arm for now
+    
+    Updates #29508
+    Updates #28679
+    
+    Change-Id: I19bc9f88aeb2b1f3e69856173a00c5a4d5ed3613
+    Reviewed-on: https://go-review.googlesource.com/c/155932
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

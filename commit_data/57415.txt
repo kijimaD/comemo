@@ -1,0 +1,19 @@
+commit 77e42fdeaf98d241dc09f4eb92e09225aea8f4c3
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Sep 9 16:26:41 2024 +0000
+
+    net/http: make use of maps.Clone for Transport.{Clone, RegisterProtocol}
+    
+    Not a big deal, maybe it's a bit clearer that it's cloning a map.
+    
+    Change-Id: I7c85382a01df97d1f58109b2483061e6decdf03a
+    GitHub-Last-Rev: 7a88af7f56ab7ad017081187e226e901752fa8bc
+    GitHub-Pull-Request: golang/go#69357
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612015
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/transport.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

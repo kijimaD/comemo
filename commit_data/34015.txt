@@ -1,0 +1,31 @@
+commit bd89333426954e24167a9b78f1dd8b0483a560f8
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 17 10:38:10 2018 -0800
+
+    cmd/fix: don't depend on *GetTypeID functions being present
+    
+    cgo uses the presence of these functions to determine whether
+    a given type is in the CFTypeRef hierarchy and thus should be
+    a uintptr instead of a pointer. But if the *GetTypeID functions
+    aren't used by the user code, then they won't be present in the
+    cgo output, and thus cmd/fix won't see them.
+    
+    Use the simpler rule that anything ending in *Ref should be
+    rewritten. This could over-rewrite, but I don't see a simpler
+    solution. Unlike cgo, it is easy to edit the output to fix any
+    issues. And fix is a much rarer operation than cgo.
+    
+    This is a revert of portions of CL 87616.
+    
+    Update #23091
+    
+    Change-Id: I74ecd9fb25490a3d279b372e107248452bb62185
+    Reviewed-on: https://go-review.googlesource.com/88075
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/fix/cftype.go    | 10 ++++------
+ src/cmd/fix/jnitype.go   |  3 +--
+ src/cmd/fix/typecheck.go |  1 +
+ 3 files changed, 6 insertions(+), 8 deletions(-)

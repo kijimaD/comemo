@@ -1,0 +1,18 @@
+commit 0b55be1ba2cf1cbb84ef4292942e6532df0b22ad
+Author: Giulio Iotti <dullgiulio@gmail.com>
+Date:   Mon Aug 31 19:08:49 2015 +0300
+
+    encoding/xml: case-insensitive encoding recognition
+    
+    From the XML spec: "XML processors should match character encoding
+    names in a case-insensitive way"
+    
+    Fixes #12417.
+    
+    Change-Id: I678c50152a49c14364be62b3f21ab9b9b009b24b
+    Reviewed-on: https://go-review.googlesource.com/14084
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/xml/xml.go      |  2 +-
+ src/encoding/xml/xml_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)

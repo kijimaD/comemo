@@ -1,0 +1,40 @@
+commit 651d392308ca33fe530acd39a06a7195c6d60d7b
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Dec 15 10:37:55 2016 -0800
+
+    net/http: update bundled http2
+    
+    Updates bundled x/net/http2 to git rev 1195a05d for:
+    
+        http2: fix incorrect panic
+        https://golang.org/cl/34498
+    
+        http2: fix race in writePushPromise
+        https://golang.org/cl/34493
+    
+        http2: speed up TestTransportFlowControl in short mode
+        https://golang.org/cl/33241
+    
+        http2: don't flush a stream's write queue in sc.resetStream
+        https://golang.org/cl/34238
+    
+        http2: allow Transport to connect to https://[v6literal]/ without port
+        https://golang.org/cl/34143
+    
+        http2: log Framer reads and writes when a server test fails
+        https://golang.org/cl/34130
+    
+    Updates #18326
+    Updates #18273
+    Updates #18111
+    Updates #18248
+    Updates #18235
+    
+    Change-Id: I18c7a297fc94d6a843284efcfc43e0fdab9b5f41
+    Reviewed-on: https://go-review.googlesource.com/34495
+    Run-TryBot: Chris Broadfoot <cbro@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 137 +++++++++++++++++++++++++++++-----------------
+ 1 file changed, 86 insertions(+), 51 deletions(-)

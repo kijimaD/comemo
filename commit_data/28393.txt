@@ -1,0 +1,16 @@
+commit 8e922759b381061cc4709c3e52d522d983521c5a
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Sep 16 00:17:33 2016 +1000
+
+    cmd/compile/internal/gc: fix build
+    
+    Fix conflict between CL 29213 and 29134.
+    
+    Change-Id: Ie58bd7195893d7e634f1b257ee0bdd3250cd23c2
+    Reviewed-on: https://go-review.googlesource.com/29137
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/sinit.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 87a345ca3849a68de13f29bdc7628f2943734946
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 3 15:07:15 2022 -0500
+
+    cmd/go: make paths consistent between 'go work init' and 'go work use'
+    
+    Fixes #51448
+    
+    Change-Id: I86719b55037c377eb82154e169d8a9bbae20b77c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389854
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/modfile.go          |  2 +-
+ src/cmd/go/internal/workcmd/use.go              |  2 +-
+ src/cmd/go/testdata/script/work_init_path.txt   | 17 +++++++++++++++++
+ src/cmd/go/testdata/script/work_use.txt         | 10 +++++-----
+ src/cmd/go/testdata/script/work_use_deleted.txt |  6 +++---
+ src/cmd/go/testdata/script/work_use_dot.txt     |  4 ++--
+ 6 files changed, 29 insertions(+), 12 deletions(-)

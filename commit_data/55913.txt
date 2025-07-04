@@ -1,0 +1,51 @@
+commit a46ecdca36b2359e7496c6d694703a9a9706d760
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Mar 2 19:22:07 2024 -0800
+
+    cmd/compile: fix sign/zero-extension removal
+    
+    When an opcode generates a known high bit state (typically, a sub-word
+    operation that zeros the high bits), we can remove any subsequent
+    extension operation that would be a no-op.
+    
+    x = (OP ...)
+    y = (ZeroExt32to64 x)
+    
+    If OP zeros the high 32 bits, then we can replace y with x, as the
+    zero extension doesn't do anything.
+    
+    However, x in this situation normally has a sub-word-sized type.  The
+    semantics of values in registers is typically that the high bits
+    beyond the value's type size are junk. So although the opcode
+    generating x *currently* zeros the high bits, after x is rewritten to
+    another opcode it may not - rewrites of sub-word-sized values can
+    trash the high bits.
+    
+    To fix, move the extension-removing rules to late lower. That ensures
+    that their arguments won't be rewritten to change their high bits.
+    
+    I am also worried about spilling and restoring. Spilling and restoring
+    doesn't preserve the high bits, but instead sets them to a known value
+    (often 0, but in some cases it could be sign-extended).  I am unable
+    to come up with a case that would cause a problem here, so leaving for
+    another time.
+    
+    Fixes #66066
+    
+    Change-Id: I3b5c091b3b3278ccbb7f11beda8b56f4b6d3fde7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568616
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules      |   4 -
+ .../compile/internal/ssa/_gen/AMD64latelower.rules |   5 +
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules      |  62 --
+ .../compile/internal/ssa/_gen/ARM64latelower.rules |  66 ++
+ src/cmd/compile/internal/ssa/rewrite.go            |   6 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |  33 -
+ .../compile/internal/ssa/rewriteAMD64latelower.go  |  51 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go       | 726 --------------------
+ .../compile/internal/ssa/rewriteARM64latelower.go  | 748 +++++++++++++++++++++
+ test/fixedbugs/issue66066.go                       |  41 ++
+ 10 files changed, 914 insertions(+), 828 deletions(-)

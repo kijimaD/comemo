@@ -1,0 +1,14 @@
+commit 6c3736a527f6c71de0c6503ce3aa948fef592393
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 14 11:01:27 2013 -0800
+
+    go/types: mark completely imported packages as such
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7103055
+
+ src/pkg/go/types/check.go      | 14 +-------------
+ src/pkg/go/types/gcimporter.go | 24 ++++++++++++++----------
+ src/pkg/go/types/objects.go    |  9 +++++----
+ 3 files changed, 20 insertions(+), 27 deletions(-)

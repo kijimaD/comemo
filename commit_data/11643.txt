@@ -1,0 +1,23 @@
+commit 02fb021161cf36cf7326380fb1ff9239cd195067
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Feb 6 11:58:32 2012 -0200
+
+    archive/zip: support full range of FileMode flags
+    
+    Zip files may actually store symlinks, and that's represented
+    as a file with unix flag S_IFLNK and with its data containing
+    the symlink target name.
+    
+    The other flags are being supported too. Now that the os package
+    has the full range of flags in a system agnostic manner, there's
+    no reason to discard that information.
+    
+    R=golang-dev, adg, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/5624048
+
+ src/pkg/archive/zip/reader_test.go       |  19 +++++++++-
+ src/pkg/archive/zip/struct.go            |  63 +++++++++++++++++++++++++------
+ src/pkg/archive/zip/testdata/symlink.zip | Bin 0 -> 173 bytes
+ src/pkg/archive/zip/writer_test.go       |   6 +--
+ 4 files changed, 71 insertions(+), 17 deletions(-)

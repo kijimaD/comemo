@@ -1,0 +1,24 @@
+commit aaed6cbced238030053df4e54f676a1d59df89d7
+Author: Daniel S. Fava <danielsfava@gmail.com>
+Date:   Fri Feb 12 09:54:50 2021 +0100
+
+    testing/race: fixing intermittent test failure
+    
+    Test NoRaceMutexPureHappensBefore in runtime/race/testdata/mutex_test.go
+    expects the second spawned goroutine to run after the first.  The test
+    attempts to force this scheduling with a 10 millisecond wait.  Following
+    a suggestion by Bryan Mills, we force this scheduling using a shared
+    variable whose access take place within the existing mutex.
+    
+    Fixes #35745.
+    
+    Change-Id: Ib23ec51492ecfeed4752e020401dd25755a669ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291292
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/race/testdata/mutex_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

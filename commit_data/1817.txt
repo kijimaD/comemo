@@ -1,0 +1,13 @@
+commit 307ec219322668cf93b4bc2085bea5f201147572
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 12 15:53:56 2009 -0700
+
+    what is the name for "&^". let's go with bit clear (and not)
+    
+    R=rsc
+    DELTA=14  (0 added, 0 deleted, 14 changed)
+    OCL=26159
+    CL=26206
+
+ doc/go_spec.html | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

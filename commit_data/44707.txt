@@ -1,0 +1,29 @@
+commit 8628bf9a972993bdb978b7d6fa7a6bb1ca2cddbe
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Mar 12 18:38:02 2021 -0500
+
+    cmd/compile: resurrect clobberdead mode
+    
+    This CL resurrects the clobberdead debugging mode (CL 23924).
+    When -clobberdead flag is set (TODO: make it GOEXPERIMENT?), the
+    compiler inserts code that clobbers all dead stack slots that
+    contains pointers.
+    
+    Mark windows syscall functions cgo_unsafe_args, as the code
+    actually does that, by taking the address of one argument and
+    passing it to cgocall.
+    
+    Change-Id: Ie09a015f4bd14ae6053cc707866e30ae509b9d6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301791
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/base/flag.go             |   1 +
+ src/cmd/compile/internal/liveness/plive.go        | 165 +++++++++++++++++++++-
+ src/cmd/compile/internal/test/clobberdead_test.go |  47 ++++++
+ src/runtime/syscall_windows.go                    |   9 ++
+ test/codegen/clobberdead.go                       |  32 +++++
+ 5 files changed, 251 insertions(+), 3 deletions(-)

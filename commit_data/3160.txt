@@ -1,0 +1,14 @@
+commit aeaab597db0c7f9519d31960a122213f2197dc68
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 31 17:30:55 2009 -0700
+
+    - use "package block" nomenclature for exported identifier section
+    - same capitalization for "Declarations and scope" section as for
+      other sections
+    
+    DELTA=23  (2 added, 1 deleted, 20 changed)
+    OCL=34131
+    CL=34156
+
+ doc/go_spec.html | 37 +++++++++++++++++++------------------
+ 1 file changed, 19 insertions(+), 18 deletions(-)

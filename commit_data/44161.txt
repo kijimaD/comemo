@@ -1,0 +1,16 @@
+commit 07b023560983db0ea0d82265be68fe5f89d545fe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 20 18:01:56 2021 -0800
+
+    doc/go1.16: add notes about package-specific fs.FS changes
+    
+    For #40700
+    For #41190
+    
+    Change-Id: I964d6856d5cad62c859d0f3a7afdd349a8ad87cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285093
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

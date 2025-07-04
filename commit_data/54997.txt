@@ -1,0 +1,19 @@
+commit 0011342590391655bd0cd732cf89c385c30c1278
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 15 21:05:02 2023 +0000
+
+    test: ignore MemProfileRecords with no live objects in finprofiled.go
+    
+    This test erroneously assumes that there will always be at least one
+    live object accounted for in a MemProfileRecord. This is not true; all
+    memory allocated from a particular location could be dead.
+    
+    Fixes #64153.
+    
+    Change-Id: Iadb783ea9b247823439ddc74b62a4c8b2ce8e33e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542736
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ test/finprofiled.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,12 @@
+commit c77baac560ae5318cd892e690198a28a1287ce6a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jul 11 15:17:32 2013 +1000
+
+    image/draw: add the Quantizer type.
+    
+    R=r
+    CC=andybons, golang-dev
+    https://golang.org/cl/11148043
+
+ src/pkg/image/draw/draw.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

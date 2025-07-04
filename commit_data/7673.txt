@@ -1,0 +1,14 @@
+commit 5946e46138d68014e944069af337e317e3603cf4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 11:33:26 2011 -0500
+
+    goinstall: fix build
+    
+    func init runs *after* var declarations
+    
+    TBR=niemeyer
+    CC=golang-dev
+    https://golang.org/cl/4260055
+
+ src/cmd/goinstall/syslist_test.go | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

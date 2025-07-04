@@ -1,0 +1,17 @@
+commit 0d1cbaf22524113eb49347c1194084c572e5a003
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 4 21:00:34 2008 -0800
+
+    strings.utflen -> utf8.RuneCount, RuneCountInString
+    
+    R=r
+    DELTA=94  (52 added, 33 deleted, 9 changed)
+    OCL=20547
+    CL=20552
+
+ src/lib/Makefile        |  1 +
+ src/lib/strings.go      | 29 ++++++++---------------------
+ src/lib/strings_test.go | 18 ------------------
+ src/lib/utf8.go         | 35 +++++++++++++++++++++++++++++++----
+ src/lib/utf8_test.go    | 22 ++++++++++++++++++++++
+ 5 files changed, 62 insertions(+), 43 deletions(-)

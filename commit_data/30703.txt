@@ -1,0 +1,16 @@
+commit ed00cd94f2cd01f49ee8da8b1dc0c06b66d34b2f
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 17 18:42:58 2017 +0100
+
+    encoding/gob: make integers encoding faster
+    
+    name                old time/op  new time/op  delta
+    EncodeInt32Slice-4  14.6µs ± 2%  12.2µs ± 1%  -16.65%  (p=0.000 n=19+18)
+    
+    Change-Id: I078a171f1633ff81d7e3f981dc9a398309ecb2c0
+    Reviewed-on: https://go-review.googlesource.com/38269
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/gob/encode.go      | 16 ++++++++--------
+ src/encoding/gob/timing_test.go |  2 +-
+ 2 files changed, 9 insertions(+), 9 deletions(-)

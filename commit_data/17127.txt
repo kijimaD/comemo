@@ -1,0 +1,15 @@
+commit cc0a005c9d68c314fbf7eab92f0c04623df8a770
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 9 22:17:12 2013 +0400
+
+    runtime: fix netbsd build
+    I've placed net.runtime_Semacquire into netpoll.goc,
+    but netbsd does not yet use netpoll.goc.
+    
+    R=golang-dev, bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/12699045
+
+ src/pkg/runtime/netpoll.goc |  8 --------
+ src/pkg/runtime/sema.goc    | 11 +++++++++++
+ 2 files changed, 11 insertions(+), 8 deletions(-)

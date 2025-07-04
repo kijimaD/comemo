@@ -1,0 +1,12 @@
+commit 8db6370d786337842aa6a86621817c6880f4b093
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 10 18:24:06 2009 -0800
+
+    fix final program to have Html->HTML
+    
+    R=rsc
+    CC=go-dev
+    https://golang.org/cl/152050
+
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

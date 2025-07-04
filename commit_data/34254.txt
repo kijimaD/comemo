@@ -1,0 +1,38 @@
+commit 3cb54c86043a92ab080a89c06643d80015a5638e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Feb 19 20:48:58 2018 +0000
+
+    text/template: differentiate nil from missing arg
+    
+    reflect.Value is a struct and does not have a kind nor any flag for
+    untyped nils. As a result, it is tricky to differentiate when we're
+    missing a value, from when we have one but it is untyped nil.
+    
+    We could start using *reflect.Value instead, to add one level of
+    indirection, using nil for missing values and new(reflect.Value) for
+    untyped nils. However, that is a fairly invasive change, and would also
+    mean unnecessary allocations.
+    
+    Instead, use a special reflect.Value that depicts when a value is
+    missing. This is the case for the "final" reflect.Value in multiple
+    scenarios, such as the start of a pipeline. Give it a specific,
+    unexported type too, to make sure it cannot be mistaken for any other
+    valid value.
+    
+    Finally, replace "final.IsValid()" with "final != missingVal", since
+    final.IsValid() will be false when final is an untyped nil.
+    
+    Also add a few test cases, all different variants of the untyped nil
+    versus missing value scenario.
+    
+    Fixes #18716.
+    
+    Change-Id: Ia9257a84660ead5a7007fd1cced7782760b62d9d
+    Reviewed-on: https://go-review.googlesource.com/95215
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/exec.go      | 31 ++++++++++++++++++-------------
+ src/text/template/exec_test.go |  5 +++++
+ 2 files changed, 23 insertions(+), 13 deletions(-)

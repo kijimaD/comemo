@@ -1,0 +1,18 @@
+commit 72a1b53b674626551f03c5083dab3882e705afd1
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Mar 28 21:08:15 2016 +0300
+
+    cmd/vet: allow lock types inside built-in new()
+    
+    Updates #14839
+    Fixes #14994
+    
+    Change-Id: I9bb51bad19105a17c80d690c5486e5dd007ac84a
+    Reviewed-on: https://go-review.googlesource.com/21222
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/copylock.go          |  6 +++++-
+ src/cmd/vet/testdata/copylock.go | 14 ++++++++++++--
+ 2 files changed, 17 insertions(+), 3 deletions(-)

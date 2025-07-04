@@ -1,0 +1,16 @@
+commit a906f9aa86c4305a1247391244e52b17e555f723
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Nov 4 12:41:49 2012 +1100
+
+    net: do not test TestReadWriteDeadline timeout upper bound during short test
+    
+    It also increases timeout deltas to allow for longer wait.
+    Also disables this test on plan9.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6821062
+
+ src/pkg/net/ipsock_plan9.go |  2 ++
+ src/pkg/net/timeout_test.go | 13 +++++++++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)

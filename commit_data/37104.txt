@@ -1,0 +1,14 @@
+commit fc4f2e5692ab800a450e07c3d983eda02dfd4711
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Oct 25 02:02:57 2018 +0000
+
+    net/http: fix comment change omitted between versions of CL 143177
+    
+    Updates #23689
+    
+    Change-Id: Icddec2fcc39802cacd651a9c94290e86cf1e48d1
+    Reviewed-on: https://go-review.googlesource.com/c/144517
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

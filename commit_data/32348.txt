@@ -1,0 +1,14 @@
+commit 66a1d37bf78b75f4b3f20e67ecf34be5c996f61e
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Aug 14 10:35:17 2017 +0200
+
+    cmd/compile: fix language in makeslice comment
+    
+    Change-Id: I1929ea7e4ed88631ef729472ffe474016efec3e8
+    Reviewed-on: https://go-review.googlesource.com/56370
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

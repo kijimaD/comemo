@@ -1,0 +1,22 @@
+commit 24c2ee7b6578c683a608c3d8c41fe626d50e6b61
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Sep 22 09:37:12 2021 -0500
+
+    cmd/compile: enable reg args and add duffcopy support on ppc64x
+    
+    This adds support for duffcopy on ppc64x and updates the
+    ssa/config.go file to enable register args and recognize
+    the duffDevice is available on ppc64x.
+    
+    Change-Id: Ifc472cc9cc19c9a80e468fb52078c75f7dd44d36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351490
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/config.go |   5 +-
+ src/cmd/internal/obj/ppc64/a.out.go    |   4 +-
+ src/runtime/duff_ppc64x.s              | 518 ++++++++++++++++++++++++---------
+ src/runtime/mkduff.go                  |  12 +-
+ 4 files changed, 399 insertions(+), 140 deletions(-)

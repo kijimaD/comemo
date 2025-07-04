@@ -1,0 +1,13 @@
+commit 91bbd6484b9d322c4b0620ed55365ed9924338b7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 7 09:31:35 2009 -0800
+
+    Adjusted language for literals:
+    - now have struct, array, slice, and map literals
+    
+    DELTA=34  (13 added, 6 deleted, 15 changed)
+    OCL=22180
+    CL=22204
+
+ doc/go_spec.txt | 47 +++++++++++++++++++++++++++--------------------
+ 1 file changed, 27 insertions(+), 20 deletions(-)

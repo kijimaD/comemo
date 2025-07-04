@@ -1,0 +1,14 @@
+commit 3495aa298dd4f9e8033557e35fa05a6792d24563
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Thu Aug 15 22:37:16 2013 -0400
+
+    misc/emacs: Refactor coverage code into multiple functions
+    
+    Also fixes color gradient being calculated against the wrong maximum.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/12968043
+
+ misc/emacs/go-mode.el | 141 +++++++++++++++++++++++++++-----------------------
+ 1 file changed, 77 insertions(+), 64 deletions(-)

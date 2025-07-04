@@ -1,0 +1,15 @@
+commit a52dc9fcbd157a1dda9e8838180f78c2269fc19d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 6 15:22:34 2015 +1000
+
+    runtime: fix comments that mention g status values
+    
+    Makes searching in source code easier.
+    
+    Change-Id: Ie2e85934d23920ac0bc01d28168bcfbbdc465580
+    Reviewed-on: https://go-review.googlesource.com/9774
+    Reviewed-by: Daniel Morsing <daniel.morsing@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/runtime2.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

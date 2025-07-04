@@ -1,0 +1,25 @@
+commit 6d5f8b11d57e1896caebd5cc551f6d0d4a05a2f1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 22 10:34:55 2019 -0500
+
+    misc/cgo/testshared: do not write to GOROOT
+    
+    Instead of installing shared libraries to GOROOT/pkg, clone the
+    necessary files into a new GOROOT and run there.
+    
+    Given that we now have a build cache, ideally we should not need to
+    install into GOROOT/pkg at all, but we can't fix that during the 1.14
+    code freeze.
+    
+    Updates #28387
+    Updates #28553
+    Updates #30316
+    
+    Change-Id: I83084a8ca29a5dffcd586c7fccc3f172cac57cc6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208482
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ misc/cgo/testshared/shared_test.go | 176 ++++++++++++++++++++++++++-----------
+ 1 file changed, 127 insertions(+), 49 deletions(-)

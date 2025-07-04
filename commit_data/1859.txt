@@ -1,0 +1,17 @@
+commit c1e748bd2e440dde4cf9778af622e726a39ef0ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 20 16:34:13 2009 -0700
+
+    embarassing bug in allocator:
+    was applying wrong waste check,
+    resulting in many more size classes
+    than necessary.
+    
+    R=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=26602
+    CL=26605
+
+ src/runtime/malloc.h | 2 +-
+ src/runtime/msize.c  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

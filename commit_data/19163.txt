@@ -1,0 +1,15 @@
+commit c91c564e8396399fce5400c176298eff0b92b8b2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 16 01:19:26 2014 -0400
+
+    doc/debugging_with_gdb: use -w to strip debug info.
+    Don't advertise -s anymore.
+    Fixes #7793.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/88030045
+
+ doc/debugging_with_gdb.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,39 @@
+commit ca5417b8e0c859aa5537247aed03316bfd3f5a66
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 21 07:20:01 2016 +1100
+
+    cmd/compile: reduce some SSA garbage
+    
+    It's pretty hard to get reliable CPU numbers, even with 50 runs on an
+    otherwise-idle physical Linux machine, but the garbage reduction
+    numbers are nice. To get useful time/op numbers, I modified
+    compilebench to report user CPU time instead of wall time:
+    
+    name       old time/op     new time/op     delta
+    Template       547ms ± 6%      557ms ± 5%   +1.80%        (p=0.001 n=49+49)
+    Unicode        360ms ± 9%      365ms ± 6%     ~           (p=0.094 n=50+45)
+    GoTypes        1.84s ± 3%      1.82s ± 3%   -1.50%        (p=0.000 n=50+49)
+    Compiler       9.19s ± 2%      9.02s ± 2%   -1.87%        (p=0.000 n=45+50)
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      63.3MB ± 0%     59.1MB ± 0%   -6.72%        (p=0.000 n=50+50)
+    Unicode       43.1MB ± 0%     42.9MB ± 0%   -0.47%        (p=0.000 n=50+49)
+    GoTypes        220MB ± 0%      200MB ± 0%   -9.00%        (p=0.000 n=50+50)
+    Compiler      1.00GB ± 0%     0.89GB ± 0%  -10.09%        (p=0.000 n=50+49)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        681k ± 0%       680k ± 0%   -0.16%        (p=0.000 n=50+48)
+    Unicode         541k ± 0%       541k ± 0%   -0.02%        (p=0.011 n=48+50)
+    GoTypes        2.08M ± 0%      2.08M ± 0%   -0.19%        (p=0.000 n=48+50)
+    Compiler       9.24M ± 0%      9.23M ± 0%   -0.11%        (p=0.000 n=50+50)
+    
+    Change-Id: I1fac4ebf85a1783e3289c3ffb1ed365442837643
+    Reviewed-on: https://go-review.googlesource.com/20995
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go     |  4 ++
+ src/cmd/compile/internal/ssa/stackalloc.go | 84 +++++++++++++++++++++++++++---
+ 2 files changed, 80 insertions(+), 8 deletions(-)

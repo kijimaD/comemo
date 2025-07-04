@@ -1,0 +1,22 @@
+commit 25e48765a4d267287630b63634c86b6a8ebb782e
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Oct 7 09:19:16 2023 -0700
+
+    map: use correct load factor for deciding when to grow
+    
+    The correct load factor is 6.5, not 6.
+    This got broken by accident in CL 462115.
+    
+    Fixes #63438
+    
+    Change-Id: Ib07bb6ab6103aec87cb775bc06bd04362a64e489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533279
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/export_test.go |  4 ++++
+ src/runtime/map.go         |  2 +-
+ src/runtime/map_test.go    | 15 +++++++++++++++
+ 3 files changed, 20 insertions(+), 1 deletion(-)

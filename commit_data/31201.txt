@@ -1,0 +1,18 @@
+commit e956dcbdb5f17de2be22741216e7607e6c102029
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 18 17:45:22 2017 -0700
+
+    cmd/compile: better variable names in internal/syntax/branches.go
+    
+    Follow-up on https://go-review.googlesource.com/#/c/39998/.
+    
+    Change-Id: I97f8e31ca923685198984ad64f952d6dc8208edf
+    Reviewed-on: https://go-review.googlesource.com/40982
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/branches.go | 38 ++++++++++++++---------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

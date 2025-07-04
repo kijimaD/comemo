@@ -1,0 +1,29 @@
+commit e373771490bab84449c7981a6be84e995de1ae80
+Author: khr@golang.org <khr@golang.org>
+Date:   Sun Nov 24 15:29:56 2024 -0800
+
+    cmd/compile: use zero register instead of specialized *zero instructions
+    
+    This lets us get rid of lots of specialized opcodes for storing zero.
+    Instead, use regular store opcodes that just happen to use the zero
+    register as one of their inputs.
+    
+    Change-Id: I2902a6f9b0831cb598df45189ca6bb57221bef72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633075
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/arm64/ssa.go              |   37 +-
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules      |  111 --
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go      |   79 +-
+ .../compile/internal/ssa/_gen/ARM64latelower.rules |    3 +
+ src/cmd/compile/internal/ssa/_gen/genericOps.go    |    6 +-
+ src/cmd/compile/internal/ssa/_gen/main.go          |    6 +
+ src/cmd/compile/internal/ssa/op.go                 |    1 +
+ src/cmd/compile/internal/ssa/opGen.go              | 1452 +++++++++-----------
+ src/cmd/compile/internal/ssa/pair.go               |    9 +-
+ src/cmd/compile/internal/ssa/regalloc.go           |   99 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go       | 1364 +-----------------
+ .../compile/internal/ssa/rewriteARM64latelower.go  |   14 +
+ 12 files changed, 814 insertions(+), 2367 deletions(-)

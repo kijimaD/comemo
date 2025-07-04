@@ -1,0 +1,12 @@
+commit 0ea3f58db285e47810f42f98e35c802a44ce205f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 26 11:52:21 2015 +1000
+
+    doc/go1.5.html: first pass over the small API changes
+    
+    Change-Id: Ib80829e7cbfb319549a224dc18931ca884c8296a
+    Reviewed-on: https://go-review.googlesource.com/11532
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.5.html | 118 ++++++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 84 insertions(+), 34 deletions(-)

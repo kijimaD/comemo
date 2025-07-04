@@ -1,0 +1,19 @@
+commit 71f130f55cd2df82747fb4d3232c7a080fdc7b16
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 25 21:02:35 2010 -0700
+
+    fmt.Scan, fmt.Scanln: Start of a simple scanning API in the fmt package.
+    Still to do:
+            - composite types
+            - user-defined scanners
+            - format-driven scanning
+    The package comment will be updated when more of the functionality is in place.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1252045
+
+ src/pkg/fmt/Makefile     |   1 +
+ src/pkg/fmt/scan.go      | 413 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/fmt/scan_test.go | 181 +++++++++++++++++++++
+ 3 files changed, 595 insertions(+)

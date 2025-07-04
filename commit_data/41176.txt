@@ -1,0 +1,12 @@
+commit 22f09ced523d907177670293061be678f42608e0
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Jan 27 15:37:11 2020 -0500
+
+    doc/go1.14: remove TODO from Tools section of release notes
+    
+    Change-Id: I682193eb06b55eb3e9392146579f57a928c728d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216598
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.14.html | 4 ----
+ 1 file changed, 4 deletions(-)

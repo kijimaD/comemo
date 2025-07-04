@@ -1,0 +1,20 @@
+commit 5e17ce22ece18571597ef9a214cdfcd461894e9c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Apr 13 14:27:33 2018 -0400
+
+    cmd/vet: lostcancel: suppress the check in the main.main function
+    
+    When main.main returns, the process exits, so there's no need to cancel contexts.
+    
+    This change was initially reviewed as
+    https://go-review.googlesource.com/c/go/+/106915/4
+    but somehow I messed up and committed patchset 5, which was
+    effectively empty.
+    
+    Change-Id: Ic4250eb6563af9bc734e429aafc7081ca7d0e012
+    Reviewed-on: https://go-review.googlesource.com/c/148758
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/lostcancel.go          | 5 +++++
+ src/cmd/vet/testdata/lostcancel.go | 8 +++++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

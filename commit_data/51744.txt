@@ -1,0 +1,24 @@
+commit dc9d219cad115cf04d07a0cd10a46d127cf6e5e1
+Author: Jeremy Quirke <qjeremy@uber.com>
+Date:   Mon Dec 26 04:07:03 2022 +0000
+
+    cmd/link: remove importcycles function
+    
+    The importcycles method has not been useful since April 2016 when a large code deletion was performed.
+    
+    The compiler itself provides some protection against import cycles, and the linker does import cycle detection in linksetup -> postorder.
+    
+    For #57400
+    
+    Change-Id: I3095bdb3f16a82ba25681bf4a20ceaa3c9613921
+    GitHub-Last-Rev: 87a46153b136db67675874ffe46e5881b9c756ce
+    GitHub-Pull-Request: golang/go#57462
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459475
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/go.go  | 45 -----------------------------------------
+ src/cmd/link/internal/ld/lib.go |  2 --
+ 2 files changed, 47 deletions(-)

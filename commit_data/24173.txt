@@ -1,0 +1,15 @@
+commit 220b5f7b548101b892232da8ad80a75dfecd7046
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sun Aug 23 13:09:02 2015 +0000
+
+    image/gif: map/slice literals janitoring
+    
+    Simplify slice/map literal expressions.
+    Caught with gofmt -d -s, fixed with gofmt -w -s
+    
+    Change-Id: Iefd5f263c4f89a81da9427a7b9d97f13c35ab64f
+    Reviewed-on: https://go-review.googlesource.com/13838
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/image/gif/writer_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

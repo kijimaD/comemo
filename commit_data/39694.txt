@@ -1,0 +1,14 @@
+commit 9dfa4cb0260427c29137568c880aeae5e2a7f058
+Author: Eric Lagergren <eric@ericlagergren.com>
+Date:   Tue Aug 27 19:32:17 2019 -0700
+
+    math/big: document that Rat.Denom might modify the receiver
+    
+    Fixes #33792
+    
+    Change-Id: I306a95883c3db2d674d3294a6feb50adc50ee5d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192017
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/rat.go | 2 ++
+ 1 file changed, 2 insertions(+)

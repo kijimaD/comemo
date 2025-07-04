@@ -1,0 +1,17 @@
+commit 9d4623fe43f121bd98cdb78f207aa12bfc68dbc2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 1 11:07:05 2016 -0700
+
+    cmd/compile: handle OCONV[NOP] in samesafeexpr
+    
+    This increases the effectiveness of the
+    "integer-in-range" CL that follows.
+    
+    Change-Id: I23b7b6809f0b2c25ed1d59dd2d5429c30f1db89c
+    Reviewed-on: https://go-review.googlesource.com/27651
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

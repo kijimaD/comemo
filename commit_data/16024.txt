@@ -1,0 +1,12 @@
+commit 59ae9d9ac9234b07c9940fa617ca09a4f43d352c
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Sat Mar 30 15:10:53 2013 -0700
+
+    runtime: TestGcSys: if GOGC=off, skip instead of failing
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8201043
+
+ src/pkg/runtime/gc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

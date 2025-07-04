@@ -1,0 +1,18 @@
+commit c51beb4342ac0ee2fe9c1a774eac15679a447122
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Sep 18 02:37:36 2022 +1000
+
+    cmd/dist,internal/platform,runtime: add cgo support for openbsd/riscv64 port
+    
+    Updates #55999
+    
+    Change-Id: Ie9a030130713f3eaf789b91d9033be3335eb9d75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518630
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/build.go            | 2 +-
+ src/internal/platform/zosarch.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

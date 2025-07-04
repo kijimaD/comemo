@@ -1,0 +1,38 @@
+commit e6d9057e2f3442b133afe7e37bec72bb9b780b04
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Mar 7 10:32:51 2022 -0500
+
+    cmd/compile: add coverage fixup mode
+    
+    Adds a -coveragecfg=<configfile> command line option to the compiler
+    to help support a cooperative "tool and compiler" mode for coverage
+    instrumentation. In this mode the cmd/cover tool generates most of the
+    counter instrumentation via source-to-source rewriting, but the
+    compiler fixes up the result if passed the "-coveragecfg" option. The
+    fixups include:
+    
+      - reclassifying counter variables (special storage class)
+      - marking meta-data variables are read-only
+      - adding in an init call to do registation
+    
+    Updates #51430.
+    
+    Change-Id: Iead72b85209725ee044542374465f118a3ee72e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395895
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/flag.go              |  25 ++-
+ src/cmd/compile/internal/coverage/cover.go         | 189 +++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go                |  10 ++
+ src/cmd/compile/internal/ir/symtab.go              |   7 +-
+ src/cmd/compile/internal/pkginit/init.go           |  15 ++
+ src/cmd/compile/internal/typecheck/builtin.go      |  50 ++++--
+ .../compile/internal/typecheck/builtin/coverage.go |  14 ++
+ .../compile/internal/typecheck/builtin/runtime.go  |   2 +
+ src/cmd/compile/internal/typecheck/mkbuiltin.go    |  44 ++---
+ src/cmd/compile/internal/typecheck/syms.go         |  29 ++++
+ src/cmd/dist/buildtool.go                          |   1 +
+ src/internal/coverage/cmddefs.go                   |  66 +++++++
+ 12 files changed, 410 insertions(+), 42 deletions(-)

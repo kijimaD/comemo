@@ -1,0 +1,15 @@
+commit 5933dbda3aae0e8e39f20151043d628a90847a51
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 14 16:33:11 2008 -0700
+
+    delete hack for interface equality now that it supported by the 6g compiler
+    
+    R=rsc
+    DELTA=21  (0 added, 21 deleted, 0 changed)
+    OCL=17123
+    CL=17136
+
+ src/cmd/gc/sys.go       |  1 -
+ src/cmd/gc/sysimport.c  |  1 -
+ src/runtime/rt0_amd64.s | 19 -------------------
+ 3 files changed, 21 deletions(-)

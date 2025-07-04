@@ -1,0 +1,12 @@
+commit 1184407f2a2955fe2befd22896ee9bf49cd0defe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 1 18:10:03 2013 -0400
+
+    runtime: disable preemption test (fix build)
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/10849043
+
+ src/pkg/runtime/proc_test.go | 1 +
+ 1 file changed, 1 insertion(+)

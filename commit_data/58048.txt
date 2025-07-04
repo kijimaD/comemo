@@ -1,0 +1,19 @@
+commit 107e094f51319f99f7353f1aeae36229deda34c0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 15 18:53:33 2024 +0000
+
+    internal/sync: refactor HashTrieMap tests into per-op suites
+    
+    This change does a minor refactor of the HashTrieMap tests to be better
+    organized into suites for each operation. It might be worthwhile to
+    deduplicate some code in here, but it's also helpful to see exactly
+    what's happening when something goes wrong.
+    
+    Change-Id: I138515ee6de5aec5f3d38afe8a3bf3972afb2800
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606457
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/sync/hashtriemap_test.go | 1055 +++++++++++++++++----------------
+ 1 file changed, 532 insertions(+), 523 deletions(-)

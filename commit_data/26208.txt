@@ -1,0 +1,25 @@
+commit 369f4f5de554b3754a5b0f3140be15bbe2c82615
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 10 13:05:56 2016 -0800
+
+    cmd/compile: regalloc of two address instructions
+    
+    x86 has a lot of instructions that require the output to be in the same
+    register as one of the inputs.  When allocating the output register,
+    allocate the same register as the input if it is available.
+    
+    Improves the performance of golang.org/x/crypto/sha3 by
+    10% (from 6% slower than 1.6 to 4% faster).
+    
+    Fixes #14745
+    
+    Change-Id: I4d81785240c9368e4dc75107b45c959d200df8e6
+    Reviewed-on: https://go-review.googlesource.com/20488
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 200 +++----
+ src/cmd/compile/internal/ssa/gen/main.go     |   4 +
+ src/cmd/compile/internal/ssa/op.go           |   1 +
+ src/cmd/compile/internal/ssa/opGen.go        | 762 ++++++++++++++++-----------
+ src/cmd/compile/internal/ssa/regalloc.go     |  20 +-
+ 5 files changed, 562 insertions(+), 425 deletions(-)

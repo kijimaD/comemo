@@ -1,0 +1,15 @@
+commit a16f4175b5ed1135279b29897e4d1d327476ec88
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 09:24:24 2022 -0500
+
+    doc/go1.20: document spec changes
+    
+    Change-Id: I2e35bddfe20c96a8dc0ab187286aaf543ff66164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452758
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.20.html | 29 ++++++++++++++++++++++++-----
+ 1 file changed, 24 insertions(+), 5 deletions(-)

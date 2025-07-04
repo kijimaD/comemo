@@ -1,0 +1,28 @@
+commit d9b1f9e85ee097ebc95c5904cee921ba7be4f732
+Author: Andrew Benton <andrewmbenton@gmail.com>
+Date:   Tue Mar 7 14:00:54 2017 -0800
+
+    encoding/asn1: add NullBytes and NullRawValue for working with ASN.1 NULL
+    
+    There were a number of places in crypto/x509 that used hardcoded
+    representations of the ASN.1 NULL type, in both byte slice and
+    RawValue struct forms. This change adds two new exported vars to
+    the asn1 package for working with ASN.1 NULL in both its forms, and
+    converts all usages from the x509 package.
+    
+    In addition, tests were added to exercise Marshal and Unmarshal on
+    both vars.
+    
+    See #19446 for discussion.
+    
+    Change-Id: I63dbd0835841ccbc810bd6ec794360a84e933f1e
+    Reviewed-on: https://go-review.googlesource.com/38660
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/x509.go        | 30 +++++++++---------------------
+ src/encoding/asn1/asn1.go      |  8 ++++++++
+ src/encoding/asn1/asn1_test.go | 26 ++++++++++++++++++++++++++
+ src/encoding/asn1/common.go    |  1 +
+ 4 files changed, 44 insertions(+), 21 deletions(-)

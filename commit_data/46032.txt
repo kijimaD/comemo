@@ -1,0 +1,20 @@
+commit 56a919f17f660af192855c1f7e9ede4876fefe9c
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Aug 16 13:15:47 2021 -0400
+
+    go/types: define Identical for instances
+    
+    This is a port of CL 341856 to go/types. It is adjusted to use the
+    NumTArgs/TArg API of go/types, which has not yet been ported to types2.
+    
+    Change-Id: I6faeec027f4ae08634267001f473263703e80c5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342478
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/api_test.go   | 26 ++++++++++++++++++++++++++
+ src/go/types/predicates.go | 24 ++++++++++++++++++++++++
+ src/go/types/unify.go      |  5 -----
+ 3 files changed, 50 insertions(+), 5 deletions(-)

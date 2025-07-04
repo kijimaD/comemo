@@ -1,0 +1,40 @@
+commit db506fe98c0a31b437d15e8b2333fdbae9c6d3d4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 8 16:31:28 2016 -0800
+
+    cmd/compile: change get{this,inarg,outarg}x? into methods
+    
+    More idiomatic naming (in particular, matches the naming used for
+    go/types.Signature).
+    
+    Also, convert more code to use these methods and/or IterFields.
+    (Still more to go; only made a quick pass for low hanging fruit.)
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I61831bfb1ec2cd50d4c7efc6062bca4e0dcf267b
+    Reviewed-on: https://go-review.googlesource.com/20451
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     |  8 +--
+ src/cmd/compile/internal/gc/bexport.go   | 14 ++---
+ src/cmd/compile/internal/gc/cgen.go      |  8 +--
+ src/cmd/compile/internal/gc/closure.go   |  6 +-
+ src/cmd/compile/internal/gc/dcl.go       | 33 +++++------
+ src/cmd/compile/internal/gc/esc.go       | 12 ++--
+ src/cmd/compile/internal/gc/export.go    |  4 +-
+ src/cmd/compile/internal/gc/fmt.go       |  8 +--
+ src/cmd/compile/internal/gc/gen.go       |  4 +-
+ src/cmd/compile/internal/gc/inl.go       | 18 +++---
+ src/cmd/compile/internal/gc/lex.go       |  6 +-
+ src/cmd/compile/internal/gc/order.go     |  2 +-
+ src/cmd/compile/internal/gc/pgen.go      |  8 +--
+ src/cmd/compile/internal/gc/plive.go     |  4 +-
+ src/cmd/compile/internal/gc/range.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   | 38 ++++++------
+ src/cmd/compile/internal/gc/ssa.go       |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 46 ++++++---------
+ src/cmd/compile/internal/gc/type.go      | 99 +++++++++++---------------------
+ src/cmd/compile/internal/gc/typecheck.go | 18 +++---
+ src/cmd/compile/internal/gc/walk.go      | 26 ++++-----
+ 21 files changed, 157 insertions(+), 209 deletions(-)

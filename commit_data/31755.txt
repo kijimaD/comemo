@@ -1,0 +1,14 @@
+commit 6a34765a16156d1ab9f5c31a97fb6f9af56c67ab
+Author: Sam Whited <sam@samwhited.com>
+Date:   Mon Jun 5 09:21:10 2017 -0500
+
+    bufio: clarify WriteTo docs
+    
+    Fixes #19092
+    
+    Change-Id: I7c0fde6a4cf460017619dbcce1c1ddaa7af1022a
+    Reviewed-on: https://go-review.googlesource.com/44811
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/bufio.go | 1 +
+ 1 file changed, 1 insertion(+)

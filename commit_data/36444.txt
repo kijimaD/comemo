@@ -1,0 +1,16 @@
+commit 6ebc31f9fb0ade22c605c146f651f18f9fc0b61d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 12 11:22:00 2018 -0800
+
+    runtime: remove unused function casp
+    
+    Change-Id: I7c9c83ba236e1050e04377a7591fef7174df698b
+    Reviewed-on: https://go-review.googlesource.com/130415
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/atomic_pointer.go | 13 -------------
+ src/runtime/proc.go           |  2 +-
+ src/runtime/runtime1.go       | 17 +----------------
+ 3 files changed, 2 insertions(+), 30 deletions(-)

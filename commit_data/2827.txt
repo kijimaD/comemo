@@ -1,0 +1,14 @@
+commit 1fc0960fb4c2dbc580bdfecbfb093a503648542f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 29 15:24:42 2009 -0700
+
+    clean up EOF
+    
+    R=rsc
+    DELTA=5  (0 added, 1 deleted, 4 changed)
+    OCL=32465
+    CL=32467
+
+ src/pkg/gob/decoder.go      | 7 +++----
+ src/pkg/gob/encoder_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit 0688a97556ec50dc15b708e6e7c8ff0b9c3fc35c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 6 10:23:21 2010 -0700
+
+    GNU/Linux sed requires \? rather than ?.  Just use * instead.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/810043
+
+ src/pkg/deps.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 7aa9855704a766a1a16fbed79f9f6e34fc83bdf0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 7 15:52:04 2018 -0400
+
+    cmd/go: add go mod why
+    
+    A very common question is
+    "why is this package or module being kept
+    by go mod vendor or go mod tidy?"
+    
+    go mod why answers that question.
+    
+    Fixes #26620.
+    
+    Change-Id: Iac3b6bbdf703b4784f5eed8e0f69d41325bc6d7f
+    Reviewed-on: https://go-review.googlesource.com/128359
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                              |  58 ++++++++++
+ src/cmd/go/internal/modcmd/mod.go                  |   1 +
+ src/cmd/go/internal/modcmd/why.go                  | 119 +++++++++++++++++++++
+ src/cmd/go/internal/modload/load.go                |  45 ++++++++
+ ...g_x_text_v0.0.0-20170915032832-14c0d48ead0c.txt |   2 +
+ .../go/testdata/mod/golang.org_x_text_v0.3.0.txt   |   2 +
+ src/cmd/go/testdata/script/mod_why.txt             | 114 ++++++++++++++++++++
+ 7 files changed, 341 insertions(+)

@@ -1,0 +1,14 @@
+commit 58e970ed79807fd9d2a29e1dcd4e44fa867b5540
+Author: Drew Flower <drewvanstone@gmail.com>
+Date:   Thu Aug 30 14:16:45 2018 -0600
+
+    fmt: add an example for Sprintln
+    
+    Change-Id: I0fcb5e626bf3d6891592c21b912c824743d7eaa0
+    Reviewed-on: https://go-review.googlesource.com/132280
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/fmt/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

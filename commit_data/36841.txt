@@ -1,0 +1,27 @@
+commit 816e493495e7d86fc2d537b599feea5b8c368cc6
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:13:01 2018 +0200
+
+    internal/poll: add AIX operating system
+    
+    This commit adds AIX operating system to internal/poll package for ppc64
+    architecture.
+    
+    Updates: #25893
+    
+    Change-Id: I9b1da9255012de58f16547c1b18f8840485da170
+    Reviewed-on: https://go-review.googlesource.com/c/138717
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/export_posix_test.go | 2 +-
+ src/internal/poll/fd_poll_runtime.go   | 2 +-
+ src/internal/poll/fd_posix.go          | 2 +-
+ src/internal/poll/fd_posix_test.go     | 2 +-
+ src/internal/poll/fd_unix.go           | 2 +-
+ src/internal/poll/hook_unix.go         | 2 +-
+ src/internal/poll/sockopt.go           | 2 +-
+ src/internal/poll/sockopt_unix.go      | 2 +-
+ src/internal/poll/sockoptip.go         | 2 +-
+ src/internal/poll/sys_cloexec.go       | 2 +-
+ 10 files changed, 10 insertions(+), 10 deletions(-)

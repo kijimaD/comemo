@@ -1,0 +1,14 @@
+commit 7fcf9893f71c75f6b2fd53bea326d5061f705208
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 25 09:58:05 2021 -0800
+
+    cmd/internal/obj: fix typo in docs
+    
+    Change-Id: I5a3d26a4cc59b327d46ca24bcb01ef594758c230
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296531
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/link.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

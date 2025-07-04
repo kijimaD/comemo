@@ -1,0 +1,44 @@
+commit 4569fe64101c2209e3429bd1c953b5f4021fc43d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 7 17:25:23 2022 -0400
+
+    cmd/go: allow '-buildvcs=auto' and treat it as the default
+    
+    When we added VCS stamping in the Go 1.18 release, we defaulted to
+    -buildvcs=true, on the theory that most folks will actually want VCS
+    information stamped.
+    
+    We also made -buildvcs=true error out if a VCS directory is found and
+    no VCS tool is available, on the theory that a user who builds with
+    '-buildvcs=true' will be very surprised if the VCS metadata is
+    silently missing.
+    
+    However, that causes a problem for CI environments that don't have the
+    appropriate VCS tool installed. (And we know that's a common situation
+    because we're in that situation ourselves — see #46693!)
+    
+    The new '-buildvcs=auto' setting provides a middle ground: it stamps
+    VCS information by default when the tool is present (and reports
+    explicit errors if the tool errors out), but omits the metadata
+    when the tool isn't present at all.
+    
+    Fixes #51748.
+    Updates #51999.
+    
+    Change-Id: Iebc955c2af0abca9b7517f62ca48b1d944eb2df4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398855
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                              | 12 +--
+ src/cmd/go/internal/cfg/cfg.go                     |  6 +-
+ src/cmd/go/internal/list/list.go                   |  2 +-
+ src/cmd/go/internal/load/pkg.go                    | 33 +++++---
+ src/cmd/go/internal/work/build.go                  | 42 +++++++++--
+ src/cmd/go/testdata/script/build_buildvcs_auto.txt | 87 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/test_buildvcs.txt       |  2 +
+ .../go/testdata/script/version_buildvcs_nested.txt |  2 +-
+ 8 files changed, 159 insertions(+), 27 deletions(-)

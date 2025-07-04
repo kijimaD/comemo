@@ -1,0 +1,23 @@
+commit cda1947fd12ad31060b30a0a601130bfaa26d234
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 11 13:51:39 2018 -0700
+
+    runtime: don't say "different packages" if they may not be different
+    
+    Fix the panic message produced for an interface conversion error to
+    only say "types from different packages" if they are definitely from
+    different packges. If they may be from the same package, say "types
+    from different scopes."
+    
+    Updates #18911
+    Fixes #26094
+    
+    Change-Id: I0cea50ba31007d88e70c067b4680009ede69bab9
+    Reviewed-on: https://go-review.googlesource.com/123395
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/error.go         | 33 ++++++++++++++++-------------
+ src/runtime/iface.go         | 16 ++++++---------
+ src/runtime/type.go          | 19 +++++++++++++++++
+ test/fixedbugs/issue26094.go | 49 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 93 insertions(+), 24 deletions(-)

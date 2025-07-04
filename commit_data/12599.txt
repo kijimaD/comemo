@@ -1,0 +1,14 @@
+commit cf46040784ad13ccd88aaea70e31f1dd89748cf9
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 13 15:02:14 2012 +1100
+
+    doc: windows zip archive installation instructions
+    
+    Fixes #3254.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5794071
+
+ doc/install.html | 42 +++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 41 insertions(+), 1 deletion(-)

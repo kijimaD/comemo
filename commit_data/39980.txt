@@ -1,0 +1,20 @@
+commit 361ab73305788c4bf35359a02d8873c36d654f1b
+Author: Andrei Tudor Călin <mail@acln.ro>
+Date:   Sat Sep 21 21:17:40 2019 +0300
+
+    net: close correct file descriptor when netpoll registration fails
+    
+    In (*netFD).accept, if initializing the *netFD associated with the
+    new connection fails, the listen FD is closed, rather than the FD
+    associated with the new connection. Close the correct FD instead.
+    
+    Fixes #34392
+    
+    Change-Id: I7bf3469d661e6d30cbd4b12f5f5fd330a81a541b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196778
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/fd_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

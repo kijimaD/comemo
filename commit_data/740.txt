@@ -1,0 +1,15 @@
+commit ac05579345f9cd3f3ba0b6aed33a1883d24c2348
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 26 11:15:14 2008 -0700
+
+    1) Fixed spec w/ respect to result types.
+    2) Added proposal for making "if" statements consistent with the
+       other control structures.
+    
+    R=r
+    DELTA=59  (32 added, 6 deleted, 21 changed)
+    OCL=15583
+    CL=15964
+
+ doc/go_spec.txt | 74 ++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 50 insertions(+), 24 deletions(-)

@@ -1,0 +1,13 @@
+commit 089c21ea522b34c7c9539ac4620ecd09c1f59c77
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Nov 10 09:39:26 2010 -0800
+
+    testing: delete redundant name argument to Benchmark().
+    [it was a carry over from the previous iteration]
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3016041
+
+ src/pkg/testing/benchmark.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

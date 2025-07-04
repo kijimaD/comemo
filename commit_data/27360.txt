@@ -1,0 +1,17 @@
+commit d1981ac313f6858cf1ec163dac94ea0d6904a731
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 10 04:29:32 2016 +0900
+
+    net: reorganize interface tests to avoid vague flakiness
+    
+    This change reorganizes test cases for surveying network interfaces and
+    address prefixes to make sure which part of the functionality is broken.
+    
+    Updates #7849.
+    
+    Change-Id: If6918075802eef69a7f1ee040010b3c46f4f4b97
+    Reviewed-on: https://go-review.googlesource.com/22990
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface_test.go | 292 ++++++++++++++++++++++++++--------------------
+ 1 file changed, 165 insertions(+), 127 deletions(-)

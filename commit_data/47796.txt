@@ -1,0 +1,17 @@
+commit 1540239f48f6beaa1cae6b34d00d74860366da7d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 14 13:27:57 2021 -0800
+
+    doc/go1.18: add caution about use of generics in production
+    
+    Per https://groups.google.com/g/golang-dev/c/iuB22_G9Kbo/m/7B1jd1I3BQAJ.
+    
+    For #47694
+    
+    Change-Id: I033cdadb2067e432f7c307d1546b4c5d0cfd5d8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371954
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.18.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

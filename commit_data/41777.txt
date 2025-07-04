@@ -1,0 +1,19 @@
+commit 9131f08a23bd5923d135df15da30b322748ffa12
+Author: Bradford Lamson-Scribner <brad.lamson@gmail.com>
+Date:   Tue Mar 10 21:26:42 2020 -0600
+
+    cmd/compile: add dark mode functionality to CFGs in the ssa.html output
+    
+    add dark mode to CFGs in the ssa.html output by targeting individual
+    parts of each svg and applying dark mode styles to the stroke & fill.
+    
+    Fixes #37767
+    
+    Change-Id: Ic867e161c6837c26d9d735ea02bc94fdb56102f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222877
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/html.go | 37 +++++++++++++++++++++++++++++++++---
+ 1 file changed, 34 insertions(+), 3 deletions(-)

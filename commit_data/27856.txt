@@ -1,0 +1,15 @@
+commit 8c9a7978942296085628bc33eefcb9bab561f4ee
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Mon Aug 15 23:24:31 2016 -0700
+
+    cmd/go: document -v flag for get
+    
+    Fixes #16719.
+    
+    Change-Id: I20550628814e3454f17d6f8ae8b66cce17f09859
+    Reviewed-on: https://go-review.googlesource.com/27118
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 2 ++
+ src/cmd/go/get.go     | 2 ++
+ 2 files changed, 4 insertions(+)

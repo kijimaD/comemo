@@ -1,0 +1,15 @@
+commit 62a2bee7a5706e9b37a6bdff3ee2cc422912f463
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 19 10:36:31 2017 -0700
+
+    cmd/compile/internal/types: don't export Nopkg anymore
+    
+    There's already special code to access it.
+    
+    Change-Id: I28ca4f44a04262407ee9f1c826ada4e7eba44775
+    Reviewed-on: https://go-review.googlesource.com/41073
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 2 +-
+ src/cmd/compile/internal/types/pkg.go  | 8 +++++---
+ 2 files changed, 6 insertions(+), 4 deletions(-)

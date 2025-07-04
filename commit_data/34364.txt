@@ -1,0 +1,17 @@
+commit 3b7ad1680fa6b97fff29f0af18795bd5f0f6a95a
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sun Feb 25 16:34:35 2018 +0200
+
+    archive/zip: improve Writer.Create documentation on how to add directories
+    
+    FileHeader.Name also reflects this fact.
+    
+    Fixes #24018
+    
+    Change-Id: Id0860a9b23c264ac4c6ddd65ba20e0f1f36e4865
+    Reviewed-on: https://go-review.googlesource.com/97057
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/archive/zip/struct.go | 3 ++-
+ src/archive/zip/writer.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

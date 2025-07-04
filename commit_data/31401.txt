@@ -1,0 +1,29 @@
+commit 0b6a10ef246ff55085d6ec88f68f5fd96677b141
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 27 09:27:52 2017 -0700
+
+    cmd/compile: dowidth more in the front end
+    
+    dowidth is fundamentally unsafe to call from the back end;
+    it will cause data races.
+    
+    Replace all calls to dowidth in the backend with
+    assertions that the width has been calculated.
+    
+    Then fix all the cases in which that was not so,
+    including the cases from #20145.
+    
+    Fixes #20145.
+    
+    Change-Id: Idba3d19d75638851a30ec2ebcdb703c19da3e92b
+    Reviewed-on: https://go-review.googlesource.com/41970
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go       | 37 ++++++++++++++++++++------------
+ src/cmd/compile/internal/gc/typecheck.go |  5 +++++
+ src/cmd/compile/internal/gc/walk.go      |  2 +-
+ src/cmd/compile/internal/types/type.go   | 11 ++++++++--
+ test/fixedbugs/issue20145.go             | 14 ++++++++++++
+ 5 files changed, 52 insertions(+), 17 deletions(-)

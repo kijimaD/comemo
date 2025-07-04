@@ -1,0 +1,16 @@
+commit 2799e0ecb9a4cc748dbfc8ddbfae9c2e02158818
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Feb 7 15:00:30 2011 -0800
+
+    peep: fix bug in peep optimizer.
+    reg: enable peep optimizer.
+    cgen64: better int64 code.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3989065
+
+ src/cmd/5g/cgen64.c | 42 +++++++++++++++++++++---------------------
+ src/cmd/5g/peep.c   |  6 ++++--
+ src/cmd/5g/reg.c    |  4 ++--
+ 3 files changed, 27 insertions(+), 25 deletions(-)

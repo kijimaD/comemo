@@ -1,0 +1,15 @@
+commit 4866223c2e1e8f9722c6b990a8d5ee9edadd0c1b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 14:25:38 2009 -0700
+
+    add reflect.Typeof; test for and fix nil interface bug in DeepEqual
+    
+    R=r
+    DELTA=40  (30 added, 2 deleted, 8 changed)
+    OCL=30742
+    CL=30753
+
+ src/pkg/reflect/all_test.go  | 11 +++++++++++
+ src/pkg/reflect/deepequal.go | 20 +++++++++++++-------
+ src/pkg/reflect/value.go     | 17 ++++++++++++++---
+ 3 files changed, 38 insertions(+), 10 deletions(-)

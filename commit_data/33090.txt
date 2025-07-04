@@ -1,0 +1,19 @@
+commit fd9fac2c7c9ca94795cfcb1270c8373d645af17b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 12 13:49:49 2017 +0200
+
+    cmd/compile: add two error position tests for the typechecker
+    
+    Follow CL 41477 and add two more line position tests for yyerror calls
+    in the typechecker which are currently not tested.
+    
+    Update #19683
+    
+    Change-Id: Iacd865195a3bfba87d8c22655382af267aba47a9
+    Reviewed-on: https://go-review.googlesource.com/70251
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ test/method2.go |  4 ++++
+ test/method6.go | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

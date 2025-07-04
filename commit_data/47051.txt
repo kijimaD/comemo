@@ -1,0 +1,17 @@
+commit bdefb77309fdc6e47102a8d6272fd2293aefa1d9
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Tue Oct 26 09:15:17 2021 +0800
+
+    internal/poll: improve the padding calculation inside struct splicePipe
+    
+    Updates #48968 and CL 358114
+    
+    Change-Id: Ic68b4c5420c1c32f78b56874b53d717fa9af1f74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358734
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/poll/splice_linux.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

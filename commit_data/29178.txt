@@ -1,0 +1,22 @@
+commit e14b02197737a0d7e5eed2856806cf20c85052cf
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 28 10:53:41 2016 -0400
+
+    runtime/trace, internal/trace: script to collect canned traces
+    
+    This adds support to the runtime/trace test for saving traces
+    collected by its tests to disk and a script in internal/trace that
+    uses this to collect canned traces for the trace test suite. This can
+    be used to add to the test suite when we introduce a new trace format
+    version.
+    
+    Change-Id: Id9ac1ff312235bf02f982fdfff8a827f54035758
+    Reviewed-on: https://go-review.googlesource.com/32290
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/internal/trace/mkcanned.bash | 19 +++++++++++++++++++
+ src/internal/trace/parser.go     |  2 ++
+ src/runtime/trace/trace_test.go  | 20 ++++++++++++++++++++
+ 3 files changed, 41 insertions(+)

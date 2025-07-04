@@ -1,0 +1,25 @@
+commit 7ec25d0acfed3f40fe634be518f0857704e5b642
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Mon Apr 2 01:57:49 2018 +0200
+
+    cmd/compile: implement loop BCE in prove
+    
+    Reuse findIndVar to discover induction variables, and then
+    register the facts we know about them into the facts table
+    when entering the loop block.
+    
+    Moreover, handle "x+delta > w" while updating the facts table,
+    to be able to prove accesses to slices with constant offsets
+    such as slice[i-10].
+    
+    Change-Id: I2a63d050ed58258136d54712ac7015b25c893d71
+    Reviewed-on: https://go-review.googlesource.com/104038
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/fmt_test.go             |   1 +
+ src/cmd/compile/internal/ssa/loopbce.go |   2 +-
+ src/cmd/compile/internal/ssa/prove.go   | 119 +++++++++++++++++++++++++++++++-
+ test/loopbce.go                         |  80 +++++++++++----------
+ test/prove.go                           |   5 +-
+ 5 files changed, 163 insertions(+), 44 deletions(-)

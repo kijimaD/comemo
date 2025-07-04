@@ -1,0 +1,31 @@
+commit c6f678b6efd6622d335e6d4b659282bb2d16f5ba
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 5 16:17:45 2020 -0500
+
+    cmd/go/internal/lockedfile: use a retry loop to suppress EDEADLK on AIX and Solaris
+    
+    AIX, Solaris, and Illumos all appear to implement fcntl deadlock
+    detection at the granularity of processes. However, we are acquiring
+    and releasing file locks on individual goroutines running
+    concurrently: our locking occurs at a much finer granularity. As a
+    result, these platforms occasionally fail with EDEADLK errors, when
+    they detect locks that would be _misordered_ in a single-threaded
+    program but are safely _unordered_ in a multi-threaded context.
+    
+    To work around the spurious errors, we treat EDEADLK as always
+    spurious, and retry the failing system call with a bounded exponential
+    backoff. This approach may introduce substantial latency since we no
+    longer benefit from kernel-scheduled wakeups in case of collisions,
+    but high-latency operations seem better than spurious failures.
+    
+    Updates #33974
+    Updates #35618
+    Fixes #32817
+    
+    Change-Id: I58b2c6a0f143bce55d6460fd4ddc3db83577ada7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222277
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ .../lockedfile/internal/filelock/filelock_fcntl.go | 70 ++++++++++++++--
+ src/cmd/go/internal/lockedfile/lockedfile_test.go  | 98 ++++++++++++++++++++++
+ 2 files changed, 163 insertions(+), 5 deletions(-)

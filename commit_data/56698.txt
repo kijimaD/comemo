@@ -1,0 +1,20 @@
+commit 13c49096fd3b08ef53742dd7ae8bcfbfa45f3173
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 28 14:18:42 2024 -0700
+
+    go/types, types2: report error when using uninstantiated signature alias
+    
+    For #67547.
+    Fixes #67683.
+    
+    Change-Id: I9487820ab4e2bd257d253a7016df45729b29f836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588855
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go             |  2 +-
+ src/go/types/expr.go                                |  2 +-
+ src/internal/types/testdata/fixedbugs/issue67683.go | 19 +++++++++++++++++++
+ 3 files changed, 21 insertions(+), 2 deletions(-)

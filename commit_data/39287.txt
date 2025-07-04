@@ -1,0 +1,23 @@
+commit 48a53d6eafaa80560629836939a8d0ee06569e6e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 31 15:24:49 2019 -0400
+
+    cmd/go/internal/modfetch: use the resolved version to search for tags in (*codeRepo).convert
+    
+    Previously, we used the passed-in statVers as the basis for tag search,
+    but it is not always valid.
+    Instead, use info.Name, which (by precondition) must be valid.
+    
+    Updates #32161
+    Updates #27171
+    
+    Change-Id: Iaecb5043bdf2fefd26fbe3f8e3714b07d22f580f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179857
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modconv/convert_test.go   | 10 +++++-----
+ src/cmd/go/internal/modfetch/coderepo.go      |  7 ++++++-
+ src/cmd/go/testdata/script/mod_init_glide.txt |  8 +++++---
+ 3 files changed, 16 insertions(+), 9 deletions(-)

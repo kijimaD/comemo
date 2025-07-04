@@ -1,0 +1,21 @@
+commit 4154727e1b125a7d3398c9cc143eb36343c82bcc
+Author: Kevin Burke <kev@inburke.com>
+Date:   Fri Oct 20 12:56:38 2017 -0700
+
+    crypto/tls: add examples for [Load]X509KeyPair
+    
+    I was confused about how to start an HTTP server if the server
+    cert/key are in memory, not on disk. I thought it would be good to
+    show an example of how to use these two functions to accomplish that.
+    
+    example-cert.pem and example-key.pem were generated using
+    crypto/tls/generate_cert.go.
+    
+    Change-Id: I850e1282fb1c38aff8bd9aeb51988d21fe307584
+    Reviewed-on: https://go-review.googlesource.com/72252
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/example_test.go           | 73 ++++++++++++++++++++++++++++++++
+ src/crypto/tls/testdata/example-cert.pem | 11 +++++
+ src/crypto/tls/testdata/example-key.pem  |  5 +++
+ 3 files changed, 89 insertions(+)

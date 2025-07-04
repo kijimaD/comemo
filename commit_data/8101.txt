@@ -1,0 +1,24 @@
+commit a49e7f393fe62d97dae691fdada7ab134fb83b6b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 14 14:25:25 2011 -0700
+
+    gofmt: don't crash when rewriting nil interfaces in AST.
+    
+    The new reflection API makes it an error to call value.Set(x)
+    if x is invalid. Guard for it.
+    
+    Added corresponding test case.
+    
+    Fixes #1696.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4398047
+
+ src/cmd/gofmt/gofmt_test.go            |  1 +
+ src/cmd/gofmt/rewrite.go               | 16 ++++++++++++++++
+ src/cmd/gofmt/testdata/rewrite1.golden |  4 ++++
+ src/cmd/gofmt/testdata/rewrite1.input  |  4 ++++
+ src/cmd/gofmt/testdata/rewrite2.golden | 10 ++++++++++
+ src/cmd/gofmt/testdata/rewrite2.input  | 10 ++++++++++
+ 6 files changed, 45 insertions(+)

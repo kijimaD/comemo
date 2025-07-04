@@ -1,0 +1,23 @@
+commit 119da6358bf8cc01bb8bc7556d616bd0fe723ad4
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Thu May 5 23:31:20 2022 +0000
+
+    debug/buildinfo: avoid nil defererence for invalid XCOFF
+    
+    I've made it return 0 following what the other DataStart implementation
+    do when they do not found the section.
+    
+    Fixes #52718
+    
+    Change-Id: I44292fed15bb21b9aba712ad15ed74e0ce231b5a
+    GitHub-Last-Rev: 081a35ebec9b94c0fa6a1347806d84111e58210a
+    GitHub-Pull-Request: golang/go#52722
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404254
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/debug/buildinfo/buildinfo.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

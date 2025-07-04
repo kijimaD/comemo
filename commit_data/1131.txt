@@ -1,0 +1,12 @@
+commit fd47cb9af51d0781fc7745d152302b5e892fb75e
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 14 17:28:11 2008 -0800
+
+    conflicting scopes should cause error exit
+    
+    TBR=rsc
+    OCL=19297
+    CL=19297
+
+ src/cmd/ar/ar.c | 1 +
+ 1 file changed, 1 insertion(+)

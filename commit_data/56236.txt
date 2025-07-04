@@ -1,0 +1,17 @@
+commit 276d28fe40dc8b4e0a9964a52dec426d4ed6fff0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Apr 18 02:29:55 2024 +0800
+
+    net/http: add case for TestParseSetCookie
+    
+    Updates #66008
+    
+    Change-Id: Idd36a7f0b4128adfd0a3d7fe76eb6c2cea4306a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579795
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/http/cookie_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

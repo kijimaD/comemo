@@ -1,0 +1,17 @@
+commit 49e07f2b7e25a1f7a050f73fbb7807185e09e46b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 8 20:09:10 2016 +1000
+
+    cmd/compile/internal/gc: unexport Export
+    
+    Export does not need to be exported.
+    
+    Change-Id: I252f0c024732f1d056817cab13e8e3c589b54d13
+    Reviewed-on: https://go-review.googlesource.com/21721
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 4 ++--
+ src/cmd/compile/internal/gc/export.go  | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit 298791a94af8b787c38fb95c51cb2dbc94668dad
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 30 01:05:18 2016 +0000
+
+    all: use time.Until where applicable
+    
+    Updates #14595
+    
+    Change-Id: Idf60b3004c7a0ebb59dd48389ab62c854069e09f
+    Reviewed-on: https://go-review.googlesource.com/28073
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/context/context.go     | 4 ++--
+ src/crypto/tls/tls.go      | 2 +-
+ src/net/fd_poll_runtime.go | 2 +-
+ src/net/http/client.go     | 2 +-
+ src/net/http/serve_test.go | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

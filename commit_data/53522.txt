@@ -1,0 +1,19 @@
+commit fd353a12803863a59e200c917c88cc7fe2f0ade5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 6 10:57:50 2023 -0700
+
+    context: fix doc tipo (s/timout/timeout)
+    
+    Change-Id: Ib02b35887896eab418ba9dde764754538cb23b4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501277
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/context/context.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,34 @@
+commit 662938850b6cff634a81a485c714294ccfe61fbc
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Nov 30 18:51:04 2017 -0500
+
+    cmd/trace: exclude threads in syscall on behalf of runtime
+    
+    The number of threads in syscall presented by execution tracer's
+    trace view includes not only the threads calling system calls on behalf
+    of user created goroutines, but also those running on behalf of system
+    goroutines.
+    
+    When the number of such system goroutines was small, the graph was
+    useful when examining where a program was saturating the CPU.
+    But as more and more system goroutines are invloved the graph became
+    less useful for the purpose - for example, after golang.org/cl/34784,
+    the timer goroutines dominate in the graph with large P
+    because the runtime creates per-P timer goroutines.
+    
+    This change excludes the threads in syscall on behalf of runtime (system
+    goroutines) from the visualization. Alternatively, I could visualize the
+    count of such threads in a separate counter but in the same graph.
+    Given that many other debug endpoints (e.g. /debug/pprof/goroutine) hide
+    the system goroutines, including them in the same graph can confuse users.
+    
+    Update #22574
+    
+    Change-Id: If758cd6b9ed0596fde9a471e846b93246580b9d5
+    Reviewed-on: https://go-review.googlesource.com/81315
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/trace/trace.go | 45 ++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 32 insertions(+), 13 deletions(-)

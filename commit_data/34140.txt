@@ -1,0 +1,25 @@
+commit 5114a7daa2f128d2de82cddb29a076d2a8e4def8
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Feb 13 22:11:20 2018 +0100
+
+    runtime/trace: fix TestTraceSymbolize when GOMAXPROCS=1
+    
+    CL 92916 added the GOMAXPROCS test in TestTraceSymbolize.
+    
+    This test only succeeds when the value of GOMAXPROCS changes.
+    
+    Since the test calls runtime.GOMAXPROCS(1), it will fails
+    on machines where GOMAXPROCS=1.
+    
+    This change fixes the test by calling runtime.GOMAXPROCS(oldGoMaxProcs+1).
+    
+    Fixes #23816.
+    
+    Change-Id: I1183dbbd7db6077cbd7fa0754032ff32793b2195
+    Reviewed-on: https://go-review.googlesource.com/93735
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/trace/trace_stack_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

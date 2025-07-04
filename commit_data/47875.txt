@@ -1,0 +1,26 @@
+commit b5bfaf410ad4dc329400b92a7818ffec5cd9ebb0
+Author: Ulrich Kunitz <uli.kunitz@gmail.com>
+Date:   Wed Dec 15 11:37:36 2021 +0100
+
+    doc: improve documentation for GOAMD64
+    
+    The change clarifies in the release notes for go1.18 that the variable
+    is for compilation and references the microarchitecture description in
+    the Go Wiki,
+    https://golang.org/wiki/MinimumRequirements#amd64,
+    and references the same information in the output of go help
+    environment.
+    
+    Fixes #50174
+    
+    Change-Id: I6a7d5a06f48463a810c96cc9c76fe66113d5147c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372194
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go1.18.html                     | 9 +++++----
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/help/helpdoc.go | 2 +-
+ 3 files changed, 7 insertions(+), 6 deletions(-)

@@ -1,0 +1,18 @@
+commit 113b52979f48331b611e0fe7dadff97d6393ca27
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 10:21:54 2021 -0700
+
+    runtime: remove a branch from funcdata
+    
+    name                   old time/op  new time/op  delta
+    StackCopyWithStkobj-8  12.1ms ± 7%  11.6ms ± 8%  -3.88%  (p=0.002 n=19+19)
+    
+    Change-Id: Idf810017d541eba70bcf9c736267de9efae916d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354072
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/symtab.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

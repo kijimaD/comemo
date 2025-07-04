@@ -1,0 +1,12 @@
+commit 9905446dc3280319efa0d233583885879e7ee6b2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 30 10:52:22 2013 -0700
+
+    net/textproto: report allocs in benchmarks
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/8187045
+
+ src/pkg/net/textproto/reader_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

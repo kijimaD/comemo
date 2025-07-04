@@ -1,0 +1,15 @@
+commit e2bcae7875e37c13f92dc3cf16614bf7e70fa6c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 13:06:37 2016 -0400
+
+    cmd/go, go/build: document form of import paths
+    
+    Fixes #16164.
+    
+    Change-Id: Ic8f51ebd8235640143913a07b70f5b41ee061fe4
+    Reviewed-on: https://go-review.googlesource.com/32114
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/cmd/go/list.go    | 19 ++++++++++++-------
+ src/go/build/build.go | 11 ++++++++---
+ 2 files changed, 20 insertions(+), 10 deletions(-)

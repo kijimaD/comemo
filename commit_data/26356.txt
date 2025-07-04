@@ -1,0 +1,12 @@
+commit 857d0b48dbdf8b41dc5fe4823cd81a8a5298c1eb
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 17 14:08:32 2016 -0400
+
+    runtime: document sudog
+    
+    Change-Id: I85c0bcf02842cc32dbc9bfdcea27efe871173574
+    Reviewed-on: https://go-review.googlesource.com/20774
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime2.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

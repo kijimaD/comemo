@@ -1,0 +1,31 @@
+commit 972cb4b442d6348868051c71304b348992519f4a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 28 11:35:24 2013 -0700
+
+    net/http: more tests, better comments, remove an allocation
+    
+    Add more tests around the various orders handlers can access
+    and flush response headers.
+    
+    Also clarify the documentation on fields of response and
+    chunkWriter.
+    
+    While there, remove an allocation (a header clone) for simple
+    handlers.
+    
+    benchmark                                   old ns/op    new ns/op    delta
+    BenchmarkServerFakeConnWithKeepAliveLite        15245        14966   -1.83%
+    
+    benchmark                                  old allocs   new allocs    delta
+    BenchmarkServerFakeConnWithKeepAliveLite           24           23   -4.17%
+    
+    benchmark                                   old bytes    new bytes    delta
+    BenchmarkServerFakeConnWithKeepAliveLite         1717         1668   -2.85%
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/8101043
+
+ src/pkg/net/http/serve_test.go | 222 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/http/server.go     |  52 ++++++++--
+ 2 files changed, 265 insertions(+), 9 deletions(-)

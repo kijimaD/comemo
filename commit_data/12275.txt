@@ -1,0 +1,14 @@
+commit 3684ae9da0ad00db01596393f2ac992fa3b0b05f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 29 09:53:20 2012 -0800
+
+    net/http: make a test more paranoid & reliable on Windows, maybe.
+    
+    Part of diagnosing issue 3050.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5707056
+
+ src/pkg/net/http/fs_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

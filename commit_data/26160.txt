@@ -1,0 +1,24 @@
+commit 33fd4535a408aa863e6f0c7196291ae2a583644f
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Tue Mar 8 21:53:33 2016 +0100
+
+    cmd/compile: use range construct
+    
+    so the code is more readable.
+    
+    Also use n[i] = val instead of n = append(n, val),
+    because this avoids a function call to append.
+    
+    NOTE: compiles, but I had trouble running toolstash -cmp and need sleep
+    now.
+    
+    @Ian this might save you some grunt work :-)
+    
+    Change-Id: I2a4c70396c58905f7d5aabf83f3020f11dea0e89
+    Reviewed-on: https://go-review.googlesource.com/20430
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

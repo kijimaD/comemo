@@ -1,0 +1,22 @@
+commit 2808f1f41583ef9943b1d7426d7affa6cfc998ba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 16:04:11 2016 -0700
+
+    Revert "go/ast, go/parser: parse alias declarations"
+    
+    This reverts commit 57ae83307fc4cb90338b39dcc6fe3c61ee8ce0b7.
+    
+    Reason: Decision to back out current alias implementation.
+    
+    For #16339.
+    
+    Change-Id: I7bcc04ac87ea3590999e58ff65a7f2e1e6c6bc77
+    Reviewed-on: https://go-review.googlesource.com/32823
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/ast/ast.go           | 28 +++++----------
+ src/go/ast/filter.go        |  4 ---
+ src/go/ast/walk.go          | 10 ------
+ src/go/parser/parser.go     | 84 +++++++++++++--------------------------------
+ src/go/parser/short_test.go |  2 --
+ 5 files changed, 32 insertions(+), 96 deletions(-)

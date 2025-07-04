@@ -1,0 +1,20 @@
+commit 488ca3c7a67ecb1ce4068ab40da6003feac5e16c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 23:09:22 2009 -0700
+
+    move math out of runtime.
+    
+    a step toward enforcing package boundaries,
+    necessary to eliminate global package name space.
+    
+    R=r
+    DELTA=581  (310 added, 271 deleted, 0 changed)
+    OCL=35805
+    CL=35823
+
+ src/pkg/math/Makefile                  |   3 +-
+ src/pkg/math/bits.go                   | 105 +++++++++++++++++++++++++++++++++
+ src/pkg/math/runtime.go                |  52 ----------------
+ src/pkg/math/unsafe.go                 |  30 ++++++++++
+ src/pkg/runtime/{float.cgo => float.c} |  45 --------------
+ 5 files changed, 137 insertions(+), 98 deletions(-)

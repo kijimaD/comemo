@@ -1,0 +1,26 @@
+commit 5594074dcd09d0bb8c35998e20cddf728893ff00
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 09:22:43 2016 -0400
+
+    runtime: use clock_gettime(CLOCK_REALTIME) for nanosecond-precision time.now on arm64, mips64x
+    
+    Assembly copied from the clock_gettime(CLOCK_MONOTONIC)
+    call in runtime.nanotime in these files and then modified to use
+    CLOCK_REALTIME.
+    
+    Also comment system call numbers in a few other files.
+    
+    Fixes #11222.
+    
+    Change-Id: Ie132086de7386f865908183aac2713f90fc73e0d
+    Reviewed-on: https://go-review.googlesource.com/32177
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_darwin_386.s      |  2 +-
+ src/runtime/sys_darwin_amd64.s    |  2 +-
+ src/runtime/sys_dragonfly_amd64.s |  2 +-
+ src/runtime/sys_freebsd_386.s     |  2 +-
+ src/runtime/sys_freebsd_amd64.s   |  2 +-
+ src/runtime/sys_linux_arm64.s     | 10 ++++------
+ src/runtime/sys_linux_mips64x.s   | 11 ++++-------
+ 7 files changed, 13 insertions(+), 18 deletions(-)

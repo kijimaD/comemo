@@ -1,0 +1,16 @@
+commit 65f21ca2c6e62cc9fb77a285764420df9e7f248f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 29 17:15:35 2013 +1000
+
+    cmd/go: make it work for code.google.com cloned repositories
+    
+    Thanks to beatgammit for the fix.
+    
+    Fixes #5408.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13261048
+
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

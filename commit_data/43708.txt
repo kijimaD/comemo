@@ -1,0 +1,22 @@
+commit 3510a1e32cbc86b73db143aefcc00aadc44c27bd
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Nov 5 05:59:34 2020 +0100
+
+    internal/cpu: fix and cleanup ARM64 cpu feature fields and options
+    
+    Remove all cpu features from the ARM64 struct that are not initialized
+    to reduce cache lines used and to avoid those features being
+    accidentially used without actual detection if they are present.
+    
+    Add missing option to mask the CPUID feature.
+    
+    Change-Id: I94bf90c0655de1af2218ac72117ac6c52adfc289
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267658
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Martin Möhrmann <moehrmann@google.com>
+
+ src/internal/cpu/cpu.go       | 17 -----------------
+ src/internal/cpu/cpu_arm64.go |  1 +
+ 2 files changed, 1 insertion(+), 17 deletions(-)

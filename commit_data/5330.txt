@@ -1,0 +1,15 @@
+commit 214a55b06abb864200dc9cf4d1ba2b4ebe49333d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 21 16:27:41 2010 -0700
+
+    runtime: switch state back to Grunning after recovery
+    
+    Fixes #733.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/958041
+
+ src/pkg/runtime/mgc0.c | 2 +-
+ src/pkg/runtime/proc.c | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

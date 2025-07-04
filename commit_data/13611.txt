@@ -1,0 +1,14 @@
+commit f05a91e18b4a3e1e962e1013cbf6ab16e120d190
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 9 11:50:16 2012 -0700
+
+    spec: clarify evaluation order
+    
+    Fixes #3852.
+    
+    R=r, rsc, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/6441102
+
+ doc/go_spec.html | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

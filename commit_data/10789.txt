@@ -1,0 +1,20 @@
+commit 6890afd9a34646b20043d0dffe32cabd0f3ec51c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 14 11:14:10 2011 -0800
+
+    strconv: slightly faster int conversion for GOARCH=386
+    
+    benchmark                           old ns/op    new ns/op    delta
+    strconv_test.BenchmarkFormatInt         12198        12031   -1.37%
+    strconv_test.BenchmarkAppendInt          9268         9153   -1.24%
+    strconv_test.BenchmarkFormatUint         3538         3429   -3.08%
+    strconv_test.BenchmarkAppendUint         3133         3062   -2.27%
+    
+    No performance difference for GOARCH=amd64.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5488089
+
+ src/pkg/strconv/itoa.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 64078bf3cfce289ce069fc203464ef83a05e2bd3
+Author: Ross Light <light@google.com>
+Date:   Thu Jun 4 11:45:50 2015 -0700
+
+    cmd/go: ignore custom import check when there is no import comment
+    
+    Fixes #10952
+    
+    Change-Id: I56ab6a806bd3741cffd9d2a53929a6d043626a26
+    Reviewed-on: https://go-review.googlesource.com/10693
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/get.go     |  2 +-
+ src/cmd/go/go_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 1 deletion(-)

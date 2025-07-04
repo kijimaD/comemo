@@ -1,0 +1,18 @@
+commit f6661675729bcd9d2dd0149bbcbfccd3facb22f6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Nov 9 18:55:36 2014 -0800
+
+    cmd/5g: fix bit mask for div/mod routines clobbering R12
+    
+    This patch is based only on reading the code.  I have not
+    tried to construct a test case.
+    
+    Fixes #9077.
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/172110043
+
+ src/cmd/5g/reg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 8a28242b5f7c20d0e215ea9996fa3c5171ee14fb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jul 5 10:00:14 2015 -0700
+
+    doc: add section about standard library to the FAQ
+    
+    Fixes #10246
+    
+    Change-Id: Ifa698232a09e1c37f3a9340ffdc1f2650c06fe4c
+    Reviewed-on: https://go-review.googlesource.com/11900
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_faq.html | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

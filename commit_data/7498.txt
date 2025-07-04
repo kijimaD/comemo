@@ -1,0 +1,15 @@
+commit 063125dfcf20593f3fe8f5eb3ed74b14cc47f79d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 17 17:14:50 2011 -0500
+
+    http: send full URL in proxy requests
+    
+    Fixes #53.  (again)
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/4167054
+
+ src/pkg/http/client.go  | 20 +++++++++++++-------
+ src/pkg/http/request.go | 22 +++++++++++++++++++++-
+ 2 files changed, 34 insertions(+), 8 deletions(-)

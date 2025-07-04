@@ -1,0 +1,12 @@
+commit c26b504b0d6a678be85f71cb02a7ca32e2a6979a
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Mon Mar 26 09:52:29 2012 +0800
+
+    cmd/go: add missing error check
+    
+    R=golang-dev, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5874055
+
+ src/cmd/go/get.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,43 @@
+commit 8730fcf88531152c42de9ff1e80d9b3c762d9944
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 18 21:17:03 2024 +0000
+
+    runtime: refactor mallocgc into several independent codepaths
+    
+    Right now mallocgc is a monster of a function. In real programs, we see
+    that a substantial amount of time in mallocgc is spent in mallocgc
+    itself. It's very branch-y, holds a lot of state, and handles quite a few
+    disparate cases, trying to merge them together.
+    
+    This change breaks apart mallocgc into separate, leaner functions.
+    There's some duplication now, but there are a lot of branches that can
+    be pruned as a result.
+    
+    There's definitely still more we can do here. heapSetType can be inlined
+    and broken down for each case, since its internals roughly map to each
+    case anyway (done in a follow-up CL). We can probably also do more with
+    the size class lookups, since we know more about the size of the object
+    in each case than before.
+    
+    Below are the savings for the full stack up until now.
+    
+                        │ after-3.out │              after-4.out              │
+                        │   sec/op    │     sec/op      vs base               │
+    Malloc8-4             13.32n ± 2%   12.17n ±  1%     -8.63% (p=0.002 n=6)
+    Malloc16-4            21.64n ± 3%   19.38n ± 10%    -10.47% (p=0.002 n=6)
+    MallocTypeInfo8-4     23.15n ± 2%   19.91n ±  2%    -14.00% (p=0.002 n=6)
+    MallocTypeInfo16-4    25.86n ± 4%   22.48n ±  5%    -13.11% (p=0.002 n=6)
+    MallocLargeStruct-4                 270.0n ±   ∞ ¹
+    geomean               20.38n        30.97n          -11.58%
+    
+    Change-Id: I681029c0b442f9221c4429950626f06299a5cfe4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614257
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/malloc.go  | 681 ++++++++++++++++++++++++++++++++++---------------
+ src/runtime/mgcmark.go |   1 +
+ src/runtime/mprof.go   |   2 +-
+ 3 files changed, 484 insertions(+), 200 deletions(-)

@@ -1,0 +1,18 @@
+commit f4ec146454171751e2239528509a46afcf9110f3
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Mon Mar 26 09:12:15 2012 -0700
+
+    doc: Change id of footer
+    
+    The heading "Copyright" uses id="copyright" as the anchor name.
+    However, there is also a <div id="copyright"> at the bottom.
+    Using the same ID value twice in the same file is illegal
+    (http://www.w3.org/TR/html401/struct/links.html#h-12.2.3).
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/5909045
+
+ doc/style.css        | 2 +-
+ lib/godoc/godoc.html | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

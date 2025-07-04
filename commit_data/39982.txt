@@ -1,0 +1,30 @@
+commit 34fe8295c5ac099109d7f8a1f967edec96f2a71d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 23 13:22:13 2019 +0000
+
+    Revert "compile: prefer an AND instead of SHR+SHL instructions"
+    
+    This reverts CL 194297.
+    
+    Reason for revert: introduced register allocation failures on PPC64LE builders.
+    
+    Updates #33826
+    Updates #32781
+    Updates #34468
+    
+    Change-Id: I7d0b55df8cdf8e7d2277f1814299b083c2692e48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196957
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   7 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |   4 -
+ src/cmd/compile/internal/ssa/gen/generic.rules |   8 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  27 -
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 746 ++++++-------------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 114 +++-
+ test/codegen/math.go                           |   4 +-
+ 7 files changed, 289 insertions(+), 621 deletions(-)

@@ -1,0 +1,26 @@
+commit 2c4f389c0298a37f1f3c000ad8b87e65d46c757f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 23 16:17:00 2021 -0500
+
+    cmd/link: enable internal linker in more cases for ppc64le
+    
+    The internal linker is capable of linking the ppc64le linux
+    race detector and approved cgo packages.
+    
+    Likewise, ppc64/linux and ppc64/aix do not support the race
+    detector. Thus, extra code to enforce external linking when
+    using the race detector on ppc64/ppc64le can be removed
+    entirely.
+    
+    Fixes #21961
+    
+    Change-Id: I10db14f65ee616ee3291e17409e8333e3af7d4df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304459
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/test.go               |  5 -----
+ src/cmd/link/internal/ld/config.go | 12 ++++--------
+ 2 files changed, 4 insertions(+), 13 deletions(-)

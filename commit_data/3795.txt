@@ -1,0 +1,12 @@
+commit ed494c6398cf5172d2af7b9839583661e0cffbc0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 4 23:25:29 2009 -0800
+
+    gofmt-ify sort, sync
+    
+    R=rsc
+    http://go/go-review/1018057
+
+ src/pkg/sort/sort.go       | 2 +-
+ src/pkg/sync/mutex_test.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

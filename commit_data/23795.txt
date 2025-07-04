@@ -1,0 +1,14 @@
+commit 77d38d9cbe9b4047e7155569e7b9485093807e17
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 16:12:26 2015 -0400
+
+    runtime: handle linux CPU masks up to 64k CPUs
+    
+    Fixes #11823.
+    
+    Change-Id: Ic949ccb9657478f8ca34fdf1a6fe88f57db69f24
+    Reviewed-on: https://go-review.googlesource.com/12535
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/os1_linux.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

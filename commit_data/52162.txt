@@ -1,0 +1,18 @@
+commit 4eb3aea2b5c53a66ae5dddc26afaea36e6c18878
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 21:26:46 2023 -0800
+
+    go/types, types2: better internal comment, added suitable test case
+    
+    Change-Id: If55cd001ab3d274cd9c61c06f73bb98162aa12a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471019
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/infer.go           | 21 +++++++++++++++++++--
+ src/go/types/infer.go                              | 21 +++++++++++++++++++--
+ src/internal/types/testdata/check/funcinference.go |  8 ++++++++
+ 3 files changed, 46 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit a54dca8357af66023067c68fc0a395444dd6db33
+Author: Rob Pike <r@golang.org>
+Date:   Sun May 8 17:26:16 2011 -0700
+
+    image/gif: implement transparency.
+    
+    At least, as I understand it. The spec is unclear about what happens
+    with a local color map.
+    
+    R=nigeltao, r2
+    CC=golang-dev
+    https://golang.org/cl/4515045
+
+ src/pkg/image/gif/reader.go | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

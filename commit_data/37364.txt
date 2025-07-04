@@ -1,0 +1,23 @@
+commit 1794ee682994ed2efbb9371060856cd7b146f405
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 31 20:42:38 2018 -0400
+
+    cmd/link: nice error message on ABI mismatch
+    
+    Currently, if a symbol is only defined under one ABI and referenced
+    under another ABI, you simply get a "relocation target X not defined".
+    This is confusing because it seems like the symbol is defined.
+    
+    This CL enhances the error message in this case to be "relocation
+    target X not defined for <ABI> (but is defined for <ABI>)".
+    
+    For #27539.
+    
+    Change-Id: If857a1882c3fe9af5346797d5295ca1fe50ae565
+    Reviewed-on: https://go-review.googlesource.com/c/147159
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/link/internal/ld/link.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

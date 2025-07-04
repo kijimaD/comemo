@@ -1,0 +1,20 @@
+commit c4e29bbd3813be43b3905e17a2796cea23dd66d4
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Sat Jul 15 23:58:25 2017 -0600
+
+    encoding/json: de-indent raw strings in remaining examples
+    
+    This change fixes the remaining examples where the raw strings had
+    suboptimal indentation (one level too many) when viewed in godoc.
+    
+    Follows CL 48910.
+    Fixes #21026.
+    
+    Change-Id: Ifc0dae3fa899a9fff8b1ff958414e2fe6852321d
+    Reviewed-on: https://go-review.googlesource.com/50990
+    Run-TryBot: Dmitri Shuralyov <shurcool@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/example_test.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

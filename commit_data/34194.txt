@@ -1,0 +1,22 @@
+commit f7c2a71632854050d9fe6de115c6c346fcd9774c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 13 17:43:16 2018 -0800
+
+    cmd/go: add options to security whitelist
+    
+    Also permit passing flags to pkg-config, as we used to.
+    
+    Also change the error message to refer to https://golang.org/s/invalidflag.
+    
+    Fixes #23749
+    
+    Change-Id: I3fbeb4c346610e6fd55e8720e720b0a40e352ab5
+    Reviewed-on: https://go-review.googlesource.com/93836
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/exec.go          | 15 ++++++----
+ src/cmd/go/internal/work/security.go      | 50 ++++++++++++++++++++++++++++---
+ src/cmd/go/internal/work/security_test.go |  7 +++++
+ 3 files changed, 63 insertions(+), 9 deletions(-)

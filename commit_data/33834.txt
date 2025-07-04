@@ -1,0 +1,12 @@
+commit fdf3ceafc61c0cf9b7b7bd6757f0c51393a7a83c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 7 20:08:21 2017 +0000
+
+    net/http: document ResponseWriter.WriteHeader more
+    
+    Change-Id: I65209b90ed7c56d4c751b3e4b3ce1de52dae368c
+    Reviewed-on: https://go-review.googlesource.com/82635
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

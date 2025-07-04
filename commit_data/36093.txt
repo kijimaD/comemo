@@ -1,0 +1,17 @@
+commit ecf8bac9596e6b8e1d00285afe1eee2ceb553c9c
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 19 13:19:54 2018 -0700
+
+    cmd/compile: run fmt test only in long mode
+    
+    Update #26469
+    
+    Change-Id: Id8b8d1c0db48374d5d3dc663a77187a73f60c9a5
+    Reviewed-on: https://go-review.googlesource.com/125037
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/fmt_test.go | 59 ++++++++++++++++++++++++---------------------
+ 1 file changed, 31 insertions(+), 28 deletions(-)

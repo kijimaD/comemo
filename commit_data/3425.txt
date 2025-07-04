@@ -1,0 +1,17 @@
+commit cbd40daf3871bcf0a0ddbc77477a7228996f89d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 2 13:25:26 2009 -0700
+
+    final Native Client package - av
+    
+    R=r
+    DELTA=894  (887 added, 0 deleted, 7 changed)
+    OCL=35115
+    CL=35286
+
+ usr/rsc/nacl/av/Makefile    |  13 ++
+ usr/rsc/nacl/av/av.go       | 308 +++++++++++++++++++++++++++++
+ usr/rsc/nacl/av/event.go    | 471 ++++++++++++++++++++++++++++++++++++++++++++
+ usr/rsc/nacl/av/image.go    |  95 +++++++++
+ usr/rsc/nacl/srpc/server.go |  14 +-
+ 5 files changed, 894 insertions(+), 7 deletions(-)

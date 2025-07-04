@@ -1,0 +1,16 @@
+commit 75937c2a16cf5f1f3c7fa8a7c134fc98de446421
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 26 17:54:44 2008 -0700
+
+    better line numbers
+    
+    SVN=125018
+
+ src/cmd/6g/cgen.c   | 30 +++++++++---------
+ src/cmd/6g/gen.c    | 89 +++++++++++++++++++++++++++++++++++++++++------------
+ src/cmd/6g/gsubr.c  |  2 +-
+ src/cmd/gc/export.c |  6 ++--
+ src/cmd/gc/go.h     |  2 +-
+ src/cmd/gc/subr.c   | 47 ++++++++++++++++------------
+ src/cmd/gc/walk.c   | 19 ++++++------
+ 7 files changed, 126 insertions(+), 69 deletions(-)

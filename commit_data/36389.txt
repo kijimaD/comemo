@@ -1,0 +1,35 @@
+commit 6d4787aff205c242895bb072a18f9066a00d00b3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jul 8 16:14:35 2018 +0100
+
+    encoding/json: various minor decoder speed-ups
+    
+    Reuse v.Type() and cachedTypeFields(t) when decoding maps and structs.
+    
+    Always use the same data slices when in hot loops, to ensure that the
+    compiler generates good code. "for i < len(data) { use(d.data[i]) }"
+    makes it harder for the compiler.
+    
+    Finally, do other minor clean-ups, such as deduplicating switch cases,
+    and using a switch instead of three chained ifs.
+    
+    The decoder sees a noticeable speed-up, in particular when decoding
+    structs.
+    
+    name           old time/op    new time/op    delta
+    CodeDecoder-4    29.8ms ± 1%    27.5ms ± 0%  -7.83%  (p=0.002 n=6+6)
+    
+    name           old speed      new speed      delta
+    CodeDecoder-4  65.0MB/s ± 1%  70.6MB/s ± 0%  +8.49%  (p=0.002 n=6+6)
+    
+    Updates #5683.
+    
+    Change-Id: I9d751e22502221962da696e48996ffdeb777277d
+    Reviewed-on: https://go-review.googlesource.com/122468
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/decode.go | 39 ++++++++++++++++++---------------------
+ src/encoding/json/stream.go | 22 +++++++++++-----------
+ 2 files changed, 29 insertions(+), 32 deletions(-)

@@ -1,0 +1,17 @@
+commit 478b594d5117729694deecbcb205bb15b6085f7a
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Mon Mar 21 15:05:54 2016 +0100
+
+    encoding/binary: fix bound check
+    
+    The inserted early bound checks cause the slice
+    to expand beyond the original length of the slice.
+    
+    Change-Id: Ib38891605f4a9a12d3b9e2071a5f77640b083d2d
+    Reviewed-on: https://go-review.googlesource.com/20981
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/encoding/binary/binary.go      | 24 ++++++++++++------------
+ src/encoding/binary/binary_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 12 deletions(-)

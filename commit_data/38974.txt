@@ -1,0 +1,20 @@
+commit 62ddf7d0c5a2a876933b2e52479712270191b92f
+Author: Liberatys <Liberatys@outlook.com>
+Date:   Wed Apr 24 14:32:21 2019 +0000
+
+    cmd/go: derive executable name from package path in 'go run'
+    
+    Change name of temporary executable on go run . to directory name.
+    Fixes #31571
+    
+    Change-Id: I0a0ce74154e76205bb43805c95bd7fb8fd2dfd01
+    GitHub-Last-Rev: e0964983e18a1d45b55f7098c7489059708c7e5e
+    GitHub-Pull-Request: golang/go#31614
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173297
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/run/run.go                     | 34 ++++++++-------
+ .../go/testdata/script/run_set_executable_name.txt | 48 ++++++++++++++++++++++
+ 2 files changed, 68 insertions(+), 14 deletions(-)

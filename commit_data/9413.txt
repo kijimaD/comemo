@@ -1,0 +1,25 @@
+commit 72e83483a7d2594c9f5072e420a1c8cb9f88c409
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 18 12:17:09 2011 -0400
+
+    runtime: speed up cgo calls
+    
+    Allocate Defer on stack during cgo calls, as suggested
+    by dvyukov. Also includes some comment corrections.
+    
+    benchmark                   old,ns/op   new,ns/op
+    BenchmarkCgoCall                  669         330
+    (Intel Xeon CPU 1.80GHz * 4, Linux 386)
+    
+    R=dvyukov, rsc
+    CC=golang-dev
+    https://golang.org/cl/4910041
+
+ misc/cgo/test/basic.go      | 12 ++++++++++++
+ misc/cgo/test/cgo_test.go   |  2 ++
+ src/pkg/runtime/386/asm.s   |  8 ++++----
+ src/pkg/runtime/amd64/asm.s |  8 ++++----
+ src/pkg/runtime/cgocall.c   | 44 +++++++++++++++++++++-----------------------
+ src/pkg/runtime/proc.c      | 12 ++++++++----
+ src/pkg/runtime/runtime.h   |  1 +
+ 7 files changed, 52 insertions(+), 35 deletions(-)

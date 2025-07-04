@@ -1,0 +1,24 @@
+commit 8c0256b398f3b23f24a1a3ac0cb00c2d8fb7f506
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 30 12:31:30 2022 -0800
+
+    cmd/cgo: walk {FuncType,TypeSpec}.TypeParams fields
+    
+    This CL updates the cgo tool to walk the TypeParams fields for
+    function types and type declarations, so that C.xxx identifiers can
+    appear within type parameter lists.
+    
+    Fixes #52542.
+    
+    Change-Id: Id02a88d529d50fe59b0a834f415c2575204ffd1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453977
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/test/test.go    | 6 ++++++
+ src/cmd/cgo/ast.go       | 6 ++++++
+ src/cmd/cgo/ast_go1.go   | 9 +++++++++
+ src/cmd/cgo/ast_go118.go | 8 ++++++++
+ 4 files changed, 29 insertions(+)

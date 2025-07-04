@@ -1,0 +1,22 @@
+commit 90666b8a3d5545f4295d9c2517ad607ce5d45e52
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jan 1 17:53:59 2018 -0500
+
+    runtime: move comment about address space sizes to malloc.go
+    
+    Currently there's a detailed comment in lfstack_64bit.go about address
+    space limitations on various architectures. Since that's now relevant
+    to malloc, move it to a more prominent place in the documentation for
+    memLimitBits.
+    
+    Updates #10460.
+    
+    Change-Id: If9708291cf3a288057b8b3ba0ba6a59e3602bbd6
+    Reviewed-on: https://go-review.googlesource.com/85889
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/lfstack_64bit.go | 25 ++++++-------------------
+ src/runtime/malloc.go        | 19 ++++++++++++++++++-
+ 2 files changed, 24 insertions(+), 20 deletions(-)

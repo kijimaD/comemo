@@ -1,0 +1,30 @@
+commit c69e6869c9793872cb0282008ea8ab643a92da65
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Mon Feb 29 17:46:48 2016 -0300
+
+    net/http/httptest: record trailing headers in ResponseRecorder
+    
+    Trailers() returns the headers that were set by the handler after the
+    headers were written "to the wire" (in this case HeaderMap) and that
+    were also specified in a proper header called "Trailer".
+    
+    Neither HeaderMap or trailerMap (used for Trailers()) are manipulated by
+    the handler code, instead a third stagingMap is given to the
+    handler. This avoid a reference kept by handler to affect the recorded
+    results.
+    
+    If a handler just modify the header but doesn't call any Write or Flush
+    method from ResponseWriter (or Flusher) interface, HeaderMap will not be
+    updated. In this case, calling Flush in the recorder is enough to get
+    the HeaderMap filled.
+    
+    Fixes #14531.
+    Fixes #8857.
+    
+    Change-Id: I42842341ec3e95c7b87d7e6f178c65cd03d63cc3
+    Reviewed-on: https://go-review.googlesource.com/20047
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httptest/recorder.go      | 66 +++++++++++++++++++++++++++-------
+ src/net/http/httptest/recorder_test.go | 64 +++++++++++++++++++++++++++++++++
+ 2 files changed, 118 insertions(+), 12 deletions(-)

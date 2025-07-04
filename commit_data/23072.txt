@@ -1,0 +1,14 @@
+commit 19354b9dc87d62dbb5280354be7fd90bdf196a24
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat May 2 13:08:12 2015 +0100
+
+    cmd/pprof/internal/profile: ignore comments when parsing heap profiles
+    
+    Fixes #10659.
+    
+    Change-Id: I22dc306ce6f398dd40010ac430928a718d67d466
+    Reviewed-on: https://go-review.googlesource.com/9623
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/pprof/internal/profile/legacy_profile.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

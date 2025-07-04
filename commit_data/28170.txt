@@ -1,0 +1,16 @@
+commit fe5619b479859f199a244929770a11cc4cbd1911
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Sep 1 10:13:11 2016 -0700
+
+    cmd/compile: be more aggressive in tighten pass for booleans
+    
+    Fixes #15509
+    
+    Change-Id: I44073533f02d38795f9ba9b255db4d1ee426d70e
+    Reviewed-on: https://go-review.googlesource.com/28390
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/tighten.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

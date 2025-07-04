@@ -1,0 +1,19 @@
+commit 8270b858ee8744e5b7584b49ae6ed93aa975c8bc
+Author: Sean Liao <sean@liao.dev>
+Date:   Tue Apr 29 16:54:06 2025 +0100
+
+    testing: use more doc links
+    
+    Change-Id: Ide372735165b7510fd8d7588451a37fa743e59c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/testing/allocs.go    |  2 +-
+ src/testing/benchmark.go |  6 ++---
+ src/testing/fuzz.go      | 22 +++++++--------
+ src/testing/testing.go   | 70 +++++++++++++++++++++++++-----------------------
+ 4 files changed, 51 insertions(+), 49 deletions(-)

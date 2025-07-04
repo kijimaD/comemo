@@ -1,0 +1,45 @@
+commit 495b167919b1473e02843135f57d310cdd4f5789
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Mar 16 14:08:31 2017 -0700
+
+    cmd/compile: intrinsics for math/bits.{Len,LeadingZeros}
+    
+    name              old time/op  new time/op  delta
+    LeadingZeros-4    2.00ns ± 0%  1.34ns ± 1%  -33.02%  (p=0.000 n=8+10)
+    LeadingZeros16-4  1.62ns ± 0%  1.57ns ± 0%   -3.09%  (p=0.001 n=8+9)
+    LeadingZeros32-4  2.14ns ± 0%  1.48ns ± 0%  -30.84%  (p=0.002 n=8+10)
+    LeadingZeros64-4  2.06ns ± 1%  1.33ns ± 0%  -35.08%  (p=0.000 n=8+8)
+    
+    8-bit args is a special case - the Go code is really fast because
+    it is just a single table lookup.  So I've disabled that for now.
+    Intrinsics were actually slower:
+    LeadingZeros8-4   1.22ns ± 3%  1.58ns ± 1%  +29.56%  (p=0.000 n=10+10)
+    
+    Update #18616
+    
+    Change-Id: Ia9c289b9ba59c583ea64060470315fd637e814cf
+    Reviewed-on: https://go-review.googlesource.com/38311
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go          |   2 +-
+ src/cmd/compile/internal/gc/asm_test.go        | 421 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/gc/inl.go             |   8 +-
+ src/cmd/compile/internal/gc/ssa.go             |  45 +++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  18 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |   2 +
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |   4 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |   4 +
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |   3 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |   3 +
+ src/cmd/compile/internal/ssa/gen/dec64.rules   |   8 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   6 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  42 +++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 226 +++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go     |  44 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   |  58 ++++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    |  21 ++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   |  42 +++
+ src/cmd/compile/internal/ssa/rewritedec64.go   |  32 ++
+ 19 files changed, 979 insertions(+), 10 deletions(-)

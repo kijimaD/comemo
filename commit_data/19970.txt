@@ -1,0 +1,21 @@
+commit 5b63ce4e1929914da33a0a53a0a2868b3fb092d2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 11 15:24:36 2014 -0400
+
+    cmd/6g, cmd/8g: fix, test byte-sized magic multiply
+    
+    Credit to Rémy for finding and writing test case.
+    
+    Fixes #8325.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=dave, golang-codereviews, iant, remyoudompheng
+    https://golang.org/cl/124950043
+
+ src/cmd/6g/ggen.c           |  2 +-
+ src/cmd/6g/peep.c           |  5 +++++
+ src/cmd/8g/ggen.c           |  2 +-
+ src/cmd/8g/peep.c           |  5 +++++
+ test/fixedbugs/issue8325.go | 31 +++++++++++++++++++++++++++++++
+ 5 files changed, 43 insertions(+), 2 deletions(-)

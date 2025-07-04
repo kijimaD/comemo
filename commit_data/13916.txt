@@ -1,0 +1,18 @@
+commit 0d82e698112464ea99bdd8cc2e695902b32e8e61
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 00:06:41 2012 -0400
+
+    test: prepare for 64-bit ints
+    
+    Minor tweaks to avoid assuming that int is always 32 bits.
+    
+    Update #2188.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6553062
+
+ test/bounds.go              |  7 -------
+ test/fixedbugs/bug273.go    | 42 +++++++++++++++++-------------------------
+ test/fixedbugs/bug385_64.go |  2 +-
+ 3 files changed, 18 insertions(+), 33 deletions(-)

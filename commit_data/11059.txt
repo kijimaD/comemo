@@ -1,0 +1,15 @@
+commit 793768e9d550d15f6b07eac7e587a090ffad0d41
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Mon Jan 9 12:52:03 2012 -0800
+
+    encoding/gob: fix panic when decoding []byte to incompatible slice types
+    
+    Fixes #2662.
+    
+    R=golang-dev, rogpeppe, r, r
+    CC=golang-dev, r, rogpeppe
+    https://golang.org/cl/5515050
+
+ src/pkg/encoding/gob/decode.go       | 6 +++---
+ src/pkg/encoding/gob/encoder_test.go | 8 ++++++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

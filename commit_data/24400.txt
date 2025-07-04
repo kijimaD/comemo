@@ -1,0 +1,18 @@
+commit a4fc3512ba85125d51e5e27491a6dd331cd2599b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 28 14:42:21 2015 -0700
+
+    go/format, cmd/gofmt: avoid dependency on internal package format
+    
+    Fixes #11844.
+    
+    Change-Id: I32edd39e79f7c9bdc132c49bd06081f35dac245d
+    Reviewed-on: https://go-review.googlesource.com/15114
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/gofmt/gofmt.go                             |   5 +-
+ src/cmd/gofmt/internal.go                          | 166 +++++++++++++++++++++
+ src/cmd/gofmt/long_test.go                         |   5 +-
+ src/go/format/format.go                            |   5 +-
+ .../format/format.go => go/format/internal.go}     |  25 ++--
+ 5 files changed, 186 insertions(+), 20 deletions(-)

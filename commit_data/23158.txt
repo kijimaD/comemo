@@ -1,0 +1,20 @@
+commit 0c02b33acda207964adde58b610b6f2c82ffde1d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 27 14:43:30 2015 -0700
+
+    math/big: fix latent decimal conversion bug
+    
+    A decimal represented 0.0 with a 0-length mantissa and undefined
+    exponent, but the formatting code assumes a valid zero exponent
+    if the float value is 0.0. The code worked because we allocate a
+    new decimal value each time and because there's no rounding that
+    lead to 0.0.
+    
+    Change-Id: Ifd771d7709de83b87fdbf141786286b4c3e13d4f
+    Reviewed-on: https://go-review.googlesource.com/10448
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/decimal.go        | 14 ++++++++++----
+ src/math/big/floatconv_test.go |  4 ++++
+ src/math/big/ftoa.go           |  8 +++-----
+ 3 files changed, 17 insertions(+), 9 deletions(-)

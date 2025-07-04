@@ -1,0 +1,14 @@
+commit 0210f4137b97b0e66c92b5f89a957085293670d5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 7 10:54:04 2012 -0800
+
+    io: more docs on WriterAt
+    
+    Updates #1599
+    
+    R=golang-dev, gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/5774043
+
+ src/pkg/io/io.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

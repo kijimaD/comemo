@@ -1,0 +1,30 @@
+commit 11f1fab4dfe59f09f322b6493a2b9c5d0ae99bfa
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Wed Dec 13 09:56:04 2017 +0900
+
+    go/doc: make examples that depend on top-level decls playable
+    
+    Currently, the following example cannot run in playground:
+    
+        func a() {
+            fmt.Println("A")
+        }
+    
+        func ExampleA() {
+            a()
+        }
+    
+    This CL solves it.
+    
+    Fixes #23095
+    
+    Change-Id: I5a492ff886a743f20cb4ae646e8453bde9c5f0da
+    Reviewed-on: https://go-review.googlesource.com/83615
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/example.go      | 122 ++++++++++++++++++++++++++++++++++-----------
+ src/go/doc/example_test.go | 114 +++++++++++++++++++++++++++++++++++++++++-
+ src/go/doc/reader.go       |   2 +
+ 3 files changed, 206 insertions(+), 32 deletions(-)

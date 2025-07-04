@@ -1,0 +1,18 @@
+commit fb9490c2ec8aa9220d19e693cd74b36944f3f881
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Mon Aug 17 11:29:12 2009 -0700
+
+    Implement slice types
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=286  (217 added, 42 deleted, 27 changed)
+    OCL=33319
+    CL=33383
+
+ usr/austin/eval/decls.go |  28 +++++---
+ usr/austin/eval/expr.go  | 174 +++++++++++++++++++++++++++++++++++++----------
+ usr/austin/eval/type.go  |  53 +++++++++++----
+ usr/austin/eval/typec.go |  14 ++--
+ usr/austin/eval/value.go |  36 ++++++++++
+ 5 files changed, 240 insertions(+), 65 deletions(-)

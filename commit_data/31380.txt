@@ -1,0 +1,18 @@
+commit d1ac5927174c92c2107e93a7405dbe7139f6e42a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 26 09:17:11 2017 -0700
+
+    runtime/pprof: add /proc/self/maps parsing test
+    
+    Delete old TestRuntimeFunctionTrimming, which is testing a dead API
+    and is now handled in end-to-end tests.
+    
+    Change-Id: I64fc2991ed4a7690456356b5f6b546f36935bb67
+    Reviewed-on: https://go-review.googlesource.com/41815
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/pprof/proto.go      |  11 +++-
+ src/runtime/pprof/proto_test.go | 138 +++++++++++++---------------------------
+ 2 files changed, 52 insertions(+), 97 deletions(-)

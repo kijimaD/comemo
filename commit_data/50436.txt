@@ -1,0 +1,25 @@
+commit d734203e393745626d2c705aaf433b210d86c241
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Fri Sep 9 08:43:10 2022 +0800
+
+    reflect: deprecate SliceHeader and StringHeader
+    
+    As discussed in CL 401434 there are substantial misuses of these in the
+    wild, and they are a potential source of unsafety even for code that
+    does not use them directly.
+    
+    Since proposal #53003 has already been implemented, now is the right
+    time to deprecate reflect.{SliceHeader, StringHeader}.
+    
+    For #53003.
+    
+    Change-Id: I724cf46d4b22d2ed3cbf2b948e6aac5ee4bf0f6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428757
+    Run-TryBot: hopehook <hopehook@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/reflect/value.go | 4 ++++
+ 1 file changed, 4 insertions(+)

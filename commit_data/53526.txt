@@ -1,0 +1,24 @@
+commit 1db23771afc7b9b259e926db35602ecf5047ae23
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 8 17:55:55 2023 -0400
+
+    cmd/go: omit checksums for go.mod files needed for go version lines more often in pre-1.21 modules
+    
+    This updates the logic from CL 489075 to avoid trying to save extra
+    sums if they aren't already expected to be present
+    and cfg.BuildMod != "mod" (as in the case of "go list -m -u all" with
+    a go.mod file that specifies go < 1.21).
+    
+    Fixes #60667.
+    Updates #56222.
+    
+    Change-Id: Ied6ed3e80a62f9cd9a328b43a415a42d14481056
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502015
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/init.go               | 17 ++++++++++++++---
+ src/cmd/go/testdata/script/mod_sum_issue56222.txt |  4 ++++
+ 2 files changed, 18 insertions(+), 3 deletions(-)

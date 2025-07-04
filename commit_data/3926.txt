@@ -1,0 +1,11 @@
+commit 568c018fee3445fb9175555a6826af2c398e48ff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 10:27:07 2009 -0800
+
+    make search box width dynamically sized
+    
+    R=rsc, agl
+    http://go/go-review/1024032
+
+ lib/godoc/godoc.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

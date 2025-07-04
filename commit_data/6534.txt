@@ -1,0 +1,14 @@
+commit 49a835fc9792bb569ef26728ba40f45befe468e2
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Oct 15 21:25:34 2010 +0200
+
+    gc: keep track of real actual type of identifiers.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2519042
+
+ src/cmd/gc/go.h        | 13 +++++++------
+ src/cmd/gc/subr.c      | 12 ++++++------
+ src/cmd/gc/typecheck.c |  3 ++-
+ 3 files changed, 15 insertions(+), 13 deletions(-)

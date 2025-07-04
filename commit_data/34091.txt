@@ -1,0 +1,17 @@
+commit 45ca9797f6a2988d213f34df935065c679a6deed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 13 06:10:32 2018 +0000
+
+    VERSION: remove erroneously committed VERSION file
+    
+    This file wasn't supposed to be checked in.
+    
+    Change-Id: Ib0db0a330a3e030b0e6e5fde12088df5ac610ebc
+    Reviewed-on: https://go-review.googlesource.com/93555
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ VERSION | 1 -
+ 1 file changed, 1 deletion(-)

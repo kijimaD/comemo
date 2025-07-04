@@ -1,0 +1,24 @@
+commit a0a44397e91055cb92d5a69e3851d628a7227971
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 24 16:29:26 2020 -0400
+
+    runtime: save/restore g unconditionally on darwin/arm64
+    
+    Now that we always have TLS set up, we can always save the G
+    register, regardless of whether cgo is used. This makes pure Go
+    programs signal-safe.
+    
+    Updates #38485.
+    
+    Change-Id: Icbc69acf0e2a5652fbcbbd074258a1a5efe87f1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265119
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/runtime/asm_arm64.s        | 3 ---
+ src/runtime/sys_darwin_arm64.s | 6 ++----
+ src/runtime/tls_arm64.s        | 4 ++++
+ 3 files changed, 6 insertions(+), 7 deletions(-)

@@ -1,0 +1,20 @@
+commit 4c236b9b097882f3aef8116e1ac9f65463bf6f01
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 19 09:50:01 2019 -0700
+
+    cmd/link: require cgo support for TestSectionsWithSameName
+    
+    The test doesn't really require cgo, but it does require that we know
+    the right flags to use to run the C compiler, and that is not
+    necessarily correct if we don't support cgo.
+    
+    Fixes #31565
+    
+    Change-Id: I04dc8db26697caa470e91ad712376aa621cf765d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172981
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/elf_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

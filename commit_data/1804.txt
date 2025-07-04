@@ -1,0 +1,12 @@
+commit 5559ff6ece381c8ee1b27779708bc821f609eafb
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 10 20:47:42 2009 -0700
+
+    fix old-style print call in constant
+    
+    R=rsc
+    OCL=26093
+    CL=26093
+
+ src/lib/fmt/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

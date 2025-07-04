@@ -1,0 +1,20 @@
+commit 97a268624c9f2830133d2bdfae677f5d99ec82cb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 24 13:52:41 2020 -0800
+
+    cmd/compile: add -d=ssa/check/seed=SEED
+    
+    This change adds the option to run the ssa checker with a random seed.
+    The current system uses a completely fixed seed,
+    which is good for reproducibility but bad for exploring the state space.
+    
+    Preserve what we have, but also provide a way for the caller
+    to provide a seed. The caller can report the seed
+    alongside any failures.
+    
+    Change-Id: I2676a8112d8260e6cac86d95d2e8db4d3221aeeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216418
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

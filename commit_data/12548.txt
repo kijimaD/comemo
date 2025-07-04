@@ -1,0 +1,17 @@
+commit b2e9f425b92cd6b986051a55c24dc96b777d9f28
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 9 16:27:32 2012 -0800
+
+    net/http: fix crash with Transport.CloseIdleConnections
+    
+    Thanks Michael Lore for the bug report!
+    
+    Fixes #3266
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5754068
+
+ src/pkg/net/http/transport.go      |  2 +-
+ src/pkg/net/http/transport_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

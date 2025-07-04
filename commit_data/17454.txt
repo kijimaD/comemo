@@ -1,0 +1,20 @@
+commit 465ba6b78c636a501a353a5e8ea971d29f11440a
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Aug 31 09:32:07 2013 -0700
+
+    runtime, syscall: add support for dragonfly/386
+    
+    Add runtime and syscall support for dragonfly/386.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13237051
+
+ src/pkg/runtime/defs_dragonfly_386.h     | 198 +++++++++++++++++
+ src/pkg/runtime/rt0_dragonfly_386.s      |  16 ++
+ src/pkg/runtime/signal_dragonfly_386.h   |  23 ++
+ src/pkg/runtime/sys_dragonfly_386.s      | 369 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/asm_dragonfly_386.s      | 139 ++++++++++++
+ src/pkg/syscall/mkall.sh                 |   6 +
+ src/pkg/syscall/syscall_dragonfly_386.go |  58 +++++
+ 7 files changed, 809 insertions(+)

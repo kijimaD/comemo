@@ -1,0 +1,21 @@
+commit 881f2076fb595d85fd8fa80ab2a7000b5a6ab737
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 16 10:11:39 2011 -0800
+
+    fcgi: fix server capability discovery
+    
+    The wrong length was being sent, and two parameters
+    were also transposed. Made the record type be a type
+    and made the constants typed, to prevent that sort
+    of bug in the future.
+    
+    Fixes #2469
+    
+    R=golang-dev, edsrzf
+    CC=golang-dev
+    https://golang.org/cl/5394046
+
+ src/pkg/net/http/fcgi/child.go     | 143 ++++++++++++++++++++-----------------
+ src/pkg/net/http/fcgi/fcgi.go      |  41 ++++++-----
+ src/pkg/net/http/fcgi/fcgi_test.go |  47 ++++++++++--
+ 3 files changed, 142 insertions(+), 89 deletions(-)

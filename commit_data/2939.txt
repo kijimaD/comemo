@@ -1,0 +1,13 @@
+commit fed04352578cb9b16b65d428c838d8d4ddd90d41
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 11 11:23:05 2009 -0700
+
+    renamed fast.arith.s to include $GOARCH
+    
+    R=rsc
+    DELTA=80  (40 added, 40 deleted, 0 changed)
+    OCL=33024
+    CL=33027
+
+ src/pkg/bignum/{fast.arith.s => arith_amd64.s} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

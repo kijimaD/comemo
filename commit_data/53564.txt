@@ -1,0 +1,22 @@
+commit c5463218a228b082661df3f5f1ba0492a4d3df18
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jun 9 17:41:36 2023 +0200
+
+    cmd/api: skip TestIssue29837 when -short is set
+    
+    TestIssue29837 takes a long time to run, ~150s on my laptop
+    and ~40s on CI builders.
+    
+    While here, warm up the go list cache in parallel, which reduces the
+    test time by ~10%.
+    
+    Change-Id: Ib8d45b086453ee03e6c9f3f070d6f6b0d324bfd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502095
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/api/api_test.go | 30 ++++++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 10 deletions(-)

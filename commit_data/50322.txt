@@ -1,0 +1,31 @@
+commit 1c50484335ff8c752f872cf730f262b66280b5be
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 5 08:37:48 2022 +0000
+
+    Revert "internal/poll: drop redundant ENOSYS and EXDEV error checks in CopyFileRange()"
+    
+    This reverts https://go.dev/cl/425881.
+    
+    Reason for revert: broke make.bash on linux/amd64 with Linux 5.19.6.
+    
+            [...]
+            Building Go toolchain2 using go_bootstrap and Go toolchain1.
+            go install internal/unsafeheader: copying /tmp/go-build4206185186/b007/_pkg_.a to /home/mvdan/tip/pkg/linux_amd64/internal/unsafeheader.a: write /home/mvdan/tip/pkg/linux_amd64/internal/unsafeheader.a: copy_file_range: invalid cross-device link
+            go install internal/goarch: copying /tmp/go-build4206185186/b006/_pkg_.a to /home/mvdan/tip/pkg/linux_amd64/internal/goarch.a: write /home/mvdan/tip/pkg/linux_amd64/internal/goarch.a: copy_file_range: invalid cross-device link
+            [...]
+    
+    Change-Id: I793856935d4315a870c2d31da46be00cc342b5f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428396
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: hopehook <hopehook@golangcn.org>
+    Reviewed-by: Andy Pan <panjf2000@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/poll/copy_file_range_linux.go | 31 ++++++++++++++++++++++--------
+ 1 file changed, 23 insertions(+), 8 deletions(-)

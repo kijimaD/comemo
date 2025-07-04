@@ -1,0 +1,32 @@
+commit b06d2122eec394a044d7b04a011b5b79318dc4c0
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Dec 13 21:56:45 2018 +0100
+
+    os,syscall: implement functions related to uid, gid and pid on js/wasm
+    
+    This change implements the following functions on js/wasm:
+    - os.Chown
+    - os.Fchown
+    - os.Lchown
+    - syscall.Getuid
+    - syscall.Getgid
+    - syscall.Geteuid
+    - syscall.Getegid
+    - syscall.Getgroups
+    - syscall.Getpid
+    - syscall.Getppid
+    - syscall.Umask
+    
+    Change-Id: Icdb0fafc02c9df6e9e3573542f8499c3464dc671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/154157
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/build_test.go |  4 +--
+ src/os/os_unix_test.go                 |  9 ++++++-
+ src/os/sticky_bsd.go                   |  2 +-
+ src/os/sticky_notbsd.go                |  1 +
+ src/syscall/fs_js.go                   | 14 +++++++---
+ src/syscall/syscall_js.go              | 47 ++++++++++++++++++++++++++++------
+ 6 files changed, 62 insertions(+), 15 deletions(-)

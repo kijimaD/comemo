@@ -1,0 +1,16 @@
+commit 26985ed4a58665d25a256e3b63b353972fc3aab0
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Fri Dec 14 16:11:03 2018 -0800
+
+    cmd/nm: report windows/arm as relocatable in TestGoExec
+    
+    Updates #26148
+    
+    Change-Id: I704efafca39e4397caf2db0146d83d309c761dd1
+    Reviewed-on: https://go-review.googlesource.com/c/154357
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/nm/nm_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

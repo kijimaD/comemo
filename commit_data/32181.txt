@@ -1,0 +1,20 @@
+commit 9c7bf0807a56429a92c4518f90d3418609688cbb
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Wed Aug 9 00:09:07 2017 -0700
+
+    math/big: avoid unneeded sticky bit calculations
+    
+    As noted in the TODO comment, the sticky bit is only used
+    when the rounding bit is zero or the rounding mode is
+    ToNearestEven.  This change makes that check explicit and
+    will eliminate half the sticky bit calculations on average
+    when rounding mode is not ToNearestEven.
+    
+    Change-Id: Ia4709f08f46e682bf97dabe5eb2a10e8e3d7af43
+    Reviewed-on: https://go-review.googlesource.com/54111
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/math/big/float.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

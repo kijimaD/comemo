@@ -1,0 +1,22 @@
+commit 40e62d63a3068ad678c023f92c6439cefa885bd8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Oct 12 20:22:44 2024 +0200
+
+    crypto/internal/mlkem768: update to final FIPS 203
+    
+    Main changes are the domain separator in KeyGen, dropping support for
+    the extended decapsulation key encoding in favor of seeds (see
+    https://words.filippo.io/ml-kem-seeds/), and documentation changes.
+    
+    Change-Id: I8773034929094b3242aa39ac6e9d007c2bc94e63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621975
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/internal/mlkem768/mlkem768.go      | 243 ++++++++++----------------
+ src/crypto/internal/mlkem768/mlkem768_test.go |  98 +++--------
+ src/crypto/tls/key_schedule_test.go           |  18 --
+ 3 files changed, 118 insertions(+), 241 deletions(-)

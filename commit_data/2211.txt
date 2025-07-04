@@ -1,0 +1,14 @@
+commit 16387fad3964a3bc24cb0a20a10eeba848b8ae34
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu May 14 15:42:27 2009 -0700
+
+    Hyphens are allowed in filenames. This allows this test to pass for me.
+    
+    R=r
+    APPROVED=r
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=28847
+    CL=28851
+
+ src/lib/log/log_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 843fec1c7d75cac3f76620e79f1680d8f058c501
+Author: Julien Schmidt <go@julienschmidt.com>
+Date:   Mon Sep 30 00:07:34 2019 +0000
+
+    database/sql: preallocate list slice in Drivers()
+    
+    The required slice capacity is already known. Thus, preallocate a slice with the correct capacity before appending to it.
+    
+    Change-Id: I45ac2c5f1701caeb3dda20451d371713ae7e7365
+    GitHub-Last-Rev: 2bf575be65e9a449322540270988eaf87cec4245
+    GitHub-Pull-Request: golang/go#34602
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197917
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

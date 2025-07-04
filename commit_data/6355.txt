@@ -1,0 +1,14 @@
+commit f3549d83235beaf45e064eda53879eebdafd35d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 23 14:31:44 2010 -0400
+
+    io/ioutil: use _test not _obj in test
+    
+    Fixes: make clean; make test
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2234044
+
+ src/pkg/io/ioutil/ioutil_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

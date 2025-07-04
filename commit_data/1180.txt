@@ -1,0 +1,14 @@
+commit 9a6fd41a018c333f77d104e1d5ca97b97e508f8e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 09:49:06 2008 -0800
+
+    silence gcc warnings: missing prototypes and unused variables
+    
+    R=ken
+    OCL=19583
+    CL=19583
+
+ src/cmd/6g/gen.c | 3 ++-
+ src/cmd/6g/opt.h | 1 +
+ src/cmd/6g/reg.c | 6 +++---
+ 3 files changed, 6 insertions(+), 4 deletions(-)

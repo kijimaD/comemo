@@ -1,0 +1,22 @@
+commit 35a4d1b3bc37b09d56cf045f845be1dfb282c44f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 20:47:17 2023 -0800
+
+    go/types, types2: simplify unification when x == y (pointer identity)
+    
+    Because we rename type parameters to avoid problems with self-recursive
+    function calls, there's no need anymore for special (and hard to follow)
+    logic for pointer-identical types. If they are identical, we have a
+    match. Simplify the code accordingly.
+    
+    Change-Id: I2e1838a43e90fa4abfae3ab9e4f7da6463508966
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471018
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/unify.go | 28 ++++++++++++++--------------
+ src/go/types/unify.go                    | 28 ++++++++++++++--------------
+ 2 files changed, 28 insertions(+), 28 deletions(-)

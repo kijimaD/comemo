@@ -1,0 +1,16 @@
+commit 40b433e6fb42f278943176269de549bf3e40faf0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 14 14:56:26 2019 +0000
+
+    net: check for canceled context before starting Windows DNS lookup
+    
+    Fixes #31950
+    
+    Change-Id: Id9bcd51a8b49523eeecbd0d8d527372a0b8d8760
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/177038
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_windows.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

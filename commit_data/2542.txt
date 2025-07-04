@@ -1,0 +1,13 @@
+commit 104d0246ea4f6c6e2ee0263cfa9dd53d8a99fe8a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 29 11:19:38 2009 -0700
+
+    fix gobuild bug
+    
+    R=rsc
+    DELTA=4  (3 added, 0 deleted, 1 changed)
+    OCL=30845
+    CL=30845
+
+ src/cmd/gobuild/util.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

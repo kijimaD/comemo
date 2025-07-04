@@ -1,0 +1,16 @@
+commit dead164cc0d387ca151b14195e900d998dc30bde
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 18 14:04:21 2008 -0700
+
+    - made initial export work
+    - added code for importing (not tested)
+    - various fixes
+    
+    SVN=128061
+
+ usr/gri/gosrc/compilation.go |   6 +-
+ usr/gri/gosrc/export.go      |  80 ++++++-----
+ usr/gri/gosrc/globals.go     |   1 +
+ usr/gri/gosrc/import.go      | 314 +++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/gosrc/universe.go    |  14 +-
+ 5 files changed, 366 insertions(+), 49 deletions(-)

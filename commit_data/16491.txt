@@ -1,0 +1,16 @@
+commit eec014de66c0a87846d1d8a346282508e0b4c33c
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jun 4 19:51:26 2013 -0400
+
+    encoding/asn1: harmonise error prefixes.
+    
+    This change ensures that error messages always start with "asn1: ".
+    
+    R=golang-dev, gedimitr
+    CC=golang-dev
+    https://golang.org/cl/9751043
+
+ src/pkg/encoding/asn1/asn1.go      | 10 +++++-----
+ src/pkg/encoding/asn1/asn1_test.go |  0
+ src/pkg/encoding/asn1/marshal.go   |  6 +++---
+ 3 files changed, 8 insertions(+), 8 deletions(-)

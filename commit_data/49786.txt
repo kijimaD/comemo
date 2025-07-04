@@ -1,0 +1,21 @@
+commit 98277f30e4365f3b35d856fa9cdee2fe01ab862b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Aug 9 10:17:54 2022 +0200
+
+    syscall: add Mmap and Munmap on solaris
+    
+    They exist on all other Unix ports, define them on GOOS=solaris as well.
+    
+    Fixes #52875
+    
+    Change-Id: I7285156b3b48ce12fbcc6d1d88865540a5c51a21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413374
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/syscall/mmap_unix_test.go  |  2 +-
+ src/syscall/syscall_solaris.go | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit b499da48a4d8a06ae3b0f6ccb2d861474a11a554
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 26 17:51:44 2009 -0700
+
+    move AST into src/lib/go
+    
+    R=r
+    DELTA=1509  (756 added, 751 deleted, 2 changed)
+    OCL=26799
+    CL=26801
+
+ src/lib/go/Makefile                   | 9 +++++++--
+ {usr/gri/pretty => src/lib/go}/ast.go | 0
+ 2 files changed, 7 insertions(+), 2 deletions(-)

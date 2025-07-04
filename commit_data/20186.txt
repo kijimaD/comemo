@@ -1,0 +1,16 @@
+commit 13c69f037986ba4a4cb1890822bfd15702a2971e
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Aug 28 16:01:31 2014 -0700
+
+    cmd/internal/objfile: fix dissassembly of Plan 9 object files
+    
+    This is a reapplication of CL 93520045 (changeset 5012df7fac58)
+    since that was lost during the move to an internal package.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/134020043
+
+ src/cmd/internal/objfile/plan9obj.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

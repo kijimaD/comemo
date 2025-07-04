@@ -1,0 +1,18 @@
+commit 3b9f99ebaa1eb9209f3bab07f09cf27f06ccce0d
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Thu May 18 11:16:31 2023 +0300
+
+    go/types: fix typos in comments
+    
+    Change-Id: Ifadb11dc8ba8e63c736cb7ac277247bc587ce4b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496136
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go  | 2 +-
+ src/cmd/compile/internal/types2/infer.go | 2 +-
+ src/go/types/call.go                     | 2 +-
+ src/go/types/infer.go                    | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

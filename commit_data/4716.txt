@@ -1,0 +1,15 @@
+commit 2e989df0fbbb365dc3d449b790097c7e2902cee4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 12:48:09 2010 -0800
+
+    dashboard: move key.py out of the way,
+    so that if you have a key.py with the real key,
+    there is no chance hg change will accidentally
+    make a CL with the real key and upload it to codereview.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/196051
+
+ misc/dashboard/godashboard/{key.py => key.py.dummy} | 2 ++
+ 1 file changed, 2 insertions(+)

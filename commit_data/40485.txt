@@ -1,0 +1,20 @@
+commit 1a058cd04b7b902e59ff5584c7fda8ddfe388981
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Fri Oct 18 22:19:59 2019 -0400
+
+    net/http: only decrement connection count if we removed a connection
+    
+    The connection count must only be decremented if the persistent
+    connection was also removed.
+    
+    Fixes #34941
+    
+    Change-Id: I5070717d5d9effec78016005fa4910593500c8cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202087
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      | 15 +++++++----
+ src/net/http/transport_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 5 deletions(-)

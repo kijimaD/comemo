@@ -1,0 +1,33 @@
+commit b28f017537df9c10e45c5474612082ed4bbfc8ef
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sat Dec 24 11:07:14 2011 +1100
+
+    html: "in select in table" insertion mode.
+    
+    Pass tests10.dat, test 16:
+    <!DOCTYPE
+    html><body><table><tr><td><select><svg><g>foo</g><g>bar</g><p>baz</table><p>quux
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <table>
+    |       <tbody>
+    |         <tr>
+    |           <td>
+    |             <select>
+    |               "foobarbaz"
+    |     <p>
+    |       "quux"
+    
+    Also pass tests through test 21:
+    <!DOCTYPE html><frameset></frameset><svg><g></g><g></g><p><span>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5505069
+
+ src/pkg/html/parse.go      | 63 ++++++++++++++++++++++++++++++++++++++--------
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 53 insertions(+), 12 deletions(-)

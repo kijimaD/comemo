@@ -1,0 +1,44 @@
+commit 9295723079f21d5ff6282e8bd59fd3175341ebc2
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Mar 23 15:52:49 2021 -0500
+
+    cmd/link: rework .TOC. handling for ppc64le
+    
+    Setup .TOC. to point to the same place for all objects. Today, the linker
+    assumes all call relocations can use the local function entry point of
+    imported object files. This requires a consistent pointer across all
+    objects.
+    
+    This intentionally computes the .TOC. pointer in all linking configurations.
+    In some cases the .TOC. is not used today (e.g linking position-dependent go
+    only code). It is harmless and simple to compute in all cases, so just
+    do it for easier maintenance.
+    
+    Notably, .TOC. is used in some cases when static linking is requested on
+    ppc64le/linux:
+    
+    * Position-independent C code using a PC-rel relocation against .TOC.. cgo
+      generated C object files are usually compiled PIC even if the go binary
+      itself is not.
+    
+    * Anything which causes PLT stub generation. The stubs always generate
+      a .TOC. relative relocation.
+    
+    * The race detector. Today, this links in an externally compiled archive which
+      contains position-independent object files.
+    
+    Similarly, position-independent linking is always punted to the external
+    linker on ppc64 today.
+    
+    Updates #21961
+    Fixes #15409
+    
+    Change-Id: Ifd8294b9249e16ba8b92eaf876d15d162f9c61fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304458
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/link/internal/ld/data.go    | 34 ++++++++++++++++++++--------------
+ src/cmd/link/internal/ld/lib.go     | 11 ++---------
+ src/cmd/link/internal/sym/symbol.go |  1 +
+ 3 files changed, 23 insertions(+), 23 deletions(-)

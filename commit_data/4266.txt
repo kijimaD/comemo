@@ -1,0 +1,15 @@
+commit ceb1fe2863ac3a4a67a05d8ab504aa72e80b7992
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 1 16:22:21 2009 -0800
+
+    update package unicode to Unicode 5.2
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/163062
+
+ src/pkg/unicode/Makefile       |   1 +
+ src/pkg/unicode/maketables.go  |   2 +-
+ src/pkg/unicode/script_test.go |  15 +
+ src/pkg/unicode/tables.go      | 821 +++++++++++++++++++++++++++++------------
+ 4 files changed, 609 insertions(+), 230 deletions(-)

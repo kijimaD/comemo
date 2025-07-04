@@ -1,0 +1,15 @@
+commit ea918ef535cfc2f0cbff5a63fa520fe90f15c1e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 04:11:26 2015 +0000
+
+    Revert "cmd/compile: define func value symbols at declaration"
+    
+    This reverts commit 3b411bf1a1bb08d6868083981cecba8088dc7aea.
+    
+    Change-Id: I321a43fa378a43b3e4d7aa97e0222775640af64b
+    Reviewed-on: https://go-review.googlesource.com/12205
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go |  1 -
+ src/cmd/compile/internal/gc/dcl.go     | 20 ++++++--------------
+ 2 files changed, 6 insertions(+), 15 deletions(-)

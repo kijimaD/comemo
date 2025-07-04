@@ -1,0 +1,31 @@
+commit 49cce1a62e452c1f2e2acbed37038837edef937d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Jun 19 07:20:28 2016 -0700
+
+    cmd/compile: add OSLICELIT
+    
+    Does not pass toolstash -cmp due to changed export data,
+    but the cmd/go binary (which doesn't contain export data)
+    is bit-for-bit identical.
+    
+    Change-Id: I6b12f9de18cf7da528e9207dccbf8f08c969f142
+    Reviewed-on: https://go-review.googlesource.com/26753
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go   |   2 +-
+ src/cmd/compile/internal/gc/bimport.go   |   2 +-
+ src/cmd/compile/internal/gc/esc.go       |  24 ++--
+ src/cmd/compile/internal/gc/export.go    |   1 +
+ src/cmd/compile/internal/gc/fmt.go       |   3 +-
+ src/cmd/compile/internal/gc/opnames.go   |   1 +
+ src/cmd/compile/internal/gc/order.go     |   2 +-
+ src/cmd/compile/internal/gc/racewalk.go  |   1 +
+ src/cmd/compile/internal/gc/sinit.go     | 192 ++++++++++++++-----------------
+ src/cmd/compile/internal/gc/ssa.go       |   2 +-
+ src/cmd/compile/internal/gc/subr.go      |   2 +-
+ src/cmd/compile/internal/gc/syntax.go    |   3 +-
+ src/cmd/compile/internal/gc/typecheck.go |   4 +-
+ src/cmd/compile/internal/gc/walk.go      |   3 +-
+ 14 files changed, 114 insertions(+), 128 deletions(-)

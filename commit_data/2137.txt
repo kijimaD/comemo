@@ -1,0 +1,13 @@
+commit 747e26166a265b2343504e29e70e7078f9a5ca40
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 5 11:24:03 2009 -0700
+
+    fmt: dead code and data
+    
+    R=r
+    DELTA=10  (0 added, 10 deleted, 0 changed)
+    OCL=28258
+    CL=28287
+
+ src/lib/fmt/format.go | 10 ----------
+ 1 file changed, 10 deletions(-)

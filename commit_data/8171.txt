@@ -1,0 +1,13 @@
+commit f10a7882c6d2876592bb73a27e7e595caad5c376
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 21 08:20:29 2011 -0400
+
+    gc: another pointer to interface message
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4444056
+
+ src/cmd/gc/subr.c         | 13 +++++++------
+ test/interface/pointer.go |  1 +
+ 2 files changed, 8 insertions(+), 6 deletions(-)

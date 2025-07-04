@@ -1,0 +1,14 @@
+commit b7d96b8e059ce446f25e615ab9ef277eae2ef1c9
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed May 25 08:03:46 2016 -0400
+
+    doc: reflect {Num,}Method skips unexported methods
+    
+    For #15673
+    
+    Change-Id: I3ce8d4016854d41860c5a9f05a54cda3de49f337
+    Reviewed-on: https://go-review.googlesource.com/23430
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

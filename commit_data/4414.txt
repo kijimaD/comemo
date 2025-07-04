@@ -1,0 +1,19 @@
+commit 31de4d4c5d2a887d49fe826e2587f70736d262a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 14 17:35:12 2009 -0800
+
+    improved formatting of import declarations and
+    multi-line expressions with comments
+    
+    Fixes #414.
+    
+    R=rsc
+    https://golang.org/cl/179047
+
+ src/pkg/go/printer/nodes.go                     | 33 +++++++++++++++++++++----
+ src/pkg/go/printer/testdata/declarations.golden | 27 ++++++++++++++++++--
+ src/pkg/go/printer/testdata/declarations.input  | 21 ++++++++++++++++
+ src/pkg/go/printer/testdata/expressions.golden  | 12 +++++++++
+ src/pkg/go/printer/testdata/expressions.input   | 12 +++++++++
+ src/pkg/go/printer/testdata/expressions.raw     | 12 +++++++++
+ 6 files changed, 110 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit 91a480c3252c8d67540f41e1761abd7834027d7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 00:34:36 2015 -0400
+
+    doc: add cmd/go's -pkgdir build option
+    
+    Also use more consistent language for the new build options.
+    
+    Change-Id: I88cbe200c13f452713be73d2e00337ddb793b8c6
+    Reviewed-on: https://go-review.googlesource.com/12172
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.html | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

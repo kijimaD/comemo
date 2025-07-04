@@ -1,0 +1,17 @@
+commit bcd4b84bc56889b5a9a8a5d457f35fc0188e8315
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed May 4 22:07:50 2016 -0700
+
+    runtime: skip TestCgoCallbackGC on linux/mips64x
+    
+    Builder is too slow. This test passed on builder machines but took
+    15+ min.
+    
+    Change-Id: Ief9d67ea47671a57e954e402751043bc1ce09451
+    Reviewed-on: https://go-review.googlesource.com/22798
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/crash_cgo_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

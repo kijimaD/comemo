@@ -1,0 +1,27 @@
+commit e3c7a9db83b98a936cd90c46f39d86080c30a0d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 23:42:11 2013 -0400
+
+    runtime: use 64-bit negative error code on 64-bit machines
+    
+    NEGL does a negation of the bottom 32 bits and then zero-extends to 64 bits,
+    resulting in a negative 32-bit number but a positive 64-bit number.
+    
+    NEGQ does a full 64-bit negation, so that the result is negative both as
+    a 32-bit and as a 64-bit number.
+    
+    This doesn't matter for the functions that are declared to return int32.
+    It only matters for the ones that return int64 or void* [sic].
+    
+    This will fix the current incorrect error in the OpenBSD/amd64 build.
+    The build will still be broken, but it won't report a bogus error.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7536046
+
+ src/pkg/runtime/sys_darwin_amd64.s  | 10 +++++-----
+ src/pkg/runtime/sys_freebsd_amd64.s |  2 +-
+ src/pkg/runtime/sys_netbsd_amd64.s  |  6 +++---
+ src/pkg/runtime/sys_openbsd_amd64.s |  6 +++---
+ 4 files changed, 12 insertions(+), 12 deletions(-)

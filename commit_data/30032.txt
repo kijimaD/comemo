@@ -1,0 +1,19 @@
+commit edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 1 16:40:46 2017 -0800
+
+    cmd/compile: skip reexporting types in reexportdep
+    
+    The binary export format embeds type definitions inline as necessary,
+    so there's no need to add them to exportlist. Also, constants are
+    embedded directly by value, so they can be omitted too.
+    
+    Change-Id: Id1879eb97c298a5a52f615cf9883c346c7f7bd69
+    Reviewed-on: https://go-review.googlesource.com/36170
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |  9 +----
+ src/cmd/compile/internal/gc/export.go  | 73 ----------------------------------
+ 2 files changed, 1 insertion(+), 81 deletions(-)

@@ -1,0 +1,15 @@
+commit 816f4bb1d81e20fe1a9fff06b1cff7e69fb6e581
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat May 14 09:45:32 2011 -0700
+
+    misc/vim: drop indent support for jump labels.
+    
+    It interferes with keys in composite literals,
+    which are much more common.
+    
+    R=dchest, jnwhiteh, rlight2
+    CC=golang-dev
+    https://golang.org/cl/4521065
+
+ misc/vim/indent/go.vim | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

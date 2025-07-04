@@ -1,0 +1,31 @@
+commit e19f184b8f61529980c24973d5522dc67e3d8525
+Author: David NewHamlet <david@newhamlet.com>
+Date:   Sat Mar 11 09:13:20 2017 +1300
+
+    runtime: use cpuset_getaffinity for runtime.NumCPU() on FreeBSD
+    
+    In FreeBSD when run Go proc under a given sub-list of
+    processors(e.g. 'cpuset -l 0 ./a.out' in multi-core system),
+    runtime.NumCPU() still return all physical CPUs from sysctl
+    hw.ncpu instead of account from sub-list.
+    
+    Fix by use syscall cpuset_getaffinity to account the number of sub-list.
+    
+    Fixes #15206
+    
+    Change-Id: If87c4b620e870486efa100685db5debbf1210a5b
+    Reviewed-on: https://go-review.googlesource.com/29341
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs_freebsd.go                     |  11 +++
+ src/runtime/defs_freebsd_386.go                 |   7 ++
+ src/runtime/defs_freebsd_amd64.go               |   7 ++
+ src/runtime/defs_freebsd_arm.go                 |   7 ++
+ src/runtime/numcpu_freebsd_test.go              |  15 +++
+ src/runtime/os_freebsd.go                       |  82 +++++++++++++--
+ src/runtime/sys_freebsd_386.s                   |   9 ++
+ src/runtime/sys_freebsd_amd64.s                 |  14 +++
+ src/runtime/sys_freebsd_arm.s                   |  19 +++-
+ src/runtime/testdata/testprog/numcpu_freebsd.go | 126 ++++++++++++++++++++++++
+ 10 files changed, 287 insertions(+), 10 deletions(-)

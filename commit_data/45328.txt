@@ -1,0 +1,21 @@
+commit a25d1d45d968253f0b257cca9d57619a5af248c9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 14:05:49 2021 -0400
+
+    runtime: fix windows/arm64 callbackasm1 for frame pointer hack
+    
+    Fixes the previously failing TestStdcallAndCDeclCallbacks
+    for the 9+ argument case.
+    
+    The last time this code passed, the invisible frame pointer
+    below SP was apparently not enabled on windows/arm64.
+    
+    Change-Id: Ifc3064e894b2f39d6410f3be51c17309ebab08a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312042
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/sys_windows_arm64.s | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

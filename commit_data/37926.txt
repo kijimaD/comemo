@@ -1,0 +1,25 @@
+commit f1d662f34788f4a5f087581d0951cdf4e0f6e708
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 29 17:22:36 2019 +0000
+
+    net/url, net/http: relax CTL-in-URL validation to only ASCII CTLs
+    
+    CL 159157 was doing UTF-8 decoding of URLs. URLs aren't really UTF-8,
+    even if sometimes they are in some contexts.
+    
+    Instead, only reject ASCII CTLs.
+    
+    Updates #27302
+    Updates #22907
+    
+    Change-Id: Ibd64efa5d3a93263d175aadf1c9f87deb4670c62
+    Reviewed-on: https://go-review.googlesource.com/c/160178
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/http.go    | 13 +++++++++----
+ src/net/http/request.go |  2 +-
+ src/net/url/url.go      | 15 ++++++++++-----
+ src/net/url/url_test.go |  6 ++++++
+ 4 files changed, 26 insertions(+), 10 deletions(-)

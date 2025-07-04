@@ -1,0 +1,20 @@
+commit 05739d6f17c57f09264272621b88725a463234d0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 15 14:39:12 2020 -0700
+
+    runtime: wait for preemption signals before syscall.Exec
+    
+    Fixes #41702
+    Fixes #42023
+    
+    Change-Id: If07f40b1d73b8f276ee28ffb8b7214175e56c24d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262817
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/proc.go        | 21 +++++++++++++++++++++
+ src/runtime/signal_unix.go | 11 +++++++++++
+ 2 files changed, 32 insertions(+)

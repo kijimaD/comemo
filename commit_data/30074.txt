@@ -1,0 +1,46 @@
+commit eb93b20c2ebb9cba89657437615957d5f45b5f6c
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 16:24:19 2017 -0500
+
+    cmd/go: split out cmd/go/internal/load
+    
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: Ic802483e50598def638f1e2e706d5fdf7822d32d
+    Reviewed-on: https://go-review.googlesource.com/36196
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/bug.go                            |   2 +-
+ src/cmd/go/build.go                          | 339 ++++++----------
+ src/cmd/go/clean.go                          |  17 +-
+ src/cmd/go/doc.go                            |   2 +-
+ src/cmd/go/env.go                            |   9 +-
+ src/cmd/go/fix.go                            |   7 +-
+ src/cmd/go/fmt.go                            |  11 +-
+ src/cmd/go/generate.go                       |   9 +-
+ src/cmd/go/get.go                            | 119 +++---
+ src/cmd/go/internal/base/base.go             |  25 ++
+ src/cmd/go/internal/cfg/cfg.go               |  10 +
+ src/cmd/go/{ => internal/load}/match_test.go |   2 +-
+ src/cmd/go/internal/load/path.go             |  80 ++++
+ src/cmd/go/{ => internal/load}/pkg.go        | 552 +++++++++++++++------------
+ src/cmd/go/internal/load/search.go           | 263 +++++++++++++
+ src/cmd/go/{ => internal/load}/testgo.go     |   2 +-
+ src/cmd/go/list.go                           |  21 +-
+ src/cmd/go/main.go                           | 290 +-------------
+ src/cmd/go/pkg_test.go                       |  39 +-
+ src/cmd/go/run.go                            |  13 +-
+ src/cmd/go/test.go                           | 233 +++++------
+ src/cmd/go/testflag.go                       |   2 +-
+ src/cmd/go/tool.go                           |   4 +-
+ src/cmd/go/vet.go                            |   7 +-
+ 24 files changed, 1069 insertions(+), 989 deletions(-)

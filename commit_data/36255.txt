@@ -1,0 +1,22 @@
+commit 64205cd4b6d48432fdcbe2127d45e4f786468ff3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 9 23:44:43 2018 -0400
+
+    cmd/go: report implicit cgo inputs in go list -compiled
+    
+    Tools using go list -compiled expect to see an Imports list
+    that includes all the imports in CompiledGoFiles.
+    Make sure the list includes the cgo-generated imports.
+    
+    Fixes #26136.
+    
+    Change-Id: I6cfe14063f8edfe65a7af37522c7551272115b82
+    Reviewed-on: https://go-review.googlesource.com/128935
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go                   |  8 +++++-
+ src/cmd/go/internal/load/pkg.go                    | 23 +++++++++++------
+ .../go/testdata/script/list_compiled_imports.txt   | 29 ++++++++++++++++++++++
+ 3 files changed, 51 insertions(+), 9 deletions(-)

@@ -1,0 +1,12 @@
+commit d1e7cffe6c86996ab60d6cf9dc8f7ec1a7b47112
+Author: Micah Stetson <micah.stetson@gmail.com>
+Date:   Thu Jul 22 10:07:26 2010 +1000
+
+    gotest: fix the glob pattern in the top-of-file comment
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/1847042
+
+ src/cmd/gotest/gotest | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

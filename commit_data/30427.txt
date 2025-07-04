@@ -1,0 +1,12 @@
+commit 8defd9f708126a1c6968490ac970c279c1fdb0c5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 28 10:08:10 2017 -0800
+
+    cmd/vet/all: exit with non-zero error code on failure
+    
+    Change-Id: I68e60b155c583fa47aa5ca13d591851009a4e571
+    Reviewed-on: https://go-review.googlesource.com/37571
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/main.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

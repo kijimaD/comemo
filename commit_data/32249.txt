@@ -1,0 +1,16 @@
+commit c50a9718a6749c693ce13faaa0e1c4038bfb6c5e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Aug 11 08:21:31 2017 -0700
+
+    runtime: mask a bounded slice access in hashmap evacuate
+    
+    Shaves a few instructions off.
+    
+    Change-Id: I39f1b01ae7e770d632d5e77a6aa4b5a1f123b41a
+    Reviewed-on: https://go-review.googlesource.com/55090
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

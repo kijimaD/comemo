@@ -1,0 +1,12 @@
+commit 62eb6fef6ed28d1a967ec7b3f28aa42ecc9770b7
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 18 17:34:19 2014 -0500
+
+    cmd/ld: add fallthrough comment
+    
+    Change-Id: Ia6739c164575751a63cc0d4d41d1f6887fbbaee3
+    Reviewed-on: https://go-review.googlesource.com/1803
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/ld/elf.c | 1 +
+ 1 file changed, 1 insertion(+)

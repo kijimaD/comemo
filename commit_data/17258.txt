@@ -1,0 +1,15 @@
+commit a41a5bb20799f75f914b991aae0e673166b0ad76
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 15 14:29:04 2013 +1000
+
+    os/exec: document that LookPath's result may be a relative path
+    Fixes #3622
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12971043
+
+ src/pkg/os/exec/lp_plan9.go   | 1 +
+ src/pkg/os/exec/lp_unix.go    | 1 +
+ src/pkg/os/exec/lp_windows.go | 1 +
+ 3 files changed, 3 insertions(+)

@@ -1,0 +1,18 @@
+commit dd8bbc76c579767fb037b90cf7f49d8d41b7f3b0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 15 10:43:37 2019 +0100
+
+    syscall: fix EpollEvent padding on mips64{,le}
+    
+    Like on other 64-bit GOARCHes, EpollEvent needs padding before Fd for
+    mips64 and mips64le.
+    
+    Change-Id: I87773a1b305552ab4ed039623b40d2fff1f20d9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207298
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/types_linux.go           | 3 ++-
+ src/syscall/ztypes_linux_mips64.go   | 1 +
+ src/syscall/ztypes_linux_mips64le.go | 1 +
+ 3 files changed, 4 insertions(+), 1 deletion(-)

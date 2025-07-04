@@ -1,0 +1,17 @@
+commit 7b7affa56d3957c2f721595de732d03e04bf2a62
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Apr 16 11:29:53 2018 +0200
+
+    doc: use past releases in Release Policy explanation
+    
+    As suggested by Ian on the issue, just use past releases to avoid any
+    confusion regarding current and future releases.
+    
+    Fixes #23891
+    
+    Change-Id: Ie513cd3e15aa04822898be57f71976e6fe6bd816
+    Reviewed-on: https://go-review.googlesource.com/107078
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/devel/release.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

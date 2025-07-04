@@ -1,0 +1,19 @@
+commit e0faedbb5344eb6f8f704005fe88961cdc6cf5f8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Aug 19 15:58:35 2018 +0100
+
+    cmd/go: add missing newlines in printf formats
+    
+    These are all errors given by module-aware cmd/go, so they must end with
+    a newline. It looks like they were omitted by mistake.
+    
+    Fixes #27081.
+    
+    Change-Id: I19b5803bb48a6d5dd52e857f483278fe20fe246b
+    Reviewed-on: https://go-review.googlesource.com/129780
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/modfile/rule.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

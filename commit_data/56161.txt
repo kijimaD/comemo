@@ -1,0 +1,23 @@
+commit de3a3c9ebc801c2cd3513a76676f1a26f600b51d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 9 03:56:40 2024 +0000
+
+    runtime: make zeroing of large objects containing pointers preemptible
+    
+    This change makes it possible for the runtime to preempt the zeroing of
+    large objects that contain pointers. It turns out this is fairly
+    straightforward with allocation headers, since we can just temporarily
+    tell the GC that there's nothing to scan for a large object with a
+    single pointer write (as opposed to trying to zero a whole bunch of
+    bits, as we would've had to do once upon a time).
+    
+    Fixes #31222.
+    
+    Change-Id: I10d0dcfa3938c383282a3eb485a6f00070d07bd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577495
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/malloc.go  | 30 +++++++++++++++++-------------
+ src/runtime/mbitmap.go |  4 ++++
+ 2 files changed, 21 insertions(+), 13 deletions(-)

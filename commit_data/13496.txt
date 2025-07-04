@@ -1,0 +1,14 @@
+commit 9b1412701fc5f265c478153b2032ca90755c38cf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 25 10:17:27 2012 -0700
+
+    testing: allow concurrent use of T and B
+    
+    Notably, allow concurrent logging and failing.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6453045
+
+ src/pkg/testing/testing.go | 27 ++++++++++++++++++++-------
+ 1 file changed, 20 insertions(+), 7 deletions(-)

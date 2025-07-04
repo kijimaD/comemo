@@ -1,0 +1,14 @@
+commit 8e109af83badc17ea204e3042005f6cce7fd271b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 10 10:07:29 2012 +1000
+
+    os: fix IsPermission on windows
+    
+    Fixes #3482.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5987070
+
+ src/pkg/os/error_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

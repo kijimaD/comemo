@@ -1,0 +1,13 @@
+commit 94e60061eb3a2c4ea3627cf9ae52193cc1fbe5a3
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Apr 4 18:29:24 2011 -0700
+
+    filepath: new Abs function
+    
+    R=golang-dev, rsc1, peterGo, bsiegert, r, mattn
+    CC=golang-dev
+    https://golang.org/cl/4271057
+
+ src/pkg/path/filepath/path.go      | 15 ++++++++++++
+ src/pkg/path/filepath/path_test.go | 49 ++++++++++++++++++++++++++++++++++----
+ 2 files changed, 60 insertions(+), 4 deletions(-)

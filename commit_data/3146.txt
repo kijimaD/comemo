@@ -1,0 +1,14 @@
+commit c62b9d8f2aeb638fccea32599b02fee9df08d76a
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 30 19:46:35 2009 -0700
+
+    can't encode array or slice - catch in sendType rather than failing in Encode
+    
+    R=rsc
+    DELTA=38  (33 added, 3 deleted, 2 changed)
+    OCL=34101
+    CL=34104
+
+ src/pkg/gob/encoder.go      | 16 ++++++++++++----
+ src/pkg/gob/encoder_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 4 deletions(-)

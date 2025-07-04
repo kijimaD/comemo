@@ -1,0 +1,15 @@
+commit 8362a8e127bed118a4ffec2d8844c3d3c271d243
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Jul 18 09:17:19 2018 +0200
+
+    doc/go1.11: mention the libSystem.so change for iOS
+    
+    The change to make the runtime use libSystem.so macOS instead of
+    direct kernel calls applies to iOS as well.
+    
+    Change-Id: I97ea86452ac5f7433aea58bbd3ff53a2eb2835e0
+    Reviewed-on: https://go-review.googlesource.com/124657
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.11.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

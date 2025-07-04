@@ -1,0 +1,23 @@
+commit bab711b184e7737d25f3efa04d55fec9e809a386
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 30 10:36:13 2010 +1000
+
+    doc: update front page and go_learning.html
+    
+    This is a stop-gap change to give more current information visibility
+    before a more thorough reorganization.
+    
+    R=r, rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/1902042
+
+ doc/go_learning.html            |  30 ++++++++++++++-
+ doc/root.html                   |  81 +++++++++++++++++++---------------------
+ doc/style.css                   |  51 +++++++++++++++++++------
+ doc/video-snap-fastcompiles.jpg | Bin 0 -> 3604 bytes
+ doc/video-snap-gocoding.jpg     | Bin 0 -> 4303 bytes
+ doc/video-snap-io.jpg           | Bin 0 -> 6136 bytes
+ doc/video-snap-oscon.jpg        | Bin 0 -> 6268 bytes
+ doc/video-snap.jpg              | Bin 3269 -> 0 bytes
+ lib/godoc/godoc.html            |   2 +-
+ 9 files changed, 106 insertions(+), 58 deletions(-)

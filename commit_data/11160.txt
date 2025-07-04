@@ -1,0 +1,12 @@
+commit a08c1960dd8d5915029bf9f07fffd5d8842cd839
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Fri Jan 13 15:36:54 2012 -0800
+
+    go/ast: fix typo
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5543056
+
+ src/pkg/go/ast/filter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

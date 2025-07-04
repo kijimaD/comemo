@@ -1,0 +1,21 @@
+commit e980a3d8856ec3b4f11daa7e5ec417ad4f5c5256
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 10 10:27:37 2016 -0700
+
+    go/parser: document that parse functions need valid token.FileSet
+    
+    + panic with explicit error if no file set it provided
+    
+    (Not providing a file set is invalid use of the API; panic
+    is the appropriate action rather than returning an error.)
+    
+    Fixes #16018.
+    
+    Change-Id: I207f5b2a2e318d65826bdd9522fce46d614c24ee
+    Reviewed-on: https://go-review.googlesource.com/24010
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/parser/interface.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)

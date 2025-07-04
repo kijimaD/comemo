@@ -1,0 +1,17 @@
+commit dffdece81928103398e74d1b462bba03eb24552c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 10 20:20:00 2012 -0500
+
+    godoc: move example list into index section
+    
+    Putting it before the Index (where it is now) is wrong:
+    we don't even know what's in the package yet.
+    
+    Fixes #4484.
+    
+    R=adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6868071
+
+ lib/godoc/package.html | 29 ++++++++++++-----------------
+ 1 file changed, 12 insertions(+), 17 deletions(-)

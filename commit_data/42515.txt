@@ -1,0 +1,25 @@
+commit 8dae5390cbc2b4d3b772b8f17182e885523b698b
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jun 12 11:07:56 2020 -0700
+
+    runtime: raise alert threshold on window smhasher test
+    
+    This alert is triggering occasionally. I've investigated the
+    collisions that happen, and they all seem to be pairwise, so they are
+    not a big deal.  "pairwise" = when there are 32 collisions, it is two
+    keys mapping to the same hash, 32 times, not 33 keys all mapping to
+    the same hash.
+    
+    Add some t.Logf calls in case this comes back, which will help isolate
+    the problem.
+    
+    Fixes #39352
+    
+    Change-Id: I1749d7c8efd0afcf9024d8964d15bc0f58a86e4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237718
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/hash_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

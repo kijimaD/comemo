@@ -1,0 +1,40 @@
+commit 64d323f45a5d6a36cdcb190bed56424a633af3ad
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Dec 16 19:38:39 2020 -0800
+
+    hash/maphash: optimize Write and WriteString
+    
+    The existing code makes copies of every byte it hashes.
+    When passed a large chunk of memory, Write and WriteString
+    can skip the copying and initSeed for most of it.
+    
+    To ensure that Write, WriteByte, and WriteString continue to
+    generate output that depends only on the sequence of bytes,
+    expand the grouping test to include WriteString and interleaved calls.
+    Also, make the test process a lot more data, to ensure that
+    Write* handled full buffers correctly.
+    
+    name            old time/op    new time/op    delta
+    Hash8Bytes-8      17.1ns ± 3%    16.5ns ± 2%   -3.26%  (p=0.000 n=29+27)
+    Hash320Bytes-8    74.9ns ± 2%    58.5ns ± 2%  -21.86%  (p=0.000 n=30+29)
+    Hash1K-8           246ns ± 3%     195ns ± 1%  -20.82%  (p=0.000 n=29+30)
+    Hash8K-8          1.87µs ± 2%    1.59µs ± 2%  -15.04%  (p=0.000 n=26+30)
+    
+    name            old speed      new speed      delta
+    Hash8Bytes-8     468MB/s ± 3%   484MB/s ± 2%   +3.36%  (p=0.000 n=29+27)
+    Hash320Bytes-8  4.28GB/s ± 2%  5.47GB/s ± 2%  +27.97%  (p=0.000 n=30+29)
+    Hash1K-8        4.17GB/s ± 3%  5.26GB/s ± 1%  +26.28%  (p=0.000 n=29+30)
+    Hash8K-8        4.38GB/s ± 2%  5.16GB/s ± 2%  +17.70%  (p=0.000 n=26+30)
+    
+    Updates #42710
+    
+    Change-Id: If3cdec1580ffb3e36fab9865e5a9d089c0a34bec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278758
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/hash/maphash/maphash.go      | 78 ++++++++++++++++++++++++++++++----------
+ src/hash/maphash/maphash_test.go | 57 ++++++++++++++++++++++++-----
+ 2 files changed, 107 insertions(+), 28 deletions(-)

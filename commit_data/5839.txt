@@ -1,0 +1,18 @@
+commit 2d6ae385e1c097a061fdc6de9e771d7ad9dbcc0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jul 17 16:54:03 2010 -0700
+
+    linux/386: use Xen-friendly ELF TLS instruction sequence
+    
+    Fixes #465.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/1665051
+
+ src/cmd/8l/list.c               |  2 +-
+ src/cmd/8l/pass.c               | 41 +++++++++++++++++++++++++++++++++++++----
+ src/libcgo/linux_386.c          |  9 ++++++---
+ src/pkg/runtime/linux/386/sys.s | 11 +++++++----
+ src/pkg/runtime/mkasmh.sh       | 25 +++++++++++++++++++++++++
+ 5 files changed, 76 insertions(+), 12 deletions(-)

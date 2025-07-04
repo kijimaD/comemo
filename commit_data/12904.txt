@@ -1,0 +1,15 @@
+commit d3889ff322ab82ccf0231ab1e04accb557c26e38
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Apr 17 15:51:05 2012 -0700
+
+    codereview: restore help messages
+    
+    Docstrings were not being set for the wrapper
+    functions returned by the hgcommand decorator.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6059043
+
+ lib/codereview/codereview.py | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,13 @@
+commit 0262f8834dc8a1ade69810903779cb9538859f93
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 24 16:12:59 2009 -0700
+
+    fix duplicated word
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=33788
+    CL=33791
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

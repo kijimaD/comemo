@@ -1,0 +1,21 @@
+commit 5c0d0929d3a6378c710376b55a49abd55b31a805
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jan 31 13:30:50 2024 -0500
+
+    doc/go1.22: move go/version package mention into a separate heading
+    
+    It's a new package in the standard library,
+    not a minor change to an existing package.
+    
+    For #62039.
+    For #61422.
+    
+    Change-Id: I7488304cd2bd6353f535cab192d015796840ba4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559799
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.22.html | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

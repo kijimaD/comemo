@@ -1,0 +1,15 @@
+commit d70c69d830f873473851e37b47ac4f35b5200273
+Author: korzhao <korzhao95@gmail.com>
+Date:   Thu Aug 12 23:39:29 2021 +0800
+
+    embed: document the maximum file size supported
+    
+    Fixes #47627
+    
+    Change-Id: Ia1edfb6249863ab055fab68a35666bc2bdf21dcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341689
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+
+ src/cmd/compile/internal/staticdata/data.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

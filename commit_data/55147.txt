@@ -1,0 +1,26 @@
+commit f4cb2ac3517b4f9947b18a19c72470b7d8880dec
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Nov 22 15:09:57 2023 -0500
+
+    .github: delete archived issue templates
+    
+    We can get the previous templates back from version control if needed.
+    Delete these unused copies to avoid confusion.
+    
+    For #63970.
+    
+    Change-Id: I44e54da06e259239745f4a493de1dae94cca3755
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544536
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .github/ISSUE_TEMPLATE/archived/00-bug.md          | 45 ----------------
+ .github/ISSUE_TEMPLATE/archived/01-pkgsite.md      | 49 -----------------
+ .../ISSUE_TEMPLATE/archived/02-pkgsite-removal.md  | 39 --------------
+ .github/ISSUE_TEMPLATE/archived/03-gopls.md        | 63 ----------------------
+ .github/ISSUE_TEMPLATE/archived/04-vuln.md         | 51 ------------------
+ .github/ISSUE_TEMPLATE/archived/10-proposal.md     | 13 -----
+ .../ISSUE_TEMPLATE/archived/11-language-change.md  | 55 -------------------
+ 7 files changed, 315 deletions(-)

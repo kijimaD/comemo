@@ -1,0 +1,42 @@
+commit a76249c38d61f5476e38e180dd4b4c07e8b16dc1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 25 23:11:42 2018 -0700
+
+    cmd/compile: increase initial allocation of LSym.R
+    
+    Not a big win, but cheap.
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         34.4MB ± 0%       34.4MB ± 0%  -0.20%  (p=0.000 n=15+15)
+    Unicode          29.2MB ± 0%       29.3MB ± 0%  +0.17%  (p=0.000 n=15+15)
+    GoTypes           113MB ± 0%        113MB ± 0%  -0.22%  (p=0.000 n=15+15)
+    Compiler          509MB ± 0%        508MB ± 0%  -0.11%  (p=0.000 n=15+14)
+    SSA              1.46GB ± 0%       1.46GB ± 0%  -0.08%  (p=0.000 n=14+15)
+    Flate            23.8MB ± 0%       23.7MB ± 0%  -0.22%  (p=0.000 n=15+15)
+    GoParser         27.9MB ± 0%       27.8MB ± 0%  -0.21%  (p=0.000 n=14+15)
+    Reflect          77.2MB ± 0%       77.0MB ± 0%  -0.27%  (p=0.000 n=14+15)
+    Tar              34.0MB ± 0%       33.9MB ± 0%  -0.21%  (p=0.000 n=13+15)
+    XML              42.6MB ± 0%       42.5MB ± 0%  -0.15%  (p=0.000 n=15+15)
+    [Geo mean]       75.8MB            75.7MB       -0.15%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           322k ± 0%         320k ± 0%  -0.60%  (p=0.000 n=15+15)
+    Unicode            337k ± 0%         336k ± 0%  -0.23%  (p=0.000 n=12+15)
+    GoTypes           1.13M ± 0%        1.12M ± 0%  -0.58%  (p=0.000 n=15+14)
+    Compiler          4.67M ± 0%        4.65M ± 0%  -0.38%  (p=0.000 n=14+15)
+    SSA               11.7M ± 0%        11.6M ± 0%  -0.25%  (p=0.000 n=15+15)
+    Flate              216k ± 0%         214k ± 0%  -0.67%  (p=0.000 n=15+15)
+    GoParser           271k ± 0%         270k ± 0%  -0.57%  (p=0.000 n=15+15)
+    Reflect            927k ± 0%         920k ± 0%  -0.72%  (p=0.000 n=13+14)
+    Tar                318k ± 0%         316k ± 0%  -0.57%  (p=0.000 n=15+15)
+    XML                376k ± 0%         375k ± 0%  -0.46%  (p=0.000 n=14+14)
+    [Geo mean]         731k              727k       -0.50%
+    
+    Change-Id: I1417c5881e866fb3efe62a3d0fbe1134275da31a
+    Reviewed-on: https://go-review.googlesource.com/109755
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/data.go | 3 +++
+ 1 file changed, 3 insertions(+)

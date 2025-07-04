@@ -1,0 +1,31 @@
+commit aa6240a445d2478f29add6218b19147f5bf2204f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Nov 3 11:56:43 2022 -0700
+
+    cmd/compile: allow ineffectual //go:linkname in -lang=go1.17 and older
+    
+    Prior to Go 1.18, ineffectual //go:linkname directives (i.e.,
+    directives referring to an undeclared name, or to a declared type or
+    constant) were treated as noops. In Go 1.18, we changed this into a
+    compiler error to mitigate accidental misuse.
+    
+    However, the x/sys repo contained ineffectual //go:linkname directives
+    up until go.dev/cl/274573, which has caused a lot of user confusion.
+    
+    It seems a bit late to worry about now, but to at least prevent
+    further user pain, this CL changes the error message to only apply to
+    modules using "go 1.18" or newer. (The x/sys repo declared "go 1.12"
+    at the time go.dev/cl/274573 was submitted.)
+    
+    Fixes #55889.
+    
+    Change-Id: Id762fff96fd13ba0f1e696929a9e276dfcba2620
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447755
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/noder/noder.go  |  4 +++-
+ src/cmd/compile/internal/noder/writer.go |  5 ++++-
+ test/fixedbugs/issue55889.go             | 21 +++++++++++++++++++++
+ 3 files changed, 28 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 2e4ceaf963fc2a0ce95a198769012e62ec4e28ae
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 17 12:39:43 2020 -0400
+
+    cmd/dist: enable more tests on macOS/ARM64
+    
+    Unlike iOS, macOS ARM64 is more of a fully featured OS. Enable
+    more tests.
+    
+    Updates #38485.
+    
+    Change-Id: I2e2240c848d21996db2b950a4a6856987f7a652c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256919
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go         | 2 +-
+ test/fixedbugs/bug429_run.go | 7 ++++++-
+ test/fixedbugs/issue21576.go | 7 ++++++-
+ test/nilptr.go               | 3 ++-
+ 4 files changed, 15 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit bed88f4e81013433ff47fb2661a329530b57ede6
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 23 15:16:18 2018 +0100
+
+    cmd/link: fix error messages for external linking on ppc64
+    
+    This commit fixes error messages displayed on aix/ppc64 with external
+    linking.
+    
+    Change-Id: I5311d36f30394be717827891e070db249482814a
+    Reviewed-on: https://go-review.googlesource.com/c/151041
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/config.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,18 @@
+commit 2a5df067654970557f5038d238954eb9893e7f31
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Fri Aug 3 14:29:37 2018 +0800
+
+    hash/crc64: lazily initialize slice8Tables
+    
+    Saves 36KB of memory in stdlib packages.
+    
+    Updates #26775
+    
+    Change-Id: I0f9d7b17d9768f6fb980d5fbba7c45920215a5fc
+    Reviewed-on: https://go-review.googlesource.com/127735
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/hash/crc64/crc64.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

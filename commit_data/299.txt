@@ -1,0 +1,13 @@
+commit 999b12c768ddec3d062c0de62d9ad427c6dd0a44
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jul 7 15:00:12 2008 -0700
+
+    remove incorrect (!) consts
+    -r
+    
+    SVN=126198
+
+ src/lib9/utf/utf.h      | 12 ++++++------
+ src/lib9/utf/utfrrune.c |  4 ++--
+ src/lib9/utf/utfrune.c  |  6 +++---
+ 3 files changed, 11 insertions(+), 11 deletions(-)

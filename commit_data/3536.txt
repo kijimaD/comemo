@@ -1,0 +1,17 @@
+commit c058e20a187dd8c02ba716375378b35e76a34d50
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 14 17:15:56 2009 -0700
+
+    move draw to exp
+    
+    R=r
+    DELTA=942  (471 added, 471 deleted, 0 changed)
+    OCL=35733
+    CL=35740
+
+ {usr/rsc => src/pkg/exp}/draw/Makefile | 0
+ {usr/rsc => src/pkg/exp}/draw/arith.go | 0
+ {usr/rsc => src/pkg/exp}/draw/color.go | 0
+ {usr/rsc => src/pkg/exp}/draw/draw.go  | 0
+ {usr/rsc => src/pkg/exp}/draw/event.go | 0
+ 5 files changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,20 @@
+commit 7505cd8b23eaa521d9bcba0660c5430d1c09e647
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 4 11:56:34 2015 -0500
+
+    Revert "runtime: bound defer pools"
+    
+    This reverts commit 805907115352801a54f987fc9079251b478cce3f.
+    
+    Conflicts:
+            src/runtime/proc1.go (resolved by hand)
+    
+    Change-Id: Ic62e3e802f0007ff9012b37bc5fd41fcafc153d0
+    Reviewed-on: https://go-review.googlesource.com/3885
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/mgc0.go     | 27 ++++++++++++---------------
+ src/runtime/panic.go    | 40 +++++-----------------------------------
+ src/runtime/proc1.go    | 10 ----------
+ src/runtime/runtime2.go |  7 +------
+ 4 files changed, 18 insertions(+), 66 deletions(-)

@@ -1,0 +1,55 @@
+commit eb2d1cdd1bbc1912e316040f8ef9a363511d3747
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 21 17:38:53 2019 -0500
+
+    misc/cgo/testplugin: convert test.bash to Go and fix in module mode
+    
+    Updates #30228
+    Updates #28387
+    
+    Change-Id: Iad7d960b70221f90ccc2372bb1d4d41cec3926e4
+    Reviewed-on: https://go-review.googlesource.com/c/163214
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ .../altpath/{src => testdata}/common/common.go     |   0
+ .../{src => testdata}/plugin-mismatch/main.go      |   2 +-
+ misc/cgo/testplugin/overlaydir_test.go             |  81 +++++++++
+ misc/cgo/testplugin/plugin_test.go                 | 192 +++++++++++++++++++++
+ misc/cgo/testplugin/test.bash                      | 109 ------------
+ .../{src => testdata}/checkdwarf/main.go           |   0
+ .../testplugin/{src => testdata}/common/common.go  |   0
+ misc/cgo/testplugin/{src => testdata}/host/host.go |   2 +-
+ .../cgo/testplugin/{src => testdata}/iface/main.go |   2 +-
+ misc/cgo/testplugin/{src => testdata}/iface_a/a.go |   2 +-
+ misc/cgo/testplugin/{src => testdata}/iface_b/b.go |   2 +-
+ misc/cgo/testplugin/{src => testdata}/iface_i/i.go |   0
+ .../{src => testdata}/issue18584/main.go           |   0
+ .../{src => testdata}/issue18584/plugin.go         |   0
+ .../issue18676/dynamodbstreamsevt/definition.go    |   0
+ .../{src => testdata}/issue18676/main.go           |   2 +-
+ .../{src => testdata}/issue18676/plugin.go         |   2 +-
+ .../{src => testdata}/issue19418/main.go           |   0
+ .../{src => testdata}/issue19418/plugin.go         |   0
+ .../{src => testdata}/issue19529/plugin.go         |   0
+ .../{src => testdata}/issue19534/main.go           |   0
+ .../{src => testdata}/issue19534/plugin.go         |   0
+ .../{src => testdata}/issue22175/main.go           |   0
+ .../{src => testdata}/issue22175/plugin1.go        |   0
+ .../{src => testdata}/issue22175/plugin2.go        |   0
+ .../{src => testdata}/issue22295.pkg/main.go       |   0
+ .../{src => testdata}/issue22295.pkg/plugin.go     |   0
+ .../{src => testdata}/issue24351/main.go           |   0
+ .../{src => testdata}/issue24351/plugin.go         |   0
+ .../{src => testdata}/issue25756/main.go           |   0
+ .../{src => testdata}/issue25756/plugin/c-life.c   |   0
+ .../{src => testdata}/issue25756/plugin/life.go    |   0
+ .../{src => testdata}/issue25756/plugin/life.h     |   0
+ .../{src => testdata}/plugin1/plugin1.go           |   2 +-
+ .../{src => testdata}/plugin2/plugin2.go           |   2 +-
+ .../{src => testdata}/sub/plugin1/plugin1.go       |   2 +-
+ .../cgo/testplugin/{ => testdata}/unnamed1/main.go |   2 +
+ .../cgo/testplugin/{ => testdata}/unnamed2/main.go |   2 +
+ src/cmd/dist/test.go                               |   2 +-
+ 39 files changed, 288 insertions(+), 120 deletions(-)

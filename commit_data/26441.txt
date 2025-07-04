@@ -1,0 +1,19 @@
+commit e41f527f4d56a94b33ab73efaae3575760916194
+Author: Todd Neal <todd@tneal.org>
+Date:   Wed Mar 16 21:29:17 2016 -0500
+
+    cmd/compile: allow inlining of functions with switch statements
+    
+    Allow inlining of functions with switch statements as long as they don't
+    contain a break or type switch.
+    
+    Fixes #13071
+    
+    Change-Id: I057be351ea4584def1a744ee87eafa5df47a7f6d
+    Reviewed-on: https://go-review.googlesource.com/20824
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go |  2 +-
+ src/cmd/compile/internal/gc/inl.go |  3 ++-
+ test/inline.go                     | 36 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 39 insertions(+), 2 deletions(-)

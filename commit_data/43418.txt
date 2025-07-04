@@ -1,0 +1,17 @@
+commit 612a363bef9ae29d190f6daa2a5a1623f78c874b
+Author: hk <hk@tinyclouds.cn>
+Date:   Wed Oct 21 16:18:34 2020 +0000
+
+    cmd/compile/internal/gc: fix comments
+    
+    Change-Id: Id7b0ead39e961a16a85da3e308db10dd4f9b55c3
+    GitHub-Last-Rev: e640c4a61ade361ac17b7eb95d0ce8913d0b4d6f
+    GitHub-Pull-Request: golang/go#42120
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264080
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/dcl.go    | 2 +-
+ src/cmd/compile/internal/gc/subr.go   | 2 +-
+ src/cmd/compile/internal/gc/syntax.go | 6 +++---
+ 3 files changed, 5 insertions(+), 5 deletions(-)

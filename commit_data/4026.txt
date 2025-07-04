@@ -1,0 +1,23 @@
+commit 3f7a32405d3a28416d97adc812ac87a0719d6bca
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 13 10:08:51 2009 -0800
+
+    runtime: warn about SELinux based mmap failures on Linux.
+    
+    SELinux will cause mmap to fail when we request w+x memory unless the
+    user has configured their policies. We have a warning in make.bash,
+    but it's quite likely that the policy will be reset at some point and
+    then all their binaries start failing.
+    
+    This patch prints a warning on Linux when mmap fails with EACCES.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/152086
+
+ src/pkg/runtime/linux/386/sys.s   |  5 +++--
+ src/pkg/runtime/linux/amd64/sys.s |  5 +++--
+ src/pkg/runtime/malloc.cgo        | 13 ++++++++++++-
+ src/pkg/runtime/mem.c             |  7 +++++++
+ src/pkg/runtime/runtime.h         |  7 +++++++
+ 5 files changed, 32 insertions(+), 5 deletions(-)

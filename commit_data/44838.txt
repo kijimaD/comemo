@@ -1,0 +1,21 @@
+commit 565e70fcefd63c1f57989a0f794bf7c8bb4cf5ec
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Mar 26 11:00:40 2021 +0100
+
+    cmd/link/internal/ld: use linkerFlagSupported to check -Qunused-arguments
+    
+    Rather than checking the linker name or its path for the string "clang",
+    use linkerFlagSupported to determine whether the -Qunused-arguments flag
+    may be passed to the linker.
+    
+    Fixes #45241
+    
+    Change-Id: I4c1e4d4ecba4cf5823e8f39cfda5d20404ebf513
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304692
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

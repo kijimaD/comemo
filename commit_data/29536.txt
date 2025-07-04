@@ -1,0 +1,21 @@
+commit 1e917312511f6ce54bbdcea8cd0c25e66973d49e
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sun Nov 13 18:06:16 2016 -0800
+
+    html/template: fix multiple Clones of redefined template
+    
+    This change redoes the fix for #16101 (CL 31092) in a different way by
+    making t.Clone return the template associated with the t.Name() while
+    allowing for the case that a template of the same name is define-d.
+    
+    Fixes #17735.
+    
+    Change-Id: I1e69672390a4c81aa611046a209008ae4a3bb723
+    Reviewed-on: https://go-review.googlesource.com/33210
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/html/template/clone_test.go | 21 +++++++++++++++++++++
+ src/html/template/template.go   |  6 ++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)

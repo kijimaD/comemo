@@ -1,0 +1,13 @@
+commit 1b6b1bc66e306447cecf2ebae56565c93fcab958
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 19 15:04:18 2013 -0700
+
+    bytes,strings: remove user name from BUG in comment
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7856048
+
+ src/pkg/bytes/bytes.go     | 2 +-
+ src/pkg/strings/strings.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

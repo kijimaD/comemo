@@ -1,0 +1,23 @@
+commit 5c36fdfd39e231e87b267fc718c9fd6a86f49b90
+Author: Aarti Parikh <aarti.parikh@gmail.com>
+Date:   Tue May 29 00:42:10 2018 +0000
+
+    image: add an example that shows how to get the metadata of an image
+    
+    This is a simple but everyday use case in image libraries. Currently,
+    there is one example in this library and it is lengthy and involved.
+    
+    This PR will be imported into Gerrit with the title and first
+    comment (this text) used to generate the subject and body of
+    the Gerrit change.
+    
+    Change-Id: Idca527d97c095af88755446e1548fa2b8ace7eb0
+    GitHub-Last-Rev: f5743c8ef337a8b7a5126db21d784593f4f53c8a
+    GitHub-Pull-Request: golang/go#25616
+    Reviewed-on: https://go-review.googlesource.com/114939
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/image/decode_example_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,26 @@
+commit 601045e87a27178048c82c01e00c64bcb5bc8810
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Sat Jul 28 18:44:14 2012 +0200
+
+    exp/locale/collate: changed trie in first step towards support for multiple locales.
+    - Allow handles into the trie for different locales.  Multiple tables share the same
+      try to allow for reuse of blocks.
+    - Significantly improved memory footprint and reduced allocations of trieNodes.
+      This speeds up generation by about 30% and allows keeping trieNodes around
+      for multiple locales during generation.
+    - Renamed print method to fprint.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6408052
+
+ src/pkg/exp/locale/collate/build/builder.go   |   7 +-
+ src/pkg/exp/locale/collate/build/table.go     |   9 +-
+ src/pkg/exp/locale/collate/build/trie.go      | 265 ++++++++++++++------------
+ src/pkg/exp/locale/collate/build/trie_test.go |  38 ++--
+ src/pkg/exp/locale/collate/export.go          |   4 +
+ src/pkg/exp/locale/collate/table_test.go      |   5 +-
+ src/pkg/exp/locale/collate/tables.go          | 142 +++++++-------
+ src/pkg/exp/locale/collate/trie.go            |  14 +-
+ src/pkg/exp/locale/collate/trie_test.go       |  26 +--
+ 9 files changed, 271 insertions(+), 239 deletions(-)

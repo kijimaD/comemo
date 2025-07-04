@@ -1,0 +1,19 @@
+commit e7426010c5a577bf2b1e84223036b2c55671f914
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 25 17:31:02 2013 +0300
+
+    misc/linkcheck: better redirect handling, use meaningful exit code
+    
+    Prevent linkcheck from following redirects that lead beyond the outside
+    the root URL.
+    
+    Return a non-zero exit code when there are problems.
+    
+    Some minor refactoring for clarity.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/14425049
+
+ misc/linkcheck/linkcheck.go | 90 +++++++++++++++++++++++++++++----------------
+ 1 file changed, 58 insertions(+), 32 deletions(-)

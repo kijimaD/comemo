@@ -1,0 +1,13 @@
+commit 88ba4de152c8d81f73a3d60f63dc79a140add33a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Sep 3 03:51:13 2012 +0800
+
+    cmd/5l: embed $GOARM value into binary as runtime.goarm
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6449127
+
+ src/cmd/5l/l.h   |  1 +
+ src/cmd/5l/obj.c | 12 +++++++++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 0cffc95109966c91852ff7f2b183a7f929de189b
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Apr 20 21:45:01 2020 +0000
+
+    Revert "cmd/compile: adjust RISCV64 rewrite rules to use typed aux fields"
+    
+    This reverts commit 7004be998ba708f027c95615d7885efeb9f73e75.
+    
+    Reason for revert: causing failures on many builders
+    
+    Change-Id: I9216bd5409bb6814bac18a6a13ef5115db01b5fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229120
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  794 +++++++--------
+ src/cmd/compile/internal/ssa/rewrite.go        |    9 -
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 1293 ++++++++++++------------
+ 3 files changed, 1031 insertions(+), 1065 deletions(-)

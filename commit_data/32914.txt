@@ -1,0 +1,19 @@
+commit 70258cc59f587749ec02d3645687efe2ee85f53f
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 2 17:31:43 2017 -0400
+
+    cmd/compile: rename (*Type).HasPointer to (*Type).HasHeapPointer
+    
+    This method indicates whether a type contains any *heap* pointers, not
+    just whether it contains any pointers. Rename the method to make this
+    clear.
+    
+    Change-Id: Ifff143e2f02a820444ac26b84250495c0098cb33
+    Reviewed-on: https://go-review.googlesource.com/67690
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
+ src/cmd/compile/internal/types/type.go       | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit b79e99bfb4bcc7694401cd94a1bb14faee8af048
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 13 11:58:21 2017 -0700
+
+    runtime: remove commented out code from ARM Linux boot
+    
+    The code was commented out by https://golang.org/cl/13234050 in 2013.
+    Let's just remove it.
+    
+    Change-Id: I46ae1f07386719e991458e782d236214c40bdce1
+    Reviewed-on: https://go-review.googlesource.com/70770
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/rt0_linux_arm.s | 60 ++-------------------------------------------
+ 1 file changed, 2 insertions(+), 58 deletions(-)

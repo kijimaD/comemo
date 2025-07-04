@@ -1,0 +1,16 @@
+commit 751ea9369a9bd3b30daafced4d1c172541076617
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 17 10:54:20 2018 -0400
+
+    cmd/go: document import "C" check from CL 129062
+    
+    Added this locally but then broke the first rule of Gerrit
+    and clicked Submit instead of running "git submit".
+    
+    Change-Id: I83c28d9151c566e9b2092e2613d67731a5d64beb
+    Reviewed-on: https://go-review.googlesource.com/129678
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/imports/scan.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

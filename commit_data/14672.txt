@@ -1,0 +1,17 @@
+commit 5a2c275be125d935440ddad3042bfc7bb2ce5027
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Dec 18 01:26:48 2012 +0800
+
+    fmt, encoding/gob: fix misuse of Read
+    reader.Read() can return both 0,nil and len(buf),err.
+    To be safe, we use io.ReadFull instead of doing reader.Read directly.
+    
+    Fixes #3472.
+    
+    R=bradfitz, rsc, ality
+    CC=golang-dev
+    https://golang.org/cl/6285050
+
+ src/pkg/encoding/gob/decode.go | 6 +++---
+ src/pkg/fmt/scan.go            | 5 ++++-
+ 2 files changed, 7 insertions(+), 4 deletions(-)

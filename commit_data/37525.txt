@@ -1,0 +1,24 @@
+commit c124a919716fd54f9b16b83fa94f68b0c8fc4681
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 23 15:39:07 2018 -0400
+
+    cmd/go/internal/{clean,test}: lock testexpire.txt
+    
+    Also check to make sure we don't overwrite a newer timestamp with an
+    older one.
+    
+    testexpire.txt may be written concurrently, and a partially-written
+    timestamp may appear much older than the actual intended one. We don't
+    want to re-run tests that should still be cached.
+    
+    Updates #26794
+    
+    Change-Id: If56348e799f0e7be3c5bc91b4a336e23ad99f791
+    Reviewed-on: https://go-review.googlesource.com/c/146379
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/clean/clean.go | 17 ++++++++++++++++-
+ src/cmd/go/internal/test/test.go   |  3 ++-
+ 2 files changed, 18 insertions(+), 2 deletions(-)

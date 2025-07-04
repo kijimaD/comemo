@@ -1,0 +1,29 @@
+commit 0234dfd493b9bb009728d60658aa0ccdd2463c09
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 4 10:19:24 2015 -0400
+
+    runtime: use 2-bit heap bitmap (in place of 4-bit)
+    
+    Previous CLs changed the representation of the non-heap type bitmaps
+    to be 1-bit bitmaps (pointer or not). Before this CL, the heap bitmap
+    stored a 2-bit type for each word and a mark bit and checkmark bit
+    for the first word of the object. (There used to be additional per-word bits.)
+    
+    Reduce heap bitmap to 2-bit, with 1 dedicated to pointer or not,
+    and the other used for mark, checkmark, and "keep scanning forward
+    to find pointers in this object." See comments for details.
+    
+    This CL replaces heapBitsSetType with very slow but obviously correct code.
+    A followup CL will optimize it. (Spoiler: the new code is faster than Go 1.4 was.)
+    
+    Change-Id: I999577a133f3cfecacebdec9cdc3573c235c7fb9
+    Reviewed-on: https://go-review.googlesource.com/9703
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/gcinfo_test.go |  23 +--
+ src/runtime/heapdump.go    |   7 +-
+ src/runtime/mbitmap.go     | 489 ++++++++++++++++++++++++---------------------
+ src/runtime/mgcmark.go     |  34 ++--
+ src/runtime/stack1.go      |   6 +
+ 5 files changed, 293 insertions(+), 266 deletions(-)

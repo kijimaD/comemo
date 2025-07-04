@@ -1,0 +1,12 @@
+commit 810def8484e36789ca934971d75201cfb59c7bde
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 1 18:59:23 2010 -0800
+
+    ...T  is now implemented
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/198050
+
+ doc/go_spec.html | 1 -
+ 1 file changed, 1 deletion(-)

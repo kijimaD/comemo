@@ -1,0 +1,18 @@
+commit 2385f692e861d3eebb6487353d62c9d6d38d424a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Apr 28 19:59:07 2015 +0900
+
+    net: consolidate listener test files
+    
+    This change merges unicast_posix_test.go and multicast_test.go into
+    listen_test.go before deflaking tests for Listen functions.
+    
+    No code changes.
+    
+    Change-Id: Ic4cd6531b95dfb5b6e6e254241692eca61a71e94
+    Reviewed-on: https://go-review.googlesource.com/9460
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/{unicast_posix_test.go => listen_test.go} | 178 ++++++++++++++++++++
+ src/net/multicast_test.go                         | 188 ----------------------
+ 2 files changed, 178 insertions(+), 188 deletions(-)

@@ -1,0 +1,23 @@
+commit 1bd5a20e3c8a3a82e87487c381b76c97b720cd52
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 18 17:28:29 2021 -0400
+
+    cmd/go: add a -go flag to 'go mod graph'
+    
+    For #46366
+    
+    Change-Id: I8417e6e4dbb8cb56ff7afc16893a01b7bb938217
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329529
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.17.html                                  |   7 ++
+ src/cmd/go/alldocs.go                            |   6 +-
+ src/cmd/go/internal/modcmd/graph.go              |  13 ++-
+ src/cmd/go/internal/modcmd/verify.go             |   3 +-
+ src/cmd/go/internal/modget/get.go                |   6 +-
+ src/cmd/go/internal/modload/buildlist.go         |  26 +++++-
+ src/cmd/go/testdata/script/mod_graph_version.txt | 101 +++++++++++++++++++++++
+ 7 files changed, 154 insertions(+), 8 deletions(-)

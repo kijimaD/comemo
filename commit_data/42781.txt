@@ -1,0 +1,39 @@
+commit 5d7261870e73f10c90c903a329eeb99b151d9f9f
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Aug 20 11:35:17 2020 -0400
+
+    go/doc: support examples on methods from embedded unexported types
+    
+    In
+    
+      type T1 struct { t2 }
+      type t2 int
+      func (t2) M()
+    
+    T1 has method M because it embeds t2, which has M. Classify
+    the example
+    
+      func ExampleT1_M
+    
+    with T1 instead of ignoring it, as is done currently. There is no
+    other way to provide an example for such a method, since its original
+    type is unexported.
+    
+    Continue to ignore examples on methods from embedded types that are
+    exported, unless in AllMethods mode. Examples for those methods could
+    be written on the original type.
+    
+    The change involves removing a check in classifyExamples. The check
+    isn't necessary to get the above behavior because
+    reader.collectEmbeddedMethods and sortedFuncs already generate the
+    appropriate list of methods.
+    
+    For #40172.
+    
+    Change-Id: Ibe7d965ecba6426466184e6e6655fc05989e9caf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249557
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go/doc/example.go      | 2 +-
+ src/go/doc/example_test.go | 9 ++++++++-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

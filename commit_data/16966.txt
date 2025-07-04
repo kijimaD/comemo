@@ -1,0 +1,14 @@
+commit 5f1af1608f11f58edad85445bde2c96f5a3157fe
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 1 13:49:00 2013 +1000
+
+    build: remove builder from test suite (fix build)
+    
+    R=golang-dev, dave, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12225043
+
+ src/run.bash | 4 ++--
+ src/run.bat  | 4 ++--
+ src/run.rc   | 4 ++--
+ 3 files changed, 6 insertions(+), 6 deletions(-)

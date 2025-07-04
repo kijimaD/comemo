@@ -1,0 +1,23 @@
+commit e012d0dc34e0c182aed605347fb19c6980b3f8bd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 10 15:01:20 2020 -0800
+
+    syscall: drop references to Unix epoch in Timeval/Timespec docs
+    
+    The various conversion functions just change the format of time values.
+    They don't use the Unix epoch. Although in practice the values are often
+    times since the Unix epoch, they aren't always, so referring to the
+    epoch can be confusing.
+    
+    Fixes #43010
+    
+    Change-Id: I640d665f0d2017f0974db05d70858037c7c91eda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277073
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/syscall/syscall.go    | 10 ++++------
+ src/syscall/timestruct.go | 12 ++++--------
+ 2 files changed, 8 insertions(+), 14 deletions(-)

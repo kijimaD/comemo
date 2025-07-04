@@ -1,0 +1,12 @@
+commit b89a2bcf0186477b4f5070604920dfd156f50613
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 18 22:50:32 2013 -0700
+
+    doc/go1.1.html: document the surrogate and BOM changes
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7853048
+
+ doc/go1.1.html | 59 ++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 53 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 5afa271ce35f6f4bdd55569dd7c7ade63523887a
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Feb 27 11:08:18 2013 +0100
+
+    exp/locale/collate: several changes based on comments on CL 7060051
+    which was submitted earlier.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/7402048
+
+ src/pkg/exp/locale/collate/sort.go      | 13 ++-----------
+ src/pkg/exp/locale/collate/sort_test.go |  5 +++--
+ 2 files changed, 5 insertions(+), 13 deletions(-)

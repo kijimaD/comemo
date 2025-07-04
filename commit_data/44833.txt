@@ -1,0 +1,21 @@
+commit 49dccf141f5e315739c5517b24572fff7cb13734
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Wed Feb 17 14:13:01 2021 -0800
+
+    time: add Time.Unix{Milli,Micro} and to-Time helpers UnixMicro, UnixMilli
+    
+    Adds helper functions for users working with other systems which
+    represent time in milliseconds or microseconds since the Unix epoch.
+    
+    Fixes #44196
+    
+    Change-Id: Ibc4490b52ddec94ebd0c692cb7b52a33e4536759
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293349
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/time/time.go      | 30 ++++++++++++++++++++++++++++++
+ src/time/time_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

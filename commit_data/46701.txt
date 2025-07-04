@@ -1,0 +1,42 @@
+commit 0d65c272c9e494cbb604f2bee99d434b8cde46ff
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Sep 29 10:54:27 2021 -0700
+
+    cmd/compile: remove typeparam subscripts, use func/type prefix for uniqueness
+    
+    In types1 and for the export format, we were using type param subscripts
+    coming from types2 (originally for debugging) to provide unique names.
+    We need unique full-names for type params in types1 to ensure consistent
+    references to type params in function/method bodies and type params
+    derived from translation from types2. We also currently need unique
+    names for type params in importer/iimport.go and gcimporter/iimport.go,
+    because there are no levels of scoping in the package symbol lookup and
+    pkgIndex table.
+    
+    As a step to eliminate the typeparam subscripts (which have no
+    relation to the source code), we change so that the typeparams' unique
+    name is just prefixing the type param name with the name of the
+    enclosing generic function, type, or method.
+    
+    We now no longer use types2.TypeString in types2-to-types1 translation,
+    so Typestring can be changed to eliminate the subscript, as needed.
+    Also, types2.TypeParam.SetId() is no longer needed and is eliminated.
+    
+    We can decide later if we want to do the further step of adding scoping
+    to the importer/iimport.go and gcimporter/iimport.go, which could be
+    used to eliminate the type param "path" prefix from the export format.
+    
+    Change-Id: I0e37795664be2c2e1869b8f9e93393b83fc56409
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353135
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/importer/iimport.go  | 32 +++++-------------------
+ src/cmd/compile/internal/noder/decl.go        | 17 +++++++++++++
+ src/cmd/compile/internal/noder/irgen.go       |  6 +++++
+ src/cmd/compile/internal/noder/types.go       |  9 ++++++-
+ src/cmd/compile/internal/types2/typeparam.go  |  6 -----
+ src/cmd/compile/internal/types2/typestring.go |  3 ---
+ src/go/internal/gcimporter/iimport.go         | 36 ++++++---------------------
+ 7 files changed, 44 insertions(+), 65 deletions(-)

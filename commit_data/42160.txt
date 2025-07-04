@@ -1,0 +1,29 @@
+commit 6a4441d6fec675a83a8827dc359320e473662b9d
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Apr 27 17:46:01 2020 +0000
+
+    Revert "go/types: add UsesCgo config to support _cgo_gotypes.go"
+    
+    This reverts CL 33677.
+    
+    Reason for revert: NetBSD is broken
+    
+    Updates #38649
+    
+    Change-Id: Id60e3c97d3cb4fb0053dea03b95dbbb0b850c883
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230038
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/internal/srcimporter/srcimporter.go      | 60 +------------------
+ src/go/internal/srcimporter/srcimporter_test.go | 11 ----
+ src/go/types/api.go                             | 11 +---
+ src/go/types/assignments.go                     |  2 +-
+ src/go/types/call.go                            | 79 ++++---------------------
+ src/go/types/check.go                           |  9 +--
+ src/go/types/operand.go                         | 10 ----
+ src/go/types/package.go                         |  1 -
+ src/go/types/resolver.go                        |  5 +-
+ src/go/types/universe.go                        |  8 +--
+ 10 files changed, 21 insertions(+), 175 deletions(-)

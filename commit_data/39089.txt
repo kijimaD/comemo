@@ -1,0 +1,22 @@
+commit eaa1c87b007ad4c19b09b5bd9fdd85a093075324
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 18 20:09:03 2018 +0000
+
+    runtime: remove periodic scavenging
+    
+    This change removes the periodic scavenger which goes over every span
+    in the heap and scavenges it if it hasn't been used for 5 minutes. It
+    should no longer be necessary if we have background scavenging
+    (follow-up).
+    
+    For #30333.
+    
+    Change-Id: Ic3a1a4e85409dc25719ba4593a3b60273a4c71e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/143157
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 89 ++++++++++++++++++++--------------------------------
+ src/runtime/proc.go  | 22 -------------
+ 2 files changed, 34 insertions(+), 77 deletions(-)

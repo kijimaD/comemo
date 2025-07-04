@@ -1,0 +1,13 @@
+commit 3e9e9b48223b2dcabf1d861af9904940bdbff929
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 24 18:04:40 2015 -0800
+
+    math/big: implemented Float.Rat
+    
+    Change-Id: If516e12d4b5dfb6f9288437d270569f7e4e2a1cd
+    Reviewed-on: https://go-review.googlesource.com/5871
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 43 +++++++++++++++++++++++++++--
+ src/math/big/float_test.go | 69 ++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 97 insertions(+), 15 deletions(-)

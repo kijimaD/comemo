@@ -1,0 +1,13 @@
+commit 40c26fff1490f68cbb2d6a7942443df567e9bab4
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 30 10:52:36 2011 -0700
+
+    runtime: fix darwin build
+    Add place holder for runtime.osyield.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5149049
+
+ src/pkg/runtime/darwin/thread.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

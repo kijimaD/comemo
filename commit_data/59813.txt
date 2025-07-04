@@ -1,0 +1,24 @@
+commit ed7815726db4a0eb904d7cae2532cde48348d7ff
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Jun 17 12:34:22 2025 -0700
+
+    encoding/json/v2: report error on time.Duration without explicit format
+    
+    The default representation of a time.Duration is still undecided.
+    In order to keep the future open, report an error on a time.Duration
+    without an explicit format flag provided.
+    
+    Updates #71631
+    
+    Change-Id: I08248404ff6551723851417c8188a13f53c61937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/682455
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/encoding/json/v2/arshal_test.go | 54 ++++++++++++++++++++-----------------
+ src/encoding/json/v2/arshal_time.go |  6 +++++
+ src/encoding/json/v2/bench_test.go  |  3 ++-
+ src/encoding/json/v2_diff_test.go   |  1 +
+ 4 files changed, 39 insertions(+), 25 deletions(-)

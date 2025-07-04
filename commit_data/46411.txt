@@ -1,0 +1,23 @@
+commit a50225a0dc1e83449a76b80b2fbed77af516483c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 4 00:57:07 2021 -0700
+
+    bufio: make Reader.Reset and Writer.Reset work on the zero value
+    
+    For batch allocation reasons, it would be useful to nest a
+    bufio.Reader or bufio.Writer in a struct as a value,
+    rather than a pointer. When the Reset method is called,
+    have it use the default buffer size if the buffer is nil.
+    
+    Fixes #45374
+    
+    Change-Id: I80df18a13575431428a42ed150a1579de1282637
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345570
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/bufio.go      | 10 ++++++++++
+ src/bufio/bufio_test.go | 25 ++++++++++++++++++++++++-
+ 2 files changed, 34 insertions(+), 1 deletion(-)

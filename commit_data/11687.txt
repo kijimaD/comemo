@@ -1,0 +1,15 @@
+commit 0a6e2461e39aeffa517ed238e4f6592aa4a50477
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 8 14:34:40 2012 +1100
+
+    archive/zip: tweak API and docs.
+    
+    Fixes #2835.
+    
+    R=golang-dev, n13m3y3r, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5645051
+
+ src/pkg/archive/zip/reader.go | 2 +-
+ src/pkg/archive/zip/writer.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

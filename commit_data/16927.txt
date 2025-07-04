@@ -1,0 +1,14 @@
+commit 3d6bce411c001bd7665a052045a376ba1cf30b63
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 30 23:48:18 2013 +0400
+
+    runtime: fix code formatting
+    This is mainly to force another build
+    with goroutine preemption.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/12006045
+
+ src/pkg/runtime/runtime.h | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

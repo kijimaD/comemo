@@ -1,0 +1,21 @@
+commit 3ce46e3e9c25d6234f49ab483300e538c65089d0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 21:52:27 2016 -0400
+
+    cmd/go: fix TestGoGetDashTIssue8181
+    
+    The test case was importing golang.org/x/build/cmd/cl,
+    which is a package main and cannot be imported.
+    The test case (stored in a separate repo) has been changed
+    to import golang.org/x/build/gerrit. Update the test accordingly.
+    
+    Fixes #17702.
+    
+    Change-Id: I80e150092111b5a04bb00c992b32edb271edb086
+    Reviewed-on: https://go-review.googlesource.com/32616
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

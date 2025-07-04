@@ -1,0 +1,28 @@
+commit abb2aa20853d5589940076a582b44f2f98a775bb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 7 20:10:32 2015 -0800
+
+    build: add GOTESTONLY environment test for Plan 9's run.rc
+    
+    $GOTESTONLY controls which set of tests gets run. Only "std" is
+    supported. This should bring the time of plan9 builder down
+    from 90 minutes to a maybe 10-15 minutes when running on GCE.
+    
+    (Plan 9 has performance problems when running on GCE, and/or with the
+    os/exec package)
+    
+    This is a temporary workaround for one builder. The other Plan 9
+    builders will continue to do full builds. The plan9 buidler will be
+    renamed plan9-386-gcepartial or something to indicate it's not running
+    the 'test/*' directory, or API tests. Go on Plan 9 has bigger problems
+    for now. This lets us get trybots going sooner including Plan 9,
+    without waiting 90+ minutes.
+    
+    Update #9491
+    
+    Change-Id: Ic505e9169c6b304ed4029b7bdfb77bb5c8fa8daa
+    Reviewed-on: https://go-review.googlesource.com/2522
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/run.rc | 8 ++++++++
+ 1 file changed, 8 insertions(+)

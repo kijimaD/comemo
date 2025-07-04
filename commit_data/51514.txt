@@ -1,0 +1,22 @@
+commit fe67a21625ee811897077b32d4e75566ef74c6c4
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Dec 6 10:22:09 2022 -0500
+
+    cmd/link: pass -Wl,--no-insert-timestamp to external linker on windows
+    
+    Pass -Wl,--no-insert-timestamp to the external linker on windows, so
+    as to suppress generation of the PE file header data/time stamp. This
+    is in order to make it possible to get reproducible CGO builds on
+    windows (note that we already zero the timestamp field in question for
+    internal linkage).
+    
+    Updates #35006.
+    
+    Change-Id: I3d69cf1fd32e099bd9bb4b0431a4c5f43e4b08f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455535
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

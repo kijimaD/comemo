@@ -1,0 +1,25 @@
+commit 5fdacfa89f871888d6f8fde726b8f95f11e674d6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 14 11:09:28 2018 +1000
+
+    cmd/cover: remove use of diff in cover_test.go
+    
+    It's non-portable, and the test isn't hard to write without diff.
+    It still produces helpful output in case of trouble:
+    
+    --- FAIL: TestCoverHTML (0.75s)
+        cover_test.go:325: line 4 differs: got:
+                    case &lt;-ch:<span class="cov0" title="0"></span>
+            want:
+                    case &lt;-ch:<span class="cov0" xitle="0"></span>
+    
+    This makes the test operating-system independent.
+    
+    Change-Id: Iff35f00cb76ba89bc1b93db01c6f994e74341f4a
+    Reviewed-on: https://go-review.googlesource.com/118795
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cover/cover_test.go | 34 ++++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 12 deletions(-)

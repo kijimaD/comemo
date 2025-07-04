@@ -1,0 +1,19 @@
+commit f36a53cd5dc9826e58ff069e1cadcad54add275e
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Mon Jan 7 11:15:53 2013 +1100
+
+    cmd/gofmt, bufio, image: Consistency and error handling.
+    
+    cmd/gofmt: Add error handling for ioutil.WriteFile.
+    bufio: Consistency, rename e to err.
+    image: Consistency, fix comment for asReader.
+    
+    R=golang-dev, dave, minux.ma, adg
+    CC=golang-dev
+    https://golang.org/cl/7029056
+
+ src/cmd/gofmt/gofmt_test.go |  4 +++-
+ src/pkg/bufio/bufio.go      | 22 +++++++++++-----------
+ src/pkg/bufio/bufio_test.go | 28 ++++++++++++++--------------
+ src/pkg/image/format.go     |  2 +-
+ 4 files changed, 29 insertions(+), 27 deletions(-)

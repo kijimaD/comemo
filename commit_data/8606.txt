@@ -1,0 +1,20 @@
+commit 56668283f1216a87038a210fe0bbddb57aef7ee2
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Fri Jun 3 03:54:56 2011 +0200
+
+    gc: allow tags on parameters in export section of object files.
+    
+    This is in preparation of escape analysis; function parameters
+    can now be tagged with interesting bits by the compiler by
+    assigning to n->note.
+    
+    tested by having typecheck put a fake tag on all parameters of
+    pointer type and compiling the tree.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4524092
+
+ src/cmd/gc/go.y                | 19 ++++---------------
+ src/pkg/go/types/gcimporter.go |  7 ++++++-
+ 2 files changed, 10 insertions(+), 16 deletions(-)

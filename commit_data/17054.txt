@@ -1,0 +1,20 @@
+commit 262d6f58c78d53d2e85957075de0f817861cc23c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 7 00:25:23 2013 +0900
+
+    syscall: fix IPv6 wrong network mask on latest FreeBSD
+    
+    Looks like latest FreeBSD doesn't set address family identifer
+    for RTAX_NETMASK stuff; probably RTAX_GENMASK too, not confirmed.
+    This CL tries to identify address families by using the length of
+    each socket address if possible.
+    
+    The issue is confirmed on FreeBSD 9.1.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12332043
+
+ src/pkg/net/interface_test.go | 13 ++++++++++++-
+ src/pkg/syscall/route_bsd.go  |  9 ++++++++-
+ 2 files changed, 20 insertions(+), 2 deletions(-)

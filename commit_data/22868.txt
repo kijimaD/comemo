@@ -1,0 +1,12 @@
+commit 97fd7b07b69b6285c3993a13a0386afcd7df29e5
+Author: Burcu Dogan <jbd@google.com>
+Date:   Sun May 3 00:13:46 2015 -0700
+
+    misc/ios: fix plist indentation and whitespace
+    
+    Change-Id: Ida727edb592e77918ca5511b41456786d57c97b2
+    Reviewed-on: https://go-review.googlesource.com/9634
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

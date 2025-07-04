@@ -1,0 +1,25 @@
+commit 60526ca6d105ee5cf79ede6b964de30ceea79fd3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 17:54:46 2013 -0500
+
+    undo CL 7310096 / 59da6744d66d
+    
+    broke windows build
+    
+    ««« original CL description
+    runtime: ensure forward progress of runtime.Gosched() for locked goroutines
+    The removed code leads to the situation when M executes the same locked G again and again.
+    Fixes #4820.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7310096
+    »»»
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/7343050
+
+ src/pkg/runtime/proc.c       |  8 ++++++++
+ src/pkg/runtime/proc_test.go | 30 ------------------------------
+ 2 files changed, 8 insertions(+), 30 deletions(-)

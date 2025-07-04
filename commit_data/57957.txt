@@ -1,0 +1,29 @@
+commit 66b6b174b6d320ff2044835504ecb152a914534f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 11 13:40:45 2024 -0800
+
+    go/types, types2: avoid errors due to missing methods for invalid types
+    
+    Don't report a (follow-on) error if a method is not found in a type
+    due to a prior error that made the type invalid, or which caused an
+    embedded field of a struct to have an invalid type (and thus one
+    cannot with certainty claim that a method is missing).
+    
+    Fixes #53535.
+    
+    Change-Id: Ib2879c6b3b9d927c93bbbf1d355397dd19f336f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626997
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go           |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go     |  2 +-
+ src/cmd/compile/internal/types2/lookup.go          | 34 +++++++++++++++++++--
+ src/go/types/infer.go                              |  2 +-
+ src/go/types/instantiate.go                        |  2 +-
+ src/go/types/lookup.go                             | 34 +++++++++++++++++++--
+ .../types/testdata/fixedbugs/issue53535.go         | 35 ++++++++++++++++++++++
+ 7 files changed, 103 insertions(+), 8 deletions(-)

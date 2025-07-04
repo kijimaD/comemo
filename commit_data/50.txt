@@ -1,0 +1,16 @@
+commit e73674b291a2029297d2188293de796885f083fa
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Mar 31 19:19:37 2008 -0700
+
+    code to assign nil to an interface
+    without conversions
+    
+    SVN=114453
+
+ src/c/gen.c   | 28 ++++++++++++++++++----------
+ src/c/gen.h   |  2 +-
+ src/c/go.h    |  1 +
+ src/c/gsubr.c |  1 +
+ src/c/obj.c   | 21 +++++++++++++++++++++
+ src/c/subr.c  | 12 ++++++++++++
+ 6 files changed, 54 insertions(+), 11 deletions(-)

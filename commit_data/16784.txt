@@ -1,0 +1,25 @@
+commit 4e141145b731b8adfc5e8ba44334ae63d6da80a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 16 16:24:43 2013 -0400
+
+    cmd/5c, cmd/6c, cmd/8c: record arg size for every call
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/11364043
+
+ src/cmd/5c/cgen.c |  4 +++-
+ src/cmd/5c/gc.h   |  1 +
+ src/cmd/5c/sgen.c |  7 ++++++-
+ src/cmd/5c/txt.c  |  9 +++++++++
+ src/cmd/6c/cgen.c |  3 +++
+ src/cmd/6c/gc.h   |  1 +
+ src/cmd/6c/sgen.c | 13 ++++++++++---
+ src/cmd/6c/txt.c  |  9 +++++++++
+ src/cmd/8c/cgen.c |  3 +++
+ src/cmd/8c/gc.h   |  1 +
+ src/cmd/8c/sgen.c |  9 +++++++--
+ src/cmd/8c/txt.c  |  9 +++++++++
+ src/cmd/cc/cc.h   |  1 +
+ src/cmd/cc/pgen.c | 11 +++++++++++
+ 14 files changed, 74 insertions(+), 7 deletions(-)

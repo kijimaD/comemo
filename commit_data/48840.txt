@@ -1,0 +1,24 @@
+commit 115852077f45141b293727558e61c0804661d328
+Author: Bryan Mills <bcmills@google.com>
+Date:   Thu Apr 21 13:22:59 2022 +0000
+
+    Revert "cmd/go/internal/test: wrap os.Stdout always"
+    
+    This reverts CL 400877.
+    
+    Reason for revert: broke TestScript/test_output_wait and the
+    regression test for #18153 on certain builders.
+    
+    Fixes #52461.
+    
+    Change-Id: I98627ce5e22088b0784be502c459480c41ba353a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401494
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/go/internal/test/test.go                |  6 +----
+ src/cmd/go/testdata/script/test_output_wait.txt | 35 -------------------------
+ 2 files changed, 1 insertion(+), 40 deletions(-)

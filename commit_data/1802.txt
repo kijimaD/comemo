@@ -1,0 +1,14 @@
+commit d27e9f528dc1123c8db24fea012eaf2256eb5bcb
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Mar 10 19:16:31 2009 -0700
+
+    bug086
+    
+    R=r
+    OCL=26090
+    CL=26090
+
+ src/cmd/gc/walk.c                  | 4 +++-
+ test/{bugs => fixedbugs}/bug087.go | 0
+ test/golden.out                    | 5 -----
+ 3 files changed, 3 insertions(+), 6 deletions(-)

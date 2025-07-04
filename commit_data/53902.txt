@@ -1,0 +1,34 @@
+commit 834a3f844a77823bf57c323d0927bc1f42b10e61
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Fri Aug 4 05:15:41 2023 +0000
+
+    archive/tar: add FileInfoNames interface
+    
+    An optional interface FileInfoNames has been added.
+    
+    If the parameter fi of FileInfoHeader implements the interface
+    the Gname and Uname of the return value Header are
+    provided by the method of the interface.
+    
+    Also added testing.
+    
+    Fixes #50102
+    
+    Change-Id: I6fd06c7c9aaf29b22b7384542fe57affed33009a
+    
+    Change-Id: I6fd06c7c9aaf29b22b7384542fe57affed33009a
+    GitHub-Last-Rev: 5e82257948759e13880d8af12743b9524ae3df5a
+    GitHub-Pull-Request: golang/go#61662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514235
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ api/next/50102.txt           |  9 +++++++++
+ src/archive/tar/common.go    | 32 +++++++++++++++++++++++++++++
+ src/archive/tar/stat_unix.go | 10 +++++++++
+ src/archive/tar/tar_test.go  | 48 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 99 insertions(+)

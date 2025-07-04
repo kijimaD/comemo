@@ -1,0 +1,15 @@
+commit 410d63dbe9316c54c897619d36e1b0c5a424e24e
+Author: Ryan Dahl <ry@tinyclouds.org>
+Date:   Fri Nov 9 18:13:52 2018 +0000
+
+    bufio: fix indexes in TestWriter
+    
+    Change-Id: I393c53d6f7b526d156226502544725a4cb9fb118
+    GitHub-Last-Rev: 5d53406c70ebbbbedd7650b9f43c873ead63c184
+    GitHub-Pull-Request: golang/go#28693
+    Reviewed-on: https://go-review.googlesource.com/c/148818
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bufio/bufio_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

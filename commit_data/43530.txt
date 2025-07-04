@@ -1,0 +1,20 @@
+commit 80c6b92ecb911409f57d06793a1213395b75ebe2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Aug 7 16:37:29 2020 +0000
+
+    runtime,runtime/metrics: export goroutine count as a metric
+    
+    For #37112.
+    
+    Change-Id: I994dfe848605b95ef6aec24f53869e929247e987
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247049
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 5 +++++
+ src/runtime/metrics/doc.go         | 3 +++
+ src/runtime/metrics_test.go        | 4 ++++
+ 4 files changed, 18 insertions(+)

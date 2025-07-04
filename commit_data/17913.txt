@@ -1,0 +1,12 @@
+commit a5cc5bab5a8ead995d5eb51ee0991635eeab15ed
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Fri Dec 6 13:33:10 2013 -0800
+
+    doc: update list of gccgo import search paths
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/38560043
+
+ doc/gccgo_install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit e414fda6d4c1d656a03e883d5fb2532887c9748a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 4 15:17:01 2009 -0800
+
+    avoid infinite recursion in matcher.
+    
+    after sync (or sync --local), clean up repository:
+            * look for and close CLs submitted on our behalf
+            * remove unmodified files from CLs
+            * warn about empty CLs
+    
+    R=r
+    http://go/go-review/1017029
+
+ lib/codereview/codereview.py | 94 +++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 79 insertions(+), 15 deletions(-)

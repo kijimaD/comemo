@@ -1,0 +1,17 @@
+commit 943e2635b304a24c001c793f22ff4493cc077daa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 11 15:08:19 2017 -0800
+
+    cmd/go: remove file created by test
+    
+    The file cmd/go/testdata/src/testcache/script.sh was accidentally
+    committed with CL 83256. Sorry about that.
+    
+    Updates #22593
+    
+    Change-Id: Id8f07587ea97015ed75439db220560a5446e53e6
+    Reviewed-on: https://go-review.googlesource.com/83395
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/testdata/src/testcache/script.sh | 2 --
+ 1 file changed, 2 deletions(-)

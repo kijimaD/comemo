@@ -1,0 +1,19 @@
+commit c5dd2543932878e23228ca38d3e3bd621a47fbb5
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Apr 7 16:24:52 2018 +0100
+
+    api: remove unnecessary lines from except.txt
+    
+    When I added the text/template/parse lines, I thought that both removed
+    and added APIs should be listed here (i.e. both -pkg and +pkg lines).
+    However that was wrong, as one can see by reading cmd/api/goapi.go, or
+    seeing how removing the +pkg lines does not break the API test.
+    
+    Change-Id: I0a8dcd6db44762dadb58728acfb844bf118c9d45
+    Reviewed-on: https://go-review.googlesource.com/105376
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/except.txt | 10 ----------
+ 1 file changed, 10 deletions(-)

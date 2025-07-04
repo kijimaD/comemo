@@ -1,0 +1,23 @@
+commit 774f60223f9a2b1a4e2f3c042e5cea93fc90c6a8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 17 09:57:37 2023 +0200
+
+    os: set File.appendMode in NewFile if file was opened with O_APPEND
+    
+    To allow skipping the use of the copy_file_range syscall on Linux which
+    isn't supported for destination files opened with O_APPEND, see comment
+    in (*File).readFrom and
+    https://man7.org/linux/man-pages/man2/copy_file_range.2.html#ERRORS
+    
+    Fixes #60181
+    
+    Change-Id: Ie0b0050faab16858412928a3d1f96442619581eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494915
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/file_unix.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

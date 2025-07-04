@@ -1,0 +1,25 @@
+commit 3617514de07278637b7ead51447d23c8799b1d60
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 31 11:44:43 2022 -0400
+
+    cmd/go: replace the 'addcrlf' script command with a more general 'replace' command
+    
+    This allows the "reuse_git" test to avoid depending on exact JSON
+    blobs, which will be important when the URLs start referring to
+    test-local vcweb servers.
+    
+    For #27494.
+    
+    Change-Id: I22fde5110b3267b8fb9fb9c59fabc3b8a8b492c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427094
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/script/cmds.go       | 38 ++++++++++++++++
+ src/cmd/go/scriptcmds_test.go            | 30 -------------
+ src/cmd/go/testdata/script/README        | 10 +++--
+ src/cmd/go/testdata/script/mod_find.txt  |  2 +-
+ src/cmd/go/testdata/script/reuse_git.txt | 74 +++++---------------------------
+ 5 files changed, 55 insertions(+), 99 deletions(-)

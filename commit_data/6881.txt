@@ -1,0 +1,12 @@
+commit f16c280fe52017d3b74b6680a3ad1a25f3380faa
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 13:53:13 2010 -0500
+
+    gopack: allow ELF/Mach-O objects in .a files without clearing allobj
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/3503041
+
+ src/cmd/gopack/ar.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

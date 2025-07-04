@@ -1,0 +1,15 @@
+commit ed490dbed878041f76c9082ab244bc2eda345872
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 25 09:22:58 2008 -0800
+
+    add author lines
+    
+    R=r
+    DELTA=150  (147 added, 0 deleted, 3 changed)
+    OCL=19968
+    CL=19977
+
+ src/lib/math/all_test.go  | 2 --
+ src/lib/math/asin.go      | 2 +-
+ src/lib/time/time_test.go | 2 --
+ 3 files changed, 1 insertion(+), 5 deletions(-)

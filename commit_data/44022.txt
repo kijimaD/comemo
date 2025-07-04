@@ -1,0 +1,20 @@
+commit 3d6467824ce42a5ca699b537bcd85f40c63a065e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 14 22:03:29 2020 -0800
+
+    test: only require issue11674 errors with gc compiler
+    
+    The gofrontend code sees that the denominator is not zero,
+    so it computes the values. Dividing zero by a non-zero value
+    produces zero. The language spec doesn't require any of these
+    cases to report an error, so make the errors compiler-specific.
+    
+    Change-Id: I5ed759a3121e38b937744d32250adcbdf2c4d3c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278117
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/issue11674.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

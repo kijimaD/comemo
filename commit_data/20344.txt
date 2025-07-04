@@ -1,0 +1,11 @@
+commit 31bd41e04bd3cbd4a4a213b8a098eaebabae15a3
+Author: Rob Pike <r@golang.org>
+Date:   Sun Sep 7 21:55:02 2014 -0700
+
+    doc/go1.4.txt: src/pkg directory is gone.
+    
+    CC=golang-codereviews
+    https://golang.org/cl/139310043
+
+ doc/go1.4.txt | 2 ++
+ 1 file changed, 2 insertions(+)

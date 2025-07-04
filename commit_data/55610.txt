@@ -1,0 +1,14 @@
+commit f2db96cd6ca96adf7717761194811dd07019b78e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 13 12:46:39 2023 -0800
+
+    reflect: use internal/abi itab type
+    
+    Change-Id: I4a40d9cda41d3601169ef0daf0f25fb1509bdcb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549458
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/reflect/value.go | 13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)

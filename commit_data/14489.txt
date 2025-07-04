@@ -1,0 +1,24 @@
+commit 2e73453acabd5827383ae97cdcafff814ce09a64
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Nov 26 21:51:48 2012 +0100
+
+    cmd/6l, cmd/8l: emit no-ops to separate zero-stack funcs from nosplits.
+    
+    The stack overflow checker in the linker uses the spadj field
+    to determine whether stack space will be large enough or not.
+    When spadj=0, the checker treats the function as a nosplit
+    and emits an error although the program is correct.
+    
+    Also enable the stack checker in 8l.
+    
+    Fixes #4316.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6855088
+
+ src/cmd/6l/pass.c           | 10 +++++++
+ src/cmd/8l/obj.c            |  1 +
+ src/cmd/8l/pass.c           | 10 +++++++
+ test/fixedbugs/issue4316.go | 64 +++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 85 insertions(+)

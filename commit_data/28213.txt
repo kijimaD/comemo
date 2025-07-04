@@ -1,0 +1,19 @@
+commit 5923df1af9f058a4f1bf095dfb1d2722cd4120a1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Aug 25 20:29:15 2016 -0400
+
+    cmd/compile: generate table of main symbol types
+    
+    For each exported symbol in package main, add its name and type to
+    go.plugin.tabs symbol. This is used by the runtime when loading a
+    plugin to return a typed interface{} value.
+    
+    Change-Id: I23c39583e57180acb8f7a74d218dae4368614f46
+    Reviewed-on: https://go-review.googlesource.com/27818
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/obj.go     | 30 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/reflect.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+)

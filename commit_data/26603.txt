@@ -1,0 +1,14 @@
+commit dc5a7682f0ec9cc344fcdb61d67b9d37c6ad3cc6
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Wed Mar 30 18:17:45 2016 +0200
+
+    cmd/compile: use inc/dec for bytes, too
+    
+    Change-Id: Ib2890ab1983cbef7c1c1ee5a10204ba3ace19b53
+    Reviewed-on: https://go-review.googlesource.com/21312
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

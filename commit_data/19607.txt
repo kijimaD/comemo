@@ -1,0 +1,51 @@
+commit 187ee2cf2bfd221d8c03daf69a08adb9ede44c84
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 24 16:25:09 2014 -0700
+
+    spec: receiver declaration is just a parameter declaration
+    
+    This CL removes the special syntax for method receivers and
+    makes it just like other parameters. Instead, the crucial
+    receiver-specific rules (exactly one receiver, receiver type
+    must be of the form T or *T) are specified verbally instead
+    of syntactically.
+    
+    This is a fully backward-compatible (and minor) syntax
+    relaxation. As a result, the following syntactic restrictions
+    (which are completely irrelevant) and which were only in place
+    for receivers are removed:
+    
+    a) receiver types cannot be parenthesized
+    b) receiver parameter lists cannot have a trailing comma
+    
+    The result of this CL is a simplication of the spec and the
+    implementation, with no impact on existing (or future) code.
+    
+    Noteworthy:
+    
+    - gc already permits a trailing comma at the end of a receiver
+      declaration:
+    
+      func (recv T,) m() {}
+    
+      This is technically a bug with the current spec; this CL will
+      legalize this notation.
+    
+    - gccgo produces a misleading error when a trailing comma is used:
+    
+      error: method has multiple receivers
+    
+      (even though there's only one receiver)
+    
+    - Compilers and type-checkers won't need to report errors anymore
+      if receiver types are parenthesized.
+    
+    Fixes #4496.
+    
+    LGTM=iant, rsc
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/101500044
+
+ doc/go_spec.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

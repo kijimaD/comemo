@@ -1,0 +1,15 @@
+commit 09cb91eddcfa3b4a6da6ec1ef774721e72585b48
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 18 22:54:27 2013 +0100
+
+    test: re-enable issue4348.go.
+    
+    The test array is too large to fit a stack frame
+    but can be a global.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7127059
+
+ test/fixedbugs/issue4348.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

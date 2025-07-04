@@ -1,0 +1,28 @@
+commit 607953609c7c04f129564a4bd886ae72773aa196
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Apr 8 16:07:25 2018 +0530
+
+    go/doc: tune association of a function with a type
+    
+    Previously, we used to associate a function with its first returned type
+    assuming that it is a factory function for that type.
+    
+    However, a function may return multiple types in which case it is usually
+    doing something else. Check for multiple return types, and treat it as
+    a normal function in that case. Maintain same behavior if the function
+    returns just one type.
+    
+    Fixes #12839
+    
+    Change-Id: Ic4ac11d322996f216f593b71f4e61ad4270d5213
+    Reviewed-on: https://go-review.googlesource.com/105575
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/doc/reader.go                    | 20 +++++++++++------
+ src/go/doc/testdata/issue12839.0.golden | 33 ++++++++++++++++++++++++++++
+ src/go/doc/testdata/issue12839.1.golden | 36 +++++++++++++++++++++++++++++++
+ src/go/doc/testdata/issue12839.2.golden | 33 ++++++++++++++++++++++++++++
+ src/go/doc/testdata/issue12839.go       | 38 +++++++++++++++++++++++++++++++++
+ 5 files changed, 153 insertions(+), 7 deletions(-)

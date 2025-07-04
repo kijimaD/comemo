@@ -1,0 +1,12 @@
+commit 7bbe0163c7def3eca41fa0e2d950fdfe37f37562
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 9 06:44:11 2013 -0700
+
+    net: fix typo in failure message in test
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/14582043
+
+ src/pkg/net/packetconn_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

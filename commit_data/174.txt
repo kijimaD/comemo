@@ -1,0 +1,18 @@
+commit 073486c3ed10f4f737484253320f44804cac1447
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 15 17:22:57 2008 -0700
+
+    add support for debugging in MACH binaries
+    fix up libmach_amd64 to handle MACH binaries and symbols
+    db now works on mac and linux
+    
+    SVN=122807
+
+ src/cmd/6l/asm.c               |  31 ++++++++-
+ src/cmd/6l/l.h                 |   1 +
+ src/cmd/6l/obj.c               |   1 +
+ src/libmach_amd64/Makefile     |   2 +-
+ src/libmach_amd64/executable.c | 150 ++++++++++++++++++++++++++++++++++++++++-
+ src/libmach_amd64/macho.h      |  69 +++++++++++++++++++
+ src/libmach_amd64/sym.c        |   1 -
+ 7 files changed, 249 insertions(+), 6 deletions(-)

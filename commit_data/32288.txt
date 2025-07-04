@@ -1,0 +1,31 @@
+commit 89d74f54168619cf1f36b6868626fbb1237c1deb
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 30 12:59:25 2017 -0700
+
+    cmd/compile: set itab function pointers at compile time
+    
+    I noticed that we don't set an itab's function pointers at compile
+    time. Instead, we currently do it at executable startup.
+    
+    Set the function pointers at compile time instead. This shortens
+    startup time. It has no effect on normal binary size. Object files
+    will have more relocations, but that isn't a big deal.
+    
+    For PIE there are additional pointers that will need to be adjusted at
+    load time. There are already other pointers in an itab that need to be
+    adjusted, so the cache line will already be paged in. There might be
+    some binary size overhead to mark these pointers. The "go test -c
+    -buildmode=pie net/http" binary is 0.18% bigger.
+    
+    Update #20505
+    
+    Change-Id: I267c82489915b509ff66e512fc7319b2dd79b8f7
+    Reviewed-on: https://go-review.googlesource.com/44341
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 15 +++++++--------
+ src/runtime/iface.go                   |  9 +--------
+ src/runtime/plugin.go                  |  2 +-
+ 3 files changed, 9 insertions(+), 17 deletions(-)

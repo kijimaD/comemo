@@ -1,0 +1,22 @@
+commit 2f588ff08f0330864b2e8d16e850c51642d9c5ca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Nov 29 11:58:03 2017 -0800
+
+    cmd/compile: make -asmhdr work with type aliases
+    
+    For "type T = U" we were accidentally emitting a #define for "U__size"
+    instead of "T__size".
+    
+    Fixes #22877.
+    
+    Change-Id: I5ed6757d697753ed6d944077c16150759f6e1285
+    Reviewed-on: https://go-review.googlesource.com/80759
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/export.go |  8 ++++----
+ test/fixedbugs/issue22877.dir/p.go    | 14 ++++++++++++++
+ test/fixedbugs/issue22877.dir/p.s     |  8 ++++++++
+ test/fixedbugs/issue22877.go          |  7 +++++++
+ test/run.go                           |  3 +++
+ 5 files changed, 36 insertions(+), 4 deletions(-)

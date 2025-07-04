@@ -1,0 +1,37 @@
+commit 22974fbe8e0b15e2d2380d44dfa3e3e82574f8c5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 21 23:12:57 2010 -0700
+
+    suffixarray: a package for creating suffixarray-based indexes
+    
+    This is a replacement for pending CL 2219042. It only contains
+    the raw suffixarray functionality with two methods:
+    
+    - New       create a new index from some data
+    - Lookup    lookup occurences of a bytes slice in the data
+    
+    Any other functionality (dealing with multiple data sets and
+    the corresponding position lists) is generic and doesn't have
+    to be part of this package.
+    
+    Known performance bug: This implementation works fine for data sets
+    up to several megabytes as long as it doesn't contain very long
+    contiguous sequences of equal bytes. For instance, index creation for
+    all .go files under GOROOT (250KLOCs, approx. 9MB) takes ~50s on
+    2.66 GHz Intel Xeon as long as test/fixedbugs/257.go is excluded.
+    With that file, index creation times takes several days. 257.go contains
+    a string of 1M smiley faces.
+    
+    There are more sophisticated suffixarray creation algorithms which
+    can handle very long common prefixes. The implementation can be
+    updated w/o the need to change the interface.
+    
+    R=rsc, r, PeterGo
+    CC=golang-dev
+    https://golang.org/cl/2265041
+
+ src/pkg/Makefile                              |   1 +
+ src/pkg/index/suffixarray/Makefile            |  11 ++
+ src/pkg/index/suffixarray/suffixarray.go      | 117 +++++++++++++++++++
+ src/pkg/index/suffixarray/suffixarray_test.go | 161 ++++++++++++++++++++++++++
+ 4 files changed, 290 insertions(+)

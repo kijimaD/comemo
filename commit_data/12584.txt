@@ -1,0 +1,26 @@
+commit 60b98d62087d582dafdda68c2af281c5e204fe03
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Tue Mar 13 09:07:37 2012 +1100
+
+    doc: add C? Go? Cgo! article
+    
+    Originally published on The Go Programming Language Blog, March 17, 2011.
+    
+    http://blog.golang.org/2011/03/c-go-cgo.html
+    
+    Update #2547.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5777054
+
+ doc/articles/c_go_cgo.html | 159 +++++++++++++++++++++++++++++++++++++++++++++
+ doc/docs.html              |   2 +-
+ doc/progs/cgo1.go          |  23 +++++++
+ doc/progs/cgo2.go          |  21 ++++++
+ doc/progs/cgo3.go          |  17 +++++
+ doc/progs/cgo4.go          |  17 +++++
+ doc/progs/run              |   9 ++-
+ doc/reference.html         |   4 +-
+ src/cmd/cgo/doc.go         |   2 +-
+ 9 files changed, 249 insertions(+), 5 deletions(-)

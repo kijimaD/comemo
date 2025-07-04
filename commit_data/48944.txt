@@ -1,0 +1,36 @@
+commit f2b674756b3b684118e4245627d4ed8c07e518e7
+Author: Bryan Mills <bcmills@google.com>
+Date:   Fri Apr 29 21:38:40 2022 +0000
+
+    Revert "os/exec: return error when PATH lookup would use current directory"
+    
+    This reverts CL 381374.
+    
+    Reason for revert: broke tests for x/sys/execabs.
+    
+    Updates #43724.
+    Updates #43947.
+    
+    Change-Id: I9eb3adb5728dead66dbd20f6afe1e7a77e2a26f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403058
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ api/next/43724.txt                      |   2 -
+ src/cmd/dist/build.go                   |   7 ---
+ src/cmd/dist/test.go                    |  27 +++++----
+ src/cmd/dist/util.go                    |   6 +-
+ src/cmd/go/testdata/script/cgo_path.txt |   2 +-
+ src/internal/execabs/execabs.go         |  40 ++++++++++++-
+ src/internal/execabs/execabs_test.go    | 103 ++++++++++++++++++++++++++++++++
+ src/os/exec/dot_test.go                 |  88 ---------------------------
+ src/os/exec/exec.go                     |  86 ++------------------------
+ src/os/exec/lp_plan9.go                 |   9 +--
+ src/os/exec/lp_unix.go                  |   9 +--
+ src/os/exec/lp_windows.go               |  35 +++--------
+ src/os/exec/lp_windows_test.go          |   6 +-
+ 13 files changed, 172 insertions(+), 248 deletions(-)

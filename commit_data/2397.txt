@@ -1,0 +1,19 @@
+commit b014be75d222e684ff34c94cd27aba88968dd36f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 10:59:37 2009 -0700
+
+    fix 386 malloc tests,
+    detect 386 darwin breakpoint line.
+    
+    R=r
+    DELTA=22  (4 added, 0 deleted, 18 changed)
+    OCL=29929
+    CL=29944
+
+ src/lib/malloc/malloc.go |  2 +-
+ src/runtime/mgc0.c       |  2 +-
+ test/mallocrand.go       | 14 +++++++-------
+ test/mallocrep.go        |  7 +++++--
+ test/mallocrep1.go       | 14 +++++++-------
+ test/run                 |  1 +
+ 6 files changed, 22 insertions(+), 18 deletions(-)

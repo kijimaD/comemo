@@ -1,0 +1,16 @@
+commit f199f292e72b97aa0efffb64e5d058e61c5aa682
+Author: Adam Langley <agl@golang.org>
+Date:   Wed May 26 15:58:58 2010 -0400
+
+    big: add ModInverse.
+    
+    ModInverse is just a small wrapper around GcdInt, but it's nice to
+    have in order to be clear about what one is doing in other code.
+    
+    R=gri, agl1
+    CC=golang-dev
+    https://golang.org/cl/1244045
+
+ src/pkg/big/int.go      | 14 ++++++++++++++
+ src/pkg/big/int_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

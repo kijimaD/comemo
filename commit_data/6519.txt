@@ -1,0 +1,15 @@
+commit e2df7f42ace354646b9fbfdf8ef0b222ead6811f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 14 14:06:02 2010 +1100
+
+    misc: add goplay
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/2473041
+
+ misc/goplay/Makefile  |  13 +++
+ misc/goplay/README    |   1 +
+ misc/goplay/doc.go    |  25 +++++
+ misc/goplay/goplay.go | 305 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 344 insertions(+)

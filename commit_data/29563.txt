@@ -1,0 +1,19 @@
+commit 8dc47e3b3a939a39e5cc3ea59f4848f50fd0cb7b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Nov 16 20:35:02 2016 +0000
+
+    net: disable TestAcceptTimeout for now
+    
+    It's too flaky and doing more harm than good.
+    
+    Disable it until it can be made reliable.
+    
+    Updates #17948
+    Updates #17927
+    
+    Change-Id: Iaab7f09a4060da377fcd3ca2262527fef50c558d
+    Reviewed-on: https://go-review.googlesource.com/33330
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/timeout_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,23 @@
+commit 985b0992cd78d277c9295234d0aa802109d39fd0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 21 20:02:01 2013 -0700
+
+    net/http: reuse bufio.Reader and bufio.Writer between conns
+    
+    Saves over 8KB of allocations per new connection.
+    
+    benchmark                             old ns/op    new ns/op    delta
+    BenchmarkServerFakeConnNoKeepAlive        28777        24927  -13.38%
+    
+    benchmark                            old allocs   new allocs    delta
+    BenchmarkServerFakeConnNoKeepAlive           52           46  -11.54%
+    
+    benchmark                             old bytes    new bytes    delta
+    BenchmarkServerFakeConnNoKeepAlive        13716         5286  -61.46%
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7799047
+
+ src/pkg/net/http/server.go | 108 ++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 103 insertions(+), 5 deletions(-)

@@ -1,0 +1,31 @@
+commit 095e0f48a19fa3bd7901f79420374b9cb50940e9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 1 12:03:27 2020 +0200
+
+    cmd/compile: change mustHeapAlloc to return a reason why
+    
+    This change renames mustHeapAlloc to heapAllocReason, and changes it
+    to return the reason why the argument must escape, so we don't have to
+    re-deduce it in its callers just to print the escape reason. It also
+    embeds isSmallMakeSlice body in heapAllocReason, since the former was
+    only used by the latter, and deletes isSmallMakeSlice.
+    
+    An outdated TODO to remove smallintconst, which the TODO claimed was
+    only used in one place, was also removed, since grepping shows we
+    currently call smallintconst in 11 different places.
+    
+    Change-Id: I0bd11bf29b92c4126f5bb455877ff73217d5a155
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258678
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go  |  1 -
+ src/cmd/compile/internal/gc/esc.go    | 31 +++++++++++++++++++++----------
+ src/cmd/compile/internal/gc/escape.go |  6 +-----
+ src/cmd/compile/internal/gc/walk.go   | 17 ++---------------
+ test/fixedbugs/issue41635.go          | 11 +++++------
+ 5 files changed, 29 insertions(+), 37 deletions(-)

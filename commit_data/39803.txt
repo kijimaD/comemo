@@ -1,0 +1,30 @@
+commit aae0b5b0b26bf4fd26cad0111535d703691a9083
+Author: Michael Knyszek <mknyszek@google.com>
+Date:   Thu Jun 27 14:46:29 2019 -0400
+
+    runtime: use hard heap goal if we've done more scan work than expected
+    
+    This change makes it so that if we're already finding ourselves in a
+    situation where we've done more scan work than expected in the
+    steady-state (that is, 50% of heap_scan for GOGC=100), then we fall back
+    on the hard heap goal instead of continuing to assume the expected case.
+    
+    In some cases its possible that we're already doing more scan work than
+    expected, and if GC assists come in just at that window where we notice
+    it, they might accumulate way too much assist credit, causing undue heap
+    growths if GOMAXPROCS=1 (since the fractional background worker isn't
+    guaranteed to fire). This case seems awfully specific, and that's
+    because it's exactly the case for TestGcSys, which has been flaky for
+    some time as a result.
+    
+    Fixes #28574, #27636, and #27156.
+    
+    Change-Id: I771f42bed34739dbb1b84ad82cfe247f70836031
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184097
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/gc_test.go |  6 ------
+ src/runtime/mgc.go     | 38 +++++++++++++++++++-------------------
+ 2 files changed, 19 insertions(+), 25 deletions(-)

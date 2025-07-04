@@ -1,0 +1,22 @@
+commit cc8bac88353d8067244a196f70b2fe9475f4336e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 21 15:53:25 2022 -0400
+
+    runtime: move trace locks to the leaf of the lock graph
+    
+    Now that trace.lock cannot be held over a stack split, we can move
+    that lock and traceStackTab to the leaf of the lock graph. We add a
+    couple edges to STACKGROW that were previously passing through trace.
+    
+    Fixes #53979.
+    
+    Change-Id: Ie664ff7bb33973745f991f7516dc6106e60f5892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418957
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/lockrank.go   | 24 ++++++++++++------------
+ src/runtime/mklockrank.go | 27 ++++++++++++++-------------
+ 2 files changed, 26 insertions(+), 25 deletions(-)

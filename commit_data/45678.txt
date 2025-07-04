@@ -1,0 +1,20 @@
+commit f87194cbd7e79eef07c897a6240fbf2dc115f9ff
+Author: ian woolf <btw515wolf2@gmail.com>
+Date:   Fri May 7 16:31:00 2021 +0800
+
+    doc/go1.17: document changes to net/http package
+    
+    Changes include:
+    * ReadRequest function now returns an error when a request has multiple
+      Host headers.
+    
+    For #44513.
+    Updates #46015.
+    
+    Change-Id: I48ea7c5cee3f1d1a247035fd37191362a53d1f04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317914
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.17.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

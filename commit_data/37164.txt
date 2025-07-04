@@ -1,0 +1,42 @@
+commit 85143d355493c6bba994d49ed154b4df8b78874b
+Author: Oliver Stenbom <ostenbom@pivotal.io>
+Date:   Tue Oct 30 00:40:24 2018 +0000
+
+    os: add support for long path names on unix RemoveAll
+    
+    On unix systems, long enough path names will fail when performing syscalls
+    like `Lstat`. The current RemoveAll uses several of these syscalls, and so
+    will fail for long paths. This can be risky, as it can let users "hide"
+    files from the system or otherwise make long enough paths for programs
+    to fail. By using `Unlinkat` and `Openat` syscalls instead, RemoveAll is
+    safer on unix systems. Initially implemented for linux, darwin, and several bsds.
+    
+    Fixes #27029
+    
+    Co-authored-by: Giuseppe Capizzi <gcapizzi@pivotal.io>
+    Co-authored-by: Julia Nedialkova <yulia.nedyalkova@sap.com>
+    
+    Change-Id: Id9fcdf4775962b021b7ff438dc51ee6d16bb5f56
+    GitHub-Last-Rev: b30a621fe359fa2acbb055445b54202b0c508167
+    GitHub-Pull-Request: golang/go#27871
+    Reviewed-on: https://go-review.googlesource.com/c/137442
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/syscall/unix/at.go                    |  58 +++++
+ src/internal/syscall/unix/at_sysnum_darwin.go      |  12 ++
+ src/internal/syscall/unix/at_sysnum_dragonfly.go   |  14 ++
+ src/internal/syscall/unix/at_sysnum_freebsd.go     |  14 ++
+ .../syscall/unix/at_sysnum_fstatat64_linux.go      |  11 +
+ .../syscall/unix/at_sysnum_fstatat_linux.go        |  11 +
+ src/internal/syscall/unix/at_sysnum_linux.go       |  13 ++
+ src/internal/syscall/unix/at_sysnum_netbsd.go      |  14 ++
+ .../syscall/unix/at_sysnum_newfstatat_linux.go     |  11 +
+ src/internal/syscall/unix/at_sysnum_openbsd.go     |  14 ++
+ src/os/path.go                                     |  99 ---------
+ src/os/path_test.go                                | 125 -----------
+ src/os/path_unix.go                                |  28 ++-
+ src/os/removeall_at.go                             | 139 ++++++++++++
+ src/os/removeall_noat.go                           | 110 ++++++++++
+ src/os/removeall_test.go                           | 237 +++++++++++++++++++++
+ 16 files changed, 685 insertions(+), 225 deletions(-)

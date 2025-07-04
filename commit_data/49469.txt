@@ -1,0 +1,37 @@
+commit e1e66a03a6bb3210034b640923fa253d7def1a26
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 14 13:38:02 2022 -0700
+
+    cmd/compile,runtime,reflect: move embedded bit from offset to name
+    
+    Previously we stole a bit from the field offset to encode whether
+    a struct field was embedded.
+    
+    Instead, encode that bit in the name field, where we already have
+    some unused bits to play with. The bit associates naturally with
+    the name in any case.
+    
+    This leaves a full uintptr to specify field offsets. This will make
+    the fix for #52740 cleaner.
+    
+    Change-Id: I0bfb85564dc26e8c18101bc8b432f332176d7836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/412138
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go | 33 ++++++-----
+ src/cmd/link/internal/ld/decodesym.go           | 17 +++++-
+ src/cmd/link/internal/ld/dwarf.go               |  6 +-
+ src/internal/reflectlite/export_test.go         |  2 +-
+ src/internal/reflectlite/type.go                | 21 ++++---
+ src/reflect/abi.go                              |  2 +-
+ src/reflect/export_test.go                      |  2 +-
+ src/reflect/type.go                             | 76 +++++++++++++------------
+ src/reflect/value.go                            |  2 +-
+ src/runtime/alg.go                              |  2 +-
+ src/runtime/cgocall.go                          |  2 +-
+ src/runtime/syscall_windows.go                  |  2 +-
+ src/runtime/type.go                             | 19 ++++---
+ 13 files changed, 104 insertions(+), 82 deletions(-)

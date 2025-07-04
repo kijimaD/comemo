@@ -1,0 +1,22 @@
+commit f135106ec7cf68b47a5b83a1c2b5dd7eda0d614c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Oct 30 12:30:47 2016 -0400
+
+    cmd/cgo: add -srcdir option
+    
+    This is convenient for direct use of `go tool cgo`. We can also use it
+    from the go tool to reduce the length of the file names that cgo
+    generates.
+    
+    Update #17070.
+    
+    Change-Id: I8466a0a2cc68a732d17d07319e303497715bac8c
+    Reviewed-on: https://go-review.googlesource.com/32354
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/testgodefs/test.bash | 2 +-
+ src/cmd/cgo/doc.go            | 3 +++
+ src/cmd/cgo/main.go           | 7 +++++++
+ 3 files changed, 11 insertions(+), 1 deletion(-)

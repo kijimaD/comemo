@@ -1,0 +1,17 @@
+commit 1f71892610023243ea70abc3d60c2ac94b650cb5
+Author: ludweeg <mursalimovemeel@gmail.com>
+Date:   Mon Apr 23 16:20:32 2018 +0300
+
+    crypto/md5: make receiver name consistent
+    
+    Fixes go lint warning.
+    
+    Change-Id: I2d73208c6841f35d7a21a1fb4cfafbbd4250228f
+    Reviewed-on: https://go-review.googlesource.com/108659
+    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/md5/md5.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

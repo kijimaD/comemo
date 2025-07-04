@@ -1,0 +1,18 @@
+commit d645adc3d0f077e0271004c1b07ef89b2fd36522
+Author: Yoshiyuki Kanno <nekotaroh@gmail.com>
+Date:   Wed Jan 25 15:00:39 2012 -0800
+
+    net/http: fix Transport deadlock
+    
+    This patch intend to fix following issues.
+    http://code.google.com/p/go/issues/detail?id=2616
+    
+    Fixes #2616.
+    
+    R=golang-dev, bradfitz, nekotaroh
+    CC=golang-dev
+    https://golang.org/cl/5532057
+
+ src/pkg/net/http/transport.go      | 18 ++++++++++--------
+ src/pkg/net/http/transport_test.go |  4 ----
+ 2 files changed, 10 insertions(+), 12 deletions(-)

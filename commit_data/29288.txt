@@ -1,0 +1,28 @@
+commit b2c54afe1451f93e1fbbad257a151d8425cd308d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 1 15:24:11 2016 +0000
+
+    net/http, net/http/httptest: make http2's TrailerPrefix work for http1
+    
+    Go's http1 implementation originally had a mechanism to send HTTP
+    trailers based on pre-declaring the trailer keys whose values you'd
+    later let after the header was written.
+    
+    http2 copied the same mechanism, but it was found to be unsufficient
+    for gRPC's wire protocol. A second trailer mechanism was added later
+    (but only to http2) for handlers that want to send a trailer without
+    knowing in advance they'd need to.
+    
+    Copy the same mechanism back to http1 and document it.
+    
+    Fixes #15754
+    
+    Change-Id: I8c40d55e28b0e5b7087d3d1a904a392c56ee1f9b
+    Reviewed-on: https://go-review.googlesource.com/32479
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/clientserver_test.go      | 31 +++++++++++++
+ src/net/http/httptest/recorder.go      | 11 +++++
+ src/net/http/httptest/recorder_test.go |  2 +
+ src/net/http/server.go                 | 79 ++++++++++++++++++++++++++++------
+ 4 files changed, 111 insertions(+), 12 deletions(-)

@@ -1,0 +1,13 @@
+commit 0d1f76ded2f84513d3321db1962912792aacf3a8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 29 13:06:03 2011 -0700
+
+    go/parser: accept parenthesized receive operations in select statements
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4439082
+
+ src/pkg/go/parser/parser.go      | 4 ----
+ src/pkg/go/parser/parser_test.go | 1 +
+ 2 files changed, 1 insertion(+), 4 deletions(-)

@@ -1,0 +1,18 @@
+commit 42c51debe824bd9b1fd93b3d50ff7187530754d3
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Jun 1 22:51:30 2016 +0200
+
+    misc/cgo/test,cmd/dist: enable (more) Cgo tests on iOS
+    
+    For #15919
+    
+    Change-Id: I9fc38d9c8a9cc9406b551315e1599750fe212d0d
+    Reviewed-on: https://go-review.googlesource.com/23635
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/cthread.go   |  4 ++++
+ misc/cgo/test/issue7978.go |  2 +-
+ src/cmd/dist/test.go       | 12 +-----------
+ 3 files changed, 6 insertions(+), 12 deletions(-)

@@ -1,0 +1,20 @@
+commit d3d548913570f7b7c1ae2672624607d5831032b1
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Jun 9 10:24:42 2017 +0000
+
+    cmd/internal/obj/arm: fix encoding of move register/immediate to CPSR
+    
+    "MOVW R1, CPSR" is assembled to 0xe129f001, which should be 0xe12cf001.
+    "MOVW $255, CPSR" is assembled to 0xe329f0ff, which should be 0xe32cf0ff.
+    
+    This patch fixes them and adds more assembly encoding tests.
+    
+    fix #20626
+    
+    Change-Id: Iefc945879ea774edf40438ce39f52c144e1501a1
+    Reviewed-on: https://go-review.googlesource.com/45170
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm.s | 31 ++++++++++++++++++++++++++++++-
+ src/cmd/internal/obj/arm/asm5.go        |  4 ++--
+ 2 files changed, 32 insertions(+), 3 deletions(-)

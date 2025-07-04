@@ -1,0 +1,21 @@
+commit f3a98dee27540afab414d3201aff18f30c2b163e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 12:10:13 2014 -0400
+
+    cmd/go: re-resolve and check vcs roots during go get -u
+    
+    If you do 'go get -u rsc.io/pdf' and then rsc.io/pdf's redirect
+    changes to point somewhere else, after this CL a later
+    'go get -u rsc.io/pdf' will tell you that.
+    
+    Fixes #8548.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=adg, golang-codereviews, n13m3y3r, r
+    https://golang.org/cl/147170043
+
+ src/cmd/go/get.go    | 12 ++++++++
+ src/cmd/go/test.bash | 50 +++++++++++++++++++++++++++++++++
+ src/cmd/go/vcs.go    | 79 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 135 insertions(+), 6 deletions(-)

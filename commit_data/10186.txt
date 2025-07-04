@@ -1,0 +1,15 @@
+commit c93b6a1756be708ba2d6c8c91c4dabdbbd653cbe
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 21:49:33 2011 -0400
+
+    exp/ebnf: manual fixup for error
+    
+    (The definition of ErrorList is in another file, so gofix
+    has no hope of getting this right.)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5330043
+
+ src/pkg/exp/ebnf/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 1e708337b21c43c14d3ac46dd29181a4af0548da
+Author: Osamu TONOMORI <osamingo@gmail.com>
+Date:   Thu Dec 20 22:39:01 2018 +0900
+
+    compress/flate: fix the old url for the flate algorithm
+    
+    Change-Id: I84b74bc96516033bbf4a01f9aa81fe60d5a41355
+    Reviewed-on: https://go-review.googlesource.com/c/155317
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/flate/inflate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

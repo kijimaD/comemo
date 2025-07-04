@@ -1,0 +1,33 @@
+commit 971f59399fd7a53dc0744a949084080c85b3c62b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 20 07:28:37 2023 +0000
+
+    cmd/trace/v2: add thread-oriented mode for v2 traces
+    
+    This is a nice-to-have that's now straightforward to do with the new
+    trace format. This change adds a new query variable passed to the
+    /trace endpoint called "view," which indicates the type of view to
+    use. It is orthogonal with task-related views.
+    
+    Unfortunately a goroutine-based view isn't included because it's too
+    likely to cause the browser tab to crash.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: Ifbcb8f2d58ffd425819bdb09c586819cb786478d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/trace/main.go                     |   4 +-
+ src/cmd/trace/v2/gstate.go                |  23 +++-
+ src/cmd/trace/v2/jsontrace.go             |   6 +
+ src/cmd/trace/v2/jsontrace_test.go        |   2 +-
+ src/cmd/trace/v2/main.go                  |   8 +-
+ src/cmd/trace/v2/threadgen.go             | 201 ++++++++++++++++++++++++++++++
+ src/internal/trace/traceviewer/emitter.go |   1 +
+ src/internal/trace/traceviewer/http.go    |  46 +++++--
+ src/internal/trace/traceviewer/mmu.go     |   2 +-
+ 9 files changed, 273 insertions(+), 20 deletions(-)

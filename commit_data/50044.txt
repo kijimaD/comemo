@@ -1,0 +1,18 @@
+commit 761db3e7f07ec358323589eab72b153339036086
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 21 16:57:53 2021 +0200
+
+    debug/buildinfo: add regression tests for different buildmodes
+    
+    Updates #48187
+    
+    Change-Id: I2364f248520e77c2e3a4832b9769b52e7aa62f73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357569
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/debug/buildinfo/buildinfo_test.go | 82 ++++++++++++++++++++++-------------
+ 1 file changed, 52 insertions(+), 30 deletions(-)

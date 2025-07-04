@@ -1,0 +1,41 @@
+commit c8fdfa756ead0a48b0227f6cec02641797124a92
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 14:46:52 2020 -0400
+
+    go/build: reject //go:build without // +build
+    
+    We are converting from using error-prone ad-hoc syntax // +build lines
+    to less error-prone, standard boolean syntax //go:build lines.
+    The timeline is:
+    
+    Go 1.16: prepare for transition
+     - Builds still use // +build for file selection.
+     - Source files may not contain //go:build without // +build.
+     - Builds fail when a source file contains //go:build lines without // +build lines. <<<
+    
+    Go 1.17: start transition
+     - Builds prefer //go:build for file selection, falling back to // +build
+       for files containing only // +build.
+     - Source files may contain //go:build without // +build (but they won't build with Go 1.16).
+     - Gofmt moves //go:build and // +build lines to proper file locations.
+     - Gofmt introduces //go:build lines into files with only // +build lines.
+     - Go vet rejects files with mismatched //go:build and // +build lines.
+    
+    Go 1.18: complete transition
+     - Go fix removes // +build lines, leaving behind equivalent // +build lines.
+    
+    This CL provides part of the <<< marked line above in the Go 1.16 step:
+    rejecting files containing //go:build but not // +build.
+    
+    For #41184.
+    
+    Change-Id: I29b8a789ab1526ab5057f613d5533bd2060ba9cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240600
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/build.go      | 138 +++++++++++++++++++++++++++++++++++----------
+ src/go/build/build_test.go | 123 ++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 218 insertions(+), 43 deletions(-)

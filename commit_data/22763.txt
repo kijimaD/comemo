@@ -1,0 +1,20 @@
+commit 6abfdc3fdd49d7691e1cdc3028849fa40e4a41f2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Apr 29 13:51:49 2015 +1000
+
+    image/gif: check that individual frame's bounds are within the overall
+    GIF's bounds.
+    
+    Also change the implicit Config Width and Height to be the
+    Rectangle.Max, not the Dx and Dy, of the first frame's bounds. For the
+    case where the first frame's bounds is something like (5,5)-(8,8), the
+    overall width should be 8, not 3.
+    
+    Change-Id: I3affc484f5e32941a36f15517a92ca8d189d9c22
+    Reviewed-on: https://go-review.googlesource.com/9465
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/gif/reader.go      | 11 +++++---
+ src/image/gif/writer.go      | 10 ++++---
+ src/image/gif/writer_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 74 insertions(+), 9 deletions(-)

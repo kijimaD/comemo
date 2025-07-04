@@ -1,0 +1,13 @@
+commit b2d90202426a84802035fb4e8f2ad8b87994397d
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jul 28 13:54:58 2008 -0700
+
+    len now takes an expression
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=13523
+    CL=13523
+
+ src/cmd/gc/go.y | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

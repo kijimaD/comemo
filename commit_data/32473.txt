@@ -1,0 +1,17 @@
+commit 394f6a5ac0f945061483b715ba3fb1f6ccef2806
+Author: Borja Clemente <borja.clemente@gmail.com>
+Date:   Wed Aug 23 15:51:03 2017 +0200
+
+    bytes: Add missing examples to functions
+    
+    Fixes #21570
+    
+    Change-Id: Ia0734929a04fbce8fdd5fbcb1b7baff9a8bbe39e
+    Reviewed-on: https://go-review.googlesource.com/58030
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/example_test.go | 105 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 105 insertions(+)

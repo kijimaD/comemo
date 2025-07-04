@@ -1,0 +1,27 @@
+commit 76f12cdaa2be0b96d314762ff5b2e403d1359cd8
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Nov 10 13:31:41 2016 -0500
+
+    runtime/pprof: output CPU profiles in pprof protobuf format
+    
+    This change buffers the entire profile and converts in one shot
+    in the profile writer, and could use more memory than necessary
+    to output protocol buffer formatted profiles. It should be
+    possible to convert each chunk in a stream (maybe maintaining
+    some minimal state to output in the end) which could save on
+    memory usage.
+    
+    Fixes #16093
+    
+    Change-Id: I946c6a2b044ae644c72c8bb2d3bd82c415b1a847
+    Reviewed-on: https://go-review.googlesource.com/33071
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/build/deps_test.go                          |  2 +-
+ .../pprof/internal/protopprof/protopprof.go        |  1 -
+ .../pprof/internal/protopprof/protopprof_test.go   | 38 -------------
+ src/runtime/pprof/pprof.go                         | 55 +++++++------------
+ src/runtime/pprof/pprof_test.go                    | 63 +++++++++++-----------
+ 5 files changed, 49 insertions(+), 110 deletions(-)

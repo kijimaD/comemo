@@ -1,0 +1,50 @@
+commit 0603fbb01ca3778c08c0a445cd84195dbdc8fb3b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jul 23 18:51:34 2014 +0400
+
+    runtime: fix unexpected return pc for runtime.newstackcall
+    With cl/112640043 TestCgoDeadlockCrash episodically print:
+    unexpected return pc for runtime.newstackcall
+    After adding debug output I see the following trace:
+    
+    runtime: unexpected return pc for runtime.newstackcall called from 0xc208011b00
+    runtime.throw(0x414da86)
+            src/pkg/runtime/panic.c:523 +0x77
+    runtime.gentraceback(0x40165fc, 0xba440c28, 0x0, 0xc208d15200, 0xc200000000, 0xc208ddfd20, 0x20, 0x0, 0x0, 0x300)
+            src/pkg/runtime/traceback_x86.c:185 +0xca4
+    runtime.callers(0x1, 0xc208ddfd20, 0x20)
+            src/pkg/runtime/traceback_x86.c:438 +0x98
+    mcommoninit(0xc208ddfc00)
+            src/pkg/runtime/proc.c:369 +0x5c
+    runtime.allocm(0xc208052000)
+            src/pkg/runtime/proc.c:686 +0xa6
+    newm(0x4017850, 0xc208052000)
+            src/pkg/runtime/proc.c:933 +0x27
+    startm(0xc208052000, 0x100000001)
+            src/pkg/runtime/proc.c:1011 +0xba
+    wakep()
+            src/pkg/runtime/proc.c:1071 +0x57
+    resetspinning()
+            src/pkg/runtime/proc.c:1297 +0xa1
+    schedule()
+            src/pkg/runtime/proc.c:1366 +0x14b
+    runtime.gosched0(0xc20808e240)
+            src/pkg/runtime/proc.c:1465 +0x5b
+    runtime.newstack()
+            src/pkg/runtime/stack.c:891 +0x44d
+    runtime: unexpected return pc for runtime.newstackcall called from 0xc208011b00
+    runtime.newstackcall(0x4000cbd, 0x4000b80)
+            src/pkg/runtime/asm_amd64.s:278 +0x6f
+    
+    I suspect that it can happen on any stack split.
+    So don't unwind g0 stack.
+    Also, that comment is lying -- we can traceback w/o mcache,
+    CPU profiler does that.
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/120040043
+
+ src/pkg/runtime/proc.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

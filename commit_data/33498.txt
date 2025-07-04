@@ -1,0 +1,18 @@
+commit 3e97c42f77288b06a125cecd199aee4c6a23bc10
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Sat Jul 1 19:12:59 2017 +0300
+
+    text/template: remove unnecessary lexer field
+    
+    this change removes the state field from the lexer,
+    because it's only used by the run method and can be
+    replaced with a local variable
+    
+    Change-Id: Ib7a90ab6e9a894716cba2c7d9ed71bf2ad1240c0
+    Reviewed-on: https://go-review.googlesource.com/47338
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/text/template/parse/lex.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

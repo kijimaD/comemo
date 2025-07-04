@@ -1,0 +1,23 @@
+commit a131fd1313e0056ad094d234c67648409d081b8c
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu May 5 11:29:14 2022 -0500
+
+    crypto/aes: enable asm block ciphers for ppc64
+    
+    This does not enable GCM or CBC variants for ppc64, they
+    require more work to support bi-endian.
+    
+    Updates #18499
+    
+    Change-Id: Ic2bbe81c60107abc0a4803d8b9a833213286b1d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404395
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+
+ src/crypto/aes/{asm_ppc64le.s => asm_ppc64x.s} | 27 ++++++++++++++++++++++++++
+ src/crypto/aes/cipher_asm.go                   |  4 ++--
+ src/crypto/aes/cipher_generic.go               |  2 +-
+ 3 files changed, 30 insertions(+), 3 deletions(-)

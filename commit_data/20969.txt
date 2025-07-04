@@ -1,0 +1,28 @@
+commit eb91b5f2240f4444edb8975796e1d5695d054d73
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 10 11:01:55 2014 +1100
+
+    [release-branch.go1.4] doc: scrub references to code.google.com
+    
+    These are the references that affect current Go users.
+    I left intact references in older release notes;
+    we can figure out what to do with them later.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/186140043
+    
+    Conflicts:
+            doc/go1.4.html
+    
+    Change-Id: I1032686f2b3ac6dacaf8f114b8c35cdf221330ca
+
+ doc/code.html          |  4 ++--
+ doc/contrib.html       | 12 ++++++------
+ doc/devel/release.html |  3 +--
+ doc/devel/weekly.html  |  2 +-
+ doc/go1.3.html         |  4 ++--
+ doc/go_faq.html        |  2 +-
+ doc/help.html          |  2 +-
+ 7 files changed, 14 insertions(+), 15 deletions(-)

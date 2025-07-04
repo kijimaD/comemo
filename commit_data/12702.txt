@@ -1,0 +1,12 @@
+commit c5b45aa9913dbad6596a3fcaa001be0cca23c9e0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 20 14:17:06 2012 -0700
+
+    cmd/go: use .o, not .{5,6,8}, for gccgo created object files
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5861044
+
+ src/cmd/go/build.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

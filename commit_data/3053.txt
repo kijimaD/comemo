@@ -1,0 +1,14 @@
+commit e1c5d179d6e84f6b5e218e216a583c6845cb6b53
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 21 17:54:07 2009 -0700
+
+    fix crash in bug194; add bug196
+    
+    R=ken
+    OCL=33694
+    CL=33697
+
+ src/cmd/gc/const.c  |  4 ++--
+ test/bugs/bug196.go | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  7 ++++++-
+ 3 files changed, 57 insertions(+), 3 deletions(-)

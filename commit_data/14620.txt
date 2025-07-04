@@ -1,0 +1,28 @@
+commit 11d96dd7f51cf52f6cfea14e4123c21e75a3ff74
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Dec 12 21:38:52 2012 +1100
+
+    go/build: give better explanation for "cannot find package"
+    
+    Fixes #4079.
+    
+    Some example output:
+    
+    % go install foo/bar
+    can't load package: package foo/bar: cannot find package "foo/bar" in any of:
+            /home/dfc/go/src/pkg/foo/bar (from $GOROOT)
+            /home/dfc/src/foo/bar (from $GOPATH)
+            /home/dfc/src2/src/foo/bar
+    
+    % GOPATH= go install foo/bar
+    can't load package: package foo/bar: cannot find package "foo/bar" in any of:
+            /home/dfc/go/src/pkg/foo/bar (from $GOROOT)
+            ($GOPATH not set)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6899057
+
+ src/cmd/go/test.bash      | 31 +++++++++++++++++++++++++++++++
+ src/pkg/go/build/build.go | 30 +++++++++++++++++++++++++++++-
+ 2 files changed, 60 insertions(+), 1 deletion(-)

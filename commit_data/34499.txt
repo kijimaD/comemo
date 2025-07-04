@@ -1,0 +1,43 @@
+commit 20b14b71df6aaf044d3e78920a5f56bc20dd2a49
+Author: jimmyfrasche <soapboxcicero@gmail.com>
+Date:   Sat Feb 24 15:03:58 2018 -0800
+
+    go/build: correct value of .Doc field
+    
+    Build could use the package comment from test files to populate the .Doc
+    field on *Package.
+    
+    As go list uses this data and several packages in the standard library
+    have tests with package comments, this lead to:
+    
+    $ go list -f '{{.Doc}}' flag container/heap image
+    These examples demonstrate more intricate uses of the flag package.
+    This example demonstrates an integer heap built using the heap interface.
+    This example demonstrates decoding a JPEG image and examining its pixels.
+    
+    This change now only examines non-test files when attempting to populate
+    .Doc, resulting in the expected behavior:
+    
+    $ gotip list -f '{{.Doc}}' flag container/heap image
+    Package flag implements command-line flag parsing.
+    Package heap provides heap operations for any type that implements heap.Interface.
+    Package image implements a basic 2-D image library.
+    
+    Fixes #23594
+    
+    Change-Id: I37171c26ec5cc573efd273556a05223c6f675968
+    Reviewed-on: https://go-review.googlesource.com/96976
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/build.go               |  3 ++-
+ src/go/build/build_test.go          | 16 ++++++++++++++++
+ src/go/build/testdata/doc/a_test.go |  2 ++
+ src/go/build/testdata/doc/b_test.go |  1 +
+ src/go/build/testdata/doc/c_test.go |  1 +
+ src/go/build/testdata/doc/d_test.go |  2 ++
+ src/go/build/testdata/doc/e.go      |  1 +
+ src/go/build/testdata/doc/f.go      |  2 ++
+ 8 files changed, 27 insertions(+), 1 deletion(-)

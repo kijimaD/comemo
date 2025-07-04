@@ -1,0 +1,14 @@
+commit c8b2b725e098bdc85130f2e00ea43c74a4c4346d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Apr 8 18:56:38 2013 -0700
+
+    runtime: fix integer overflow in hashmap
+    The test is problematic, because it requires 8GB+ of RAM.
+    Fixes #5239.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8550043
+
+ src/pkg/runtime/hashmap.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

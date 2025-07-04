@@ -1,0 +1,13 @@
+commit 78879b3b8b26dd7cda74b1ee76901e47ee63cc70
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Mar 9 16:32:02 2011 +1100
+
+    compress/lzw: benchmark a range of input sizes.
+    
+    R=rsc, nigeltao_gnome
+    CC=golang-dev
+    https://golang.org/cl/4240096
+
+ src/pkg/compress/lzw/reader_test.go | 23 +++++++++++++++++++++--
+ src/pkg/compress/lzw/writer_test.go | 27 ++++++++++++++++++++++++---
+ 2 files changed, 45 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit b4237b599708b7f8d7d967806e577692db30a4f1
+Author: Philip K. Warren <pkwarren@gmail.com>
+Date:   Tue Mar 12 01:50:10 2013 -0400
+
+    encoding/base32, encoding/base64: fix issues with decoder whitespace handling
+    
+    Adds a new reader to filter newlines, which fixes errors seen in the
+    decoder chunking code. Found additional issues with whitespace handling
+    after the first padding character.
+    Fixes #4779.
+    
+    R=minux.ma, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7311069
+
+ src/pkg/encoding/base32/base32.go      | 45 ++++++++++++++++++++----
+ src/pkg/encoding/base32/base32_test.go | 63 ++++++++++++++++++++++++++++------
+ src/pkg/encoding/base64/base64.go      | 45 ++++++++++++++++++++----
+ src/pkg/encoding/base64/base64_test.go | 40 +++++++++++++++++++++
+ 4 files changed, 171 insertions(+), 22 deletions(-)

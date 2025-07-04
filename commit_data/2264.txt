@@ -1,0 +1,15 @@
+commit b89a54e5c68df4d4d9b39512accd3a69b082cbba
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 20 18:16:04 2009 -0700
+
+    new, stricter interface rule:
+    in x.(T) x cannot be a nil (uninitialized) interface variable.
+    
+    remove TODO per discussion.
+    
+    DELTA=3  (1 added, 1 deleted, 1 changed)
+    OCL=29123
+    CL=29134
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

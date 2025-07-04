@@ -1,0 +1,18 @@
+commit c9911b9a842f4399f59957da5622bc535dc2c688
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Aug 26 13:48:38 2023 +0100
+
+    log/slog: package doc fixes
+    
+    Fixes #62286
+    
+    Change-Id: If463436e3b5ba6e4eb850097395e00482d0dc671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523196
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Sean Liao <sean@liao.dev>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/log/slog/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

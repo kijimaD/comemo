@@ -1,0 +1,12 @@
+commit 3096b85d37c3b71fb89e42a830b90e48d12e89b4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 22 10:13:33 2018 -0700
+
+    cmd/cgo: fix comment grammar
+    
+    Change-Id: I9c881943685177ce14841da53ccaed301c4955dd
+    Reviewed-on: https://go-review.googlesource.com/c/149859
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/cgo/gcc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

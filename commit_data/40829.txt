@@ -1,0 +1,25 @@
+commit 4e39dd2ec331054a4bb8ae6056238fb806c4946f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 11:32:51 2019 -0500
+
+    cmd/go: convert TestInstallIntoGOPATH to a script test
+    
+    Also convert associated tests of GOPATH and 'go install' so that we
+    can remove the corresponding source file from testdata/src.
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: Id8c2fde4dc88954b29aefe71c9fa7e974a2ca932
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207605
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                             | 102 ----------------------
+ src/cmd/go/script_test.go                         |  29 +++---
+ src/cmd/go/testdata/script/README                 |   6 +-
+ src/cmd/go/testdata/script/gopath_install.txt     |  42 +++++++++
+ src/cmd/go/testdata/script/gopath_paths.txt       |  43 +++++++++
+ src/cmd/go/testdata/src/go-cmd-test/helloworld.go |   5 --
+ 6 files changed, 106 insertions(+), 121 deletions(-)

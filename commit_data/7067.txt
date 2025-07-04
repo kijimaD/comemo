@@ -1,0 +1,14 @@
+commit 2b0a27612923b87309fc49ffde767ba99a9ba892
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Sun Jan 9 12:11:16 2011 -0500
+
+    bytes: fix TrimSpace typo
+    
+    Fixes #1401.
+    
+    R=golang-dev, agl1
+    CC=golang-dev
+    https://golang.org/cl/3937041
+
+ src/pkg/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 5e75337c4e6c67090c0e516408077a284861323b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 25 08:54:36 2012 -0700
+
+    net/http: speed up Header.WriteSubset
+    
+    A few performance improvements, but without the stack sorting
+    change to avoid allocating, which is instead waiting on better
+    escape analysis.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6265047
+
+ src/pkg/net/http/header.go         | 54 ++++++++++++++++++++++++++++++--------
+ src/pkg/net/http/header_test.go    | 42 ++++++++++++++++++++++++++++-
+ src/pkg/net/textproto/textproto.go | 26 ++++++++++++++++++
+ 3 files changed, 110 insertions(+), 12 deletions(-)

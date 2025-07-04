@@ -1,0 +1,21 @@
+commit cf68fac7e76acc79fc55f7db5f6e7064a26afbbe
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Fri Mar 20 12:22:49 2015 +0100
+
+    mime/quotedprintable: accept badly encoded bytes
+    
+    RFC 2045 says:
+        An "=" followed by two hexadecimal digits, one or both
+        of which are lowercase letters in "abcdef", is formally
+        illegal. A robust implementation might choose to
+        recognize them as the corresponding uppercase letters.
+    
+        https://tools.ietf.org/html/rfc2045#page-22
+    
+    Change-Id: Ibb4b1e4b8bf4fa65ff895ba486a931d90308bf70
+    Reviewed-on: https://go-review.googlesource.com/7891
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/quotedprintable/reader.go      | 3 +++
+ src/mime/quotedprintable/reader_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

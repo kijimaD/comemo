@@ -1,0 +1,25 @@
+commit 50effb654cf3bf7fdfb49898e765db444dfd619a
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Tue May 31 11:40:11 2011 -0400
+
+    net: name-based destination address selection
+    
+    getaddrinfo() orders the addresses according to RFC 3484.
+    
+    This means when IPv6 is working on a host we get results like:
+        []string = {"2001:4810::110", "66.117.47.214"}
+    
+    and when it's not working we get:
+        []string = {"66.117.47.214", "2001:4810::110"}
+    
+    thus can drop firstFavoriteAddr.
+    
+    This also means /etc/gai.conf works on relevant systems.
+    
+    R=rsc, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/4557058
+
+ src/pkg/net/iprawsock.go |  2 +-
+ src/pkg/net/ipsock.go    | 19 +------------------
+ 2 files changed, 2 insertions(+), 19 deletions(-)

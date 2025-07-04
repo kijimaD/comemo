@@ -1,0 +1,14 @@
+commit 1bddfb52031fd6bbe602e0d586758eac9ffd592a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Feb 23 15:43:14 2012 -0500
+
+    runtime: check for ARM syscall failures
+        While we are at it, also update some comments.
+        Tested on Linux/ARM builder.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5696047
+
+ src/pkg/runtime/sys_linux_arm.s | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

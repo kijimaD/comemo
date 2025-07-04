@@ -1,0 +1,17 @@
+commit 9b1068ad2f6b1520ac1a0ad199d0161cdd0e98af
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 20 22:52:11 2015 +0000
+
+    net/http/httputil: make DumpRequest use Request.RequestURI when available
+    
+    Fixes #10912
+    
+    Change-Id: If04e3205d5cc43ebfd6864bc59340c8697cbc0af
+    Reviewed-on: https://go-review.googlesource.com/17592
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httputil/dump.go      | 28 +++++++++++++++++++++-------
+ src/net/http/httputil/dump_test.go | 17 +++++++++++++++++
+ 2 files changed, 38 insertions(+), 7 deletions(-)

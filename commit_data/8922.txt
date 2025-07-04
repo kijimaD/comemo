@@ -1,0 +1,12 @@
+commit 21efa147ba2b72c24dcd4edd6c73813a23ce8b42
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Fri Jul 1 10:11:33 2011 -0400
+
+    cmd/goinstall: try to access via https.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4667051
+
+ src/cmd/goinstall/download.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

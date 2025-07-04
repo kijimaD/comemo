@@ -1,0 +1,20 @@
+commit 8a20fde697c973962d978c1284fddf81a694141a
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Mar 27 17:52:25 2019 +0100
+
+    unicode: remove script test
+    
+    The script test requires a manual update on each new
+    Unicode release, which interupts the automated flow.
+    The test is removed in favor of one that fits within the
+    automated scripts.
+    See https://go-review.googlesource.com/c/text/+/169638.
+    
+    Updates golang/go#27945
+    
+    Change-Id: I9c9f1e2a77f7baef17040ea09eec28d7cf55b5e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169619
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/unicode/script_test.go | 180 ---------------------------------------------
+ 1 file changed, 180 deletions(-)

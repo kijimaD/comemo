@@ -1,0 +1,13 @@
+commit a55a6cb925639c9379b3cf53427d5205050a3b5b
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon Mar 5 14:58:35 2012 -0500
+
+    misc/emacs: fix extra indentation after comments that end with a period
+    in emacs go mode.  Thanks Alex Shinn for the patch.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5728063
+
+ misc/emacs/go-mode.el | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

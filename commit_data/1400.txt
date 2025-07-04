@@ -1,0 +1,14 @@
+commit 3f69acfb0c638f2f96cb21c2b5f8374e5cb6040d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 30 15:03:46 2008 -0800
+
+    Test for a go statement which calls a method on an interface.
+    
+    R=ken
+    DELTA=20  (20 added, 0 deleted, 0 changed)
+    OCL=21889
+    CL=21929
+
+ test/bugs/bug130.go | 20 ++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 24 insertions(+)

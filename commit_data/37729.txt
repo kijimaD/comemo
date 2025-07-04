@@ -1,0 +1,22 @@
+commit 213845f7b932c72c5e49445224166d0ae14dfac9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Dec 11 18:26:42 2018 +0000
+
+    runtime: fix sysUsed for Windows
+    
+    sysUsed on Windows cares about the result from the VirtualAlloc syscall
+    returning exactly the address that was passed to it. However,
+    VirtualAlloc aligns the address its given to the kernel's allocation
+    granularity, so the returned address may not be the same.
+    
+    Note that this wasn't an issue in the past because we only sysUsed
+    regions owned by spans, and spans are always a multiple of 8K, which
+    is a multiple of the allocation granularity on most Windows machines.
+    
+    Change-Id: I3f5ccd63c6bbbd8b7995945ecedee17573b31667
+    Reviewed-on: https://go-review.googlesource.com/c/153677
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mem_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 20548b153f05528c0c58347a817fb3a3eee6cd0c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 2 16:17:34 2012 -0700
+
+    sort: make return value for 'not found' clearer in docs
+    It was well-defined but easy to miss that the return value for
+    "not found" is len(input) not -1 as many expect.
+    
+    Fixes #4205.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6820080
+
+ src/pkg/sort/search.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

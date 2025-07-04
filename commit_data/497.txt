@@ -1,0 +1,16 @@
+commit fa7d54ff2e5a3947bfcfa6b7d7a2a0f89daf3db6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 7 17:36:50 2008 -0700
+
+    include syscall in default build
+    fix an issue with autolib names by compiling to target location
+    print a bit more when compiling
+    
+    R=gri
+    OCL=13988
+    CL=13988
+
+ src/clean.bash    | 2 +-
+ src/lib/make.bash | 7 +++++--
+ src/make.bash     | 9 +++++++++
+ 3 files changed, 15 insertions(+), 3 deletions(-)

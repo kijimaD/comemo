@@ -1,0 +1,36 @@
+commit 837c204ada1d0a4cfdcce6b34e17bc8f69732f83
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 15 13:01:03 2010 -0400
+
+    6l, 8l: avoid recursion in asmandsz
+    
+    The old code said
+    
+            if(x) {
+                    handle a
+                    return
+            }
+            aa = *a
+            rewrite aa to make x true
+            recursivecall(&aa)
+    
+    The new code says
+    
+            params = copy out of a
+            if(!x) {
+                    rewrite params to make x true
+            }
+            handle params
+    
+    but it's hard to see that in the Rietveld diffs because
+    it gets confused by changes in indentation.
+    
+    Avoiding the recursion makes other changes easier.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2533041
+
+ src/cmd/6l/span.c | 193 ++++++++++++++++++++++++++----------------------------
+ src/cmd/8l/span.c | 178 ++++++++++++++++++++++++-------------------------
+ 2 files changed, 181 insertions(+), 190 deletions(-)

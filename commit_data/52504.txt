@@ -1,0 +1,19 @@
+commit ad87a124be4879f40a01f622dd03b40d3e6dd559
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Apr 3 15:17:40 2023 -0400
+
+    runtime/cgo: use pthread_attr_get_np on Illumos
+    
+    While Solaris supports pthread_getattr_np, Illumos doesn't...
+    Instead, Illumos supports pthread_attr_get_np.
+    
+    Updates #59294.
+    
+    Change-Id: I2c66dad79b8bf3d510352875bf21d04415f23eeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481795
+    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/cgo/gcc_stack_unix.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

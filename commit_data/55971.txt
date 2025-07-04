@@ -1,0 +1,19 @@
+commit dda4b17ee4866a32a7d0b522f9a366cb6d687ce1
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 18 15:38:20 2024 +0100
+
+    runtime: remove nosplit directives from several Windows syscall helpers
+    
+    Some of the Windows syscall helpers don't need to be nosplit. Removing
+    this directive will allow to add instrumentation to these functions
+    without having to worry about the stack size.
+    
+    Change-Id: I3885621f23733af48563803c704563474010b8d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572415
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/os_windows.go      | 15 ---------------
+ src/runtime/syscall_windows.go | 12 +++---------
+ 2 files changed, 3 insertions(+), 24 deletions(-)

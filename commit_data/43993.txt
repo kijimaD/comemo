@@ -1,0 +1,18 @@
+commit e508c1c67b02dceea146ce3472c0f8ce9e60632c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Dec 8 04:23:36 2020 +1100
+
+    cmd/link/internal/loadelf: support additional ELF relocations on mips64
+    
+    LLVM on openbsd/mips64 generates R_MIPS_GOT_HI16 and R_MIPS_GOT_LO16 relocations,
+    so teach cmd/link/internal/loadelf about both of these.
+    
+    Updates #43005
+    
+    Change-Id: Ic45ea8b901d44dcbdbf355411ee434dcd7670a92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275894
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,15 @@
+commit c5a29a6dd44b264a059f9c0639b53b9febbc35e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 24 15:50:28 2008 -0700
+
+    - more ast buidling and printing
+    - almost complete language reproduced
+    
+    R=r
+    OCL=15801
+    CL=15801
+
+ usr/gri/pretty/ast.go     | 172 +++++++++++++++++++----
+ usr/gri/pretty/parser.go  | 351 +++++++++++++++++++++++++++-------------------
+ usr/gri/pretty/printer.go | 181 ++++++++++++++++++++++--
+ 3 files changed, 517 insertions(+), 187 deletions(-)

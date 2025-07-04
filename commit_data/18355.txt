@@ -1,0 +1,46 @@
+commit a18f4ab56942f996607c08be56060a892b65822d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 27 11:05:01 2014 -0800
+
+    all: use {bytes,strings}.NewReader instead of bytes.Buffers
+    
+    Use the smaller read-only bytes.NewReader/strings.NewReader instead
+    of a bytes.Buffer when possible.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/54660045
+
+ src/pkg/archive/tar/reader_test.go       |  4 ++--
+ src/pkg/bufio/bufio_test.go              | 18 +++++++++---------
+ src/pkg/bufio/scan_test.go               | 12 ++++++------
+ src/pkg/compress/bzip2/bzip2_test.go     | 10 +++++-----
+ src/pkg/compress/flate/flate_test.go     |  2 +-
+ src/pkg/compress/gzip/gunzip_test.go     |  2 +-
+ src/pkg/compress/gzip/gzip_test.go       |  2 +-
+ src/pkg/compress/lzw/reader_test.go      |  4 ++--
+ src/pkg/compress/zlib/example_test.go    |  2 +-
+ src/pkg/compress/zlib/reader_test.go     |  2 +-
+ src/pkg/crypto/rsa/rsa_test.go           |  2 +-
+ src/pkg/debug/elf/file.go                |  6 +++---
+ src/pkg/debug/macho/file.go              | 14 +++++++-------
+ src/pkg/encoding/ascii85/ascii85_test.go |  5 +++--
+ src/pkg/encoding/base32/base32_test.go   |  8 ++++----
+ src/pkg/encoding/base64/base64_test.go   |  8 ++++----
+ src/pkg/encoding/binary/binary_test.go   |  4 ++--
+ src/pkg/encoding/binary/varint_test.go   |  8 ++++----
+ src/pkg/encoding/gob/encoder_test.go     |  2 +-
+ src/pkg/encoding/json/encode_test.go     |  2 +-
+ src/pkg/encoding/xml/read.go             |  2 +-
+ src/pkg/mime/multipart/formdata_test.go  |  3 ++-
+ src/pkg/net/http/httputil/dump.go        |  2 +-
+ src/pkg/net/http/httputil/dump_test.go   |  2 +-
+ src/pkg/net/http/request_test.go         |  4 ++--
+ src/pkg/net/http/requestwrite_test.go    |  2 +-
+ src/pkg/net/http/responsewrite_test.go   |  5 +++--
+ src/pkg/net/http/serve_test.go           |  2 +-
+ src/pkg/net/http/transfer.go             |  2 +-
+ src/pkg/runtime/race/race_test.go        |  2 +-
+ src/pkg/text/scanner/scanner_test.go     | 14 +++++++-------
+ 31 files changed, 80 insertions(+), 77 deletions(-)

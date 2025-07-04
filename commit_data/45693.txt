@@ -1,0 +1,15 @@
+commit d050238bb653711b47335583c5425c9efec30e4e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 25 10:33:02 2021 +0200
+
+    doc/go1.17: fix formatting for time changes
+    
+    Also add a link to the time.Time type and adjust the wording a bit.
+    
+    Change-Id: I2f4210ada6d253eb5804e6327b2432487beb8a05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321811
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.17.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit c7d30bceb205a70cba27d49417ae275d90ff8070
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 12 16:09:47 2009 -0700
+
+    describe each interface test
+    
+    R=r
+    DELTA=20  (20 added, 0 deleted, 0 changed)
+    OCL=28707
+    CL=28716
+
+ test/interface1.go  | 2 ++
+ test/interface10.go | 2 ++
+ test/interface2.go  | 2 ++
+ test/interface3.go  | 2 ++
+ test/interface5.go  | 2 ++
+ test/interface6.go  | 2 ++
+ test/interface7.go  | 3 +++
+ test/interface8.go  | 3 +++
+ test/interface9.go  | 2 ++
+ 9 files changed, 20 insertions(+)

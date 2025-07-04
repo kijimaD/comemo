@@ -1,0 +1,22 @@
+commit 15a374d5c1336e9cc2f8b615477d5917e9477440
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 18 18:25:44 2021 -0400
+
+    test: check portable error message on issue46234.go
+    
+    issue46234.go expects an error output "segmentation violation",
+    which is UNIX-specific. Check for "nil pointer dereference"
+    instead, which is emitted by the Go runtime and should work on all
+    platforms.
+    
+    Should fix Windows builders.
+    
+    Change-Id: I3f5a66a687d43cae5eaf6a9e942b877e5a248900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321072
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/issue46234.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 2dfdd85c4f3a5ca1b127644e8c7c6b2ba5a89bca
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jan 20 19:42:11 2020 -0800
+
+    cmd/compile: document non-commutative rule detection
+    
+    This documentation was lost in CL 213703.
+    This change restores it.
+    
+    Change-Id: I544f15771d8a7390893efbda93478b46095ccf3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215541
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

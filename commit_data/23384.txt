@@ -1,0 +1,16 @@
+commit 8e723109de27ad6ad64655f336456786e8f5d899
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Jun 17 10:22:03 2015 +1000
+
+    cmd/go: vary executable names in tests
+    
+    So the tests don't interfere with each other on windows.
+    
+    Fixes #11217
+    
+    Change-Id: I4b3936bc64c95c7274298d6f137b24a28876b625
+    Reviewed-on: https://go-review.googlesource.com/11138
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)

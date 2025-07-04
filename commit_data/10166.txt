@@ -1,0 +1,12 @@
+commit 44262d157425c396f913b88c81b27f13dd30cff7
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Tue Nov 1 15:13:33 2011 +0900
+
+    doc: fix typo in spec example code comment
+    
+    R=r, golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5308071
+
+ doc/go_spec.html | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

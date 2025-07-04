@@ -1,0 +1,15 @@
+commit a93f70c21ab47d0b014b190a0f779f4060565dca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 16 14:32:35 2011 -0700
+
+    http: add NewProxyClientConn
+    
+    This just returns a ClientConn suitable for writing
+    proxy requests.  To be used in Transport.
+    
+    R=rsc, petar-m
+    CC=golang-dev
+    https://golang.org/cl/4290052
+
+ src/pkg/http/persist.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)

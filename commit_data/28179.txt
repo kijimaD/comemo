@@ -1,0 +1,22 @@
+commit 3df926d52addd638e23e5b29e692bb670e484966
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 2 12:14:38 2016 -0400
+
+    runtime: improve message when a bad pointer is found on the stack
+    
+    Currently this message says "invalid stack pointer", which could be
+    interpreted as the value of SP being invalid. Change it to "invalid
+    pointer found on stack" to emphasize that it's a pointer on the stack
+    that's invalid.
+    
+    Updates #16948.
+    
+    Change-Id: I753624f8cc7e08cf13d3ea5d9c790cc4af9fa372
+    Reviewed-on: https://go-review.googlesource.com/28430
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/stack.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

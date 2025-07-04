@@ -1,0 +1,18 @@
+commit fc3bec386e85b18152b9893ab6379a33a1706380
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon May 20 23:45:22 2013 +0200
+
+    cmd/gc: clear n->list of OFOR range loop after walk.
+    
+    It contains the LHS of the range clause and gets
+    instrumented by racewalk, but it doesn't have any meaning.
+    
+    Fixes #5446.
+    
+    R=golang-dev, dvyukov, daniel.morsing, r
+    CC=golang-dev
+    https://golang.org/cl/9560044
+
+ src/cmd/gc/range.c                        |  3 +++
+ src/pkg/runtime/race/testdata/mop_test.go | 13 +++++++++++++
+ 2 files changed, 16 insertions(+)

@@ -1,0 +1,22 @@
+commit 09b71d563a53766ef2ab34beac6ddaea48c56783
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Mon Feb 6 15:33:43 2017 -0200
+
+    cmd/internal/obj/ppc64, cmd/link/internal/ppc64: Change function alignment to 16
+    
+    The Power processor manual states that "Branches not from the last instruction
+    of an aligned quadword and not to the first instruction of an aligned quadword
+    cause inefficiencies in the IBuffer". This changes the function alignment from 8
+    to 16 bytes to comply with that.
+    
+    Fixes #18963
+    
+    Change-Id: Ibce9bf8302110a86c6ab05948569af9ffdfcf4bb
+    Reviewed-on: https://go-review.googlesource.com/36390
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 2 +-
+ src/cmd/link/internal/ppc64/l.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 0ba4eba8645258f5f2a572ded7c673d2c24c881e
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Mon Oct 30 22:44:14 2017 -0700
+
+    cmd/compile: test for omitted ICE diagnostics after normal messages
+    
+    Updates #22389
+    
+    @mdempsky's CL 70850 fixed the unnecessary
+    compile stack trace printing during ICE diagnostics.
+    
+    This CL adds a test to lock in this behavior.
+    
+    Change-Id: I9ce49923c80b78cb8c0bb5dc4af3c860a43d63ba
+    Reviewed-on: https://go-review.googlesource.com/74630
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue22389.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

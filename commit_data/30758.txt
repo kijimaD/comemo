@@ -1,0 +1,19 @@
+commit 5c5a10690e56bf127832b98d73c83720e0093eef
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 20 20:18:02 2017 -0700
+
+    text/template,html/template: state that Funcs must happen before parsing
+    
+    Any method that affects the parse must happen before parsing.
+    This obvious point is clear, but it's not clear to some that the
+    set of defined functions affect the parse.
+    
+    Fixes #18971
+    
+    Change-Id: I8b7f8c8cf85b028c18e5ca3b9797de92ea910669
+    Reviewed-on: https://go-review.googlesource.com/38413
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/html/template/template.go | 1 +
+ src/text/template/template.go | 1 +
+ 2 files changed, 2 insertions(+)

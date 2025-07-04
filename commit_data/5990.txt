@@ -1,0 +1,20 @@
+commit 7d3173fc1d4becc1cce4dfbaed1a23fc32dcb928
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Aug 10 22:05:11 2010 +1000
+
+    exp/draw: remove the Color, Point and Rectangle types.
+    image: introduce Transparent and Opaque.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1947042
+
+ src/pkg/exp/4s/data.go    |   2 +-
+ src/pkg/exp/4s/xs.go      | 142 +++++++++++++++++++++---------------------
+ src/pkg/exp/draw/Makefile |   2 -
+ src/pkg/exp/draw/arith.go | 155 ----------------------------------------------
+ src/pkg/exp/draw/color.go | 103 ------------------------------
+ src/pkg/exp/draw/draw.go  |  36 +++++------
+ src/pkg/exp/draw/event.go |  10 ++-
+ src/pkg/image/names.go    |   8 ++-
+ 8 files changed, 104 insertions(+), 354 deletions(-)

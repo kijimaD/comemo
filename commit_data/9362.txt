@@ -1,0 +1,16 @@
+commit a2bb0159d6442ce03f5a1f2bbc636a2f526e004a
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Aug 15 14:14:15 2011 -0300
+
+    reflect: panic on Invalid Interface call
+    
+    This was initially pushed as part of CL 4876046, found
+    when logic in exp/template was using the method on
+    an Invalid value.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4890043
+
+ src/pkg/reflect/value.go | 3 +++
+ 1 file changed, 3 insertions(+)

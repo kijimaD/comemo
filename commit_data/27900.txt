@@ -1,0 +1,29 @@
+commit dea6dab40c589b486ee6643db3e1204c3379aaee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 18 15:50:30 2016 +0000
+
+    cmd/yacc: remove go tool yacc
+    
+    It is no longer used by Go.
+    
+    It's now moved to golang.org/x/tools/cmd/goyacc for anybody who needs it.
+    
+    Fixes #11229
+    
+    Change-Id: Ia431d5a380c7ff784a2050dee2f5bc8acee015da
+    Reviewed-on: https://go-review.googlesource.com/27325
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/articles/go_command.html       |    3 +-
+ doc/go_faq.html                    |    3 +-
+ src/cmd/go/alldocs.go              |    8 +-
+ src/cmd/go/generate.go             |    8 +-
+ src/cmd/go/pkg.go                  |   35 +-
+ src/cmd/yacc/doc.go                |   69 -
+ src/cmd/yacc/testdata/expr/README  |   20 -
+ src/cmd/yacc/testdata/expr/expr.y  |  202 --
+ src/cmd/yacc/testdata/expr/main.go |   15 -
+ src/cmd/yacc/yacc.go               | 3641 ------------------------------------
+ 10 files changed, 27 insertions(+), 3977 deletions(-)

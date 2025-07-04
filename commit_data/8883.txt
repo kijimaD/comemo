@@ -1,0 +1,18 @@
+commit a026d0fc767dd701d681635dfd99da6eb40396c7
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue Jun 28 12:04:50 2011 -0400
+
+    runtime/cgo: check for errors from pthread_create
+    
+    R=rsc, iant, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/4643057
+
+ src/libmach/darwin.c                | 13 +++++++++++--
+ src/pkg/runtime/cgo/darwin_386.c    |  7 ++++++-
+ src/pkg/runtime/cgo/darwin_amd64.c  |  7 ++++++-
+ src/pkg/runtime/cgo/freebsd_386.c   |  7 ++++++-
+ src/pkg/runtime/cgo/freebsd_amd64.c |  7 ++++++-
+ src/pkg/runtime/cgo/linux_386.c     |  7 ++++++-
+ src/pkg/runtime/cgo/linux_amd64.c   |  7 ++++++-
+ 7 files changed, 47 insertions(+), 8 deletions(-)

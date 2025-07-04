@@ -1,0 +1,14 @@
+commit bb3be403e79731b208c41bd170a6a87642d988da
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 15 06:19:49 2016 +0900
+
+    net: clarify the length limit for service name
+    
+    Change-Id: If5495f66d175bdacebd599abf1e064d2343669c2
+    Reviewed-on: https://go-review.googlesource.com/34430
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

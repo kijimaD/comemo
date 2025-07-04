@@ -1,0 +1,21 @@
+commit 0e16d67a560f22ac1fcbc1fa12d25add8bf649d6
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Tue Jun 21 18:50:35 2022 +0200
+
+    net/http: FileServer method check + minimal OPTIONS implementation
+    
+    FileServer provides a read-only service. Methods other than GET or HEAD should
+    be denied with an Allow header.
+    
+    Fixes #53501
+    
+    Change-Id: I1d31b405eefd90565ecd474ac3f8d8d6e3b15072
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413554
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/net/http/fs.go      | 20 +++++++++++++++-----
+ src/net/http/fs_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 5 deletions(-)

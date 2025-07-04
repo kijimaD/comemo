@@ -1,0 +1,56 @@
+commit cd17a717f9f49cffb40fbdef59d1dfac1f9e0cfd
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 29 11:01:02 2014 +0400
+
+    runtime: simpler and faster GC
+    
+    Implement the design described in:
+    https://docs.google.com/document/d/1v4Oqa0WwHunqlb8C3ObL_uNQw3DfSY-ztoA-4wWbKcg/pub
+    
+    Summary of the changes:
+    GC uses "2-bits per word" pointer type info embed directly into bitmap.
+    Scanning of stacks/data/heap is unified.
+    The old spans types go away.
+    Compiler generates "sparse" 4-bits type info for GC (directly for GC bitmap).
+    Linker generates "dense" 2-bits type info for data/bss (the same as stacks use).
+    
+    Summary of results:
+    -1680 lines of code total (-1000+ in mgc0.c only)
+    -25% memory consumption
+    -3-7% binary size
+    -15% GC pause reduction
+    -7% run time reduction
+    
+    LGTM=khr
+    R=golang-codereviews, rsc, christoph, khr
+    CC=golang-codereviews, rlh
+    https://golang.org/cl/106260045
+
+ src/cmd/gc/go.h                |    2 +-
+ src/cmd/gc/plive.c             |    5 +-
+ src/cmd/gc/reflect.c           |  466 +++++----
+ src/cmd/ld/data.c              |  196 +++-
+ src/cmd/ld/decodesym.c         |   28 +-
+ src/cmd/ld/lib.h               |    5 +-
+ src/pkg/reflect/type.go        |  391 +++-----
+ src/pkg/runtime/chan.goc       |    2 +-
+ src/pkg/runtime/export_test.go |    3 +
+ src/pkg/runtime/gc_test.go     |   24 +
+ src/pkg/runtime/gcinfo_test.go |  147 +++
+ src/pkg/runtime/heapdump.c     |  252 ++---
+ src/pkg/runtime/malloc.goc     |  155 +--
+ src/pkg/runtime/malloc.h       |   77 +-
+ src/pkg/runtime/malloc_test.go |   13 +
+ src/pkg/runtime/mgc0.c         | 2040 +++++++++++++---------------------------
+ src/pkg/runtime/mgc0.h         |  116 ++-
+ src/pkg/runtime/mheap.c        |    3 -
+ src/pkg/runtime/mprof.goc      |   24 +-
+ src/pkg/runtime/proc.c         |    1 +
+ src/pkg/runtime/race.c         |    4 +-
+ src/pkg/runtime/runtime.h      |    1 -
+ src/pkg/runtime/slice.goc      |    2 +-
+ src/pkg/runtime/stack.c        |    1 +
+ src/pkg/runtime/type.go        |    2 +-
+ src/pkg/runtime/type.h         |   15 +-
+ src/pkg/runtime/typekind.h     |    2 +
+ 27 files changed, 1598 insertions(+), 2379 deletions(-)

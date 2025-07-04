@@ -1,0 +1,19 @@
+commit f2ad374ae6663bb5cb7473bc868979e20cad70ad
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Feb 21 16:38:01 2012 +1100
+
+    cmd/gc: don't believe that variables mentioned 256 times are unused.
+    
+    Such variables would be put at 0(SP), leading to serious
+    corruptions at zero initialization.
+    Fixes #3084.
+    
+    R=golang-dev, r
+    CC=golang-dev, remy
+    https://golang.org/cl/5683052
+
+ src/cmd/5g/ggen.c        |   4 +-
+ src/cmd/6g/ggen.c        |   4 +-
+ src/cmd/8g/ggen.c        |   4 +-
+ test/fixedbugs/bug423.go | 277 +++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 283 insertions(+), 6 deletions(-)

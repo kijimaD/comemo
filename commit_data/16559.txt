@@ -1,0 +1,12 @@
+commit e59a09fb1aa386aa7e9258cd1bf8a7c7ed03d6fe
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 13 12:52:02 2013 +1000
+
+    tag go1.1.1
+    
+    R=golang-dev, dave, iant
+    CC=golang-dev
+    https://golang.org/cl/10254043
+
+ .hgtags | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

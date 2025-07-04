@@ -1,0 +1,18 @@
+commit 70bcd2c54e8f26ee67372dffa56a86ae9701e843
+Author: Cyrill Schumacher <cyrill@schumacher.fm>
+Date:   Wed Sep 27 20:37:02 2017 +0200
+
+    database/sql: TestConversions add forgotten fields wantbytes and wantraw
+    
+    The fields wantbytes and wantraw in the test struct `conversionTest` has
+    been forgotten to include in the TestConversions function.
+    
+    Change-Id: I6dab69e76de3799a1bbf9fa09a15607e55172114
+    Reviewed-on: https://go-review.googlesource.com/66610
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/convert_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

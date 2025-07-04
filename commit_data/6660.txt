@@ -1,0 +1,13 @@
+commit 7eb5c9a5209f28e0166cefdf9ac5b0c40867aef9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 28 21:23:24 2010 -0700
+
+    ebnf: use append
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2799041
+
+ src/pkg/ebnf/ebnf.go   | 16 ++++++++++------
+ src/pkg/ebnf/parser.go | 34 +++++++++++-----------------------
+ 2 files changed, 21 insertions(+), 29 deletions(-)

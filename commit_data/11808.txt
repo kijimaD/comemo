@@ -1,0 +1,14 @@
+commit d26c607fe647efce17c061ab7f86506dd95eb314
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 12 09:10:47 2012 +1100
+
+    unsafe: Alignof and Offsetof now use the same style
+    
+    The easy part of issue 2968.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5655059
+
+ src/pkg/unsafe/unsafe.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 65d55a13a92a3bbc2a3750fd3318d63bd3e664c9
+Author: David Carlier <devnexen@gmail.com>
+Date:   Sun Jun 17 17:27:13 2018 +0000
+
+    runtime: fix FreeBSDNumCPU test
+    
+    num cpu unit test fixes for FreeBSD.
+    cpuset -g can possibly output more
+    data than expected.
+    
+    Fixes #25924
+    
+    Change-Id: Iec45a919df68648759331da7cd1fa3b9f3ca4241
+    GitHub-Last-Rev: 4cc275b519cda13189ec48b581ab9ce00cacd7f6
+    GitHub-Pull-Request: golang/go#25931
+    Reviewed-on: https://go-review.googlesource.com/119376
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/testdata/testprog/numcpu_freebsd.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

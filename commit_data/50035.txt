@@ -1,0 +1,20 @@
+commit 2e06019dcd82c1c525c805af687063875d4b223b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 18 19:15:51 2022 +0200
+
+    runtime/pprof: check Getrusage return value in addMaxRSS
+    
+    Depending on the implementation of the getrusage syscall/function, the
+    value of rusage.Maxrss may be undefined in case of an error. Thus, only
+    report MaxRSS in case of no error.
+    
+    Change-Id: I7572ccc53c49eb460e53bded3eb41736eed8d2ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424815
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/pprof/pprof_rusage.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

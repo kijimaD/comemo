@@ -1,0 +1,29 @@
+commit b92f4238790c590168e7dae03165d75deb89fe41
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 25 20:56:56 2016 -0400
+
+    runtime: unwind BP in jmpdefer to match SP unwind
+    
+    The irregular calling convention for defers currently incorrectly
+    manages the BP if frame pointers are enabled. Specifically, jmpdefer
+    manipulates the SP as if its own caller, deferreturn, had returned.
+    However, it does not manipulate the BP to match. As a result, when a
+    BP-based traceback happens during a deferred function call, it unwinds
+    to the function that performed the defer and then thinks that function
+    called itself in an infinite regress.
+    
+    Fix this by making jmpdefer manipulate the BP as if deferreturn had
+    actually returned.
+    
+    Fixes #12968.
+    
+    Updates #15840.
+    
+    Change-Id: Ic9cc7c863baeaf977883ed0c25a7e80e592cf066
+    Reviewed-on: https://go-review.googlesource.com/23457
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_amd64.s | 1 +
+ 1 file changed, 1 insertion(+)

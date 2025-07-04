@@ -1,0 +1,17 @@
+commit 25a8a8dab8ae1638b91ec884e6db02c3bc7fe3e6
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Wed May 9 16:16:02 2012 +1000
+
+    cmd/go: fix remote help reference to "go help packages"
+    
+    go help remote used to reference "go help importpath", which has
+    changed to "go help packages".
+    
+    Fixes #3598.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6201065
+
+ src/cmd/go/help.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

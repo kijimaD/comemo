@@ -1,0 +1,16 @@
+commit 0406c63ea38520adf040f3f72ea3d8008dd53480
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 8 16:39:54 2013 -0800
+
+    text/template: revert minor change to Name method
+    For  better printing, I recently changed Name to return "<unnamed>" for templates
+    with empty names, but this causes trouble for the many packages that used "" as
+    the template name, so restore the old behavior.
+    It's usually printed as a quoted string anyway, so it should be fine.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7577044
+
+ src/pkg/text/template/template.go | 3 ---
+ 1 file changed, 3 deletions(-)

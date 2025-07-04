@@ -1,0 +1,16 @@
+commit c6c439d7a0be6bfb91348d8a76b09ffd173688fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 20 19:26:26 2013 -0700
+
+    net/http: use WriteString directly when possible
+    
+    Several places used io.WriteString unnecessarily when the
+    static type already implemented WriteString. No need to
+    check for it at runtime.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9608043
+
+ src/pkg/net/http/server.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

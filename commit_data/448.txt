@@ -1,0 +1,14 @@
+commit ebec99179fea9fb71b74bbb6efb0234a476b0f1b
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 29 15:17:27 2008 -0700
+
+    fix a comment
+    fix a register name
+    
+    R=gri
+    OCL=13548
+    CL=13548
+
+ src/runtime/rt1_amd64_linux.c | 2 +-
+ src/syscall/syscall.go        | 5 +----
+ 2 files changed, 2 insertions(+), 5 deletions(-)

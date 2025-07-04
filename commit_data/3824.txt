@@ -1,0 +1,18 @@
+commit 5e598c55dcbfd3f0e752029cc7fa31ddaf6cca29
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Nov 5 15:44:32 2009 -0800
+
+    crypto/tls (part 3)
+    
+    (With hindsight, record_process might have been designed wrong, but it
+    works for now. It'll get redrawn when client support is added.)
+    
+    R=rsc
+    CC=r
+    http://go/go-review/1018032
+
+ src/pkg/crypto/tls/handshake_server.go      | 232 ++++++++++++++++++++++
+ src/pkg/crypto/tls/handshake_server_test.go | 210 ++++++++++++++++++++
+ src/pkg/crypto/tls/record_process.go        | 292 ++++++++++++++++++++++++++++
+ src/pkg/crypto/tls/record_process_test.go   | 137 +++++++++++++
+ 4 files changed, 871 insertions(+)

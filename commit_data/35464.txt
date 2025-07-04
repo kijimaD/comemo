@@ -1,0 +1,20 @@
+commit cfbf375a81a54027bdbd8e74a946d0c1124dc771
+Author: David Chase <drchase@google.com>
+Date:   Fri May 18 17:43:11 2018 -0400
+
+    cmd/compile: common up code in fuse for joining blocks
+    
+    There's semantically-but-not-literally equivalent code in
+    two cases for joining blocks' value lists in ssa/fuse.go.
+    It can be made literally equivalent, then commoned up.
+    
+    Updates #25426.
+    
+    Change-Id: Id1819366c9d22e5126f9203dcd4c622423994110
+    Reviewed-on: https://go-review.googlesource.com/113719
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/fuse.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

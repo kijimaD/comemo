@@ -1,0 +1,12 @@
+commit 3066dbad52b0b0201f183db723044e68f3e4988d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 1 14:58:32 2017 -0700
+
+    cmd/compile: cleanup toolstash pacifier from OXFALL removal
+    
+    Change-Id: Ide7fe6b09247b7a6befbdfc2d6ce5988aa1df323
+    Reviewed-on: https://go-review.googlesource.com/61131
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/syntax.go | 1 -
+ 1 file changed, 1 deletion(-)

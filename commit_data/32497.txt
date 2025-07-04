@@ -1,0 +1,24 @@
+commit 627d3a0b4c153a4d5c8d53f18083e4c5c133d429
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Aug 23 13:35:24 2017 +0200
+
+    misc/ios,src/iostest.bash: support GOIOS_DEVICE_ID
+    
+    When running multiple iOS builds on the same host, GOIOS_DEVICE_ID
+    is used to distinguish the devices. To improve support,
+    
+    - Only restart the particular device when invoking iostest.bash
+    with the -restart flag.
+    - Make the exec wrapper lock file per-device.
+    
+    For the iOS builder.
+    
+    Change-Id: Id6f222981f25036399a43c3202a393dba89d87cb
+    Reviewed-on: https://go-review.googlesource.com/57970
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 2 +-
+ src/iostest.bash               | 8 ++++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)

@@ -1,0 +1,38 @@
+commit 28911b289103d6128c3364a3e3de4ed8eabe630f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Nov 22 11:25:08 2022 -0500
+
+    all: update vendored golang.org/x dependencies for Go 1.20 release
+    
+    The Go 1.20 code freeze has recently started. This is a time to update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
+    
+    This CL updates them with x/build/cmd/updatestd.
+    
+    For #36905.
+    
+    Change-Id: Ie0ec91daeb848f00f64686003012297161ad02fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452766
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go.mod                                     |   8 +-
+ src/cmd/go.sum                                     |  16 +-
+ .../vendor/golang.org/x/arch/arm/armasm/decode.go  |   8 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/decode.go     |  16 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/field.go      |  11 +-
+ .../golang.org/x/arch/ppc64/ppc64asm/plan9.go      |  24 ++-
+ .../golang.org/x/arch/ppc64/ppc64asm/tables.go     |  29 ++-
+ src/cmd/vendor/golang.org/x/term/terminal.go       |   1 -
+ .../go/analysis/passes/loopclosure/loopclosure.go  | 212 +++++++++++++++------
+ src/cmd/vendor/modules.txt                         |   8 +-
+ src/go.mod                                         |   6 +-
+ src/go.sum                                         |  12 +-
+ src/net/http/h2_bundle.go                          | 112 +++++++++--
+ src/vendor/golang.org/x/net/http2/hpack/encode.go  |   5 +
+ .../golang.org/x/text/unicode/bidi/trieval.go      |  12 --
+ src/vendor/modules.txt                             |   6 +-
+ 16 files changed, 359 insertions(+), 127 deletions(-)

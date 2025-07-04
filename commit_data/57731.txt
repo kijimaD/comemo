@@ -1,0 +1,53 @@
+commit 7d9802ac5e8e16dddb7e4368172a1c1666fccb77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 22 11:48:38 2024 -0700
+
+    go/types, types2: qualify named types in error messages with type kind
+    
+    Change the description of an operand x that has a named type of sorts
+    by providing a description of the type structure (array, struct, slice,
+    pointer, etc).
+    
+    For instance, given a (variable) operand x of a struct type T, the
+    operand is mentioned as (new):
+    
+            x (variable of struct type T)
+    
+    instead of (old):
+    
+            x (variable of type T)
+    
+    This approach is also used when a basic type is renamed, for instance
+    as in:
+    
+            x (value of uint type big.Word)
+    
+    which makes it clear that big.Word is a uint.
+    
+    This change is expected to produce more informative error messages.
+    
+    Fixes #69955.
+    
+    Change-Id: I544b0698f753a522c3b6e1800a492a94974fbab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621458
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/issues_test.go     | 12 +++----
+ src/cmd/compile/internal/types2/operand.go         | 30 ++++++++++++----
+ src/go/types/issues_test.go                        | 12 +++----
+ src/go/types/operand.go                            | 30 ++++++++++++----
+ src/internal/types/testdata/check/builtins0.go     |  4 +--
+ src/internal/types/testdata/check/errors.go        |  2 +-
+ src/internal/types/testdata/check/issues0.go       |  2 +-
+ .../types/testdata/fixedbugs/issue49005.go         |  2 +-
+ .../types/testdata/fixedbugs/issue60377.go         |  2 +-
+ .../types/testdata/fixedbugs/issue62157.go         |  2 +-
+ .../types/testdata/fixedbugs/issue69955.go         | 42 ++++++++++++++++++++++
+ src/internal/types/testdata/spec/range.go          |  4 +--
+ src/internal/types/testdata/spec/range_int.go      |  2 +-
+ test/alias2.go                                     | 10 +++---
+ test/fixedbugs/issue48471.go                       |  2 +-
+ 15 files changed, 118 insertions(+), 40 deletions(-)

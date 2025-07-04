@@ -1,0 +1,35 @@
+commit 32c09aeb1ddcff7a2ca5fb8b0d4312136e16e479
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Apr 15 14:52:38 2020 -0400
+
+    cmd/go: improve 'go get' handling of retracted versions
+    
+    'go get' will now warn about retracted versions in the build list,
+    after updating go.mod. The warning instructs users to run
+    'go get module@latest' to upgrade or downgrade away from the retracted
+    version.
+    
+    'go get' now allows users to explicitly request a specific retracted
+    version.
+    
+    For #24031
+    
+    Change-Id: I15fda918dc84258fb35b615dcd33b0f499481bd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228383
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go                  | 58 +++++++++++++++-
+ .../example.com_retract_rationale_v1.0.0-block.txt |  6 ++
+ ...m_retract_rationale_v1.0.0-blockwithcomment.txt |  6 ++
+ .../example.com_retract_rationale_v1.0.0-empty.txt |  8 +++
+ .../example.com_retract_rationale_v1.0.0-long.txt  |  8 +++
+ ...ple.com_retract_rationale_v1.0.0-multiline1.txt |  8 +++
+ ...ple.com_retract_rationale_v1.0.0-multiline2.txt |  8 +++
+ .../example.com_retract_rationale_v1.0.0-order.txt |  6 ++
+ ...le.com_retract_rationale_v1.0.0-unprintable.txt |  8 +++
+ .../example.com_retract_rationale_v1.0.1-order.txt |  6 ++
+ .../mod/example.com_retract_rationale_v1.9.0.txt   | 48 +++++++++++++
+ src/cmd/go/testdata/script/mod_get_retract.txt     | 49 ++++++++++++++
+ .../go/testdata/script/mod_retract_rationale.txt   | 79 ++++++++++++++++++++++
+ 13 files changed, 296 insertions(+), 2 deletions(-)

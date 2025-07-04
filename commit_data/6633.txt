@@ -1,0 +1,16 @@
+commit 82c6f5e3d1ac5a92abc602a8890dc874cdc99329
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 26 08:36:07 2010 -0700
+
+    gc, runtime: copy([]byte, string)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2741041
+
+ src/cmd/gc/builtin.c.boot |  1 +
+ src/cmd/gc/runtime.go     |  1 +
+ src/cmd/gc/typecheck.c    |  7 ++++++-
+ src/cmd/gc/walk.c         |  5 ++++-
+ src/pkg/runtime/slice.c   | 18 ++++++++++++++++++
+ 5 files changed, 30 insertions(+), 2 deletions(-)

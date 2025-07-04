@@ -1,0 +1,17 @@
+commit f3ce010b331513b4dca26a12dc0fd12dc4385d9c
+Author: fzipp <fzipp@gmx.de>
+Date:   Sun Nov 8 13:50:30 2020 +0000
+
+    io/fs: make WalkDirFunc parameter name consistent with doc comment
+    
+    The the DirEntry parameter of WalkDirFunc is referred to as `d` in the doc comment.
+    
+    Change-Id: Ibfcf7908eaa0ef1309898150e8fd71101e7de09b
+    GitHub-Last-Rev: e858c52d81b93d293621d7e744bdcb7d6cbd412c
+    GitHub-Pull-Request: golang/go#42447
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268277
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/io/fs/walk.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

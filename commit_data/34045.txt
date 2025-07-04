@@ -1,0 +1,25 @@
+commit e72e69a3f65232b5b8352259d58a31d30e521efa
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 24 16:17:05 2018 +0000
+
+    os: use the syscall version of Getwd for Plan 9
+    
+    In Plan 9, each OS thread has its own independent working directory,
+    so the Go runtime for Plan 9 needs to coordinate Chdir and Getwd
+    operations to keep the working directory consistent for all goroutines.
+    
+    The function os.Getwd in Plan 9 should always call syscall.Getwd
+    to retrieve the common working directory.  Failure to do this was
+    the cause of (at least some of) the intermittent failures in the
+    Plan 9 builders with a seemingly spurious "file does not exist"
+    message, when a thread's working directory had been removed in
+    another thread.
+    
+    Change-Id: Ifb834ad025ee39578234ad3b04d08bc98e939291
+    Reviewed-on: https://go-review.googlesource.com/89575
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/getwd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

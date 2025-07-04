@@ -1,0 +1,18 @@
+commit f330a3a987aa980d6c1adfb4ed509b461d5c13cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 7 00:02:29 2022 -0400
+
+    doc/go1.19: complete most remaining TODOs
+    
+    The ones I left behind are almost entirely ones that I see pending CLs for.
+    Also make various fixes to existing text.
+    
+    For #51400.
+    
+    Change-Id: I555e0074c9df82b5bdb345e21a08c8757ca147b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410814
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ doc/go1.19.html | 325 ++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 199 insertions(+), 126 deletions(-)

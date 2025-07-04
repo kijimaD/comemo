@@ -1,0 +1,24 @@
+commit 9b0140a6954d65e7a83a7d45a72995ca87301f69
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 1 13:12:49 2023 -0700
+
+    cmd/link: type alias sym.LoaderSym and loader.Sym
+    
+    Rather than making these two different types, we can type alias them
+    together. This will ease converting cmd/internal/dwarf to use generics
+    in a subsequent CL.
+    
+    The one unfortunate quirk is that while we'd currently like loader.Sym
+    to be the authoritative type, to break the cycle we have to instead
+    make loader.Sym an alias of sym.LoaderSym.
+    
+    Change-Id: I6dde0d492ca89a478c2470c426bb4eed3393d680
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525195
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/dwarf.go             | 16 +++-------------
+ src/cmd/link/internal/loader/loader.go        |  2 +-
+ src/cmd/link/internal/sym/compilation_unit.go |  2 +-
+ 3 files changed, 5 insertions(+), 15 deletions(-)

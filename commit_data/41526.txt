@@ -1,0 +1,29 @@
+commit 529988d62c1ffc3e5332231fc3e977858e5a2351
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 11 17:49:52 2020 -0800
+
+    os: seek should invalidate any cached directory reads
+    
+    When we seek on the underlying FD, discard any directory entries
+    we've already read and cached. This makes sure we won't return
+    the same entry twice.
+    
+    We already fixed this for Darwin in CL 209961.
+    
+    Fixes #37161
+    
+    Change-Id: I20e1ac8d751443135e67fb4c43c18d69befb643b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219143
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/dir_darwin.go         | 10 ----------
+ src/os/dir_unix.go           |  2 --
+ src/os/file_unix.go          |  7 ++++++-
+ src/os/os_test.go            | 31 +++++++++++++++++++++++++++++++
+ src/os/testdata/issue37161/a |  1 +
+ src/os/testdata/issue37161/b |  1 +
+ src/os/testdata/issue37161/c |  1 +
+ 7 files changed, 40 insertions(+), 13 deletions(-)

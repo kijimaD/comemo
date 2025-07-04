@@ -1,0 +1,18 @@
+commit a7dc6ca4b176cc4a918a73ffd0ab7df92011fdbb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 25 11:43:52 2019 -0400
+
+    net/url: document, test that PathEscape escapes / to %2F
+    
+    I couldn't remember and couldn't tell from the docs,
+    so I added a test and documented what I found.
+    
+    Change-Id: Ic5d837c2d620b15d7a831823e94e70080f5e5324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173948
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go      | 4 ++--
+ src/net/url/url_test.go | 5 +++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

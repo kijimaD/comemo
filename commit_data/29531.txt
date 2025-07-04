@@ -1,0 +1,20 @@
+commit b83350a2e05d63eaae8da9ff4f957ab44e4cb9d9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 14 22:23:10 2016 +0000
+
+    Revert "text/template: efficient reporting of line numbers"
+    
+    This reverts commit 794fb71d9c1018c4beae1657baca5229e6a02ad0.
+    
+    Reason for revert: submitted without TryBots and it broke all three race builders.
+    
+    Change-Id: I80a1e566616f0ee8fa3529d4eeee04268f8a713b
+    Reviewed-on: https://go-review.googlesource.com/33232
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/text/template/exec_test.go        |   2 +-
+ src/text/template/parse/lex.go        |  36 ++---
+ src/text/template/parse/lex_test.go   | 259 +++++++++++++++++-----------------
+ src/text/template/parse/parse.go      |  22 ++-
+ src/text/template/parse/parse_test.go |  34 -----
+ 5 files changed, 149 insertions(+), 204 deletions(-)

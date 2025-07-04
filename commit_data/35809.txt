@@ -1,0 +1,16 @@
+commit 1f3c0eefd29c70a69f79b8a0bb98b9c71effe5ee
+Author: Rowan Marshall <rowanajmarshall@gmail.com>
+Date:   Fri Jun 22 18:36:17 2018 +0100
+
+    ast: refer to "embedded" rather than "anonymous" fields in
+    
+    documentation.
+    
+    Fixes #25684.
+    
+    Change-Id: I9d0e47dff2446c27a3df88fb9ccfefef7419470b
+    Reviewed-on: https://go-review.googlesource.com/120556
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/ast/ast.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit ce72766a02a4be127a26e95fbd62c4b4bb906e91
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Oct 5 10:22:47 2021 -0500
+
+    cmd/compile: improve PPC64 rules for AtomicLoad{8,32}
+    
+    This adds a rule to avoid the zero extension after an AtomicLoad8
+    or AtomicLoad32 since the atomic load has already filled it with
+    zeros. This eliminates an instruction in a high use block in findObject
+    and the AtomicLoad8 appears many times within runtime.
+    
+    Change-Id: I7e684bf73d3812110bd371e05b1aa44fa235fc9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354029
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

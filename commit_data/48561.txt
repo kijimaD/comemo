@@ -1,0 +1,15 @@
+commit 1724077b789ad92972ab1ac03788389645306cbb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 28 15:28:41 2022 -0700
+
+    doc/go1.19: mention new unix build constraint
+    
+    For #51572
+    
+    Change-Id: Ib27be79379c8b3f72e29365b58067d7ee1919e52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396295
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.19.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

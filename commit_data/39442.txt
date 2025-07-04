@@ -1,0 +1,13 @@
+commit 53a42d3c4a61d79415ceabc97ae77690cad79067
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 24 17:49:36 2019 -0400
+
+    doc/go1.13: describe new cmd/go environment variables
+    
+    Change-Id: I99669339b816a3ae56bbe082a8c47ae17e763d71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183632
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.13.html | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)

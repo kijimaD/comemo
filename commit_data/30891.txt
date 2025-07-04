@@ -1,0 +1,34 @@
+commit 6983b9a57955fa12ecd81ab8394ee09e64ef21b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 29 16:55:58 2017 +0000
+
+    net, net/http: adjust time-in-past constant even earlier
+    
+    The aLongTimeAgo time value in net and net/http is used to cancel
+    in-flight read and writes. It was set to time.Unix(233431200, 0)
+    which seemed like far enough in the past.
+    
+    But Raspberry Pis, lacking a real time clock, had to spoil the fun and
+    boot in 1970 at the Unix epoch time, breaking assumptions in net and
+    net/http.
+    
+    So change aLongTimeAgo to time.Unix(1, 0), which seems like the
+    earliest safe value. I don't trust subsecond values on all operating
+    systems, and I don't trust the Unix zero time. The Raspberry Pis do
+    advance their clock at least. And the reported problem was that Hijack
+    on a ResponseWriter hung forever, waiting for the connection read
+    operation to finish. So now, even if kernel + userspace boots in under
+    a second (unlikely), the Hijack will just have to wait for up to a
+    second.
+    
+    Fixes #19747
+    
+    Change-Id: Id59430de2e7b5b5117d4903a788863e9d344e53a
+    Reviewed-on: https://go-review.googlesource.com/38785
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/http.go | 2 +-
+ src/net/net.go       | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

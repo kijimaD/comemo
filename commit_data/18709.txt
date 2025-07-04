@@ -1,0 +1,15 @@
+commit f6088060924fa5b6ee26aa8fd134ccf189f1143f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Mar 3 08:14:27 2014 +0100
+
+    cmd/ld: fix warning on Plan 9
+    
+    warning: src/cmd/ld/pcln.c:184 more arguments than format INT
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/69870047
+
+ src/cmd/ld/pcln.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

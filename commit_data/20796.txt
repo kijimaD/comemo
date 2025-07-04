@@ -1,0 +1,15 @@
+commit 1c534714e1d353d45670a3ed76f4f4a7c7bfa7c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 27 20:45:16 2014 -0400
+
+    syscall: accept pre-existing directories in nacl zip file
+    
+    NaCl creates /tmp. This lets the zip file populate it.
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/159600043
+
+ src/syscall/fs_nacl.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

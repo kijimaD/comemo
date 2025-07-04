@@ -1,0 +1,13 @@
+commit 50487b2c8df85006baf8506aad9f18e197fdbff8
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Mar 17 15:32:20 2016 -0400
+
+    cmd/pack,vet: use `go doc` instead of `godoc` in doc
+    
+    Change-Id: Ic5f62a7d0a5c090da69213d1d0187af0ea48e358
+    Reviewed-on: https://go-review.googlesource.com/20820
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/pack/pack.go | 2 +-
+ src/cmd/vet/main.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

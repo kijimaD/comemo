@@ -1,0 +1,18 @@
+commit 911534592559239185200f73b214b9b11a62b848
+Author: Dustin Sallings <dsallings@gmail.com>
+Date:   Tue Aug 6 12:03:38 2013 -0700
+
+    archive/zip: allow user-extensible compression methods
+    
+    This change replaces the hard-coded switch on compression method
+    in zipfile reader and writer with a map into which users can
+    register compressors and decompressors in their init()s.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/12421043
+
+ src/pkg/archive/zip/reader.go   | 11 ++-----
+ src/pkg/archive/zip/register.go | 71 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/archive/zip/writer.go   | 18 ++++-------
+ 3 files changed, 81 insertions(+), 19 deletions(-)

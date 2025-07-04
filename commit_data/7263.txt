@@ -1,0 +1,34 @@
+commit 1a472026dae372fc92845899dff0371ed6fa56ae
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Jan 27 14:09:03 2011 -0500
+
+    6l: Relocate CMOV* instructions
+    
+    The linker avoids a GOT indirection by turning a MOV into
+    a LEA, but with x86-64 GCC has started emitting CMOV*
+    instructions which break the existing logic.
+    
+    This will generate errors such as:
+    
+      unexpected GOT reloc for non-dynamic symbol luaO_nilobject_
+    
+    The CMOV* instructions may be emitted with normal code like:
+    
+      if (o >= L->top) return cast(TValue *, luaO_nilobject);
+      else return o;
+    
+    Which gets compiled into (relocation offset at 1b):
+    
+      13: 48 3b 47 10             cmp    0x10(%rdi),%rax
+      17: 48 0f 43 05 00 00 00    cmovae 0x0(%rip),%rax
+      1e: 00
+    
+    This change will allow the indirection through the GOT to
+    avoid the problem in those cases.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4071044
+
+ src/cmd/6l/asm.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

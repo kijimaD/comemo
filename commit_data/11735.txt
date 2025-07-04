@@ -1,0 +1,16 @@
+commit 29df93735c85a5eaf1388df7ffa7f8c410dfce0b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 9 15:01:29 2012 +1100
+
+    database/sql: more tests
+    
+    Higher level tests for the pointer parameters
+    and scanning, complementing the existing ones
+    included in the previous CL.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5646050
+
+ src/pkg/database/sql/sql_test.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

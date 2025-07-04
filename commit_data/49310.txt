@@ -1,0 +1,22 @@
+commit 715ba65563f9d2a6ecd349944b726a64f9aabeca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 23 16:27:13 2022 -0400
+
+    misc/cgo/testsanitizers: terminate commands with SIGQUIT if hung
+    
+    If the test hangs due to a deadlock in a subprocess, we want a
+    goroutine dump of that process to figure out the nature of the
+    deadlock. SIGQUIT causes the Go runtime to produce exactly
+    such a dump (unless the runtime itself is badly deadlocked).
+    
+    For #52998.
+    
+    Change-Id: Id9b3ba89d8f705e14f6cd789353fc2b7f4774ad3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407954
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/cc_test.go | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)

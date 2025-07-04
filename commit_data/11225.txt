@@ -1,0 +1,18 @@
+commit 6ff01f01f4e477a931d10c133f33bfe7e0c4ef15
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Jan 18 17:51:28 2012 +0100
+
+    gc: fieldnames in structliterals in exported inlines should not be qualified if they're embedded builtin types.
+    
+    Trust me.
+    Fixes #2687.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5545047
+
+ src/cmd/gc/fmt.c                 | 18 +++++++++++++++---
+ test/fixedbugs/bug396.dir/one.go |  9 +++++++++
+ test/fixedbugs/bug396.dir/two.go | 14 ++++++++++++++
+ test/fixedbugs/bug396.go         |  7 +++++++
+ 4 files changed, 45 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit f6f1daa4b807f1164da67c96dc8b07ee84731b52
+Author: Steven Hartland <steven.hartland@multiplay.co.uk>
+Date:   Mon Mar 27 13:28:19 2017 +0000
+
+    cmd/go: Document that -cover causes incorrect line numbers
+    
+    Due to the fact that -cover injects additional code to the original
+    source, tests run with -cover will often have incorrect line numbers.
+    
+    Also includes docs for -list regexp missed by ba8ff87
+    
+    Updates #6329
+    
+    Change-Id: I87f0618ac31e96071bca61055cc17c0cbdee208a
+    Reviewed-on: https://go-review.googlesource.com/38640
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go            | 8 ++++++++
+ src/cmd/go/internal/test/test.go | 3 +++
+ 2 files changed, 11 insertions(+)

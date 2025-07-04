@@ -1,0 +1,12 @@
+commit 800217f8c55750a9e8fc4bb9d3b1ba5655b538c5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 7 15:31:41 2011 -0800
+
+    net: fix test for Solaris: gopher and http are not in /etc/services.
+    
+    R=rsc, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4250063
+
+ src/pkg/net/port_test.go | 2 --
+ 1 file changed, 2 deletions(-)

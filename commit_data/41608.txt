@@ -1,0 +1,15 @@
+commit 96dc04412d18cc999af21cecb22dea9e7b896360
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 10 13:45:19 2020 -0400
+
+    test/run: handle asmcheck -gcflags= commands better
+    
+    The default is for later flags to override earlier ones,
+    so if the asmcheck set flags, it lost the important -S=2.
+    
+    Change-Id: Id538254908d658da2acb55157ac4f6fa44f6a467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222820
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/run.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

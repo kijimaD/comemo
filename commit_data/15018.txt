@@ -1,0 +1,12 @@
+commit ba4197851606c9cd95e98b75d86c47604c5ffce8
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Tue Jan 29 15:17:39 2013 -0800
+
+    go/misc/dist: Keep file modes when copying.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/7221055
+
+ misc/dist/bindist.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

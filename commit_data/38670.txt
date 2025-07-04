@@ -1,0 +1,27 @@
+commit ac40a7fb9e2650f0a0999bea7639477337fe161e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 25 22:24:03 2019 -0400
+
+    runtime: fix sanity check in notetsleep
+    
+    CL 3660 replaced m.gcing with m.preemptoff, but unintentionally
+    reversed the sense of part of a sanity check in notetsleep.
+    Originally, notetsleep required that it be called from g0 or with
+    preemption disabled (specifically from within the garbage collector).
+    CL 3660 made it require that it be called from g0 or that preemption
+    be *enabled*.
+    
+    I'm not sure why it had the original exception for being called from a
+    user g within the garbage collector, but the current garbage collector
+    certainly doesn't need that, and the new condition is completely wrong.
+    
+    Make the sanity check just require that it's called on g0.
+    
+    Change-Id: I6980d44f5a4461935e10b1b33a981e32b1b7b0c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170063
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/lock_sema.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

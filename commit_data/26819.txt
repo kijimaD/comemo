@@ -1,0 +1,16 @@
+commit 974c201f74f730737964e5239da473fc548b408e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 10 10:43:04 2016 -0700
+
+    runtime: avoid unnecessary map iteration write barrier
+    
+    Update #14921
+    
+    Change-Id: I5c5816d0193757bf7465b1e09c27ca06897df4bf
+    Reviewed-on: https://go-review.googlesource.com/21814
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 6606cd3d3bee550e0693e1bfc5678e35f1a289bf
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 4 15:37:49 2018 +0200
+
+    cmd/compile: regenerate known formats for TestFormats
+    
+    This fixes the build for long-running tests after CL 139338
+    
+    Change-Id: Ib8adfa785d41c736188e2ff7e14125de045b96b9
+    Reviewed-on: https://go-review.googlesource.com/c/139637
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/fmt_test.go | 1 -
+ 1 file changed, 1 deletion(-)

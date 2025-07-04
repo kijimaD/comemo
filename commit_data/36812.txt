@@ -1,0 +1,20 @@
+commit 143b13ae82d81020dfa6db40818bef5a1f701c3f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 16 12:17:32 2018 -0400
+
+    runtime: clean up remaining mark work check
+    
+    Now that STW GC marking is unified with concurrent marking, there
+    should never be mark work remaining in mark termination. Hence, we can
+    make that check unconditional.
+    
+    Updates #26903. This is a follow-up to unifying STW GC and concurrent GC.
+    
+    Change-Id: I43a21df5577635ab379c397a7405ada68d331e03
+    Reviewed-on: https://go-review.googlesource.com/c/134781
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 26 +++++---------------------
+ 1 file changed, 5 insertions(+), 21 deletions(-)

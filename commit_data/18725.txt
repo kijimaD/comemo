@@ -1,0 +1,27 @@
+commit 871698136d7a6452267b90e06d7cab4fc1f7cfea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 3 20:07:34 2014 -0800
+
+    spec: clarify what is considered a function call for len/cap special case
+    
+    gccgo considers built-in function calls returning a constant not as function call (issue 7386)
+    go/types considers any call (regular or built-in) as a function call
+    
+    The wording and examples clarify that only "function calls" that are issued
+    at run-time (and thus do not result in a constant result) are considered
+    function calls in this case.
+    
+    gc is inconsistent (issue 7385)
+    gccgo already interprets the spec accordingly and issue 7386 is moot.
+    go/types considers all calls (constant or not) as function calls (issue 7457).
+    
+    Fixes #7387.
+    Fixes #7386.
+    
+    LGTM=r, rsc, iant
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/66860046
+
+ doc/go_spec.html | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 185ae4f99e4ac5a56471fb47d866e65d2ac04da9
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 27 18:23:45 2009 -0700
+
+    add Sort methods for convenience types
+    
+    R=gri
+    DELTA=9  (9 added, 0 deleted, 0 changed)
+    OCL=34000
+    CL=34003
+
+ src/pkg/sort/sort.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

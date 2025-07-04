@@ -1,0 +1,11 @@
+commit 65112628dc8faba0e9f794d6f21d1e2091d5c871
+Author: Fumitoshi Ukai <ukai@google.com>
+Date:   Sun Nov 29 21:22:05 2009 -0800
+
+    Fix example Makefile to avoid $GOROOT in case it has spaces.
+    
+    R=rsc, sergio
+    https://golang.org/cl/162058
+
+ doc/contribute.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

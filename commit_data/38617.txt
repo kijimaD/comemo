@@ -1,0 +1,41 @@
+commit 5fc55b31803e9929d104ce58a4dcbef97a87a83e
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat Mar 30 03:16:44 2019 +0700
+
+    cmd/compile: use FmtLeft to generate symbol name for unexported interface methods
+    
+    The bug in 29612 is that there are two similar-looking anonymous interface
+    types in two different packages, ./p1/ssa and ./p2/ssa:
+    
+    v.(interface{ foo() }).foo()
+    
+    These types should be treated differently because the unexported method
+    makes the types different (according to the spec).
+    
+    But when generating the type descriptors for those two types, they
+    both have the name "interface { ssa.foo() }". They thus get the same
+    symbol, and the linker happily unifies them. It picks an arbitrary one
+    for the runtime to use, but that breaks conversions from concrete types
+    that have a foo method from the package which had its interface type
+    overwritten.
+    
+    We need to encode the metadata symbol for unexported methods as package
+    path qualified (The same as we did in CL 27791 for struct fields).
+    
+    So switching from FmtUnsigned to Fmtleft by default fixes the issue.
+    In case of generating namedata, FmtUnsigned is used.
+    
+    The benchmark result ends up in no significant change of compiled binary
+    compare to the immediate parent.
+    
+    Fixes #29612
+    
+    Change-Id: I775aff91ae4a1bb16eb18a48d55e3b606f3f3352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170157
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go          |  6 +++++-
+ test/fixedbugs/issue29612.dir/main.go       | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue29612.dir/p1/ssa/ssa.go | 18 ++++++++++++++++++
+ test/fixedbugs/issue29612.dir/p2/ssa/ssa.go | 28 ++++++++++++++++++++++++++++
+ 4 files changed, 75 insertions(+), 1 deletion(-)

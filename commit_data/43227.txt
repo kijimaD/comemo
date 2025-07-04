@@ -1,0 +1,28 @@
+commit 46ab0c0c0474d38d9b924b2428f20c6da58c85fa
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Oct 8 20:33:36 2020 +0700
+
+    cmd/compile: rename types.IdealFoo to types.UntypedFoo
+    
+    To be consistent with go/types.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I5e02f529064a904310a164f8765082aa533cc799
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/260699
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go   | 12 +++++------
+ src/cmd/compile/internal/gc/const.go     | 36 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/fmt.go       | 14 ++++++-------
+ src/cmd/compile/internal/gc/iexport.go   |  6 +++---
+ src/cmd/compile/internal/gc/iimport.go   |  2 +-
+ src/cmd/compile/internal/gc/ssa.go       |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 16 +++++++-------
+ src/cmd/compile/internal/gc/universe.go  | 10 ++++-----
+ src/cmd/compile/internal/types/type.go   | 14 ++++++-------
+ 10 files changed, 58 insertions(+), 58 deletions(-)

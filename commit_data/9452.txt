@@ -1,0 +1,22 @@
+commit 45407bd5599299b90e4d060d10993fb456d1d84a
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Aug 22 23:24:38 2011 -0400
+
+    ld: handle Plan 9 ar format
+    
+    The Go version has 64 character long section names; originally,
+    in Plan 9, the limit was 16.  To provide compatibility, this
+    change allows the input length to be either the target length
+    or the earlier option.  The section name is extended with spaces
+    where required.
+    
+    This has been tested to work without regressions in the
+    Go environment, testing the older alternative has not been
+    possible yet.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4650071
+
+ src/cmd/ld/lib.c | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)

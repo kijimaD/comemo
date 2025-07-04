@@ -1,0 +1,21 @@
+commit d2c92f8453cab8d042b794c8ce398f6ff8e6f650
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 30 12:57:20 2016 -0700
+
+    path/filepath: prevent infinite recursion on Windows on UNC input
+    
+    This is a minimal fix to prevent this and
+    other possible future infinite recursion.
+    We can put in a proper fix for UNC in Go 1.8.
+    
+    Updates #15879
+    
+    Change-Id: I3653cf5891bab8511adf66fa3c1a1d8912d1a293
+    Reviewed-on: https://go-review.googlesource.com/23572
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/path/filepath/match.go      | 5 +++++
+ src/path/filepath/match_test.go | 6 ++++++
+ 2 files changed, 11 insertions(+)

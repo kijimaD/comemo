@@ -1,0 +1,22 @@
+commit 42a82ce1a7051b3a2762bff73b6eda4797e0fd4b
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Thu Jan 24 17:27:23 2019 +0000
+
+    math/bits: optimize Reverse32 and Reverse64
+    
+    Use ReverseBytes32 and ReverseBytes64 to speed up these functions.
+    The byte reversal functions are intrinsics on most platforms and
+    generally compile to a single instruction.
+    
+    name       old time/op  new time/op  delta
+    Reverse32  2.41ns ± 1%  1.94ns ± 3%  -19.60%  (p=0.000 n=20+19)
+    Reverse64  3.85ns ± 1%  2.56ns ± 1%  -33.32%  (p=0.000 n=17+19)
+    
+    Change-Id: I160bf59a0c7bd5db94114803ec5a59fae448f096
+    Reviewed-on: https://go-review.googlesource.com/c/159358
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/bits/bits.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

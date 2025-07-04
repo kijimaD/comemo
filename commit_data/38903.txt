@@ -1,0 +1,22 @@
+commit 9ac471a87d8a7fdd1741bdfd48399e7215023989
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 25 10:35:47 2019 -0400
+
+    cmd/link: use read-only mmap to back selected symbol name strings
+    
+    When reading symbol names from an object file, if a name does not
+    need fixup (conversion of "". to package path), then generate
+    a string whose backing store is in read-only memory (from an mmap
+    of the object file), avoiding the need for an allocation. This
+    yields a modest reduction in total linker heap use.
+    
+    Change-Id: I95719c93026b6cc82eb6947a9d14063cf3a6679c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173938
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/bio/buf.go              | 12 ++++++++
+ src/cmd/link/internal/objfile/objfile.go | 48 ++++++++++++++++++++++++++++++--
+ 2 files changed, 58 insertions(+), 2 deletions(-)

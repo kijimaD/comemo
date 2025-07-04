@@ -1,0 +1,15 @@
+commit b3064b66d0699618cae07e97068f653410b71abc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 6 22:46:57 2021 -0700
+
+    cmd/compile/internal/types2: combine two loops (cleanup of TODO)
+    
+    Follow-up on https://golang.org/cl/306170.
+    
+    Change-Id: I71b451382b6780101a0c94174ebe579e8a0684c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307949
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/infer.go | 32 +++++++++++---------------------
+ 1 file changed, 11 insertions(+), 21 deletions(-)

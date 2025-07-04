@@ -1,0 +1,12 @@
+commit ebdc8faf0411d04fa4e2e47d1c7861682141f866
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 15:32:35 2016 -0700
+
+    cmd/compile: use fmt.State in nodefmt and stmtfmt
+    
+    Change-Id: Iac87007af4ee268b45f11ec05bf4757f2e7eedd8
+    Reviewed-on: https://go-review.googlesource.com/28336
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 110 ++++++++++++++++++-------------------
+ 1 file changed, 55 insertions(+), 55 deletions(-)

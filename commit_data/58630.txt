@@ -1,0 +1,16 @@
+commit 637c235b510a885622cdbb914ad9e0d4bbce9a14
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 27 10:21:57 2025 -0800
+
+    lib/time: build with Ubuntu backward compatibility options
+    
+    Change-Id: I7e241eb602e45eea3c730793c14d8a5f666f9181
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644077
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ lib/time/update.bash  |   7 ++++++-
+ lib/time/zoneinfo.zip | Bin 406409 -> 405501 bytes
+ 2 files changed, 6 insertions(+), 1 deletion(-)

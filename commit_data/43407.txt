@@ -1,0 +1,28 @@
+commit f121e0eddd64aa0084b916e94c9a540edf859539
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Oct 20 15:03:33 2020 -0700
+
+    cmd/compile: fix nodedump output for types of nodes
+    
+    The Dbg dumping of complex types was broken, because (I think) of a
+    recent change to handle recursive types correctly. Before this fix,
+    the Dump output of a closure node (where the last thing on the line is
+    the type of the node) was:
+    
+    .   .   CLOSURE l(8) esc(h) tc(1) FUNC-@0
+    
+    after this change it is:
+    
+    .   .   CLOSURE l(8) esc(h) tc(1) FUNC-func(int) int
+    
+    The problem is that that the 'mode == Fdbg' code was immediately
+    aborting the descent into tconv2, since it was calling down with the
+    same node that was just entered into the hash table.
+    
+    Change-Id: Iee106b967cea1856dd92d4350681401dd34a23b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264025
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

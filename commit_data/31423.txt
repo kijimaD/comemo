@@ -1,0 +1,24 @@
+commit 16b6bb88ebfbd079a1d0b7c0cef80fa55eaf0211
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 27 18:25:43 2017 +0100
+
+    cmd/go: error on space-separated list with comma
+    
+    Using 'go build -tags "foo,bar"' might seem to work when you wanted
+    -tags "foo bar", since they make up a single tag that doesn't exist and
+    the build is unaffected.
+    
+    Instead, error on any tag that contains a comma.
+    
+    Fixes #18800.
+    
+    Change-Id: I6641e03e2ae121c8878d6301c4311aef97026b73
+    Reviewed-on: https://go-review.googlesource.com/41951
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go             | 12 ++++++++++++
+ src/cmd/go/internal/work/build.go |  6 ++++++
+ 2 files changed, 18 insertions(+)

@@ -1,0 +1,12 @@
+commit b12c299a5cef14c9673f6ee944cd0ec425a6bd5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 14 23:59:41 2013 -0400
+
+    CONTRIBUTORS: add Jonathan Nieder (Google CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7842043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

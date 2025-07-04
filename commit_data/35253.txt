@@ -1,0 +1,41 @@
+commit 4d7cf3fedbc382215df5ff6167ee9782a9cc9375
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 6 21:28:24 2018 -0800
+
+    runtime: convert g.waitreason from string to uint8
+    
+    Every time I poke at #14921, the g.waitreason string
+    pointer writes show up.
+    
+    They're not particularly important performance-wise,
+    but it'd be nice to clear the noise away.
+    
+    And it does open up a few extra bytes in the g struct
+    for some future use.
+    
+    This is a re-roll of CL 99078, which was rolled
+    back because of failures on s390x.
+    Those failures were apparently due to an old version of gdb.
+    
+    Change-Id: Icc2c12f449b2934063fd61e272e06237625ed589
+    Reviewed-on: https://go-review.googlesource.com/111256
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/runtime/chan.go        |  8 ++--
+ src/runtime/heapdump.go    |  4 +-
+ src/runtime/mfinal.go      |  2 +-
+ src/runtime/mgc.go         |  6 +--
+ src/runtime/mgcmark.go     |  6 +--
+ src/runtime/mgcsweep.go    |  4 +-
+ src/runtime/netpoll.go     |  2 +-
+ src/runtime/proc.go        | 16 +++++---
+ src/runtime/runtime2.go    | 91 +++++++++++++++++++++++++++++++++++++++-------
+ src/runtime/select.go      |  4 +-
+ src/runtime/sema.go        |  4 +-
+ src/runtime/sizeof_test.go |  2 +-
+ src/runtime/time.go        |  4 +-
+ src/runtime/trace.go       |  2 +-
+ src/runtime/traceback.go   |  4 +-
+ 15 files changed, 114 insertions(+), 45 deletions(-)

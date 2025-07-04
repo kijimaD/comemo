@@ -1,0 +1,30 @@
+commit 2197321db1dd997165c0091ba2bcb3b6be7633d0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 8 14:21:17 2019 -0700
+
+    cmd/compile: split n.Noescape() into separate uses
+    
+    n.Noescape() was overloaded for two uses: (1) to indicate a function
+    was annotated with //go:noescape, and (2) to indicate that certain
+    temporary allocations don't outlive the current statement.
+    
+    The first use case is redundant with n.Func.Pragma&Noescape!=0, which
+    is the convention we use for checking other function-level pragmas.
+    
+    The second use case is better served by renaming "Noescape" to
+    "Transient".
+    
+    Passes toolstash-check.
+    
+    Change-Id: I0f09d2d5767513894b7bf49da9cdabd04aa4a05e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199822
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/esc.go    | 2 +-
+ src/cmd/compile/internal/gc/escape.go | 2 +-
+ src/cmd/compile/internal/gc/noder.go  | 3 +--
+ src/cmd/compile/internal/gc/order.go  | 6 +++---
+ src/cmd/compile/internal/gc/syntax.go | 6 +++---
+ 5 files changed, 9 insertions(+), 10 deletions(-)

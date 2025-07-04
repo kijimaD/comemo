@@ -1,0 +1,17 @@
+commit 4a5d6916ede1a5547f78140c7594a9519bda90e7
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Apr 21 17:21:10 2020 -0400
+
+    cmd/compile: update PPC64.rules to use typed aux values
+    
+    Passes toolstash-check.
+    
+    Change-Id: I874f8b834ef2f94daa971ecef2dbe4e14daf4213
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229305
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 1614 ++++++------
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 3512 +++++++++++++-------------
+ 2 files changed, 2612 insertions(+), 2514 deletions(-)

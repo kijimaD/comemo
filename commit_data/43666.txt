@@ -1,0 +1,17 @@
+commit 715d4e2e014fa54f527ee109f26a31f941196381
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri May 29 17:19:42 2020 -0700
+
+    database/sql, runtime: correct *.Fatal inside goroutines in tests
+    
+    Found by go vet pass "testinggoroutines".
+    
+    Change-Id: I6360af2079617b7aa62dcb9bd7254578ca5d1c1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235527
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/database/sql/sql_test.go        | 20 +++++++++++++++-----
+ src/runtime/syscall_windows_test.go | 12 +++++++-----
+ 2 files changed, 22 insertions(+), 10 deletions(-)

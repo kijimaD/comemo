@@ -1,0 +1,17 @@
+commit d8711919dbddd8684eedee834041297388cf13a3
+Author: gulyasm <mgulyas86@gmail.com>
+Date:   Thu Jan 12 14:26:00 2017 +0100
+
+    cmd/go: fix bug help message
+    
+    The bug subcommand opens up the browser instead of printing information.
+    Fixes help message to reflect that.
+    
+    Fixes #18630.
+    
+    Change-Id: I660c94bc65ef1994292cfd72d08a544699545701
+    Reviewed-on: https://go-review.googlesource.com/35150
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/bug.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

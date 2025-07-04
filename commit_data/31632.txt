@@ -1,0 +1,19 @@
+commit d79bb78a71c6f2084497c1291041aa1fa2325835
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 22 11:20:34 2017 -0700
+
+    cmd/compile: report correct position in redeclaration errors
+    
+    When restoring syms, we must also restore the original Lastlineno.
+    Bug introduced with https://golang.org/cl/41390/.
+    
+    Fixes #20415.
+    
+    Change-Id: Ie81d36279d717e330951b52f42dcee4b0025b9f0
+    Reviewed-on: https://go-review.googlesource.com/43811
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types/scope.go |  1 +
+ src/cmd/compile/internal/types/sym.go   | 14 +++++++-------
+ test/fixedbugs/issue20415.go            | 33 +++++++++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+), 7 deletions(-)

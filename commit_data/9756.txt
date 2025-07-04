@@ -1,0 +1,15 @@
+commit 762729b50edc462fc76cc0413dae64a3353d28eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 20 14:56:15 2011 -0400
+
+    codereview: save CL messages in $(hg root)/last-change
+    
+    Fixes #2279.
+    
+    R=bradfitz, r, r
+    CC=golang-dev
+    https://golang.org/cl/5096042
+
+ .hgignore                    |  1 +
+ lib/codereview/codereview.py | 12 ++++++++++++
+ 2 files changed, 13 insertions(+)

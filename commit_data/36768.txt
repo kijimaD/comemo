@@ -1,0 +1,18 @@
+commit 06afc8b152bc01e1b4f5dce074bae531dd29a9b9
+Author: Austin Clements <austin@google.com>
+Date:   Wed Sep 19 16:42:13 2018 -0400
+
+    runtime: simplify the control flow in sweepone
+    
+    Ending a loop with a break is confusing. Rewrite the loop so the
+    default behavior is to loop and then do the "post-loop" work outside
+    of the loop.
+    
+    Change-Id: Ie49b4132541dfb5124c31a8163f2c883aa4abc75
+    Reviewed-on: https://go-review.googlesource.com/138155
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcsweep.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

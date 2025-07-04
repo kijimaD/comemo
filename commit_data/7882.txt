@@ -1,0 +1,15 @@
+commit 2795b13156993700e0e7355e2c4fa2fc617fd9ae
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 18:31:55 2011 -0700
+
+    gc: remove interim ... error which rejects valid code.
+    
+    It's been six months.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4289073
+
+ src/cmd/gc/typecheck.c   | 5 -----
+ test/fixedbugs/bug252.go | 4 ++--
+ 2 files changed, 2 insertions(+), 7 deletions(-)

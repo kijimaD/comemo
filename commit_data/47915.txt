@@ -1,0 +1,72 @@
+commit 90a8482a176b8cf47e8b24a3459f0a24e038f675
+Author: Dan Scales <danscales@google.com>
+Date:   Fri Dec 3 16:10:10 2021 -0800
+
+    test: re-enable most go/tests that were disabled because of types2 differences
+    
+    I made the default be that, where there are differences between types2
+    and -G=0 error messages, we want errorcheck tests to pass types2.
+    Typically, we can get errorcheck to pass on types2 and -G=0 if they give
+    the same number of error messages on the same lines, just different
+    wording. If they give a different number of error messages, then I made
+    types2 pass. I added an exception list for -G=0 to cover those cases
+    where -G=0 and types give different numbers of error messages.
+    
+    Because types2 does not run if there are syntax errors, for several
+    tests, I had to split the tests into two parts in order to get all the
+    indicated errors to be reported in types2 (bug228.go, bug388.go,
+    issue11610.go, issue14520.go)
+    
+    I tried to preserve the GCCGO labeling correctly (but may have gotten
+    some wrong). When types2 now matches where a GCCGO error previously
+    occurred, I transformed GCCGO_ERROR -> ERROR. When types2 no longer
+    reports an error in a certain place, I transformed ERROR -> GCCGO_ERROR.
+    When types2 reports an error in a new place, I used GC_ERROR.
+    
+    The remaining entries in types2Failures are things that I think we
+    probably still need to fix - either actually missing errors in types2,
+    or cases where types2 gives worse errors than -G=0.
+    
+    Change-Id: I7f01e82b322b16094096b67d7ed2bb39b410c34f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372854
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/bug176.go           |   7 ++-
+ test/fixedbugs/bug195.go           |   8 +--
+ test/fixedbugs/bug228.go           |   6 +--
+ test/fixedbugs/bug228a.go          |  13 +++++
+ test/fixedbugs/bug231.go           |  12 +++--
+ test/fixedbugs/bug255.go           |  10 ++--
+ test/fixedbugs/bug388.go           |  10 ----
+ test/fixedbugs/bug388a.go          |  23 ++++++++
+ test/fixedbugs/bug412.go           |   6 +--
+ test/fixedbugs/issue11590.go       |   6 +--
+ test/fixedbugs/issue11610.go       |   1 -
+ test/fixedbugs/issue11610a.go      |  11 ++++
+ test/fixedbugs/issue11614.go       |   6 +--
+ test/fixedbugs/issue14520.go       |   3 --
+ test/fixedbugs/issue14520a.go      |  10 ++++
+ test/fixedbugs/issue17038.go       |   2 +-
+ test/fixedbugs/issue19012.go       |   4 +-
+ test/fixedbugs/issue21979.go       |  39 +++++++-------
+ test/fixedbugs/issue23732.go       |  10 ++--
+ test/fixedbugs/issue25958.go       |   4 +-
+ test/fixedbugs/issue28079b.go      |   4 +-
+ test/fixedbugs/issue28268.go       |   4 +-
+ test/fixedbugs/issue33460.go       |  12 ++---
+ test/fixedbugs/issue4232.go        |  44 ++++++++--------
+ test/fixedbugs/issue4452.go        |   2 +-
+ test/fixedbugs/issue4510.dir/f1.go |   2 +-
+ test/fixedbugs/issue4510.dir/f2.go |   2 +-
+ test/fixedbugs/issue7525.go        |   4 +-
+ test/fixedbugs/issue7525b.go       |   4 +-
+ test/fixedbugs/issue7525c.go       |   4 +-
+ test/fixedbugs/issue7525d.go       |   4 +-
+ test/fixedbugs/issue7525e.go       |   4 +-
+ test/import1.go                    |   4 +-
+ test/import6.go                    |   5 +-
+ test/initializerr.go               |  22 ++++----
+ test/run.go                        | 105 +++++++++++++++++--------------------
+ test/typecheck.go                  |   2 +-
+ 37 files changed, 226 insertions(+), 193 deletions(-)

@@ -1,0 +1,29 @@
+commit d4aa72002e76c09f81a8fd82f37781f5126c9cbe
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Fri Apr 16 15:15:17 2021 -0500
+
+    cmd/asm: fix RLDCR const1,reg,const2,reg on ppc64
+    
+    The extended opcode field (XO) is generated incorrectly. OPVCC
+    assumes an X-form like layout for the XO field. MD-form insns
+    also have an XO field, but it is both smaller and in a different
+    bit position.
+    
+    This hasn't been noticed since const1 == 0 matches as a register
+    argument instead of a constant, thus it is unlikely anyone has
+    attempted to assemble this instruction with a non-zero shift
+    argument.
+    
+    Likewise, update all other MD-form instructions using OPVCC
+    to use the new OPMD function.
+    
+    Change-Id: Id81fa2727fb701431911a05492c2038415ad0a4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310851
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  2 ++
+ src/cmd/internal/obj/ppc64/asm9.go        | 33 ++++++++++++++++++-------------
+ 2 files changed, 21 insertions(+), 14 deletions(-)

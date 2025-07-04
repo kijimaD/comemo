@@ -1,0 +1,23 @@
+commit 9a9a8c0165619e5fc50bc2f82a0aaeb97a1094bf
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Wed Jan 3 17:55:40 2018 -0200
+
+    cmd/asm, cmd/internal/obj/ppc64: add Immediate Shifted opcodes for ppc64x
+    
+    This change adds ADD/AND/OR/XOR Immediate Shifted instructions for
+    ppc64x so they are usable in Go asm code. These instructions were
+    originally present in asm9.go, but they were only usable in that
+    file (as -AADD, -AANDCC, -AOR, -AXOR). These old mnemonics are now
+    removed.
+    
+    Updates #23845
+    
+    Change-Id: Ifa2fac685e8bc628cb241dd446adfc3068181826
+    Reviewed-on: https://go-review.googlesource.com/94115
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 18 +++++++++++
+ src/cmd/internal/obj/ppc64/a.out.go       |  4 +++
+ src/cmd/internal/obj/ppc64/anames.go      |  4 +++
+ src/cmd/internal/obj/ppc64/asm9.go        | 53 ++++++++++++++++++++++---------
+ 4 files changed, 64 insertions(+), 15 deletions(-)

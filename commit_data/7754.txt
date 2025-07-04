@@ -1,0 +1,14 @@
+commit 43ae7da1901ae93a23efcb10aa2b2986e269115b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Mar 12 19:35:41 2011 -0800
+
+    crypto/tls: fix compile error
+    
+    Fixes #1555.
+    
+    R=rsc, bradfitzgo
+    CC=golang-dev
+    https://golang.org/cl/4284047
+
+ src/pkg/crypto/tls/generate_cert.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

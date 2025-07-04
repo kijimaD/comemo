@@ -1,0 +1,18 @@
+commit bb998747d6c5213e3a366936c482e149dce62720
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jul 1 10:33:56 2020 -0400
+
+    cmd/go: populate the Module field for test packages
+    
+    Fixes #39974
+    
+    Change-Id: I52bb13e887fde52bf789198059c39fd6aacd96f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240678
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/test.go             |  2 ++
+ src/cmd/go/testdata/script/mod_list_test.txt | 14 ++++++++++++++
+ 2 files changed, 16 insertions(+)

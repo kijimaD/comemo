@@ -1,0 +1,25 @@
+commit d8256824ac39e4badb14feffe94f4342a0bd21b3
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 24 17:56:00 2016 -0400
+
+    runtime: remove unnecessary step from bulkBarrierPreWrite
+    
+    Currently bulkBarrierPreWrite calls writebarrierptr_prewrite, but this
+    means that we check writeBarrier.needed twice and perform cgo checks
+    twice.
+    
+    Change bulkBarrierPreWrite to call writebarrierptr_prewrite1 to skip
+    over these duplicate checks.
+    
+    This may speed up bulkBarrierPreWrite slightly, but mostly this will
+    save us from running out of nosplit stack space on ppc64x in the near
+    future.
+    
+    Updates #17503.
+    
+    Change-Id: I1cea1a2207e884ab1a279c6a5e378dcdc048b63e
+    Reviewed-on: https://go-review.googlesource.com/31890
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mbitmap.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

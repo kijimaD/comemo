@@ -1,0 +1,12 @@
+commit ee911c426574d5421d7b227eda07b7b62f9dbfdf
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Sep 4 16:35:05 2012 -0400
+
+    runtime: fix typo in openbsd-only symbol name.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6490076
+
+ src/pkg/runtime/thread_openbsd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

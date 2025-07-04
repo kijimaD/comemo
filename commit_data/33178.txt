@@ -1,0 +1,19 @@
+commit 1992ab7e65a1cd83c02c36df293971c1fb3aeec7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 13 09:20:11 2017 -0400
+
+    cmd/go: move internal/load.PluginPath to internal/work
+    
+    It uses the build ID, which is soon to be internal to package work.
+    Luckily it is also only called from package work.
+    
+    Change-Id: I5e6662cfe667bdc9190f086be733105ad65a3191
+    Reviewed-on: https://go-review.googlesource.com/70670
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/deps.go              |  1 +
+ src/cmd/go/internal/load/pkg.go   | 23 -----------------------
+ src/cmd/go/internal/work/build.go | 28 ++++++++++++++++++++++++++--
+ 3 files changed, 27 insertions(+), 25 deletions(-)

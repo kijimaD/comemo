@@ -1,0 +1,15 @@
+commit 7b08e619bb68a01b1d889aedd97f6c0e13a8c13b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 7 15:29:41 2018 +0000
+
+    debug/pe: add IMAGE_FILE_MACHINE_ARM64
+    
+    Fixes #20849
+    
+    Change-Id: If2a330185aa7e95eb84dccdbc4c7f3e9b970cca1
+    Reviewed-on: https://go-review.googlesource.com/117056
+    Reviewed-by: Matti Moell <matti.moell@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/debug/pe/pe.go | 1 +
+ 1 file changed, 1 insertion(+)

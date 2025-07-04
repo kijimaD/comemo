@@ -1,0 +1,14 @@
+commit e123ccbfe0856da67446374d39e9d3e738046e9e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 12 22:28:50 2018 +0000
+
+    strings: revert accidental example change from CL 153840
+    
+    Change-Id: I2ff29aa9909be3062fcd5f65af261f5d8c46fbc1
+    Reviewed-on: https://go-review.googlesource.com/c/153843
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/strings/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

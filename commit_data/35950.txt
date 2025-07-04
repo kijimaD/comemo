@@ -1,0 +1,45 @@
+commit 631402f142e52f535b66864ad1957ef39c78c704
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 11 17:35:13 2018 +0000
+
+    net/http: fix rare Transport leak, remove incorrect defensive logic
+    
+    Remove some incorrect code that was present after since I added
+    support for idle timeouts in CL 22670.
+    
+    This code actually caused a bug (a rare goroutine leak) rather than
+    prevent a bogus connection reuse.
+    
+    The t.idleMu mutex already protects most the invariants, including an
+    explicit Stop call. There's only one Stop call on that timer, and it's
+    guarded by t.idleMu. What idleMu doesn't protect against is the timer
+    firing on its own. But we don't need code to protect against that case
+    because the goroutine that is created via AfterFunc when the timer
+    fires already checks the invariants:
+    
+      // closeConnIfStillIdle closes the connection if it's still sitting idle.
+      // This is what's called by the persistConn's idleTimer, and is run in its
+      // own goroutine.
+      func (pc *persistConn) closeConnIfStillIdle() {
+         t := pc.t
+         t.idleMu.Lock()
+         defer t.idleMu.Unlock()
+         if _, ok := t.idleLRU.m[pc]; !ok {
+           // Not idle.
+           return
+         }
+    
+    (note the "Not idle." part).
+    
+    Tested by hand with the repro code from #25621. No more leaks.
+    
+    Fixes #25621
+    
+    Change-Id: Idf011a4cb1fcd01f55a5a6269e4c0ee5f4446786
+    Reviewed-on: https://go-review.googlesource.com/123315
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport.go | 6 ------
+ 1 file changed, 6 deletions(-)

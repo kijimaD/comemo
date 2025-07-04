@@ -1,0 +1,12 @@
+commit acf3d598477919df9f86113633c503f423a9991a
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 19 14:52:01 2008 -0700
+
+    update fmt to use some initialization
+    tweak ar so the pkgdef file doesn't cause it not to generate a symbol table
+    
+    SVN=128119
+
+ src/cmd/ar/ar.c |  4 +++-
+ src/lib/fmt.go  | 26 +++++++++++---------------
+ 2 files changed, 14 insertions(+), 16 deletions(-)

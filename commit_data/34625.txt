@@ -1,0 +1,17 @@
+commit 1814a0595cb62a1788e4af17c3ab71f223bbd51b
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Mar 7 13:54:40 2018 -0500
+
+    cmd/trace: filter tasks by log text
+    
+    Add a search box to the top of the user task views that only displays
+    tasks containing a particular log message.
+    
+    Change-Id: I92f4aa113f930954e8811416901e37824f0eb884
+    Reviewed-on: https://go-review.googlesource.com/100843
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/annotations.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

@@ -1,0 +1,17 @@
+commit 176b63e7113b82c140a4ecb2620024526c2c42e3
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Sun Jul 17 08:43:55 2022 +0930
+
+    crypto/internal/nistec,debug/gosym: fix typos
+    
+    Change-Id: I228a23754656b41843573bd4217de4df46c9df36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417954
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/crypto/internal/nistec/p224_sqrt.go | 2 +-
+ src/debug/gosym/symtab.go               | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

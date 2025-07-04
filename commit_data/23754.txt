@@ -1,0 +1,23 @@
+commit b9a3e5979d6d085f11aae63f44d82ef50356033d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 20 08:30:45 2015 -0700
+
+    cmd/go: build errors rather than strings in some tests
+    
+    Speed up the test suite by building the errors package rather than the
+    strings package in some cases where the specific package we are
+    building doesn't matter.  The errors package is smaller, and doesn't
+    have any assembler code.
+    
+    Also make a couple of tests run in parallel.
+    
+    Update #11779.
+    
+    Change-Id: I62e47f8655f9d85bf93c70ae6e6121276d96aee0
+    Reviewed-on: https://go-review.googlesource.com/12365
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 34 ++++++++++++++++++----------------
+ 1 file changed, 18 insertions(+), 16 deletions(-)

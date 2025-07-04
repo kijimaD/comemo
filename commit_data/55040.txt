@@ -1,0 +1,29 @@
+commit f67b2d8f0bcadb59461b7a33bc1c23649ce8eb85
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 17 16:45:45 2023 +0000
+
+    runtime: use span.elemsize for accounting in mallocgc
+    
+    Currently the final size computed for an object in mallocgc excludes the
+    allocation header. This is correct in a number of cases, but definitely
+    wrong for memory profiling because the "free" side accounts for the full
+    allocation slot.
+    
+    This change makes an explicit distinction between the parts of mallocgc
+    that care about the full allocation slot size ("the GC's accounting")
+    and those that don't (pointer+len should always be valid). It then
+    applies the appropriate size to the different forms of accounting in
+    mallocgc.
+    
+    For #64153.
+    
+    Change-Id: I481b34b2bb9ff923b59e8408ab2b8fb9025ba944
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/arena.go   |  2 +-
+ src/runtime/malloc.go  | 37 ++++++++++++++++++++++++++-----------
+ src/runtime/mgcmark.go |  4 ++--
+ 3 files changed, 29 insertions(+), 14 deletions(-)

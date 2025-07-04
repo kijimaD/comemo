@@ -1,0 +1,17 @@
+commit d00890b5f3e7846a7b4ab084fe39d279f21aad04
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jul 10 18:44:09 2016 -0700
+
+    runtime: add msan calls before calling traceback functions
+    
+    Tell msan that the arguments to the traceback functions are initialized,
+    in case the traceback functions are compiled with -fsanitize=memory.
+    
+    Change-Id: I3ab0816604906c6cd7086245e6ae2e7fa62fe354
+    Reviewed-on: https://go-review.googlesource.com/24856
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/traceback.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

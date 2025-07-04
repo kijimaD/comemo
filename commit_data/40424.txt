@@ -1,0 +1,33 @@
+commit dcad830621abe2856e4540e4b9afbb7873f939ee
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 24 15:11:18 2019 -0400
+
+    cmd/go: implement svn support in module mode
+    
+    mod_get_svn passes, and I also tested this manually on a real-world svn-hosted package:
+    
+            example.com$ go mod init example.com
+            go: creating new go.mod: module example.com
+    
+            example.com$ GOPROXY=direct GONOSUMDB=llvm.org go get -d llvm.org/llvm/bindings/go/llvm
+            go: finding llvm.org/llvm latest
+            go: finding llvm.org/llvm/bindings/go/llvm latest
+            go: downloading llvm.org/llvm v0.0.0-20191022153947-000000375505
+            go: extracting llvm.org/llvm v0.0.0-20191022153947-000000375505
+    
+            example.com$ go list llvm.org/llvm/bindings/...
+            llvm.org/llvm/bindings/go
+            llvm.org/llvm/bindings/go/llvm
+    
+    Fixes #26092
+    
+    Change-Id: Iefe2151b82a0225c73bb6f8dd7cd8a352897d4c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203497
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.14.html                              |   4 +
+ src/cmd/go/internal/modfetch/codehost/svn.go | 154 +++++++++++++++++++++++++++
+ src/cmd/go/internal/modfetch/codehost/vcs.go |  92 ++++++++--------
+ src/cmd/go/testdata/script/mod_get_svn.txt   |  18 ++--
+ 4 files changed, 215 insertions(+), 53 deletions(-)

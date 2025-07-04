@@ -1,0 +1,16 @@
+commit 0ee9c46cb19f04e713a5db30c8ae0e719c6d228b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 1 21:46:08 2017 -0800
+
+    cmd/compile: add missing WBs for reflect.{Slice,String}Header.Data
+    
+    Fixes #19168.
+    
+    Change-Id: I3f4fcc0b189c53819ac29ef8de86fdad76a17488
+    Reviewed-on: https://go-review.googlesource.com/37663
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go  |  5 ++++
+ src/cmd/compile/internal/gc/walk.go | 41 ++++++++++++++++++++++----
+ test/fixedbugs/issue19168.go        | 58 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 98 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit f7ec58b2fcf0677678aac8f939b055c6e4ef8c7d
+Author: Zxilly <zxilly@outlook.com>
+Date:   Sun Jul 28 15:08:33 2024 +0000
+
+    cmd/go: remove comparison that is always true
+    
+    Change-Id: Ia77769e03ee040451c044afb332ae4efae3065b9
+    GitHub-Last-Rev: 66c6d71c1308a86b1bf770f06a8b412f72a00b4f
+    GitHub-Pull-Request: golang/go#68623
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601615
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/test/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

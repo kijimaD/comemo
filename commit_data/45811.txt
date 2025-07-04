@@ -1,0 +1,29 @@
+commit 8a5a6f46dc51597174d0044dcd3bdffa950ae65e
+Author: Victor Michel <victor@optimyze.cloud>
+Date:   Fri Jun 11 05:44:00 2021 +0000
+
+    debug/elf: don't apply DWARF relocations for ET_EXEC binaries
+    
+    Some ET_EXEC binaries might have relocations for non-loadable sections
+    like .debug_info. These relocations must not be applied, because:
+    * They may be incorrect
+    * The correct relocations were already applied at link time
+    
+    Binaries in Linux Kernel debug packages like Fedora/Centos kernel-debuginfo
+    are such examples. Relocations for .debug_* sections are included in the
+    final binaries because they are compiled with --emit-relocs, but the resulting
+    relocations are incorrect and shouldn't be used when reading DWARF sections.
+    
+    Fixes #46673
+    
+    Change-Id: I2b4214f1584bfc243446d0eaee41512657325b95
+    GitHub-Last-Rev: 8350fad059e70422d13dfaa5bab7fb8a56c0f76f
+    GitHub-Pull-Request: golang/go#46698
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/327009
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/debug/elf/file.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

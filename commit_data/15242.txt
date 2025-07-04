@@ -1,0 +1,19 @@
+commit 248d1446b53900b90d1279631a035508942d332c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 14 11:23:58 2013 -0800
+
+    syscall: don't make //sys lines be doc comments
+    
+    Cleans up godoc and makes it consistent. (some had it, some
+    didn't)
+    
+    This still keeps the information there, though, for people
+    looking at the source directly.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/7324056
+
+ src/pkg/syscall/syscall_bsd.go   |  1 +
+ src/pkg/syscall/syscall_linux.go | 11 +++++++++++
+ 2 files changed, 12 insertions(+)

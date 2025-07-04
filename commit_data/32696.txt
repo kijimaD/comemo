@@ -1,0 +1,21 @@
+commit 137e4a6c63e8688cba34df7dad81b45f0aaa500c
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sun Sep 3 08:20:57 2017 +0200
+
+    cmd/compile: improve single blank variable handling in walkrange
+    
+    Refactor walkrange to treat "for _ = range a" as "for range a".
+    
+    This avoids generating some later discarded nodes in the compiler.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ifb2e1ca3b8519cbb67e8ad5aad514af9d18f1ec4
+    Reviewed-on: https://go-review.googlesource.com/61017
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/range.go | 25 ++++++++++++------
+ test/range.go                        | 49 +++++++++++++++++++++++++++++++++++-
+ 2 files changed, 65 insertions(+), 9 deletions(-)

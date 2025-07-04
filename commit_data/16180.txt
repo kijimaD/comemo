@@ -1,0 +1,12 @@
+commit 80de7ab19098ca925c00c314aa5a5c77e6076b82
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 16 04:31:25 2013 +0800
+
+    doc/reference.html: update list of sub-repositories.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/8766043
+
+ doc/reference.html | 4 ++++
+ 1 file changed, 4 insertions(+)

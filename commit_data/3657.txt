@@ -1,0 +1,11 @@
+commit 5a75ac88c98c7bfeb907b655bc10f3ee35a4f82b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 26 18:32:51 2009 -0700
+
+    - indexing component for godoc
+    
+    R=rsc
+    http://go/go-review/1015014
+
+ src/cmd/godoc/index.go | 664 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 664 insertions(+)

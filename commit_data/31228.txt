@@ -1,0 +1,18 @@
+commit 7189a02ca520df9e9a5612851bd7c68c55b678e3
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 19 06:35:18 2017 -0700
+
+    cmd/compile: remove haslabelgoto
+    
+    As of CL 39998, it is no longer necessary.
+    
+    Fixes #19699
+    
+    Change-Id: Ie1c49c8468073c6ddeb96c03668705cf81d40c98
+    Reviewed-on: https://go-review.googlesource.com/41051
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 26 ++------------------------
+ 1 file changed, 2 insertions(+), 24 deletions(-)

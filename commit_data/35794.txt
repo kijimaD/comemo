@@ -1,0 +1,17 @@
+commit 9c35c1a50306f61949e0c76e5871b1033b3fd84d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Fri Jun 15 10:45:04 2018 +0200
+
+    syscall.js: add Value.InstanceOf
+    
+    Change-Id: Icf56188fdb2b8ce6789830a35608203fdb9a3df6
+    Reviewed-on: https://go-review.googlesource.com/120560
+    Reviewed-by: Paul Jolly <paul@myitcv.org.uk>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/wasm/wasm_exec.js             |  5 +++++
+ src/cmd/vet/all/whitelist/wasm.txt |  1 +
+ src/syscall/js/js.go               |  7 +++++++
+ src/syscall/js/js_js.s             |  4 ++++
+ src/syscall/js/js_test.go          | 10 ++++++++++
+ 5 files changed, 27 insertions(+)

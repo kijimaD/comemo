@@ -1,0 +1,20 @@
+commit 6416bde023d897dcedc6d53bf0bf58821962f435
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon May 31 00:18:54 2021 +1000
+
+    runtime: use asmcgocall_no_g when calling sigprocmask on openbsd
+    
+    sigprocmask is called from sigsave, which is called from needm. As such,
+    sigprocmask has to be able to run with no g. For some reason we do not
+    currently trip this on current libc platforms, but we do hit it on
+    openbsd/mips64 with external linking.
+    
+    Updates #36435
+    
+    Change-Id: I4dfae924245c5f68cc012755d6485939014898a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334879
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_openbsd2.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

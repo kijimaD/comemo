@@ -1,0 +1,12 @@
+commit 03a93158d23fe019ec168df7f1a46da412bc0196
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 1 21:10:16 2011 -0800
+
+    fmt: document %b for floating point
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4073051
+
+ src/pkg/fmt/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

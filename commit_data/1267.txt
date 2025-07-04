@@ -1,0 +1,14 @@
+commit 4d76e8e142094cee071310dcfb98fd10527edfbc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 3 10:41:43 2008 -0800
+
+    - bug: empty switches don't compile
+    
+    R=rsc
+    DELTA=32  (28 added, 3 deleted, 1 changed)
+    OCL=20301
+    CL=20340
+
+ test/bugs/bug128.go | 23 +++++++++++++++++++++++
+ test/golden.out     | 14 ++++++++++----
+ 2 files changed, 33 insertions(+), 4 deletions(-)

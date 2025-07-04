@@ -1,0 +1,14 @@
+commit 20126040025bdc2da8be473d0d181bc1a2584fd9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 18 13:24:19 2010 -0400
+
+    runtime: fix arm softfloat again for R12
+    
+    Missed a case, so now generalized.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2540042
+
+ src/pkg/runtime/arm/softfloat.c | 42 ++++++++---------------------------------
+ 1 file changed, 8 insertions(+), 34 deletions(-)

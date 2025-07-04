@@ -1,0 +1,14 @@
+commit 87805c92fd57d1535d0e497dd245ef783007b59d
+Author: skanehira <sho19921005@gmail.com>
+Date:   Mon Nov 25 23:08:03 2019 +0000
+
+    os: fix broken comment's link
+    
+    Change-Id: Icf6cb06dfdde00de1db5e57b243d7e60a9e4e7ac
+    GitHub-Last-Rev: 45003b0656dec68cf0bc1f32b3de2ab688875524
+    GitHub-Pull-Request: golang/go#35834
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208837
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

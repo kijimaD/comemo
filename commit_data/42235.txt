@@ -1,0 +1,67 @@
+commit 00753d52323c466b7c9f998a7ec3dd0b1d63366f
+Merge: 8740bdc5af d0754cfe4a
+Author: Gerrit Code Review <noreply-gerritcodereview@google.com>
+Date:   Thu Apr 30 21:47:01 2020 +0000
+
+    Merge "cmd: merge branch 'dev.link' into master"
+
+ src/cmd/compile/internal/gc/iexport.go          |    6 +
+ src/cmd/compile/internal/gc/iimport.go          |   11 +-
+ src/cmd/compile/internal/gc/main.go             |   22 +-
+ src/cmd/internal/goobj/readnew.go               |    6 +-
+ src/cmd/internal/goobj2/objfile.go              |   60 +-
+ src/cmd/internal/obj/line.go                    |    5 +-
+ src/cmd/internal/obj/link.go                    |    5 +-
+ src/cmd/internal/obj/objfile.go                 |    5 +-
+ src/cmd/internal/obj/objfile2.go                |   14 +-
+ src/cmd/internal/obj/sym.go                     |   10 +
+ src/cmd/link/internal/amd64/asm.go              |  279 ++--
+ src/cmd/link/internal/amd64/obj.go              |    2 +-
+ src/cmd/link/internal/arm/asm.go                |  229 +--
+ src/cmd/link/internal/arm/obj.go                |    2 +-
+ src/cmd/link/internal/arm64/asm.go              |  217 +--
+ src/cmd/link/internal/arm64/obj.go              |    2 +-
+ src/cmd/link/internal/ld/data.go                | 1719 ++++++++++-------------
+ src/cmd/link/internal/ld/data2.go               |  518 +++++++
+ src/cmd/link/internal/ld/decodesym.go           |  242 ----
+ src/cmd/link/internal/ld/dwarf2.go              |   59 +-
+ src/cmd/link/internal/ld/elf.go                 |  169 +--
+ src/cmd/link/internal/ld/elf2.go                |   25 +
+ src/cmd/link/internal/ld/errors.go              |   73 +-
+ src/cmd/link/internal/ld/go.go                  |   24 +-
+ src/cmd/link/internal/ld/ld.go                  |   15 +-
+ src/cmd/link/internal/ld/lib.go                 |  123 +-
+ src/cmd/link/internal/ld/link.go                |    8 +-
+ src/cmd/link/internal/ld/macho.go               |  148 +-
+ src/cmd/link/internal/ld/main.go                |   52 +-
+ src/cmd/link/internal/ld/outbuf.go              |   12 +-
+ src/cmd/link/internal/ld/pe.go                  |    2 +-
+ src/cmd/link/internal/ld/sym.go                 |   15 +-
+ src/cmd/link/internal/ld/symtab.go              |   17 +-
+ src/cmd/link/internal/ld/target.go              |   31 +
+ src/cmd/link/internal/ld/util.go                |   10 +-
+ src/cmd/link/internal/ld/xcoff.go               |  115 +-
+ src/cmd/link/internal/ld/xcoff2.go              |  113 ++
+ src/cmd/link/internal/loader/loader.go          |  309 ++--
+ src/cmd/link/internal/loader/loader_test.go     |   17 +-
+ src/cmd/link/internal/loader/symbolbuilder.go   |   23 +
+ src/cmd/link/internal/mips/asm.go               |    4 +-
+ src/cmd/link/internal/mips64/asm.go             |    4 +-
+ src/cmd/link/internal/ppc64/asm.go              |  116 +-
+ src/cmd/link/internal/ppc64/obj.go              |    2 +-
+ src/cmd/link/internal/riscv64/asm.go            |    2 +-
+ src/cmd/link/internal/s390x/asm.go              |  180 +--
+ src/cmd/link/internal/s390x/obj.go              |    2 +-
+ src/cmd/link/internal/sym/library.go            |   25 +-
+ src/cmd/link/internal/sym/segment.go            |    5 +-
+ src/cmd/link/internal/sym/sizeof_test.go        |    2 +-
+ src/cmd/link/internal/sym/symbol.go             |  114 +-
+ src/cmd/link/internal/sym/symbols.go            |    3 -
+ src/cmd/link/internal/wasm/asm.go               |   43 +-
+ src/cmd/link/internal/x86/asm.go                |  257 ++--
+ src/cmd/link/internal/x86/obj.go                |    2 +-
+ src/cmd/link/link_test.go                       |   58 +
+ src/cmd/link/testdata/testIndexMismatch/a.go    |    8 +
+ src/cmd/link/testdata/testIndexMismatch/b.go    |    8 +
+ src/cmd/link/testdata/testIndexMismatch/main.go |    9 +
+ 59 files changed, 3103 insertions(+), 2455 deletions(-)

@@ -1,0 +1,15 @@
+commit b6e66639466f5583e6d1f77d5c8112096f923d7f
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Jul 14 18:05:29 2009 -0700
+
+    Return ptrace event message when there's no error instead of
+    only when there's an error.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=3  (0 added, 2 deleted, 1 changed)
+    OCL=31650
+    CL=31650
+
+ src/pkg/syscall/syscall_linux.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

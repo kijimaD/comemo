@@ -1,0 +1,33 @@
+commit 762eb40892061b43a2dabbfd99486e9940a149b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 13 13:52:44 2017 -0500
+
+    cmd/go: split out cmd/go/internal/str
+    
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I63f578f5ac99c707b599ac5659293c46b275567d
+    Reviewed-on: https://go-review.googlesource.com/36190
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/build.go            | 35 +++++++--------
+ src/cmd/go/fix.go              |  4 +-
+ src/cmd/go/fmt.go              |  3 +-
+ src/cmd/go/get.go              |  5 ++-
+ src/cmd/go/internal/str/str.go | 97 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/main.go             | 77 +--------------------------------
+ src/cmd/go/pkg.go              | 15 ++++---
+ src/cmd/go/pkg_test.go         | 13 +++---
+ src/cmd/go/run.go              |  3 +-
+ src/cmd/go/test.go             | 18 +++-----
+ src/cmd/go/vet.go              | 10 +++--
+ 11 files changed, 154 insertions(+), 126 deletions(-)

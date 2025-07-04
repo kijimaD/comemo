@@ -1,0 +1,28 @@
+commit 3580ef9d64bdc0176cde032d170737a6e67ef8f2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jun 24 15:36:25 2022 -0400
+
+    os/exec: on Windows, suppress ErrDot if the implicit path matches the explicit one
+    
+    If the current directory is also listed explicitly in %PATH%,
+    this changes the behavior of LookPath to prefer the explicit name for it
+    (and thereby avoid ErrDot).
+    
+    However, in order to avoid running a different executable from what
+    would have been run by previous Go versions, we still return the
+    implicit path (and ErrDot) if it refers to a different file entirely.
+    
+    Fixes #53536.
+    Updates #43724.
+    
+    Change-Id: I7ab01074e21a0e8b07a176e3bc6d3b8cf0c873cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414054
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/os/exec/dot_test.go   | 98 ++++++++++++++++++++++++++++++++++++++++++++---
+ src/os/exec/lp_windows.go | 25 +++++++++++-
+ 2 files changed, 116 insertions(+), 7 deletions(-)

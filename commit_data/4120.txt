@@ -1,0 +1,12 @@
+commit 5a99927ddf08fbf484c3e36e66b7ae9b7114c43b
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Nov 17 23:34:00 2009 -0800
+
+    Adding my name to authors/contributors.
+    
+    R=rsc
+    https://golang.org/cl/154169
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

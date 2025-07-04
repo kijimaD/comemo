@@ -1,0 +1,12 @@
+commit 391805b14b03455107783e4d4b349b2fc3f53e26
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 17 17:29:54 2015 +1100
+
+    image/draw: add CMYK fast path.
+    
+    Change-Id: I9582aff7ca141a8aead5692af74b9c708b1700cc
+    Reviewed-on: https://go-review.googlesource.com/5020
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/draw/draw.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

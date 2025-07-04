@@ -1,0 +1,16 @@
+commit f596eb5d8deba23365e7d656e43ed6c2d6189f65
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 22 10:04:13 2012 -0700
+
+    godoc: slightly smarter synopsis extraction
+    
+    Ignore synopses that start with
+    "Copyright", "All rights", and "Author".
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6218047
+
+ src/pkg/go/doc/synopsis.go      | 41 +++++++++++++++++++++++++++++++----------
+ src/pkg/go/doc/synopsis_test.go |  5 +++++
+ 2 files changed, 36 insertions(+), 10 deletions(-)

@@ -1,0 +1,25 @@
+commit 955b4caa48feea19f53196daea29ee7cccce6e35
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Sep 16 16:20:31 2015 +1200
+
+    test: move allocation before munmap in recover4
+    
+    recover4 allocates 16 pages of memory via mmap, makes a 4 page hole in it with
+    munmap, allocates another 16 pages of memory via normal allocation and then
+    tries to copy from one to the other. For some reason on arm64 (but no other
+    platform I have tested) the second allocation sometimes causes the runtime to
+    ask the kernel for 4 additional pages of memory -- which the kernel satisfies
+    by remapping the pages that were just unmapped!
+    
+    Moving the second allocation before the munmap fixes this behaviour, I can run
+    recover4 tens of thousands of times without failure with this fix vs a failure
+    rate of ~0.5% before.
+    
+    Fixes #12549
+    
+    Change-Id: I490b895b606897e4f7f25b1b51f5d485a366fffb
+    Reviewed-on: https://go-review.googlesource.com/14632
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ test/recover4.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

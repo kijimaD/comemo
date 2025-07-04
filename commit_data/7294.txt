@@ -1,0 +1,15 @@
+commit 614391860aedf7d9794439c39fa42de2637d8198
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 31 17:42:10 2011 -0500
+
+    ebnflint: exit with non-zero status on error
+    
+    Tweak spec to avoid ebnflint complaints.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3973050
+
+ doc/go_spec.html             | 4 ++--
+ src/cmd/ebnflint/ebnflint.go | 3 +++
+ 2 files changed, 5 insertions(+), 2 deletions(-)

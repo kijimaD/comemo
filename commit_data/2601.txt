@@ -1,0 +1,13 @@
+commit a7b4e9f03ef3676c260aea694d0eb9f0720bee67
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 16:06:31 2009 -0700
+
+    new reflect type.go implementation
+    
+    R=r
+    DELTA=179  (172 added, 6 deleted, 1 changed)
+    OCL=31215
+    CL=31220
+
+ src/pkg/reflect/ntype.go | 180 +++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 173 insertions(+), 7 deletions(-)

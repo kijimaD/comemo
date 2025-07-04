@@ -1,0 +1,19 @@
+commit fbc5acbd704ff2640d0aed19f116b862f858a549
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 8 17:30:55 2019 -0800
+
+    cmd/compile: remove work-arounds for handling underscores in numbers
+    
+    With math/big supporting underscores directly, there is no need to
+    manually remove them before calling the math/big conversion routines.
+    
+    Updates #28493.
+    
+    Change-Id: I6f865c8f87c3469ffd6c33f960ed540135055226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166417
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/mpfloat.go | 4 ----
+ src/cmd/compile/internal/gc/mpint.go   | 4 ----
+ 2 files changed, 8 deletions(-)

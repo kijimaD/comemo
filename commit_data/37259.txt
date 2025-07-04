@@ -1,0 +1,18 @@
+commit cbe04e8d70c32b9477ebcde5265bc17cc41af4a7
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 26 12:21:15 2017 -0400
+
+    internal/trace: track worst N mutator utilization windows
+    
+    This will let the trace viewer show specifically when poor utilization
+    happened and link to specific instances in the trace.
+    
+    Change-Id: I1f03a0f9d9a7570009bb15762e7b8b6f215e9423
+    Reviewed-on: https://go-review.googlesource.com/c/60793
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/internal/traceparser/gc.go      | 151 +++++++++++++++++++++++++++++++-----
+ src/internal/traceparser/gc_test.go |  32 ++++++--
+ 2 files changed, 157 insertions(+), 26 deletions(-)

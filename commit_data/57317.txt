@@ -1,0 +1,18 @@
+commit 8eefc3b8f0dde0c89110817af3eccf44c79aeef0
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 23:37:08 2024 -0700
+
+    os: improve TestExecutable
+    
+    Instead of running all tests and relying on an init function, let's
+    embed the child code into the test case and only run one specific test.
+    
+    Change-Id: Ib04e8a580556e7e30ff776c2041f0b809b440a26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609838
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/executable_test.go | 49 ++++++++++++++++++++++-------------------------
+ 1 file changed, 23 insertions(+), 26 deletions(-)

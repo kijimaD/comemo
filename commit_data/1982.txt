@@ -1,0 +1,12 @@
+commit 7d6c0018fbddc1a580a3496ac695912ef9dd4c4a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 8 23:34:44 2009 -0700
+
+    messages changed; updated golden.out for bug037
+    
+    R=rsc
+    OCL=27248
+    CL=27248
+
+ test/golden.out | 1 +
+ 1 file changed, 1 insertion(+)

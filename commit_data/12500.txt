@@ -1,0 +1,20 @@
+commit b0996334c1cd2c14e07fb4f17c924cdf698ae48d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 22:03:18 2012 -0500
+
+    go/build, cmd/go: add support for .syso files
+    
+    .syso files are system objects copied directly
+    into the package archive.
+    
+    Fixes #1552.
+    
+    R=alex.brainman, iant, r, minux.ma, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/5778043
+
+ src/cmd/go/build.go       |  5 +++++
+ src/cmd/go/list.go        | 11 ++++++-----
+ src/cmd/go/pkg.go         | 14 ++++++++------
+ src/pkg/go/build/build.go | 18 ++++++++++++------
+ 4 files changed, 31 insertions(+), 17 deletions(-)

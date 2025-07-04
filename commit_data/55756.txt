@@ -1,0 +1,17 @@
+commit b5a99eaa94aafb48944d877f9991b6ae943b056c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 14 11:57:06 2024 -0500
+
+    runtime: add timer lock to lock ranking
+    
+    No deadlocks yet!
+    
+    Change-Id: I87fb3742a386d682fbcc8cb98e98771b54bc3fec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564133
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/lockrank.go   | 15 +++++++++------
+ src/runtime/mklockrank.go |  4 +++-
+ src/runtime/time.go       |  2 ++
+ 3 files changed, 14 insertions(+), 7 deletions(-)

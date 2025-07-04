@@ -1,0 +1,87 @@
+commit 8cbb512c76846fd95bffffa235364ca60e3ed0c0
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Tue Feb 18 14:15:54 2025 +0200
+
+    crypto/internal/fips140/edwards25519/field: inline carryPropagate
+    
+    Manually inlining carryPropagate seems to help quite a bit.
+    
+    goos: linux
+    goarch: arm64
+    pkg: crypto/internal/fips140/edwards25519
+                                  │     OLD     │                NEW                 │
+                                  │   sec/op    │   sec/op     vs base               │
+    EncodingDecoding-4              141.4µ ± 0%   133.1µ ± 0%  -5.90% (p=0.000 n=10)
+    ScalarBaseMult-4                260.5µ ± 0%   254.0µ ± 0%  -2.49% (p=0.000 n=10)
+    ScalarMult-4                    916.6µ ± 0%   892.5µ ± 0%  -2.63% (p=0.000 n=10)
+    VarTimeDoubleScalarBaseMult-4   909.6µ ± 0%   886.6µ ± 0%  -2.52% (p=0.000 n=10)
+    geomean                         418.6µ        404.4µ       -3.40%
+    
+    pkg: crypto/internal/fips140/edwards25519/field
+               │     OLD     │                NEW                 │
+               │   sec/op    │   sec/op     vs base               │
+    Add-4        33.50n ± 0%   33.52n ± 0%  +0.04% (p=0.013 n=10)
+    Multiply-4   406.8n ± 0%   400.0n ± 0%  -1.66% (p=0.000 n=10)
+    Square-4     246.4n ± 0%   234.4n ± 0%  -4.85% (p=0.000 n=10)
+    Invert-4     67.37µ ± 0%   63.53µ ± 0%  -5.69% (p=0.000 n=10)
+    Mult32-4     78.68n ± 0%   78.67n ± 0%       ~ (p=0.367 n=10)
+    Bytes-4      110.6n ± 0%   110.8n ± 0%       ~ (p=0.568 n=10)
+    geomean      354.0n        346.8n       -2.03%
+    
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/internal/fips140/edwards25519
+    cpu: Apple M1 Pro
+                                   │     OLD     │                NEW                 │
+                                   │   sec/op    │   sec/op     vs base               │
+    EncodingDecoding-10              7.610µ ± 2%   7.459µ ± 0%  -1.98% (p=0.000 n=10)
+    ScalarBaseMult-10                11.54µ ± 0%   11.36µ ± 0%  -1.53% (p=0.000 n=10)
+    ScalarMult-10                    38.59µ ± 2%   37.09µ ± 0%  -3.88% (p=0.000 n=10)
+    VarTimeDoubleScalarBaseMult-10   37.10µ ± 0%   35.79µ ± 0%  -3.54% (p=0.000 n=10)
+    geomean                          18.83µ        18.31µ       -2.74%
+    
+    pkg: crypto/internal/fips140/edwards25519/field
+                │     OLD     │                NEW                 │
+                │   sec/op    │   sec/op     vs base               │
+    Add-10        5.116n ± 5%   5.168n ± 5%       ~ (p=0.669 n=10)
+    Multiply-10   18.00n ± 2%   16.90n ± 1%  -6.09% (p=0.000 n=10)
+    Square-10     13.66n ± 0%   13.48n ± 0%  -1.28% (p=0.000 n=10)
+    Invert-10     3.629µ ± 0%   3.508µ ± 2%  -3.33% (p=0.000 n=10)
+    Mult32-10     6.165n ± 2%   6.324n ± 1%  +2.57% (p=0.000 n=10)
+    Bytes-10      10.33n ± 8%   10.28n ± 4%       ~ (p=0.516 n=10)
+    geomean       25.74n        25.40n       -1.31%
+    
+    tags: purego
+    goos: windows
+    goarch: amd64
+    pkg: crypto/internal/fips140/edwards25519
+    cpu: AMD Ryzen Threadripper 2950X 16-Core Processor
+                                   │     OLD     │                NEW                 │
+                                   │   sec/op    │   sec/op     vs base               │
+    EncodingDecoding-32              9.557µ ± 1%   8.966µ ± 0%  -6.18% (p=0.000 n=10)
+    ScalarBaseMult-32                19.14µ ± 2%   19.00µ ± 1%       ~ (p=0.190 n=10)
+    ScalarMult-32                    64.61µ ± 1%   65.83µ ± 2%  +1.88% (p=0.003 n=10)
+    VarTimeDoubleScalarBaseMult-32   62.36µ ± 1%   62.14µ ± 1%       ~ (p=0.529 n=10)
+    geomean                          29.30µ        28.89µ       -1.39%
+    
+    pkg: crypto/internal/fips140/edwards25519/field
+                │     OLD     │                NEW                 │
+                │   sec/op    │   sec/op     vs base               │
+    Add-32        4.879n ± 1%   4.880n ± 1%       ~ (p=0.739 n=10)
+    Multiply-32   22.75n ± 2%   22.03n ± 3%  -3.14% (p=0.000 n=10)
+    Square-32     16.46n ± 2%   15.38n ± 1%  -6.59% (p=0.000 n=10)
+    Invert-32     4.466µ ± 1%   4.168µ ± 1%  -6.67% (p=0.000 n=10)
+    Mult32-32     5.311n ± 1%   5.492n ± 1%  +3.40% (p=0.000 n=10)
+    Bytes-32      11.51n ± 1%   11.53n ± 1%       ~ (p=0.303 n=10)
+    geomean       28.16n        27.54n       -2.20%
+    
+    Change-Id: I6e60d2f1220661df4b4f2bf2d810864c19c03012
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650279
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ .../fips140/edwards25519/field/fe_generic.go       | 35 ++++++++++++++--------
+ 1 file changed, 22 insertions(+), 13 deletions(-)

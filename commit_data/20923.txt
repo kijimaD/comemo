@@ -1,0 +1,16 @@
+commit 41c6b84342b27353ed40aa3942ef8647631a322b
+Author: Rob Pike <r@golang.org>
+Date:   Fri Dec 5 09:37:56 2014 +0900
+
+    cmd/go: fix build
+    The new semantics of split require the newline be present.
+    The test was stale.
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/182480043
+
+ src/cmd/go/generate.go      | 2 +-
+ src/cmd/go/generate_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

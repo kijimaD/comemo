@@ -1,0 +1,13 @@
+commit b98fffe39eb770cb41b272957ff662e5048d4395
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 9 10:11:00 2010 -0800
+
+    go/token,scanner: fix comments so godoc aligns properly
+    
+    R=iant, r2
+    CC=golang-dev
+    https://golang.org/cl/3532042
+
+ src/pkg/go/scanner/scanner.go | 4 ++--
+ src/pkg/go/token/position.go  | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

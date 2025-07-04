@@ -1,0 +1,22 @@
+commit eb71887b99fa656ed627c9c1d41319b9198979c8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 30 00:34:54 2021 -0400
+
+    cmd/go: prune go.mod and go.sum files from vendored dependencies
+    
+    Fixes #42970
+    
+    Change-Id: I79246ef7fc16ae05c8e7b40ffb239a61f6415447
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315410
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.17.html                                 | 10 ++++++-
+ src/cmd/go/internal/modcmd/vendor.go            |  9 ++++++
+ src/cmd/go/testdata/script/mod_vendor_gomod.txt | 38 +++++++++++++++++++++++++
+ src/cmd/vendor/golang.org/x/term/go.mod         |  5 ----
+ src/cmd/vendor/golang.org/x/term/go.sum         |  2 --
+ src/cmd/vendor/golang.org/x/xerrors/go.mod      |  3 --
+ 6 files changed, 56 insertions(+), 11 deletions(-)

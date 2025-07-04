@@ -1,0 +1,26 @@
+commit 3c2979682d0351fbce20ccf7636b86a629ca4bc9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 31 10:03:54 2019 -0400
+
+    cmd/doc: understand vendor directories in module mode
+    
+    This change employs the same strategy as in CL 203017
+    to detect when vendoring is in use, and if so treats
+    the vendor directory as a (non-module, prefixless) root.
+    
+    The integration test also verifies that the 'std' and 'cmd'
+    modules are included and their vendored dependencies are
+    visible (as they are with 'go list') even when outside of
+    those modules.
+    
+    Fixes #35224
+    
+    Change-Id: I18cd01218e9eb97c1fc6e2401c1907536b0b95f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205577
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/doc/dirs.go                    | 116 ++++++++++++++++++++++++++++++---
+ src/cmd/doc/doc_test.go                |   5 +-
+ src/cmd/go/testdata/script/mod_doc.txt |  24 +++++++
+ 3 files changed, 136 insertions(+), 9 deletions(-)

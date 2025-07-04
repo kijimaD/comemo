@@ -1,0 +1,14 @@
+commit 93689d863c1d804c13f07c756b16f9fe3b36e061
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 9 15:35:33 2009 -0700
+
+    keep a list of all the M's,
+    so that the garbage collector doesn't free them.
+    
+    R=ken
+    OCL=35538
+    CL=35538
+
+ src/pkg/runtime/proc.c    | 7 ++++++-
+ src/pkg/runtime/runtime.h | 2 ++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

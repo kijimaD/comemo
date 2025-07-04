@@ -1,0 +1,20 @@
+commit f33f9b2ceeaa96df617871dee77fd52e94e4fc3e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Dec 17 10:03:13 2015 +1100
+
+    net: make windows (*netFD).connect work like its unix version
+    
+    CL 17821 used syscall.CancelIoEx to cancel outstanding connect
+    call, but did not check for syscall.CancelIoEx return value.
+    Also I am worried about introducing race here. We should use
+    proper tools available for us instead. For example, we could
+    use fd.setWriteDeadline just like unix version does. Do that.
+    
+    Change-Id: Idb9a03c8c249278ce3e2a4c49cc32445d4c7b065
+    Reviewed-on: https://go-review.googlesource.com/17920
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/fd_windows.go | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

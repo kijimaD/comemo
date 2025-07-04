@@ -1,0 +1,16 @@
+commit 184ca3cf99864b4112997891b079d106751be25c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 14 11:31:47 2021 -0800
+
+    go/types, types2: copy implicit bit in interface substitution
+    
+    Change-Id: Idb02449ef1b06d5f47eeb4a4413e56e2cd5d0d96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363836
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/subst.go | 2 +-
+ src/go/types/subst.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

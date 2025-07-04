@@ -1,0 +1,23 @@
+commit 650a1ef66fa67654e51d0aeaef4247f49525acdc
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 24 11:06:06 2013 -0700
+
+    cmd/cov: delete
+    It doesn't work, it's not portable, it's not part of the released
+    binaries, and a better tool is due.
+    
+    Fixes #1319.
+    Fixes #4621.
+    
+    R=golang-dev, bradfitz, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/9681044
+
+ src/cmd/cov/Makefile |   5 -
+ src/cmd/cov/doc.go   |  36 ----
+ src/cmd/cov/main.c   | 484 ---------------------------------------------------
+ src/cmd/cov/tree.c   | 245 --------------------------
+ src/cmd/cov/tree.h   |  47 -----
+ src/cmd/dist/build.c |   9 +-
+ src/sudo.bash        |   4 +-
+ 7 files changed, 5 insertions(+), 825 deletions(-)

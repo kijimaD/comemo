@@ -1,0 +1,22 @@
+commit 9c44a41dd56660b7685da61bf1efb00cc7c1e198
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 15 16:10:00 2015 -0400
+
+    runtime: disallow preemption during startTheWorld
+    
+    Currently, startTheWorld clears preemptoff for the current M before
+    starting the world. A few callers increment m.locks around
+    startTheWorld, presumably to prevent preemption any time during
+    starting the world. This is almost certainly pointless (none of the
+    other callers do this), but there's no harm in making startTheWorld
+    keep preemption disabled until it's all done, which definitely lets us
+    drop these m.locks manipulations.
+    
+    Change-Id: I8a93658abd0c72276c9bafa3d2c7848a65b4691a
+    Reviewed-on: https://go-review.googlesource.com/10155
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/heapdump.go | 2 --
+ src/runtime/mstats.go   | 2 --
+ src/runtime/proc1.go    | 2 +-
+ 3 files changed, 1 insertion(+), 5 deletions(-)

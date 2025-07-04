@@ -1,0 +1,10 @@
+commit 24be1b2b295a95861047efd9afad401945d34e4d
+Author: dvyukov <dvyukov@google.com>
+Date:   Tue Nov 19 12:55:12 2013 +0400
+
+    13+
+
+ test/bench/perf/bench1.go |  11 +++++
+ test/bench/perf/bench2.go |   5 +++
+ test/bench/perf/driver.go | 103 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 119 insertions(+)

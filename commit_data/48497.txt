@@ -1,0 +1,21 @@
+commit 20ba3f5de52bf8665d35c86111312274f6a4d1be
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Mar 22 17:08:56 2022 -0400
+
+    cmd/compile: default to -p=main for main package
+    
+    With the previous CL the compiler emits an unlinkable object if
+    the -p flag is not specified. It is actually okay (and convenient)
+    to omit the -p flag for (just) the main package. This CL makes it
+    so.
+    
+    Change-Id: I978d54d14c45b3bb9ed7471e40a2c47f269b56f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394834
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/main.go |  3 +++
+ src/cmd/link/link_test.go           | 40 +++++++++++++++++++++++++++++++------
+ 2 files changed, 37 insertions(+), 6 deletions(-)

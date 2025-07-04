@@ -1,0 +1,16 @@
+commit 89ae7045f395de8eb4085e3ac8c1ebf59b029965
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Mar 3 19:17:20 2018 +0100
+
+    test: convert all math-related tests from asm_test
+    
+    Change-Id: If542f0b5c5754e6eb2f9b302fe5a148ba9a57338
+    Reviewed-on: https://go-review.googlesource.com/98443
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 347 +-------------------------------
+ test/codegen/math.go                    | 140 +++++++++++++
+ test/codegen/rotate.go                  |   8 -
+ 3 files changed, 151 insertions(+), 344 deletions(-)

@@ -1,0 +1,16 @@
+commit 39f2032c17516a55c165d329dd5e2e07f49132b0
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Jan 7 14:29:23 2025 -0800
+
+    testing/synctest: add some examples
+    
+    For #67434
+    
+    Change-Id: Iebcfc2559a62405fea7e3ceff8cf6c2f50b61def
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641176
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/testing/synctest/context_example_test.go | 78 ++++++++++++++++++++++++++++
+ 1 file changed, 78 insertions(+)

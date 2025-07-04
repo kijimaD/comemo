@@ -1,0 +1,15 @@
+commit ef32eaceef917880cf2235e1b3bf80d1b37a8d4a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 15 16:48:21 2011 -0400
+
+    go/build: change //build to // +build
+    
+    New rules as discussed on CL 5011046.
+    Also apply to C and assembly files, not just Go files.
+    
+    R=r, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/5015051
+
+ src/pkg/go/build/dir.go | 94 ++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 69 insertions(+), 25 deletions(-)

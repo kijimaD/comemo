@@ -1,0 +1,14 @@
+commit 6a027cdb7517c47b884f57d748898dfc1b6cb675
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Tue Feb 4 12:23:03 2020 +0000
+
+    doc/go1.14: fix broken links
+    
+    Fix broken links with missing /pkg and fix os/signal import path.
+    
+    Change-Id: I4bf74c9f6e9b0e5fa96ca4d35c4ce404e07583b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217697
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.14.html | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

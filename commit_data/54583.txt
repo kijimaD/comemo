@@ -1,0 +1,53 @@
+commit d1cb5c06057ef4d315895a91cf1bad067343e599
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 9 15:40:41 2023 -0400
+
+    cmd/go: improve handling of no-test packages for coverage
+    
+    This patch improves the way the go command handles coverage testing
+    of packages that have functions but don't have any test files. Up to
+    this point if you ran "go test -cover" on such a package, you would
+    see:
+    
+      ?     mymod/mypack    [no test files]
+    
+    While "no test files" is true, it is also very unhelpful; if the
+    package contains functions, it would be better instead to capture the
+    fact that these functions are not executed when "go test -cover" is
+    run on the package.
+    
+    With this patch, for the same no-test package "go test -cover" will
+    output:
+    
+            mymod/mypack    coverage: 0.0% of statements
+    
+    The inclusion of such packages in coverage reporting also extends to
+    "-coverprofile" as well (we'll see entries for the "mypack" functions
+    in this case.
+    
+    Note that if a package has no functions at all, then we'll still fall
+    back to reporting "no test files" in this case; it doesn't make sense
+    to report "0.0% statements covered" if there are no statements.
+    
+    Updates #27261.
+    Updates #58770.
+    Updates #18909.
+    Fixes #24570.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I8e916425f4f2beec65861df78265e93db5ce001a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495447
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go                 | 12 +++-
+ src/cmd/go/internal/load/test.go                |  6 +-
+ src/cmd/go/internal/test/test.go                | 74 ++++++++++++++++---
+ src/cmd/go/internal/work/action.go              | 29 +++++++-
+ src/cmd/go/internal/work/cover.go               | 95 +++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go                | 35 ++++++---
+ src/cmd/go/internal/work/gc.go                  |  4 +-
+ src/cmd/go/testdata/script/cover_statements.txt | 29 +++++++-
+ src/go/build/deps_test.go                       |  3 +
+ src/internal/coverage/covcmd/cmddefs.go         | 17 +++++
+ 10 files changed, 276 insertions(+), 28 deletions(-)

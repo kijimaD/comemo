@@ -1,0 +1,16 @@
+commit 1103d78c84d9654035c2b43aeb01cd5a71c539de
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 6 15:57:02 2009 -0800
+
+    Recognize gccgo error messages:
+    
+    func4.go:8:11: error: invalid operand for unary '&'
+    func4.go:9:8: error: invalid left hand side of assignment
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=24294
+    CL=24603
+
+ test/func4.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,33 @@
+commit 57e3809884dd695d484acaefba8ded720c5a02c1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Feb 18 13:09:54 2022 -0500
+
+    runtime: avoid cgo_unsafe_args for syscall.syscall functions on darwin/arm64
+    
+    Currently, syscall.syscall-like functions are defined as
+    cgo_unsafe_args, which makes them ABI0, as it takes the address of
+    the argument area based on ABI0 layout. Those functions are
+    linkname'd to the syscall package. When compiling the syscall
+    package, the compiler doesn't know they are ABI0 therefore
+    generate an ABIInternal call, which will use the wrapper. As some
+    of the functions (e.g. syscall6) has many arguments, the wrapper
+    would take a good amount of stack space. And those functions must
+    be nosplit. This causes nosplit overflow when building with -N -l
+    and -race.
+    
+    Avoid that by rewriting the functions to not use cgo_unsafe_args.
+    Instead, make a struct locally and pass the address of that
+    struct. This way the functions are ABIInternal and the call will
+    not use the wrapper.
+    
+    Fixes #51247.
+    
+    Change-Id: I76c1ab86b9d28664fa7d5b9c7928fbb2fd8d1417
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386719
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/sys_darwin.go | 52 +++++++++++++++++++++++++----------------------
+ 1 file changed, 28 insertions(+), 24 deletions(-)

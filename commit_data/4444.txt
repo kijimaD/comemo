@@ -1,0 +1,14 @@
+commit 42a2e9598979f998ccdd91f63dc149795b6f6d22
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 16 03:10:50 2009 -0800
+
+    add the ability to invoke niladic single-valued methods in templates.
+    Fixes #389.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/180061
+
+ src/pkg/template/template.go      | 79 ++++++++++++++++++++++++++++++++++-----
+ src/pkg/template/template_test.go | 17 +++++++++
+ 2 files changed, 86 insertions(+), 10 deletions(-)

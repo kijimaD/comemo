@@ -1,0 +1,25 @@
+commit ba3f568988bff69b3d00cd6ca76ab536eacbea48
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Feb 17 11:29:04 2025 +0000
+
+    cmd/compile: determine static values of len and cap in make() calls
+    
+    This change improves escape analysis by attempting to
+    deduce static values for the len and cap parameters,
+    allowing allocations to be made on the stack.
+    
+    Change-Id: I1161019aed9f60cf2c2fe4d405da94ad415231ac
+    GitHub-Last-Rev: d78c1b4ca55fa53282e665009f689d0b013f1434
+    GitHub-Pull-Request: golang/go#71693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649035
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/escape/utils.go |  27 ++++++--
+ test/escape_array.go                     |   4 +-
+ test/escape_make_non_const.go            | 108 +++++++++++++++++++++++++++++++
+ test/fixedbugs/issue41635.go             |   4 +-
+ 4 files changed, 134 insertions(+), 9 deletions(-)

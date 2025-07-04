@@ -1,0 +1,14 @@
+commit 491ec4dff51dfe7ba721c85da0a30eceb99aa85c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 13 22:50:35 2017 +0000
+
+    doc: add go-contrib-init mention to contributing docs
+    
+    Fixes #17802
+    
+    Change-Id: I245552534c3e21d95c569ac7118ba289244ba11d
+    Reviewed-on: https://go-review.googlesource.com/45652
+    Reviewed-by: Steve Francia <spf@golang.org>
+
+ doc/contribute.html | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

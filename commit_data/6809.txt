@@ -1,0 +1,15 @@
+commit 1f90447e3148d05dd093dbf4d36d919269d50390
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Dec 1 10:15:42 2010 -0800
+
+    log: ensure writes are atomic.
+    This means that any Writer can be used safely
+    even when Output is called concurrently.
+    Fixes #1302.
+    
+    R=r, nigeltao_gnome
+    CC=golang-dev
+    https://golang.org/cl/3300042
+
+ src/pkg/log/log.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

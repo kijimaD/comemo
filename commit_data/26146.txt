@@ -1,0 +1,26 @@
+commit 0321cabdfacc5472d2bc650de3e36ca10131b60a
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 8 15:08:25 2016 -0500
+
+    cmd/compile: guard the &-to-<<>> opt against small constants
+    
+    Converting an and-K into a pair of shifts for K that will
+    fit in a one-byte argument is probably not an optimization,
+    and it also interferes with other patterns that we want to
+    see fire, like (<< (AND K)) [for small K] and bounds check
+    elimination for masked indices.
+    
+    Turns out that on Intel, even 32-bit signed immediates beat
+    the shift pair; the size reduction of tool binaries is 0.09%
+    vs 0.07% for only the 8-bit immediates.
+    
+    RLH found this one working on the new/next GC.
+    
+    Change-Id: I2414a8de1dd58d680d18587577fbadb7ff4f67d9
+    Reviewed-on: https://go-review.googlesource.com/20410
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  8 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 58 ++------------------------
+ 2 files changed, 7 insertions(+), 59 deletions(-)

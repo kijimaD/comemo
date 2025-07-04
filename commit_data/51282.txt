@@ -1,0 +1,18 @@
+commit d703ad54bcf6268e1f1813b261067421b7caa816
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 15 10:14:28 2022 -0500
+
+    cmd/internal/archive: use testenv.Command instead of exec.Command in tests
+    
+    testenv.Command sets a default timeout based on the test's deadline
+    and sends SIGQUIT (where supported) in case of a hang.
+    
+    Change-Id: I6f8391da50e74919ccc59cd43ccae99affab8798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450700
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/archive/archive_test.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

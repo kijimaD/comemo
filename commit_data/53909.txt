@@ -1,0 +1,26 @@
+commit ea565f156b6c789cab058437f902950bd98e1b7f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 5 22:51:49 2023 +0700
+
+    cmd/compile: fix missing init nodes for len(string([]byte)) optimization
+    
+    CL 497276 added optimization for len(string([]byte)) by avoiding call to
+    slicebytetostring. However, the bytes to string expression may contain
+    init nodes, which need to be preserved. Otherwise, it would make the
+    liveness analysis confusing about the lifetime of temporary variables
+    created by init nodes.
+    
+    Fixes #61778
+    
+    Change-Id: I6d1280a7d61bcc75f11132af41bda086f084ab54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516375
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/walk/builtin.go |  5 ++++-
+ test/fixedbugs/issue61778.go             | 13 +++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

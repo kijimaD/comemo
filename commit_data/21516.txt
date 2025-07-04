@@ -1,0 +1,19 @@
+commit 1b523384dc5c46e0a137d73f65dda636bfeda350
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Feb 6 14:33:44 2015 -0500
+
+    runtime: skip the gdb test if -iex is not supported
+    
+    It turns out -iex argument is not supported by all gdb versions,
+    but as we need to add the auto-load safe path before loading the
+    inferior, test -iex support first and skip the test if it's not
+    available.
+    
+    We should still update our builders though.
+    
+    Change-Id: I355697de51baf12162ba6cb82f389dad93f93dc5
+    Reviewed-on: https://go-review.googlesource.com/4070
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

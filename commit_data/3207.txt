@@ -1,0 +1,13 @@
+commit cf336b10df509870df7138d14602d2d706385c6d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 3 13:33:16 2009 -0700
+
+    partial rune at end makes string range loop forever
+    
+    R=rsc
+    DELTA=20  (20 added, 0 deleted, 0 changed)
+    OCL=34330
+    CL=34332
+
+ test/bugs/bug204.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

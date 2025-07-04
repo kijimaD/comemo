@@ -1,0 +1,12 @@
+commit 512aeb305e1a7b57fc85348f0e752b4187856b45
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Mon Apr 2 12:06:05 2012 -0400
+
+    exp/utf8string: Correct package name in error messages
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5969051
+
+ src/pkg/exp/utf8string/string.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

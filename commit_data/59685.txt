@@ -1,0 +1,17 @@
+commit d2db2372a2fd79d539719fa13422d83d6fdfcda1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 21 22:50:09 2025 -0400
+
+    hash/maphash: move purego-only helper functions to build tagged file
+    
+    Hash.float64 and btoi helper functions are used only in the purego
+    version. Move them to the build tagged file.
+    
+    Change-Id: I57f9a48966573ab0aee1de759eeddd2331967870
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675158
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/hash/maphash/maphash.go        | 24 ------------------------
+ src/hash/maphash/maphash_purego.go | 23 +++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 24 deletions(-)

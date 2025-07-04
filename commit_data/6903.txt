@@ -1,0 +1,19 @@
+commit 2bdb2e78fe8d8270bcd67df1d6c532a9bf82e83f
+Author: Balazs Lecz <leczb@google.com>
+Date:   Thu Dec 9 13:11:39 2010 -0500
+
+    os/inotify: new package
+    
+    This patch adds a new package: os/inotify, which
+    provides a Go wrapper to the Linux inotify system.
+    
+    R=rsc, albert.strasheim, rog, jacek.masiulaniec
+    CC=golang-dev
+    https://golang.org/cl/2049043
+
+ src/pkg/Makefile                         |   9 +
+ src/pkg/deps.bash                        |   2 +-
+ src/pkg/os/inotify/Makefile              |  14 ++
+ src/pkg/os/inotify/inotify_linux.go      | 291 +++++++++++++++++++++++++++++++
+ src/pkg/os/inotify/inotify_linux_test.go |  99 +++++++++++
+ 5 files changed, 414 insertions(+), 1 deletion(-)

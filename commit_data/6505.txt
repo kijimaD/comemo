@@ -1,0 +1,13 @@
+commit d465ea572418c98dea54cfdfe16e170ab534ba0b
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Oct 12 15:05:53 2010 -0700
+
+    netchan: export before import when testing.
+    Fixes some race conditions.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2456041
+
+ src/pkg/netchan/netchan_test.go | 29 ++++++++++++++++++++++++-----
+ 1 file changed, 24 insertions(+), 5 deletions(-)

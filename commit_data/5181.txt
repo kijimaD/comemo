@@ -1,0 +1,12 @@
+commit 4710642d4104918dc72b44ac20ef6528478862bb
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 30 11:21:50 2010 -0700
+
+    Effective Go: update maps description regarding lookup of nonexistent entry.
+    
+    R=rsc, gri, iant
+    CC=golang-dev
+    https://golang.org/cl/821044
+
+ doc/effective_go.html | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)

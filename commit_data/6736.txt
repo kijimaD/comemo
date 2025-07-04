@@ -1,0 +1,14 @@
+commit e9c901dbf4673443cc151d2e53100c0ebff48a44
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 8 15:33:00 2010 -0800
+
+    json: don't indirect before testing for custom unmarshaler
+    Fixes #1260.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/2994041
+
+ src/pkg/json/decode.go      |  4 +++-
+ src/pkg/json/decode_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)

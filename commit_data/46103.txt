@@ -1,0 +1,31 @@
+commit c9912780ab3ecea3c685bfc8bec229c0d2b09317
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 19 15:53:13 2021 -0700
+
+    cmd/compile: enable -G=3 by default
+    
+    This CL changes cmd/compile's -G flag's default from 0 to 3, which
+    enables use of the new types2 type checker and support for type
+    parameters. The old type checker is still available with
+    -gcflags=all=-G=0.
+    
+    The CL also updates the regress test harness to account for the change
+    in default behavior (e.g., to expect known types2 changes/failures).
+    However, the -G=0 mode is still being tested for now.
+    
+    Copy of CL 340914 by danscales@, minus the cmd/internal/objabi.AbsFile
+    change (handled instead by CL 343731) and rebased to master branch.
+    
+    Updates #43651.
+    
+    Change-Id: I1f62d6c0a3ff245e15c5c0e8f3d922129fdd4f29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343732
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/base/flag.go |  1 +
+ test/run.go                           | 29 ++++++++++++++++-------------
+ test/typeparam/smoketest.go           |  2 +-
+ 3 files changed, 18 insertions(+), 14 deletions(-)

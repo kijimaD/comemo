@@ -1,0 +1,31 @@
+commit 1b86bdbdc3991c13c6ed156100a5f4918fdd9c6b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 14 17:44:22 2020 -0400
+
+    cmd/test2json: do not emit a final Action if the result is not known
+    
+    If we are parsing a test output, and the test does not end in the
+    usual PASS or FAIL line (say, because it panicked), then we need the
+    exit status of the test binary in order to determine whether the test
+    passed or failed. If we don't have that status available, we shouldn't
+    guess arbitrarily — instead, we should omit the final "pass" or "fail"
+    action entirely.
+    
+    (In practice, we nearly always DO have the final status, such as when
+    running 'go test' or 'go tool test2json some.exe'.)
+    
+    Fixes #40132
+    
+    Change-Id: Iae482577361a6033395fe4a05d746b980e18c3de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248624
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/test/test.go                   |   8 +-
+ src/cmd/go/testdata/script/test_json_exit.txt      | 102 +++++++++++++++++++++
+ src/cmd/internal/test2json/test2json.go            |  44 +++++----
+ .../internal/test2json/testdata/benchshort.json    |   1 -
+ src/cmd/internal/test2json/testdata/empty.json     |   1 -
+ src/cmd/test2json/main.go                          |   6 +-
+ 6 files changed, 139 insertions(+), 23 deletions(-)

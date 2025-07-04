@@ -1,0 +1,146 @@
+commit 4c2b1e0feb3d3112da94fa4cd11ebe995003fa89
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Feb 1 10:21:14 2024 +0800
+
+    runtime: migrate internal/atomic to internal/runtime
+    
+    For #65355
+    
+    Change-Id: I65dd090fb99de9b231af2112c5ccb0eb635db2be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560155
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ibrahim Bazoka <ibrahimbazoka729@gmail.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/compile/internal/ssa/_gen/genericOps.go    |   4 +-
+ src/cmd/compile/internal/ssagen/ssa.go             | 216 ++++++++++-----------
+ src/cmd/compile/internal/test/inl_test.go          |   2 +-
+ src/cmd/compile/internal/types/size.go             |   2 +-
+ src/cmd/compile/internal/types2/sizes.go           |   2 +-
+ src/cmd/cover/cover.go                             |   2 +-
+ src/cmd/go/internal/load/pkg.go                    |   4 +-
+ src/cmd/internal/objabi/pkgspecial.go              |   2 +-
+ src/go/build/deps_test.go                          |   2 +-
+ src/go/types/sizes.go                              |   2 +-
+ src/internal/coverage/pkid.go                      |   4 +-
+ .../runtime}/atomic/atomic_386.go                  |   0
+ .../runtime}/atomic/atomic_386.s                   |   0
+ .../runtime}/atomic/atomic_amd64.go                |   0
+ .../runtime}/atomic/atomic_amd64.s                 |   0
+ .../runtime}/atomic/atomic_andor_generic.go        |   0
+ .../runtime}/atomic/atomic_andor_test.go           |   2 +-
+ .../runtime}/atomic/atomic_arm.go                  |   0
+ .../runtime}/atomic/atomic_arm.s                   |   0
+ .../runtime}/atomic/atomic_arm64.go                |   0
+ .../runtime}/atomic/atomic_arm64.s                 |   0
+ .../runtime}/atomic/atomic_loong64.go              |   0
+ .../runtime}/atomic/atomic_loong64.s               |  10 +-
+ .../runtime}/atomic/atomic_mips64x.go              |   0
+ .../runtime}/atomic/atomic_mips64x.s               |   0
+ .../runtime}/atomic/atomic_mipsx.go                |   0
+ .../runtime}/atomic/atomic_mipsx.s                 |   0
+ .../runtime}/atomic/atomic_ppc64x.go               |   0
+ .../runtime}/atomic/atomic_ppc64x.s                |   0
+ .../runtime}/atomic/atomic_riscv64.go              |   0
+ .../runtime}/atomic/atomic_riscv64.s               |   0
+ .../runtime}/atomic/atomic_s390x.go                |   0
+ .../runtime}/atomic/atomic_s390x.s                 |   0
+ .../runtime}/atomic/atomic_test.go                 |   2 +-
+ .../runtime}/atomic/atomic_wasm.go                 |   0
+ .../runtime}/atomic/atomic_wasm.s                  |   0
+ .../runtime}/atomic/bench_test.go                  |   2 +-
+ .../internal => internal/runtime}/atomic/doc.go    |   0
+ .../internal => internal/runtime}/atomic/stubs.go  |   0
+ .../runtime}/atomic/sys_linux_arm.s                |   0
+ .../runtime}/atomic/sys_nonlinux_arm.s             |   0
+ .../internal => internal/runtime}/atomic/types.go  |   0
+ .../runtime}/atomic/types_64bit.go                 |   0
+ .../runtime}/atomic/unaligned.go                   |   0
+ src/runtime/HACKING.md                             |   2 +-
+ src/runtime/abi_test.go                            |   2 +-
+ src/runtime/align_runtime_test.go                  |   2 +-
+ src/runtime/arena.go                               |   2 +-
+ src/runtime/arena_test.go                          |   2 +-
+ src/runtime/atomic_pointer.go                      |   6 +-
+ src/runtime/chan.go                                |   2 +-
+ src/runtime/coverage/testsupport.go                |   2 +-
+ src/runtime/debug.go                               |   2 +-
+ src/runtime/debuglog.go                            |   2 +-
+ src/runtime/export_test.go                         |   2 +-
+ src/runtime/histogram.go                           |   2 +-
+ src/runtime/iface.go                               |   2 +-
+ src/runtime/lfstack.go                             |   2 +-
+ src/runtime/lock_futex.go                          |   2 +-
+ src/runtime/lock_sema.go                           |   2 +-
+ src/runtime/lockrank_on.go                         |   2 +-
+ src/runtime/malloc.go                              |   2 +-
+ src/runtime/map.go                                 |   4 +-
+ src/runtime/mbitmap.go                             |   2 +-
+ src/runtime/mcache.go                              |   2 +-
+ src/runtime/mcentral.go                            |   2 +-
+ src/runtime/mcheckmark.go                          |   2 +-
+ src/runtime/mem_linux.go                           |   2 +-
+ src/runtime/mfinal.go                              |   2 +-
+ src/runtime/mgc.go                                 |   2 +-
+ src/runtime/mgclimit.go                            |   2 +-
+ src/runtime/mgcmark.go                             |   2 +-
+ src/runtime/mgcpacer.go                            |   2 +-
+ src/runtime/mgcscavenge.go                         |   2 +-
+ src/runtime/mgcscavenge_test.go                    |   2 +-
+ src/runtime/mgcsweep.go                            |   2 +-
+ src/runtime/mgcwork.go                             |   2 +-
+ src/runtime/mheap.go                               |   2 +-
+ src/runtime/mpagealloc.go                          |   2 +-
+ src/runtime/mprof.go                               |   2 +-
+ src/runtime/mranges.go                             |   2 +-
+ src/runtime/mspanset.go                            |   2 +-
+ src/runtime/mstats.go                              |   2 +-
+ src/runtime/mwbbuf.go                              |   2 +-
+ src/runtime/netpoll.go                             |   2 +-
+ src/runtime/netpoll_aix.go                         |   2 +-
+ src/runtime/netpoll_epoll.go                       |   2 +-
+ src/runtime/netpoll_kqueue.go                      |   2 +-
+ src/runtime/netpoll_solaris.go                     |   2 +-
+ src/runtime/netpoll_stub.go                        |   2 +-
+ src/runtime/netpoll_windows.go                     |   2 +-
+ src/runtime/os3_solaris.go                         |   2 +-
+ src/runtime/os_aix.go                              |   2 +-
+ src/runtime/os_linux.go                            |   8 +-
+ src/runtime/os_netbsd.go                           |   2 +-
+ src/runtime/os_openbsd.go                          |   2 +-
+ src/runtime/os_openbsd_syscall2.go                 |   2 +-
+ src/runtime/os_plan9.go                            |   2 +-
+ src/runtime/os_wasm.go                             |   2 +-
+ src/runtime/os_windows.go                          |   2 +-
+ src/runtime/panic.go                               |   2 +-
+ src/runtime/pinner.go                              |   2 +-
+ src/runtime/proc.go                                |  10 +-
+ src/runtime/profbuf.go                             |   2 +-
+ src/runtime/runtime.go                             |   2 +-
+ src/runtime/runtime1.go                            |   2 +-
+ src/runtime/runtime2.go                            |   2 +-
+ src/runtime/rwmutex.go                             |   2 +-
+ src/runtime/sema.go                                |   2 +-
+ src/runtime/signal_unix.go                         |   2 +-
+ src/runtime/sigqueue.go                            |   2 +-
+ src/runtime/stack.go                               |   2 +-
+ src/runtime/stubs2.go                              |   2 +-
+ src/runtime/symtab.go                              |   2 +-
+ src/runtime/sys_darwin.go                          |   2 +-
+ src/runtime/sys_openbsd2.go                        |   2 +-
+ src/runtime/testdata/testprognet/waiters.go        |   2 +-
+ src/runtime/time.go                                |   2 +-
+ src/runtime/trace.go                               |   2 +-
+ src/runtime/trace2.go                              |   2 +-
+ src/runtime/trace2map.go                           |   2 +-
+ src/runtime/trace2runtime.go                       |   2 +-
+ src/runtime/trace2status.go                        |   2 +-
+ src/runtime/traceback.go                           |   4 +-
+ src/runtime/vdso_freebsd.go                        |   2 +-
+ src/runtime/vdso_freebsd_x86.go                    |   2 +-
+ src/sync/atomic/asm.s                              |  52 ++---
+ src/sync/pool.go                                   |   6 +-
+ test/escape_runtime_atomic.go                      |   4 +-
+ 129 files changed, 253 insertions(+), 253 deletions(-)

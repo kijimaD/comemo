@@ -1,0 +1,15 @@
+commit 916eea04f8109a9ef8383341d00b884a9d687399
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jan 29 12:46:26 2012 -0500
+
+    5l, 6l, 8l, ld: remove memory leaks
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5569085
+
+ src/cmd/5l/asm.c | 1 +
+ src/cmd/6l/asm.c | 1 +
+ src/cmd/8l/asm.c | 1 +
+ src/cmd/ld/go.c  | 1 +
+ 4 files changed, 4 insertions(+)

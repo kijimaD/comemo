@@ -1,0 +1,15 @@
+commit d84317ba586d1a6cfe121d3dd4fcd6ae3db6b225
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 5 09:28:47 2011 -0800
+
+    gob: generate a better error message in one confusing place
+    (with maybe more to come) by printing a human-readable
+    representation of a remote type.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3802045
+
+ src/pkg/gob/decode.go | 12 +++++++++++-
+ src/pkg/gob/type.go   | 17 ++++++++++++++---
+ 2 files changed, 25 insertions(+), 4 deletions(-)

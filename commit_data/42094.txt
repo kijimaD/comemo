@@ -1,0 +1,16 @@
+commit 6677a2a1fc5814417c3ab319e1717104e07a4c3f
+Author: Praveen Kumar <praveen+git@kumar.in>
+Date:   Thu Apr 23 21:49:53 2020 +0000
+
+    strings: remove an obsolete doc note for FieldsFunc
+    
+    Fixes #38630
+    
+    Change-Id: I0b2b693dd88821dcfc035cf552b687565bb55ef6
+    GitHub-Last-Rev: 291b1b4dcf074860492bb67008f4e8228c655652
+    GitHub-Pull-Request: golang/go#38631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229763
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/strings/strings.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,17 @@
+commit e7601e2980a134660e50e9cae75ece87588df828
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 29 14:03:33 2009 +1100
+
+    add a debugging printer to the gob package.
+    used only for debugging, debug.go is not normally part of the package source.
+    
+    also add a dump program to call it.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183075
+
+ src/pkg/gob/Makefile |   8 ++
+ src/pkg/gob/debug.go | 216 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/dump.go  |  22 ++++++
+ 3 files changed, 246 insertions(+)

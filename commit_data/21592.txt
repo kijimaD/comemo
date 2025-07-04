@@ -1,0 +1,19 @@
+commit c2de2f87f08c6ebdae095a84dd8c2c8c5ecfc671
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 12 15:00:54 2015 -0500
+
+    runtime: move checknocurrentwbuf() from scanblock to drainworkbuf
+    
+    Previously, scanblock called checknocurrentwbuf() after
+    drainworkbuf().  Move this call into drainworkbuf so that every return
+    path from drainworkbuf calls checknocurrentwbuf().  This is equivalent
+    to the previous code because scanblock was the only caller of
+    drainworkbuf.
+    
+    Change-Id: I96ef2168c8aa169bfc4d368f296342fa0fbeafb4
+    Reviewed-on: https://go-review.googlesource.com/4780
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

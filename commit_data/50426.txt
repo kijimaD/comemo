@@ -1,0 +1,22 @@
+commit 5a379654952f8103d801cbccb5112c3e9976b104
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 7 20:14:46 2022 +0000
+
+    runtime: make mheap.pagesInUse an atomic.Uintptr
+    
+    This change fixes an old TODO that made it a uint64 because it would
+    make alignment within mheap more complicated. Now that we don't have to
+    worry about it since we're using atomic types as much as possible,
+    switch to using a Uintptr. This likely will improve performance a tiny
+    bit on 32-bit platforms, but really it's mostly cleanup.
+    
+    Change-Id: Ie705799a111ccad977fc1f43de8b50cf611be303
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429221
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mheap.go | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)

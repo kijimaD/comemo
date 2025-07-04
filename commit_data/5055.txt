@@ -1,0 +1,12 @@
+commit 354679d91076d12666a4df8d945404b468e28454
+Author: Anthony Starks <ajstarks@gmail.com>
+Date:   Tue Mar 16 13:26:34 2010 -0700
+
+    misc/bbedit: support for cmplx, real, imag
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/582041
+
+ misc/bbedit/Go.plist | 3 +++
+ 1 file changed, 3 insertions(+)

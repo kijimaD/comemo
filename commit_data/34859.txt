@@ -1,0 +1,25 @@
+commit 2e7e57770c71109cc036478c656309c41ddee143
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 4 09:24:13 2018 -0700
+
+    runtime: avoid calling adjustpointers unnecessarily
+    
+    adjustpointers loops over a bitmap.
+    If the length of that bitmap is zero,
+    we can skip making the call entirely.
+    This speeds up stack copying when there are
+    no pointers present in either args or locals.
+    
+    name                old time/op  new time/op  delta
+    StackCopyPtr-8       101ms ± 4%    90ms ± 4%  -10.95%  (p=0.000 n=87+93)
+    StackCopy-8         80.1ms ± 4%  72.6ms ± 4%   -9.41%  (p=0.000 n=98+100)
+    StackCopyNoCache-8   121ms ± 3%   113ms ± 3%   -6.57%  (p=0.000 n=98+97)
+    
+    Change-Id: I7a272e19bc9a14fa3e3318771ebd082dc6247d25
+    Reviewed-on: https://go-review.googlesource.com/104737
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/stack.go | 32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)

@@ -1,0 +1,21 @@
+commit e4468c99b004bc15936727a79dd36621b65c58f9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 2 10:39:45 2017 +0100
+
+    syscall: rename ztypes_windows* to types_windows*
+    
+    The ztypes_windows* file names indicate that these are auto-generated
+    but they aren't. Rename them to types_windows* to avoid this confusion.
+    
+    This follows CL 52950 which did the same for golang.org/x/sys.
+    
+    Change-Id: Ia557ec5d4bcfb6bae20e34e71b5f3f190285794f
+    Reviewed-on: https://go-review.googlesource.com/75390
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/{ztypes_windows.go => types_windows.go}             | 0
+ src/syscall/{ztypes_windows_386.go => types_windows_386.go}     | 0
+ src/syscall/{ztypes_windows_amd64.go => types_windows_amd64.go} | 0
+ 3 files changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,17 @@
+commit 19f5c233d1355d98feef37d704eb76ac75886d49
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Thu May 2 15:48:14 2019 +0700
+
+    cmd/compile: remove outdate TODO in inl.go
+    
+    Mid-stack inlining is enable now, see #19348, but we still can not
+    remove the special case for runtime.heapBits.nextArena, because
+    runtime.heapBits.next is too complex to be inlined
+    (cost 96 exceeds budget 80).
+    
+    Change-Id: I04ea86509074afdc83a3f70d68b8a1a8829763d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174839
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 4 ----
+ 1 file changed, 4 deletions(-)

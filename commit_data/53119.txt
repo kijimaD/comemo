@@ -1,0 +1,40 @@
+commit 071770b846452ef9b00277ef5e1d8693bb891ac2
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 10 13:55:10 2023 -0400
+
+    cmd/dist: enable more cgo tests if GO_GCFLAGS != ""
+    
+    Currently, we have several tests disabled if GO_GCFLAGS is non-empty.
+    
+    Long ago, this was critical because many of these tests use "go
+    install" with no -gcflags and would thus overwrite std packages in
+    GOROOT built with -gcflags=$GO_GCFLAGS. Now these packages all live in
+    the build cache, so this is no longer a concern.
+    
+    The other reason for this (the reason given in the code comment), is
+    that these tests will rebuild significant portions of std without
+    flags. While this is still theoretically true, there are many tests
+    that run "go build" with no -gcflags, so these tests don't contribute
+    much overall.
+    
+    Empirically, on my linux/amd64 host, running these tests at all grows
+    the Go build cache by 14%, from 1.899 GB to 2.165 GB. When building
+    with GO_GCFLAGS="-N -l" (the only use case on the builders), enabling
+    them grows the Go build cache by 18%, from 1.424 GB to 1.684 GB. This
+    is only a 4 percentage point difference, and still results in a build
+    cache that's smaller than the default build
+    
+    Given all this, there's little reason to carry the complexity of
+    disabling these tests when GO_GCFLAGS != "". Removing this condition
+    is a step toward running these as regular cmd tests.
+    
+    Change-Id: I2c41be721927c40a742e01476cd9a0f7650d38e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495917
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/dist/test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

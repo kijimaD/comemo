@@ -1,0 +1,46 @@
+commit 8e5ac83d433d077b76c5418f485c890c1841caac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 19 13:53:20 2017 -0700
+
+    cmd/go: stop linking cgo objects together with ld -r
+    
+    https://golang.org/cl/5822049 introduced the idea of linking together
+    all the cgo objects with -r, while also linking against -lgcc. This
+    was to fix http://golang.org/issue/3261: cgo code that requires libgcc
+    would break when using internal linking.
+    
+    This approach introduced https://golang.org/issue/9510: multiple
+    different cgo packages could include the same libgcc object, leading
+    to a multiple definition error during the final link. That problem was
+    fixed by https://golang.org/cl/16741, as modified by
+    https://golang.org/cl/16993, which did the link against libgcc only
+    during the final link.
+    
+    After https://golang.org/cl/16741, and, on Windows, the later
+    https://golang.org/cl/26670, ld -r no longer does anything useful.
+    
+    So, remove it.
+    
+    Doing this revealed that running ld -r on Darwin simplifies some
+    relocs by making them specific to a symbol rather than a section.
+    Correct the handling of unsigned relocations in internal linking mode
+    by offsetting by the symbol value. This only really comes up when
+    using the internal linker with C code that initializes a variable to
+    the address of a local constant, such as a C string (as in const char
+    *s = "str";). This change does not affect the normal case of external
+    linking, where the Add field is ignored. The test case is
+    misc/cgo/test/issue6612.go in internal linking mode.
+    
+    The cmd/internal/goobj test can now see an external object with no
+    symbol table; fix it to not crash in that case.
+    
+    Change-Id: I15e5b7b5a8f48136bc14bf4e1c4c473d5eb58062
+    Reviewed-on: https://go-review.googlesource.com/64793
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/go/internal/work/build.go    | 71 ------------------------------------
+ src/cmd/internal/goobj/goobj_test.go |  3 ++
+ src/cmd/link/internal/ld/ldmacho.go  |  9 ++++-
+ 3 files changed, 11 insertions(+), 72 deletions(-)

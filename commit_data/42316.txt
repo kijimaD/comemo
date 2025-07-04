@@ -1,0 +1,27 @@
+commit d65e1b2e41deb810565c94555d791e7384618da0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 30 20:43:59 2020 -0400
+
+    crypto/x509: ignore Common Name by default
+    
+    Common Name has been deprecated for 20 years, and has horrible
+    interactions with Name Constraints. The browsers managed to drop it last
+    year, let's try flicking the switch to disabled by default.
+    
+    Return helpful errors for things that would get unbroken by flipping the
+    switch back with the environment variable.
+    
+    Had to refresh a test certificate that was too old to have SANs.
+    
+    Updates #24151
+    
+    Change-Id: I2ab78577fd936ba67969d3417284dbe46e4ae02f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231379
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/x509/verify.go      | 32 ++++++++------
+ src/crypto/x509/verify_test.go |  4 +-
+ src/crypto/x509/x509_test.go   | 96 +++++++++++++++++++++---------------------
+ 3 files changed, 70 insertions(+), 62 deletions(-)

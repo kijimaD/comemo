@@ -1,0 +1,14 @@
+commit 7da2f8278f10ed389e0d96cb43e5445d80d21f9b
+Author: Adam Langley <agl@golang.org>
+Date:   Sat Nov 25 10:54:18 2017 -0800
+
+    crypto/x509: document specifically that only v3 certificates are created.
+    
+    Fixes #21593
+    
+    Change-Id: I5d6c644ed1d60ae4610712155bae5cf13ee1f886
+    Reviewed-on: https://go-review.googlesource.com/79876
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/x509.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

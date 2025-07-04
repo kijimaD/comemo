@@ -1,0 +1,23 @@
+commit 0de521d111b88b2bc6466a4e1f29a8a284c0b3ee
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Apr 16 16:17:50 2014 -0400
+
+    go/scanner: interpret //line directives sans filename sensibly, second try.
+    
+    A //line directive without a filename now denotes the empty
+    filename, not the current directory (the Go 1.2 behaviour) nor
+    the previous //line's filename (the behaviour since CL
+    86990044).
+    
+    They should never appear (but they do, e.g. due to a bug in godoc).
+    
+    Fixes #7765
+    
+    LGTM=gri, rsc
+    R=rsc, gri
+    CC=golang-codereviews
+    https://golang.org/cl/88160050
+
+ src/pkg/go/scanner/scanner.go      | 5 +----
+ src/pkg/go/scanner/scanner_test.go | 3 +--
+ 2 files changed, 2 insertions(+), 6 deletions(-)

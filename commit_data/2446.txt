@@ -1,0 +1,19 @@
+commit 4a50434a366743d6ddbd8a3651f76d7c811b6835
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 15 15:43:11 2009 -0700
+
+    Support for line comments trailing a field or declaration:
+    - ast: added extra fields
+    - parser: extended comment parsing to capture potential trailing comments
+    
+    Cleanups:
+    - parser: more documentation, changed various identifiers from _-style to camelCase
+    
+    R=r,rsc
+    DELTA=214  (84 added, 13 deleted, 117 changed)
+    OCL=30259
+    CL=30299
+
+ src/pkg/go/ast/ast.go       |  10 +-
+ src/pkg/go/parser/parser.go | 305 +++++++++++++++++++++++++++-----------------
+ 2 files changed, 193 insertions(+), 122 deletions(-)

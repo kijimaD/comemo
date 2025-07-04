@@ -1,0 +1,14 @@
+commit bb1ec0dfc8303e5fe3c1b2549d124ee2fed1faee
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 27 15:57:22 2011 -0700
+
+    tar: use ioutil.Discard
+    
+    This one didn't come up in previous greps.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4430071
+
+ src/pkg/archive/tar/reader.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)

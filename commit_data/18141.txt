@@ -1,0 +1,12 @@
+commit 8f3fc547d0d658a13149dd7e504087b21defddee
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jan 1 00:00:22 2014 +1100
+
+    2014: Year of the Gopher.
+    
+    R=adg, djd, mpvl, nigeltao
+    CC=golang-codereviews
+    https://golang.org/cl/46660043
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 278b9a8a4a905ca91feb145b949303bd91a2a154
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Dec 14 11:14:05 2020 +0100
+
+    io/fs: fix package reference in FS godoc
+    
+    Reported by Ben on golang-dev
+    https://groups.google.com/g/golang-dev/c/gsoj5Vv15j0/m/kZxzYUdnAQAJ
+    
+    Change-Id: Ic2c9600b831592ad54036b816138760b7fbb737a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277377
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/io/fs/fs.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

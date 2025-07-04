@@ -1,0 +1,32 @@
+commit 8d44ede0dc9261d3f122d4d743dd57615d52d067
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 22 12:10:59 2015 -0500
+
+    cmd/gc: simplify code for c2go (more)
+    
+    - Remove more ? : expressions.
+    - Use uint32 **hash instead of uint32 *hash[] in function argument.
+    - Change array.c API to use int, not int32, to match Go's slices.
+    - Rename strlit to newstrlit, to avoid case-insensitive collision with Strlit.
+    - Fix a few incorrect printf formats.
+    - Rename a few variables from 'len' to n or length.
+    - Eliminate direct string editing building up names like convI2T.
+    
+    Change-Id: I754cf553402ccdd4963e51b7039f589286219c29
+    Reviewed-on: https://go-review.googlesource.com/3278
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/gc/array.c     | 10 +++++-----
+ src/cmd/gc/closure.c   |  2 +-
+ src/cmd/gc/dcl.c       |  4 ++--
+ src/cmd/gc/esc.c       |  2 +-
+ src/cmd/gc/go.h        |  2 +-
+ src/cmd/gc/lex.c       | 33 ++++++++++++++++++---------------
+ src/cmd/gc/pgen.c      |  7 +++++--
+ src/cmd/gc/plive.c     | 23 ++++++++++++++---------
+ src/cmd/gc/racewalk.c  | 15 +++++++++++----
+ src/cmd/gc/reflect.c   |  8 ++++----
+ src/cmd/gc/subr.c      | 12 ++++++------
+ src/cmd/gc/typecheck.c | 22 +++++++++++-----------
+ src/cmd/gc/walk.c      | 40 ++++++++++++++++++++--------------------
+ 13 files changed, 99 insertions(+), 81 deletions(-)

@@ -1,0 +1,13 @@
+commit 6645602c0b24e762a9fc009376fef1d83760763d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Dec 21 07:52:07 2011 -0500
+
+    os/signal: do not build on Plan 9
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5503057
+
+ src/pkg/os/signal/signal.go      | 2 ++
+ src/pkg/os/signal/signal_test.go | 2 ++
+ 2 files changed, 4 insertions(+)

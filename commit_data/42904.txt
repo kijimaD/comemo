@@ -1,0 +1,25 @@
+commit ae658cb19a265f3f4694cd4aec508b4565bda6aa
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Aug 27 17:34:59 2020 +0800
+
+    cmd/compile: store the comparison pseudo-ops of arm64 conditional instructions in AuxInt
+    
+    The current implementation stores the comparison pseudo-ops of arm64
+    conditional instructions (CSEL/CSEL0) in Aux, this patch modifies it
+    and stores it in AuxInt, which can avoid the allocation.
+    
+    Change-Id: I0b69e51f63acd84c6878c6a59ccf6417501a8cfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/252517
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/arm64/ssa.go        |   2 +-
+ src/cmd/compile/internal/ssa/check.go        |   6 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 162 ++++++-------
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   4 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go  |   7 +-
+ src/cmd/compile/internal/ssa/rewrite.go      |  15 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 332 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/value.go        |   2 +-
+ 8 files changed, 265 insertions(+), 265 deletions(-)

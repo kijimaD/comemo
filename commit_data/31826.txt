@@ -1,0 +1,16 @@
+commit cf7347a9731421e545c37e00d2b798bdc0f77b77
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed Jun 14 13:53:40 2017 -0700
+
+    api: promote next to go1.9
+    
+    Change-Id: I27aa87607aa82b400411a60c6bdb6f9a42ff97c1
+    Reviewed-on: https://go-review.googlesource.com/45776
+    Run-TryBot: Chris Broadfoot <cbro@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/go1.9.txt      | 163 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt       | 163 -----------------------------------------------------
+ src/cmd/api/run.go |   2 +-
+ 3 files changed, 164 insertions(+), 164 deletions(-)

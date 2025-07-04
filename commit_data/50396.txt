@@ -1,0 +1,15 @@
+commit 3e758593905c1377b0db8d388839171159d0fea5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 6 18:00:35 2022 -0400
+
+    cmd/link/internal/ld: update _func names to match runtime
+    
+    Change-Id: I4a47f676c0e533f7612fc3eb1b5dd8039f72782f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428659
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/cmd/link/internal/ld/pcln.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 71ecd16bf5c7a43849b5a3ad874ca8bd0accd302
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Aug 23 21:11:57 2014 +0400
+
+    runtime: remove unused var
+    
+    LGTM=bradfitz
+    R=daniel.morsing, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/130500044
+
+ src/pkg/runtime/proc.c | 1 -
+ 1 file changed, 1 deletion(-)

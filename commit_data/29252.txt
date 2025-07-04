@@ -1,0 +1,18 @@
+commit 92568bcb6a374aecf2ece6607829b26f5e57ac28
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Oct 31 07:32:19 2016 -0700
+
+    database/sql: correctly spell constants
+    
+    Also add a link to more information about isolation levels as defined by the
+    SQL standard. Fixes #17682.
+    
+    Change-Id: I94c53b713f4c882af40cf15fe5f1e5dbc53ea741
+    Reviewed-on: https://go-review.googlesource.com/32418
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/database/sql/sql.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

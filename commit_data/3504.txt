@@ -1,0 +1,12 @@
+commit 867e10f2415fc89716a5e08ee89fa2e6f512caff
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Oct 11 23:38:44 2009 -0700
+
+    fix build
+    
+    TBR=r
+    OCL=35592
+    CL=35592
+
+ test/golden.out | 4 ----
+ 1 file changed, 4 deletions(-)

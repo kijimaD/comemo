@@ -1,0 +1,15 @@
+commit 4b9490ee72c225d4d82cb4896f95c757ee8fef89
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 20 15:08:40 2016 -0400
+
+    fmt: document that unexported struct fields don't get the String/Error treatment
+    
+    Fixes #17409.
+    
+    Change-Id: Ib49ff4a467431b5c1e6637e5144979cf0bfba489
+    Reviewed-on: https://go-review.googlesource.com/31817
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/fmt/doc.go | 3 +++
+ 1 file changed, 3 insertions(+)

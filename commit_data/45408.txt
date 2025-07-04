@@ -1,0 +1,19 @@
+commit 168dd4e6aa8ad375748ade7613f2f75d6ef4204f
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 28 09:54:56 2021 -0400
+
+    go/types: add example test for type inference
+    
+    This is a port of CL 308973. The only change is to remove a TODO at
+    inference.go2:100 to improve the error position. The go/types error
+    position is fine.
+    
+    Change-Id: Ibf61f3458adde91dec9c7531cbd892ca654a5497
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314593
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/examples/inference.go2 | 101 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 101 insertions(+)

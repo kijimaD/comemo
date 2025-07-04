@@ -1,0 +1,23 @@
+commit 4afb155cdf5cd6e8b133174d3369c4db4ea23c77
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jan 29 23:57:14 2024 +0000
+
+    Revert "runtime: disable use of runnext on wasm"
+    
+    This reverts CL 557437.
+    
+    Reason for revert: Appears to have broken wasip1 builders.
+    
+    For #65178.
+    
+    Change-Id: I59c1a310eb56589c768536fe444c1efaf862f8b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559237
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/net_fake.go    | 17 +++++++++++++++++
+ src/runtime/proc.go    | 23 ++---------------------
+ src/time/sleep_test.go |  5 +++++
+ 3 files changed, 24 insertions(+), 21 deletions(-)

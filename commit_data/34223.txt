@@ -1,0 +1,55 @@
+commit c0392d2e7fbdcd38aafb959e94daf6bbafe2e4e9
+Author: Austin Clements <austin@google.com>
+Date:   Fri Dec 8 22:57:53 2017 -0500
+
+    runtime: make the heap bitmap sparse
+    
+    This splits the heap bitmap into separate chunks for every 64MB of the
+    heap and introduces an index mapping from virtual address to metadata.
+    It modifies the heapBits abstraction to use this two-level structure.
+    Finally, it modifies heapBitsSetType to unroll the bitmap into the
+    object itself and then copy it out if the bitmap would span
+    discontiguous bitmap chunks.
+    
+    This is a step toward supporting general sparse heaps, which will
+    eliminate address space conflict failures as well as the limit on the
+    heap size.
+    
+    It's also advantageous for 32-bit. 32-bit already supports
+    discontiguous heaps by always starting the arena at address 0.
+    However, as a result, with a contiguous bitmap, if the kernel chooses
+    a high address (near 2GB) for a heap mapping, the runtime is forced to
+    map up to 128MB of heap bitmap. Now the runtime can map sections of
+    the bitmap for just the parts of the address space used by the heap.
+    
+    Updates #10460.
+    
+    This slightly slows down the x/garbage and compilebench benchmarks.
+    However, I think the slowdown is acceptably small.
+    
+    name        old time/op     new time/op     delta
+    Template        178ms ± 1%      180ms ± 1%  +0.78%    (p=0.029 n=10+10)
+    Unicode        85.7ms ± 2%     86.5ms ± 2%    ~       (p=0.089 n=10+10)
+    GoTypes         594ms ± 0%      599ms ± 1%  +0.70%    (p=0.000 n=9+9)
+    Compiler        2.86s ± 0%      2.87s ± 0%  +0.40%    (p=0.001 n=9+9)
+    SSA             7.23s ± 2%      7.29s ± 2%  +0.94%    (p=0.029 n=10+10)
+    Flate           116ms ± 1%      117ms ± 1%  +0.99%    (p=0.000 n=9+9)
+    GoParser        146ms ± 1%      146ms ± 0%    ~       (p=0.193 n=10+7)
+    Reflect         399ms ± 0%      403ms ± 1%  +0.89%    (p=0.001 n=10+10)
+    Tar             173ms ± 1%      174ms ± 1%  +0.91%    (p=0.013 n=10+9)
+    XML             208ms ± 1%      210ms ± 1%  +0.93%    (p=0.000 n=10+10)
+    [Geo mean]      368ms           371ms       +0.79%
+    
+    name                       old time/op  new time/op  delta
+    Garbage/benchmem-MB=64-12  2.17ms ± 1%  2.21ms ± 1%  +2.15%  (p=0.000 n=20+20)
+    
+    Change-Id: I037fd283221976f4f61249119d6b97b100bcbc66
+    Reviewed-on: https://go-review.googlesource.com/85883
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/malloc.go  |  73 ++++++++++++------
+ src/runtime/mbitmap.go | 202 ++++++++++++++++++++++++++++++++++++++-----------
+ src/runtime/mheap.go   |  52 +++++++++++--
+ 3 files changed, 252 insertions(+), 75 deletions(-)

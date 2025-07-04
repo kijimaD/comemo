@@ -1,0 +1,12 @@
+commit 56452c53ee6313799c9654c2e136c93356a616e5
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Tue Dec 14 14:12:22 2010 -0800
+
+    govet: on error continue to the next file
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/3578041
+
+ src/cmd/govet/govet.go | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

@@ -1,0 +1,26 @@
+commit 6c7b223c2bfa700d9e1dc53d58c1c998493126e0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 3 09:18:57 2022 -0400
+
+    go/doc/comment: do not turn ``` into “`
+    
+    ``` is Markdown, not Go doc comment, but some small fraction of users get confused.
+    
+    In a set of 55M Go doc comments drawn from the latest version of
+    all public Go modules known to the module proxy in spring 2020,
+    the current Go 1.19 gofmt reformats about 1.57M of them.
+    Out of those 1.57M comments, 8k of them (about 0.5%) contain ```.
+    
+    Instead of rewriting ``` to “`, leave it alone.
+    
+    For #51082.
+    
+    Change-Id: I1c8c88aac7ef75ec03e1a396b84ffe711c46f941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410359
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/go/doc/comment/parse.go           | 8 ++++++++
+ src/go/doc/comment/testdata/quote.txt | 5 ++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 61011de1af0bc6ab286c4722632719d3da2cf746
+Author: David Chase <drchase@google.com>
+Date:   Tue Nov 23 13:29:13 2021 -0500
+
+    cmd/compile: try to preserve IsStmt marks from OpConvert
+    
+    Note when a statement mark was not consumed during Prog
+    generation, and try to use it on a subsequent opcode so
+    that the statement marker will not be lost.
+    
+    And a test.
+    
+    Fixes #49628.
+    
+    Change-Id: I03f7782a9809cc4a0a5870df92b3e182cf124554
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366694
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/debug_lines_test.go     | 19 +++++++++++++++++++
+ src/cmd/compile/internal/ssa/testdata/convertline.go | 16 ++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go               | 17 +++++++++++++++++
+ 3 files changed, 52 insertions(+)

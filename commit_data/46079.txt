@@ -1,0 +1,25 @@
+commit 687f2acf6ae00226e8304e15f156f36e19ac971f
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 17 10:40:44 2021 -0700
+
+    cmd/compile: only use dictionaries for conversions to type parameters
+    
+    Conversions to regular concrete types should not be rewritten during
+    stenciling.
+    
+    Fixes #47740
+    
+    Change-Id: I2b45e22f962dcd2e18bd6cc876ebc0f850860822
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342989
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go |  3 +++
+ test/typeparam/issue47740.go              | 37 +++++++++++++++++++++++++++++++
+ test/typeparam/issue47740.out             |  2 ++
+ test/typeparam/issue47740b.go             | 23 +++++++++++++++++++
+ 4 files changed, 65 insertions(+)

@@ -1,0 +1,12 @@
+commit 6ac19ecefa7db7bad48e2300278fc874f93190d9
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 1 20:57:13 2009 -0800
+
+    correct a few things in Go for C++ Programmers
+    
+    R=iant, rsc
+    CC=go-dev
+    http://go/go-review/1016015
+
+ doc/go_for_cpp_programmers.html | 75 +++++++++++++++++++++++------------------
+ 1 file changed, 43 insertions(+), 32 deletions(-)

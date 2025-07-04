@@ -1,0 +1,23 @@
+commit 21acfdc4ef18fcf2e5e6114fe800fec0a10e493c
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 10 12:46:52 2025 -0700
+
+    cmd/compile: turn off variable-sized make() stack allocation with -N
+    
+    Give people a way to turn this optimization off.
+    
+    (Currently the constant-sized make() stack allocation is not disabled
+    with -N. Kinda inconsistent, but oh well, probably worse to change it now.)
+    
+    Update #73253
+    
+    Change-Id: Idb9ffde444f34e70673147fd6a962368904a7a55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664655
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: t hepudds <thepudds1460@gmail.com>
+
+ src/cmd/compile/internal/walk/builtin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

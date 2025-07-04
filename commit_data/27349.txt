@@ -1,0 +1,24 @@
+commit 636670b8db9b72c80ec89da0a666be0d686269fd
+Author: Scott Bell <scott@sctsm.com>
+Date:   Sun May 8 18:17:59 2016 -0700
+
+    net: use contexts for cgo-based DNS resolution
+    
+    Although calls to getaddrinfo can't be portably interrupted,
+    we still benefit from more granular resource management by
+    pushing the context downwards.
+    
+    Fixes #15321
+    
+    Change-Id: I5506195fc6493080410e3d46aaa3fe02018a24fe
+    Reviewed-on: https://go-review.googlesource.com/22961
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/cgo_stub.go        |  12 ++--
+ src/net/cgo_unix.go        | 136 +++++++++++++++++++++++++++++++++++----------
+ src/net/cgo_unix_test.go   |  61 +++++++++++++++++++-
+ src/net/lookup_unix.go     |  12 ++--
+ src/net/netgo_unix_test.go |   5 +-
+ 5 files changed, 180 insertions(+), 46 deletions(-)

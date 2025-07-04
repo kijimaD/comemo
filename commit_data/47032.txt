@@ -1,0 +1,28 @@
+commit adfb85b3150d5ebe36440f82d83be88403951319
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Jan 4 17:53:37 2021 +0800
+
+    runtime, runtime/asan: add asan runtime support
+    
+    These are the runtime support functions for letting Go code interoperate
+    with the C/C++ address sanitizer. Calls to asanread/asanwrite are now
+    inserted by the compiler with the -asan option.  Calls to
+    asanunpoison/asanpoison will be from other runtime functions in a
+    subsequent CL.
+    
+    Updates #44853.
+    
+    Change-Id: I9e8fc0ce937828bc7f4a8b6637453ddc3862c47b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298613
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/deps_test.go |  2 +-
+ src/runtime/asan.go       | 43 +++++++++++++++++++++++++++
+ src/runtime/asan/asan.go  | 52 ++++++++++++++++++++++++++++++++
+ src/runtime/asan0.go      | 23 ++++++++++++++
+ src/runtime/asan_amd64.s  | 76 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/asan_arm64.s  | 63 +++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 258 insertions(+), 1 deletion(-)

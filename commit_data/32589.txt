@@ -1,0 +1,18 @@
+commit 51e92d7261ac99ded0b2ad06fe01e71586cbd2bf
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Sep 1 03:14:38 2017 +1000
+
+    cmd/go: fix clang option handling
+    
+    On OpenBSD -current, clang is available/installed as 'cc'. This means that
+    the existing clang check fails and the clang related flags are not enabled.
+    Fix this by enabling the clang flags if the compiler claims to support them.
+    
+    Change-Id: I84d124d2409a10f87002c6cbfdb69b4c9a55981a
+    Reviewed-on: https://go-review.googlesource.com/60750
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/build.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

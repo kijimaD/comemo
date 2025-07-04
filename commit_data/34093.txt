@@ -1,0 +1,14 @@
+commit 4dad4ab57bc0cedcc8d164147262f7f6898282dd
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Feb 13 10:23:37 2018 +0000
+
+    runtime: fix typo in comment
+    
+    GitHub-Last-Rev: d6a6fa39095cac8a9acfeacbbafd636e1aa9b55b
+    GitHub-Pull-Request: golang/go#23809
+    Change-Id: Ife18ba2f982b5e1c30bda32d13dcd441778b986a
+    Reviewed-on: https://go-review.googlesource.com/93575
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/internal/atomic/atomic_mipsx.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

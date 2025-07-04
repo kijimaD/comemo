@@ -1,0 +1,42 @@
+commit 1992893307e054602b0e790573a9abab187221b1
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Wed Nov 29 12:15:31 2017 -0600
+
+    math: remove asm version of Dim
+    
+    Dim performance has regressed by 14% vs 1.9 on amd64.
+    Current pure go version of Dim is faster and,
+    what is even more important for performance, is inlinable, so
+    instead of tweaking asm implementation, just remove it.
+    I had to update BenchmarkDim, because it was simply reloading
+    constant(answer) in a loop.
+    Perf data below:
+    
+    name   old time/op  new time/op  delta
+    Dim-6  6.79ns ± 0%  1.60ns ± 1%  -76.39%  (p=0.000 n=7+10)
+    
+    If I modify benchmark to be the same as in this CL results are even better:
+    
+    name   old time/op  new time/op  delta
+    Dim-6  10.2ns ± 0%   1.6ns ± 1%  -84.27%  (p=0.000 n=8+10)
+    
+    Updates #21913
+    
+    Change-Id: I00e23c8affc293531e1d9f0e0e49f3a525634f53
+    Reviewed-on: https://go-review.googlesource.com/80695
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/math/all_test.go     |  2 +-
+ src/math/dim.go          |  4 +---
+ src/math/dim_386.s       |  3 ---
+ src/math/dim_amd64.s     | 38 --------------------------------------
+ src/math/dim_arm.s       |  3 ---
+ src/math/dim_arm64.s     | 29 -----------------------------
+ src/math/stubs_mips64x.s |  3 ---
+ src/math/stubs_mipsx.s   |  3 ---
+ src/math/stubs_ppc64x.s  |  3 ---
+ src/math/stubs_s390x.s   |  3 ---
+ 10 files changed, 2 insertions(+), 89 deletions(-)

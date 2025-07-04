@@ -1,0 +1,33 @@
+commit 031854117f91fbc1265840a04caf2a7a168dd06b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed May 5 17:08:39 2021 -0400
+
+    cmd/go: include packages with InvalidGoFiles when filtering main packages
+    
+    If a package has files with conflicting package names, go/build
+    empirically populates the first name encountered and puts the
+    remaining files in InvalidGoFiles. That foiled our check for packages
+    whose name is either unpopulated or "main", since the "package main"
+    could be found in a source file after the first.
+    
+    Instead, we now treat any package with a nonzero set of InvalidGoFiles
+    as potentially a main package. This biases toward over-reporting
+    errors, but we would rather over-report than under-report.
+    
+    If we fix #45999, we will be able to make these error checks more
+    precise.
+    
+    Updates #42088
+    Fixes #45827
+    Fixes #39986
+    
+    Change-Id: I588314341b17961b38660192c2130678dc03023e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317300
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    | 76 +++++++++++++---------
+ .../go/testdata/script/mod_install_pkg_version.txt |  2 +-
+ src/cmd/go/testdata/script/mod_run_nonmain.txt     | 18 +++++
+ src/cmd/go/testdata/script/mod_run_pkgerror.txt    | 20 +++++-
+ 4 files changed, 82 insertions(+), 34 deletions(-)

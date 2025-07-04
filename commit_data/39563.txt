@@ -1,0 +1,18 @@
+commit 2d1a1e0a2a5d2be7614fa7ec9be7ec9ed72bc820
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Aug 2 19:09:20 2019 +0200
+
+    doc: fix Block interface parameters order
+    
+    The Effective Go document references the crypto/cipher Block
+    interface, but the parameters' names are swapped. This change
+    alignes them to the crypto definition, to avoid confusion.
+    
+    Fixes #33432
+    
+    Change-Id: I8b9aac4dc6af3eec968bbc8f3ee5366b99016fcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188797
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/effective_go.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

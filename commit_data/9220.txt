@@ -1,0 +1,26 @@
+commit a84abbe5086e8a9d280f3f5bd94f3b7940a00eff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 27 16:47:45 2011 -0400
+
+    gc: zero-width struct, zero-length array fixes
+    
+    Fixes #1774.
+    Fixes #2095.
+    Fixes #2097.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4826046
+
+ src/cmd/5g/cgen.c        |  7 +++----
+ src/cmd/5g/galign.c      |  1 +
+ src/cmd/6g/cgen.c        |  8 +++-----
+ src/cmd/6g/galign.c      |  1 +
+ src/cmd/8g/cgen.c        |  8 +++-----
+ src/cmd/8g/galign.c      |  1 +
+ src/cmd/gc/align.c       | 27 ++++++++++++++++-----------
+ src/cmd/gc/go.h          |  3 ++-
+ src/pkg/runtime/slice.c  |  2 +-
+ test/fixedbugs/bug273.go | 12 ++----------
+ test/fixedbugs/bug352.go | 19 +++++++++++++++++++
+ 11 files changed, 52 insertions(+), 37 deletions(-)

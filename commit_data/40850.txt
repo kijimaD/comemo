@@ -1,0 +1,33 @@
+commit 66dd20845675a70e75e8ef04ea14e85a6870b228
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 19 13:48:35 2019 -0500
+
+    cmd/go: consolidate TestInstalls into gopath_install script test
+    
+    TestInstalls was already mostly redundant with
+    TestInstallInto{GOPATH,GOBIN}, except for one additional check for the
+    install location of cmd/fix.
+    
+    We can't assume that GOROOT is writable in general, so we also can't
+    assume that the test will be able to reinstall cmd/fix at run time.
+    Moreover, other processes running in parallel may expect to invoke
+    cmd/fix themselves, so this test temporarily removing it could induce
+    systemwide flakes.
+    
+    We could carefully construct a parallel GOROOT and install cmd/fix
+    into it, but we can get *almost* as much coverage — at a much lower
+    cost — by checking the output of 'go list' instead of actually
+    rebuilding and reinstalling the binary.
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: Id49f44a68b0c52dfabb84c665f63c4e7db58dd49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207965
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                         | 42 ---------------------------
+ src/cmd/go/testdata/script/gopath_install.txt | 11 +++++++
+ 2 files changed, 11 insertions(+), 42 deletions(-)

@@ -1,0 +1,16 @@
+commit d48336b7982c641b7c0d323044b5e34167c69049
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 17 16:51:17 2017 -0800
+
+    cmd/go: tweak support options test for old compilers
+    
+    Fixes #22787
+    
+    Change-Id: Ie0f3995e4bb611ee5927345b17b0d5b381a5ed74
+    Reviewed-on: https://go-review.googlesource.com/78543
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)

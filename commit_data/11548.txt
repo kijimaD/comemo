@@ -1,0 +1,12 @@
+commit 4ea5d62e5a0013b21c9d796b41a56e71b19159b6
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Feb 2 10:17:52 2012 +1100
+
+    os: file windows use syscall.InvalidHandle instead of -1.
+    
+    R=golang-dev, adg, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/5602050
+
+ src/pkg/os/file_windows.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

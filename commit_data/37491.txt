@@ -1,0 +1,37 @@
+commit 41fd4c88ad900765716d17c14eb1b48b553589e2
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 24 18:02:29 2018 +1100
+
+    cmd/link: do not use _GLOBAL_OFFSET_TABLE_ on windows/386
+    
+    When building windows/386 executable that imports "plugin" package,
+    cmd/link adds reference to DLL with blank name. Running
+    
+    objdump -x a.exe
+    
+    reports
+    
+    ...
+    The Import Tables (interpreted .idata section contents)
+    ...
+    DLL Name:
+    vma:  Hint/Ord Member-Name Bound-To
+    25308a     0  _GLOBAL_OFFSET_TABLE_
+    ...
+    
+    So, obviously, executable cannot run, because Windows complains
+    that it cannot find DLL when trying to run it.
+    
+    Stop using _GLOBAL_OFFSET_TABLE_ on windows/386.
+    
+    Fixes #28789
+    
+    Change-Id: Idd489eafd998f6e329f40c5d90a2a8965ab1d873
+    Reviewed-on: https://go-review.googlesource.com/c/151139
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go |  4 ++--
+ src/plugin/plugin_test.go       | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 2339b131d63b397eb4b1bcd2cc09d532df138213
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 9 18:54:26 2016 -0800
+
+    cmd/compile: cleanup paramstoheap and returnsfromheap
+    
+    Better documentation. Change parameter types from **Type and int to
+    just *Type and bool. Make use of short var declarations.
+    
+    Change-Id: I909846ba0df65cd2bc05ee145b72d60e881588bd
+    Reviewed-on: https://go-review.googlesource.com/20495
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/walk.go | 47 +++++++++++++++++--------------------
+ 1 file changed, 22 insertions(+), 25 deletions(-)

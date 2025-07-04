@@ -1,0 +1,14 @@
+commit 2a19d7dc4237f97e654db899fcfbcae46c02d99a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 24 22:01:52 2008 -0700
+
+    - added names to result signatures to make it compile with gccgo
+    - adjusted the makefile to explicitly compile flag.go and fmt.go for gccgo
+    
+    R=r
+    OCL=15822
+    CL=15822
+
+ usr/gri/pretty/Makefile.iant | 11 +++++++++--
+ usr/gri/pretty/parser.go     | 10 +++++-----
+ 2 files changed, 14 insertions(+), 7 deletions(-)

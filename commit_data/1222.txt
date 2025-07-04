@@ -1,0 +1,12 @@
+commit a6182dab47eadcd4f90ee8ef2c99e5e8fef2c89e
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Nov 23 17:26:49 2008 -0800
+
+    indexing optimizations and bug fix
+    
+    R=r
+    OCL=19886
+    CL=19886
+
+ src/cmd/6g/cgen.c | 129 ++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 71 insertions(+), 58 deletions(-)

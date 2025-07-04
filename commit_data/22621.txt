@@ -1,0 +1,25 @@
+commit 571ebae6ef0f9edb09e516b75a757cfeeb51da35
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 12 12:08:47 2015 -0400
+
+    runtime: track scan work performed during concurrent mark
+    
+    This tracks the amount of scan work in terms of scanned pointers
+    during the concurrent mark phase. We'll use this information to
+    estimate scan work for the next cycle.
+    
+    Currently this aggregates the work counter in gcWork and dispose
+    atomically aggregates this into a global work counter. dispose happens
+    relatively infrequently, so the contention on the global counter
+    should be low. If this turns out to be an issue, we can reduce the
+    number of disposes, and if it's still a problem, we can switch to
+    per-P counters.
+    
+    Change-Id: Iac0364c466ee35fab781dbbbe7970a5f3c4e1fc1
+    Reviewed-on: https://go-review.googlesource.com/8832
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 27 +++++++++++++++++++++++++++
+ src/runtime/mgcmark.go | 18 ++++++++++++++++++
+ src/runtime/mgcwork.go | 12 ++++++++++++
+ 3 files changed, 57 insertions(+)

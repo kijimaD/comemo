@@ -1,0 +1,21 @@
+commit 9a9bd102904f0ac57a427634cd9f2e6302d60624
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 28 20:42:40 2022 -0800
+
+    cmd/compile/internal/importer: support final unified IR export format
+    
+    This updates the cmd/compile/internal/importer to natively support the
+    "final" unified IR export format. This is really just for unit tests
+    and symmetry with go/internal/gcimporter though, since
+    cmd/compile/internal/noder has its own types2.Importer.
+    
+    Change-Id: I52fbb6134dbc0a903d62c1b04f95d33bd29e0414
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388617
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/importer/exportdata.go |  8 +++++--
+ src/cmd/compile/internal/importer/gcimporter.go | 29 ++++++++++++++++++++-----
+ 2 files changed, 29 insertions(+), 8 deletions(-)

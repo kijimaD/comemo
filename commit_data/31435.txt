@@ -1,0 +1,16 @@
+commit 390fdead0be0087d10e2e4faff7cb0a12b6a3ec8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 24 10:47:03 2017 -0700
+
+    runtime: document runtime.Frames better
+    
+    In particular, this says that Frames.Function uniquely identifies a
+    function within a program. We depend on this in various places that
+    use runtime.Frames in std, but it wasn't actually written down.
+    
+    Change-Id: Ie7ede348c17673e11ae513a094862b60c506abc5
+    Reviewed-on: https://go-review.googlesource.com/41610
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/symtab.go | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

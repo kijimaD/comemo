@@ -1,0 +1,14 @@
+commit 87113f7eadf6d8b12279709f05c0359b54b194ea
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Aug 30 10:49:10 2019 +0200
+
+    syscall: fix coredump bit for aix/ppc64
+    
+    Change-Id: I92173c3b5f842b829aac7c4d7abbe8b5113e530a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191787
+    Run-TryBot: Clément Chigot <clement.chigot@atos.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/syscall_aix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 86920ad81d50e920a099ec2d75ee719ae3f145ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 24 20:00:50 2010 -0400
+
+    build: update, streamline documentation for new $GOBIN
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/2025041
+
+ README           |  39 ++-----
+ doc/install.html | 344 +++++++++++++++++++++++++++----------------------------
+ 2 files changed, 179 insertions(+), 204 deletions(-)

@@ -1,0 +1,17 @@
+commit 85fd0fd7c432e1f1fb1fa1ccf18c1f935a9b2720
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 15:32:11 2014 -0400
+
+    regexp/syntax: regenerate doc.go from re2 syntax
+    
+    Generated using re2/doc/mksyntaxgo.
+    
+    Fixes #8505.
+    
+    LGTM=iant
+    R=r, iant
+    CC=golang-codereviews
+    https://golang.org/cl/155890043
+
+ src/regexp/syntax/doc.go | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)

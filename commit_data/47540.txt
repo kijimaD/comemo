@@ -1,0 +1,20 @@
+commit d8f7a64519695f037cce8696c5c3b7216fd4a680
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 17 16:12:43 2021 -0800
+
+    test: make issue8606b test more robust
+    
+    Use actual unmapped memory instead of small integers to make
+    pointers that will fault when accessed.
+    
+    Fixes #49562
+    
+    Change-Id: I2c60c97cf80494dd962a07d10cfeaff6a00f4f8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364914
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue8606b.go | 37 ++++++++++++++++++++++---------------
+ 1 file changed, 22 insertions(+), 15 deletions(-)

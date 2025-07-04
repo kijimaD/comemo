@@ -1,0 +1,20 @@
+commit ee8e28d328567b5f12a94b1156b5f6d20d1f67fe
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Oct 5 13:15:13 2014 +1100
+
+    syscall: another attempt to keep windows syscall pointers live
+    
+    This approach was suggested in
+    https://golang.org/cl/138250043/#msg15.
+    Unlike current version of mksyscall_windows.go,
+    new code could be used in go.sys and other external
+    repos without help from asm.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, r
+    CC=golang-codereviews
+    https://golang.org/cl/143160046
+
+ src/syscall/mksyscall_windows.go | 79 +++++++++++++++++++++++++++++++++++-----
+ src/syscall/zsyscall_windows.go  | 36 +++++++++++++++---
+ 2 files changed, 100 insertions(+), 15 deletions(-)

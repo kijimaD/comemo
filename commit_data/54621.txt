@@ -1,0 +1,18 @@
+commit 3a69dcdc9f487f79fdce82536c97b49ba7f216c7
+Author: edef <edef@edef.eu>
+Date:   Sat Dec 3 00:09:22 2022 +0000
+
+    net/http/cgi: set SERVER_PORT to 443 when req.TLS != nil
+    
+    A hostname without a port leaves the port implied by the protocol.
+    For HTTPS, the implied port is 443, not 80.
+    
+    Change-Id: I873a076068f84c8041abf10a435d9499635730a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/454975
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/cgi/host.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,13 @@
+commit 899e2e6e0ce98519387c35e77d54241a436d555e
+Author: Conrad Meyer <cemeyer@cs.washington.edu>
+Date:   Tue Mar 16 13:26:21 2010 -0700
+
+    sha512: add sha384 (truncated version)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/317041
+
+ src/pkg/crypto/sha512/sha512.go      | 85 ++++++++++++++++++++++++++----------
+ src/pkg/crypto/sha512/sha512_test.go | 52 ++++++++++++++++++++++
+ 2 files changed, 114 insertions(+), 23 deletions(-)

@@ -1,0 +1,15 @@
+commit 24d5c871aa8c2107965e35e838514af8488e4bad
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 18 08:52:40 2018 -0700
+
+    cmd/compile: alphabetize sysfunc lists
+    
+    Change-Id: Ia95643752d743d208363e3434497ffcf0af7b2d7
+    Reviewed-on: https://go-review.googlesource.com/107816
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/go.go  | 36 ++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/ssa.go | 34 +++++++++++++++++-----------------
+ 2 files changed, 35 insertions(+), 35 deletions(-)

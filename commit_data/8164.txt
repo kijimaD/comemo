@@ -1,0 +1,16 @@
+commit 8dad7fec1d3c12a7ff50c2ad5178f4b77d4e48ef
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 20 13:53:34 2011 -0700
+
+    http: don't proxy loopback addresses
+    
+    Fixes #1589
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4443053
+
+ src/pkg/http/proxy_test.go | 23 +++++++++++++----------
+ src/pkg/http/transport.go  | 19 +++++++++++++++++++
+ src/pkg/net/ip.go          |  3 ++-
+ 3 files changed, 34 insertions(+), 11 deletions(-)

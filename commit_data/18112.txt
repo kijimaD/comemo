@@ -1,0 +1,12 @@
+commit 499d2167fc8ae6fde73e78ed31f3762683fd29a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 26 11:52:04 2013 -0800
+
+    C: add John Newlin (Google CLA)
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/45830043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

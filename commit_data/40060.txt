@@ -1,0 +1,27 @@
+commit 0b486d2a87a7be7db95689b1657696dc7f04e954
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Sep 26 08:38:33 2019 -0400
+
+    cmd/compile: add R_USETYPE relocs to func syms for autom types
+    
+    During DWARF processing, keep track of the go type symbols for types
+    directly or indirectly referenced by auto variables in a function,
+    and add a set of dummy R_USETYPE relocations to the function's DWARF
+    subprogram DIE symbol.
+    
+    This change is not useful on its own, but is part of a series of
+    changes intended to clean up handling of autom's in the compiler
+    and linker.
+    
+    Updates #34554.
+    
+    Change-Id: I974afa9b7092aa5dba808f74e00aa931249d6fe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/197497
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 20 ++++++++++++++++++--
+ src/cmd/internal/obj/link.go        | 12 +++++++++++-
+ src/cmd/internal/obj/objfile.go     | 14 +++++++-------
+ 3 files changed, 36 insertions(+), 10 deletions(-)

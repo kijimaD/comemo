@@ -1,0 +1,25 @@
+commit 604140d93111f89911e17cb147dcf6a02d2700d0
+Author: Carl Johnson <me@carlmjohnson.net>
+Date:   Fri Mar 4 14:49:52 2022 +0000
+
+    net/url: add JoinPath, URL.JoinPath
+    
+    Builds on CL 332209.
+    
+    Fixes #47005
+    
+    Change-Id: I82708dede05d79a196ca63f5a4e7cb5ac9a041ea
+    GitHub-Last-Rev: 51b735066eef74f5e67c3e8899c58f44c0383c61
+    GitHub-Pull-Request: golang/go#50383
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/374654
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next.txt            |  2 ++
+ src/net/url/url.go      | 23 ++++++++++++++++++++
+ src/net/url/url_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 81 insertions(+)

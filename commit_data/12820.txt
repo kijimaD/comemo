@@ -1,0 +1,13 @@
+commit 96da953d86130b1d9779538c2a09d3b58e69c0f1
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 4 00:00:26 2012 +0800
+
+    godoc: update appinit.go, apply !appengine build constrain to main.go
+    
+    R=adg, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5969063
+
+ src/cmd/godoc/appinit.go | 7 +++++--
+ src/cmd/godoc/main.go    | 2 ++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

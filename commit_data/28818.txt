@@ -1,0 +1,20 @@
+commit 61f1a38bcb52ad5e1753b43c405bb5b144b6966c
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Oct 13 17:08:54 2016 -0400
+
+    crypto/{aes,cipher}: fix panic in CBC on s390x when src length is 0
+    
+    Adds a test to check that block cipher modes accept a zero-length
+    input.
+    
+    Fixes #17435.
+    
+    Change-Id: Ie093c4cdff756b5c2dcb79342e167b3de5622389
+    Reviewed-on: https://go-review.googlesource.com/31070
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/aes/cbc_s390x.go      |  4 ++-
+ src/crypto/cipher/cipher_test.go | 54 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 1 deletion(-)

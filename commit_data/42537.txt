@@ -1,0 +1,16 @@
+commit 292a771b876b2d7deae141dd352c43e650ac3f54
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 15 15:02:54 2020 -0700
+
+    net/rpc: clarify documention of Call.Done field
+    
+    Fixes #36116
+    
+    Change-Id: I93909f2addee9a9435ad658e8b40eef966ce53fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238078
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/net/rpc/client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

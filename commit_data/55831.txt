@@ -1,0 +1,30 @@
+commit e8b5bc63be22e2bebffabcfccaf54d4c19822fe6
+Author: Andrey Bokhanko <andreybokhanko@gmail.com>
+Date:   Tue Jan 30 19:18:24 2024 +0300
+
+    cmd/dist,internal: add GOARM64 environment variable
+    
+    Adds GOARM64 environment variable with accepted range of values "v8.{0-9}",
+    "v9.{0-5}" and optional ",lse" and ",crypto" suffixes.
+    
+    Right now it doesn't affect anything, but can be used in the future to
+    selectively target specific versions of different ARM64 hardware.
+    
+    For #60905
+    
+    Change-Id: I6d530041b6931aa884e34f719f8ec41b1cb03ece
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Shu-Chun Weng <scw@google.com>
+    Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
+
+ src/cmd/dist/build.go               |  11 ++++
+ src/cmd/dist/buildruntime.go        |   1 +
+ src/cmd/go/alldocs.go               |   9 +++
+ src/cmd/go/internal/help/helpdoc.go |   9 +++
+ src/internal/buildcfg/cfg.go        | 117 ++++++++++++++++++++++++++++++++++++
+ src/internal/buildcfg/cfg_test.go   |  85 ++++++++++++++++++++++++++
+ src/internal/cfg/cfg.go             |   1 +
+ 7 files changed, 233 insertions(+)

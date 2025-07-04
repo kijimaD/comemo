@@ -1,0 +1,12 @@
+commit 3921d26300cb61e31657c1732fff92dad6b91712
+Author: Anschel Schaffer-Cohen <anschelsc@gmail.com>
+Date:   Fri Jan 21 10:14:43 2011 -0500
+
+    Use defer to unlock mutex in crypto/rand.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/3991045
+
+ src/pkg/crypto/rand/rand_unix.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit c75ee696c341cef94b00409b3692f3df82af1c71
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 12 18:33:24 2019 +0000
+
+    doc/go1.12: soften, expand crypto/rc4 assembly removal text
+    
+    Change-Id: I46fa43f6c5ac49386f4622e1363d8976f49c0894
+    Reviewed-on: https://go-review.googlesource.com/c/162019
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

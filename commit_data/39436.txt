@@ -1,0 +1,14 @@
+commit 98e1bd2b79bb7da0743450d9e6c0b622ff1e681f
+Author: Andrew <andybons@golang.org>
+Date:   Mon Jun 24 15:28:00 2019 -0400
+
+    doc/go1.13: add release notes for the errors package
+    
+    Also removes remaining TODOs
+    
+    Change-Id: Id80021b7a64c923c4ebd69fb6e8831a43a76dc72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183625
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/go1.13.html | 30 ++++++++++++++++++------------
+ 1 file changed, 18 insertions(+), 12 deletions(-)

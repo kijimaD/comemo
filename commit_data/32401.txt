@@ -1,0 +1,21 @@
+commit 06a78b57377ce63c7fca968af5056a3dec0a06bb
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Aug 16 23:36:58 2017 +0200
+
+    cmd/compile: pass stack allocated bucket to makemap inside hmap
+    
+    name         old time/op    new time/op    delta
+    NewEmptyMap    53.2ns ± 7%    48.0ns ± 5%  -9.77%  (p=0.000 n=20+20)
+    NewSmallMap     111ns ± 1%     106ns ± 2%  -3.78%  (p=0.000 n=20+19)
+    
+    Change-Id: I979d21ab16eae9f6893873becca517db57e054b5
+    Reviewed-on: https://go-review.googlesource.com/56290
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/builtin.go         |  2 +-
+ src/cmd/compile/internal/gc/builtin/runtime.go |  2 +-
+ src/cmd/compile/internal/gc/walk.go            | 49 +++++++++++++++++---------
+ src/runtime/hashmap.go                         | 35 +++++++++---------
+ 4 files changed, 51 insertions(+), 37 deletions(-)

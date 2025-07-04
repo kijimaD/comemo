@@ -1,0 +1,13 @@
+commit a9e1c8fb413f24836a433f3e816984157b79e102
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 3 13:29:06 2013 -0700
+
+    doc/go1.1.html: document the state of gccgo
+    Fixes #5053.
+    
+    R=adg, iant
+    CC=golang-dev
+    https://golang.org/cl/8337043
+
+ doc/go1.1.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

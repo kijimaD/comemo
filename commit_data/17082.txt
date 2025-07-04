@@ -1,0 +1,12 @@
+commit fc714594d76ca68ce3b09510ab5f66d519e0c2c6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 8 12:40:09 2013 +1000
+
+    doc/go1.2.txt: flag now exports CommandLine
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/12642043
+
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

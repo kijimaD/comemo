@@ -1,0 +1,23 @@
+commit 98fd66808fafb6496caeb3e848ae277b734f8ed9
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 30 11:02:41 2018 -0600
+
+    text/template: simplify line tracking in the lexer
+    
+    First, move the strings.Count logic out of emit, since only itemText
+    requires that. Use it in those call sites. itemLeftDelim and
+    itemRightDelim cannot contain newlines, as they're the "{{" and "}}"
+    tokens.
+    
+    Secondly, introduce a startLine lexer field so that we don't have to
+    keep track of it elsewhere. That's also a requirement to move the
+    strings.Count out of emit, as emit modifies the start position field.
+    
+    Change-Id: I69175f403487607a8e5b561b3f1916ee9dc3c0c6
+    Reviewed-on: https://go-review.googlesource.com/132275
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/parse/lex.go | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)

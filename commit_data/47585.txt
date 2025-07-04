@@ -1,0 +1,16 @@
+commit 0244343088e074c5f92b42a9812521f711a69410
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 22 11:43:46 2021 -0800
+
+    spec: fix Swap example (correctly swap type arguments and parameters)
+    
+    Thanks to @danscales for noticing the mistake.
+    
+    Change-Id: I547ee80a78419765b82d39d7b34dc8d3bf962c35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366215
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

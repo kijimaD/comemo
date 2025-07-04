@@ -1,0 +1,16 @@
+commit 2d9b4864201d76bd30b55a7d74d73a24cc3ae165
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Sep 19 18:26:19 2021 -0700
+
+    cmd/compile: update doc at top of iexport.go on the changes for typeparams
+    
+    Add in the documentation of the new declarations and type descriptors to
+    support parameterized functions and types.
+    
+    Change-Id: Ia21c544caa704309cc8fd639f104c192e1786b72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350951
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/typecheck/iexport.go | 38 ++++++++++++++++++++++++---
+ 1 file changed, 34 insertions(+), 4 deletions(-)

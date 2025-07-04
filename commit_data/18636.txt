@@ -1,0 +1,18 @@
+commit ec0c9f270e8c09b00df5e45d87cfa4c85df63271
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Feb 25 14:39:12 2014 +0400
+
+    sync: use RunParallel in benchmarks
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68050043
+
+ src/pkg/sync/mutex_test.go        |  72 ++++++++-------------------
+ src/pkg/sync/once_test.go         |  25 ++--------
+ src/pkg/sync/pool_test.go         |  48 ++++++------------
+ src/pkg/sync/runtime_sema_test.go |  85 +++++++++++---------------------
+ src/pkg/sync/rwmutex_test.go      |  79 ++++++++++-------------------
+ src/pkg/sync/waitgroup_test.go    | 101 +++++++++++---------------------------
+ 6 files changed, 125 insertions(+), 285 deletions(-)

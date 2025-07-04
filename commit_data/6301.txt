@@ -1,0 +1,12 @@
+commit 9997dae7a3499a3f180e7e34df0bb22fa487ad85
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Sep 17 12:35:34 2010 +1000
+
+    os: make RemoveAll() work on windows
+    
+    R=golang-dev, rsc1
+    CC=golang-dev
+    https://golang.org/cl/2212041
+
+ src/pkg/os/path.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

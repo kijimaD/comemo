@@ -1,0 +1,15 @@
+commit e13635c1e0e6306a523d15ca25b62cefc978359d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Oct 19 10:54:45 2011 +0900
+
+    os/inotify: move to exp/inotify
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5295044
+
+ src/pkg/Makefile                                  | 2 +-
+ src/pkg/{os => exp}/inotify/Makefile              | 2 +-
+ src/pkg/{os => exp}/inotify/inotify_linux.go      | 0
+ src/pkg/{os => exp}/inotify/inotify_linux_test.go | 0
+ 4 files changed, 2 insertions(+), 2 deletions(-)

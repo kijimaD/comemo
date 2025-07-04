@@ -1,0 +1,18 @@
+commit 85f59b34291a9e16bf3a2e7db586cd824a121825
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 26 09:54:01 2014 -0800
+
+    go/parser: report error if ParseExpr argument contains extra tokens
+    
+    This partly addresses issue 6099 where a gofmt rewrite is behaving
+    unexpectedly because the provided rewrite term is not a valid expression
+    but is silently consumed anyway.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68920044
+
+ src/pkg/go/parser/interface.go   |  7 +++++++
+ src/pkg/go/parser/parser_test.go | 15 +++++++++++----
+ 2 files changed, 18 insertions(+), 4 deletions(-)

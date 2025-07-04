@@ -1,0 +1,17 @@
+commit 9e811683f1e4138820f0caaec20041c57c302f73
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Oct 7 17:56:10 2012 -0700
+
+    gophertool: make work with latest Chrome extension security restrictions
+    
+    No JavaScript in HTML anymore.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6619066
+
+ misc/chrome/gophertool/background.html | 14 +----------
+ misc/chrome/gophertool/background.js   |  9 +++++++
+ misc/chrome/gophertool/popup.html      | 43 ++++------------------------------
+ misc/chrome/gophertool/popup.js        | 38 ++++++++++++++++++++++++++++++
+ 4 files changed, 52 insertions(+), 52 deletions(-)

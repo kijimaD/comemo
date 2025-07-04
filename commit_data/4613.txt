@@ -1,0 +1,12 @@
+commit 49a35a632e1bc6b66d17efc520fdaa2c1543431c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 15 11:59:53 2010 +1100
+
+    be more explicit about initialization of embedded fields.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186161
+
+ doc/effective_go.html | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)

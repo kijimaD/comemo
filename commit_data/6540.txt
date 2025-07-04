@@ -1,0 +1,12 @@
+commit 8abb8e1d20d2696f975e7074ce8d96d71d484a2b
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 17 09:20:23 2010 -0700
+
+    log: update the documentation to clarify the behavior
+    
+    R=rsc, PeterGo
+    CC=golang-dev
+    https://golang.org/cl/2519043
+
+ src/pkg/log/log.go | 29 +++++++++++++++++++----------
+ 1 file changed, 19 insertions(+), 10 deletions(-)

@@ -1,0 +1,18 @@
+commit 2fd1b523952727b91e5eca76ff1f8b8af8746f7a
+Author: Damien Mathieu <42@dmathieu.com>
+Date:   Fri Mar 2 08:42:02 2018 +0000
+
+    net/http: lock the read-only mutex in shouldRedirect
+    
+    Since that method uses 'mux.m', we need to lock the mutex to avoid data races.
+    
+    Change-Id: I998448a6e482b5d6a1b24f3354bb824906e23172
+    GitHub-Last-Rev: 163a7d4942e793b328e05a7eb91f6d3fdc4ba12b
+    GitHub-Pull-Request: golang/go#23994
+    Reviewed-on: https://go-review.googlesource.com/96575
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 10 ++++++++++
+ src/net/http/server.go     |  3 +++
+ 2 files changed, 13 insertions(+)

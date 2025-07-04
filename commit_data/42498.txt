@@ -1,0 +1,14 @@
+commit 281f0ed7bf671e6bb65ade4aa3146bc572d64560
+Author: Vee Zhang <veezhang@126.com>
+Date:   Tue Jun 9 08:03:13 2020 +0000
+
+    internal/poll: correct function name in comment
+    
+    Change-Id: I3b28a45e942a6d6032855758fcc41e4edd64aa32
+    GitHub-Last-Rev: 9c994bbee7420861b5dc83e71e50fc43d7f6650b
+    GitHub-Pull-Request: golang/go#39467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237059
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

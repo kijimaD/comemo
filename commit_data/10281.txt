@@ -1,0 +1,16 @@
+commit b776b9e724f3edbe4f52d0c1b8dd3ee532a897a3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 8 16:53:31 2011 +1100
+
+    runtime: add windows callback tests
+    
+    Just a copy of cgo callback tests from misc/cgo/test.
+    
+    R=rsc
+    CC=golang-dev, hectorchu
+    https://golang.org/cl/5331062
+
+ src/pkg/runtime/export_test.go          |  2 +
+ src/pkg/runtime/proc.c                  |  8 +++
+ src/pkg/runtime/syscall_windows_test.go | 96 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 105 insertions(+), 1 deletion(-)

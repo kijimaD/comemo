@@ -1,0 +1,23 @@
+commit c1e73dd2868fde5cbb00e8c290afdf3171bca5e6
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Wed Apr 15 15:00:53 2015 -0400
+
+    crypto/tls: fix test data generation
+    
+    - Multiple GetCertificate tests shared the same name and were
+      overwriting each other, each test now has a unique name.
+    - expectAlert was not implemented in the data updater, the single
+      test that used it has been replaced with a ClientHello failure
+      test.
+    
+    Fixes #10470
+    
+    Change-Id: I500738f6302ffa863d7ee45d85fa8773155e0614
+    Reviewed-on: https://go-review.googlesource.com/8959
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+
+ src/crypto/tls/handshake_server_test.go            | 47 ++++++-------
+ .../tls/testdata/Server-TLSv12-SNI-GetCertificate  | 76 ++++++++++++++++++++++
+ .../Server-TLSv12-SNI-GetCertificateNotFound       | 76 ++++++++++++++++++++++
+ 3 files changed, 171 insertions(+), 28 deletions(-)

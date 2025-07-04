@@ -1,0 +1,12 @@
+commit 0d40e40f5ee1996e09018e02833610c34331322c
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Sat Aug 14 10:27:24 2010 +1000
+
+    spec: trivial syntax fix
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/1982042
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

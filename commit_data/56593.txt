@@ -1,0 +1,20 @@
+commit cd41d7178587428f99330800ecb0cc1dd2608693
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 19:03:42 2024 -0400
+
+    internal/coverage/cfile: remove //go:linkname into testing
+    
+    This is just looking at a command-line flag. Look directly.
+    
+    For #67401.
+    
+    Change-Id: I7a1c3fc2d9cc85e5ffc5731444bf6db87abf6901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585916
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/coverage/cfile/ts_test.go | 11 +++++------
+ src/testing/newcover.go                | 10 ----------
+ 2 files changed, 5 insertions(+), 16 deletions(-)

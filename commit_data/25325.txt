@@ -1,0 +1,15 @@
+commit f474885f8a44d3c00e2f11315628fa80fda9404c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 01:00:14 2015 -0500
+
+    cmd/go: document where get writes, and not vendor directories
+    
+    Fixes #12260.
+    
+    Change-Id: I95c27aad6de8064b9a205d4ee507bce75926f16d
+    Reviewed-on: https://go-review.googlesource.com/17948
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 6 ++++++
+ src/cmd/go/get.go     | 6 ++++++
+ 2 files changed, 12 insertions(+)

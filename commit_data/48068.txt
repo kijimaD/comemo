@@ -1,0 +1,39 @@
+commit fa4d9b8e2bc2612960c80474fca83a4c85a974eb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 13 15:38:14 2022 -0500
+
+    cmd/go/internal/modfetch: do not short-circuit canonical versions
+    
+    Since at least CL 121857, the conversion logic in
+    (*modfetch).codeRepo.Stat has had a short-circuit to use the version
+    requested by the caller if it successfully resolves and is already
+    canonical.
+    
+    However, we should not use that version if it refers to a branch
+    instead of a tag, because branches (unlike tags) usually do not refer
+    to a single, stable release: a branch named "v1.0.0" may be for the
+    development of the v1.0.0 release, or for the development of patches
+    based on v1.0.0, but only one commit (perhaps at the end of that
+    branch — but possibly not even written yet!) can be that specific
+    version.
+    
+    We already have some logic to prefer tags that are semver-equivalent
+    to the version requested by the caller. That more general case
+    suffices for exact equality too — so we can eliminate the
+    special-case, fixing the bug and (happily!) also somewhat simplifying
+    the code.
+    
+    Fixes #35671
+    Updates #41512
+    
+    Change-Id: I2fd290190b8a99a580deec7e26d15659b58a50b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378400
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modfetch/coderepo.go           | 216 +++++++--------
+ src/cmd/go/internal/modfetch/coderepo_test.go      | 301 ++++++++++++---------
+ src/cmd/go/testdata/script/mod_invalid_version.txt |  10 +-
+ 3 files changed, 277 insertions(+), 250 deletions(-)

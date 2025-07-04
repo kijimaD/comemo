@@ -1,0 +1,17 @@
+commit 98b99d561225cc1d140360b217df2acc9aa1f746
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 25 13:09:11 2016 -0700
+
+    net: ignore lame referral responses like libresolv
+    
+    Fixes #15434.
+    
+    Change-Id: Ia88b740df5418a6d3af1c29a03756f4234f388b0
+    Reviewed-on: https://go-review.googlesource.com/22428
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/dnsclient_unix.go      |  6 +++
+ src/net/dnsclient_unix_test.go | 86 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 83 insertions(+), 9 deletions(-)

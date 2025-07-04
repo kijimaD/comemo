@@ -1,0 +1,16 @@
+commit 6833d1b43643d8102be45cb6b4ee5912cafed8e7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 6 15:54:26 2013 +1000
+
+    cmd/go: don't leave test binary around for coverage
+    It's not needed to analyze coverage data.
+    Fixes #6120
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/13343050
+
+ src/cmd/go/doc.go      | 9 ++++++---
+ src/cmd/go/test.go     | 7 ++++---
+ src/cmd/go/testflag.go | 1 +
+ 3 files changed, 11 insertions(+), 6 deletions(-)

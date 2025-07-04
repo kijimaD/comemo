@@ -1,0 +1,22 @@
+commit 48eb79ec2197aeea0eb43597b00cad1ebcad61d2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 21:04:36 2019 -0700
+
+    runtime: add new modtimer function
+    
+    This adds a new field to P, adjustTimers, that tells the P that one of
+    its existing timers was modified to be earlier, and that it therefore
+    needs to resort them.
+    
+    Updates #27707
+    
+    Change-Id: I4c5f5b51ed116f1d898d3f87cdddfa1b552337f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171832
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go     |   1 +
+ src/runtime/runtime2.go |   6 +++
+ src/runtime/time.go     | 101 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 107 insertions(+), 1 deletion(-)

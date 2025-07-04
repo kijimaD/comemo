@@ -1,0 +1,15 @@
+commit 5639d2754b1c9e33bc4440e23d21726d2cc3454b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 24 15:52:48 2013 -0400
+
+    cmd/cgo: retain Go pointer passed to C call for duration of call
+    
+    Fixes #6397.
+    
+    R=golang-dev, bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/13858043
+
+ src/cmd/cc/pgen.c  | 19 ++++++++++++++-----
+ src/cmd/cgo/out.go | 12 +++++++++++-
+ 2 files changed, 25 insertions(+), 6 deletions(-)

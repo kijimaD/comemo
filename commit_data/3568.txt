@@ -1,0 +1,14 @@
+commit f9e08759de757a18e8e5b20f30963b4e7bb65230
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Thu Oct 15 22:18:14 2009 -0700
+
+    Trivial documentation fix for func ListenAndServe().
+    
+    R=go-dev
+    APPROVED=gri
+    DELTA=1  (1 added, 0 deleted, 0 changed)
+    OCL=35817
+    CL=35819
+
+ src/pkg/http/server.go | 1 +
+ 1 file changed, 1 insertion(+)

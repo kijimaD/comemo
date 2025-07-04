@@ -1,0 +1,24 @@
+commit 6c9b661867a4439d3ba3086f21c7ea0a5d6c3d5e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 22 09:21:03 2022 -0500
+
+    runtime: revert Apple libc atfork workaround
+    
+    Revert CL 451735 (1f4394a0c926), which fixed #33565 and #56784
+    but also introduced #57263.
+    
+    I have a different fix to apply instead. Since the first fix was
+    never backported, it will be easiest to backport the new fix
+    if the new fix is done in a separate CL from the revert.
+    
+    Change-Id: I6c8ea3a46e542ee4702675bbc058e29ccd2723e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459175
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/runtime/os_darwin.go       |  2 --
+ src/runtime/sys_darwin.go      | 48 ------------------------------------------
+ src/runtime/sys_darwin_amd64.s |  9 --------
+ src/runtime/sys_darwin_arm64.s |  6 ------
+ 4 files changed, 65 deletions(-)

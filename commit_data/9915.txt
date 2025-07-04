@@ -1,0 +1,13 @@
+commit c9dd2e41b14e8ef4867fda5b4daf2d7b5916c776
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Oct 10 20:48:24 2011 +0900
+
+    A+C: Chris Farmiloe (individual CLA)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5237058
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,14 @@
+commit 96da3e96c3f6b97daac7916acfc2cb6d0d1e1253
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 24 07:41:56 2009 +1100
+
+    implement .repeats for maps.
+    Fixes #309.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181044
+
+ src/pkg/template/template.go      | 46 +++++++++++++++++----------------------
+ src/pkg/template/template_test.go | 18 ++++++++++++++-
+ 2 files changed, 37 insertions(+), 27 deletions(-)

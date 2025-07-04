@@ -1,0 +1,22 @@
+commit 5f80e709125a1589ae52c9a33ff188e6c5224227
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Mar 5 10:56:11 2018 +0100
+
+    runtime: remove unused SYS_* definitions on Linux
+    
+    Also fix the indentation of the SYS_* definitions in sys_linux_mipsx.s
+    and order them numerically.
+    
+    Change-Id: I0c454301c329a163e7db09dcb25d4e825149858c
+    Reviewed-on: https://go-review.googlesource.com/98448
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_linux_arm.s     |  1 -
+ src/runtime/sys_linux_arm64.s   |  1 -
+ src/runtime/sys_linux_mips64x.s |  1 -
+ src/runtime/sys_linux_mipsx.s   | 61 ++++++++++++++++++++---------------------
+ src/runtime/sys_linux_ppc64x.s  |  2 --
+ src/runtime/sys_linux_s390x.s   |  1 -
+ 6 files changed, 30 insertions(+), 37 deletions(-)

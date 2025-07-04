@@ -1,0 +1,20 @@
+commit 40254ec0db6d02118df141dbe7fcb6a95aec6560
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Apr 25 15:46:30 2021 +0700
+
+    cmd/compile: fix wrong package path for unsafe.Pointer
+    
+    It's not a predeclared type, but a type defined in "unsafe" package.
+    
+    Fixes #44830
+    
+    Change-Id: If39815b1070059b608be8231dfac9b7f3307cb15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313349
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ test/fixedbugs/issue44830.go                    | 19 +++++++++++++++++++
+ 2 files changed, 20 insertions(+), 1 deletion(-)

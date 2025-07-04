@@ -1,0 +1,64 @@
+commit 750738b5d197b8b70403c7941fbe0dd20e00ebc9
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 13 01:07:10 2023 -0700
+
+    os: make use of pidfd on linux
+    
+    Use Process.handle field to store pidfd, and make use of it. Only use
+    pidfd functionality if all the needed syscalls are available.
+    
+    1. StartProcess: obtain the pidfd from the kernel, if available,
+       using the functionality added by CL 520266. Note we could not modify
+       syscall.StartProcess to return pidfd directly because it is a public
+       API and its callers do not expect it, so we have to use ensurePidfd
+       and getPidfd.
+    
+    2. (*Process).Kill: use pidfdSendSignal, if the syscall is available
+       and pidfd is known. This is slightly more complicated than it should
+       be, since the syscall can be blocked by e.g. seccomp security policy,
+       therefore the need for a function to check if it's actually working,
+       and a soft fallback to kill. Perhaps this precaution is not really
+       needed.
+    
+    3. (*Process).Wait: use pidfdWait, if available, otherwise fall back to
+       using waitid/wait4. This is also more complicated than expected due
+       to struct siginfo_t idiosyncrasy.
+    
+    NOTE pidfdSendSignal and pidfdWait are used without a race workaround
+    (blockUntilWaitable and sigMu, added by CL 23967) because with pidfd,
+    PID recycle issue doesn't exist (IOW, pidfd, unlike PID, is guaranteed
+    to refer to one particular process) and thus the race doesn't exist
+    either.
+    
+    For #62654.
+    Updates #13987.
+    
+    Change-Id: I22ebcc7142b16a3a94c422d2f32504d1a80e8a8f
+    Signed-off-by: Kir Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528438
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/syscall/unix/pidfd_linux.go          |   8 ++
+ src/internal/syscall/unix/siginfo_linux.go        |  64 ++++++++++
+ src/internal/syscall/unix/siginfo_linux_mipsx.go  |  12 ++
+ src/internal/syscall/unix/siginfo_linux_other.go  |  12 ++
+ src/internal/syscall/unix/siginfo_linux_test.go   |  59 +++++++++
+ src/internal/syscall/unix/sysnum_linux_386.go     |   1 +
+ src/internal/syscall/unix/sysnum_linux_amd64.go   |   1 +
+ src/internal/syscall/unix/sysnum_linux_arm.go     |   1 +
+ src/internal/syscall/unix/sysnum_linux_generic.go |   1 +
+ src/internal/syscall/unix/sysnum_linux_mips64x.go |   1 +
+ src/internal/syscall/unix/sysnum_linux_mipsx.go   |   1 +
+ src/internal/syscall/unix/sysnum_linux_ppc64x.go  |   1 +
+ src/internal/syscall/unix/sysnum_linux_s390x.go   |   1 +
+ src/os/exec_posix.go                              |  10 +-
+ src/os/exec_unix.go                               |  39 ++++--
+ src/os/export_linux_test.go                       |   1 +
+ src/os/pidfd_linux.go                             | 145 ++++++++++++++++++++++
+ src/os/pidfd_linux_test.go                        |  17 +++
+ src/os/pidfd_other.go                             |  27 ++++
+ 19 files changed, 389 insertions(+), 13 deletions(-)

@@ -1,0 +1,18 @@
+commit ed263f4dd2b8d9b0681d4e3b7ce79471fb800fc4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 14:04:12 2015 -0500
+
+    cmd/internal/obj: remove use of "iota - X"
+    
+    This was inserted by c2go to turn each enum { ... } into one const ( ... ) block,
+    but it is fragile and was never intended as a long-term thing.
+    
+    Change-Id: I8de8e0984b130456da70e4d59891276dfef7ac27
+    Reviewed-on: https://go-review.googlesource.com/6932
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/link.go        |  7 +++-
+ src/cmd/internal/obj/mgc0.go        |  5 ++-
+ src/cmd/internal/obj/ppc64/9.out.go | 10 ++---
+ src/cmd/internal/obj/x86/6.out.go   | 80 ++++++++++++++++++++++++++++++-------
+ 4 files changed, 80 insertions(+), 22 deletions(-)

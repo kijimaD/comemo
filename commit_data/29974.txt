@@ -1,0 +1,14 @@
+commit be9dcfec293854bfb4a13737ba09801769daccbf
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 23 22:26:27 2017 +0000
+
+    doc: mention testing.MainStart signature change
+    
+    Fixes #18766
+    
+    Change-Id: Ic0f72f3b7bbccd0546692993c4ed414f8c88c1c6
+    Reviewed-on: https://go-review.googlesource.com/35573
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.8.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

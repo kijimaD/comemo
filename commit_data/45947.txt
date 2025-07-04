@@ -1,0 +1,23 @@
+commit 7ba8e796c91eaf4befcacc4d24127ae54475d6a5
+Author: Changkun Ou <hi@changkun.de>
+Date:   Mon Jul 26 15:04:48 2021 +0200
+
+    testing: clarify T.Name returns a distinct name of the running test
+    
+    According to the discussion, it is clear that T.Name returns a
+    distinct name among all tests. However, there is no specification
+    of how sub-tests with the same specified test name are constructed.
+    This change only clarifies the uniqueness and the components of the
+    name without suggesting any explicit format of the returned name.
+    
+    Fixes #46488
+    
+    Change-Id: I6cebd419b69fb08d8646cb744a129548452042ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337392
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/testing/testing.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

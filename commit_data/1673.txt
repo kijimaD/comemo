@@ -1,0 +1,26 @@
+commit 127526649f68b8fc8ea1ab041d6a01c0fd23b7e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 13 15:07:56 2009 -0800
+
+    - vector package (identical to array except for names)
+    - updated some file (but not all - left array package in place for now)
+    
+    R=rsc
+    DELTA=530  (483 added, 0 deleted, 47 changed)
+    OCL=25025
+    CL=25025
+
+ src/lib/container/Makefile          |  63 +++++++++++++
+ src/lib/container/array/array.go    |   4 +
+ src/lib/container/array/intarray.go |   4 +
+ src/lib/container/intvector.go      |  64 +++++++++++++
+ src/lib/container/vector.go         | 182 ++++++++++++++++++++++++++++++++++++
+ src/lib/container/vector_test.go    | 172 ++++++++++++++++++++++++++++++++++
+ src/lib/tabwriter/tabwriter.go      |  18 ++--
+ test/vectors.go                     |   6 +-
+ usr/gri/pretty/ast.go               |  18 ++--
+ usr/gri/pretty/compilation.go       |   8 +-
+ usr/gri/pretty/parser.go            |  26 +++---
+ usr/gri/pretty/printer.go           |  12 +--
+ usr/gri/pretty/symboltable.go       |   6 +-
+ 13 files changed, 536 insertions(+), 47 deletions(-)

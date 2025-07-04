@@ -1,0 +1,17 @@
+commit 53c92f95a888837571eda1cf356425010f92edde
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Sep 23 11:49:44 2015 -0400
+
+    os: document that behavior of Seek on O_APPEND files is not specified
+    
+    The actual behavior varies across platforms, and due to the inherent
+    race, we can't do anything better (other than to always return 0).
+    
+    Fixes #12710.
+    
+    Change-Id: Icb52f0f1f0a267e0f9f70767cae427f3f0239965
+    Reviewed-on: https://go-review.googlesource.com/14881
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file.go | 1 +
+ 1 file changed, 1 insertion(+)

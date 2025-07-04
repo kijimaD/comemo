@@ -1,0 +1,15 @@
+commit cec0954dd04b585b1cadacbb5f46ae5ab76a371c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 17 07:41:11 2013 +1000
+
+    spec: add example for continue to label
+    Make the break example slightly more interesting
+    Update #5725
+    Effective Go will be updated in a separate CL.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13368054
+
+ doc/go_spec.html | 34 ++++++++++++++++++++++++++--------
+ 1 file changed, 26 insertions(+), 8 deletions(-)

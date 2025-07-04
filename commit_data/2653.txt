@@ -1,0 +1,13 @@
+commit 7472f4c951f5ecf53efc18d021b09235bbb90512
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 9 12:08:50 2009 -0700
+
+    bug168 (dsymonds) + fix
+    
+    R=ken
+    OCL=31399
+    CL=31399
+
+ src/cmd/8g/cgen.c        | 13 ++++---------
+ test/fixedbugs/bug168.go | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+), 9 deletions(-)

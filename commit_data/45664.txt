@@ -1,0 +1,26 @@
+commit ce9a3b79d5bb783f5f31c9d41665a488fe63f546
+Author: Lapo Luchini <lapo@lapo.it>
+Date:   Thu May 20 15:41:02 2021 +0000
+
+    crypto/x509: add new FreeBSD 12.2+ trusted certificate folder
+    
+    Up to FreeBSD 12.1 the package ca_root_nss was needed in order to have
+    certificates under /usr/local/share/certs as the base system didn't have
+    a system trusted certificate store.
+    
+    This has been fixed in FreeBSD 12.2 using /etc/ssl/certs:
+    https://svnweb.freebsd.org/base?view=revision&revision=357082
+    
+    Fixes #46284
+    
+    Change-Id: I912b1bacc30cdf20d19e3ef9d09b69bb8055ff49
+    GitHub-Last-Rev: 0fa5542ea3c70ecb03e621381d7c34fbadf7ea47
+    GitHub-Pull-Request: golang/go#46276
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321190
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/crypto/x509/root_bsd.go | 1 +
+ 1 file changed, 1 insertion(+)

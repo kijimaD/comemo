@@ -1,0 +1,24 @@
+commit ef3df18944d2d210f99de88fee01414ab1fa8f66
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 23:15:30 2016 -0400
+
+    mime/multipart: simplify Part.Read
+    
+    The basic structure of Part.Read should be simple:
+    do what you can with the current buffered data,
+    reading more as you need it. Make it that way.
+    
+    Working entirely in the bufio.Reader's buffer eliminates
+    the need for an additional bytes.Buffer.
+    
+    This structure should be easier to extend in the future as
+    more special cases arise.
+    
+    Change-Id: I83cb24a755a1767c4c037f9ece6716460c3ecd01
+    Reviewed-on: https://go-review.googlesource.com/32092
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/multipart/multipart.go | 219 ++++++++++++++++++++--------------------
+ 1 file changed, 108 insertions(+), 111 deletions(-)

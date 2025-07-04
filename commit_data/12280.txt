@@ -1,0 +1,14 @@
+commit 0201e373e5d0ed98a9ee3c8dbcacae4bf2ffd2cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 29 15:20:11 2012 -0500
+
+    spec: shorten heading for complex, real, imag
+    
+    In the current TOC it sticks out quite a bit.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5705053
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

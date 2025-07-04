@@ -1,0 +1,12 @@
+commit e3d2a29e992a38d7f78b2a1662560155d3f42edf
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 16 00:13:18 2011 +1000
+
+    doc/effective_go.html: replace tab with spaces.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4609042
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

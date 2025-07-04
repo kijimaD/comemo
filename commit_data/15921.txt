@@ -1,0 +1,14 @@
+commit 3add0fef1e7e398e73bd4a7bdcb278bef5683395
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 25 08:17:10 2013 +0100
+
+    net/http: deflake BenchmarkServerFakeConnNoKeepAlive.
+    
+    Fixes #5121.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7814046
+
+ src/pkg/net/http/serve_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

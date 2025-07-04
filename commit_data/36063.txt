@@ -1,0 +1,18 @@
+commit c54bc3448390d4ae4495d6d2c03c9dd4111b08f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 18 21:37:56 2018 +0000
+
+    net/http: deflake TestClientTimeoutKillsConn_AfterHeaders
+    
+    It was flaky on slower machines.
+    
+    Per report at https://github.com/golang/go/issues/23399#issuecomment-405792381
+    
+    Change-Id: I7cab02821f78b5ce02ea51089d7eb51723f9705f
+    Reviewed-on: https://go-review.googlesource.com/124835
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport_test.go | 44 ++++++++++++++++++++++++++----------------
+ 1 file changed, 27 insertions(+), 17 deletions(-)

@@ -1,0 +1,59 @@
+commit b039abfc3ec93debe732bb4824bebd098ab7a62a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 21 10:48:37 2014 +0400
+
+    runtime: fix specials deadlock
+    
+    The deadlock is between span->specialLock and proflock:
+    
+    goroutine 11 [running]:
+    runtime.MProf_Free(0x7fa272d26508, 0xc210054180, 0xc0)
+            src/pkg/runtime/mprof.goc:220 +0x27
+    runtime.freespecial(0x7fa272d1e088, 0xc210054180, 0xc0)
+            src/pkg/runtime/mheap.c:691 +0x6a
+    runtime.freeallspecials(0x7fa272d1af50, 0xc210054180, 0xc0)
+            src/pkg/runtime/mheap.c:717 +0xb5
+    runtime.free(0xc210054180)
+            src/pkg/runtime/malloc.goc:190 +0xfd
+    selectgo(0x7fa272a5ef58)
+            src/pkg/runtime/chan.c:1136 +0x2d8
+    runtime.selectgo(0xc210054180)
+            src/pkg/runtime/chan.c:840 +0x12
+    runtime_test.func·058()
+            src/pkg/runtime/proc_test.go:146 +0xb4
+    runtime.goexit()
+            src/pkg/runtime/proc.c:1405
+    created by runtime_test.TestTimerFairness
+            src/pkg/runtime/proc_test.go:152 +0xd1
+    
+    goroutine 12 [running]:
+    addspecial(0xc2100540c0, 0x7fa272d1e0a0)
+            src/pkg/runtime/mheap.c:569 +0x88
+    runtime.setprofilebucket(0xc2100540c0, 0x7fa272d26508)
+            src/pkg/runtime/mheap.c:668 +0x73
+    runtime.MProf_Malloc(0xc2100540c0, 0xc0, 0x0)
+            src/pkg/runtime/mprof.goc:212 +0x16b
+    runtime.mallocgc(0xc0, 0x0, 0xc200000000)
+            src/pkg/runtime/malloc.goc:142 +0x239
+    runtime.mal(0xbc)
+            src/pkg/runtime/malloc.goc:703 +0x38
+    newselect(0x2, 0x7fa272a5cf60)
+            src/pkg/runtime/chan.c:632 +0x53
+    runtime.newselect(0xc200000002, 0xc21005f000)
+            src/pkg/runtime/chan.c:615 +0x28
+    runtime_test.func·058()
+            src/pkg/runtime/proc_test.go:146 +0x37
+    runtime.goexit()
+            src/pkg/runtime/proc.c:1405
+    created by runtime_test.TestTimerFairness
+            src/pkg/runtime/proc_test.go:152 +0xd1
+    
+    Fixes #7099.
+    
+    R=golang-codereviews, khr
+    CC=golang-codereviews
+    https://golang.org/cl/53120043
+
+ src/pkg/runtime/mheap.c   | 16 +++++++++++++---
+ src/pkg/runtime/mprof.goc |  7 ++++++-
+ 2 files changed, 19 insertions(+), 4 deletions(-)

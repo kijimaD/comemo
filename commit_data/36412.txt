@@ -1,0 +1,15 @@
+commit 6a11e1e8db0e21f2875f20aba1bfd214291c08f8
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Sat Jun 30 02:59:37 2018 +0300
+
+    cmd/link/internal/amd64: remove /*fallthrough*/ comments
+    
+    These are artifacts originating from C->Go translation.
+    
+    Change-Id: Ib5cdcaf42f43f3968482892fb4945e19ef38bd6d
+    Reviewed-on: https://go-review.googlesource.com/121795
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go | 2 --
+ 1 file changed, 2 deletions(-)

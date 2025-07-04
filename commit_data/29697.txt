@@ -1,0 +1,23 @@
+commit 3a369a0f59b9c5771c23ec50af21625b103b2d7c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Nov 29 23:29:49 2016 -0500
+
+    cmd/dist: add -check-armv6k command to check for ARMv6K
+    
+    so that our release note can reference a simple command to check if
+    the processor implements ARMv6K or not.
+    
+    Updates #17082.
+    
+    Change-Id: I9ca52051e5517394a7cd6b778fb822c3ee435f84
+    Reviewed-on: https://go-review.googlesource.com/33686
+    Run-TryBot: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/util.go       | 8 ++++++++
+ src/cmd/dist/util_gc.go    | 5 +++++
+ src/cmd/dist/util_gccgo.go | 2 ++
+ src/cmd/dist/vfp_arm.s     | 9 +++++++++
+ src/cmd/dist/vfp_default.s | 3 +++
+ 5 files changed, 27 insertions(+)

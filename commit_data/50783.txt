@@ -1,0 +1,18 @@
+commit dfd8aa461be982533e01867ab002fb83ba3cc943
+Author: Andrew Pogrebnoy <absourd.noise@gmail.com>
+Date:   Tue Oct 4 19:44:20 2022 +0300
+
+    cmd/compile: add "runtime/internal/syscall" back to runtimePackages
+    
+    It was accidentally removed in CL 355451.
+    
+    Change-Id: I818ea01b83e437c25829bf7e88c7180963e696f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438615
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/work/gc.go | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)

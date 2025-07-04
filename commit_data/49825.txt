@@ -1,0 +1,26 @@
+commit 88635b3862502bce1676621546c75e549b008ed0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 5 20:40:45 2022 -0700
+
+    cmd/compile/internal/noder: explicitly handle separate selectors
+    
+    This CL separates out the handling of selector expressions for field
+    values, method values, and method expressions. Again part of
+    refactoring to make it possible to access runtime dictionaries where
+    needed.
+    
+    No behavioral change; just duplicating and then streamlining the
+    existing code paths.
+    
+    Change-Id: I53b2a344f4bdba2c9f37ef370dc9a091a3941021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421818
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/noder/codes.go  |  4 ++-
+ src/cmd/compile/internal/noder/reader.go | 49 ++++++++++++++++++--------------
+ src/cmd/compile/internal/noder/writer.go | 27 ++++++++++++++----
+ 3 files changed, 51 insertions(+), 29 deletions(-)

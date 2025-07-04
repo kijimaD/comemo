@@ -1,0 +1,33 @@
+commit 9e1cadad0f64698636d4dd7a3543619b3cb269a3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Apr 8 10:18:20 2014 +0400
+
+    runtime/race: more precise handling of channel synchronization
+    It turns out there is a relatively common pattern that relies on
+    inverted channel semaphore:
+    
+    gate := make(chan bool, N)
+    for ... {
+            // limit concurrency
+            gate <- true
+            go func() {
+                    foo(...)
+                    <-gate
+            }()
+    }
+    // join all goroutines
+    for i := 0; i < N; i++ {
+            gate <- true
+    }
+    
+    So handle synchronization on inverted semaphores with cap>1.
+    Fixes #7718.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/84880046
+
+ src/pkg/runtime/chan.goc                   | 12 +++------
+ src/pkg/runtime/race/testdata/chan_test.go | 41 ++++++++++++++++--------------
+ 2 files changed, 26 insertions(+), 27 deletions(-)

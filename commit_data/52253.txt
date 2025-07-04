@@ -1,0 +1,20 @@
+commit 70f98a251efdbfd619c4ff466a43da299ad04752
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Mar 2 11:57:24 2023 +0800
+
+    errors: add ErrUnsupported
+    
+    Fixes #41198
+    
+    Change-Id: Ib33a11d0eb311f8e2b81de24d11df49e00b2fc81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/473935
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/41198.txt   |  1 +
+ src/errors/errors.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+)

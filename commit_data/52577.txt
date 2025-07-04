@@ -1,0 +1,23 @@
+commit 2a41dbf13c65267bb21dcdd3b9d92a49bc969a94
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Apr 6 06:11:10 2023 +1000
+
+    cmd/compile/internal/amd64: simplify code generation for signed division
+    
+    The same switch statement handles code generation for signed division of
+    words, double words and quad words. Rather than using multiple switch
+    statements to select the appropriate instructions, determine all of the
+    correctly sized operands up front, then use them as needed.
+    
+    Updates #59089
+    
+    Change-Id: I2b7567c8e0ecb9904c37607332538c95b0521dca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482657
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go | 43 ++++++++++++-----------------------
+ 1 file changed, 14 insertions(+), 29 deletions(-)

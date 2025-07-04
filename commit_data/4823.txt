@@ -1,0 +1,14 @@
+commit c7d37e41b2cd07898f6b90cd77d53a9d4ccb1ac8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 9 13:45:38 2010 -0800
+
+    dashboard: auto-update builder.sh.
+    avoid possibility of busy loop pounding on dashboard.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/206051
+
+ misc/dashboard/buildcron.sh | 3 +++
+ misc/dashboard/builder.sh   | 1 +
+ 2 files changed, 4 insertions(+)

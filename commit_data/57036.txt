@@ -1,0 +1,25 @@
+commit 8246171baee397165318638390c37e07b5b3ebc7
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 30 14:20:53 2024 +0000
+
+    cmd: add README generation for compiler + linker script tests
+    
+    Add in automatic README generation and README consistency checking for
+    the cmd/compile and cmd/link script tests. This code is adapted from
+    the similar facility in cmd/go (e.g. scriptreadme_test.go); the README
+    helps folks writing new tests understand the mechanics.
+    
+    Updates #68606.
+    
+    Change-Id: I8ff7ff8e814abd4385bd670440511b2c60a4cef6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601756
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/script_test.go               |   7 +-
+ src/cmd/compile/testdata/script/README       | 286 +++++++++++++++++++++++++++
+ src/cmd/internal/script/scripttest/readme.go | 142 +++++++++++++
+ src/cmd/internal/script/scripttest/run.go    |  23 ++-
+ src/cmd/link/script_test.go                  |   7 +-
+ src/cmd/link/testdata/script/README          | 286 +++++++++++++++++++++++++++
+ 6 files changed, 746 insertions(+), 5 deletions(-)

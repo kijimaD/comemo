@@ -1,0 +1,18 @@
+commit fa6639d62664ecd710b112eb1c1e759104c9193c
+Author: Iskander Sharipov <iskander.sharipov@intel.com>
+Date:   Wed Jul 11 23:34:18 2018 +0300
+
+    runtime: simplify slice expression to sliced value itself
+    
+    Replace `x[:]` where x is a slice with just `x`.
+    
+    Found using https://go-critic.github.io/overview.html#unslice-ref
+    
+    Change-Id: Ib0ee16e1d49b2a875b6b92a770049acc33208362
+    Reviewed-on: https://go-review.googlesource.com/123375
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/trace.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

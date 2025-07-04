@@ -1,0 +1,14 @@
+commit 091191336a10e09099810c93b12499f619cc2990
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 15 12:57:15 2009 -0800
+
+    runtime: avoid crash in Caller
+    
+    Fixes #176.
+    
+    R=r
+    https://golang.org/cl/154146
+
+ src/pkg/runtime/386/traceback.c   | 2 +-
+ src/pkg/runtime/amd64/traceback.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

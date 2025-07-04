@@ -1,0 +1,13 @@
+commit 8595868ea781a19b765319ce42da5c074c73ae34
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 17 11:32:04 2018 -0700
+
+    go/types: fix a couple of internal comments
+    
+    Change-Id: If0e8fbb05c09ee7c64e1aa6b0aa2ade35a70df8a
+    Reviewed-on: https://go-review.googlesource.com/135696
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/decl.go    | 2 +-
+ src/go/types/typexpr.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

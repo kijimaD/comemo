@@ -1,0 +1,23 @@
+commit 9312f47d0ac6faa32226450c0bee890cb96fb832
+Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
+Date:   Thu Jan 25 11:55:38 2024 -0800
+
+    runtime/pprof: fix retry logic introduced by #858cd8d
+    
+    The previous attempt to fix this flake was incorrect in that it
+    examined the vmmap output rather than the detailed error
+    output for the 'resource shortage' message that triggers the
+    retry, and hence failed to retry. This PR looks at the
+    detailed error output.
+    
+    Fixes #62352
+    
+    Change-Id: I4218b187528a95842556dc1ea27947ffcbfbc497
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558575
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/pprof/vminfo_darwin_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

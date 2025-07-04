@@ -1,0 +1,13 @@
+commit c748689277e49e65f03f58ad7a2308d4e040d638
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 15:09:13 2012 +1100
+
+    doc: update licensing text one more time
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5916046
+
+ LICENSE              | 2 +-
+ lib/godoc/godoc.html | 8 +++++---
+ 2 files changed, 6 insertions(+), 4 deletions(-)

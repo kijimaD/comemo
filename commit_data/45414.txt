@@ -1,0 +1,18 @@
+commit fa6ed6e81ae6414681336c08da16213b943c45e3
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Apr 28 11:13:35 2021 -0400
+
+    go/types: respect IgnoreFuncBodies for function literals
+    
+    This is a 1:1 port of CL 313650 to go/types.
+    
+    Change-Id: Iec01ac2831f21162d9977a139549e081ee769f90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314631
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/expr.go | 26 ++++++++++++++------------
+ src/go/types/stmt.go |  4 ++++
+ 2 files changed, 18 insertions(+), 12 deletions(-)

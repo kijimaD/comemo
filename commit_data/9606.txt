@@ -1,0 +1,12 @@
+commit 62b10ad0ba0302c726ecc0795548d7f58aeeb9ca
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 6 15:59:21 2011 -0700
+
+    template: slightly simplify the test for assignability of arguments
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4951066
+
+ src/pkg/template/exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

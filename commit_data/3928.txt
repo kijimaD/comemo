@@ -1,0 +1,36 @@
+commit 18ccbc69f8ba71a396acba50ecfe5a591f687c78
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 9 11:45:15 2009 -0800
+
+    tweak documentation of commands
+    so that first sentence is better for cmd page.
+    
+    live at http://r45:3456/cmd/
+    
+    R=gri, r
+    http://go/go-review/1024034
+
+ src/cmd/5a/doc.go       | 2 +-
+ src/cmd/5c/doc.go       | 2 +-
+ src/cmd/5g/doc.go       | 4 ++--
+ src/cmd/5l/doc.go       | 2 +-
+ src/cmd/6a/doc.go       | 2 +-
+ src/cmd/6c/doc.go       | 2 +-
+ src/cmd/6g/doc.go       | 4 ++--
+ src/cmd/6l/doc.go       | 2 +-
+ src/cmd/8a/doc.go       | 2 +-
+ src/cmd/8c/doc.go       | 2 +-
+ src/cmd/8g/doc.go       | 4 ++--
+ src/cmd/8l/doc.go       | 2 +-
+ src/cmd/cc/doc.go       | 4 ++--
+ src/cmd/ebnflint/doc.go | 4 ++--
+ src/cmd/gc/doc.go       | 2 +-
+ src/cmd/godoc/doc.go    | 2 +-
+ src/cmd/gofmt/doc.go    | 2 +-
+ src/cmd/gopack/doc.go   | 2 +-
+ src/cmd/gotest/doc.go   | 2 +-
+ src/cmd/goyacc/doc.go   | 4 ++--
+ src/cmd/hgpatch/doc.go  | 9 ++++-----
+ src/cmd/ld/doc.go       | 4 ++--
+ src/cmd/nm/doc.go       | 2 +-
+ 23 files changed, 33 insertions(+), 34 deletions(-)

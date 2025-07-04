@@ -1,0 +1,30 @@
+commit 7a8f39fa14d519f6efc34b2a783098bd107d17e0
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 7 12:03:22 2017 -0400
+
+    runtime: delay before osRelaxing
+    
+    Currently, sysmon relaxes the Windows timer resolution as soon as the
+    Go process becomes idle. However, if it's going idle because of a
+    short sleep (< 15.6 ms), this can turn that short sleep into a long
+    sleep (15.6 ms).
+    
+    To address this, wait for 60 ms of idleness before relaxing the timer
+    resolution. It would be better to check the time until the next wakeup
+    and relax immediately if it makes sense, but there's currently no
+    interaction between sysmon and the timer subsystem, so adding this
+    simple delay is a much simpler and safer change for late in the
+    release cycle.
+    
+    Fixes #20937.
+    
+    Change-Id: I817db24c3bdfa06dba04b7bc197cfd554363c379
+    Reviewed-on: https://go-review.googlesource.com/47832
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/os_windows.go |  6 ++++++
+ src/runtime/proc.go       | 21 ++++++++++++++++++---
+ src/runtime/relax_stub.go |  6 ++++++
+ 3 files changed, 30 insertions(+), 3 deletions(-)

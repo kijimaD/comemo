@@ -1,0 +1,20 @@
+commit 653abefddf2c627d5d1805d35e55c5a01eb32c6e
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Tue Aug 1 05:00:52 2023 +0000
+
+    cmd/go/internal/load: improve comments
+    
+    isTestFunc checked whether the parameter type is B, M or T before the version of Go1.17.
+    But, after Go1.18, isTestFunc checks F, too.
+    
+    Change-Id: I30bc97c2b8f2974bc9ae4df2f32dc8dce760d7d6
+    GitHub-Last-Rev: 507d5b1f74b2f2d0a75d61fe169cc0cc40d132c0
+    GitHub-Pull-Request: golang/go#56127
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441835
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/load/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

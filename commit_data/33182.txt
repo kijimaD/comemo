@@ -1,0 +1,16 @@
+commit 4e64ee423c3a755ed31c3c98bfba98adc5995b4a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Oct 20 14:20:48 2017 -0700
+
+    cmd/compile: prevent inlining go:yeswritebarrierrec functions
+    
+    Fixes #22342.
+    
+    Change-Id: Ic942162e98dce5749e381a31d58b0bf16c7d6f98
+    Reviewed-on: https://go-review.googlesource.com/72132
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/inl.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

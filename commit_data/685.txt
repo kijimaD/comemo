@@ -1,0 +1,14 @@
+commit 995f938ae39eba0cea90f3e5fdbc0f619ea44d93
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 19 12:52:00 2008 -0700
+
+    more nuanced handling of usage message to allow user control.
+    also print argv(0) in default message
+    
+    R=gri
+    DELTA=37  (21 added, 9 deleted, 7 changed)
+    OCL=15540
+    CL=15554
+
+ src/lib/flag.go | 44 ++++++++++++++++++++++++++++----------------
+ 1 file changed, 28 insertions(+), 16 deletions(-)

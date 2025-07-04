@@ -1,0 +1,15 @@
+commit 7114e9997b8f5975bea544cb6f7b85b1cdb4c8ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 4 10:17:33 2018 -0800
+
+    go/types: use new importer.ForCompiler for gotype command
+    
+    This will produce better error messages (position information)
+    for errors referring to imported objects.
+    
+    Change-Id: I24646ae803e6b8f78e9240310a858d4095e9463d
+    Reviewed-on: https://go-review.googlesource.com/c/152538
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/gotype.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

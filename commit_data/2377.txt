@@ -1,0 +1,16 @@
+commit f51ca384eba74692315b51b1db99d412f4472e17
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 11:06:37 2009 -0700
+
+    fix handling of floating point zero constant 0p+0
+    
+    R=r
+    DELTA=25  (25 added, 0 deleted, 0 changed)
+    OCL=29875
+    CL=29875
+
+ src/cmd/gc/lex.c               |  3 +++
+ test/fixedbugs/bug160.dir/x.go |  8 ++++++++
+ test/fixedbugs/bug160.dir/y.go | 19 +++++++++++++++++++
+ test/fixedbugs/bug160.go       |  7 +++++++
+ 4 files changed, 37 insertions(+)

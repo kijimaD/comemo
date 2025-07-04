@@ -1,0 +1,13 @@
+commit 789e58cb044f80db0e440389ac025afeb5ae4d43
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 3 09:46:24 2009 -0700
+
+    unsafe is not declared in the outermost scope
+    
+    R=gri
+    DELTA=3  (0 added, 3 deleted, 0 changed)
+    OCL=34305
+    CL=34305
+
+ doc/go_spec.html | 3 ---
+ 1 file changed, 3 deletions(-)

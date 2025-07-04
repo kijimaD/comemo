@@ -1,0 +1,45 @@
+commit 3c78ace24f3aa025a72b53be3b83423f9f24ee5d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun Oct 1 12:15:14 2023 -0700
+
+    strings: optimize Repeat for common substrings
+    
+    According to static analysis of Go source code known by the module proxy,
+    spaces, dashes, zeros, and tabs are the most commonly repeated string literals.
+    
+    Out of ~69k total calls to Repeat:
+    * ~25k calls are repeats of " "
+    * ~7k calls are repeats of "-"
+    * ~4k calls are repeats of "0"
+    * ~2k calls are repeats of "="
+    * ~2k calls are repeats of "\t"
+    
+    After this optimization, ~60% of Repeat calls will go through the fast path.
+    
+    These are often used in padding of fixed-width terminal UI or
+    in the presentation of humanly readable text
+    (e.g., indentation made of spaces or tabs).
+    
+    Optimize for this case by handling short repeated sequences of common literals.
+    
+    Performance:
+    
+            name             old time/op    new time/op    delta
+            RepeatSpaces-24    19.3ns ± 1%     5.0ns ± 1%   -74.27%  (p=0.000 n=8+9)
+    
+            name             old alloc/op   new alloc/op   delta
+            RepeatSpaces-24     2.00B ± 0%     0.00B       -100.00%  (p=0.000 n=10+10)
+    
+            name             old allocs/op  new allocs/op  delta
+            RepeatSpaces-24      1.00 ± 0%      0.00       -100.00%  (p=0.000 n=10+10)
+    
+    Change-Id: Id1cafd0cc509e835c8241a626489eb206e0adc3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536615
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/strings/strings.go      | 38 ++++++++++++++++++++++++++++++++++++++
+ src/strings/strings_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 58 insertions(+)

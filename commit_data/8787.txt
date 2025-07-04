@@ -1,0 +1,16 @@
+commit 20943baed3da37226b1c2a5006d8c8e64d7b869d
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Jun 20 13:34:10 2011 +1000
+
+    exec: add support for Plan 9
+    
+    R=paulzhol, mirtchovski, fshahriar, alex.brainman, r
+    CC=golang-dev
+    https://golang.org/cl/4386041
+
+ src/pkg/exec/Makefile            |  3 +++
+ src/pkg/exec/lp_plan9.go         | 51 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/error_plan9.go        |  1 +
+ src/pkg/os/exec_plan9.go         |  6 +++--
+ src/pkg/syscall/syscall_plan9.go | 15 ++++++++++--
+ 5 files changed, 72 insertions(+), 4 deletions(-)

@@ -1,0 +1,27 @@
+commit f12461cb0f3878b6d332f4be3a02fa44cc744df6
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Apr 22 10:10:23 2022 -0400
+
+    go/doc: remove unused top-level declarations from playable example
+    
+    When we synthesize a playable example, prune declarations that may be
+    in the original example file but aren't used by the example.
+    
+    This is ported from pkgsite, where it fixed #43658.
+    
+    Change-Id: I41e6d4c28afa993c77c8a82b47bd86ba15ed13b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401758
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/doc/example.go                              | 135 +++++++++++--
+ .../doc/testdata/examples/generic_constraints.go   |  38 ++++
+ .../testdata/examples/generic_constraints.golden   |  39 ++++
+ src/go/doc/testdata/examples/iota.go               |  34 ++++
+ src/go/doc/testdata/examples/iota.golden           |  23 +++
+ src/go/doc/testdata/examples/issue43658.go         | 223 +++++++++++++++++++++
+ src/go/doc/testdata/examples/issue43658.golden     | 156 ++++++++++++++
+ src/go/doc/testdata/examples/values.go             |  22 ++
+ src/go/doc/testdata/examples/values.golden         |  21 ++
+ 9 files changed, 676 insertions(+), 15 deletions(-)

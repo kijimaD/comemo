@@ -1,0 +1,55 @@
+commit 50df1364838445164d29c1e16b7077437b04b537
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Feb 24 22:31:01 2014 -0500
+
+    runtime, net: add support for GOOS=solaris
+    
+    LGTM=dave, rsc
+    R=golang-codereviews, minux.ma, mikioh.mikioh, dave, iant, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/36030043
+
+ src/pkg/net/cgo_bsd.go                 |   2 +-
+ src/pkg/net/cgo_unix.go                |   2 +-
+ src/pkg/net/dial_test.go               |   2 +-
+ src/pkg/net/dnsclient_unix.go          |   2 +-
+ src/pkg/net/dnsconfig_unix.go          |   2 +-
+ src/pkg/net/fd_poll_runtime.go         |   2 +-
+ src/pkg/net/fd_unix.go                 |   2 +-
+ src/pkg/net/fd_unix_test.go            |   2 +-
+ src/pkg/net/file_unix.go               |   2 +-
+ src/pkg/net/interface_stub.go          |   2 +-
+ src/pkg/net/ipraw_test.go              |   2 +-
+ src/pkg/net/iprawsock_posix.go         |   2 +-
+ src/pkg/net/ipsock_posix.go            |   2 +-
+ src/pkg/net/lookup_unix.go             |   2 +-
+ src/pkg/net/multicast_test.go          |   6 +-
+ src/pkg/net/port_unix.go               |  10 +-
+ src/pkg/net/sendfile_stub.go           |   2 +-
+ src/pkg/net/sock_posix.go              |   2 +-
+ src/pkg/net/sock_solaris.go            |  13 +++
+ src/pkg/net/sockopt_posix.go           |   2 +-
+ src/pkg/net/sockopt_solaris.go         |  32 ++++++
+ src/pkg/net/sockoptip_bsd.go           |   2 +-
+ src/pkg/net/sockoptip_posix.go         |   2 +-
+ src/pkg/net/sys_cloexec.go             |   2 +-
+ src/pkg/net/tcp_test.go                |   3 +
+ src/pkg/net/tcpsock_posix.go           |   2 +-
+ src/pkg/net/tcpsockopt_posix.go        |   2 +-
+ src/pkg/net/tcpsockopt_solaris.go      |  27 +++++
+ src/pkg/net/udpsock_posix.go           |   2 +-
+ src/pkg/net/unixsock_posix.go          |   2 +-
+ src/pkg/runtime/defs_solaris_amd64.go  |   2 +-
+ src/pkg/runtime/netpoll.goc            |   9 +-
+ src/pkg/runtime/netpoll_epoll.c        |   4 +-
+ src/pkg/runtime/netpoll_kqueue.c       |   4 +-
+ src/pkg/runtime/netpoll_solaris.c      | 188 +++++++++++++++++++++++++++++++++
+ src/pkg/runtime/netpoll_windows.c      |   4 +-
+ src/pkg/runtime/os_solaris.h           |   2 +-
+ src/pkg/runtime/rt0_solaris_amd64.s    |   2 +-
+ src/pkg/runtime/runtime.h              |   3 +-
+ src/pkg/runtime/signal_solaris_amd64.h |   2 +-
+ src/pkg/runtime/signals_solaris.h      |   2 +-
+ src/pkg/runtime/sys_solaris_amd64.s    |   2 +-
+ src/pkg/runtime/syscall_solaris.goc    |   6 +-
+ 43 files changed, 324 insertions(+), 45 deletions(-)

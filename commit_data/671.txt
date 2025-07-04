@@ -1,0 +1,13 @@
+commit d1d7dc6c42ba7546d3606f17c10f55c15512ca56
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 15:09:48 2008 -0700
+
+    make blyacc too
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=15488
+    CL=15488
+
+ src/cmd/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit a1391c2d136f0715b4deab8d295f155ba686d368
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 2 23:26:13 2009 -0700
+
+    fix one bug involving [...] constructors.
+    
+    added iant's bug202 (in main code)
+    and ken's bug203 (in init function).
+    bug187 remains at large.
+    
+    R=ken
+    OCL=34293
+    CL=34293
+
+ src/cmd/gc/align.c       |  5 ++++-
+ src/cmd/gc/subr.c        |  2 ++
+ src/cmd/gc/typecheck.c   |  3 ++-
+ test/fixedbugs/bug202.go | 16 ++++++++++++++++
+ test/fixedbugs/bug203.go | 20 ++++++++++++++++++++
+ 5 files changed, 44 insertions(+), 2 deletions(-)

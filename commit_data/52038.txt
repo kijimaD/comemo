@@ -1,0 +1,28 @@
+commit feb355c427590df3aee7f3c0ee4adc0290c577a4
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Mon Feb 20 06:55:42 2023 -0500
+
+    syscall: introduce IoctlPtr for exec_unix tests
+    
+    Avoid passing Go pointers as uintptr in exec_unix_test.go by introducing
+    syscall.IoctlPtr() which accepts arg as unsafe.Pointer.
+    
+    For #44834
+    Fixes #58609
+    
+    Change-Id: I6d0ded023e5f3c9989783aee7075bb88100d9ec2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469675
+    Run-TryBot: Dmitri Goutnik <dgoutnik@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/exec_aix_test.go      | 2 +-
+ src/syscall/exec_libc.go          | 4 ++++
+ src/syscall/exec_solaris_test.go  | 2 +-
+ src/syscall/exec_unix_test.go     | 8 ++++----
+ src/syscall/export_darwin_test.go | 6 ++++--
+ src/syscall/export_unix_test.go   | 6 ++++--
+ 6 files changed, 18 insertions(+), 10 deletions(-)

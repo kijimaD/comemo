@@ -1,0 +1,29 @@
+commit f2131f6e0c6ca016143fc402d9d01f6a730f97cd
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Wed Aug 8 21:34:43 2018 +0000
+
+    doc.Example should not worry about unresolved blank identifiers
+    
+    https://golang.org/pkg/bufio/#example_Scanner_custom is not directly
+    runnable in the playground via godoc, but if I copy+paste the code into
+    https://play.golang.org/ then it runs just fine.
+    
+    This seems to be due to the blank identifier being considered unresolved
+    in the following line in the example:
+    
+    _, err = strconv.ParseInt(string(token), 10, 32)
+    
+    But that's the whole point of blank identifiers- they're not supposed
+    to be resolved.  So let's skip adding the blank identifier to
+    doc.playExample's unresolved map.
+    
+    Fixes #26447
+    
+    Change-Id: I52bc7d99be1d14a61dc012d10c18349d52ba4c51
+    GitHub-Last-Rev: 9172e9dc1378b0f37f96fc2e1ade4dda9d848398
+    GitHub-Pull-Request: golang/go#26448
+    Reviewed-on: https://go-review.googlesource.com/124775
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/example.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

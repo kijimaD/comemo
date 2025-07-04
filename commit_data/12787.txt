@@ -1,0 +1,13 @@
+commit d71d11fa93b880ee47f0d3c4b6115fb1642681b0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 28 09:13:48 2012 +1100
+
+    cmd/godoc: use virtual filesystem to implement -templates flag
+    
+    R=golang-dev, gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/5921045
+
+ src/cmd/godoc/godoc.go | 8 --------
+ src/cmd/godoc/main.go  | 3 +++
+ 2 files changed, 3 insertions(+), 8 deletions(-)

@@ -1,0 +1,13 @@
+commit 9ecd30a28628de2ec49a105590db53e930bc180b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 27 14:22:51 2009 -0700
+
+    - modified type switches (replacement for CL 32659)
+    - takes into account new scoping rules
+    
+    DELTA=52  (21 added, 7 deleted, 24 changed)
+    OCL=33967
+    CL=33982
+
+ doc/go_spec.html | 72 +++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 43 insertions(+), 29 deletions(-)

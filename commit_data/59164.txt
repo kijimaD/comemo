@@ -1,0 +1,18 @@
+commit fd0805b660890d791a7bcfb76491dd6f87b69641
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Feb 27 18:23:42 2023 +1100
+
+    cmd/internal/obj/arm64: move register encoding into opldrr/opstrr
+    
+    Rather than having register encoding knowledge in each caller of opldrr/opstrr
+    (and in a separate olsxrr function), pass the registers into opldrr/opstrr and
+    let them handle the encoding. This reduces duplication and improves readability.
+    
+    Change-Id: I50a25263f305d01454f3ff95e8b6e7c76e760ab0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471521
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 117 ++++++++++++++++++-------------------
+ 1 file changed, 58 insertions(+), 59 deletions(-)

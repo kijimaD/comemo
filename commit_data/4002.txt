@@ -1,0 +1,11 @@
+commit ae3341476d4c7ece87758eccc8d927fa9ee2b5dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 16:58:27 2009 -0800
+
+    cgo: add more information about gcc output parsing failures
+    
+    R=r
+    https://golang.org/cl/152084
+
+ src/cmd/cgo/gcc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

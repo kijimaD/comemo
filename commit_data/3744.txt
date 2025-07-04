@@ -1,0 +1,16 @@
+commit 1542520a4aeeac8d73c468fc9cefe1fd4e7617ef
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Nov 3 17:25:13 2009 -0800
+
+    crypto/tls (part 2)
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1018028
+
+ src/pkg/crypto/tls/handshake_messages.go      | 236 ++++++++++++++++++++++++++
+ src/pkg/crypto/tls/handshake_messages_test.go |  95 +++++++++++
+ src/pkg/crypto/tls/record_read.go             |  42 +++++
+ src/pkg/crypto/tls/record_read_test.go        |  73 ++++++++
+ src/pkg/crypto/tls/record_write.go            | 164 ++++++++++++++++++
+ 5 files changed, 610 insertions(+)

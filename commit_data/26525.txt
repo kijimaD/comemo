@@ -1,0 +1,15 @@
+commit 71916437fb2bd788a9ce491830f4233aee4a9149
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Mar 24 19:12:44 2016 -0400
+
+    runtime/cgo: save callee-saved xmm registers on windows/amd64
+    
+    For #14876.
+    
+    Change-Id: I33947f74e8058437a784862f1f064974afc99250
+    Reviewed-on: https://go-review.googlesource.com/21084
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/asm_amd64.s | 30 +++++++++++++++++++++++++++++-
+ 1 file changed, 29 insertions(+), 1 deletion(-)

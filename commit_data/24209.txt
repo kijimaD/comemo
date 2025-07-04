@@ -1,0 +1,12 @@
+commit e9089e4ab6f5090092e416fa4d2c33d5279c0d72
+Author: Austin Clements <austin@google.com>
+Date:   Sat Aug 29 00:35:25 2015 -0400
+
+    runtime: add high-level description of how stack barriers work
+    
+    Change-Id: I6affe75b5fa9dbf513c16200bff4fd7aa5f3a985
+    Reviewed-on: https://go-review.googlesource.com/14051
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mstkbar.go | 99 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 99 insertions(+)

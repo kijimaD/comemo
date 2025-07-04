@@ -1,0 +1,17 @@
+commit cbc0a7906cfb4c82f850d35ffdb7eb0d674cc9b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 20 16:48:21 2020 -0700
+
+    go/types: update flag documentation for gotype command
+    
+    The documentation refers to a non longer existing flag (-seq).
+    Remove those references.
+    
+    Change-Id: I480b6259f9199b47761dc655a90911eabfe07427
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249738
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/types/gotype.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

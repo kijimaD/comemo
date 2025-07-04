@@ -1,0 +1,22 @@
+commit bbd1dcdf7da68a3759a2d86f851391c1ec974f77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 1 13:46:49 2016 -0700
+
+    cmd/compile: correctly export underlying type of predecl. error type
+    
+    Fixes #15920.
+    
+    Change-Id: I78cd79b91a58d0f7218b80f9445417f4ee071a6e
+    Reviewed-on: https://go-review.googlesource.com/23606
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go            | 16 ++++++++++++++-
+ src/cmd/compile/internal/gc/universe.go           | 14 +++++++++----
+ src/go/internal/gcimporter/gcimporter_test.go     | 25 +++++++++++++++++++++++
+ src/go/internal/gcimporter/testdata/issue15920.go | 11 ++++++++++
+ test/fixedbugs/issue15920.dir/a.go                |  9 ++++++++
+ test/fixedbugs/issue15920.dir/b.go                |  7 +++++++
+ test/fixedbugs/issue15920.go                      |  7 +++++++
+ 7 files changed, 84 insertions(+), 5 deletions(-)

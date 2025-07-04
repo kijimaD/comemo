@@ -1,0 +1,23 @@
+commit 3de7dbb19145dcc6b7db8da7aef695961dbb5ece
+Author: Austin Clements <austin@google.com>
+Date:   Fri Aug 19 16:03:14 2016 -0400
+
+    runtime: fix check for vacuous page boundary rounding again
+    
+    The previous fix for this, commit 336dad2a, had everything right in
+    the commit message, but reversed the test in the code. Fix the test in
+    the code.
+    
+    This reversal effectively disabled the scavenger on large page systems
+    *except* in the rare cases where this code was originally wrong, which
+    is why it didn't obviously show up in testing.
+    
+    Fixes #16644. Again. :(
+    
+    Change-Id: I27cce4aea13de217197db4b628f17860f27ce83e
+    Reviewed-on: https://go-review.googlesource.com/27402
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mheap.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit b1a6e07919b965c36479fa7595107eb76393839f
+Author: Austin Clements <austin@google.com>
+Date:   Sat Feb 27 18:44:25 2016 -0500
+
+    runtime: document the G states
+    
+    In particular, write down the rules for stack ownership because the
+    details of this are about to get very important with concurrent stack
+    shrinking. (Interestingly, the details don't actually change, but
+    anything that's currently skating on thin ice is likely to fall
+    through.)
+    
+    Fox #12967.
+    
+    Change-Id: I561e2610e864295e9faba07717a934aabefcaab9
+    Reviewed-on: https://go-review.googlesource.com/20034
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/runtime2.go | 88 ++++++++++++++++++++++++++++++++++++++-----------
+ 1 file changed, 69 insertions(+), 19 deletions(-)

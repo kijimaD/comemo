@@ -1,0 +1,21 @@
+commit 3a6cd4c72d5c8fc6c86f074eadaaf3972e591973
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Jan 1 01:44:54 2020 +1100
+
+    cmd/internal/obj/riscv: correct CALL reloc symbol handling
+    
+    Move the CALL reloc symbol back to p.From.Sym, rather than p.To.Sym - while
+    p.To.Sym is the correct final location, the call to lowerJALR flips the p.To
+    and p.From addresses (and proves that this form of obj.Prog rewriting is not
+    a good idea).
+    
+    Updates #27532
+    
+    Change-Id: Iaf9fa24b05bda32b963f8d243401c6cd82c1355c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212759
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/riscv/obj.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

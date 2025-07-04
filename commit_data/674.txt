@@ -1,0 +1,13 @@
+commit 326bb67fbfefed092a19ebf4b32d1682c31aaeaf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 15:54:21 2008 -0700
+
+    whitespace
+    
+    R=r
+    DELTA=0  (0 added, 0 deleted, 0 changed)
+    OCL=15492
+    CL=15494
+
+ src/cmd/6l/pass.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

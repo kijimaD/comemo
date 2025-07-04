@@ -1,0 +1,17 @@
+commit 12f8660d4c396da8f6e69f0c6a661a53086f4bd9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 3 10:00:57 2009 -0800
+
+    use default styler when there is no other given
+    
+    (No visual change yet since the comments for
+    exported code snippets - as shown on the pkg
+    page - are not yet formatted using the standard
+    comment intersperse mechanism in the printer.
+    This is a TODO in the printer.)
+    
+    R=rsc
+    http://go/go-review/1016031
+
+ src/cmd/godoc/godoc.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

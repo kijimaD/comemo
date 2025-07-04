@@ -1,0 +1,30 @@
+commit 739618945ef271793d608b587694ca1df353951d
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 8 14:21:30 2022 -0800
+
+    Revert "path/filepath: change IsAbs("NUL") to return true"
+    
+    This reverts commit d154ef60a0c88be98c70bbe1c5735fb7b1f45250.
+    
+    This change made IsAbs return true for certain reserved filenames,
+    but does not consistently detect reserved names. For example,
+    "./COM1", "//./COM1", and (on some Windows versions) "COM1.txt"
+    all refer to the COM1 device, but IsAbs detects none of them.
+    
+    Since NUL is not an absolute path, do not attempt to detect it
+    or other device paths in IsAbs. See #56217 for more discussion
+    of IsAbs and device paths.
+    
+    For #56217.
+    
+    Change-Id: If4bf81c7e1a2e8842206c7c5268555102140dae8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448898
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/path/filepath/path_test.go    |  5 -----
+ src/path/filepath/path_windows.go | 18 ------------------
+ 2 files changed, 23 deletions(-)

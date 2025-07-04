@@ -1,0 +1,18 @@
+commit b9574f46f9079a4237a9dd42d30a6ec91723ee5a
+Author: David Lazar <lazard@golang.org>
+Date:   Sun Feb 19 14:01:42 2017 -0500
+
+    cmd/objdump: make test independent of inlining
+    
+    Fixes #19189.
+    
+    Change-Id: Ice69216c7fc2eaeb3dbbdcd08a8284204c7f52ef
+    Reviewed-on: https://go-review.googlesource.com/37237
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/objdump/objdump_test.go      | 6 +++---
+ src/cmd/objdump/testdata/fmthello.go | 7 ++++++-
+ 2 files changed, 9 insertions(+), 4 deletions(-)

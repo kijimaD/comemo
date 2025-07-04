@@ -1,0 +1,29 @@
+commit 548790e64a6ad186a85f7a75ee53f6fdc6a2aead
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Jun 15 01:39:04 2023 -0400
+
+    net/http: close req.Body only when it's non-nil on js
+    
+    The main change here is fixing the panic where it was called even when
+    req.Body was nil. It might also work better to keep the req.Body.Close
+    calls closer after req.Body is read, so do that too.
+    
+    Calling readableStreamPull.Release on a js.Func with a zero value
+    is currently a no-op, but it seems better to avoid it anyway.
+    
+    Also remove readableStreamStart, readableStreamCancel while here.
+    They were used in the initial but not final patch set of CL 458395.
+    
+    Fixes #60809.
+    
+    Change-Id: I6ff2e3b6ec2cd4b0c9c67939903e32908312db8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503676
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/roundtrip_js.go | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)

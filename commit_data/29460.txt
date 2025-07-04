@@ -1,0 +1,22 @@
+commit b77bff97c4817656dd3bf49f14d1834c411be084
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 10 09:59:42 2016 -0800
+
+    cmd/go: -ldflags=-linkmode=external requires runtime/cgo
+    
+    We add runtime/cgo to the list of import paths for various cases that
+    imply external linking mode, but before this change we did not add for
+    an explicit request of external linking mode. This fixes the case where
+    you are using a non-default buildmode that implies a different
+    compilation option (for example, -buildmode=pie implies -shared) and the
+    runtime/cgo package for that option is stale.
+    
+    No test, as I'm not sure how to write one. It would require forcing a
+    stale runtime/cgo.
+    
+    Change-Id: Id0409c7274ce67fe15d910baf587d3220cb53d83
+    Reviewed-on: https://go-review.googlesource.com/33070
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/go/pkg.go | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

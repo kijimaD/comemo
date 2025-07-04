@@ -1,0 +1,18 @@
+commit fee02d270bf850d5b390000d8545c3609718e9a5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 9 06:42:42 2016 -0700
+
+    cmd/go: clarify go get documentation
+    
+    Make the documentation for `go get` match the documentation for `go
+    install`, since `go get` essentially invokes `go install`.
+    
+    Update #15825.
+    
+    Change-Id: I374d80efd301814b6d98b86b7a4a68dd09704c92
+    Reviewed-on: https://go-review.googlesource.com/23925
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/alldocs.go | 4 ++--
+ src/cmd/go/get.go     | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

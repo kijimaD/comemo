@@ -1,0 +1,23 @@
+commit 80b7f6a8d4b9e3ee650f95fbd070d32b73ac6376
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Nov 17 18:09:41 2009 -0800
+
+    asn1:
+      * add Marshal
+      * add BitString.RightAlign
+      * change to using a *time.Time (from time.Time) since that's what
+        the time package uses.
+      * return the unparsed data from Unmarshal.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/156047
+
+ src/pkg/asn1/Makefile        |   2 +
+ src/pkg/asn1/asn1.go         | 165 ++++--------------
+ src/pkg/asn1/asn1_test.go    |  79 ++++++---
+ src/pkg/asn1/common.go       | 140 +++++++++++++++
+ src/pkg/asn1/marshal.go      | 400 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/asn1/marshal_test.go |  78 +++++++++
+ src/pkg/crypto/x509/x509.go  |   2 +-
+ 7 files changed, 705 insertions(+), 161 deletions(-)

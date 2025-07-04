@@ -1,0 +1,17 @@
+commit bbf5eb5ba2dc714a2bca2d4d4affe446f779c1d6
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 9 08:59:56 2011 +1000
+
+    exp/template: delete upward evaluation.
+    It was an ill-advised carryover from the previous template package.
+    Also clean up function evaluation.
+    Also add a Name method to Template.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4657088
+
+ src/pkg/exp/template/exec.go      | 106 +++++++++++++++-----------------------
+ src/pkg/exp/template/exec_test.go |   6 ---
+ src/pkg/exp/template/parse.go     |   5 ++
+ 3 files changed, 47 insertions(+), 70 deletions(-)

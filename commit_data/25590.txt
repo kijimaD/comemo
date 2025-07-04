@@ -1,0 +1,14 @@
+commit c5a2f364d3c0ba355f6a1a63e9f4bee96a48e332
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 14 12:14:05 2016 -0800
+
+    runtime: fix darwin/arm64 build
+    
+    Fixes #13916.
+    
+    Change-Id: If2cad5473a749460909519ac20aca19dea8a2e7a
+    Reviewed-on: https://go-review.googlesource.com/18671
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/signal_darwin_arm64.go | 1 +
+ 1 file changed, 1 insertion(+)

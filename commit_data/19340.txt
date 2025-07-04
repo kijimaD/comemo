@@ -1,0 +1,17 @@
+commit 211618c26ebe5fe931d7366b94e15fbd92584555
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 12 23:38:35 2014 -0400
+
+    io: copy slice argument in MultiReader and MultiWriter
+    
+    Replaces CL 91240045.
+    Fixes #7809.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, minux.ma
+    CC=adg, bradfitz, golang-codereviews, iant, r
+    https://golang.org/cl/94380043
+
+ src/pkg/io/multi.go      |  8 ++++++--
+ src/pkg/io/multi_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 2 deletions(-)

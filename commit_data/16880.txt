@@ -1,0 +1,14 @@
+commit a79e125b2f4c064f54689705fe2dd70899012df5
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jul 26 16:56:24 2013 +1000
+
+    cmd/pack: support removing of leading file prefix on windows
+    
+    Fixes #5550
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/11904043
+
+ src/cmd/pack/ar.c | 28 +++++++++++++++++++++++++---
+ 1 file changed, 25 insertions(+), 3 deletions(-)

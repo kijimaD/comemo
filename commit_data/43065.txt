@@ -1,0 +1,16 @@
+commit 4e1d812afc2ebe767face21f34e47de57f3f32a6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 21 21:50:37 2020 -0400
+
+    doc/go1.16: add subheads and adjust formatting in the 'Go command' section
+    
+    Change-Id: I5f70684d4033d8b11e1cce89268d8222ed596c67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256400
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.16.html | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

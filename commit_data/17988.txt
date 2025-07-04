@@ -1,0 +1,12 @@
+commit 22a7b3442ee621bd8b73d5b4ccdfcfd7b62ca8b0
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Sun Dec 15 17:51:03 2013 -0500
+
+    doc/articles/wiki: remove GNU make dependency
+    
+    R=golang-dev, adg, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/38410043
+
+ doc/articles/wiki/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

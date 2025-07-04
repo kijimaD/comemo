@@ -1,0 +1,22 @@
+commit 5fcfe6b6ae53ed5e5cf43250c96cc40c2790fb3a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 15 10:21:57 2018 +0100
+
+    runtime: use Android O friendly faccessat syscall on linux/amd64
+    
+    The Android O seccomp policy disallows the access syscall on amd64, see
+    https://android.googlesource.com/platform/bionic/+/android-4.2.2_r1.2/libc/SYSCALLS.TXT
+    
+    Use the faccessat syscall with AT_FDCWD instead to achieve the same
+    behavior.
+    
+    Updates #24403
+    
+    Change-Id: I9db847c1c0f33987a3479b3f96e721fb9588cde2
+    Reviewed-on: https://go-review.googlesource.com/100877
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_linux_amd64.s | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

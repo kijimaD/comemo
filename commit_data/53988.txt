@@ -1,0 +1,27 @@
+commit 7ce1dd99793e2aa2e78dc8d2031666a4a98bfd38
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Aug 11 19:58:26 2023 +1000
+
+    runtime/cgo: rename crosscall_amd64 to crosscall1
+    
+    This reduces inconsistency with other architectures and will allow
+    for further code deduplication.
+    
+    Change-Id: I5becbf29af2ef714974b5e338f869281f2b4de8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518617
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/cgo/gcc_amd64.S           | 8 ++++----
+ src/runtime/cgo/gcc_darwin_amd64.c    | 3 ++-
+ src/runtime/cgo/gcc_dragonfly_amd64.c | 3 ++-
+ src/runtime/cgo/gcc_freebsd_amd64.c   | 3 ++-
+ src/runtime/cgo/gcc_linux_amd64.c     | 3 ++-
+ src/runtime/cgo/gcc_netbsd_amd64.c    | 3 ++-
+ src/runtime/cgo/gcc_openbsd_amd64.c   | 3 ++-
+ src/runtime/cgo/gcc_solaris_amd64.c   | 3 ++-
+ src/runtime/cgo/gcc_windows_amd64.c   | 3 ++-
+ src/runtime/cgo/libcgo.h              | 5 -----
+ 10 files changed, 20 insertions(+), 17 deletions(-)

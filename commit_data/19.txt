@@ -1,0 +1,10 @@
+commit 2aae3fcbafb35a483da59d08f31e1b96c840cf74
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 7 18:01:09 2008 -0800
+
+    fix grammar for struct and interface types to make final semicolon optional
+    
+    SVN=111810
+
+ doc/go_lang.txt | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

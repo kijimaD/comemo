@@ -1,0 +1,19 @@
+commit 933ca0cfdc5b16a28661707b95485ce6d739bb97
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Aug 12 12:59:55 2020 -0400
+
+    doc: add a release notes blurb on 1.16 linker improvements
+    
+    Add a draft version of a blurb on improvements to the linker. This
+    will need to be finalized later in the release since there are still
+    some additional changes to be made to the linker in 1.16.
+    
+    Updates #40703.
+    
+    Change-Id: Id85c7e129071cc2faacb09c53a2968bd52b0a7b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248238
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.16.html | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 0f84afe24bd7954ed2408008c17b1930881d89d5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 4 09:08:27 2016 -0700
+
+    cmd/dist: add flag to build tests only, but not run them
+    
+    To speed up the ssacheck check builder and make it on by default as a
+    trybot.
+    
+    Change-Id: I91a3347491507c84f4878dff744ca426ba3e2e9f
+    Reviewed-on: https://go-review.googlesource.com/22755
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/dist/test.go | 68 ++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 45 insertions(+), 23 deletions(-)

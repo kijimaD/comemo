@@ -1,0 +1,12 @@
+commit c4748872b8f1e8a63792e9d479a605edee4b9b5c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 9 12:46:21 2008 -0700
+
+    update golden
+    
+    R=gri
+    OCL=15014
+    CL=15014
+
+ test/golden.out | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

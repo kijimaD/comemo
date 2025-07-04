@@ -1,0 +1,31 @@
+commit ef3ef8fcdfcd5e8a70b4a8feb2f91a82fee1f603
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 11 09:35:31 2019 -0500
+
+    net/http: use cancellation instead of a timeout in TestTransportProxyHTTPSConnectTimeout
+    
+    The use of a timeout in this test caused it to be flaky: if the
+    timeout occurred before the connection was attempted, then the Accept
+    call on the Listener could hang indefinitely, and its goroutine would
+    not exit until that Listener was closed. That caused the test to fail.
+    
+    A longer timeout would make the test less flaky, but it would become
+    even slower and would still be sensitive to timing.
+    
+    Instead, replace the timeout with an explicit Context cancellation
+    after the CONNECT request has been read. That not only ensures that
+    the cancellation occurs at the appropriate point, but also makes the
+    test much faster: a test run with -count=1000 now executes in less
+    than 2s on my machine, whereas before it took upwards of 50s.
+    
+    Fixes #36082
+    Updates #28012
+    
+    Change-Id: I00c20d87365fd3d257774422f39d2acc8791febd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210857
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport_test.go | 41 ++++++++++++++++++++++++++---------------
+ 1 file changed, 26 insertions(+), 15 deletions(-)

@@ -1,0 +1,21 @@
+commit 7c446bab6331b0d9b0bcb0264d001ff01044a234
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Oct 10 19:56:41 2023 +0000
+
+    Revert "cmd/link/internal/ld: assign temporary addresses to per-package text"
+    
+    This reverts commit http://go.dev/cl/349650
+    
+    Reason for revert: CL breaks multiple builders with failure in TestLargeTextSectionSplitting
+    
+    Change-Id: I4894ffd101b2757a6e6359212d5b8a64da1fcdf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534299
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/data.go    | 87 +++++++++++--------------------------
+ src/cmd/link/internal/ld/ld_test.go | 68 -----------------------------
+ 2 files changed, 25 insertions(+), 130 deletions(-)

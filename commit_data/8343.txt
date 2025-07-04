@@ -1,0 +1,12 @@
+commit 69a91663d25df694ec3a85d32b77c37444f1dac6
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue May 10 13:47:56 2011 -0400
+
+    runtime: add newline to "finalizer already set" error
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4523047
+
+ src/pkg/runtime/malloc.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

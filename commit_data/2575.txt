@@ -1,0 +1,14 @@
+commit c7a9d9818a2750b37e4e0cf77e4beaad8b811e87
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 2 16:24:44 2009 -0700
+
+    fix atoi test
+    
+    R=r
+    DELTA=28  (5 added, 0 deleted, 23 changed)
+    OCL=31093
+    CL=31093
+
+ src/pkg/strconv/atoi.go      | 27 ++++++++++++++++-----------
+ src/pkg/strconv/atoi_test.go | 12 ++++++------
+ 2 files changed, 22 insertions(+), 17 deletions(-)

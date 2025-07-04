@@ -1,0 +1,22 @@
+commit aa4f48b751dbbfcb82e69d7622e7a9e9b8e48ee0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 29 12:47:15 2020 -0700
+
+    cmd/compile: gracefully fail when devirtualization fails
+    
+    We should still be able to devirtualize here, but I need to understand
+    the AST better. While I'm doing that, at least switch to a graceful
+    failure case (i.e., skip the optimization and print a warning message)
+    to fix the x/text builders.
+    
+    Updates #42279.
+    
+    Change-Id: Ie2b0b701fccf590d0cabfead703fc2fa999072cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266359
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

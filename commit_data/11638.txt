@@ -1,0 +1,17 @@
+commit 929203acef30ff26bb645ce625a61336c9491235
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 6 15:09:50 2012 +1100
+
+    io: API tweaks
+    - eliminate local Error type (a historical artifact)
+    - fix documentation of CopyN
+    - fix documentation of WriteString
+    Fixes #2859.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5636046
+
+ src/pkg/io/io.go   | 24 +++++++++++-------------
+ src/pkg/io/pipe.go |  7 +++++--
+ 2 files changed, 16 insertions(+), 15 deletions(-)

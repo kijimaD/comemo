@@ -1,0 +1,16 @@
+commit 8959851a96bcf0ccf60df0869872ab7f848abf06
+Author: Ryan Hitchman <hitchmanr@gmail.com>
+Date:   Fri Dec 10 10:43:45 2010 +1100
+
+    os: make MkdirAll work with symlinks
+    
+    Fixes #1149.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/3564041
+
+ src/pkg/os/os_test.go   |  7 +++----
+ src/pkg/os/path.go      |  2 +-
+ src/pkg/os/path_test.go | 35 ++++++++++++++++++++++++++++++-----
+ 3 files changed, 34 insertions(+), 10 deletions(-)

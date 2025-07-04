@@ -1,0 +1,28 @@
+commit 3ca20218c1267da894d30585a3210882065f293d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 29 15:15:43 2015 -0400
+
+    runtime: fix gcDumpObject on non-heap pointers
+    
+    gcDumpObject is used to print the source and destination objects when
+    checkmark find a missing mark. However, gcDumpObject currently assumes
+    the given pointer will point to a heap object. This is not true of the
+    source object during root marking and may not even be true of the
+    destination object in the limited situations where the heap points
+    back in to the stack.
+    
+    If the pointer isn't a heap object, gcDumpObject will attempt an
+    out-of-bounds access to h_spans. This will cause a panicslice, which
+    will attempt to construct a useful panic message. This will cause a
+    string allocation, which will lead mallocgc to panic because the GC is
+    in mark termination (checkmark only happens during mark termination).
+    
+    Fix this by checking that the pointer points into the heap arena
+    before attempting to use it as an arena pointer.
+    
+    Change-Id: I09da600c380d4773f1f8f38e45b82cb229ea6382
+    Reviewed-on: https://go-review.googlesource.com/9498
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go | 4 ++++
+ 1 file changed, 4 insertions(+)

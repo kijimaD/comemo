@@ -1,0 +1,14 @@
+commit fb01ad21c2bdc12e415967f1266bbf86d90956bc
+Author: Jingguo Yao <yaojingguo@gmail.com>
+Date:   Thu Nov 12 21:59:30 2015 +0800
+
+    math/rand: add a comment for the i=0 iteration
+    
+    Fixes #13215
+    
+    Change-Id: I126117d42e7c1e69cbc7fad0760e225b03ed15bd
+    Reviewed-on: https://go-review.googlesource.com/16852
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/rand/rand.go | 5 +++++
+ 1 file changed, 5 insertions(+)

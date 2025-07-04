@@ -1,0 +1,14 @@
+commit f18e4e44a3e6ba037e8e05c65fde2b25048402d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 30 14:59:46 2011 -0400
+
+    runtime: disable parallel gc
+    
+    Breaks on Linux/386 during parallel sync tests.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5168044
+
+ src/pkg/runtime/proc.c | 1 +
+ 1 file changed, 1 insertion(+)

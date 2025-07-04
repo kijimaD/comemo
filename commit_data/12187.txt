@@ -1,0 +1,14 @@
+commit 705ebf1144b6326bd8298119dc1979e384c21c64
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 24 11:58:30 2012 +0900
+
+    net: reorganize test files
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5694063
+
+ src/pkg/net/dial_test.go   |  81 +++++++++++++++++++++++++++++++
+ src/pkg/net/lookup_test.go |  37 ++++++++++++++
+ src/pkg/net/net_test.go    | 118 ---------------------------------------------
+ 3 files changed, 118 insertions(+), 118 deletions(-)

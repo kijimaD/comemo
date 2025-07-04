@@ -1,0 +1,17 @@
+commit debc52038b1ae8bab4d6d901d07e5f6f3397e029
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 19:03:39 2020 -0800
+
+    doc/go1.14: mention net/http.Header.Values, net/textproto.MIMEHeader.Values
+    
+    These methods are new in Go 1.14.
+    
+    Updates #34799
+    Updates #36878
+    
+    Change-Id: I063f5cb4638d7e0716e6ce2a8c3fffced51bbd34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217129
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

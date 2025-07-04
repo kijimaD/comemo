@@ -1,0 +1,14 @@
+commit b027a0f11857636314e3e149fc785feb79420e9e
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 11 14:21:16 2012 +1100
+
+    text/template/parse: deep Copy method for nodes
+    This will help html/template copy templates.
+    
+    R=golang-dev, gri, nigeltao, r
+    CC=golang-dev
+    https://golang.org/cl/5653062
+
+ src/pkg/text/template/parse/node.go       | 112 ++++++++++++++++++++++++++++++
+ src/pkg/text/template/parse/parse_test.go |  18 ++++-
+ 2 files changed, 128 insertions(+), 2 deletions(-)

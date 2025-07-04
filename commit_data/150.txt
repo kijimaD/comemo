@@ -1,0 +1,11 @@
+commit 820368a19ac19e37667f1fc2ec70a10884cdb3ac
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 11 13:59:55 2008 -0700
+
+    fix up mkfiles to use $GOROOT instead of $PLAN9
+    mention in setup doc that binaries go into $HOME/bin
+    
+    SVN=122177
+
+ src/cmd/gc/sysimport.c | 94 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 47 insertions(+), 47 deletions(-)

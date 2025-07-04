@@ -1,0 +1,13 @@
+commit 850d1026adfb0546bd0a6491ee95890257454282
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 4 12:59:28 2013 +1000
+
+    doc: add Game of Life to playground toys
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/9961043
+
+ doc/play/life.go | 113 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/root.html    |   1 +
+ 2 files changed, 114 insertions(+)

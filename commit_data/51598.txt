@@ -1,0 +1,19 @@
+commit f721fa3be9bb52524f97b409606f9423437535e8
+Author: Shengjing Zhu <zsj950618@gmail.com>
+Date:   Thu Jan 5 15:00:25 2023 +0800
+
+    syscall: skip TestUseCgroupFD if cgroupfs not mounted
+    
+    When building in schroot (for building Debian package),
+    the cgroupfs is not mounted in schroot (only sysfs is mounted).
+    
+    Change-Id: Ieddac7b2f334d58d832f5d84d81af812badf3720
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460539
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/exec_linux_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

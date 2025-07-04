@@ -1,0 +1,23 @@
+commit 57af9745bfad2c20ed6842878e373d6c5b79285a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Oct 22 18:00:20 2020 +0200
+
+    crypto/x509: deprecate legacy PEM encryption
+    
+    It's unfortunate that we don't implement PKCS#8 encryption (#8860)
+    so we can't recommend an alternative but PEM encryption is so broken
+    that it's worth deprecating outright.
+    
+    Fixes #41949
+    Fixes #32777
+    
+    Change-Id: Ieb46444662adec108d0de3550b693a50545c2344
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264159
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/x509/pem_decrypt.go | 35 ++++++++++++++++++++++++-----------
+ 1 file changed, 24 insertions(+), 11 deletions(-)

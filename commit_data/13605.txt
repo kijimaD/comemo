@@ -1,0 +1,15 @@
+commit e4a50195c389e67d6d3277b46d4179602bec8c41
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Aug 9 09:43:10 2012 +1000
+
+    exp/html: when ignoring <textarea> tag, switch tokenizer out of raw text mode
+    
+    Pass 1 additional test.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6459060
+
+ src/pkg/exp/html/parse.go                           | 2 ++
+ src/pkg/exp/html/testlogs/tests_innerHTML_1.dat.log | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

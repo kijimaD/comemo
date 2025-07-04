@@ -1,0 +1,42 @@
+commit aff3aaa47f16d69efc50b6fec0ddc938176695eb
+Author: Chris Stockton <chrisstocktonaz@gmail.com>
+Date:   Sun Oct 27 15:55:53 2019 +0000
+
+    net: halve the allocs in ParseCIDR by sharing slice backing
+    
+    Share a slice backing between the host address, network ip and mask.
+    Add tests to verify that each slice header has len==cap to prevent
+    introducing new behavior into Go programs. This has a small tradeoff
+    of allocating a larger slice backing when the address is invalid.
+    Earlier error detection of invalid prefix length helps balance this
+    cost and a new benchmark for ParseCIDR helps measure it.
+    
+    This yields a ~22% speedup for all nil err cidr tests:
+    
+      name               old time/op    new time/op    delta
+      ParseCIDR/IPv4-24    9.17µs ± 6%    7.20µs ± 7%  -21.47%  (p=0.000 n=20+20)
+      ParseCIDR/IPv6-24    9.02µs ± 6%    6.95µs ± 9%  -23.02%  (p=0.000 n=20+20)
+      ParseCIDR/IPv4-24    1.51kB ± 0%    1.55kB ± 0%   +2.65%  (p=0.000 n=20+20)
+      ParseCIDR/IPv6-24    1.51kB ± 0%    1.55kB ± 0%   +2.65%  (p=0.000 n=20+20)
+      ParseCIDR/IPv4-24      68.0 ± 0%      34.0 ± 0%  -50.00%  (p=0.000 n=20+20)
+      ParseCIDR/IPv6-24      68.0 ± 0%      34.0 ± 0%  -50.00%  (p=0.000 n=20+20)
+    
+    Including non-nil err cidr tests gains around 25%~:
+    
+      name               old time/op    new time/op    delta
+      ParseCIDR/IPv4-24    11.8µs ±11%     8.9µs ± 8%  -24.88%  (p=0.000 n=20+20)
+      ParseCIDR/IPv6-24    11.7µs ± 7%     8.7µs ± 5%  -25.93%  (p=0.000 n=20+20)
+      ParseCIDR/IPv4-24    1.98kB ± 0%    2.00kB ± 0%   +1.21%  (p=0.000 n=20+20)
+      ParseCIDR/IPv6-24    1.98kB ± 0%    2.00kB ± 0%   +1.21%  (p=0.000 n=20+20)
+      ParseCIDR/IPv4-24      87.0 ± 0%      48.0 ± 0%  -44.83%  (p=0.000 n=20+20)
+      ParseCIDR/IPv6-24      87.0 ± 0%      48.0 ± 0%  -44.83%  (p=0.000 n=20+20)
+    
+    Change-Id: I17f33c9049f7875b6ebdfde1f80b386a7aef9b94
+    GitHub-Last-Rev: 0a031f44b458e2c6465d0e59fb4653e08c44a854
+    GitHub-Pull-Request: golang/go#26948
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/129118
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip.go      | 161 ++++++++++++++++++++++++++++++++++++++++-------------
+ src/net/ip_test.go |  40 ++++++++++++-
+ 2 files changed, 160 insertions(+), 41 deletions(-)

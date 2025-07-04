@@ -1,0 +1,42 @@
+commit 134af2e3db41ca4be5ce8b466cfa57774dba8449
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Apr 4 07:08:57 2023 -0400
+
+    log,log/slog: get correct source line when slog calls log
+    
+    Before slog.SetDefault is called the first time, calls to slog's
+    default Logger invoke log's default Logger.
+    
+    Originally, this was done by calling log.Output. This caused source
+    line information to be wrong sometimes, because log.Output requires a
+    call depth and the code invoking it could not know how many calls were
+    between it and the original logging call (slog.Info, etc.). The line
+    information would be right if the default handler was called directly,
+    but wrong if it was wrapped by another handler. The handler has the pc
+    of the logging call, but it couldn't give that pc to the log package.
+    
+    This CL fixes the problem by adding a function in the log package
+    that uses the pc instead of a call depth, and making that function
+    available to slog.
+    
+    The simplest way to add pc functionality to the log package is to add
+    a pc argument to Logger.output, which uses it only if it's not zero.
+    
+    To make that function visible to slog without exporting it, we store
+    the function in a variable that lives in the new log/internal package.
+    
+    Change-Id: I0bb6daebb4abc518a7ccc4e6d2f3c1093b1d0fe4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482239
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+
+ src/go/build/deps_test.go    |  5 +++--
+ src/log/internal/internal.go | 12 +++++++++++
+ src/log/log.go               | 47 ++++++++++++++++++++++++++++++++------------
+ src/log/slog/handler.go      | 10 ++++------
+ src/log/slog/handler_test.go |  4 ++--
+ src/log/slog/logger.go       |  3 ++-
+ src/log/slog/logger_test.go  | 15 ++++----------
+ 7 files changed, 61 insertions(+), 35 deletions(-)

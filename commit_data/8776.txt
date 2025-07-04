@@ -1,0 +1,12 @@
+commit df02e65d544d5e5345b10de8719360c94bb8490b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Jun 19 13:53:07 2011 +1000
+
+    doc/faq: remove misleading FAQ entry
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/4638046
+
+ doc/go_faq.html | 10 ----------
+ 1 file changed, 10 deletions(-)

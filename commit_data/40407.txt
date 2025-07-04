@@ -1,0 +1,17 @@
+commit c4c37547b12f113d07b987881a81c1dbc754cd66
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Oct 23 17:50:22 2019 -0400
+
+    cmd/go/internal/modload: remove cwd global
+    
+    base.Cwd should be used instead.
+    
+    Change-Id: I3dbdecf745b0823160984cc942c883dc04c91d7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203037
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go | 39 +++++++++++++++++--------------------
+ src/cmd/go/internal/modload/load.go |  4 ++--
+ 2 files changed, 20 insertions(+), 23 deletions(-)

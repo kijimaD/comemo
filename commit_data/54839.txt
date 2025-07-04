@@ -1,0 +1,21 @@
+commit 34a5830c267e76bdcf1f1aa6725f140af2e82f62
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 31 09:50:00 2023 -0700
+
+    cmd/compile/internal/syntax: fix/update various comments
+    
+    Change-Id: I30b448c8fcdbad94afcd7ff0dfc5cfebb485bdd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538855
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go              |  4 ++--
+ src/cmd/compile/internal/syntax/testdata/issue23434.go |  4 ++--
+ src/cmd/compile/internal/syntax/testdata/issue31092.go |  2 +-
+ src/cmd/compile/internal/syntax/testdata/map2.go       | 12 ++++++------
+ src/cmd/compile/internal/syntax/testdata/tparams.go    |  4 ++--
+ src/cmd/compile/internal/syntax/testdata/typeset.go    |  4 ++--
+ 6 files changed, 15 insertions(+), 15 deletions(-)

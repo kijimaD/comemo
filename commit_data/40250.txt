@@ -1,0 +1,14 @@
+commit 233f45499b7f3a775311b824ac53bbe67e811e1f
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Oct 13 01:26:22 2019 +0200
+
+    cmd/compile: in poset, improve panic strings and comments
+    
+    No functional changes.
+    
+    Change-Id: I6f5e811e141dd09dc5c47ff2d37fae4c640315e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200862
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/poset.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

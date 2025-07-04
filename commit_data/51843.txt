@@ -1,0 +1,21 @@
+commit 066b780502c8c87c03f8a5e0bbc16c1c87221cf1
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Dec 12 11:04:05 2022 -0500
+
+    cmd/link: load host archive libc_nonshared.a for -fstack-protector
+    
+    For internal linking, at the point where we finish reading libgcc.a,
+    if the symbol "__stack_chk_local" is still undefined, then read
+    in the host archive libc_nonshared.a as well.
+    
+    Updates #57261.
+    
+    Change-Id: I0b1e485aa50aa7940db8cabcb3b9a7959bf99ce7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456856
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 19 +++++++++++++++++++
+ src/runtime/cgo/cgo.go          |  4 +---
+ 2 files changed, 20 insertions(+), 3 deletions(-)

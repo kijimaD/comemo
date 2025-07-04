@@ -1,0 +1,12 @@
+commit d56ca13c03b16eeeb3eb7cd379a2d05b9b9e4a2a
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Dec 12 15:42:02 2011 -0500
+
+    gc: add varargck for %lN
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/5476049
+
+ src/cmd/gc/go.h | 1 +
+ 1 file changed, 1 insertion(+)

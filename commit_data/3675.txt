@@ -1,0 +1,19 @@
+commit 878d0e1efdc70c0edc28de9e8fa89f30a5d17393
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Oct 28 15:16:20 2009 -0700
+
+    Add a quickcheck package which is a little like the Haskell one of the same
+    name.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=566  (566 added, 0 deleted, 0 changed)
+    OCL=35974
+    CL=36111
+
+ src/pkg/Make.deps                   |  12 +-
+ src/pkg/Makefile                    |   2 +-
+ src/pkg/testing/quick/Makefile      |  11 ++
+ src/pkg/testing/quick/quick.go      | 367 ++++++++++++++++++++++++++++++++++++
+ src/pkg/testing/quick/quick_test.go | 186 ++++++++++++++++++
+ 5 files changed, 571 insertions(+), 7 deletions(-)

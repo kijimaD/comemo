@@ -1,0 +1,12 @@
+commit 38a53c7ecb0713c6c15a49896c718c9eb92f0175
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 14 15:58:37 2011 -0700
+
+    go spec: (up-)date
+    
+    R=rsc, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/4738042
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

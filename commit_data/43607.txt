@@ -1,0 +1,24 @@
+commit d9725f549f48ae6e4eaf70311f6827173453935b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 18:18:59 2020 +1000
+
+    syscall: add support for openbsd/mips64
+    
+    Update #40995
+    
+    Change-Id: I7afa520ab5ddd6d1b8c7960f400b7b3a1b67d976
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250581
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/asm_openbsd_mips64.s       |  129 +++
+ src/syscall/mkall.sh                   |   11 +
+ src/syscall/mksysnum_openbsd.pl        |    2 +-
+ src/syscall/syscall_openbsd_mips64.go  |   38 +
+ src/syscall/zerrors_openbsd_mips64.go  | 1682 ++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_openbsd_mips64.go | 1300 ++++++++++++++++++++++++
+ src/syscall/zsysnum_openbsd_mips64.go  |  218 +++++
+ src/syscall/ztypes_openbsd_mips64.go   |  443 +++++++++
+ 8 files changed, 3822 insertions(+), 1 deletion(-)

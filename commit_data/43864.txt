@@ -1,0 +1,23 @@
+commit 7dc5d909fb465345bf1583eb978aaa56ca365f38
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Nov 24 00:58:00 2020 +0700
+
+    cmd/compile: set OpLoad argument type interface{} correctly
+    
+    CL 271906 allows loading single field of typed-interface{} OpIData, but
+    it does not update the corresponding selector type. So the generated
+    OpLoad has the named type instead, prevent it from being lowered by
+    lower pass.
+    
+    Fixes #42784
+    
+    Change-Id: Idf32e4f711731be09d508dd712b60bc8c58309bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272466
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go |  3 +++
+ test/fixedbugs/issue42784.go                 | 26 ++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

@@ -1,0 +1,13 @@
+commit c93ca600eca4cee6dae2495772ae910eb768cec3
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Wed Jan 25 00:15:44 2012 -0800
+
+    os: pass tests on Plan 9 again
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5563046
+
+ src/pkg/os/file_plan9.go | 12 ++++++------
+ src/pkg/os/stat_plan9.go |  5 +++++
+ 2 files changed, 11 insertions(+), 6 deletions(-)

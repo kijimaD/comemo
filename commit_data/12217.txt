@@ -1,0 +1,13 @@
+commit b49dcb9d37cd5856fe273a0ceb56e70ce03e969f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 27 09:51:58 2012 +1100
+
+    cmd/go: explain x... vs. x/... in help importpath
+    Fixes #3110.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5696083
+
+ src/cmd/go/help.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

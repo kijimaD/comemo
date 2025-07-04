@@ -1,0 +1,12 @@
+commit ddbc85ce48faef8c92e159e90978f706cb6910e3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Aug 29 06:54:00 2012 +0900
+
+    net: delete unused socket-level option helpers
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6499043
+
+ src/pkg/net/sockopt.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

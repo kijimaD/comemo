@@ -1,0 +1,21 @@
+commit 512b3c63b7472d2baab881de4dbcbd0ab8e447ab
+Author: Mihai Moldovan <ionic@ionic.de>
+Date:   Tue Apr 9 10:25:49 2019 +0000
+
+    cmd/dist: add BOOT_GO_LDFLAGS - counterpart of BOOT_GO_GCFLAGS
+    
+    This allows passing custom LDFLAGS while building the bootstrapping
+    tool.
+    
+    Afterwards, GO_LDFLAGS will be used as usual.
+    
+    Change-Id: I1e224e3ce8bf7b2ce1ef8fec1894720338f04396
+    GitHub-Last-Rev: 17d40dc2dd2f0815331cb2f8de3445f86687cc45
+    GitHub-Pull-Request: golang/go#31298
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171037
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

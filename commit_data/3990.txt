@@ -1,0 +1,17 @@
+commit 1941855730de578f244fe9756353f66e64fefd40
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 11 13:21:37 2009 -0800
+
+    Reland a112249da741, this time with missing file.
+
+ src/make.bash                  |  13 ++
+ src/pkg/Make.deps              |   8 +-
+ src/pkg/big/arith.go           |   9 +-
+ src/pkg/big/int.go             | 107 ++++----------
+ src/pkg/big/int_test.go        | 113 +++++++++++++--
+ src/pkg/big/nat.go             | 311 +++++++++++++++++++++++++++++++++++++++--
+ src/pkg/big/nat_test.go        |  96 ++++++++++++-
+ src/pkg/bignum/bignum.go       |   4 +
+ src/pkg/crypto/rsa/rsa.go      |  64 ++++-----
+ src/pkg/crypto/rsa/rsa_test.go |  22 ++-
+ 10 files changed, 581 insertions(+), 166 deletions(-)

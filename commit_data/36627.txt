@@ -1,0 +1,23 @@
+commit 1705962cf976a001bb9929146e5690a957ed630e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Sep 9 14:21:25 2018 +1000
+
+    internal/poll: handle zero-byte write in FD.WriteTo
+    
+    Zero-byte write was fixed by CL 132781, that was submitted 3 days ago.
+    But I just submitted CL 129137, and the CL broken zero-byte write
+    functionality without me noticing. CL 129137 was based on old commit
+    (older than 3 days ago), and try-bots did not discover the breakage.
+    
+    Fix zero-byte write again.
+    
+    Fixes windows build.
+    
+    Change-Id: Ib403b25fd25cb881963f25706eecca92b924aaa1
+    Reviewed-on: https://go-review.googlesource.com/134275
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/internal/poll/fd_windows.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

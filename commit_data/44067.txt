@@ -1,0 +1,20 @@
+commit 1d78139128d6d839d7da0aeb10b3e51b6c7c0749
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Dec 25 11:14:11 2020 +0100
+
+    runtime/cgo: fix Android build with NDK 22
+    
+    Fixes #42655
+    
+    Change-Id: I7d2b70098a4ba4dcb325fb0be076043789b86135
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280312
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Elias Naur <mail@eliasnaur.com>
+
+ src/runtime/cgo/gcc_linux_386.c   | 2 +-
+ src/runtime/cgo/gcc_linux_amd64.c | 2 +-
+ src/runtime/cgo/gcc_linux_arm.c   | 2 +-
+ src/runtime/cgo/gcc_linux_arm64.c | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

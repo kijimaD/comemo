@@ -1,0 +1,14 @@
+commit b4586a74297bca626640dc04234b2203dd23007b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 08:39:56 2009 -0800
+
+    math: fix argument names in Atan2
+    (error introduced converting from arg1, arg2)
+    
+    Fixes #220.
+    
+    R=r
+    https://golang.org/cl/156041
+
+ src/pkg/math/atan2.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

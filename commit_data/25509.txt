@@ -1,0 +1,21 @@
+commit 5ccaf0255b75063a9c685009e77cee24e26a509e
+Author: Paul Wankadia <junyer@google.com>
+Date:   Thu Jan 7 18:55:18 2016 +1100
+
+    regexp/syntax: fix factoring of common prefixes in alternations
+    
+    In the past, `a.*?c|a.*?b` was factored to `a.*?[bc]`. Thus, given
+    "abc" as its input string, the automaton would consume "ab" and
+    then stop (when unanchored) whereas it should consume all of "abc"
+    as per leftmost semantics.
+    
+    Fixes #13812.
+    
+    Change-Id: I67ac0a353d7793b3d0c9c4aaf22d157621dfe784
+    Reviewed-on: https://go-review.googlesource.com/18357
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/regexp/syntax/parse.go         | 15 +++++++++++----
+ src/regexp/syntax/parse_test.go    |  7 ++++---
+ src/regexp/testdata/re2-search.txt |  5 +++++
+ 3 files changed, 20 insertions(+), 7 deletions(-)

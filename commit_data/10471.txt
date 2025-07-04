@@ -1,0 +1,31 @@
+commit 8ec32e8d84c1ec2f0a843e1ecfce7052842c8461
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Nov 21 09:55:15 2011 -0500
+
+    syscall: fix for Plan 9 build
+    
+    exec_plan9.go:
+    . Adjusted return argument to match other changes.
+    #mksyscall.pl:
+    . Replaced "err = e1" with "err = NewError(e1)".
+    * Change abandoned, Russ made a better suggestion involving
+      syscall_plan9.go.
+    syscall_plan9.go:
+    . Removed redundant "err = nil" lines.
+    . Adjusted //sys lines for mksyscall.pl.
+    * Replaced "err string" with "err ErrorString" in return arguments.
+    zsyscall_plan9_386.go:
+    . This module ought to be generated, but as it exists in the
+      repository, I rebuilt it and checked that it matched expectations.
+      Anybody is welcome to remove this from the repository if
+      they feel it should go, but remember that not all Plan 9
+      installations have a working Perl.
+    
+    R=rsc
+    CC=ality, golang-dev
+    https://golang.org/cl/5411046
+
+ src/pkg/syscall/exec_plan9.go         |  4 +--
+ src/pkg/syscall/syscall_plan9.go      | 39 ++++++++++------------
+ src/pkg/syscall/zsyscall_plan9_386.go | 62 ++++++++++-------------------------
+ 3 files changed, 37 insertions(+), 68 deletions(-)

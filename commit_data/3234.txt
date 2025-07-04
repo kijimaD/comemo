@@ -1,0 +1,14 @@
+commit 32aa5be6efa52f44d3dc54ab3cb5cac924c3e80a
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Sep 8 15:52:27 2009 -0700
+
+    init context for composit literals
+    
+    R=rsc
+    OCL=34462
+    CL=34462
+
+ src/cmd/gc/go.h    |  1 +
+ src/cmd/gc/sinit.c |  2 +-
+ src/cmd/gc/walk.c  | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 48 insertions(+), 1 deletion(-)

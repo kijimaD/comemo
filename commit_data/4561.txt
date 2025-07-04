@@ -1,0 +1,15 @@
+commit c6f4d68667ba09e88f124353c6d79812299c5e82
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 7 23:20:00 2010 -0800
+
+    gc: bug241
+    
+    Fixes #495.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/183156
+
+ src/cmd/gc/typecheck.c   |  4 +++-
+ test/fixedbugs/bug241.go | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

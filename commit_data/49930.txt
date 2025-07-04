@@ -1,0 +1,20 @@
+commit c04977fa76f43a6aee2ce73d5f6ba8e4b5ba77ea
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Tue Jun 21 09:29:35 2022 -0500
+
+    runtime: add symbolic constants for freebsd/amd64 syscalls
+    
+    Brings freebsd/amd64 on par with other OSes/archs.
+    
+    Updates #53479
+    
+    Change-Id: I05164c887d776dd4a0ae51eafd4014042b782999
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413366
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/sys_freebsd_amd64.s | 106 +++++++++++++++++++++++++++-------------
+ 1 file changed, 71 insertions(+), 35 deletions(-)

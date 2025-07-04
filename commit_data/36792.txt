@@ -1,0 +1,25 @@
+commit de72c43f78cf31e672cfc93474c9bbb8a1eec925
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Sep 30 16:07:27 2018 +1000
+
+    net: skip TestUnixConnLocalWindows on windows/386
+    
+    Recent CL 125456 implemented Unix Socket functionality on windows.
+    But that functionality does not appear to be working when 32-bit
+    code is used. So disable TestUnixConnLocalWindows.
+    
+    windows/386 builder does not appear to be complaining about
+    TestUnixConnLocalWindows, because new functionality requires
+    Windows 10 Build 17063. windows/386 builder uses Windows 2008.
+    
+    Fixes #27943
+    
+    Change-Id: Iea91b86aaa124352d198ca0cd03fff1e7542f949
+    Reviewed-on: https://go-review.googlesource.com/138676
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/unixsock_windows_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

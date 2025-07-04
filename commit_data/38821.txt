@@ -1,0 +1,16 @@
+commit 5ccaf2c6ade286ca30c345ae1cfa0560dc02fedd
+Author: Kai Dong <dokia2357@gmail.com>
+Date:   Fri Apr 19 03:23:23 2019 +0000
+
+    sync: update comment
+    
+    Comment update.
+    
+    Change-Id: If0d054216f9953f42df04647b85c38008b85b026
+    GitHub-Last-Rev: 133b4670be6dd1c94d16361c3a7a4bbdf8a355ab
+    GitHub-Pull-Request: golang/go#31539
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172700
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/sync/pool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

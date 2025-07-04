@@ -1,0 +1,17 @@
+commit 516001f50ff3de9f7de2a0525bb771b509504e93
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon Oct 17 10:54:44 2016 +0200
+
+    net: skip TestReadTimeoutUnblocksRead on Plan 9
+    
+    Deadlines aren't implemented on Plan 9 yet.
+    
+    Updates #17477.
+    
+    Change-Id: I44ffdbef97276dfec56547e5189672b7da24bfc1
+    Reviewed-on: https://go-review.googlesource.com/31188
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+
+ src/net/net_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,16 @@
+commit 942d6590d9005f89e971ed5af0374439a264a20e
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Oct 23 11:03:16 2009 -0700
+
+    one more argsize fix. we were copying with the correct
+    alignment but not enough (duh).
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=16  (13 added, 0 deleted, 3 changed)
+    OCL=36020
+    CL=36024
+
+ src/cmd/5g/ggen.c |  2 +-
+ test/arm-pass.txt | 17 +++++++++++++++--
+ 2 files changed, 16 insertions(+), 3 deletions(-)

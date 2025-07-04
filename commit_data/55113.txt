@@ -1,0 +1,33 @@
+commit 7e32d8d10b3a8d29165415437ffcc210f914b7cc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 14 06:19:07 2023 +0000
+
+    cmd/trace: factor out durationHistogram
+    
+    This code will be useful for the new tracer, and there's no need to
+    duplicate it. This change copies it to internal/trace/traceviewer, adds
+    some comments, and renames it to TimeHistogram.
+    
+    While we're here, let's get rid of the unused String method which has a
+    comment talking about how awful the rendering is.
+    
+    Also, let's get rid of uses of niceDuration. We'd have to bring it
+    with us in the move and I don't think it's worth it. The difference
+    between the default time.Duration rendering and the niceDuration
+    rendering is usually a few extra digits of precision. Yes, it's noisier,
+    but AFAICT it's not substantially worse. It doesn't seem worth the new
+    API, even if it's just internal. We can also always bring it back later.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: I795f58f579f1d503c540c3a40bed12e52bce38e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542001
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/trace/annotations.go                | 127 ++--------------------------
+ src/cmd/trace/goroutines.go                 |   2 +-
+ src/internal/trace/traceviewer/histogram.go |  86 +++++++++++++++++++
+ 3 files changed, 94 insertions(+), 121 deletions(-)

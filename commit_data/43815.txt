@@ -1,0 +1,27 @@
+commit 01df2febf5f00b1dcba1843093ef99b338b23546
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 16 16:27:19 2020 -0500
+
+    cmd/go: allow querying other versions of the main module
+    
+    'go mod download' and a few other commands can now query specific
+    versions of the main module.
+    
+    'go get' still reports an error when attempting to update the main
+    module.
+    
+    Fixes #42524
+    
+    Change-Id: Ia93ef8f5f34443e938667c48a0db432200108c63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270520
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/download.go        |  7 ++---
+ src/cmd/go/internal/modload/query.go          | 28 ++++++++++++-----
+ src/cmd/go/testdata/script/mod_download.txt   |  8 ++---
+ src/cmd/go/testdata/script/mod_get_main.txt   |  6 +++-
+ src/cmd/go/testdata/script/mod_query_main.txt | 43 +++++++++++++++++++++++++++
+ 5 files changed, 76 insertions(+), 16 deletions(-)

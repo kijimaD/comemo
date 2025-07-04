@@ -1,0 +1,14 @@
+commit b7331f9b3a1a5ece290c1a19cd68c58642fe26fb
+Author: Shivakumar GN <shivakumar.gn@gmail.com>
+Date:   Thu Sep 27 01:50:59 2012 +0800
+
+    codereview: use subprocess.call() instead of os.spawnvp() for portability
+    
+    Fixes #4121.
+    
+    R=golang-dev, minux.ma, dave, r
+    CC=golang-dev
+    https://golang.org/cl/6555049
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

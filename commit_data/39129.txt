@@ -1,0 +1,23 @@
+commit 5f320f962bd79120f542315c8317f3469c47cee3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 10 15:26:56 2019 -0400
+
+    cmd/go/internal/modfetch: fix GOSUMDB test failures
+    
+    Use cfg.GOSUMDB consistently instead of re-resolving it from the environment.
+    
+    Set cfg.GOSUMDB to 'off' explicitly in coderepo_test, since it may
+    include modules that cannot be fetched using a released version of the
+    'go' command.
+    
+    Fixes #31964
+    
+    Change-Id: I17cae9e0c6aa1168ba534e6da4e3652800ac81e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176538
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo_test.go | 7 +++++++
+ src/cmd/go/internal/modfetch/sumdb.go         | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 32cb0ce65b39fc91923ac12a0a94f34b5dfd04be
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sat Mar 18 18:43:20 2017 +0100
+
+    encoding/gob: speedup floats encoding and decoding
+    
+    By replacing bytes-reversing routines with bits.ReverseBytes64 calls.
+    
+    name                     old time/op  new time/op  delta
+    EncodeComplex128Slice-4  35.1µs ± 1%  23.2µs ± 2%  -33.94%  (p=0.000 n=20+20)
+    EncodeFloat64Slice-4     17.9µs ± 1%  11.0µs ± 1%  -38.36%  (p=0.000 n=17+18)
+    
+    name                     old time/op  new time/op  delta
+    DecodeComplex128Slice-4  79.7µs ± 0%  69.9µs ± 1%  -12.31%  (p=0.000 n=20+20)
+    DecodeFloat64Slice-4     47.3µs ± 1%  42.2µs ± 1%  -10.65%  (p=0.000 n=17+17)
+    
+    Change-Id: I91a6401c6009b5712fca6258dd1e57c6fe68ea64
+    Reviewed-on: https://go-review.googlesource.com/38352
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/gob/decode.go | 8 ++------
+ src/encoding/gob/encode.go | 8 +-------
+ 2 files changed, 3 insertions(+), 13 deletions(-)

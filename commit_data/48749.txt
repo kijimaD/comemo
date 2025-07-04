@@ -1,0 +1,21 @@
+commit be0262a1279ab37ff2cae562de37afd333f5ada4
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Mon Apr 11 19:54:30 2022 +0300
+
+    cmd/compile: fix compilation crash with several blank labels
+    
+    Fixes #52278
+    
+    Change-Id: Ibf67c7b019feec277d316e04d93b458efea133fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399574
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/escape/escape.go |  3 +++
+ src/cmd/compile/internal/escape/stmt.go   |  3 +++
+ test/fixedbugs/issue52278.go              | 12 ++++++++++++
+ 3 files changed, 18 insertions(+)

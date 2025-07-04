@@ -1,0 +1,14 @@
+commit 94d89ede1c21e3bb53a95cb620963cf05b5b677d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jul 17 17:32:34 2009 -0700
+
+    take care of a few more magic numbers
+    
+    R=rsc
+    DELTA=51  (41 added, 0 deleted, 10 changed)
+    OCL=31815
+    CL=31818
+
+ src/cmd/6l/asm.c   | 25 +++++++++++++++--------
+ src/cmd/ld/elf64.h | 60 ++++++++++++++++++++++++++++++++++++++++++------------
+ 2 files changed, 63 insertions(+), 22 deletions(-)

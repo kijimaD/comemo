@@ -1,0 +1,28 @@
+commit fc3350686404a988e711aac84d70113660c882cf
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 24 09:17:54 2019 -0400
+
+    cmd/go: re-enable 'go list -m' with -mod=vendor for limited patterns
+    
+    I had prohibited 'go list -m' with -mod=vendor because the module
+    graph is incomplete, but I've realized that many queries do not
+    actually require the full graph — and may, in fact, be driven using
+    modules previously reported by 'go list' for specific, vendored
+    packages. Queries for those modules should succeed.
+    
+    Updates #33848
+    
+    Change-Id: I1000b4cf586a830bb78faf620ebf62d73a3cb300
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203138
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/list/list.go                   | 15 +++++++----
+ src/cmd/go/internal/modload/list.go                | 19 +++++++++++---
+ .../go/testdata/script/mod_convert_vendor_json.txt |  2 +-
+ .../script/mod_convert_vendor_manifest.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_getmode_vendor.txt  |  9 ++++++-
+ src/cmd/go/testdata/script/mod_vendor.txt          | 30 +++++++++++++++-------
+ src/cmd/go/testdata/script/mod_vendor_auto.txt     |  8 +++---
+ 7 files changed, 60 insertions(+), 25 deletions(-)

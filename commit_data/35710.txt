@@ -1,0 +1,27 @@
+commit d7f874fef66483d6d123ffb9853bfa58d29dc94a
+Author: Akhil Indurti <aindurti@gmail.com>
+Date:   Wed Jun 13 20:52:05 2018 -0400
+
+    cmd/go: document convention to signify generated code.
+    
+    This change updates the go tool's documentation under the section
+    "Generate Go files by processing source" to mention the convention that
+    generated source files should have a line of text that matches the
+    following regular expression:
+    
+        ^// Code generated .* DO NOT EDIT\.$
+    
+    Previously, the canonical documentation for this convention
+    (https://golang.org/s/generatedcode) referenced Rob Pike's comment at
+    https://golang.org/issue/13560#issuecomment-288457920. This change
+    merely moves that information to a more visible place.
+    
+    Updates #25433.
+    
+    Change-Id: I804d95d307d1dc68cb28da3750ebe9090178c474
+    Reviewed-on: https://go-review.googlesource.com/118756
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go                    | 6 ++++++
+ src/cmd/go/internal/generate/generate.go | 6 ++++++
+ 2 files changed, 12 insertions(+)

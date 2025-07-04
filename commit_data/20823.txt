@@ -1,0 +1,19 @@
+commit 8db71d4ee89a505c375b550eb8fb8cc33bbabc03
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 15:14:04 2014 -0400
+
+    runtime: update comment for Callers
+    
+    Attempt to clear up confusion about how to turn
+    the PCs reported by Callers into the file and line
+    number people actually want.
+    
+    Fixes #7690.
+    
+    LGTM=r, chris.cs.guy
+    R=r, chris.cs.guy
+    CC=golang-codereviews
+    https://golang.org/cl/163550043
+
+ src/runtime/extern.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

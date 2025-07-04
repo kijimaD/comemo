@@ -1,0 +1,13 @@
+commit 392bc8985e6b4b33603bfb9b546d301d3857a3cb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 13 23:20:39 2014 +1000
+
+    doc: remove the "the" in "the the" in the release notes
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/128170043
+
+ doc/devel/release.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

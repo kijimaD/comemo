@@ -1,0 +1,22 @@
+commit edf8539fad89c22a7846196ae2f8920a480c1230
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 6 13:34:47 2019 -0500
+
+    cmd/go: run the 'go build' command in TestACL in the temp directory
+    
+    Otherwise, when the 'cmd' module is added the test will run as if in module 'cmd'.
+    
+    While we're here, remove an unnecessary os.Chdir in TestAbsolutePath:
+    we can instead set the Dir on the 'go build' command instead. Then we
+    can run the tests in this file in parallel with everything else.
+    
+    Updates #30228
+    
+    Change-Id: I13ecd7ec93bc1041010daec14d76bac10e0c89be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165744
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_windows_test.go | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

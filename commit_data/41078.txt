@@ -1,0 +1,21 @@
+commit 249c85d3aab2ad2d0bcbf36efe606fdd66f25c72
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 7 12:03:28 2020 -0500
+
+    net/http: avoid writing to Transport.ProxyConnectHeader
+    
+    Previously, we accidentally wrote the Proxy-Authorization header for
+    the initial CONNECT request to the shared ProxyConnectHeader map when
+    it was non-nil.
+    
+    Fixes #36431
+    
+    Change-Id: I5cb414f391dddf8c23d85427eb6973f14c949025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213638
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      |  7 ++++---
+ src/net/http/transport_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

@@ -1,0 +1,28 @@
+commit fe587ce856d1dee97829fe0ed090ba7e068335cb
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Oct 26 09:42:54 2020 +0000
+
+    cmd/dist: include "go1.x-" in devel go version strings
+    
+    This way, "go version" will report the "base version" or major version
+    that the tool corresponds to. This is the same version number that is
+    matched against build tags such as "go1.14" or "!go1.16".
+    
+    Obtaining this version being built is non-trivial, since we can't just
+    import a package or query git. The added comments document the chosen
+    mechanism, based on a regular expression. It was chosen over AST parsing
+    as it would add a significant amount of code without much gain, given
+    how simple the goversion.go file is.
+    
+    For #41116.
+    
+    Change-Id: I653ae935e27c13267f23898f89c84020dcd6e194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264938
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 1ae93e4c201af78b000dccef0c2489bf7fb879ca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 1 16:57:56 2022 -0400
+
+    cmd/go/internal/vcweb: increase script WaitDelay by 30x
+    
+    This should reduce spurious VCS failures on slow builders, like the
+    one observed in
+    https://build.golang.org/log/e773fe404b2009d67fa34f048e023f0a86663a13
+    
+    Updates #27494.
+    
+    Change-Id: Ibb094c8ddf79e0ab481c00fcf501dc955b0da787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447116
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/vcweb/script.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

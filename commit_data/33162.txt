@@ -1,0 +1,23 @@
+commit 7b9d15d5665dc43256a5d6f79a307cc1ad728e2a
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Oct 18 14:29:21 2017 -0400
+
+    debug/dwarf: clarify StructField.ByteSize doc
+    
+    StructField.ByteSize is almost always unset; document that Type.Size()
+    is the place to look.
+    
+    The dwarf package doesn't spend much effort teaching you DWARF, so I
+    don't know what level of handholding is appropriate. Still, no harm in a
+    little comment.
+    
+    Closes #21093
+    
+    Change-Id: I0ed8cad2fa18e10a47d264ff16c176d603d6033c
+    Reviewed-on: https://go-review.googlesource.com/71671
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/debug/dwarf/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

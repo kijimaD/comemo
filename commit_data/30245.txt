@@ -1,0 +1,49 @@
+commit e2948f7efeacf34bab99e33fbbf44c9bd502844a
+Author: Kirill Smelkov <kirr@nexedi.com>
+Date:   Mon Feb 13 22:28:26 2017 +0300
+
+    cmd/compile: Show arch/os when something in TestAssembly fails
+    
+    It is not always obvious from the first glance when looking at
+    TestAssembly failure in which context the code was generated. For
+    example x86 and x86-64 are similar, and those of us who do not work with
+    assembly every day can even take s390x version as something similar to x86.
+    
+    So when something fails lets print the whole test context - this
+    includes os and arch which were previously missing. An example failure:
+    
+    before:
+    
+    --- FAIL: TestAssembly (40.48s)
+            asm_test.go:46: expected:       MOVWZ   \(.*\),
+                    go:
+                    import "encoding/binary"
+                    func f(b []byte) uint32 {
+                            return binary.LittleEndian.Uint32(b)
+                    }
+    
+                    asm:"".f t=1 size=160 args=0x20 locals=0x0
+                    ...
+    
+    after:
+    
+    --- FAIL: TestAssembly (40.43s)
+            asm_test.go:46: linux/s390x: expected:  MOVWZ   \(.*\),
+                    go:
+                    import "encoding/binary"
+                    func f(b []byte) uint32 {
+                            return binary.LittleEndian.Uint32(b)
+                    }
+    
+                    asm:"".f t=1 size=160 args=0x20 locals=0x0
+    
+    Motivated-by: #18946#issuecomment-279491071
+    
+    Change-Id: I61089ceec05da7a165718a7d69dec4227dd0e993
+    Reviewed-on: https://go-review.googlesource.com/36881
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

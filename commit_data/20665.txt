@@ -1,0 +1,13 @@
+commit f3eece74922b55dcf279477a2c2267571dba82fa
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 8 13:23:05 2014 +1100
+
+    doc: use "keyed" instead of "tagged" in Go 1 compatibility doc
+    
+    LGTM=bradfitz, r
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/156730043
+
+ doc/go1compat.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

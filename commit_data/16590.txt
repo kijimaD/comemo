@@ -1,0 +1,20 @@
+commit c1e780c4e453eef4f8a60a637aea24a8d044a747
+Author: David Bürgin <676c7473@gmail.com>
+Date:   Tue Jun 18 14:59:50 2013 +1000
+
+    misc/vim: Added filetype settings for comments.
+    
+    This basic Vim ftplugin sets the 'comments' and 'commentstring'
+    settings to sensible values. Future filetype settings for Go
+    would go in the same file.
+    The ftplugin was added as misc/vim/ftplugin/go/go.vim, this way
+    the installation instructions in readme.txt remain valid.
+    Fixes #5715.
+    
+    R=dsymonds
+    CC=gobot, golang-dev
+    https://golang.org/cl/10323043
+
+ misc/vim/ftplugin/go.vim | 17 +++++++++++++++++
+ misc/vim/readme.txt      |  7 ++++---
+ 2 files changed, 21 insertions(+), 3 deletions(-)

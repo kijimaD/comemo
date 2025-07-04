@@ -1,0 +1,19 @@
+commit e6135c27682988a490166629f6a52f5102791bcb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 28 20:38:59 2019 +0000
+
+    runtime: switch to new page allocator
+    
+    This change flips the oldPageAllocator constant enabling the new page
+    allocator in the Go runtime.
+    
+    Updates #35112.
+    
+    Change-Id: I7fc8332af9fd0e43ce28dd5ebc1c1ce519ce6d0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201765
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

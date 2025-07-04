@@ -1,0 +1,15 @@
+commit efb3cab960e7cec3262f41705ec5b69431815411
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 13 15:08:04 2017 -0800
+
+    cmd/compile/internal/syntax: generalize error about var decls in init clauses
+    
+    Change-Id: I62f9748b97bec245338ebf9686fbf6ad6dc6a9c2
+    Reviewed-on: https://go-review.googlesource.com/36931
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go |  4 ++--
+ test/syntax/forvar.go                     | 11 -----------
+ test/syntax/initvar.go                    | 15 +++++++++++++++
+ 3 files changed, 17 insertions(+), 13 deletions(-)

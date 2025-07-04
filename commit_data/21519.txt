@@ -1,0 +1,20 @@
+commit 6f999f239bc34a8bec629a7fa900b8d9bf953586
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Feb 7 13:26:28 2015 +0100
+
+    liblink: fix warnings on Plan 9
+    
+    warning: src/liblink/list5.c:171 format mismatch lld INT, arg 4
+    warning: src/liblink/list9.c:175 format mismatch lld INT, arg 4
+    warning: src/liblink/list6.c:211 format mismatch lld INT, arg 4
+    warning: src/liblink/list8.c:205 format mismatch lld INT, arg 4
+    
+    Change-Id: I745ea852d8b58ecbbd32723e2a67aa784a729ff8
+    Reviewed-on: https://go-review.googlesource.com/4112
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/liblink/list5.c | 2 +-
+ src/liblink/list6.c | 2 +-
+ src/liblink/list8.c | 2 +-
+ src/liblink/list9.c | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit c52dff0727c58cb7a6e768d91d15e3eaafcb420a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue May 31 12:42:34 2016 -0700
+
+    doc/go1.7.html: make RFC an actual link
+    
+    Change-Id: I5e8dad0c2534b5c3654cf0a0b51a38186d627a3c
+    Reviewed-on: https://go-review.googlesource.com/23582
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 641e61db57f176e33828ed5354810fa3f13ac76d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 9 23:03:25 2020 -0800
+
+    runtime: don't let P's timer heap get clogged with deleted timers
+    
+    Whenever more than 1/4 of the timers on a P's heap are deleted,
+    remove them from the heap.
+    
+    Change-Id: Iff63ed3d04e6f33ffc5c834f77f645c52c007e52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214299
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go     |   8 ++++
+ src/runtime/runtime2.go |   4 ++
+ src/runtime/time.go     | 124 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 134 insertions(+), 2 deletions(-)

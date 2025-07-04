@@ -1,0 +1,18 @@
+commit 0ecf7696335a3aade9e41843acfd5ab188d2511f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Nov 26 23:28:11 2020 +0700
+
+    cmd/compile: do not mark OpSP, OpSB pos for debugging
+    
+    Fixes #42801
+    
+    Change-Id: I2080ecacc109479f5820035401ce2b26d72e2ef2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273506
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/func.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

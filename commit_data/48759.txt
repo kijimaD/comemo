@@ -1,0 +1,29 @@
+commit 9ccf5b8e86ce98494a2127196fbc47d72b0a71a5
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Apr 8 13:50:00 2022 -0500
+
+    runtime: improve memmove for ppc64x
+    
+    This improves performance of memmove for larger moves by
+    unrolling the main loop from 32 byte to 64 byte moves.
+    
+    The improvement of the relevant sizes on a power9:
+    
+    Memmove/64      5.11ns ± 0%    5.00ns ± 0%   -2.21%
+    Memmove/128     8.26ns ± 0%    5.88ns ± 0%  -28.83%
+    Memmove/256     12.7ns ± 0%     8.6ns ± 0%  -31.94%
+    Memmove/512     17.9ns ± 0%    14.3ns ± 0%  -19.87%
+    Memmove/1024    33.3ns ± 0%    27.0ns ± 0%  -18.92%
+    Memmove/2048    72.1ns ± 0%    51.8ns ± 0%  -28.25%
+    Memmove/4096     126ns ± 0%     110ns ± 0%  -12.63%
+    
+    
+    Change-Id: I74162a9f152d7752a8281da1b89a66da99a3fdc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399499
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/memmove_ppc64x.s | 56 ++++++++++++++++++++++++++++++--------------
+ 1 file changed, 39 insertions(+), 17 deletions(-)

@@ -1,0 +1,15 @@
+commit e4dc7f1ed2f90b2f72b21f5f8e00287e3c409876
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Fri Jun 24 10:48:06 2016 -0400
+
+    context: update documentation on cancelation and go vet check.
+    
+    Also replace double spaces after periods with single spaces.
+    
+    Change-Id: Iedaea47595c5ce64e7e8aa3a368f36d49061c555
+    Reviewed-on: https://go-review.googlesource.com/24431
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/context/context.go | 73 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 38 insertions(+), 35 deletions(-)

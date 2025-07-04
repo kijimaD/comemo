@@ -1,0 +1,17 @@
+commit 76e4a033523bb6ca661e1905f0381e2603c109d4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Feb 28 10:39:09 2013 +1100
+
+    misc/osx: remove legacy packaging scripts
+    
+    These are superseded by the tool at misc/dist.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7420044
+
+ misc/osx/README              |  3 --
+ misc/osx/etc/paths.d/go      |  1 -
+ misc/osx/package.bash        | 69 --------------------------------------------
+ misc/osx/scripts/postinstall | 23 ---------------
+ 4 files changed, 96 deletions(-)

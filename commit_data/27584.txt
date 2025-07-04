@@ -1,0 +1,16 @@
+commit 2256e38978a38a954df72ab50423c1883f1063d7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri May 27 14:33:23 2016 -0700
+
+    runtime: update pprof binary header URL
+    
+    The code has moved from code.google.com to github.com.
+    
+    Change-Id: I0cc9eb69b3fedc9e916417bc7695759632f2391f
+    Reviewed-on: https://go-review.googlesource.com/23523
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/cpuprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

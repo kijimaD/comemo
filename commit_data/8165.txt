@@ -1,0 +1,14 @@
+commit 220f83134aa6a8c21af1f255ecf4f595ca0598a2
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 20 14:07:13 2011 -0700
+
+    gob: use new Implements and AssignableTo methods in reflect
+    to improve the code and removea  TODO.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4443054
+
+ src/pkg/gob/decode.go | 16 +++++-----------
+ src/pkg/gob/type.go   | 36 ++++++++++--------------------------
+ 2 files changed, 15 insertions(+), 37 deletions(-)

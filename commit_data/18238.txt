@@ -1,0 +1,12 @@
+commit fa6ffc6c9b8bf0945921c8710f3c0d74d1af0126
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jan 14 16:56:22 2014 +1100
+
+    cmd/api: ensure GOPATH always points to the correct go.tools
+    
+    R=golang-codereviews, dave, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/51000043
+
+ src/cmd/api/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

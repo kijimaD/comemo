@@ -1,0 +1,21 @@
+commit 275a7be3da9fded6ec71c92633bca30caf6dd93b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 8 16:11:44 2019 -0500
+
+    cmd/go: remove -w workaround for -buildmode=plugin on Darwin
+    
+    The problem causing the assert in #21647 are fixed at this point,
+    along with various other linker issues with plugin + Darwin. With
+    this in mind, remove the "-ldflags=-w" workaround for plugin mode on
+    Darwin and re-enable the appropriate tests misc/cgo/testplugin
+    
+    Fixes #21647.
+    Fixes #27502.
+    
+    Change-Id: I5b662987b138b06cfc9e1f9f6d804cf682bd501a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206198
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ misc/cgo/testplugin/plugin_test.go | 7 +------
+ src/cmd/go/internal/work/init.go   | 2 --
+ 2 files changed, 1 insertion(+), 8 deletions(-)

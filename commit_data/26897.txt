@@ -1,0 +1,21 @@
+commit 61b7a9c57bb6b9c259360239001b2d5be4876abd
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Tue Apr 12 23:18:47 2016 +0300
+
+    cmd/link: rename Pcln to FuncInfo
+    
+    After non pcln fields were added to it in a previous commit.
+    
+    Change-Id: Icf92c0774d157c61399a6fc2a3c4d2cd47a634d2
+    Reviewed-on: https://go-review.googlesource.com/21921
+    Run-TryBot: Shahar Kohanim <skohanim@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go | 10 +++++-----
+ src/cmd/link/internal/ld/dwarf.go    | 16 ++++++++--------
+ src/cmd/link/internal/ld/lib.go      | 16 ++++++++--------
+ src/cmd/link/internal/ld/link.go     |  4 ++--
+ src/cmd/link/internal/ld/objfile.go  |  4 ++--
+ src/cmd/link/internal/ld/pcln.go     | 10 +++++-----
+ 6 files changed, 30 insertions(+), 30 deletions(-)

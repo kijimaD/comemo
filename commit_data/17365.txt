@@ -1,0 +1,19 @@
+commit 180da80e9004cd6e1bbfc026890a12e86d0f9f5d
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Aug 23 19:31:24 2013 +0900
+
+    net: fix dial to raw IP networks on Windows
+    
+    Also avoids platform-dependent datagram truncation in raw IP tests.
+    At least it's different between Windows and others.
+    
+    Fixes #6122.
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12843043
+
+ src/pkg/net/fd_windows.go     |  3 ++-
+ src/pkg/net/ipraw_test.go     | 61 ++++++++++++++++++++++++++++++-------------
+ src/pkg/net/protoconn_test.go | 10 ++++---
+ 3 files changed, 51 insertions(+), 23 deletions(-)

@@ -1,0 +1,15 @@
+commit eb93f86275870bfe7d2b71d244df9ea87320e185
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Mon Jan 6 10:00:20 2014 -0800
+
+    net/http/cookiejar: document format of domain in PublicSuffix
+    
+    Document what values a PublicSuffixList must accept as
+    a domain in a call to PublicSuffix.
+    
+    R=bradfitz, nigeltao
+    CC=golang-codereviews
+    https://golang.org/cl/47560044
+
+ src/pkg/net/http/cookiejar/jar.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

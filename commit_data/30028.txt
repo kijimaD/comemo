@@ -1,0 +1,23 @@
+commit 4aa7b142681dba2a1d76e59ecb5dc6923a192eb0
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Sat Dec 17 20:40:29 2016 -0800
+
+    net/http: detect Comcast et al DNS and auto-skip DNS tests
+    
+    Adds helper function to auto-skip tests when DNS returns
+    a successful response for a domain known not to exist.
+    
+    The error from `net.LookupHost` is intentionally ignored
+    because the DNS tests will fail anyway if there are issues
+    unrelated to NXDOMAIN responses.
+    
+    Fixes #17884
+    
+    Change-Id: I729391bd702218507561818668f791331295299e
+    Reviewed-on: https://go-review.googlesource.com/34516
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport_test.go | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)

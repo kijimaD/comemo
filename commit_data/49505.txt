@@ -1,0 +1,20 @@
+commit 66685fb7dd72531aed6f1b3f4de43799bb26c052
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jun 19 22:57:10 2022 -0700
+
+    doc/go1.19: use correct link to sync/atomic docs
+    
+    For #51400
+    Fixes #53453
+    
+    Change-Id: Ie11182a16299cf26d03970d6aa9bfe03caa56ea4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413235
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.19.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

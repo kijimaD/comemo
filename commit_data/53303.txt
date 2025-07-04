@@ -1,0 +1,22 @@
+commit 79a8997ac5592f11388d9f26ab3fff65ec876dbd
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 24 19:49:24 2023 +0200
+
+    os: add dirFs.ReadDir to implement fs.ReadDirFS for DirFS
+    
+    Follow CL 416775 which added dirFs.ReadFile.
+    
+    Fixes #53761
+    
+    Change-Id: Iec19a815ab7c37a3206be141518cc587a588de20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498015
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/os/file.go    | 13 ++++++++++++-
+ src/os/os_test.go | 14 +++++++++++---
+ 2 files changed, 23 insertions(+), 4 deletions(-)

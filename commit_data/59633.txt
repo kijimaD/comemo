@@ -1,0 +1,76 @@
+commit ed24bb4e6047890af272733c5a8bdcc43834e517
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed Feb 12 18:55:04 2025 -0500
+
+    cmd/compile/internal/escape: propagate constants to interface conversions to avoid allocs
+    
+    Currently, the integer value in the following interface conversion gets
+    heap allocated:
+    
+       v := 1000
+       fmt.Println(v)
+    
+    In contrast, this conversion does not currently cause the integer value
+    to be heap allocated:
+    
+       fmt.Println(1000)
+    
+    The second example is able to avoid heap allocation because of an
+    optimization in walk (by Josh in #18704 and related issues) that
+    recognizes a literal is being used. In the first example, that
+    optimization is currently thwarted by the literal getting assigned
+    to a local variable prior to use in the interface conversion.
+    
+    This CL propagates constants to interface conversions like
+    in the first example to avoid heap allocations, instead using
+    a read-only global. The net effect is roughly turning the first example
+    into the second.
+    
+    One place this comes up in practice currently is with logging or
+    debug prints. For example, if we have something like:
+    
+       func conditionalDebugf(format string, args ...interface{}) {
+            if debugEnabled {
+                    fmt.Fprintf(io.Discard, format, args...)
+            }
+       }
+    
+    Prior to this CL, this integer is heap allocated, even when the
+    debugEnabled flag is false, and even when the compiler
+    inlines conditionalDebugf:
+    
+       v := 1000
+       conditionalDebugf("hello %d", v)
+    
+    With this CL, the integer here is no longer heap allocated, even when
+    the debugEnabled flag is enabled, because the compiler can now see that
+    it can use a read-only global.
+    
+    See the writeup in #71359 for more details.
+    
+    CL 649076 (earlier in our stack) added most of the tests
+    along with debug diagnostics in convert.go to make it easier
+    to test this change.
+    
+    Updates #71359
+    Updates #62653
+    Updates #53465
+    Updates #8618
+    
+    Change-Id: I19a51e74b36576ebb0b9cf599267cbd2bd847ce4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649079
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/escape/escape.go | 22 +++++++-
+ src/fmt/fmt_test.go                       | 17 ++++--
+ src/log/slog/logger_test.go               |  6 +--
+ test/escape5.go                           |  2 +-
+ test/escape_iface.go                      |  8 +--
+ test/escape_iface_data.go                 | 88 ++++++++++++++++++++++---------
+ test/fixedbugs/issue12006.go              | 10 ++--
+ test/fixedbugs/issue30898.go              |  2 +-
+ 8 files changed, 112 insertions(+), 43 deletions(-)

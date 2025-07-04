@@ -1,0 +1,16 @@
+commit 32e2ae0b18682888e4119963e932e5fbd8a1f327
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 15 14:02:53 2010 -0800
+
+    Test order of evaluation in tuple assignments.
+    
+    gccgo currently passes this test; 8g currently does not.  I
+    think I counted everything out right.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186165
+
+ test/bugs/bug242.go | 110 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |   5 +++
+ 2 files changed, 115 insertions(+)

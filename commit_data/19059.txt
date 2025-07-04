@@ -1,0 +1,16 @@
+commit 4b42ad2559db444b6a0d4c76aa08f063085485d5
+Author: Alexander Zhavnerchik <alex.vizor@gmail.com>
+Date:   Tue Apr 8 11:12:51 2014 -0400
+
+    encoding/xml: Makes XML Marshaler take into account XMLName field from anonymous field
+    
+    Fixes #7614.
+    
+    LGTM=rsc
+    R=golang-codereviews, r, rsc, dan.kortschak, applezinc
+    CC=golang-codereviews
+    https://golang.org/cl/79210044
+
+ src/pkg/encoding/xml/marshal_test.go | 41 ++++++++++++++++++++++++++++++++++++
+ src/pkg/encoding/xml/typeinfo.go     |  3 +++
+ 2 files changed, 44 insertions(+)

@@ -1,0 +1,36 @@
+commit 74a9bad63899ffb02b747678c2c181ffb13983b9
+Author: Zhongwei Yao <zhongwei.yao@arm.com>
+Date:   Mon Apr 25 11:08:38 2016 +0800
+
+    cmd/compile: enable const division for arm64
+    
+    performance:
+    benchmark                   old ns/op     new ns/op     delta
+    BenchmarkDivconstI64-8      8.28          2.70          -67.39%
+    BenchmarkDivconstU64-8      8.28          4.69          -43.36%
+    BenchmarkDivconstI32-8      8.28          6.39          -22.83%
+    BenchmarkDivconstU32-8      8.28          4.43          -46.50%
+    BenchmarkDivconstI16-8      5.17          5.17          +0.00%
+    BenchmarkDivconstU16-8      5.33          5.34          +0.19%
+    BenchmarkDivconstI8-8       3.50          3.50          +0.00%
+    BenchmarkDivconstU8-8       3.51          3.50          -0.28%
+    
+    Fixes #15382
+    
+    Change-Id: Ibce7b28f0586d593b33c4d4ecc5d5e7e7c905d13
+    Reviewed-on: https://go-review.googlesource.com/22292
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/arm64/galign.go |  2 +
+ src/cmd/compile/internal/arm64/ggen.go   | 47 ++++++++++++++++++++
+ src/cmd/compile/internal/arm64/gsubr.go  | 12 ------
+ src/cmd/compile/internal/arm64/peep.go   |  3 ++
+ src/cmd/compile/internal/arm64/prog.go   |  3 ++
+ src/cmd/compile/internal/gc/cgen.go      | 49 +++++++++++++++++----
+ src/cmd/compile/internal/gc/go.go        | 36 ++++++++--------
+ src/cmd/compile/internal/gc/walk.go      | 12 +++++-
+ src/cmd/internal/obj/arm64/asm7.go       |  4 ++
+ src/runtime/vlrt.go                      |  1 -
+ test/bench/go1/divconst_test.go          | 73 ++++++++++++++++++++++++++++++++
+ 11 files changed, 202 insertions(+), 40 deletions(-)

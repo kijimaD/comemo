@@ -1,0 +1,18 @@
+commit f2fadfefaf8b050a401296faa9c9b060828c3d42
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Sep 25 14:42:44 2012 +0800
+
+    cmd/5c: fix dataflag annotation
+    
+    file        old_size     new_size    base@c1ce95068533
+    bin/go      14717392     6287824     5918236
+    
+    this huge size difference is due to GC data for runtime.mheap
+    (NOPTR dataflag is not obeyed).
+    
+    R=rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/6547051
+
+ src/cmd/5c/txt.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

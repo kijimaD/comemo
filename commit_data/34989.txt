@@ -1,0 +1,20 @@
+commit b47806d1b57bd871b30fe5980454537eaefce27c
+Author: Ingo Oeser <nightlyone@googlemail.com>
+Date:   Sun Apr 15 13:46:18 2018 +0200
+
+    cmd/compile: fix double go prefix trim
+    
+    CL 106463 introduced what seems to trim the "go:" prefix in pramas
+    comments twice, so "//go:go:foo" would be handled, too.
+    So either the strings.TrimPrefix or the [3:]-slicing is not needed.
+    
+    I opted to remove the [3:]-slicing.
+    
+    Change-Id: I1325bbc08a9be9ae100c5a7775b0a23f9ed0a419
+    Reviewed-on: https://go-review.googlesource.com/107256
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

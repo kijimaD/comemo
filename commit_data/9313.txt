@@ -1,0 +1,16 @@
+commit 476150f4bf7d5e26232062781ff04272fd4c35b9
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Mon Aug 8 14:32:37 2011 -0700
+
+    crypto/x509, go/scanner, index/suffixarray: Removed []interface{}/vector uses.
+    
+    Changed some []interface{} uses to slices of the concrete types; removed use of IntVector.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/4810085
+
+ src/pkg/crypto/x509/x509.go                   |  6 +++---
+ src/pkg/go/scanner/errors.go                  | 14 ++++----------
+ src/pkg/index/suffixarray/suffixarray_test.go |  5 ++---
+ 3 files changed, 9 insertions(+), 16 deletions(-)

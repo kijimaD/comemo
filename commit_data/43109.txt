@@ -1,0 +1,31 @@
+commit 7d3fd4f3c46e57c703128bbabb385424f338d6d9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 25 18:06:26 2020 +0200
+
+    syscall: implement Getwd using getcwd from libSystem on darwin
+    
+    Directly wrap the getcwd implementation provided by libSystem.dylib on
+    darwin and use it to implement Getwd like on the BSDs. This allows to
+    drop the custom implementation using getAttrList and to merge the
+    implementation of Getwd for darwin and the BSDs in syscall_bsd.go.
+    
+    Same as CL 257497 did for golang.org/x/sys/unix
+    
+    Change-Id: If30390c4c17cd463bb8fdcb5465f40d6fa11f391
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257637
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_bsd.go           | 15 +++++++
+ src/syscall/syscall_darwin.go        | 85 +-----------------------------------
+ src/syscall/syscall_getwd_bsd.go     | 22 ----------
+ src/syscall/types_darwin.go          |  6 +++
+ src/syscall/zsyscall_darwin_amd64.go | 22 ++++++++++
+ src/syscall/zsyscall_darwin_amd64.s  |  4 +-
+ src/syscall/zsyscall_darwin_arm64.go | 22 ++++++++++
+ src/syscall/zsyscall_darwin_arm64.s  |  4 +-
+ src/syscall/ztypes_darwin_amd64.go   |  4 ++
+ src/syscall/ztypes_darwin_arm64.go   |  4 ++
+ 10 files changed, 79 insertions(+), 109 deletions(-)

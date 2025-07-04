@@ -1,0 +1,21 @@
+commit d69760064f85aa19db1c26f86a13c8240682970c
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Fri Apr 13 12:46:49 2018 -0400
+
+    net/http: remove some stderr log spam
+    
+    This changes rawResponse to install a logger before
+    Serve()ing and makes the log output available to
+    tests.
+    
+    Updates #24831
+    Updates CL 89275
+    
+    Change-Id: I0fb636a35b05959ca9978d5d8552f38b7cf8e8b5
+    Reviewed-on: https://go-review.googlesource.com/106756
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 43 ++++++++++++++++++++++++++-----------------
+ 1 file changed, 26 insertions(+), 17 deletions(-)

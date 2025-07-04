@@ -1,0 +1,15 @@
+commit 10b88888f67ecda0b3dd86b91417cf9bfb20f2ed
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 13 13:54:36 2012 -0700
+
+    math/big: correctly test for positive inputs in Int.GCD
+    
+    Also: better GCD tests.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6295076
+
+ src/pkg/math/big/int.go      |  8 ++--
+ src/pkg/math/big/int_test.go | 95 +++++++++++++++++++++++++++++---------------
+ 2 files changed, 66 insertions(+), 37 deletions(-)

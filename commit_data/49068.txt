@@ -1,0 +1,27 @@
+commit ea6c82845589a40c35f01122ce4e2931694ffc7f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 4 23:02:05 2022 -0700
+
+    cmd/compile/internal/syntax: fix printing of ambiguous constraint literals
+    
+    Without this change, the type parameter list "[P T | T]" is printed
+    as "[P T | T,]" in an attempt to avoid an ambiguity. But the type
+    parameter P cannot syntactically combine with the constraint T | T
+    and make a new valid expression.
+    
+    This change introduces a specific combinesWithName predicate that
+    reports whether a constraint expression can combine with a type
+    parameter name to form a new valid (value) expression.
+    
+    Use combinesWithName to accurately determine when a comma is needed.
+    
+    For #49482.
+    
+    Change-Id: Id1d17a18f0c9af04495da7b0453e83798f32b04a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404397
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/syntax/printer.go      | 34 ++++++++++++++++++++-----
+ src/cmd/compile/internal/syntax/printer_test.go |  4 ++-
+ 2 files changed, 31 insertions(+), 7 deletions(-)

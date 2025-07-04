@@ -1,0 +1,18 @@
+commit 7c8c209b45ebe5c3d7979c44e53216f61e8b5f2a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 15 12:26:11 2022 +0100
+
+    internal/goroot: report PkgfileMap error on invalid line
+    
+    Ref. https://go-review.googlesource.com/c/go/+/442303/comment/7caca6eb_0ebe4d51/
+    
+    Change-Id: Id351b9c25380f0959453bb84ed123d0e784e4866
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450595
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/internal/goroot/importcfg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

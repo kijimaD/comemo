@@ -1,0 +1,16 @@
+commit a9b49537771c05b82923a256a47b73af98c3e87e
+Author: Alexander Döring <email@alexd.ch>
+Date:   Sun Oct 2 21:07:40 2016 +0200
+
+    os/exec: add example for CommandContext
+    
+    Updates #16360
+    
+    Change-Id: I0e0afe7a89f2ebcb3e5bbc345f77a605d3afc398
+    Reviewed-on: https://go-review.googlesource.com/30103
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec/example_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

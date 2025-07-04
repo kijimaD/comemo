@@ -1,0 +1,20 @@
+commit c306fd6d0b208f67208fb4a1b5bb82e0338a080c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Nov 20 14:09:01 2020 +0700
+
+    cmd/compile: allow loading single field of typed-interface{} OpIData
+    
+    Same reason as CL 270057, but for OpLoad.
+    
+    Fixes #42727
+    
+    Change-Id: Iebb1a8110f29427a0aed3b5e3e84f0540de3d1b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271906
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go |  2 +-
+ test/fixedbugs/issue42727.go                 | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 1 deletion(-)

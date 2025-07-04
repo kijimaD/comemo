@@ -1,0 +1,18 @@
+commit d98b3a7ee5a88ddb328e2a96f41f1e3cec40ad80
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Feb 2 16:05:07 2014 +1100
+
+    time: use an alternative method of yielding during Overflow timer test
+    
+    Fixes #6874.
+    
+    Use runtime.GC() as a stronger version of runtime.Gosched() which tends to bias the running goroutine in an otherwise idle system. This appears to reduce the worst case number of spins from 600 down to 30 on my 2 core system under high load.
+    
+    LGTM=iant
+    R=golang-codereviews, lucio.dere, iant, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/56540046
+
+ src/pkg/time/internal_test.go | 10 +++++++++-
+ src/pkg/time/sleep_test.go    |  3 +++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

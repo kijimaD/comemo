@@ -1,0 +1,18 @@
+commit bb2a96b79df71c4b021c8611b916a2f402166d3b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Oct 8 11:17:47 2022 -0700
+
+    test: add test case that caused a bogus error from gofrontend
+    
+    For #56109
+    
+    Change-Id: I999763e463fac57732a92f5e396f8fa8c35bd2e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/440297
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue56109.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

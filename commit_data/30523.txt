@@ -1,0 +1,35 @@
+commit e646d07329e7edc56c8cf3284c729937979dae4a
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Fri Nov 11 20:49:41 2016 -0800
+
+    go/build: fix lack of error for Import of nonexistent local import path
+    
+    When calling build.Import, normally, an error is returned if the
+    directory doesn't exist. However, that didn't happen for local
+    import paths when build.FindOnly ImportMode was used.
+    
+    This change fixes that, and adds tests. It also makes the error
+    value more consistent in all scenarios where it occurs.
+    
+    When calling build.Import with a local import path, the package
+    can only exist in a single deterministic directory. That makes
+    it possible verify that directory exists earlier in the path,
+    and return a "cannot find package" error if it doesn't.
+    Previously, this occurred only when build.FindOnly ImportMode
+    was not set. It occurred quite late, after getting past Found
+    label, to line that calls ctxt.readDir. Doing so would return
+    an error like "no such file or directory" when the directory
+    does not exist.
+    
+    Fixes #17863.
+    Updates #17888 (relevant issue I ran into while working on this CL).
+    
+    Change-Id: If6a6996ac6176ac203a88bd31419748f88d89d7c
+    Reviewed-on: https://go-review.googlesource.com/33158
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/build.go      |  5 +++++
+ src/go/build/build_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

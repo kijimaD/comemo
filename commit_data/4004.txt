@@ -1,0 +1,13 @@
+commit 23843fa49e7708e1118c2e3f4dba6275f2c30ecd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 11 17:25:51 2009 -0800
+
+    vector: s/Element/interface{}/
+    Fixes #74.
+    
+    R=rsc
+    https://golang.org/cl/154073
+
+ src/pkg/container/vector/vector.go      | 41 +++++++++++++++------------------
+ src/pkg/container/vector/vector_test.go |  2 +-
+ 2 files changed, 19 insertions(+), 24 deletions(-)

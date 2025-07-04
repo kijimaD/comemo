@@ -1,0 +1,17 @@
+commit 5c795632d658003bdc193b0441137385950bca54
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 19 13:51:23 2014 -0400
+
+    runtime: add runtime· prefix to some static variables
+    
+    Pure renaming. This will make an upcoming CL have smaller diffs.
+    
+    LGTM=dvyukov, iant
+    R=iant, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/142280043
+
+ src/runtime/mcache.c |  10 ++---
+ src/runtime/mgc0.c   | 112 +++++++++++++++++++++++++--------------------------
+ src/runtime/stack.c  |  30 +++++++-------
+ 3 files changed, 76 insertions(+), 76 deletions(-)

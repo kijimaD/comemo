@@ -1,0 +1,13 @@
+commit 21af3d86cd0e0ff9441cb67b068277d08c496c84
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 19 20:56:37 2011 -0800
+
+    runtime: correct '.' to '·' in comments
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5495097
+
+ src/pkg/runtime/lock_futex.c | 4 ++--
+ src/pkg/runtime/lock_sema.c  | 6 +++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

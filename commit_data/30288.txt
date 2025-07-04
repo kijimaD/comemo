@@ -1,0 +1,13 @@
+commit a6b33312366ad321ea6ac6957e6a53bdd41e892e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 15 13:12:53 2017 -0800
+
+    cmd/compile/internal/gc: skip useless loads for non-SSA params
+    
+    Change-Id: I78ca43a0f0a6a162a2ade1352e2facb29432d4ac
+    Reviewed-on: https://go-review.googlesource.com/37102
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 14 +++-----------
+ 1 file changed, 3 insertions(+), 11 deletions(-)

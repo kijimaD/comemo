@@ -1,0 +1,14 @@
+commit 37ac54dc2b01cd020f72b664f07c85ed1a91bd78
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Nov 5 09:56:32 2015 +1300
+
+    cmd/dist: run testshared on linux/ppc64le
+    
+    Change-Id: I4d079d29408e5344701056c88882cfd3b3857478
+    Reviewed-on: https://go-review.googlesource.com/15973
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

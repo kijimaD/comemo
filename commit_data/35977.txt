@@ -1,0 +1,26 @@
+commit a2419221fd3c5977bd5de0e7a390c779ab3fa1d3
+Author: Keith Randall <khr@google.com>
+Date:   Thu Jul 12 16:51:27 2018 -0700
+
+    misc/cgo/test: fix issue 24161 test for 1.11 and earlier
+    
+    The test uses functions from C that were introduced in OSX 1.12.
+    Include stubs for those functions when compiling for 1.11 and earlier.
+    This test really a compile-time test, it doesn't matter much what the
+    executed code actually does.
+    Use a nasty #define hack to work around the fact that cgo doesn't
+    support static global variables.
+    
+    Update #24161
+    Fixes #26355
+    
+    Change-Id: Icf6f7bc9b6b36cacc81d5d0e033a2ebaff7e0298
+    Reviewed-on: https://go-review.googlesource.com/123715
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/issue24161e0/main.go | 6 ++++++
+ misc/cgo/test/issue24161e1/main.go | 6 ++++++
+ misc/cgo/test/issue24161e2/main.go | 6 ++++++
+ 3 files changed, 18 insertions(+)

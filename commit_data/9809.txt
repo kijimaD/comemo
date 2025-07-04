@@ -1,0 +1,12 @@
+commit a1a3acbd956b5a70d644d21d1c36b31ae88c6c03
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 27 09:13:00 2011 -0400
+
+    test: fix windows build
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5124049
+
+ test/sigchld.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

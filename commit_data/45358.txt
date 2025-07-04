@@ -1,0 +1,43 @@
+commit 6edd573218709e50dc73c49d5ae465819b7ef226
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Apr 5 13:40:48 2021 -0500
+
+    cmd/link: enforce larger alignment on split ppc64 text sections
+    
+    When laying out, we lazily increase the alignment for text sections
+    as symbols are found requiring more. This works if the start of
+    the virtual address (VA) for the section is greater than or equal
+    to the alignment required by any symbols placed in this section.
+    
+    The minimum alignment of the section is only known after all
+    symbols are placed. The starting VA of this section is adjusted
+    upwards in ld.(*Link).address to meet the requested alignment.
+    
+    This is a problem if the starting VA of the text section is not
+    already aligned. This can happen when the final symbol placed
+    into the previous section results in an insufficiently aligned
+    start VA of the next text section.
+    
+    To workaround this, additional text sections are split, and both
+    the starting VA, and alignment of the section are aligned up to
+    match the known worst case alignment.
+    
+    64B is chosen as the worst case alignment for all ppc64 targets,
+    as it will respect PCALIGN and eventually prefixed instructions
+    which will be introduced in the future.
+    
+    Likewise, the xcoff size calculations need to be improved to
+    handle padding bytes when function symbols have been aligned.
+    This is done by tracking the largest valid VA offset encountered
+    when placing symbols.
+    
+    Change-Id: Iefef09a1ee7c963fb8dfce2288a084a95cb77fca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307431
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/link/internal/ld/data.go  | 12 ++++++++++++
+ src/cmd/link/internal/ld/xcoff.go | 37 ++++++++++++++++++++++++-------------
+ 2 files changed, 36 insertions(+), 13 deletions(-)

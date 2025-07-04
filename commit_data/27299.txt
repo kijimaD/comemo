@@ -1,0 +1,46 @@
+commit acc757f678a42ba1ffbf8bb9886de4fe080302de
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Apr 5 11:22:53 2016 -0700
+
+    all: use SeekStart, SeekCurrent, SeekEnd
+    
+    CL/19862 (f79b50b8d5bc159561c1dcf7c17e2a0db96a9a11) recently introduced the constants
+    SeekStart, SeekCurrent, and SeekEnd to the io package. We should use these constants
+    consistently throughout the code base.
+    
+    Updates #15269
+    
+    Change-Id: If7fcaca7676e4a51f588528f5ced28220d9639a2
+    Reviewed-on: https://go-review.googlesource.com/22097
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bufio/bufio_test.go                   |  2 +-
+ src/bytes/reader.go                       |  6 +++---
+ src/bytes/reader_test.go                  |  2 +-
+ src/cmd/go/note.go                        |  2 +-
+ src/cmd/internal/goobj/read.go            |  8 ++++----
+ src/cmd/pack/pack.go                      |  4 ++--
+ src/debug/elf/file_test.go                |  8 ++++----
+ src/debug/elf/reader.go                   |  6 +++---
+ src/go/internal/gccgoimporter/importer.go |  4 ++--
+ src/io/example_test.go                    |  2 +-
+ src/io/io.go                              |  6 +++---
+ src/io/io_test.go                         |  4 ++--
+ src/net/file_plan9.go                     |  2 +-
+ src/net/http/internal/chunked_test.go     |  2 +-
+ src/net/lookup_plan9.go                   |  5 +++--
+ src/os/file_plan9.go                      |  3 ++-
+ src/os/file_windows.go                    |  8 ++++----
+ src/os/os_test.go                         | 18 +++++++++---------
+ src/runtime/runtime-lldb_test.go          |  4 ++--
+ src/strings/reader.go                     |  6 +++---
+ src/strings/strings_test.go               |  2 +-
+ src/syscall/fd_nacl.go                    |  7 ++++---
+ src/syscall/fs_nacl.go                    |  5 +++--
+ src/syscall/syscall_unix_test.go          |  5 +++--
+ src/time/sys_plan9.go                     |  5 +++--
+ src/time/sys_unix.go                      |  5 +++--
+ src/time/sys_windows.go                   |  5 +++--
+ 27 files changed, 72 insertions(+), 64 deletions(-)

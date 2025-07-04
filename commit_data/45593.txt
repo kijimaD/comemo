@@ -1,0 +1,39 @@
+commit b38b1b2f9ae710ee2c16a103bb21644f1adbc5d3
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 21 10:55:42 2021 -0400
+
+    cmd/compile: manage Slot array better
+    
+    steals idea from CL 312093
+    
+    further investigation revealed additional duplicate
+    slots (equivalent, but not equal), so delete those too.
+    
+    Rearranged Func.Names to be addresses of slots,
+    create canonical addresses so that split slots
+    (which use those addresses to refer to their parent,
+    and split slots can be further split)
+    will preserve "equivalent slots are equal".
+    
+    Removes duplicates, improves metrics for "args at entry".
+    
+    Change-Id: I5bbdcb50bd33655abcab3d27ad8cdce25499faaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312292
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/config.go       |   7 --
+ src/cmd/compile/internal/ssa/copyelim.go     |   2 +-
+ src/cmd/compile/internal/ssa/deadcode.go     |   8 +-
+ src/cmd/compile/internal/ssa/debug.go        |   6 +-
+ src/cmd/compile/internal/ssa/decompose.go    | 140 +++++++++++++++++----------
+ src/cmd/compile/internal/ssa/expand_calls.go |  40 ++++----
+ src/cmd/compile/internal/ssa/export_test.go  |  30 ------
+ src/cmd/compile/internal/ssa/func.go         | 110 ++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/layout.go       |  22 +----
+ src/cmd/compile/internal/ssa/print.go        |   2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go   |  11 ++-
+ src/cmd/compile/internal/ssagen/ssa.go       |  80 +--------------
+ 12 files changed, 238 insertions(+), 220 deletions(-)

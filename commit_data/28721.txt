@@ -1,0 +1,19 @@
+commit f4e37c8ec5f54964221fc950c2f0260140f438d8
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 7 10:08:10 2016 -0700
+
+    cmd/compile: use standard dom tree in nilcheckelim
+    
+    No need to build a bespoke dom tree here when we might
+    have one cached already.  The allocations for the dom tree
+    were also more expensive than they needed to be.
+    
+    Fixes #12021
+    
+    Change-Id: I6a967880aee03660ad6fc293f8fc783779cae11d
+    Reviewed-on: https://go-review.googlesource.com/30671
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/nilcheck.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)

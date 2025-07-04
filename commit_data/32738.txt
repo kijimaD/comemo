@@ -1,0 +1,22 @@
+commit e1cf2be7a82a2421c69c48cbdf596841f29bff77
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Fri Aug 18 10:22:19 2017 +0200
+
+    cmd/compile: fix lexical block of captured variables
+    
+    Variables captured by a closure were always assigned to the root scope
+    in their declaration function. Using decl.Name.Defn.Pos will result in
+    the correct scope for both the declaration function and the capturing
+    function.
+    
+    Fixes #21515
+    
+    Change-Id: I3960aface3c4fc97e15b36191a74a7bed5b5ebc1
+    Reviewed-on: https://go-review.googlesource.com/56830
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go       | 28 +++++++++++++++++++---------
+ src/cmd/compile/internal/gc/scope_test.go | 13 +++++++++++++
+ 2 files changed, 32 insertions(+), 9 deletions(-)

@@ -1,0 +1,13 @@
+commit 237c8ab455a83aad3fb55b9cf43cf5e1cd7b85dd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 1 14:07:30 2009 -0700
+
+    updated Implementation differences section
+    
+    R=rsc,r
+    DELTA=4  (3 added, 0 deleted, 1 changed)
+    OCL=34204
+    CL=34204
+
+ doc/go_spec.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

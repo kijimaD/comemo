@@ -1,0 +1,20 @@
+commit 6266b0f08f46de10abfb3d27748bdf1fdebcbba2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Apr 14 15:06:03 2017 +0200
+
+    cmd/compile: add test for Issue 12536
+    
+    The fixedbugs/issue12536.go file was erroneously deleted just before
+    committing the patch that fixed the issue (CL 14400).
+    
+    That's an easy test and there's a small reproducer in the issue, add
+    it back.
+    
+    Updates #12536
+    
+    Change-Id: Ib7b0cd245588299e9a5469e1d75805fd0261ce1a
+    Reviewed-on: https://go-review.googlesource.com/40712
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue12536.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

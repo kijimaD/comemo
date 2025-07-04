@@ -1,0 +1,17 @@
+commit d1341d6cf300ea29e4ac50037d950b4d7a110073
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Mar 13 15:22:45 2016 -0700
+
+    cmd/compile, runtime: eliminate growslice_n
+    
+    Fixes #11419.
+    
+    Change-Id: I7935a253e3e96191a33f5041bab203ecc5f0c976
+    Reviewed-on: https://go-review.googlesource.com/20647
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         |  1 -
+ src/cmd/compile/internal/gc/builtin/runtime.go |  1 -
+ src/cmd/compile/internal/gc/walk.go            | 58 +++++++++++++-------------
+ src/runtime/slice.go                           | 11 -----
+ 4 files changed, 29 insertions(+), 42 deletions(-)

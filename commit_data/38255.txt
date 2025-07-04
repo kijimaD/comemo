@@ -1,0 +1,17 @@
+commit 6dde1fd792ba4ce41fcce50fc1c66b38666d6924
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 28 09:13:56 2019 +0100
+
+    runtime: disable TestGdbAutotmpTypes in short mode on aix/ppc64
+    
+    TestGdbAutotmpTypes takes more than one minute due to gdb performances.
+    Therefore, it must be skipped in short mode.
+    
+    Change-Id: I253ebce62264cc7367c9b0f6ce9c5088a9994641
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164339
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

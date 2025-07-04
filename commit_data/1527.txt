@@ -1,0 +1,19 @@
+commit 96c20204a7f4c2bc618b83368f98ff63b2a52038
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 20 15:22:33 2009 -0800
+
+    - updated pretty (removed "export")
+    
+    R=r
+    OCL=23134
+    CL=23134
+
+ usr/gri/pretty/ast.go         |   7 ++-
+ usr/gri/pretty/compilation.go |   3 +-
+ usr/gri/pretty/parser.go      | 115 +++++++++---------------------------------
+ usr/gri/pretty/pretty.go      |   3 +-
+ usr/gri/pretty/printer.go     |   8 ---
+ usr/gri/pretty/scanner.go     |   8 ++-
+ usr/gri/pretty/test.sh        |   5 +-
+ usr/gri/pretty/typechecker.go |   1 -
+ 8 files changed, 35 insertions(+), 115 deletions(-)

@@ -1,0 +1,32 @@
+commit 926616da3f3781f5f71dacac429c6957dec83a65
+Author: Matt T. Proud <matt.proud@gmail.com>
+Date:   Mon Feb 2 00:33:44 2015 -0800
+
+    expvar: swap Float sync. from mutex to atomic.
+    
+    Float type from a mutex to atomic bit array in a manner akin to
+    Google Guava's AtomicDouble[0], including adding a benchmark for the
+    type (benchcmp included below) along with some expvar_test.go cruft
+    being fixed.
+    
+    benchmark             old ns/op     new ns/op     delta
+    BenchmarkFloatSet     115           9.37          -91.85%
+    BenchmarkFloatAdd     114           17.1          -85.00%
+    
+    benchmark             old allocs     new allocs     delta
+    BenchmarkFloatSet     0              0              +0.00%
+    BenchmarkFloatAdd     0              0              +0.00%
+    
+    benchmark             old bytes     new bytes     delta
+    BenchmarkFloatSet     0             0             +0.00%
+    BenchmarkFloatAdd     0             0             +0.00%
+    
+    [0] - http://goo.gl/m4dtlI
+    
+    Change-Id: I4ce6a913734ec692e3ed243f6e6f7c11da4c6036
+    Reviewed-on: https://go-review.googlesource.com/3687
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/expvar/expvar.go      | 25 ++++++++++++++-----------
+ src/expvar/expvar_test.go | 18 ++++++++++++------
+ 2 files changed, 26 insertions(+), 17 deletions(-)

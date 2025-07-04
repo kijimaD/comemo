@@ -1,0 +1,14 @@
+commit de3a3976153a75ae00bbbdff9acb6624e9159702
+Author: Yves Junqueira <yves.junqueira@gmail.com>
+Date:   Tue Nov 23 10:43:16 2010 +1100
+
+    doc: add link to codewalks.
+    
+    Fixes #1281.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/3150041
+
+ doc/docs.html | 5 +++++
+ 1 file changed, 5 insertions(+)

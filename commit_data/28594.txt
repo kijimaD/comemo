@@ -1,0 +1,21 @@
+commit 79db1625b929b8dad46c1537175b9412fd020851
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 19:09:36 2016 -0700
+
+    cmd/compile: eliminate stkdelta
+    
+    At this point in the compiler we haven't assigned Xoffset values for
+    PAUTO variables anyway, so just immediately store the stack offsets
+    into Xoffset rather than into a global map.
+    
+    Change-Id: I61eb471c857c8b145fd0895cbd98fd4e8d3c3365
+    Reviewed-on: https://go-review.googlesource.com/30081
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go   |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go |  4 ++--
+ src/cmd/compile/internal/gc/pgen.go  | 16 +---------------
+ src/cmd/compile/internal/gc/ssa.go   |  3 ++-
+ 4 files changed, 6 insertions(+), 19 deletions(-)

@@ -1,0 +1,15 @@
+commit 334f52ac496fca26cdfd73b8bba35d41263783a8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 9 15:06:05 2011 -0800
+
+    godoc: optimizations: don't call Write for 0-length data
+    
+    - guard some calls to Write that frequently may have 0-length data
+    - fix an invariant
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4179041
+
+ src/cmd/godoc/godoc.go | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

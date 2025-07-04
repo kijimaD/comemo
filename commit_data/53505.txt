@@ -1,0 +1,18 @@
+commit cc99093dfa60ecd2350cadcab5fe0d5066f06d55
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 7 17:05:11 2023 -0700
+
+    doc/go1.21: mention new cmp package
+    
+    For #59488
+    
+    Change-Id: I73ee4d1d8b9d8e6f0aad9e3bb98729aaa0f06a47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501697
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

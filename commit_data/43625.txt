@@ -1,0 +1,18 @@
+commit 9a1596689e7700dad70270325542898bd2afcd7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 29 14:54:47 2020 -0400
+
+    go/build: remove two erroneous uses of os.Stat
+    
+    go/build should use the ctxt routines, not os directly.
+    These snuck in.
+    
+    Change-Id: I918d4de923eb485bfd524e4f1b1310a7a165ad03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266357
+    Trust: Russ Cox <rsc@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/go/build/build.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

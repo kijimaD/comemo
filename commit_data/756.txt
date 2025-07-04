@@ -1,0 +1,12 @@
+commit 7be2b9fdf67cb81f5d1930147f24e3071b7a9a0b
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Sep 27 13:32:38 2008 -0700
+
+    bug in argument passing
+    
+    R=r
+    OCL=16044
+    CL=16044
+
+ src/cmd/gc/dcl.c | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

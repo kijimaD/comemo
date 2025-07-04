@@ -1,0 +1,23 @@
+commit 95c4f320d55fabf04ba45685109691f182678c01
+Author: Stefan <Stefan.Mada@utah.edu>
+Date:   Wed May 10 01:34:47 2023 +0000
+
+    cmd/compile: add De Morgan's rewrite rule
+    
+    Adds rules that rewrites statements such as ~P&~Q as ~(P|Q) and ~P|~Q as ~(P&Q), removing an extraneous instruction.
+    
+    Change-Id: Icedb97df741680ddf9799df79df78657173aa500
+    GitHub-Last-Rev: f22e2350c95e9052e990b2351c3c2b0af810e381
+    GitHub-Pull-Request: golang/go#60018
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493175
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Stefan M <st3f4nm4d4@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |   4 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 178 ++++++++++++++++++++++++
+ test/codegen/logic.go                           |  14 ++
+ 3 files changed, 196 insertions(+)

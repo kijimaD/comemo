@@ -1,0 +1,18 @@
+commit 8dc4c0b45f5f06fe696dd892081ed8b4e856afc2
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 17 18:55:42 2010 -0400
+
+    jsonrpc: use `error: null` for success, not `error: ""`
+    handle missing id in server.
+    
+    Fixes #1017.
+    Fixes #1018.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1986044
+
+ src/pkg/rpc/jsonrpc/all_test.go | 13 +++++++++++--
+ src/pkg/rpc/jsonrpc/client.go   | 17 ++++++++++++++---
+ src/pkg/rpc/jsonrpc/server.go   | 14 ++++++++++++--
+ 3 files changed, 37 insertions(+), 7 deletions(-)

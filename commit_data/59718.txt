@@ -1,0 +1,22 @@
+commit ed08d2ad0928c0fc77cc2053863616ffb58c5aac
+Author: Damien Neil <dneil@google.com>
+Date:   Tue May 27 14:16:17 2025 -0700
+
+    os: don't follow symlinks on Windows when O_CREATE|O_EXCL and read-only
+    
+    Fix a bug in CL 672396, where we add FILE_FLAG_OPEN_REPARSE_POINT to
+    the attributes passed to CreateFile, but then overwrite the attributes
+    with FILE_ATTRIBUTE_READONLY when opening a file with a read-only
+    permissions mode.
+    
+    For #73702
+    
+    Change-Id: I6c10bf470054592bafa031732585fc3155c61341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676655
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/os/os_test.go              |  4 ++--
+ src/syscall/syscall_windows.go | 30 +++++++++++++++---------------
+ 2 files changed, 17 insertions(+), 17 deletions(-)

@@ -1,0 +1,18 @@
+commit 66c32384dda82752deb3db8ba45acb073e9c4c1e
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Dec 9 18:39:58 2013 -0500
+
+    build: do not use the host's libbio on Plan 9
+    
+    R=jas, lucio.dere, rsc
+    CC=golang-dev
+    https://golang.org/cl/14604047
+
+ include/bio.h         |  2 --
+ include/plan9/bio.h   |  8 ++++++++
+ src/cmd/dist/build.c  | 29 +++++------------------------
+ src/libbio/bgetrune.c |  1 -
+ src/libbio/bprint.c   |  2 ++
+ src/libbio/bputrune.c |  1 -
+ src/libbio/bseek.c    |  2 +-
+ 7 files changed, 16 insertions(+), 29 deletions(-)

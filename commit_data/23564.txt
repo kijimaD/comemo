@@ -1,0 +1,12 @@
+commit c418fe734a0e0566c10147ff15c4ceae541360ac
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 29 19:51:56 2015 +1000
+
+    doc: finish listing the non-crypto non-net small API changes
+    
+    Change-Id: I5791639e71874ce13fac836a0c6014e20ee7417e
+    Reviewed-on: https://go-review.googlesource.com/11664
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.5.html | 66 +++++++++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 45 insertions(+), 21 deletions(-)

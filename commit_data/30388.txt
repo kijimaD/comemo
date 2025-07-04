@@ -1,0 +1,25 @@
+commit 322fff8ac855390dc2a2876e9051a8dd526d2c6a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 16 15:04:33 2017 -0800
+
+    math/big: use math/bits where appropriate
+    
+    This change adds math/bits as a new dependency of math/big.
+    
+    - use bits.LeadingZeroes instead of local implementation
+      (they are identical, so there's no performance loss here)
+    
+    - leave other functionality local (ntz, bitLen) since there's
+      faster implementations in math/big at the moment
+    
+    Change-Id: I1218aa8a1df0cc9783583b090a4bb5a8a145c4a2
+    Reviewed-on: https://go-review.googlesource.com/37141
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/buildtool.go |  1 +
+ src/go/build/deps_test.go |  2 +-
+ src/math/big/arith.go     | 41 ++++++++++++++---------------------------
+ src/math/big/nat.go       | 41 ++---------------------------------------
+ src/math/big/nat_test.go  | 30 ------------------------------
+ src/math/big/natconv.go   |  3 ++-
+ 6 files changed, 20 insertions(+), 98 deletions(-)

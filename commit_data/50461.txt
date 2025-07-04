@@ -1,0 +1,22 @@
+commit 09f3ff174c6487bebc4a9a6adea6d74baf6a92cc
+Author: cui fliter <imcusg@gmail.com>
+Date:   Mon Sep 12 15:50:04 2022 +0000
+
+    strings: add a test case of growLen is negative
+    
+    Before committing,  the test coverage of strings/builder.go is 97.4%
+    After committing,  the test coverage of strings/builder.go is 100%
+    
+    Change-Id: I22643b1c4632b5ca7ef98362f32bb85faae80bad
+    GitHub-Last-Rev: 2a55ca3e33d3aabd2ccc047de580abcfe05d6bb4
+    GitHub-Pull-Request: golang/go#55004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430156
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+
+ src/strings/builder_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

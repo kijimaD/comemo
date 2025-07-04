@@ -1,0 +1,18 @@
+commit 2f170520aa460561997636dec66f303ee69ab684
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 31 15:42:17 2017 -0400
+
+    cmd/link: do not store compilation directory in DWARF info
+    
+    This makes 'go install cmd/compile' in one directory produce
+    a different binary from running it in another directory,
+    which is problematic for reproducible builds.
+    
+    Change-Id: If26685d2e45d2695413b472142b49694716575fa
+    Reviewed-on: https://go-review.googlesource.com/74790
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

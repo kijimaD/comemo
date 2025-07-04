@@ -1,0 +1,20 @@
+commit b4ea67200977b99ede1885ed77e034a2fdf434f5
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Sep 15 12:59:05 2020 -0400
+
+    cmd/go: default to GO111MODULE=on
+    
+    Fixes #41330
+    
+    Change-Id: Ib66087ac5e1eb827694915f21c32c4d88e1b9a7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255052
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go        | 8 ++++----
+ src/cmd/go/testdata/script/mod_enabled.txt | 4 ++--
+ src/go/build/build.go                      | 4 ++--
+ 3 files changed, 8 insertions(+), 8 deletions(-)

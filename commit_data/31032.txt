@@ -1,0 +1,18 @@
+commit 6297f06cbd84a2373586faf6a69e73dcf8fe3bd1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 7 08:53:38 2017 -0700
+
+    cmd/compile: fix build by updating to new types package
+    
+    CL 38776 was not updated to use the new types package.
+    
+    Fixes build.
+    
+    Change-Id: Ie80ff4837cac95bd628e0405a937045171d56e0c
+    Reviewed-on: https://go-review.googlesource.com/39918
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,23 @@
+commit 65fc379daeda784d085f98d621a9ab712c096148
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Thu Sep 24 23:45:13 2015 +0200
+
+    mime: limit UTF-8 encoded-word length to 75 characters
+    
+    As specified by RFC 2047 section 2, encoded-words may not be more than
+    75 characters long.
+    
+    We only enforce this rule when the charset is UTF-8, since multi-bytes
+    characters must not be split accross encoded-words (see section 5.3).
+    
+    Fixes #12300
+    
+    Change-Id: I72a43fc3fe6ddeb3dab54dcdce0837d7ebf658f0
+    Reviewed-on: https://go-review.googlesource.com/14957
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/encodedword.go      | 138 ++++++++++++++++++++++++++++++++++++-------
+ src/mime/encodedword_test.go |   8 +++
+ 2 files changed, 124 insertions(+), 22 deletions(-)

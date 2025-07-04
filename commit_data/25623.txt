@@ -1,0 +1,14 @@
+commit 445c6855fc65d144d32330c130fde91c774368ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 21 16:36:36 2016 -0800
+
+    cmd/compile: remove unused (dead) fields
+    
+    Change-Id: I4816a788e7b89b76dc70d05f4b176e99684d0680
+    Reviewed-on: https://go-review.googlesource.com/18830
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

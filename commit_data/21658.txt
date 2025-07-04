@@ -1,0 +1,15 @@
+commit 1ae124b5ff38045008402b51017c8303eef2cda1
+Author: Austin Clements <austin@google.com>
+Date:   Wed Feb 18 16:40:31 2015 -0500
+
+    runtime: make gcDrainN take an int instead of uintptr
+    
+    Nit.  There's no reason to take a uintptr and doing so just requires
+    casts in annoying places.
+    
+    Change-Id: Ifeb9638c6d94eae619c490930cf724cc315680ba
+    Reviewed-on: https://go-review.googlesource.com/5230
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

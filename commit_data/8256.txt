@@ -1,0 +1,14 @@
+commit 200bd0a057851a2569b1049229771bab20dd0809
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 28 15:21:54 2011 +1000
+
+    http: add MultipartForm, FormFile, and ParseMultipartForm to Request
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4431068
+
+ src/pkg/http/request.go      | 107 ++++++++++++++++++++++++++++++++++---
+ src/pkg/http/request_test.go | 122 ++++++++++++++++++++++++++++++++++++++++---
+ src/pkg/http/server.go       |   3 ++
+ 3 files changed, 217 insertions(+), 15 deletions(-)

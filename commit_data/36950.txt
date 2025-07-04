@@ -1,0 +1,20 @@
+commit e19f5754640b0dd6a315edffcaef23c3cf2cefe6
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Wed Oct 10 23:32:36 2018 +0300
+
+    syscall: correctly pad with NUL in FreeBSD convertFromDirents11
+    
+    We weren't writing a terminating NUL after dstDirent.Namlen bytes of dstDirent.Name.
+    And we weren't filling the possible additional bytes until dstDirent.Reclen.
+    
+    Fixes #28131
+    
+    Change-Id: Id691c25225795c0dbb0d7004bfca7bb7fc706de9
+    Reviewed-on: https://go-review.googlesource.com/c/141297
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/dirent_bsd_test.go | 76 ++++++++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_freebsd.go | 38 ++++++++++-----------
+ 2 files changed, 94 insertions(+), 20 deletions(-)

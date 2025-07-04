@@ -1,0 +1,28 @@
+commit 4e9183cb14bf58011389c8a8c8ccaecd3ef50451
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun Aug 21 02:36:24 2022 -0700
+
+    time: fix Parse to ignore extra sub-nanosecond digits
+    
+    This modifies the code to match the comment such that
+    the behavior truly is identical to stdSecond case.
+    Also, it modifies the behavior to match the documented
+    behavior where:
+    
+        Fractional seconds are truncated to nanosecond precision.
+    
+    Fixes #54567
+    Updates #48685
+    
+    Change-Id: Ie64549e4372ab51624c105ad8ab4cc99b9b5a0b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425037
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+
+ src/time/format.go      |  2 +-
+ src/time/format_test.go | 18 ++++++++++--------
+ 2 files changed, 11 insertions(+), 9 deletions(-)

@@ -1,0 +1,16 @@
+commit 9f301643bd3111f6a4e64b6fa400fa329ccb5a83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 15 16:55:48 2016 -0700
+
+    cmd/compile: factor parameter parsing
+    
+    Step 1 of streamlining parameter parsing.
+    
+    Change-Id: If9fd38295ccc08aafc7f1d26188d0926dd73058b
+    Reviewed-on: https://go-review.googlesource.com/20747
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 141 ++++++++++++++--------------------
+ 1 file changed, 59 insertions(+), 82 deletions(-)

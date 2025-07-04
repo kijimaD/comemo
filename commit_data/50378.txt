@@ -1,0 +1,19 @@
+commit 77da976419ebef9beec480e86202db7a32ebd181
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Aug 28 06:11:43 2022 +1000
+
+    cmd/compile: remove redundant SEQZ/SNEZ on riscv64
+    
+    In particular, (SEQZ (SNEZ x)) can arise from (Not (IsNonNil x)).
+    
+    Change-Id: Ie249cd1934d71087e0f774cf8f6c937ceeed7ad5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428215
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 12 +++++--
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 44 ++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 3 deletions(-)

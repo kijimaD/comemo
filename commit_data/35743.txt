@@ -1,0 +1,16 @@
+commit 9a91713090f22eb7bc2b0b3af7576fe6e86bebfe
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Jun 17 20:30:27 2018 +0000
+
+    cmd/dist: don't test Examples for js/wasm
+    
+    Fixes #25913
+    
+    Change-Id: I4701ec94fa4b07211a8beed85c02ee5aa4fe3eb3
+    Reviewed-on: https://go-review.googlesource.com/119377
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/cmd/dist/test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

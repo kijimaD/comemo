@@ -1,0 +1,18 @@
+commit ea2a2c0c2233a3aad73c4ba53cec315fb28d7a48
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 21:34:01 2022 +0800
+
+    cmd/cgo: delete unused code
+    
+    Change-Id: I6007cc6363e22ffa5f9a8f0441a642fd85127397
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435945
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/cgo/util.go | 20 --------------------
+ 1 file changed, 20 deletions(-)

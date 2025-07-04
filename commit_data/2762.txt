@@ -1,0 +1,12 @@
+commit 1d51978feda36d03fd6548f870220aa29ec46ff3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 17:41:18 2009 -0700
+
+    fix cut-and-paste bugs in error messages
+    
+    R=ken
+    OCL=31890
+    CL=31890
+
+ src/cmd/gc/sinit.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

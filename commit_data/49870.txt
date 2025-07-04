@@ -1,0 +1,17 @@
+commit 3121c2bf64ae7e5c17379af2cf2a5c16952f57f1
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jul 29 14:52:42 2022 -0400
+
+    runtime: convert prof.signalLock to atomic type
+    
+    For #53821.
+    
+    Change-Id: I3e757fc6a020be10ee69459c395cb7eee49b0dfb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420195
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/cpuprof.go | 9 ++++-----
+ src/runtime/proc.go    | 6 +++---
+ 2 files changed, 7 insertions(+), 8 deletions(-)

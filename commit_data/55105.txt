@@ -1,0 +1,24 @@
+commit 351d8520a6e55cbadc1714ad62405699ee172c5e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 17:33:20 2023 +0000
+
+    internal/trace: use the correct stack for goroutine naming in v2 traces
+    
+    Currently goroutine names are determined (for v2 traces) by
+    internal/tracev/2.Event.Stack, but this is wrong in general. For
+    example, if we end up seeing a transition from GoNotExist->GoRunnable
+    (goroutine creation) then we're taking the stack from the creator, not
+    the created goroutine (which is what we're naming at that point).
+    
+    Use the StateTransition.Stack instead. This is always the correct one to
+    use because we're always naming the goroutine that the state transition
+    is for.
+    
+    Change-Id: I3fc7c8e4f85dfee3802d666c0c091b6953c7d6cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544317
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/trace/goroutinesv2.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

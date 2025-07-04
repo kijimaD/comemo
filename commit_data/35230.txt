@@ -1,0 +1,17 @@
+commit 2f2e8f9c81d899d8eefb1f2f98ce5c90976c4f61
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 30 23:05:41 2018 -0700
+
+    runtime: use staticbytes in intstring for small v
+    
+    Triggers 21 times during make.bash.
+    
+    Change-Id: I7efb34200439256151304bb66cd309913f7c9c9e
+    Reviewed-on: https://go-review.googlesource.com/110557
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/string.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

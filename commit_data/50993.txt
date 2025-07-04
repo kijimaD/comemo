@@ -1,0 +1,26 @@
+commit 2bdb5c57f1efcbddab536028d053798e35de6226
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Mon Oct 24 23:37:05 2022 +0000
+
+    debug/elf: use saferio.SliceCap when decoding ELF sections
+    
+    This avoids allocating an overly large slice for corrupt input.
+    
+    No test case because the problem can only happen for invalid data. Let
+    the fuzzer find cases like this.
+    
+    Updates #33121.
+    
+    Change-Id: Ie2d947a3865d3499034286f2d08d3e3204015f3e
+    GitHub-Last-Rev: 6c62fc3cec1c6343c76f22f6a2a4ddae060fa2f4
+    GitHub-Pull-Request: golang/go#56405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445076
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/debug/elf/file.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

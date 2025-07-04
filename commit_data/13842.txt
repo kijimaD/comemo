@@ -1,0 +1,14 @@
+commit 54193689ccdf51833c157d55bbbab739bf44dc3b
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Sep 17 17:18:21 2012 -0400
+
+    cmd/ld: fix compilation when GOARCH != GOHOSTARCH
+    
+    R=rsc, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6493123
+
+ src/pkg/runtime/mgc0.c     | 1 -
+ src/pkg/runtime/runtime.h  | 4 ++++
+ src/pkg/runtime/typekind.h | 5 ++++-
+ 3 files changed, 8 insertions(+), 2 deletions(-)

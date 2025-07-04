@@ -1,0 +1,40 @@
+commit 50557edf10161b1aedd3654d84a94b49bae05c43
+Author: Garet Halliday <me@garet.holiday>
+Date:   Fri Oct 21 22:22:12 2022 -0500
+
+    runtime: add wasm bulk memory operations
+    
+    The existing implementation uses loops to implement bulk memory
+    operations such as memcpy and memclr. Now that bulk memory operations
+    have been standardized and are implemented in all major browsers and
+    engines (see https://webassembly.org/roadmap/), we should use them
+    to improve performance.
+    
+    Updates #28360
+    
+    Change-Id: I28df0e0350287d5e7e1d1c09a4064ea1054e7575
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444935
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/cmd/compile/internal/ir/symtab.go        |   4 -
+ src/cmd/compile/internal/ssa/_gen/Wasm.rules |  25 +----
+ src/cmd/compile/internal/ssa/_gen/WasmOps.go |   4 +-
+ src/cmd/compile/internal/ssa/rewriteWasm.go  |  79 ++-------------
+ src/cmd/compile/internal/ssagen/ssa.go       |   2 -
+ src/cmd/compile/internal/wasm/ssa.go         |   7 +-
+ src/cmd/internal/obj/wasm/a.out.go           |  11 ++
+ src/cmd/internal/obj/wasm/anames.go          |  10 ++
+ src/cmd/internal/obj/wasm/wasmobj.go         |  10 +-
+ src/cmd/link/internal/wasm/asm.go            |   2 -
+ src/runtime/asm_wasm.s                       |   4 +-
+ src/runtime/memclr_wasm.s                    |  33 ++----
+ src/runtime/memmove_wasm.s                   | 144 ++-------------------------
+ src/runtime/sys_wasm.go                      |   4 -
+ src/runtime/sys_wasm.s                       |  67 -------------
+ 15 files changed, 59 insertions(+), 347 deletions(-)

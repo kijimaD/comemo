@@ -1,0 +1,16 @@
+commit 90c146f3906c2d9f8804b414ed5db5c24b8b130d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Jul 11 22:24:45 2014 +0200
+
+    liblink: fix warnings on Plan 9
+    
+    warning: /usr/go/src/liblink/asm5.c:720 set and not used: m
+    warning: /usr/go/src/liblink/asm5.c:807 set and not used: c
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/108570043
+
+ src/liblink/asm5.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

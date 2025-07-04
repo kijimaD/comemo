@@ -1,0 +1,16 @@
+commit a2119aca7dc82dc5b5cd40b1a2f56e82323da002
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 5 16:33:53 2015 -0700
+
+    cmd/compile/internal/gc: make funcsyms a []*Node
+    
+    Remove another use of NodeList.
+    
+    Change-Id: Ice07eff862caf715f722dec7829006bf71715b07
+    Reviewed-on: https://go-review.googlesource.com/15432
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/dcl.go | 2 +-
+ src/cmd/compile/internal/gc/go.go  | 2 +-
+ src/cmd/compile/internal/gc/obj.go | 5 +----
+ 3 files changed, 3 insertions(+), 6 deletions(-)

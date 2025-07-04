@@ -1,0 +1,13 @@
+commit 0cab7d52d5ffaa23f31dfcabf61662a6581d1edb
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 7 09:11:39 2012 -0700
+
+    faq: another way to solve the closure/variable/range complaint
+    It's easier just to declare a new variable.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6501103
+
+ doc/go_faq.html | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)

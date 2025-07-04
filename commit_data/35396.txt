@@ -1,0 +1,56 @@
+commit 212c9479e3a855bee05ffedda92c9be4405abb62
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Tue May 15 00:26:36 2018 +0100
+
+    vendor/golang_org/x/crypto: revendor
+    
+    This change updates the vendored copy of golang.org/x/crypto to
+    commit 1a580b3eff7814fc9b40602fd35256c63b50f491.
+    
+    An import of golang.org/x/sys/cpu was replaced with an import of
+    internal/cpu as required by
+    https://github.com/golang/go/issues/24843#issuecomment-383194779.
+    
+    The following bash command can be used to replicate this import
+    update:
+    
+    find `pwd` -name '*.go' -exec sed -i 's/golang\.org\/x\/sys\/cpu/internal\/cpu/g' '{}' \;
+    
+    Change-Id: Ic80d361f940a96c70e4196f594d791c63421d73c
+    Reviewed-on: https://go-review.googlesource.com/113175
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../x/crypto/chacha20poly1305/chacha20poly1305.go  |   12 +-
+ .../chacha20poly1305/chacha20poly1305_amd64.go     |   79 +-
+ .../chacha20poly1305/chacha20poly1305_amd64.s      |   19 -
+ .../chacha20poly1305/chacha20poly1305_generic.go   |   32 +-
+ .../chacha20poly1305_vectors_test.go               |    7 +
+ .../internal/chacha20/chacha_generic.go            |  199 --
+ .../internal/chacha20/chacha_test.go               |   33 -
+ src/vendor/golang_org/x/crypto/cryptobyte/asn1.go  |   67 +-
+ .../golang_org/x/crypto/cryptobyte/asn1_test.go    |   33 +
+ .../golang_org/x/crypto/cryptobyte/string.go       |   29 +-
+ .../golang_org/x/crypto/curve25519/const_amd64.h   |    2 +-
+ .../golang_org/x/crypto/curve25519/const_amd64.s   |    2 +-
+ .../golang_org/x/crypto/curve25519/curve25519.go   |    2 +-
+ src/vendor/golang_org/x/crypto/curve25519/doc.go   |    2 +-
+ .../golang_org/x/crypto/curve25519/freeze_amd64.s  |    2 +-
+ .../x/crypto/curve25519/ladderstep_amd64.s         |    2 +-
+ .../golang_org/x/crypto/curve25519/mul_amd64.s     |    2 +-
+ .../golang_org/x/crypto/curve25519/square_amd64.s  |    2 +-
+ .../x/crypto/internal/chacha20/asm_s390x.s         |  283 ++
+ .../x/crypto/internal/chacha20/chacha_generic.go   |  227 ++
+ .../x/crypto/internal/chacha20/chacha_noasm.go     |   16 +
+ .../x/crypto/internal/chacha20/chacha_s390x.go     |   30 +
+ .../x/crypto/internal/chacha20/chacha_test.go      |  188 ++
+ .../x/crypto/internal/chacha20/vectors_test.go     |  578 ++++
+ .../golang_org/x/crypto/internal/chacha20/xor.go   |   43 +
+ .../golang_org/x/crypto/poly1305/poly1305.go       |    3 +-
+ .../golang_org/x/crypto/poly1305/poly1305_test.go  |  111 +-
+ .../golang_org/x/crypto/poly1305/sum_noasm.go      |   14 +
+ src/vendor/golang_org/x/crypto/poly1305/sum_ref.go |   10 +-
+ .../golang_org/x/crypto/poly1305/sum_s390x.go      |   49 +
+ .../golang_org/x/crypto/poly1305/sum_s390x.s       |  400 +++
+ .../golang_org/x/crypto/poly1305/sum_vmsl_s390x.s  |  931 +++++++
+ .../golang_org/x/crypto/poly1305/vectors_test.go   | 2943 ++++++++++++++++++++
+ 33 files changed, 5899 insertions(+), 453 deletions(-)

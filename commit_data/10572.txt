@@ -1,0 +1,14 @@
+commit 744fb52102642382d09968d8bc0fe4090af20360
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 11:23:39 2011 -0800
+
+    os: be consistent with receiver names for godoc TOC alignment
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5449056
+
+ src/pkg/os/file.go       | 50 ++++++++++++++++++++++++------------------------
+ src/pkg/os/file_posix.go |  6 +++---
+ src/pkg/os/file_unix.go  | 24 +++++++++++------------
+ 3 files changed, 40 insertions(+), 40 deletions(-)

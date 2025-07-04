@@ -1,0 +1,31 @@
+commit 67e537541c043c701001f002bed0cda70ce72767
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 20 15:12:12 2017 -0400
+
+    syscall: use CLONE_VFORK safely
+    
+    Currently, CLONE_VFORK is used without much regard to the stack. This
+    is dangerous, because anything the child does to the stack is visible
+    to the parent. For example, if the compiler were to reuse named stack
+    slots (which it currently doesn't do), it would be easy for the child
+    running in the same stack frame as the parent to corrupt local
+    variables that the parent then depended on. We're not sure of anything
+    specific going wrong in this code right now, but it is at best a
+    ticking time bomb.
+    
+    CLONE_VFORK can only safely be used if we ensure the child does not
+    execute in any of the active stack frames of the parent. This commit
+    implements this by arranging for the parent to return immediately from
+    the frame the child will operate in, and for the child to never return
+    to the frame the parent will operate in.
+    
+    Fixes #20732.
+    
+    Change-Id: Iad5b4ddc2b994c082bd278bfd52ef53bd38c037f
+    Reviewed-on: https://go-review.googlesource.com/46173
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_linux.go | 70 ++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 45 insertions(+), 25 deletions(-)

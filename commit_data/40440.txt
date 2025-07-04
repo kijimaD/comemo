@@ -1,0 +1,17 @@
+commit 8dc1a158e460d7fdaca3c9317405e7c0dca6e443
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 14 20:10:48 2019 -0400
+
+    runtime: add test for signalM
+    
+    For #10958, #24543.
+    
+    Change-Id: Ib009a83fe02bc623894f4908fe8f6b266382ba95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201404
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/export_unix_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/preemptm_test.go    | 35 +++++++++++++++++++++++++++++++++++
+ src/runtime/signal_unix.go      | 11 ++++++++---
+ 3 files changed, 82 insertions(+), 3 deletions(-)

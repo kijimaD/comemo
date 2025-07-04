@@ -1,0 +1,15 @@
+commit c735064cdeb6bf4ec84a0a4b2b48a5cafc4b83dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 19 14:00:27 2015 -0400
+
+    cmd/internal/gc: type of str[i] is byte, not uint8
+    
+    Fixes #8745.
+    
+    Change-Id: Id0641e3c0f259812b41ed871e83c68740feb2b19
+    Reviewed-on: https://go-review.googlesource.com/10261
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue8745.go      | 13 +++++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

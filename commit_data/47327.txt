@@ -1,0 +1,21 @@
+commit cfb3dc7710ba35d9932ba9f5242730a97f9ae603
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 4 12:50:25 2021 -0700
+
+    cmd/compile/internal/types2: clearer object string for type parameters
+    
+    - print "type parameter" rather than just "type"
+    - print the type bound rather than the underlying type
+    - added an object string test
+    
+    Change-Id: Ibb572ff35b74f2c6ccb27641154f096770541130
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361401
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/object.go          | 21 ++++--
+ src/cmd/compile/internal/types2/object_test.go     | 78 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typestring_test.go |  7 +-
+ 3 files changed, 98 insertions(+), 8 deletions(-)

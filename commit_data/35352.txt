@@ -1,0 +1,22 @@
+commit 10529a01fd8b0d5cc07eb3f6aa00a0272597684b
+Author: Gustav Westling <zegl@westling.xyz>
+Date:   Wed May 9 19:05:46 2018 +0000
+
+    encoding/base32: handle NoPadding when using buffered encoding in Close
+    
+    This changes makes encoder.Close aware of how many bytes to write if there
+    is any data left in the buffer.
+    
+    Fixes #25295
+    
+    Change-Id: I4138891359935509cb561c453b8059ba2b9e576b
+    GitHub-Last-Rev: f374096d2f3cae8635506074f59e1cd440c14844
+    GitHub-Pull-Request: golang/go#25316
+    Reviewed-on: https://go-review.googlesource.com/112515
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/base32/base32.go      |  3 ++-
+ src/encoding/base32/base32_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit ee75ffa286d2f53c18fe7ff7001547baa0223e0c
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Apr 10 01:53:43 2010 -0700
+
+    codereview: Mention that deleting a CL is a use of 'hg change' in its header.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/903043
+
+ lib/codereview/codereview.py | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

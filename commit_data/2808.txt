@@ -1,0 +1,12 @@
+commit d27bae5033b8b9787a8f6b896dea85850986b83f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 28 15:03:05 2009 -0700
+
+    Fixed typos in comments.
+    
+    TBR=rsc
+    OCL=32330
+    CL=32330
+
+ src/pkg/container/ring/ring.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

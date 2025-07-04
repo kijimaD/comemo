@@ -1,0 +1,14 @@
+commit b7cbfe6acee5cb41768a7c2d4fc63da2eea4614c
+Author: Francesc Campoy <campoy@golang.org>
+Date:   Mon Sep 24 13:05:47 2012 -0700
+
+    testing: document -test.bench flag
+    
+    Fixes #4080.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/6553068
+
+ src/pkg/testing/testing.go | 3 +++
+ 1 file changed, 3 insertions(+)

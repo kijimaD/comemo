@@ -1,0 +1,47 @@
+commit d9a6bdf7ef4d0dd15608427b0f7ba3c45c221a3c
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 21 20:20:12 2020 -0700
+
+    cmd/compile: don't allow go:notinheap on the heap or stack
+    
+    Right now we just prevent such types from being on the heap. This CL
+    makes it so they cannot appear on the stack either. The distinction
+    between heap and stack is pretty vague at the language level (e.g. it
+    is affected by -N), and we don't need the flexibility anyway.
+    
+    Once go:notinheap types cannot be in either place, we don't need to
+    consider pointers to such types to be pointers, at least according to
+    the garbage collector and stack copying. (This is the big win of this
+    CL, in my opinion.)
+    
+    The distinction between HasPointers and HasHeapPointer no longer
+    exists. There is only HasPointers.
+    
+    This CL is cleanup before possible use of go:notinheap to fix #40954.
+    
+    Update #13386
+    
+    Change-Id: Ibd895aadf001c0385078a6d4809c3f374991231a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249917
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/escape.go        |  3 +++
+ src/cmd/compile/internal/gc/pgen_test.go     | 10 +---------
+ src/cmd/compile/internal/gc/plive.go         | 14 +++++++-------
+ src/cmd/compile/internal/gc/range.go         |  2 +-
+ src/cmd/compile/internal/gc/walk.go          | 23 +++++++++++------------
+ src/cmd/compile/internal/ssa/decompose.go    |  2 +-
+ src/cmd/compile/internal/ssa/gen/dec.rules   |  4 ++--
+ src/cmd/compile/internal/ssa/nilcheck.go     |  2 +-
+ src/cmd/compile/internal/ssa/rewritedec.go   |  7 ++++---
+ src/cmd/compile/internal/ssa/writebarrier.go |  2 +-
+ src/cmd/compile/internal/types/type.go       | 24 ++++++------------------
+ src/runtime/export_test.go                   |  7 +++----
+ src/runtime/mgcmark.go                       |  3 ++-
+ src/runtime/mgcstack.go                      |  2 --
+ src/runtime/runtime2.go                      |  5 +----
+ test/notinheap2.go                           | 12 ++++++++++--
+ 16 files changed, 54 insertions(+), 68 deletions(-)

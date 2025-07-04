@@ -1,0 +1,17 @@
+commit 0040adfd0f98e1012837b0317fabf69cf1f8855b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 16 21:39:36 2020 -0400
+
+    runtime: define ios/arm64 entry points
+    
+    Updates #38485.
+    
+    Change-Id: I030346c7f0c3ce89209588525b210284fdea4efd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263638
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/runtime/rt0_ios_arm64.s | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

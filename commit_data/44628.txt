@@ -1,0 +1,21 @@
+commit 735647d92e839f9ac3a91864a2c34263338a35e6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 8 15:36:28 2021 -0800
+
+    runtime: add alignment info to sizeclasses.go comments
+    
+    I was curious about the minimum possible alignment for each size class
+    and the minimum size to guarantee any particular alignment (e.g., to
+    know at what class size you can start assuming heap bits are byte- or
+    word-aligned).
+    
+    Change-Id: I205b750286e8914986533c4f60712c420c3e63e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/299909
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/mksizeclasses.go |  26 +++++++-
+ src/runtime/sizeclasses.go   | 145 +++++++++++++++++++++++--------------------
+ 2 files changed, 101 insertions(+), 70 deletions(-)

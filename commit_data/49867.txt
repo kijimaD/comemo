@@ -1,0 +1,21 @@
+commit 88ef50e6623e55875d783e5715be1dc0683717e0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jul 25 15:31:03 2022 -0400
+
+    runtime: convert schedt.gcwaiting to atomic type
+    
+    Note that this replaces numerous unsynchronized loads throughout the
+    scheduler.
+    
+    For #53821.
+    
+    Change-Id: Ica80b04c9e8c184bfef186e549526fc3f117c387
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419447
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mgcmark.go  |  4 ++--
+ src/runtime/proc.go     | 24 ++++++++++++------------
+ src/runtime/runtime2.go |  2 +-
+ 3 files changed, 15 insertions(+), 15 deletions(-)

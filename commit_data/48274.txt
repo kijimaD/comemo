@@ -1,0 +1,24 @@
+commit 78070ec3d44fdd8e60271abf31f056aeac919cc3
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Feb 14 17:15:05 2022 -0600
+
+    syscall, runtime/internal/syscall: always return 0 in r2 on ppc64{,le} linux syscalls
+    
+    Both endians perform syscalls similarly. Only CR0S0 and R3 hold
+    the resultant status of a syscall. A random value may be stored into
+    the second return value (r2) result in some cases. Always set it to
+    zero.
+    
+    Fixes #51192
+    
+    Change-Id: Ida6a5692578d2cdadf3099af28478b3bc364f623
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385796
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Trust: Paul Murphy <murp@ibm.com>
+
+ src/runtime/internal/syscall/asm_linux_ppc64x.s |  3 +--
+ src/syscall/asm_linux_ppc64x.s                  | 10 +++++-----
+ 2 files changed, 6 insertions(+), 7 deletions(-)

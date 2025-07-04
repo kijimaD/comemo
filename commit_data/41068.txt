@@ -1,0 +1,33 @@
+commit 822094f04756b31344c0533eb0e390464e1cbf5b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Dec 26 17:47:26 2019 -0500
+
+    cmd/go: convert some cgo-related testcases to script framework
+    
+    This change converts TestCoverageWithCgo and TestCgoConsistentResults
+    to the script framework.
+    
+    Change-Id: Ic5a13f6dd6099d3d73a5cda8cbc724a79a3d2c58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212621
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 33 ----------------
+ src/cmd/go/testdata/script/cgo_asm_error.txt       | 21 +++++++++++
+ src/cmd/go/testdata/script/cover_cgo.txt           | 37 ++++++++++++++++++
+ .../go/testdata/script/cover_cgo_extra_file.txt    | 43 +++++++++++++++++++++
+ .../go/testdata/script/cover_cgo_extra_test.txt    | 44 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/cover_cgo_xtest.txt     | 40 ++++++++++++++++++++
+ src/cmd/go/testdata/src/cgoasm/p.go                |  8 ----
+ src/cmd/go/testdata/src/cgoasm/p.s                 |  2 -
+ src/cmd/go/testdata/src/cgocover/p.go              | 19 ----------
+ src/cmd/go/testdata/src/cgocover/p_test.go         |  7 ----
+ src/cmd/go/testdata/src/cgocover2/p.go             | 19 ----------
+ src/cmd/go/testdata/src/cgocover2/x_test.go        | 10 -----
+ src/cmd/go/testdata/src/cgocover3/p.go             | 19 ----------
+ src/cmd/go/testdata/src/cgocover3/p_test.go        |  1 -
+ src/cmd/go/testdata/src/cgocover3/x_test.go        | 10 -----
+ src/cmd/go/testdata/src/cgocover4/notcgo.go        |  1 -
+ src/cmd/go/testdata/src/cgocover4/p.go             | 19 ----------
+ src/cmd/go/testdata/src/cgocover4/x_test.go        | 10 -----
+ 18 files changed, 185 insertions(+), 158 deletions(-)

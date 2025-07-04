@@ -1,0 +1,32 @@
+commit e8a049b44082ea383af1332c8ccaec870c83c128
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 4 17:37:15 2010 -0800
+
+    gofmt: modified algorithm for alignment of multi-line composite/list entries
+    - only manual changes are in src/pkg/go/printer/nodes.go
+    - use a heuristic to determine "outliers" such that not entire composites are
+      forced to align with them
+    - improves several places that were not unligned before due too simple heuristic
+    - unalignes some cases that contain "outliers"
+    - gofmt -w src misc
+    
+    Fixes #644.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/241041
+
+ src/pkg/asn1/asn1_test.go                       |   4 +-
+ src/pkg/crypto/x509/x509.go                     |   8 +-
+ src/pkg/debug/dwarf/type_test.go                |  28 ++--
+ src/pkg/exp/eval/stmt.go                        |  10 +-
+ src/pkg/go/printer/nodes.go                     |  93 +++++++++----
+ src/pkg/go/printer/testdata/declarations.golden |  24 ++++
+ src/pkg/go/printer/testdata/declarations.input  |  24 ++++
+ src/pkg/http/readrequest_test.go                |   2 +-
+ src/pkg/http/request_test.go                    |   2 +-
+ src/pkg/http/requestwrite_test.go               |   2 +-
+ src/pkg/http/status.go                          |  34 ++---
+ src/pkg/syscall/zerrors_nacl_386.go             | 170 ++++++++++++------------
+ src/pkg/unicode/tables.go                       |  62 ++++-----
+ 13 files changed, 278 insertions(+), 185 deletions(-)

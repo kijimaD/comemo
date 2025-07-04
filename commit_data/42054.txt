@@ -1,0 +1,12 @@
+commit 24a1c8f60586b0f59f7c3a44b1b37ffe603d4d7b
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Wed Apr 22 03:24:58 2020 +0900
+
+    reflect: fix typo on resolveReflectName function documentation
+    
+    Change-Id: I250de9db4e8aca6e1069d05c73051571f1712091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229141
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

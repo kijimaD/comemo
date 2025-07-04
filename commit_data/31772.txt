@@ -1,0 +1,22 @@
+commit 504b8d15d656e1085dd0a741e294113dcc2bde9a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 9 02:49:07 2017 +0000
+
+    net/http: regenerate http2 bundle with bundle fixes to include comments
+    
+    The golang.org/x/tools/cmd/bundle tool previously had a bug where it
+    dropped some comments.
+    
+    This regenerates it with the fixed version (https://golang.org/cl/45117).
+    
+    (Upstream is still git rev 3470a06c1, from https://golang.org/cl/44331)
+    
+    Updates #20548
+    
+    Change-Id: Ic5d9208a0c8f7facdb7b315c6acab66ace34c0a9
+    Reviewed-on: https://go-review.googlesource.com/45158
+    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/h2_bundle.go | 949 ++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 711 insertions(+), 238 deletions(-)

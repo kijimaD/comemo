@@ -1,0 +1,14 @@
+commit dad512f6df83367a46d9135daa13e27f51b8ba04
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Fri Oct 25 20:54:20 2019 +0800
+
+    cmd/dist: fix wrong goarch on mips64le
+    
+    Change-Id: I625f0bc533a7d14010c0344f36e8f157a19c13f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203437
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

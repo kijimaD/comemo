@@ -1,0 +1,22 @@
+commit 6b80a5fa6d7fa608718dac1bc235f069a33faf50
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Mar 3 18:17:13 2010 -0800
+
+    math: added ilogb, logb, remainder, tests and special conditions
+    
+    Also added expm1_386 and remainder_386; shortened exp_386
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/217109
+
+ src/pkg/math/Makefile          |   4 ++
+ src/pkg/math/all_test.go       | 109 ++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/math/exp_386.s         |   7 ++-
+ src/pkg/math/expm1_386.s       |  55 +++++++++++++++++++++
+ src/pkg/math/expm1_decl.go     |   7 +++
+ src/pkg/math/logb.go           |  47 ++++++++++++++++++
+ src/pkg/math/remainder.go      |  85 ++++++++++++++++++++++++++++++++
+ src/pkg/math/remainder_386.s   |  15 ++++++
+ src/pkg/math/remainder_decl.go |   7 +++
+ 9 files changed, 331 insertions(+), 5 deletions(-)

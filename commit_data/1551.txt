@@ -1,0 +1,15 @@
+commit 806d00fc63d41529ba2ee661c022d87579b05907
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 26 09:28:07 2009 -0800
+
+    add start to a logging package.
+    
+    R=rsc
+    DELTA=205  (205 added, 0 deleted, 0 changed)
+    OCL=23448
+    CL=23478
+
+ src/lib/Makefile    |   2 +
+ src/lib/log.go      | 135 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/log_test.go |  70 +++++++++++++++++++++++++++
+ 3 files changed, 207 insertions(+)

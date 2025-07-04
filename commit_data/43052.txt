@@ -1,0 +1,60 @@
+commit eb3c6a93c3236bbde5dee6cc5bd4ca9f8ab1647a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 10 20:02:22 2020 +0000
+
+    runtime: disable stack shrinking in activeStackChans race window
+    
+    Currently activeStackChans is set before a goroutine blocks on a channel
+    operation in an unlockf passed to gopark. The trouble is that the
+    unlockf is called *after* the G's status is changed, and the G's status
+    is what is used by a concurrent mark worker (calling suspendG) to
+    determine that a G has successfully been suspended. In this window
+    between the status change and unlockf, the mark worker could try to
+    shrink the G's stack, and in particular observe that activeStackChans is
+    false. This observation will cause the mark worker to *not* synchronize
+    with concurrent channel operations when it should, and so updating
+    pointers in the sudog for the blocked goroutine (which may point to the
+    goroutine's stack) races with channel operations which may also
+    manipulate the pointer (read it, dereference it, update it, etc.).
+    
+    Fix the problem by adding a new atomically-updated flag to the g struct
+    called parkingOnChan, which is non-zero in the race window above. Then,
+    in isShrinkStackSafe, check if parkingOnChan is zero. The race is
+    resolved like so:
+    
+    * Blocking G sets parkingOnChan, then changes status in gopark.
+    * Mark worker successfully suspends blocking G.
+    * If the mark worker observes parkingOnChan is non-zero when checking
+      isShrinkStackSafe, then it's not safe to shrink (we're in the race
+      window).
+    * If the mark worker observes parkingOnChan as zero, then because
+      the mark worker observed the G status change, it can be sure that
+      gopark's unlockf completed, and gp.activeStackChans will be correct.
+    
+    The risk of this change is low, since although it reduces the number of
+    places that stack shrinking is allowed, the window here is incredibly
+    small. Essentially, every place that it might crash now is replaced with
+    no shrink.
+    
+    This change adds a test, but the race window is so small that it's hard
+    to trigger without a well-placed sleep in park_m. Also, this change
+    fixes stackGrowRecursive in proc_test.go to actually allocate a 128-byte
+    stack frame. It turns out the compiler was destructuring the "pad" field
+    and only allocating one uint64 on the stack.
+    
+    Fixes #40641.
+    
+    Change-Id: I7dfbe7d460f6972b8956116b137bc13bc24464e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247050
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/chan.go      | 22 +++++++++++++++++++
+ src/runtime/chan_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/proc_test.go | 10 ++++++++-
+ src/runtime/runtime2.go  |  4 ++++
+ src/runtime/select.go    | 19 ++++++++++++++++
+ src/runtime/stack.go     | 13 ++++++++++-
+ 6 files changed, 122 insertions(+), 2 deletions(-)

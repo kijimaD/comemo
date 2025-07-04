@@ -1,0 +1,36 @@
+commit d28acc42ec0f8dff9471e4663cfe55aa5da86656
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 4 16:43:49 2008 -0700
+
+    first cut at multithreading.  works on Linux.
+    
+    * kick off new os procs (machs) as needed
+    * add sys·sleep for testing
+    * add Lock, Rendez
+    * properly lock mal, sys·newproc, scheduler
+    * linux syscall arg #4 is in R10, not CX
+    * chans are not multithread-safe yet
+    * multithreading disabled by default;
+      set $gomaxprocs=2 (or 1000) to turn it on
+    
+    This should build on OS X but may not.
+    Rob and I will fix soon after submitting.
+    
+    TBR=r
+    OCL=13784
+    CL=13842
+
+ src/cmd/gc/sys.go                 |   2 +
+ src/cmd/gc/sysimport.c            | 255 +++++++++++++++++++-------------------
+ src/runtime/amd64_linux.h         |  13 +-
+ src/runtime/chan.c                |  42 +++++--
+ src/runtime/proc.c                | 223 +++++++++++++++++++++++++++++----
+ src/runtime/rt0_amd64.s           |  27 +++-
+ src/runtime/rt1_amd64_darwin.c    |  73 ++++++++++-
+ src/runtime/rt1_amd64_linux.c     | 235 ++++++++++++++++++++++++++++++++++-
+ src/runtime/runtime.c             | 118 ++++++++++++++----
+ src/runtime/runtime.h             |  61 ++++++++-
+ src/runtime/sys_amd64_darwin.s    |  12 +-
+ src/runtime/sys_amd64_linux.s     |  88 ++++++++++++-
+ src/syscall/syscall_amd64_linux.s |   4 +-
+ 13 files changed, 953 insertions(+), 200 deletions(-)

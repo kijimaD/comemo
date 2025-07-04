@@ -1,0 +1,48 @@
+commit 5b9ff11c3d50368c44ae7aa9cb4b58c67494e7bb
+Author: David Chase <drchase@google.com>
+Date:   Mon Aug 15 13:51:00 2016 -0700
+
+    cmd/compile: ppc64le working, not optimized enough
+    
+    This time with the cherry-pick from the proper patch of
+    the old CL.
+    
+    Stack size increased.
+    Corrected NaN-comparison glitches.
+    Marked g register as clobbered by calls.
+    Fixed shared libraries.
+    
+    live_ssa.go still disabled because of differences.
+    Presumably turning on more optimization will fix
+    both the stack size and the live_ssa.go glitches.
+    
+    Enhanced debugging output for shared libs test.
+    
+    Rebased onto master.
+    
+    Updates #16010.
+    
+    Change-Id: I40864faf1ef32c118fb141b7ef8e854498e6b2c4
+    Reviewed-on: https://go-review.googlesource.com/27159
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/testshared/shared_test.go           | 18 ++++++
+ src/cmd/compile/internal/gc/ssa.go           |  2 +-
+ src/cmd/compile/internal/ppc64/ssa.go        | 89 +++++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/config.go       |  1 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  9 +--
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  4 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 10 ++--
+ src/cmd/compile/internal/ssa/regalloc.go     |  8 +++
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 80 -------------------------
+ src/cmd/internal/obj/ppc64/a.out.go          | 10 ++--
+ src/cmd/internal/obj/ppc64/asm9.go           |  4 +-
+ src/cmd/internal/obj/stack.go                |  2 +-
+ src/runtime/stack.go                         |  2 +-
+ test/fixedbugs/issue15747.go                 |  2 +-
+ test/live.go                                 |  2 +-
+ test/nosplit.go                              |  4 +-
+ test/sliceopt.go                             |  2 +-
+ 17 files changed, 121 insertions(+), 128 deletions(-)

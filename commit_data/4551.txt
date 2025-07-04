@@ -1,0 +1,14 @@
+commit a551ffe809032cce094f10aa2fe5b94bb064f6a4
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Jan 6 19:28:19 2010 -0800
+
+    8g: float->uint64 conversion optimization
+    
+    Using FUCOMIP instead of the FUCOMP-FSTSW-SAHF sequence gives better performance and saves code space.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/183139
+
+ src/cmd/8g/gsubr.c | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)

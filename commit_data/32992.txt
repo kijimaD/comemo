@@ -1,0 +1,29 @@
+commit cf01e6f212cd2cae8c3595057ff739d942d18479
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 18 12:30:54 2016 -0400
+
+    cmd/compile: add test generator for control and data flow
+    
+    From a compact specification of control flow graphs,
+    generate complete set of possible assignment patterns to
+    output y, and also generate an interpretable specification.
+    Compiles (hoping for crash, or not) and then runs, where
+    the run checks function output against interpreted output
+    for various inputs observed to terminate in the interpreter.
+    
+    In ssa_test.go, added ability to generate a test and run
+    (compile and run) the generated test, possibly with
+    modified environment variables.  The generated test is
+    compiled including the -D=ssa/check/on flag, and if the
+    interpreter terminates in a small number of steps, then it
+    is also run to check the result.
+    
+    Change-Id: I392c828e36c543411b7733ca0799628452733276
+    Reviewed-on: https://go-review.googlesource.com/22751
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa_test.go            |  52 ++++
+ .../internal/gc/testdata/flowgraph_generator1.go   | 315 +++++++++++++++++++++
+ 2 files changed, 367 insertions(+)

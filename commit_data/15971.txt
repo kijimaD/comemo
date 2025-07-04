@@ -1,0 +1,14 @@
+commit e7fc9a5c570a3b8031dc7478c42c1c65cd70c719
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 27 14:32:51 2013 -0700
+
+    cmd/6l: fix OpenBSD build
+    
+    Avoid generating TLS relocations on OpenBSD.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7641055
+
+ src/cmd/6l/span.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

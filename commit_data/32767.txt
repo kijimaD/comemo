@@ -1,0 +1,25 @@
+commit cd0a5f08293e1bf1fac41ae6438d495318cd52fb
+Author: Samuel Tan <samueltan@google.com>
+Date:   Tue Sep 19 11:54:47 2017 -0700
+
+    html/template: prevent aliasing of parse Trees via AddParseTree
+    
+    Check all associated templates in the set for an existing reference
+    to the given Tree in AddParseTree before assigning that reference
+    to a new or existing template. This prevents multiple html/template
+    Templates from referencing and modifying the same underlying Tree.
+    
+    While there, fix a few existing unit tests so that they terminate
+    upon encountering unrecoverable failures.
+    
+    Fixes #21844
+    
+    Change-Id: I6b4f6996cf5467113ef94f7b91a6933dbbc21839
+    Reviewed-on: https://go-review.googlesource.com/64770
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/html/template/escape_test.go | 21 +++++++++++++++++----
+ src/html/template/template.go    |  5 +++++
+ 2 files changed, 22 insertions(+), 4 deletions(-)

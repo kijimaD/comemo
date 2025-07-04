@@ -1,0 +1,16 @@
+commit 8272c14f7e70fef1dd102e10936577d5156d649f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 3 09:11:25 2013 -0700
+
+    net/http: sniff less
+    
+    We were reading 1024 bytes but only using 512.
+    
+    Fixes #6311
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13289047
+
+ src/pkg/net/http/fs.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

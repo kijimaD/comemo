@@ -1,0 +1,23 @@
+commit 5616ab602566b0daa87dfd250a76c61960c4b634
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 30 14:41:49 2024 +0200
+
+    os: use filepathlite.VolumeName
+    
+    It is better to have a single implementation of VolumeName, which is
+    quite tricky to get right on Windows.
+    
+    Change-Id: Ibba82dd71fe10b594cb6f782582430aa422e7078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582499
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/file_windows.go |  4 ++--
+ src/os/path.go         |  3 ++-
+ src/os/path_plan9.go   |  4 ----
+ src/os/path_unix.go    |  4 ----
+ src/os/path_windows.go | 40 +---------------------------------------
+ 5 files changed, 5 insertions(+), 50 deletions(-)

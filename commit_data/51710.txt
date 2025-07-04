@@ -1,0 +1,43 @@
+commit 4b23068712399d206fd7168e4ced79bfb23363b3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 18 15:55:01 2023 -0800
+
+    types2: add *Config to typecheck functions for tests, factor more code
+    
+    Some tests in go/types can still not use the typecheck helper functions
+    because they need a specific fileset for position information.
+    
+    (We could use a single global file set for all tests to make this work.)
+    
+    Change-Id: I73552b08a00f08d809c319d3d2328acee9532619
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461694
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go        | 51 ++++++++++------------
+ src/cmd/compile/internal/types2/builtins_test.go   | 12 +----
+ src/cmd/compile/internal/types2/example_test.go    |  8 +---
+ src/cmd/compile/internal/types2/hilbert_test.go    |  2 +-
+ .../compile/internal/types2/instantiate_test.go    | 10 ++---
+ src/cmd/compile/internal/types2/issues_test.go     | 38 +++++++---------
+ src/cmd/compile/internal/types2/mono_test.go       |  4 +-
+ src/cmd/compile/internal/types2/named_test.go      |  2 +-
+ src/cmd/compile/internal/types2/object_test.go     |  4 +-
+ src/cmd/compile/internal/types2/sizes_test.go      |  8 +---
+ src/cmd/compile/internal/types2/typestring_test.go |  6 +--
+ src/go/types/api_test.go                           | 47 ++++++++++----------
+ src/go/types/builtins_test.go                      | 13 +-----
+ src/go/types/example_test.go                       |  2 +
+ src/go/types/hilbert_test.go                       |  2 +-
+ src/go/types/instantiate_test.go                   | 10 ++---
+ src/go/types/issues_test.go                        | 31 +++++++------
+ src/go/types/methodset_test.go                     |  2 +-
+ src/go/types/mono_test.go                          |  6 +--
+ src/go/types/named_test.go                         |  2 +-
+ src/go/types/object_test.go                        |  4 +-
+ src/go/types/sizes_test.go                         | 10 +----
+ src/go/types/typestring_test.go                    |  6 +--
+ 23 files changed, 115 insertions(+), 165 deletions(-)

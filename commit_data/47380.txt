@@ -1,0 +1,17 @@
+commit ec86bb52ba88ff18a88719ee0f9244315fa81154
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 9 18:40:38 2021 -0500
+
+    go/types: rename Checker.cycle to Checker.validCycle
+    
+    This is a clean port of CL 362336 to go/types.
+    
+    Change-Id: Iafeae7024fbb2872b07748affcea9676324ea59e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362755
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/decl.go | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)

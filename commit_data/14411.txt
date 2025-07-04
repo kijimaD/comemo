@@ -1,0 +1,12 @@
+commit 27087022cea3b9fec19c9fae206abd57bf880bd3
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Nov 15 21:30:24 2012 +0400
+
+    sync/atomic: fix race instrumentation
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6782075
+
+ src/pkg/sync/atomic/race.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

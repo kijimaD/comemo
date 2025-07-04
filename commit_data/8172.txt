@@ -1,0 +1,13 @@
+commit 22a2f42cefc81dc0296ca3a67a3966b99d032838
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 21 10:09:53 2011 -0400
+
+    A+C: Vincent Vanackere (individual CLA)
+    
+    R=golang-dev, brainman
+    CC=golang-dev
+    https://golang.org/cl/4437065
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

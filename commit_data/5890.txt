@@ -1,0 +1,18 @@
+commit f20c2e1cf5fa9e7bbb78f990e083d6e58864f179
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 26 17:34:17 2010 -0700
+
+    gc: more crash avoidance
+    
+    Fixes #961.
+    Fixes #962.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1903043
+
+ src/cmd/gc/const.c       |  6 ++++++
+ src/cmd/gc/typecheck.c   |  4 ++++
+ test/fixedbugs/bug297.go | 15 +++++++++++++++
+ test/fixedbugs/bug298.go | 11 +++++++++++
+ 4 files changed, 36 insertions(+)

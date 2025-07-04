@@ -1,0 +1,21 @@
+commit 55f8d56c31c7c940202c892e0e35d26930c6a8b0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 18:04:47 2020 +1000
+
+    runtime: add support for openbsd/mips64
+    
+    Update #40995
+    
+    Change-Id: Ie028dfd87ef8731804567a0501f1f7758e8dd203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250580
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/runtime/os_openbsd.go            |   6 +-
+ src/runtime/os_openbsd_mips64.go     |  12 ++
+ src/runtime/rt0_openbsd_mips64.s     |  36 ++++
+ src/runtime/signal_mips64x.go        |   2 +-
+ src/runtime/signal_openbsd_mips64.go |  78 +++++++
+ src/runtime/sys_openbsd_mips64.s     | 400 +++++++++++++++++++++++++++++++++++
+ 6 files changed, 532 insertions(+), 2 deletions(-)

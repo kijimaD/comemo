@@ -1,0 +1,37 @@
+commit 0d3a043de9b544ee3fca10fd1070a58f973161c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 30 00:01:07 2009 -0700
+
+    more 386 runtime - can run tiny c programs.
+    
+    R=r
+    DELTA=1926  (1727 added, 168 deleted, 31 changed)
+    OCL=26876
+    CL=26878
+
+ src/runtime/386/asm.s                  | 215 +++++++++
+ src/runtime/386/closure.c              | 101 +++++
+ src/runtime/386/traceback.c            | 149 +++++++
+ src/runtime/386/vlop.s                 |  48 ++
+ src/runtime/386/vlrt.c                 | 778 +++++++++++++++++++++++++++++++++
+ src/runtime/Makefile                   |  32 +-
+ src/runtime/amd64/asm.s                |   3 -
+ src/runtime/iface.c                    |   4 +-
+ src/runtime/linux/386/signal.c         | 102 +++++
+ src/runtime/linux/{ => amd64}/signal.c |   3 +-
+ src/runtime/linux/amd64/sys.s          |   8 -
+ src/runtime/linux/defs.c               |   2 -
+ src/runtime/linux/defs1.c              |   4 +-
+ src/runtime/linux/defs2.c              |  51 +++
+ src/runtime/malloc.c                   |  28 +-
+ src/runtime/malloc.h                   |   7 +-
+ src/runtime/mem.c                      |  12 +-
+ src/runtime/mgc0.c                     |   4 +-
+ src/runtime/mheapmap32.c               |  96 ++++
+ src/runtime/mheapmap32.h               |  76 ++++
+ src/runtime/print.c                    |  40 +-
+ src/runtime/proc.c                     |   6 +-
+ src/runtime/runtime.c                  |  16 +-
+ src/runtime/runtime.h                  |  11 +-
+ src/runtime/symtab.c                   |  16 +-
+ 25 files changed, 1720 insertions(+), 92 deletions(-)

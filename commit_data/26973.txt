@@ -1,0 +1,27 @@
+commit 2cdcb6f8296b6528bb7d256a45e339c4aefb9109
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 14 13:41:36 2016 -0400
+
+    runtime: scavenge memory on physical page-aligned boundaries
+    
+    Currently the scavenger marks memory unused in multiples of the
+    allocator page size (8K). This is safe as long as the true physical
+    page size is 4K (or 8K), as it is on many platforms. However, on
+    ARM64, PPC64x, and MIPS64, the physical page size is larger than 8K,
+    so if we attempt to mark memory unused, the kernel will round the
+    boundaries of the region *out* to all pages covered by the requested
+    region, and we'll release a larger region of memory than intended. As
+    a result, the scavenger is currently disabled on these platforms.
+    
+    Fix this by first rounding the region to be marked unused *in* to
+    multiples of the physical page size, so that when we ask the kernel to
+    mark it unused, it releases exactly the requested region.
+    
+    Fixes #9993.
+    
+    Change-Id: I96d5fdc2f77f9d69abadcea29bcfe55e68288cb1
+    Reviewed-on: https://go-review.googlesource.com/22066
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go | 34 ++++++++++++++++++++++------------
+ 1 file changed, 22 insertions(+), 12 deletions(-)

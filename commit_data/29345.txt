@@ -1,0 +1,15 @@
+commit 9efcdd4e694789646e7de79dfbd8c7636803785a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 23:01:20 2016 -0400
+
+    cmd/go: use new HTTP-only server insecure.go-get-issue-15410.appspot.com instead of wh3rd.net
+    
+    Fixes #15410.
+    
+    Change-Id: I9964d0162a3cae690afeb889b1822cf79c80b89a
+    Reviewed-on: https://go-review.googlesource.com/32639
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/go_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

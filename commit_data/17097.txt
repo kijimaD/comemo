@@ -1,0 +1,13 @@
+commit 8378804640942aa165b8d591b4287d4f4148e484
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 8 11:13:00 2013 -0700
+
+    os: fix windows and plan9 builds
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12519046
+
+ src/pkg/os/file.go      | 3 +++
+ src/pkg/os/file_unix.go | 3 ---
+ 2 files changed, 3 insertions(+), 3 deletions(-)

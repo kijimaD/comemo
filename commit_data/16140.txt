@@ -1,0 +1,14 @@
+commit 77a0b96f2f779717f801173aacd35f2b2041dd9e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Apr 9 11:14:22 2013 +1000
+
+    net: add test for runtime.PollDesc leak
+    
+    See 8318044
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8547043
+
+ src/pkg/net/dial_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

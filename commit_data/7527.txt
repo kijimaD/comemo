@@ -1,0 +1,14 @@
+commit 7f5acfb2835b096434bafa237c43b2d87d50ea71
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 23 07:47:53 2011 +1100
+
+    misc/dashboard/builder: talk to hg with utf-8 encoding always.
+    
+    Fixes #1465.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4172063
+
+ misc/dashboard/builder/hg.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

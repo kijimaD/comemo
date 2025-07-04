@@ -1,0 +1,21 @@
+commit 58b05e24482fc206c9473b01dd06c59464cc0b2b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Aug 30 09:37:22 2011 +1000
+
+    goinstall: select the tag that is closest to runtime.Version
+    
+    release.r50 looks for newest tag <= go.r50
+    weekly.2010-10-10 looks for newest tag <= go.2010-10-10
+    
+    Implements behavior for hg, git, and bzr.
+    
+    R=dsymonds, rsc, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/4873057
+
+ src/cmd/goinstall/Makefile    |   6 ++
+ src/cmd/goinstall/doc.go      |   7 +-
+ src/cmd/goinstall/download.go | 223 ++++++++++++++++++++++++++----------------
+ src/cmd/goinstall/tag_test.go |  73 ++++++++++++++
+ src/pkg/Makefile              |   1 -
+ 5 files changed, 224 insertions(+), 86 deletions(-)

@@ -1,0 +1,12 @@
+commit 67148530d2def7ba8f0a1700b19a488dec652366
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Mar 17 11:40:05 2010 +1100
+
+    goinstall doc: fix link to godashboard/package
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/607041
+
+ src/cmd/goinstall/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

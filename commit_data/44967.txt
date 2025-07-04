@@ -1,0 +1,21 @@
+commit b345a306a0258085b65081cf2dadc238dc7e26ee
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 5 20:41:56 2021 -0400
+
+    cmd/compile: when GOSSAFUNC is set, dump the current pass on crash
+    
+    When an SSA pass ICEs, it calls f.Fatalf, which terminates the
+    compiler. When GOSSAFUNC is set, the current pass is not written
+    to ssa.html. This CL makes it write ssa.html when it calls Fatalf,
+    for the ease of debugging.
+    
+    Change-Id: I5d55e4258f0693d89c48c0a84984f2f893b0811d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307509
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/func.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

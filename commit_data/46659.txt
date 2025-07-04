@@ -1,0 +1,20 @@
+commit aeb4fbabc0aaa5293dd34821c450855e9ff82230
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 28 14:35:03 2021 -0400
+
+    runtime: drop nowritebarrier from gcParkAssist
+    
+    Nothing in this function is at odds with having write barriers. It
+    originally inherited the annotation from gcAssistAlloc
+    http://golang.org/cl/30700, which subsequently dropped the annotation in
+    http://golang.org/cl/32431 as it was unnecessary.
+    
+    Change-Id: Ie464e6b4ed957f57e922ec043728ff4e15bf35ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352811
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcmark.go | 2 --
+ 1 file changed, 2 deletions(-)

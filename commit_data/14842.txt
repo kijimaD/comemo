@@ -1,0 +1,12 @@
+commit ecb75486f80e320dc0a06dd85c1b83a3daf293f4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 9 15:22:48 2013 -0800
+
+    container/list: avoid memory leaks
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/7065067
+
+ src/pkg/container/list/list.go | 2 ++
+ 1 file changed, 2 insertions(+)

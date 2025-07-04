@@ -1,0 +1,29 @@
+commit 43001a0dc96a29f662f2782c5fb3ca998eadd623
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Apr 10 16:44:46 2019 -0700
+
+    cmd/compile: use correct package name for stack object symbol
+    
+    Stack object generation code was always using the local package name
+    for its symbol. Normally that doesn't matter, as we usually only
+    compile functions in the local package. But for wrappers, the compiler
+    generates functions which live in other packages. When there are two
+    other packages with identical functions to wrap, the same name appears
+    twice, and the compiler goes boom.
+    
+    Fixes #31252
+    
+    Change-Id: I7026eebabe562cb159b8b6046cf656afd336ba25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171464
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/obj.go    |  2 +-
+ src/cmd/compile/internal/gc/pgen.go   |  2 +-
+ test/fixedbugs/issue31252.dir/a.go    | 13 +++++++++++++
+ test/fixedbugs/issue31252.dir/b.go    | 13 +++++++++++++
+ test/fixedbugs/issue31252.dir/c.go    | 26 ++++++++++++++++++++++++++
+ test/fixedbugs/issue31252.dir/main.go | 11 +++++++++++
+ test/fixedbugs/issue31252.go          |  7 +++++++
+ 7 files changed, 72 insertions(+), 2 deletions(-)

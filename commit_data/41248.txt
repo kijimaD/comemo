@@ -1,0 +1,15 @@
+commit c7c525a79d224382ff59e238dbf1d129f26e9e2f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 10 15:46:34 2020 -0500
+
+    doc: add section on module paths to module documentation
+    
+    Updates #33637
+    
+    Change-Id: I2197b20c2da2a5f57aacd40cc14611c5e6e25c5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214377
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+
+ doc/modules.md | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

@@ -1,0 +1,12 @@
+commit 6e7629874424faa5491c74e20617df28db1f4ba8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 19 12:07:24 2010 +1000
+
+    fmt: add sentence about return values to docs for Printf etc.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/1952045
+
+ src/pkg/fmt/print.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

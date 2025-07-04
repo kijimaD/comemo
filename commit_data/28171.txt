@@ -1,0 +1,15 @@
+commit 809bb3a71c2cdceb93c349888b186787589d5ec7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Sep 1 12:23:43 2016 -0700
+
+    cmd/compile: fix missing format verb
+    
+    Found by vet.
+    
+    Change-Id: I50420771678b1a3695348ce1a81f410479ed09a1
+    Reviewed-on: https://go-review.googlesource.com/28394
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

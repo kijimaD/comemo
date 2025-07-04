@@ -1,0 +1,14 @@
+commit 81be9155b69ff50dd9e8bbb91f0ff12a18edabfa
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 19 14:00:39 2009 -0700
+
+    test non-trivial conversions and assignments,
+    named and unnamed.
+    
+    R=r
+    DELTA=21  (21 added, 0 deleted, 0 changed)
+    OCL=30518
+    CL=30533
+
+ test/convert3.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

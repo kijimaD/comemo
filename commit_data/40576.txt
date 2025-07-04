@@ -1,0 +1,27 @@
+commit ea0b4e7c7db8c5d376e77fd3e6741d94685073ac
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Oct 28 15:30:35 2019 -0700
+
+    cmd/compile, runtime: add comparison tracing for libFuzzer
+    
+    This CL extends cmd/compile's experimental libFuzzer support with
+    calls to __sanitizer_cov_trace_{,const_}cmp{1,2,4,8}. This allows much
+    more efficient fuzzing of comparisons.
+    
+    Only supports amd64 and arm64 for now.
+    
+    Updates #14565.
+    
+    Change-Id: Ibf82a8d9658f2bc50d955bdb1ae26723a3f0584d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203887
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 16 +++++-
+ src/cmd/compile/internal/gc/builtin/runtime.go |  9 ++++
+ src/cmd/compile/internal/gc/walk.go            | 55 +++++++++++++++++++
+ src/runtime/libfuzzer.go                       | 75 ++++++++++++++++++++++++++
+ src/runtime/libfuzzer_amd64.s                  | 42 +++++++++++++++
+ src/runtime/libfuzzer_arm64.s                  | 31 +++++++++++
+ 6 files changed, 227 insertions(+), 1 deletion(-)

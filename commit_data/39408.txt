@@ -1,0 +1,32 @@
+commit 8456b07099a89bab05e60ba1df8e6572c3c6bd81
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Jun 2 00:51:46 2019 +0200
+
+    cmd/go/internal/imports: match solaris files for illumos
+    
+    Like the android/linux pair, match files with GOOS=solaris if
+    GOOS=illumos
+    
+    Follow-up for CL 174457
+    
+    Fixes #32370
+    Updates #20603
+    
+    Change-Id: Id01de8bb3990d7bbb22f735a4abed2b3cf8b4062
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179997
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/imports/build.go                            | 7 ++++++-
+ src/cmd/go/internal/imports/testdata/illumos/a_illumos.go       | 3 +++
+ src/cmd/go/internal/imports/testdata/illumos/b_illumos_amd64.go | 3 +++
+ src/cmd/go/internal/imports/testdata/illumos/c_solaris.go       | 3 +++
+ src/cmd/go/internal/imports/testdata/illumos/d_solaris_amd64.go | 3 +++
+ src/cmd/go/internal/imports/testdata/illumos/e.go               | 5 +++++
+ src/cmd/go/internal/imports/testdata/illumos/f.go               | 5 +++++
+ src/cmd/go/internal/imports/testdata/illumos/g.go               | 5 +++++
+ src/cmd/go/internal/imports/testdata/illumos/tags.txt           | 1 +
+ src/cmd/go/internal/imports/testdata/illumos/want.txt           | 6 ++++++
+ 10 files changed, 40 insertions(+), 1 deletion(-)

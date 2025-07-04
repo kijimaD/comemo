@@ -1,0 +1,12 @@
+commit 9497e5e2f0b02117e11c0428379c1016890b0579
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 8 11:06:38 2013 -0700
+
+    cmd/api: update run.go to fetch from go.tools when needed
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/12639043
+
+ src/cmd/api/run.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 53 insertions(+), 1 deletion(-)

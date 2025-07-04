@@ -1,0 +1,24 @@
+commit fe70866d1dc8c44ab19180ecab2b5c5b8628265a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jul 15 18:56:39 2020 +0000
+
+    runtime: throw on zero-sized range passed to addrRanges.add
+    
+    addrRanges represents a set of addresses. Currently, passing in a
+    zero-sized range will cause that range to be added to the list, even
+    though it doesn't represent any address (addrRanges.contains will still
+    always return false, and findSucc will give surprising results).
+    
+    We could ignore this input, but it's almost always a bug for the calling
+    code to pass in a zero-sized range, so just throw.
+    
+    Change-Id: I8ed09e15b79a3a33e2d0cf5ed55f9e497388e7a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/242817
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mranges.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

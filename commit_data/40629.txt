@@ -1,0 +1,14 @@
+commit e3a7d6c29757fd81c753b0e6267936c839e972c3
+Author: Benjamin Peterson <benjamin@python.org>
+Date:   Wed Nov 6 17:54:32 2019 +0000
+
+    os: fix reference to nonexistent errors.Wrapper
+    
+    Change-Id: I857d39486cbddbbee0c00fd45eb77f21488f4806
+    GitHub-Last-Rev: 1b500183cfebadffb4c183e56850bfb794a11703
+    GitHub-Pull-Request: golang/go#35399
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205602
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/os/error.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

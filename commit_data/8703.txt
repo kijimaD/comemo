@@ -1,0 +1,15 @@
+commit 8834bb0bfa7cbbfeb9df0c6d1fa2296e24a431d5
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Jun 13 13:04:59 2011 -0400
+
+    crypto/openpgp: flesh out Encrypt by adding support for signing.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4572059
+
+ src/pkg/crypto/openpgp/keys.go                     |   2 +-
+ .../crypto/openpgp/packet/one_pass_signature.go    |  27 +++++-
+ src/pkg/crypto/openpgp/write.go                    | 104 +++++++++++++++++++--
+ src/pkg/crypto/openpgp/write_test.go               |  36 ++++++-
+ 4 files changed, 158 insertions(+), 11 deletions(-)

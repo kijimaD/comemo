@@ -1,0 +1,18 @@
+commit 67d6a510653c8dcb2e2a4eca5a0e7caf4fe38677
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 14 16:07:05 2022 -0500
+
+    net: in TestNotTemporaryRead, reject io.EOF on platforms other than plan9
+    
+    Updates #29685
+    
+    Change-Id: Id8dca078213942666871ac8ded663326e98427fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385754
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/net_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

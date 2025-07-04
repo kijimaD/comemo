@@ -1,0 +1,16 @@
+commit fe7b29f5fd5be75484ce7ea89c2b63d96f9baa14
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 13 01:02:01 2014 +0400
+
+    runtime/pprof: fix data race
+    It's unclear why we do this broken double-checked locking.
+    The mutex is not held for the whole duration of CPU profiling.
+    Fixes #8365.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/116290043
+
+ src/pkg/runtime/pprof/pprof.go | 6 ------
+ 1 file changed, 6 deletions(-)

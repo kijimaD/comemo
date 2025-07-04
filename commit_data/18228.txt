@@ -1,0 +1,16 @@
+commit 9c4303397756b2217971465c6b2f54bbefeed37a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 13 13:52:06 2014 -0800
+
+    net/http: clarify semantics of File methods
+    
+    There were no docs explaining the meaning of Readdir's count
+    argument, for instance. Clarify that these mean the same as
+    the methods on *os.File.
+    
+    R=golang-codereviews, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/51630043
+
+ src/pkg/net/http/fs.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

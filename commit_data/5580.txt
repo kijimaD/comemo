@@ -1,0 +1,13 @@
+commit fbff95bd9745209e5b8edd81e93dfda11b9f357d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 1 11:55:55 2010 -0700
+
+    Add Vinu Rajashekhar <vinutheraj@gmail.com> as a contributor.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1454041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

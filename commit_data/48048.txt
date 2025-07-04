@@ -1,0 +1,26 @@
+commit 93fe469de5388b71af2aa2c959dc485fa3d4bee3
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Sun Jan 30 11:21:28 2022 -0800
+
+    internal/fuzz: properly handle duplicates during cache loading
+    
+    When loading the corpus, if the cache contained an entry which was a
+    duplicate of an entry added using f.Add, coordinator.addCorpusEntries
+    would return early, ignoring everything after this entry in the cache.
+    
+    Instead, skip duplicates as intended, and continue to load the rest of
+    the cache.
+    
+    Fixes #50913
+    
+    Change-Id: I3a64b93cbb217c5c364a9f8d0005752e9e9d10ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381960
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_dup_cache.txt | 52 ++++++++++++++++++++++
+ src/internal/fuzz/fuzz.go                          | 20 ++++++---
+ 2 files changed, 67 insertions(+), 5 deletions(-)

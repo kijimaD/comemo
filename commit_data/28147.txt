@@ -1,0 +1,14 @@
+commit 3968ac2caf4b7bbabcad6504ab5e3589fc525b1e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Aug 31 09:54:00 2016 +1000
+
+    cmd/compile/internal/gc: clean up closure.go
+    
+    Change-Id: I01bfab595c50582c5adf958dcecbd58524dbc28f
+    Reviewed-on: https://go-review.googlesource.com/28212
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 43 +++++++++++++---------------------
+ 1 file changed, 16 insertions(+), 27 deletions(-)

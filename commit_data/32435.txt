@@ -1,0 +1,28 @@
+commit f04d5836181dec3ec1b7e427607f02fa7a204a2d
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jun 5 10:37:37 2017 +0200
+
+    testing: parallelize tests over count
+    
+    Currently all package tests are executed once
+    with Parallel tests executed in parallel.
+    Then this process is repeated count*cpu times.
+    Tests are not parallelized over count*cpu.
+    Parallelizing over cpu is not possible as
+    GOMAXPROCS is a global setting. But it is
+    possible for count.
+    
+    Parallelize over count.
+    
+    Brings down testing of my package with -count=100
+    form 10s to 0.3s.
+    
+    Change-Id: I76d8322adeb8c5c6e70b99af690291fd69d6402a
+    Reviewed-on: https://go-review.googlesource.com/44830
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/benchmark.go | 76 +++++++++++++++++++++++++-----------------------
+ src/testing/testing.go   | 50 +++++++++++++++----------------
+ 2 files changed, 63 insertions(+), 63 deletions(-)

@@ -1,0 +1,21 @@
+commit 3112bb0727d95d4f6765d808453c363c8d9f43ec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 19 09:39:35 2010 -0700
+
+    go/ast, gofmt: facility for printing AST nodes
+    
+    go/ast: implement Fprint and print functions to
+    print AST nodes
+    
+    gofmt: print AST nodes by setting -ast flag
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1981044
+
+ src/cmd/gofmt/doc.go      |   2 +
+ src/cmd/gofmt/gofmt.go    |   5 ++
+ src/pkg/go/ast/Makefile   |   1 +
+ src/pkg/go/ast/print.go   | 197 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/token/token.go |   2 +-
+ 5 files changed, 206 insertions(+), 1 deletion(-)

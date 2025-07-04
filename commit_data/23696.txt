@@ -1,0 +1,15 @@
+commit d000e8742a173aa0659584aa01b7ba2834ba28ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 23:48:34 2015 -0400
+
+    os/exec: document that Cmd.Wait waits for stdin I/O
+    
+    Fixes #10338.
+    
+    Change-Id: Ib86cb9a6c694b1e442a9957153c7ca38a7d11c3e
+    Reviewed-on: https://go-review.googlesource.com/12232
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec.go | 4 ++++
+ 1 file changed, 4 insertions(+)

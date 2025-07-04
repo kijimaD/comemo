@@ -1,0 +1,18 @@
+commit 184eb0ac9e521715037094860089d756f214668f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 28 19:52:06 2015 -0500
+
+    cmd/cc: delete lexbody, macbody
+    
+    These files were left behind for the C implementation of the assemblers.
+    They're no longer needed.
+    
+    This is the last of the cmd/cc directory.
+    
+    Change-Id: I9231b23c27fead5695000097aeb694824747677d
+    Reviewed-on: https://go-review.googlesource.com/6367
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/cc/lexbody | 736 ------------------------------------------------
+ src/cmd/cc/macbody | 800 -----------------------------------------------------
+ 2 files changed, 1536 deletions(-)

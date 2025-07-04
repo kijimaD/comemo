@@ -1,0 +1,16 @@
+commit 44c72957d6ea071bf3bef7460c88319b5c283b8b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 9 17:14:34 2018 -0400
+
+    cmd/go/internal/mvs: document that BuildList is sorted
+    
+    Updates #28102
+    
+    Change-Id: Iee1ff64c7720108d6d26bfbff60ea51877093960
+    Reviewed-on: https://go-review.googlesource.com/c/140862
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/mvs/mvs.go | 1 +
+ 1 file changed, 1 insertion(+)

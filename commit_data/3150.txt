@@ -1,0 +1,14 @@
+commit 5a40a682e38d9841d7b362498911abdbeacbd674
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 31 13:13:04 2009 -0700
+
+    simplified heuristic for associating const/var decls with types
+    (per suggestion from rsc)
+    
+    R=rsc
+    DELTA=24  (3 added, 9 deleted, 12 changed)
+    OCL=34121
+    CL=34130
+
+ src/pkg/go/doc/doc.go | 36 +++++++++++++++---------------------
+ 1 file changed, 15 insertions(+), 21 deletions(-)

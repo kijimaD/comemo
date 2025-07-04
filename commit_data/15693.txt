@@ -1,0 +1,18 @@
+commit d74d0b269de395aa4be7a7bc04fda23cde9ce34f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 11 13:38:59 2013 -0700
+
+    cmd/godoc: only show package documentation for commands
+    
+    Fixed package.txt and adjusted package.html to match
+    structure (swapped if branches).
+    
+    Fixes #4861.
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/7714043
+
+ lib/godoc/package.html |  8 +++++---
+ lib/godoc/package.txt  | 11 ++++++-----
+ 2 files changed, 11 insertions(+), 8 deletions(-)

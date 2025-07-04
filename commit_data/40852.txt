@@ -1,0 +1,16 @@
+commit b003539a167e266fe086fc5682d50f6463130648
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Nov 11 18:27:49 2019 -0500
+
+    doc: add sections for modules, packages, versions to module reference
+    
+    Updates #33637
+    
+    Change-Id: I3a0d05551d5a680febf742b912a5a6e5af753a6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206617
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tyler Bui-Palsulich <tbp@google.com>
+
+ doc/modules.md | 72 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 72 insertions(+)

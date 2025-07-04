@@ -1,0 +1,23 @@
+commit b001ffb864ce5486c6edbe98202d3e0687313ce2
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Jul 8 01:05:18 2018 +0200
+
+    runtime: fix TestAbort on Plan 9
+    
+    Since CL 122515, TestAbort is failing on Plan 9
+    because there is no SIGTRAP signal on Plan 9,
+    but a note containing the "sys: breakpoint" string.
+    
+    This change fixes the TestAbort test by handling
+    the Plan 9 case.
+    
+    Fixes #26265.
+    
+    Change-Id: I2fae00130bcee1cf946d8cc9d147a77f951be390
+    Reviewed-on: https://go-review.googlesource.com/122464
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/crash_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

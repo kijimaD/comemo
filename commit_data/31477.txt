@@ -1,0 +1,29 @@
+commit f504bc00554d6ad05bd81c0a36babb735feeb37e
+Author: Filip Gruszczyński <gruszczy@gmail.com>
+Date:   Sun Apr 9 10:44:39 2017 -0700
+
+    encoding/gob: use MakeMapWithSize when decoding map
+    
+    This allows to pre-allocate the final size of the hashmap and avoid
+    re-allocating as we insert entries. Furthermore for the current
+    implementation of the hashmap it allows avoiding several rounds of
+    evacuating hashmap entries after each re-allocation.
+    
+    DecodeComplex128Slice-8  51.9µs ± 1%  51.9µs ± 2%     ~     (p=0.797 n=30+29)
+    DecodeFloat64Slice-8     31.5µs ± 2%  31.6µs ± 2%     ~     (p=0.050 n=28+28)
+    DecodeInt32Slice-8       32.0µs ± 2%  31.9µs ± 3%     ~     (p=0.666 n=29+28)
+    DecodeStringSlice-8      57.7µs ± 2%  57.8µs ± 3%     ~     (p=0.780 n=27+30)
+    DecodeInterfaceSlice-8    498µs ± 2%   495µs ± 2%     ~     (p=0.070 n=28+29)
+    DecodeMap-8               300µs ± 2%   230µs ± 5%  -23.31%  (p=0.000 n=27+27)
+    
+    Updates #19525
+    
+    Change-Id: Ia7233da49f05bae7a86c064d9ecebca966f5f2f7
+    Reviewed-on: https://go-review.googlesource.com/40113
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/gob/decode.go      | 5 ++---
+ src/encoding/gob/timing_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 5 deletions(-)

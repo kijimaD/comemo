@@ -1,0 +1,14 @@
+commit 8dbd9d746d9dc8a03bdbc77eb9db23c6a46e054d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 13:29:22 2012 -0500
+
+    encoding/json: document that nil slice encodes as `null`
+    
+    Fixes #3189.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5730058
+
+ src/pkg/encoding/json/encode.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

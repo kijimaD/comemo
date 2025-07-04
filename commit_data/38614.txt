@@ -1,0 +1,85 @@
+commit 4091cf972a37418c847426bd15709cd0128fad81
+Author: Segev Finer <segev208@gmail.com>
+Date:   Fri Mar 29 09:35:06 2019 +0000
+
+    cmd/doc: correctly indent pre-formatted blocks
+    
+    They were previously indented at the same level as the normal text when
+    printing a single symbol or the description of a field.
+    
+    Running "go doc text/template Must":
+    Before:
+        func Must(t *Template, err error) *Template
+            Must is a helper that wraps a call to a function returning (*Template,
+            error) and panics if the error is non-nil. It is intended for use in
+            variable initializations such as
+    
+            var t = template.Must(template.New("name").Parse("text"))
+    
+    After:
+        func Must(t *Template, err error) *Template
+            Must is a helper that wraps a call to a function returning (*Template,
+            error) and panics if the error is non-nil. It is intended for use in
+            variable initializations such as
+    
+                var t = template.Must(template.New("name").Parse("text"))
+    
+    Running "go doc http Request.Header":
+    Before:
+        type Request struct {
+            // Header contains the request header fields either received
+            // by the server or to be sent by the client.
+            //
+            // If a server received a request with header lines,
+            //
+            // Host: example.com
+            // accept-encoding: gzip, deflate
+            // Accept-Language: en-us
+            // fOO: Bar
+            // foo: two
+            //
+            // then
+            //
+            // Header = map[string][]string{
+            // "Accept-Encoding": {"gzip, deflate"},
+            // "Accept-Language": {"en-us"},
+            // "Foo": {"Bar", "two"},
+            // }
+            ...
+    
+    After:
+        type Request struct {
+            // Header contains the request header fields either received by the server or
+            // to be sent by the client.
+            //
+            // If a server received a request with header lines,
+            //
+            //     Host: example.com
+            //     accept-encoding: gzip, deflate
+            //     Accept-Language: en-us
+            //     fOO: Bar
+            //     foo: two
+            //
+            // then
+            //
+            //     Header = map[string][]string{
+            //          "Accept-Encoding": {"gzip, deflate"},
+            //          "Accept-Language": {"en-us"},
+            //          "Foo": {"Bar", "two"},
+            //     }
+            ...
+    
+    Fixes #29708
+    
+    Change-Id: Ibe1a6a7a76d6b19c5737ba6e8210e3ad0b88ce16
+    GitHub-Last-Rev: 439c0fe70a01490cbd9c3613eba3fe45a3ffd9be
+    GitHub-Pull-Request: golang/go#31120
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169957
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/doc/doc_test.go     | 31 +++++++++++++++++++++++++++++++
+ src/cmd/doc/pkg.go          | 12 +++++++++---
+ src/cmd/doc/testdata/pkg.go | 22 ++++++++++++++++++++++
+ 3 files changed, 62 insertions(+), 3 deletions(-)

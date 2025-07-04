@@ -1,0 +1,13 @@
+commit 526d0818cca60a021e8c3c5ca34f7ed7d43f61ae
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Oct 19 18:26:08 2011 -0200
+
+    fmt: don't panic formatting nil interfaces
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5296044
+
+ src/pkg/fmt/fmt_test.go | 5 +++++
+ src/pkg/fmt/print.go    | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

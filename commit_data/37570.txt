@@ -1,0 +1,17 @@
+commit f91fd4f9da04f7675e5ef7dee2c70ae5059f5eed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 3 15:45:10 2018 -0800
+
+    os: increase default write size for TestClosedPipeRaceWrite
+    
+    The original value of 65537 consistently caused the test to fail on
+    Solaris. The new value of 131073 consistently lets the test pass.
+    
+    Change-Id: If1a76ab89aa8f661ea049113addd04b23a116534
+    Reviewed-on: https://go-review.googlesource.com/c/152164
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/pipe_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

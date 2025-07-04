@@ -1,0 +1,14 @@
+commit 8203a4cb9df0781f3eed79285290d99db8fc0783
+Author: Rob Pike <r@golang.org>
+Date:   Thu May 14 16:45:24 2009 -0700
+
+    Getuid etc.
+    
+    R=rsc
+    DELTA=51  (49 added, 0 deleted, 2 changed)
+    OCL=28859
+    CL=28859
+
+ src/lib/os/Makefile |  5 +++--
+ src/lib/os/user.go  | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+), 2 deletions(-)

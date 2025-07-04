@@ -1,0 +1,27 @@
+commit baf3eb1625d64d42d7eacd7d29ad6d1e682553a0
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 5 16:21:44 2018 +1100
+
+    cmd/doc: make local dot-slash path names work
+    
+    Before, an argument that started ./ or ../ was not treated as
+    a package relative to the current directory. Thus
+    
+            $ cd $GOROOT/src/text
+            $ go doc ./template
+    
+    could find html/template as $GOROOT/src/html/./template
+    is a valid Go source directory.
+    
+    Fix this by catching such paths and making them absolute before
+    processing.
+    
+    Fixes #23383.
+    
+    Change-Id: Ic2a92eaa3a6328f728635657f9de72ac3ee82afb
+    Reviewed-on: https://go-review.googlesource.com/98396
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/doc/doc_test.go | 67 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/doc/main.go     | 44 +++++++++++++++++++++++++++-----
+ 2 files changed, 105 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit 9fc84363d1c317fd8d8f963de3bb10f8a8df05ac
+Author: eric fang <eric.fang@arm.com>
+Date:   Tue Jun 13 10:02:33 2023 +0000
+
+    cmd/asm: fix encoding errors for FMOVD and FMOVS instructions on arm64
+    
+    The encoding of instructions "FMOVD F1, ZR" and "FMOVS F1, ZR" is wrong,
+    the assembler encodes them as "FMOVD F1, F31" and "FMOVS F1, F31". This
+    CL fixes the bug.
+    
+    Change-Id: I2d31520b58f9950ce2534a04f4a3275bf103a673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/503135
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s | 2 ++
+ src/cmd/internal/obj/arm64/asm7.go        | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

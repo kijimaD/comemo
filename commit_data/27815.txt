@@ -1,0 +1,22 @@
+commit a9ed47735f2948d7391c8a663ededeb495f7753f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 1 10:15:02 2016 -0700
+
+    cmd/compile: move auto label gen variables to local function
+    
+    This still depends on Curfn, but it's progress.
+    
+    Updates #15756
+    
+    Change-Id: Ic32fe56f44fcfbc023e7668d4dee07f8b47bf3a4
+    Reviewed-on: https://go-review.googlesource.com/26661
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go         | 13 +++----------
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go        | 14 ++++++++++++++
+ src/cmd/compile/internal/gc/swt.go         | 19 +++----------------
+ src/cmd/compile/internal/gc/syntax.go      |  2 ++
+ 5 files changed, 23 insertions(+), 27 deletions(-)

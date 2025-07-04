@@ -1,0 +1,16 @@
+commit ae05f00b46bee5e1ec1cc56822badebd4576f610
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 20 19:32:36 2009 -0800
+
+    update tutorial for new export scheme
+    
+    R=ken,rsc
+    DELTA=101  (9 added, 0 deleted, 92 changed)
+    OCL=23174
+    CL=23188
+
+ doc/go_tutorial.txt    | 143 ++++++++++++++++++++++++++-----------------------
+ doc/progs/cat_rot13.go |   2 +-
+ doc/progs/server.go    |  16 +++---
+ doc/progs/sieve.go     |   4 +-
+ 4 files changed, 87 insertions(+), 78 deletions(-)

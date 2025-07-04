@@ -1,0 +1,18 @@
+commit fce911861029bf62fde90fee5628159290dfbf92
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 29 12:03:06 2008 -0700
+
+    - handling of pointer forward decls
+    - some comments added to bug cases
+    - added notes
+    
+    R=r
+    OCL=13543
+    CL=13543
+
+ test/bugs/bug041.go      |   8 +++
+ test/bugs/bug042.go      |   8 +++
+ usr/gri/gosrc/export.go  |  10 +--
+ usr/gri/gosrc/globals.go |   4 +-
+ usr/gri/gosrc/parser.go  | 165 +++++++++++++++++++++++++++--------------------
+ 5 files changed, 117 insertions(+), 78 deletions(-)

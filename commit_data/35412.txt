@@ -1,0 +1,17 @@
+commit 226651a541286726df30ff067d519f4efd57cec7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 17 23:21:29 2018 -0400
+
+    cmd/go: don't pass -compiler flag to vet
+    
+    Without this running go vet -compiler=gccgo causes vet to fail.
+    The vet tool does need to know the compiler, but it is passed in
+    vetConfig.Compiler.
+    
+    Change-Id: If857be4f336f6d7c425972fabcf82fae2cdc8a90
+    Reviewed-on: https://go-review.googlesource.com/113715
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/vet/vetflag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit a8098cbcfd7772911f761e787f656f6e685c105e
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 23 15:39:02 2012 +1000
+
+    text/template: detect unexported fields better
+    Moves the error detection back into execution, where it used to be,
+    and improves the error message.
+    Rolls back most of 6009048, which broke lower-case keys in maps.
+    If it weren't for maps we could detect this at compile time rather than
+    execution time.
+    
+    Fixes #3542.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6098051
+
+ src/pkg/text/template/exec.go             | 27 +++++++++++++++++++--------
+ src/pkg/text/template/exec_test.go        |  5 +++++
+ src/pkg/text/template/parse/parse.go      | 10 ----------
+ src/pkg/text/template/parse/parse_test.go |  1 -
+ 4 files changed, 24 insertions(+), 19 deletions(-)

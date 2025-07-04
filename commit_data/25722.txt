@@ -1,0 +1,20 @@
+commit 39304eb69d7f6117e60630452c0e037dbb555f5e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 5 09:43:46 2016 +1100
+
+    doc: rewrite references to plan9.bell-labs.com to 9p.io
+    
+    The plan9.bell-labs.com site has fallen into disrepair.
+    We'll instead use the site maintained by contributor David du Colombier.
+    
+    Fixes #14233
+    
+    Change-Id: I0c702e5d3b091cccd42b288ea32f34d507a4733d
+    Reviewed-on: https://go-review.googlesource.com/19240
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ doc/asm.html              | 4 ++--
+ doc/codewalk/codewalk.xml | 2 +-
+ doc/go_faq.html           | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

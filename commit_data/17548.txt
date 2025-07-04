@@ -1,0 +1,21 @@
+commit 71ed6eb25ac970c4641a1cafb74d9d6574fa28be
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 09:56:38 2013 -0400
+
+    misc/cgo/test: test of issue 4339
+    
+    This is not quite what that issue reports,
+    because this does not involve a DLL.
+    But I wanted to make sure this much was working.
+    
+    Update #4339
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/13653043
+
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue4339.c  | 18 ++++++++++++++++++
+ misc/cgo/test/issue4339.go | 16 ++++++++++++++++
+ misc/cgo/test/issue4339.h  |  9 +++++++++
+ 4 files changed, 44 insertions(+)

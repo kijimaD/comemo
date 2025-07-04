@@ -1,0 +1,14 @@
+commit edcc8f9ef1128e0cb70131b4d6f6a06023be5ce8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 29 17:30:56 2015 -0700
+
+    cmd/dist: rename buildmode method to supportedBuildmode
+    
+    Change-Id: Ie36fd46ad3c0799200fdf4240483a207335570d8
+    Reviewed-on: https://go-review.googlesource.com/9531
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

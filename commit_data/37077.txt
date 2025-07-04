@@ -1,0 +1,20 @@
+commit 642792350ccd148da7b3e8a0e4e69341b222ab34
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 23 10:03:59 2018 +0200
+
+    runtime: remove unused maxSliceCap function and maxElems array
+    
+    All uses of these have been converted to use runtime/internal/math
+    functions for overflow checking.
+    
+    Fixes #21588
+    
+    Change-Id: I0ba57028e471803dc7d445e66d77a8f87edfdafb
+    Reviewed-on: https://go-review.googlesource.com/c/144037
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go |  1 -
+ src/runtime/slice.go                    | 22 ----------------------
+ 2 files changed, 23 deletions(-)

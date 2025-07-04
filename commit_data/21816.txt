@@ -1,0 +1,17 @@
+commit 3ee9df799fc76e06b216248735e530dd4e1dc504
+Author: Rob Pike <r@golang.org>
+Date:   Sun Mar 1 08:56:25 2015 -0800
+
+    fmt: document existing behavior of nil receivers
+    
+    If a method called by fmt triggers a panic, the output usually says
+    so. However, there is heretofore undocumented special treatment for
+    a panic caused by formatting a nil value with an Error or String
+    method: the output is simply "<nil>". Document that behavior.
+    
+    Change-Id: Id0f79dd0b3487f9d1c74a0856727bba5cc342be4
+    Reviewed-on: https://go-review.googlesource.com/6410
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/fmt/doc.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 8ce5f6e14a4a94f9ccc784354f900b6b0309b737
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Sep 22 13:13:23 2009 -0700
+
+    fix bad code generation.
+    
+    go/test: passes 64% (215/337) tests
+    
+    metric updated, had total number of tests wrong. number of
+    failing tests is down from 129 to 122.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=228  (12 added, 5 deleted, 211 changed)
+    OCL=34897
+    CL=34899
+
+ src/cmd/5g/cgen.c  |   5 -
+ src/cmd/5g/gsubr.c |  10 +-
+ test/arm-pass.txt  | 422 +++++++++++++++++++++++++++--------------------------
+ test/run-arm       |   2 +-
+ 4 files changed, 223 insertions(+), 216 deletions(-)

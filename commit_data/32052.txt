@@ -1,0 +1,36 @@
+commit f0cf740733b8cb53bc62e66f5e2a45385c06d726
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 17 10:45:27 2017 -0400
+
+    cmd/compile: omit X:framepointer in compile version
+    
+    Framepointer is the default now. Only print an X: list
+    if the settings are _not_ the default.
+    
+    Before:
+    
+    $ go tool compile -V
+    compile version devel +a5f30d9508 Sun Jul 16 14:43:48 2017 -0400 X:framepointer
+    $ go1.8 tool compile -V
+    compile version go1.8 X:framepointer
+    $
+    
+    After:
+    
+    $ go tool compile -V
+    compile version devel +a5f30d9508 Sun Jul 16 14:43:48 2017 -0400
+    $ go1.9 tool compile -V # imagined
+    compile version go1.9
+    $
+    
+    Perpetuates #18317.
+    
+    Change-Id: I981ba5c62be32e650a166fc9740703122595639b
+    Reviewed-on: https://go-review.googlesource.com/49252
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 2 +-
+ src/cmd/internal/objabi/util.go     | 9 +++++++--
+ test/nosplit.go                     | 4 ++++
+ 3 files changed, 12 insertions(+), 3 deletions(-)

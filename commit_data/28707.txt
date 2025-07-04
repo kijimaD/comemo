@@ -1,0 +1,16 @@
+commit 7b4a2246670b4ec5a19214f8290fce21173f6b14
+Author: Alexander Döring <email@alexd.ch>
+Date:   Thu Oct 6 20:46:50 2016 +0200
+
+    math/cmplx: add examples for Abs, Exp, Polar
+    
+    Updates #16360
+    
+    Change-Id: I941519981ff5bda3a113e14fa6be718eb4d2bf83
+    Reviewed-on: https://go-review.googlesource.com/30554
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/cmplx/example_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

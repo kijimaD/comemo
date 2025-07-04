@@ -1,0 +1,13 @@
+commit f6d0e811796868d74c9a9030e4771e44fef76734
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 10:35:46 2011 -0700
+
+    runtime/darwin: remove unused local variables.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4309049
+
+ src/pkg/runtime/darwin/386/signal.c   | 1 -
+ src/pkg/runtime/darwin/amd64/signal.c | 1 -
+ 2 files changed, 2 deletions(-)

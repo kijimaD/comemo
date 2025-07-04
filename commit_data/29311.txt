@@ -1,0 +1,12 @@
+commit 235f2c72e95d486b530b45e1f2a48fb629260504
+Author: Jan Mercl <0xjnml@gmail.com>
+Date:   Wed Nov 2 11:23:05 2016 +0100
+
+    go1.8.txt: Add CL 25345.
+    
+    Change-Id: I436528a4f81634448a60b1183d1b65a3bf4f48c1
+    Reviewed-on: https://go-review.googlesource.com/32590
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

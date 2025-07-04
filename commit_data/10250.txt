@@ -1,0 +1,15 @@
+commit 39fcca60cb5a13d2836d5d92cf1ed9aea07f6366
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Nov 4 23:45:38 2011 +1100
+
+    template: format error with pointer receiver.
+    
+    This is a continuation of 982d70c6d5d6.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5348042
+
+ src/pkg/text/template/exec.go      |  2 +-
+ src/pkg/text/template/exec_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

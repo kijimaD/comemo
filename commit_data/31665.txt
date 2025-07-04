@@ -1,0 +1,23 @@
+commit e0e4891827a3db12daa74859d9d487aeaa536c23
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed May 24 13:52:56 2017 -0700
+
+    compress/bzip2: remove dead code in huffman.go
+    
+    The logic performs a series of shifts, which are useless given
+    that they are followed by an assignment that overrides the
+    value of the previous computation.
+    
+    I suspect (but cannot prove) that this is leftover logic from an
+    original approach that attempted to store both the Huffman code
+    and the length within the same variable instead of using two
+    different variables as it currently does now.
+    
+    Fixes #17949
+    
+    Change-Id: Ibf6c807c6cef3b28bfdaf2b68d9bc13503ac21b2
+    Reviewed-on: https://go-review.googlesource.com/44091
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/compress/bzip2/huffman.go | 4 ----
+ 1 file changed, 4 deletions(-)

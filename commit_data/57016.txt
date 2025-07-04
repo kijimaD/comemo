@@ -1,0 +1,17 @@
+commit 5881c41e7f6c17709ba3b4ada13fa15ab4bae2df
+Author: limeidan <limeidan@loongson.cn>
+Date:   Sat Jan 6 16:59:56 2024 +0800
+
+    cmd/internal/obj/loong64: remove unuseless functions
+    
+    Change-Id: Ieee97a9477090d4273e54a6667b0a051bb0c1e9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565619
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/cmd/internal/obj/loong64/asm.go | 8 --------
+ 1 file changed, 8 deletions(-)

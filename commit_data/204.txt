@@ -1,0 +1,10 @@
+commit 85785fe577e94f76f6e32595c197f13600549c6a
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 20 10:55:53 2008 -0700
+
+    delete incorrect offset print
+    
+    SVN=123857
+
+ src/runtime/runtime.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

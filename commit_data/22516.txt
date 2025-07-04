@@ -1,0 +1,18 @@
+commit 6e83ef6d2149d1dd9333a2ff955a0dfdb5475bb5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 15 16:28:00 2015 -0700
+
+    internal/syscall: move to unix subdirectory
+    
+    Move the single file from internal/syscall to internal/syscall/unix,
+    to match the golang.org/x/sys layout.
+    
+    Change-Id: I2fb2832b4cb22efc7666bd276f5401ac3e73dc40
+    Reviewed-on: https://go-review.googlesource.com/8972
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/crypto/rand/rand_linux.go                      |  6 +++---
+ src/go/build/deps_test.go                          |  2 +-
+ src/internal/syscall/{ => unix}/getrandom_linux.go | 12 ++++++------
+ 3 files changed, 10 insertions(+), 10 deletions(-)

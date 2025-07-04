@@ -1,0 +1,26 @@
+commit 2186909d8651728cb71a4e02e0fe7b2c3d55e9b4
+Author: Nayef Ghattas <nayef.ghattas@datadoghq.com>
+Date:   Tue Sep 5 14:00:17 2023 +0200
+
+    runtime/metrics: fix /gc/scan/* metrics
+    
+    In the existing implementation, all /gc/scan/* metrics are
+    always equal to 0 due to the dependency on gcStatDep not being
+    set. This leads to gcStatAggregate always containing zeros, and
+    always reporting 0 for those metrics.
+    
+    Also, add a test to ensure that /gc/scan/* metrics are not empty.
+    
+    Fixes #62477.
+    
+    Change-Id: I67497347d50ed5c3ce1719a18714c062ec938cab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525595
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+
+ src/runtime/metrics.go      | 6 +++++-
+ src/runtime/metrics_test.go | 3 +++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

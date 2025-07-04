@@ -1,0 +1,22 @@
+commit 63f5596788af3f126994a155319956c90f978f8d
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 5 09:28:00 2023 -0700
+
+    go/scanner: align line and column limit with the compiler's limit
+    
+    The compiler disallows line and column numbers > (1<<30)
+    (cmd/compiler/internal/syntax.PosMax).
+    
+    Set the go/scanner limit to the same rather than off by one.
+    
+    For #59180
+    
+    Change-Id: Ibf9e0e6826d6f6230b0d492543b7e906298a0524
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482595
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/cmd/compile/internal/syntax/pos.go | 2 ++
+ src/go/scanner/scanner.go              | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

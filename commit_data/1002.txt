@@ -1,0 +1,15 @@
+commit eb5a316fa6e5a12d10f7054ff3d9de608d772278
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 30 12:43:32 2008 -0700
+
+    make sure errchk only prints BUG once.
+    using a variable is not sufficient, because
+    sometimes bug() is called from a subshell.
+    
+    R=iant
+    DELTA=7  (2 added, 1 deleted, 4 changed)
+    OCL=18092
+    CL=18145
+
+ test/errchk | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

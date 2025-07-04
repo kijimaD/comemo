@@ -1,0 +1,20 @@
+commit 69eb3457279b1067e3c45e735d32916a41b87246
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Mar 12 21:37:18 2013 -0700
+
+    misc/emacs: Fix indentation for code following multiline function declarations
+    
+    Correctly indent the body of functions that have been declared
+    over multiple lines. See http://play.golang.org/p/MHMwNDbFyf for
+    an example.
+    
+    Previously, the body of the function would be indented as deep as
+    the continuation line of the function declaration. Now it gets
+    indented as deep as the func keyword.
+    
+    R=adonovan, cw, patrick.allen.higgins
+    CC=golang-dev
+    https://golang.org/cl/7628043
+
+ misc/emacs/go-mode.el | 40 ++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 38 insertions(+), 2 deletions(-)

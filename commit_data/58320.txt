@@ -1,0 +1,17 @@
+commit 485ed2fa5b5e0b7067ef72a0f4bdc9ca12b77ed7
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Dec 2 21:04:15 2024 +0100
+
+    crypto/rsa: return error if keygen random source is broken
+    
+    Fixes #70643
+    
+    Change-Id: I47c76500bb2e79b0d1dc096651eb45885f6888b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632896
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/fips140/rsa/keygen.go | 4 ++++
+ 1 file changed, 4 insertions(+)

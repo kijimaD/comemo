@@ -1,0 +1,17 @@
+commit bb48f9925cf541e7b5f4bfafb9d008671c4ace47
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 25 20:19:55 2020 +1000
+
+    cmd/link: add support for openbsd/mips64
+    
+    Update #40995
+    
+    Change-Id: I2cf9b85a960f479eaa59bf58081d03a0467bc2b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250582
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/mips64/obj.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

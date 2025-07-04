@@ -1,0 +1,12 @@
+commit 5b976d3783cc7e626a384a4d57b4a57decea05ba
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Sat May 5 13:08:17 2018 +0000
+
+    plugin: make stub lookup signature match dlopen version
+    
+    Change-Id: I64958f8f1a935adc07868362975447d0c0033084
+    Reviewed-on: https://go-review.googlesource.com/111716
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/plugin/plugin_stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

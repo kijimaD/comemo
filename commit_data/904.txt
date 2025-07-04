@@ -1,0 +1,15 @@
+commit 61361af9e8ca4c4c5c34e668e9ad1d996ccfa26f
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Oct 19 20:13:37 2008 -0700
+
+    unnamed substructures - not complete
+    
+    R=r
+    OCL=17437
+    CL=17437
+
+ src/cmd/gc/dcl.c  |  1 +
+ src/cmd/gc/go.h   |  2 ++
+ src/cmd/gc/go.y   | 20 +++++++++-------
+ src/cmd/gc/walk.c | 69 ++++++++++++++++++++++++++++++++++++-------------------
+ 4 files changed, 60 insertions(+), 32 deletions(-)

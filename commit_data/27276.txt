@@ -1,0 +1,14 @@
+commit bfcb5b64062b3bdf367e0888cd42a4a46d37a913
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed May 4 17:06:50 2016 -0400
+
+    net/http: correct RFC for MethodPatch
+    
+    Fixes #15546.
+    
+    Change-Id: I39c29ea6999812dd5f1c45f67bddad28f20b6c6b
+    Reviewed-on: https://go-review.googlesource.com/22773
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/method.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

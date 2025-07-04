@@ -1,0 +1,19 @@
+commit 3db23523b81a25264a7f3170fd60c09374db7717
+Author: Christian Höppner <hoeppi@google.com>
+Date:   Mon Aug 28 15:12:08 2023 +0200
+
+    encoding/json: adjust comment about encoding \b and \f
+    
+    The encoding for the control characters \b and \f was
+    changed in http://go.dev/cl/521675. This CL adjusts the
+    corresponding comment about encoding bytes < 0x20.
+    
+    Change-Id: I83b7311e4fa0731f6601ca64a66042425b4cecac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523435
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+
+ src/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

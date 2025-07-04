@@ -1,0 +1,24 @@
+commit 7c680974c66ca23f837cb4bee5587df8b05418c7
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 21 17:04:34 2022 -0700
+
+    runtime/race: add s390x .syso file
+    
+    Built using racebuild.
+    
+    Note that racebuild fails when trying to test the .syso, because the
+    Go runtime doesn't think we support s390x race yet. But it builds the
+    .syso as a side effect which I grabbed. There's something of a
+    chicken-and-egg bootstrapping problem here, unfortunately.
+    
+    Change-Id: Ibc6d04fd3a9bfb3224d08e8b78dcf09bb139a59d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401714
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jonathan Albrecht <jonathan.albrecht@ibm.com>
+
+ src/runtime/race/README                |   1 +
+ src/runtime/race/race_linux_s390x.syso | Bin 0 -> 565472 bytes
+ 2 files changed, 1 insertion(+)

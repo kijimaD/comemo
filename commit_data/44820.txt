@@ -1,0 +1,54 @@
+commit ada77d23ae001a8c3feac28a44dec0be578a1c48
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 14:54:19 2021 -0700
+
+    cmd/compile/internal/types2: review of examples test
+    
+    The only changes between (equivalent, and reviewed) go/types/examples directory
+    are in examples/types.go2. The go/types/examples/types.go2 file should be updated
+    accordingly.
+    
+    $ f=examples/types.go2; diff $f $HOME/goroot/src/go/types/$f
+    1d0
+    < // UNREVIEWED
+    109c108
+    < var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR unexpected \[ */ int]
+    ---
+    > var _ (T /* ERROR cannot use generic type T */ )[ /* ERROR expected ';' */ int]
+    147a147,154
+    > // We accept parenthesized embedded struct fields so we can distinguish between
+    > // a named field with a parenthesized type foo (T) and an embedded parameterized
+    > // type (foo(T)), similarly to interface embedding.
+    > // They still need to be valid embedded types after the parentheses are stripped
+    > // (i.e., in contrast to interfaces, we cannot embed a struct literal). The name
+    > // of the embedded field is derived as before, after stripping parentheses.
+    > // (7/14/2020: See comment above. We probably will revert this generalized ability
+    > // if we go with [] for type parameters.)
+    149,152c156,158
+    <       ( /* ERROR cannot parenthesize */ int8)
+    <       ( /* ERROR cannot parenthesize */ *int16)
+    <       *( /* ERROR cannot parenthesize */ int32)
+    <       List[int]
+    ---
+    >       int8
+    >       *int16
+    >       *List[int]
+    155,156c161
+    <       * /* ERROR int16 redeclared */ int16
+    <       List /* ERROR List redeclared */ [int]
+    ---
+    >       * /* ERROR List redeclared */ List[int]
+    280a286
+    >
+    
+    The actual changes are removing the "// UNREVIEWED" markers.
+    
+    Change-Id: I8a80fa11f3c84f9a403c690b537973a53e1adc2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304250
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/examples/functions.go2 | 1 -
+ src/cmd/compile/internal/types2/examples/methods.go2   | 1 -
+ src/cmd/compile/internal/types2/examples/types.go2     | 1 -
+ 3 files changed, 3 deletions(-)

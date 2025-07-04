@@ -1,0 +1,19 @@
+commit 05f9b369525f682020df8a55c3fc83b520575912
+Author: Jeet Parekh <jeetparekh96@gmail.com>
+Date:   Fri Jul 27 15:52:36 2018 +0000
+
+    syscall: improve NewCallback documentation and panic message
+    
+    Fixes #26138
+    
+    Change-Id: If77b2839bccc600223735df42438a19131cd051c
+    GitHub-Last-Rev: 64ceaea9f1cb7afb3d552dce0223b818bac1faf9
+    GitHub-Pull-Request: golang/go#26617
+    Reviewed-on: https://go-review.googlesource.com/126035
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/syscall_windows.go |  8 ++++----
+ src/syscall/syscall_windows.go | 12 ++++++------
+ 2 files changed, 10 insertions(+), 10 deletions(-)

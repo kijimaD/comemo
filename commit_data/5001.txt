@@ -1,0 +1,20 @@
+commit 067fe2840bc7d30be4f790608c4fbb331ac90bd6
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Fri Mar 5 16:45:39 2010 -0800
+
+    math: faster hypot
+    
+    Use hardware sqrt for faster hypot; preserve software-only
+    hypot as hypotGo (like sqrtGo); enable benchmarking of
+    hypotGo.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/229049
+
+ src/pkg/math/Makefile      |  1 +
+ src/pkg/math/all_test.go   |  6 +++++
+ src/pkg/math/hypot.go      | 26 ++-----------------
+ src/pkg/math/hypot_port.go | 63 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/hypot_test.go |  9 +++++++
+ 5 files changed, 81 insertions(+), 24 deletions(-)

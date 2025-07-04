@@ -1,0 +1,21 @@
+commit 48a58c5d2c24bcba9cd141b3c3d6344d52274bbd
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Sep 27 09:16:32 2022 +0000
+
+    cmd/go/internal: use strings.CutSuffix
+    
+    Updates #42537
+    
+    Change-Id: I2d4c5e911c8a2ddfe9a976896b05d3cd8be61f6b
+    GitHub-Last-Rev: a87597d8a7a84c4975fb5e13004feda9b6abce34
+    GitHub-Pull-Request: golang/go#55830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433275
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/clean/clean.go | 6 ++----
+ src/cmd/go/internal/load/pkg.go    | 4 ++--
+ 2 files changed, 4 insertions(+), 6 deletions(-)

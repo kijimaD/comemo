@@ -1,0 +1,20 @@
+commit 7f7f27f992850a06551c2798a3b874f5d5356ae9
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Tue Sep 27 19:28:39 2022 +0800
+
+    cmd/go: using strings.CutSuffix replace strings.HasSuffix and strings.TrimSuffix
+    
+    Change-Id: I79854419091d6c5c5c2922a1f45a3c5589673f11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435138
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/cache.go        | 3 +--
+ src/cmd/go/internal/modfetch/codehost/git.go | 4 ++--
+ src/cmd/go/internal/modfetch/fetch.go        | 4 ++--
+ src/cmd/go/internal/work/exec.go             | 8 ++++----
+ 4 files changed, 9 insertions(+), 10 deletions(-)

@@ -1,0 +1,12 @@
+commit b3a108879f3312eb289b66186b16f87bb300795f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Dec 9 12:31:41 2017 +0100
+
+    os: fix typo in TestExecutable comment
+    
+    Change-Id: I2ad5d73deaee57ccbb2c75378dcc2884e43be3bb
+    Reviewed-on: https://go-review.googlesource.com/82899
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/executable_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit fecb31f67299e362cf1521058a406c18943f5abf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 1 08:53:54 2023 -0700
+
+    doc/go1.21: remove some references to reverted CLs
+    
+    Change-Id: Id9a8871af9cc3ac26be539877f2eea3462db6f3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499955
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+
+ doc/go1.21.html | 22 +++-------------------
+ 1 file changed, 3 insertions(+), 19 deletions(-)

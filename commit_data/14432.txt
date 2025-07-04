@@ -1,0 +1,22 @@
+commit 0bfece06d7e19b3caba6f1ee0a202e0c90fda23b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Nov 18 15:31:26 2012 +1100
+
+    net: remove unused nil check
+    
+    This is part 1 of a series of proposals to fix issue 4369.
+    
+    In resolving issue 3507 it was decided not to nil out the inner conn.fd field to avoid a race. This implies the checks for fd == nil inside incref/decref are never true.
+    
+    Removing this logic removes one source of errClosing error values, which affects issue 4373 and moves towards bradfitz's request that fd.accept() return io.EOF when closed concurrently.
+    
+    Update #4369.
+    Update #4373.
+    
+    R=mikioh.mikioh, bradfitz, dvyukov, rsc
+    CC=golang-dev
+    https://golang.org/cl/6852057
+
+ src/pkg/net/fd_unix.go        | 6 ------
+ src/pkg/net/unixsock_posix.go | 4 +---
+ 2 files changed, 1 insertion(+), 9 deletions(-)

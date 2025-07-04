@@ -1,0 +1,12 @@
+commit d2f663c4f241b2f1318f5126c206436afaefdadd
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 18 15:45:56 2018 -0400
+
+    doc/go1.11: mention major performance optimizations
+    
+    Change-Id: I25b93a84996ab1c17d64089b4c2ffabdff3365ec
+    Reviewed-on: https://go-review.googlesource.com/124710
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.11.html | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

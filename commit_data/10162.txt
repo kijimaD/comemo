@@ -1,0 +1,15 @@
+commit 4853c51770f5e99d5d690801e5cb963848591587
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 00:17:05 2011 -0400
+
+    os: do not interpret 0-length read as EOF
+    
+    Fixes #2402.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5298081
+
+ src/pkg/os/file.go    |  2 +-
+ src/pkg/os/os_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 695a59b5139ca8791e19b84259dc85622eea47e8
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Oct 4 16:15:17 2021 -0700
+
+    test: add test for export/import of recover & defer
+    
+    Add a simple test with an exported generic function that does
+    recover/defer, to test that recover/defer are exported/imported
+    properly (and a generic function with recover/defer works fine).
+    
+    Change-Id: Idc3af101cbb78fc96bf945f1f5eab2740dd8994b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353883
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ test/typeparam/recoverimp.dir/a.go    | 16 ++++++++++++++++
+ test/typeparam/recoverimp.dir/main.go | 12 ++++++++++++
+ test/typeparam/recoverimp.go          |  7 +++++++
+ test/typeparam/recoverimp.out         |  2 ++
+ 4 files changed, 37 insertions(+)

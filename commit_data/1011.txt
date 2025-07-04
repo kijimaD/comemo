@@ -1,0 +1,15 @@
+commit 4958d41d3bfdcdf31883abfb5ac1724ee8ac7a8b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 30 16:33:50 2008 -0700
+
+    change from $$ to \n$$ for .6 meta section delimiter
+    
+    R=r
+    DELTA=13  (5 added, 0 deleted, 8 changed)
+    OCL=18190
+    CL=18192
+
+ src/cmd/6l/go.c     | 17 +++++++++++------
+ src/cmd/ar/ar.c     |  2 +-
+ src/cmd/gc/export.c |  2 +-
+ 3 files changed, 13 insertions(+), 8 deletions(-)

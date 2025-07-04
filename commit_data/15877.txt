@@ -1,0 +1,29 @@
+commit d7c1f67cb92d29622de35b86288b2c6032285965
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 21 14:07:24 2013 -0700
+
+    net/http/fcgi: fix a shutdown race
+    
+    If a handler didn't consume all its Request.Body, child.go was
+    closing the socket while the host was still writing to it,
+    causing the child to send a RST and the host (at least nginx)
+    to send an empty response body.
+    
+    Now, we tell the host we're done with the request/response
+    first, and then close our input pipe after consuming a bit of
+    it. Consuming the body fixes the problem, and flushing to the
+    host first to tell it that we're done increases the chance
+    that the host cuts off further data to us, meaning we won't
+    have much to consume.
+    
+    No new tests, because this package is lacking in tests.
+    Tested by hand with nginx.  See issue for testing details.
+    
+    Fixes #4183
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7939045
+
+ src/pkg/net/http/fcgi/child.go | 32 +++++++++++++++++++++++++-------
+ 1 file changed, 25 insertions(+), 7 deletions(-)

@@ -1,0 +1,17 @@
+commit 00530918db29102a0186bcf2b3e699a742d298fa
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Mon Apr 8 15:45:16 2019 +0200
+
+    misc/cgo/testcshared: use adb exec-out instead of adb shell
+    
+    Adb exec-out is like adb shell except non-flaky in non-interactive
+    settings. Don't ask why.
+    
+    Change-Id: I7ac3c72912883d80bc787c1d0fc101db6bae9c52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170952
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

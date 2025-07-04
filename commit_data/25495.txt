@@ -1,0 +1,28 @@
+commit 0421e78f0556f98d782cdcbad6eaa2612603acf9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 8 01:06:00 2016 +0000
+
+    net/http: fix too-strict validation of server header values
+    
+    As Andy Balholm noted in #11207:
+    
+    "RFC2616 §4.2 says that a header's field-content can consist of *TEXT,
+    and RFC2616 §2.2 says that TEXT is <any OCTET except CTLs, but
+    including LWS>, so that would mean that bytes greater than 128 are
+    allowed."
+    
+    This is a partial rollback of the strictness from
+    https://golang.org/cl/11207 (added in the Go 1.6 dev cycle, only
+    released in Go 1.6beta1)
+    
+    Fixes #11207
+    
+    Change-Id: I3a752a7941de100e4803ff16a5d626d5cfec4f03
+    Reviewed-on: https://go-review.googlesource.com/18374
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go    | 8 ++------
+ src/net/http/serve_test.go | 4 ++--
+ 2 files changed, 4 insertions(+), 8 deletions(-)

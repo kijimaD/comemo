@@ -1,0 +1,15 @@
+commit fe8639a9fbe27839e99ee97b749dee6699a84eeb
+Author: Lorenzo Stoakes <lstoakes@gmail.com>
+Date:   Wed Mar 9 08:35:18 2011 -0800
+
+    gc: fix comments in go.h
+    
+    Trivial fix to '// n' comments against etype enum in go.h, as these have
+    got out of sync.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4240097
+
+ src/cmd/gc/go.h | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

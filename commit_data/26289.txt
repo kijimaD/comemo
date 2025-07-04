@@ -1,0 +1,18 @@
+commit f6fab93a4615ece698745493b368b884a65685f5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 15 11:06:03 2016 -0700
+
+    cmd/compile: make Type.Field stricter about bounds checking
+    
+    Turns out there were only two call sites that expected
+    t.Field(t.NumFields()) to return nil.
+    
+    Change-Id: I4679988d38ee9d7c9d89883537a17046717b2a77
+    Reviewed-on: https://go-review.googlesource.com/20731
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go  |  5 +++--
+ src/cmd/compile/internal/gc/type.go | 16 ++++++++--------
+ 2 files changed, 11 insertions(+), 10 deletions(-)

@@ -1,0 +1,25 @@
+commit 835dfef939879b284d4c0f4e1726491f27e4f1ee
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Thu May 4 16:45:29 2017 +0200
+
+    runtime/pprof: prevent a deadlock that SIGPROF might create on mips{,le}
+    
+    64bit atomics on mips/mipsle are implemented using spinlocks. If SIGPROF
+    is received while the program is in the critical section, it will try to
+    write the sample using the same spinlock, creating a deadloop.
+    Prevent it by creating a counter of SIGPROFs during atomic64 and
+    postpone writing the sample(s) until called from elsewhere, with
+    pc set to _LostSIGPROFDuringAtomic64.
+    
+    Added a test case, per Cherry's suggestion. Works around #20146.
+    
+    Change-Id: Icff504180bae4ee83d78b19c0d9d6a80097087f9
+    Reviewed-on: https://go-review.googlesource.com/42652
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/cpuprof.go          |  9 +++++++++
+ src/runtime/pprof/pprof_test.go | 31 +++++++++++++++++++++++++++++++
+ src/runtime/proc.go             | 31 +++++++++++++++++++++++++++----
+ 3 files changed, 67 insertions(+), 4 deletions(-)

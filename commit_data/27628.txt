@@ -1,0 +1,14 @@
+commit 49c680f948310cfc7ab3062ca9a96a4adb6ae8cd
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jun 2 17:17:02 2016 +0900
+
+    syscall: deflake TestUnshare
+    
+    Change-Id: I21a08c2ff5ebb74e158723cca323574432870ba8
+    Reviewed-on: https://go-review.googlesource.com/23662
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux_test.go | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

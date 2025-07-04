@@ -1,0 +1,24 @@
+commit 55bb3d1c105131f93dbe9abd03445e1f07d02303
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 21 13:51:28 2024 -0800
+
+    go/types: : generate assignments.go from types2 source
+    
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 600 LOC.
+    
+    Change-Id: I7107c8050075281bf6840a9f5234d70e09734ce6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565836
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/assignments.go | 37 ++++++++++++++++++--------
+ src/cmd/compile/internal/types2/operand.go     |  4 +--
+ src/cmd/compile/internal/types2/util.go        |  7 ++---
+ src/go/types/assignments.go                    | 33 +++++++++++++++++------
+ src/go/types/generate_test.go                  |  7 ++++-
+ src/go/types/operand.go                        |  2 ++
+ src/go/types/util.go                           | 11 ++++----
+ 7 files changed, 70 insertions(+), 31 deletions(-)

@@ -1,0 +1,15 @@
+commit 68557de116fe7007541d54f08bffbdd06354f1f9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Jul 27 12:19:00 2015 +0900
+
+    net: deflake TestDialTimeout{,FDLeak} in the case of TCP simultaneous open
+    
+    Fixes #11872.
+    
+    Change-Id: Ibc7d8438374c9d90fd4cbefb61426c7f4f96af0d
+    Reviewed-on: https://go-review.googlesource.com/12691
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/dial_test.go    | 24 ++++++++++++++++++++----
+ src/net/timeout_test.go | 13 +++++++++++++
+ 2 files changed, 33 insertions(+), 4 deletions(-)

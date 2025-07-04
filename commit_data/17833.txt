@@ -1,0 +1,12 @@
+commit 6d86d064e5b060ef7ab665ec5d6e3772090a7694
+Author: Jeff Sickel <jas@corpus-callosum.com>
+Date:   Wed Oct 23 10:28:28 2013 -0400
+
+    plan9: correct create permissions with union directory
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/15360045
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

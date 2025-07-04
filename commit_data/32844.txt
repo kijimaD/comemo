@@ -1,0 +1,27 @@
+commit 4d3d333468b6a36106550bf90d93b3cc88b1efa4
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Sep 23 21:44:18 2017 +0100
+
+    cmd/compile: add runtime GC funcs to inlining test
+    
+    This is based on a list that Austin Clements provided in mid-2016. It is
+    mostly untouched, except for the fact that the wbufptr funcs were
+    removed from the runtime thus removed from the lits here too.
+    
+    Add a section for these GC funcs, since there are quite a lot of them
+    and the runtime has tons of funcs that we want to inline. As before,
+    sort this section too.
+    
+    Also place some of these funcs out of the GC section, as they are not
+    directly related to the GC.
+    
+    Updates #21851.
+    
+    Change-Id: I35eb777a4c50b5f655618920dc2bc568c7c30ff5
+    Reviewed-on: https://go-review.googlesource.com/65654
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/inl_test.go | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

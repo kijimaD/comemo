@@ -1,0 +1,13 @@
+commit a747adf798d7f919772aeeac9378480387f0d336
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 7 16:58:45 2014 +1100
+
+    net: remove superfluous type conversion
+    
+    LGTM=minux.ma, dvyukov
+    R=golang-codereviews, minux.ma, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/60900043
+
+ src/pkg/net/fd_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

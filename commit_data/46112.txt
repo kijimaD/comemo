@@ -1,0 +1,17 @@
+commit 19585826fa52d0580724be91f610db54727c74f0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Aug 22 12:11:02 2021 -0700
+
+    math/big: clarified doc string for SetMantExp
+    
+    Fixes #47879.
+    
+    Change-Id: I35efb5fc65c4f1eb1b45918f95bbe1ff4039950e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344249
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/math/big/float.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

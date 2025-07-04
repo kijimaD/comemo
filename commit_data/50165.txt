@@ -1,0 +1,19 @@
+commit 739304978086143a5d8c3b9bfa4f9f25aef23e90
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 27 21:38:45 2022 +0700
+
+    reflect: simplify array value comparable check
+    
+    If array element is not interface, array or struct, we just need to
+    check whether the array element type is comparable.
+    
+    Change-Id: I1ab94cfa17ae86feb6cd3fbdf878af5a776e7bec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426194
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/reflect/value.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

@@ -1,0 +1,12 @@
+commit deb6c5b9200137423b9c594ff6a03bcc848a852e
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Jun 10 22:13:39 2015 +1200
+
+    doc: hints on how to cross-bootstrap
+    
+    Change-Id: I854a093b9e1a62d2515ca114ee84956510925921
+    Reviewed-on: https://go-review.googlesource.com/10839
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install-source.html | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

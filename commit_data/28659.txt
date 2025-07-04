@@ -1,0 +1,12 @@
+commit 44009a24138b6c7b5fd5b4be113db44fdfd1678e
+Author: Kevin Burke <kev@inburke.com>
+Date:   Tue Oct 4 15:38:46 2016 -0700
+
+    cmd/cover: fix typo
+    
+    Change-Id: I3f13488605ab62eba5d3c59d5e9df1bcf69dd571
+    Reviewed-on: https://go-review.googlesource.com/30355
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cover/cover_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

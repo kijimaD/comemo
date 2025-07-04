@@ -1,0 +1,12 @@
+commit 93c8d3c41bcb116779541679922029c48a788dfb
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 18 17:15:42 2008 -0800
+
+    another shift bug
+    
+    R=r
+    OCL=19525
+    CL=19525
+
+ src/cmd/6g/gen.c | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

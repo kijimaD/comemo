@@ -1,0 +1,13 @@
+commit 6e6125ffa413fea7e55e159e4fd131ec054de0c7
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Sun Nov 29 14:22:07 2009 -0800
+
+    Make comment-start/-end changes buffer-local instead of global.
+    
+    Fixes #290.
+    
+    R=rsc
+    https://golang.org/cl/160070
+
+ misc/emacs/go-mode.el | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

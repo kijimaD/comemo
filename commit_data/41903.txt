@@ -1,0 +1,21 @@
+commit 782fcb44b96753e6e763be91a72bcbfc3dff7ab9
+Author: Sylvain Zimmer <sylvain@sylvainzimmer.com>
+Date:   Mon Jul 29 03:15:36 2019 +0200
+
+    regexp: add (*Regexp).SubexpIndex
+    
+    SubexpIndex returns the index of the first subexpression with the given name,
+    or -1 if there is no subexpression with that name.
+    
+    Fixes #32420
+    
+    Change-Id: Ie1f9d22d50fb84e18added80a9d9a9f6dca8ffc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187919
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/regexp/all_test.go     | 42 ++++++++++++++++++++++++++++--------------
+ src/regexp/example_test.go | 13 +++++++++++++
+ src/regexp/regexp.go       | 18 ++++++++++++++++++
+ 3 files changed, 59 insertions(+), 14 deletions(-)

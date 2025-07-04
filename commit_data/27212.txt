@@ -1,0 +1,14 @@
+commit 9fe572e509470d53c220e7f43a825d70a7f0d8b3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 29 15:44:36 2016 -0700
+
+    runtime: fix cgocallback_gofunc argument passing on arm64
+    
+    Change-Id: I4b34bcd5cde71ecfbb352b39c4231de6168cc7f3
+    Reviewed-on: https://go-review.googlesource.com/22651
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <munday@ca.ibm.com>
+
+ src/runtime/asm_arm64.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

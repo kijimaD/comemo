@@ -1,0 +1,42 @@
+commit 7419bb3ebb8ea2b9b3745cdcbaf747e4dffc52ae
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 7 11:26:18 2022 -0500
+
+    internal/fuzz: fix encoding for out-of-range ints and runes
+    
+    Also switch float64 NaN encoding to use hexadecimal, and accept
+    hexadecimal encoding for all other integer types too. (That gives us
+    the flexibility to change the encodings in either direction in the
+    future without breaking earlier Go versions.)
+    
+    Out-of-range runes encoded using "%q" were previously replaced with
+    the Unicode replacement charecter, losing their values.
+    
+    Out-of-range ints and uints on 32-bit platforms were previously
+    rejected. Now they are wrapped instead: an “interesting” case with a
+    large int or uint found on a 64-bit platform likely remains
+    interesting on a 32-bit platform, even if the specific values differ.
+    
+    To verify the above changes, I have made TestMarshalUnmarshal accept
+    (and check for) arbitrary differences between input and output, and
+    added tests cases that include values in valid but non-canonical
+    encodings.
+    
+    I have also added round-trip fuzz tests in the opposite direction for
+    most of the types affected by this change, verifying that a marshaled
+    value unmarshals to the same bitwise value.
+    
+    Updates #51258
+    Updates #51526
+    Fixes #51528
+    
+    Change-Id: I7727a9d0582d81be0d954529545678a4374e88ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390424
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/fuzz/encoding.go      |  84 ++++++++++--
+ src/internal/fuzz/encoding_test.go | 272 +++++++++++++++++++++++++++++++++----
+ 2 files changed, 311 insertions(+), 45 deletions(-)

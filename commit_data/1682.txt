@@ -1,0 +1,28 @@
+commit ff3173849e844471c769b7e8f8e789769f1327b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 15 22:12:35 2009 -0800
+
+    assorted changes:
+            - use a lock instead of a thread in once
+                    avoids deadlock in recursive once calls
+            - implement os.Setenv
+            - remove "export" from some scripts
+            - remove _ from names in time package
+            - fix time test for non-MTV machines
+    
+    R=r
+    DELTA=265  (87 added, 58 deleted, 120 changed)
+    OCL=25057
+    CL=25057
+
+ src/lib/Makefile          |   7 ++-
+ src/lib/once.go           |  81 ++++++++------------------
+ src/lib/os/env.go         |  66 +++++++++++++++++----
+ src/lib/os/exec.go        |   3 +
+ src/lib/syscall/mkdarwin  |   2 +-
+ src/lib/syscall/mklinux   |   5 +-
+ src/lib/syscall/mksignal  |   2 +-
+ src/lib/time/time.go      |   6 +-
+ src/lib/time/time_test.go |  38 +++++++-----
+ src/lib/time/zoneinfo.go  | 145 +++++++++++++++++++++++-----------------------
+ 10 files changed, 192 insertions(+), 163 deletions(-)

@@ -1,0 +1,22 @@
+commit b4fbd291b3872706422d39fd1140b7b929c77622
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 9 19:34:58 2019 -0800
+
+    cmd/compile: normalize more whitespace in rewrite rules
+    
+    If you write a rewrite rule:
+    
+    (something) && noteRule("X")-> (something)
+    
+    then rulegen will panic with an error message about commutativity.
+    The real problem is the lack of a space between the ) and the ->.
+    Normalize that bit of whitespace too.
+    
+    Change-Id: Idbd53687cd0398fe275ff2702667688cad05b4ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166427
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 1 +
+ 1 file changed, 1 insertion(+)

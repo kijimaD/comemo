@@ -1,0 +1,15 @@
+commit fa5f86281ef10e5676e6672bed4a7b9e7111afa2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 1 17:25:26 2014 -0400
+
+    runtime: change concatstring panic to gothrow
+    
+    It was a throw originally; it was converted incorrectly.
+    
+    LGTM=dave
+    R=khr, dave
+    CC=golang-codereviews
+    https://golang.org/cl/139000043
+
+ src/pkg/runtime/string.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 4337c7c0bcdaeec48df6290543ef20975f5af61c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 8 17:25:04 2010 -0700
+
+    gofmt: update test script so it can run to completion again
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1621041
+
+ src/cmd/gofmt/test.sh | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 367557cd79ffb5ff82d9d21c2e8098d95083b3c0
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Mar 17 01:34:44 2012 +0800
+
+    cmd/pack: also recognize '\\' as path separator in filenames
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5841051
+
+ src/cmd/pack/ar.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

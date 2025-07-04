@@ -1,0 +1,13 @@
+commit 6898f95decf962e9878dc2f07b8ae469570ee617
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 9 23:54:35 2009 -0800
+
+    make the titles of the FAQs match their links; adds clarity too. requested by rsc.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1025034
+
+ doc/go_faq.html      | 2 +-
+ doc/go_lang_faq.html | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

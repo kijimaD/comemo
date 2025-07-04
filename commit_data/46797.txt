@@ -1,0 +1,25 @@
+commit ebeab63d9515b539ae627f10cfc1766eecd243aa
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 5 23:53:07 2021 +0700
+
+    go/types: better error message for invalid untyped nil conversion
+    
+    This is port of CL 354049 for types2 to go/type.
+    
+    The change is identical, but for some tweaks to the error message/position
+    in tests, since when go/types reports the exact operation "cannot convert"
+    instead of the general "invalid operation" like types2.
+    
+    Updates #48784
+    
+    Change-Id: I3e99f2721501d23187fd0a8970eb1de28e0c41d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354050
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/errorcodes.go            | 2 +-
+ src/go/types/expr.go                  | 6 ++++++
+ src/go/types/testdata/check/expr2.src | 4 ++--
+ 3 files changed, 9 insertions(+), 3 deletions(-)

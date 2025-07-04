@@ -1,0 +1,16 @@
+commit 91b55b4fa3a5351aba0e9f79f1c94e27ab2004e7
+Author: David Chase <drchase@google.com>
+Date:   Tue Oct 1 11:07:43 2019 -0400
+
+    cmd/compile: attempt to preserve statement marks when empty blocks are trimmed.
+    
+    This was a cause of some statements being lost.
+    
+    Change-Id: Ia4805c2dafd7a880d485a678a48427de8930d57e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198482
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/ssa/trim.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

@@ -1,0 +1,28 @@
+commit 4c52eac49b7e3f2a107419583012e5251ccbfde9
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 7 13:23:08 2021 -0700
+
+    cmd/compile: simplify value coding for unified IR
+    
+    In indexed export, values are always exported along with their type
+    and are encoded in a type-sensitive manner, because this matches how
+    cmd/compile handled constants internally.
+    
+    However, go/types intentionally differs from this, decoupling type
+    from value representation. As unified IR strives to be more
+    go/types-centric, it makes sense to embrace this and make values a
+    more first-class encoding.
+    
+    Change-Id: If21d849c4f610358bd776d5665469d180bcd5f6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348014
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/decoder.go |  3 ++-
+ src/cmd/compile/internal/noder/encoder.go |  3 ++-
+ src/cmd/compile/internal/noder/reader.go  | 12 ++++--------
+ src/cmd/compile/internal/noder/reader2.go | 10 ++--------
+ src/cmd/compile/internal/noder/writer.go  | 12 ++++--------
+ 5 files changed, 14 insertions(+), 26 deletions(-)

@@ -1,0 +1,21 @@
+commit b725622ceb3d537334e1a3bb1723b1e939a40823
+Author: David Chase <drchase@google.com>
+Date:   Wed Nov 2 17:21:09 2022 -0400
+
+    cmd/compile: tweak compiler concurrency
+    
+    Default concurrency is now GOMAXPROCS, though this is normally
+    reduced to 4 by the go build commmand.
+    
+    If compiler flags don't permit concurrency, silently
+    turn it down instead of failing the compilation.
+    
+    Change-Id: Id26cc3214e0ca402d60f915e98276a58d809e097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447358
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/base/flag.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

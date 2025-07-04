@@ -1,0 +1,21 @@
+commit d3d672998f26b15cf0eebf63f243bf28b3b3943b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 11 11:32:33 2011 -0800
+
+    http: rename interface Transport to RoundTripper
+    
+    Transport.Do -> RoundTripper.RoundTrip
+    
+    This makes way for a subsequent CL to export the
+    currently private RoundTripper implementation
+    as struct Transport.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4286043
+
+ src/pkg/http/client.go         | 34 ++++++++++++++++------------------
+ src/pkg/http/client_test.go    |  2 +-
+ src/pkg/http/transport.go      |  4 ++--
+ src/pkg/http/transport_test.go |  4 ++--
+ 4 files changed, 21 insertions(+), 23 deletions(-)

@@ -1,0 +1,12 @@
+commit 29a83af5ef4e4792b6fcfeafc30ddeca63d821f8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 26 14:19:19 2015 +1100
+
+    os: add windows test for Hostname
+    
+    Change-Id: I9b38b3a384722cf000eab18b62f73f90bcb56c5c
+    Reviewed-on: https://go-review.googlesource.com/6070
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_test.go | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)

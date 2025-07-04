@@ -1,0 +1,16 @@
+commit fdcaae5734b44f1089a55c22a000d1b483ff2a91
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:45:26 2022 +0800
+
+    cmd/go/internal/mvs: remove useless type assertion
+    
+    Change-Id: Ifdb351193cab1c0b905a1cde17993231f849644c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436700
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/mvs/mvs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

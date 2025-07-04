@@ -1,0 +1,16 @@
+commit 57f69710d5d0f8fb24bb07aa3ce83f98077d9112
+Author: Dave Day <djd@golang.org>
+Date:   Tue Oct 1 20:44:57 2013 -0400
+
+    cmd/go: use -installsuffix to determine the includes directory list
+    
+    Currently, the directories generaed by includeArgs can have the "_race"
+    suffix added if invoked with -race flag, but ignores -installsuffix if
+    set.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/14174043
+
+ src/cmd/go/build.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 95b68e1e02fa713719f02f6c59fb1532bd05e824
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 4 14:46:42 2022 -0400
+
+    doc/go1.19: delete boringcrypto TODO
+    
+    Boringcrypto has never been officially supported and it remains unsupported.
+    It need not be mentioned in the release notes.
+    
+    Change-Id: I24a08d424982615244d51c1d250035d85a602023
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410362
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ doc/go1.19.html | 4 ----
+ 1 file changed, 4 deletions(-)

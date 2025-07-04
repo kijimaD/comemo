@@ -1,0 +1,14 @@
+commit a21537ff74e8d873a9dcf55412a467769ddc3bd5
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 17:39:17 2015 +0300
+
+    test: add tests for escape analysis when assigning to indirections
+    
+    False positives (var incorrectly escapes) are marked with BAD.
+    
+    Change-Id: I0114d87ee467fe1e3b27642f8c5a04d4a9664211
+    Reviewed-on: https://go-review.googlesource.com/5295
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/escape_indir.go | 153 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 153 insertions(+)

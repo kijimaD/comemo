@@ -1,0 +1,16 @@
+commit f2e946f9ed28e85f6f6dcd2862c9247240390ecd
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 4 08:25:09 2014 +1100
+
+    os: return ErrInvalid if receiver is nil.
+    
+    Fixes #7043.
+    
+    Test coming in https://golang.org/cl/46820043
+    
+    R=r, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/38330045
+
+ src/pkg/os/file_posix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

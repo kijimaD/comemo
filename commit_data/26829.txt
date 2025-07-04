@@ -1,0 +1,12 @@
+commit a00ad5f47ea9c950dd041b33476c2bb4568496e1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Apr 11 14:54:54 2016 +1000
+
+    doc: document Go 1.6.1 and Go 1.5.4
+    
+    Change-Id: Icb9e947a43fb87fbfe0655b09e0d7e8f61825aeb
+    Reviewed-on: https://go-review.googlesource.com/21825
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/devel/release.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

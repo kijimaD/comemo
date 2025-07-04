@@ -1,0 +1,14 @@
+commit ea98e4b5e99a55d4161ca61b16f401974566ae4a
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Dec 7 10:06:51 2009 -0800
+
+    changes necessary to get the new chameneosredux onto shootout.alioth.debian.org .
+    it's now there: http://shootout.alioth.debian.org/u32q/benchmark.php?test=chameneosredux&lang=all&box=1!
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/167043
+
+ test/bench/chameneosredux.go  | 6 +++---
+ test/bench/chameneosredux.txt | 1 +
+ 2 files changed, 4 insertions(+), 3 deletions(-)

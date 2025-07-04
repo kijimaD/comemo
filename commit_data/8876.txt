@@ -1,0 +1,17 @@
+commit 6282292f8da9dc8254bcbef51318504a17cb18b0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 27 21:59:51 2011 -0700
+
+    mime/multipart: parse LF-delimited messages, not just CRLF
+    
+    Against the spec, but appear in the wild.
+    
+    Fixes #1966
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4662059
+
+ src/pkg/mime/multipart/multipart.go      | 32 +++++++++++++++++++++-----------
+ src/pkg/mime/multipart/multipart_test.go | 32 ++++++++++++++++++++++----------
+ 2 files changed, 43 insertions(+), 21 deletions(-)

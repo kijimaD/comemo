@@ -1,0 +1,43 @@
+commit 828746ec57e76e49527791bca500b27b77576d79
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 11 15:15:43 2020 -0800
+
+    debug/dwarf: don't try to parse addr/rnglists header
+    
+    In an executable, the debug_addr and debug_rnglists sections are
+    assembled by concatenating the input sections, and each input section
+    has a header, and each header may have different attributes. So just
+    parsing the single header isn't right.  Parsing the header is not
+    necessary to handle offsets into these sections which is all we do.
+    
+    Looking at the header is also problematic because GCC with
+    -gsplit-dwarf when using DWARF versions 2 through 4 emits a
+    .debug_addr section, but it has no header.  The header was only added
+    for DWARF 5. So we can't parse the header at all for that case, and we
+    can't even detect that case in general.
+    
+    This CL also fixes SeekPC with addrx and strx formats, by not using
+    the wrong compilation unit to find the address or string base.
+    To make that work when parsing the compilation unit itself, we add
+    support for delay the resolution of those values until we know the base.
+    
+    New test binaries built with
+    
+    gcc -gdwarf-5 -no-pie debug/dwarf/testdata/line[12].c
+    (gcc (Debian 10.2.0-15) 10.2.0)
+    
+    clang -gdwarf-5 -no-pie debug/dwarf/testdata/line[12].c
+    (clang version 9.0.1-14)
+    
+    Change-Id: I66783e0eded629bf80c467767f781164d344a54d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277233
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/debug/dwarf/dwarf5ranges_test.go           |   7 +-
+ src/debug/dwarf/entry.go                       | 123 +++++++++++++++++--------
+ src/debug/dwarf/entry_test.go                  | 100 ++++++++++++++------
+ src/debug/dwarf/open.go                        |  85 +----------------
+ src/debug/dwarf/testdata/line-clang-dwarf5.elf | Bin 0 -> 18384 bytes
+ src/debug/dwarf/testdata/line-gcc-dwarf5.elf   | Bin 0 -> 18040 bytes
+ 6 files changed, 164 insertions(+), 151 deletions(-)

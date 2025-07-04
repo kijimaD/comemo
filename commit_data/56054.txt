@@ -1,0 +1,20 @@
+commit f6b93a4c358b28b350dd8fe1780c1f78e520c09c
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Mar 21 13:50:37 2024 +0800
+
+    slices: add examples
+    
+    For Clone, Grow, Clip, Concat, Contains, Repeat.
+    
+    Fixes #66435
+    
+    Change-Id: Ife8f61427e9cd18b7106c100de8f82f9d7840c9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573255
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/slices/example_test.go | 66 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 66 insertions(+)

@@ -1,0 +1,21 @@
+commit 9cd570680bd1d6ea23e4f5da1fe3a50c6927d6d5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 2 13:03:14 2013 -0700
+
+    runtime: reimplement reflect.call to not use stack splitting.
+    
+    R=golang-dev, r, khr, rsc
+    CC=golang-dev
+    https://golang.org/cl/12053043
+
+ misc/cgo/test/callback.go   |   1 +
+ src/cmd/ld/lib.c            |   2 +-
+ src/pkg/reflect/all_test.go |  11 +++++
+ src/pkg/runtime/asm_386.s   |  97 +++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/asm_amd64.s |  98 ++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/asm_arm.s   | 107 ++++++++++++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/panic.c     |   4 +-
+ src/pkg/runtime/proc.c      |   6 +++
+ src/pkg/runtime/runtime.h   |   1 +
+ src/pkg/runtime/stack.c     |  18 ++++----
+ 10 files changed, 321 insertions(+), 24 deletions(-)

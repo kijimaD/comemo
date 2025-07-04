@@ -1,0 +1,21 @@
+commit 7b583fd1a1aeda98daa5a9d485b35786c031e941
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Feb 24 11:52:38 2024 +0000
+
+    net/http: allow multiple spaces between method and path in mux patterns
+    
+    Fixes #64910
+    
+    Change-Id: I14fd1e35c95b14591e3ad7b889dc1ab19a008730
+    GitHub-Last-Rev: b8d436cdee93d103703e7e6d4bb28315c5035300
+    GitHub-Pull-Request: golang/go#65868
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565916
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ doc/next/6-stdlib/99-minor/net/http/64910.md |  2 ++
+ src/net/http/pattern.go                      |  7 +++++--
+ src/net/http/pattern_test.go                 | 17 +++++++++++++++++
+ src/net/http/server.go                       |  2 +-
+ 4 files changed, 25 insertions(+), 3 deletions(-)

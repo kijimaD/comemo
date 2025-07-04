@@ -1,0 +1,22 @@
+commit ce4a2755956a42aa3211c121139a52c9a97a9aa0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Nov 12 19:53:28 2021 -0500
+
+    cmd/compile, runtime: mark R1 as clobbered for write barrier call
+    
+    If the call to gcWriteBarrier is via PLT, the PLT stub will
+    clobber R1. Mark R1 clobbered.
+    
+    For #49386.
+    
+    Change-Id: I72df5bb3b8d10381fec5c567b15749aaf7d2ad70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363698
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |  5 +++--
+ src/cmd/compile/internal/ssa/opGen.go        |  2 +-
+ src/runtime/asm_s390x.s                      | 10 ++++------
+ 3 files changed, 8 insertions(+), 9 deletions(-)

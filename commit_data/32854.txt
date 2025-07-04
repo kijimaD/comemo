@@ -1,0 +1,23 @@
+commit 382d4928b8a758a91f06de9e6cb10b92bb882eff
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Sep 25 20:49:37 2017 -0700
+
+    internal/poll: don't return from Close until descriptor is closed
+    
+    This permits the program to reliably know that when the Close method
+    returns, the descriptor has definitely been closed. This matters at
+    least for listeners.
+    
+    Fixes #21856
+    Updates #7970
+    
+    Change-Id: I1fd0cfd2333649e6e67c6ae956e19fdff3a35a83
+    Reviewed-on: https://go-review.googlesource.com/66150
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@google.com>
+
+ src/internal/poll/fd_unix.go    | 10 +++++++++-
+ src/internal/poll/fd_windows.go | 10 +++++++++-
+ src/net/listen_test.go          | 32 ++++++++++++++++++++++++++++++++
+ 3 files changed, 50 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 6e98b7f0b28dd7f52a4cbe8f69c25d33e53f09bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 2 20:55:40 2009 -0800
+
+    split printer.go into two files; it has become too large:
+    - nodes.go implements ast node formatting
+    - printer.go implements the core printing functionality
+      and public interface
+    
+    No code changes except for updating the import clauses
+    and adding a top-level comment to nodes.go.
+    
+    R=rsc
+    http://go/go-review/1016026
+
+ src/pkg/go/printer/Makefile   |    1 +
+ src/pkg/go/printer/nodes.go   | 1083 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/printer/printer.go | 1071 +---------------------------------------
+ 3 files changed, 1085 insertions(+), 1070 deletions(-)

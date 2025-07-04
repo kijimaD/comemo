@@ -1,0 +1,25 @@
+commit 9c2b481b57aea1ee69b2131c09af1e0dc0ea84d8
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jul 28 15:29:38 2022 -0400
+
+    run: set GOENV=off when running 'go tool dist env'
+    
+    'go tool' sets environment variables, including the GOAMD64 value
+    from the user's go.env file.
+    
+    'go tool dist test' then rebuilds and reinstalls the toolchain and
+    standard library based on those variables. It should not; instead, it
+    should test exactly the configuration installed by the make scripts.
+    
+    Fixes #54084.
+    
+    Change-Id: I7cc8a21cc1d8331e06d7b7c55b14d170f8e2faab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420055
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/run.bash | 1 +
+ src/run.bat  | 1 +
+ src/run.rc   | 1 +
+ 3 files changed, 3 insertions(+)

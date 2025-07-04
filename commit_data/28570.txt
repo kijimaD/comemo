@@ -1,0 +1,23 @@
+commit a0d330f1ddeaa55cbd35191814546fd98e09a117
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 28 17:26:12 2016 +0900
+
+    runtime, runtime/cgo: revert CL 18814; don't drop signal stack in new thread on dragonfly
+    
+    This change reverts CL 18814 which is a workaroud for older DragonFly
+    BSD kernels, and fixes #13945 and #13947 in a more general way the
+    same as other platforms except NetBSD.
+    
+    This is a followup to CL 29491.
+    
+    Updates #16329.
+    
+    Change-Id: I771670bc672c827f2b3dbc7fd7417c49897cb991
+    Reviewed-on: https://go-review.googlesource.com/29971
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_dragonfly_amd64.c | 12 ------------
+ src/runtime/sys_dragonfly_amd64.s     | 12 ------------
+ 2 files changed, 24 deletions(-)

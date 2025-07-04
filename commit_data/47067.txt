@@ -1,0 +1,59 @@
+commit 30a82efcf403fed76bf1542e9477047660d5f54d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Sep 24 16:46:05 2021 -0400
+
+    cmd/compile, runtime: track argument stack slot liveness
+    
+    Currently, for stack traces (e.g. at panic or when runtime.Stack
+    is called), we print argument values from the stack. With register
+    ABI, we may never store the argument to stack therefore the
+    argument value on stack may be meaningless. This causes confusion.
+    
+    This CL makes the compiler keep trace of which argument stack
+    slots are meaningful. If it is meaningful, it will be printed in
+    stack traces as before. If it may not be meaningful, it will be
+    printed as the stack value with a question mark ("?"). In general,
+    the value could be meaningful on some code paths but not others
+    depending on the execution, and the compiler couldn't know
+    statically, so we still print the stack value, instead of not
+    printing it at all. Also note that if the argument variable is
+    updated in the function body the printed value may be stale (like
+    before register ABI) but still considered meaningful.
+    
+    Arguments passed on stack are always meaningful therefore always
+    printed without a question mark. Results are never printed, as
+    before.
+    
+    (Due to a bug in the compiler we sometimes don't spill args into
+    their dedicated spill slots (as we should), causing it having
+    fewer meaningful values than it should be.)
+    
+    This increases binary sizes a bit:
+                old       new
+    hello      1129760   1142080  +1.09%
+    cmd/go    13932320  14088016  +1.12%
+    cmd/link   6267696   6329168  +0.98%
+    
+    Fixes #45728.
+    
+    Change-Id: I308a0402e5c5ab94ca0953f8bd85a56acd28f58c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352057
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/bitvec/bv.go      |  11 +
+ src/cmd/compile/internal/gc/obj.go         |   7 +-
+ src/cmd/compile/internal/liveness/arg.go   | 339 +++++++++++++++++++++++++++++
+ src/cmd/compile/internal/liveness/bvset.go |  11 +-
+ src/cmd/compile/internal/liveness/plive.go |   5 +-
+ src/cmd/compile/internal/ssa/op.go         |   4 +
+ src/cmd/compile/internal/ssagen/ssa.go     |  17 ++
+ src/cmd/internal/obj/link.go               |   1 +
+ src/cmd/internal/obj/objfile.go            |   4 +-
+ src/cmd/internal/objabi/funcdata.go        |   2 +
+ src/cmd/link/internal/ld/symtab.go         |   1 +
+ src/runtime/funcdata.h                     |   2 +
+ src/runtime/symtab.go                      |   2 +
+ src/runtime/traceback.go                   |  33 ++-
+ src/runtime/traceback_test.go              | 113 ++++++++++
+ 15 files changed, 538 insertions(+), 14 deletions(-)

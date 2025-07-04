@@ -1,0 +1,26 @@
+commit 126ee245c65d8942484c747c3c4d9b92d65f665c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 4 11:22:58 2012 +1100
+
+    dashboard: increase notification log to 200 lines
+    
+    The go command lists all packages that were built.
+    A recent breakage notification included this text:
+    
+    $ tail -100 < log
+    ok      errors
+    ok      exp/ebnf
+    ?       exp/ebnflint [no test files]
+    ok      exp/gotype
+    ok      exp/norm
+    ok      exp/spdy
+    
+    If the breakage occurred before this point it would
+    not be visible in the output.
+    
+    R=golang-dev, gri, kevlar
+    CC=golang-dev
+    https://golang.org/cl/5504109
+
+ misc/dashboard/app/build/notify.txt | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

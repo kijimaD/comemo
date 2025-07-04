@@ -1,0 +1,18 @@
+commit 402f71a839e823c2ebad0b6524b17e07c03a6376
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 3 13:55:22 2015 -0500
+
+    runtime: do not share underlying envs/argv array
+    
+    Removes a potential data race between os.Setenv and runtime.GOROOT,
+    along with a bug where os.Setenv would only sometimes change the
+    value of runtime.GOROOT.
+    
+    Change-Id: I7d2a905115c667ea6e73f349f3784a1d3e8f810d
+    Reviewed-on: https://go-review.googlesource.com/6611
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/env_test.go    | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/export_test.go |  3 +++
+ src/runtime/runtime.go     |  4 ++--
+ 3 files changed, 46 insertions(+), 2 deletions(-)

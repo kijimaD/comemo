@@ -1,0 +1,15 @@
+commit 0e45890c8bafbaeed18c22f462d5435e43705264
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 1 18:34:14 2012 -0700
+
+    text/template/parse: restore the goroutine
+    To avoid goroutines during init, the nextItem function was a
+    clever workaround. Now that init goroutines are permitted,
+    restore the original, simpler design.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6282043
+
+ src/pkg/text/template/parse/lex.go | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)

@@ -1,0 +1,30 @@
+commit 6112e6e404755028b2995bde31ca6e4a6bfe14a8
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sun Mar 8 23:04:48 2015 -0400
+
+    cmd/internal/ld, runtime: record argument size for cgo_dynimport stdcall syscalls
+    
+    When external linking, we must link to implib provided by mingw, so we must use
+    properly decorated names for stdcalls.
+    
+    Because the feature is only used in the runtime, I've designed a new decoration
+    scheme so that we can use the same decorated name for both 386 and amd64.
+    
+    A stdcall function named FooEx from bar16.dll which takes 3 parameters will be
+    imported like this:
+            //go:cgo_import_dynamic runtime._FooEx FooEx%3 "bar16.dll"
+    Depending on the size of uintptr, the linker will later transform it to _FooEx@12
+    or _FooEx@24.
+    
+    This is in prepration for the next CL that adds external linking support for
+    windows/386.
+    
+    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e2c
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/7163
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/pe.go  | 24 +++++++++++++--
+ src/runtime/os1_windows.go | 76 ++++++++++++++++++++++------------------------
+ 2 files changed, 57 insertions(+), 43 deletions(-)

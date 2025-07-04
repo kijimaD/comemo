@@ -1,0 +1,12 @@
+commit bdecae9e003b1c3136b310d5f0ef0f1d3993d9a9
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 23 17:34:23 2009 -0800
+
+    add an FAQ entry about the logo and mascot
+    
+    R=rsc
+    CC=golang-dev, reneefrench
+    https://golang.org/cl/157144
+
+ doc/go_faq.html | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

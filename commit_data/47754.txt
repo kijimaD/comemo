@@ -1,0 +1,24 @@
+commit a76511f3a40ea69ee4f5cd86e735e1c8a84f0aa2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 18:05:11 2021 -0500
+
+    syscall: fix ForkLock spurious close(0) on pipe failure
+    
+    Pipe (and therefore forkLockPipe) does not make any guarantees
+    about the state of p after a failed Pipe(p). Avoid that assumption
+    and the too-clever goto, so that we don't accidentally Close a real fd
+    if the failed pipe leaves p[0] or p[1] set >= 0.
+    
+    Fixes #50057
+    Fixes CVE-2021-44717
+    
+    Change-Id: Iff8e19a6efbba0c73cc8b13ecfae381c87600bb4
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1291270
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370576
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+
+ src/syscall/exec_unix.go | 20 ++++++--------------
+ 1 file changed, 6 insertions(+), 14 deletions(-)

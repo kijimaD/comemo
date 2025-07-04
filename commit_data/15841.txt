@@ -1,0 +1,12 @@
+commit 465ff4cfc017360d5a9efbdadee7dbf431e4d69b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed Mar 20 00:19:11 2013 +0100
+
+    cmd/gc: implement revised rule for shifts in equality.
+    
+    R=rsc, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/7613046
+
+ src/cmd/gc/const.c | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

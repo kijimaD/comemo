@@ -1,0 +1,15 @@
+commit 403f012534b7042160d26377a70b6624ccfd976c
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 22 18:23:26 2012 -0500
+
+    runtime: zero d.free field
+    
+    Not programming in Go anymore:
+    have to clear fields in local variables.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/7002053
+
+ src/pkg/runtime/cgocall.c | 2 ++
+ 1 file changed, 2 insertions(+)

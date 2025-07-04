@@ -1,0 +1,13 @@
+commit db7a6221e924772dd426b6b5ad825f8a4732c753
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 18 13:51:14 2009 -0700
+
+    raw strings may span multiple lines
+    
+    R=r
+    DELTA=7  (2 added, 0 deleted, 5 changed)
+    OCL=30492
+    CL=30494
+
+ doc/go_spec.html | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

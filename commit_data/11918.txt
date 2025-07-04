@@ -1,0 +1,12 @@
+commit d6a3650ad71d8b071cf038ff8fe1c724b1ab74d0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 15 13:38:28 2012 +1100
+
+    strings: add Bernardo O'Higgins example
+    
+    R=r, bradfitz
+    CC=golang-dev, rogpeppe
+    https://golang.org/cl/5673049
+
+ src/pkg/strings/example_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

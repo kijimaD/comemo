@@ -1,0 +1,14 @@
+commit f448c212a101f4fcf54a694e4a1cfd3459635bcb
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 11 16:48:05 2019 -0400
+
+    runtime: delete unused isscanstatus function
+    
+    Change-Id: I693250e980cc60ea151736b42ac6b1426ab801b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171765
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/proc.go | 7 -------
+ 1 file changed, 7 deletions(-)

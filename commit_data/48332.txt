@@ -1,0 +1,18 @@
+commit 20d333b6f48545cd9900a39fb10f390584d4ba2c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 8 13:32:34 2022 -0800
+
+    cmd/go: for gccgo expect one fewer file in TestScript/list_swigcxx
+    
+    One of the files in CompileGoFiles is actually _cgo_import.go, but
+    that file is only generated for gc, not for gccgo.
+    
+    Change-Id: I87bb55552e1409cc57da8f35a32b37ce4a3df60c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390895
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/list_swigcxx.txt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

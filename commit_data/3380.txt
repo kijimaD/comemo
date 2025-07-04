@@ -1,0 +1,13 @@
+commit 2e5a136e458e6641b09fb3a0db72ce729a9f4f66
+Author: Rob Pike <r@golang.org>
+Date:   Sun Sep 27 17:59:36 2009 -0700
+
+    add a data section and start populating it with info about allocation, arrays
+    
+    R=rsc
+    DELTA=331  (266 added, 61 deleted, 4 changed)
+    OCL=35024
+    CL=35030
+
+ doc/effective_go.html | 321 ++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 262 insertions(+), 59 deletions(-)

@@ -1,0 +1,15 @@
+commit df03aeb67cab0f5ac153752607ef8f2c91983a6e
+Author: Ato Araki <ato.araki@gmail.com>
+Date:   Tue Nov 5 15:13:50 2013 +1100
+
+    go/doc: add full stop of Japanese, Chinese and Korean.
+    
+    This fix will show a good synopsis on package listings in that languages.
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/21130043
+
+ src/pkg/go/doc/synopsis.go      | 3 +++
+ src/pkg/go/doc/synopsis_test.go | 2 ++
+ 2 files changed, 5 insertions(+)

@@ -1,0 +1,12 @@
+commit 8c6f997379ae528c4a7faff5d782a88c3ee59f1e
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Jan 12 16:17:54 2011 +1100
+
+    hg: add cgo/_cgo_* to .hgignore.
+    
+    R=rsc, nigeltao_gnome
+    CC=golang-dev
+    https://golang.org/cl/3956042
+
+ .hgignore | 1 +
+ 1 file changed, 1 insertion(+)

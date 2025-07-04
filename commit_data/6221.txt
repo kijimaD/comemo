@@ -1,0 +1,14 @@
+commit 66f676b8efd2b383aa2fa3b367efb23f9ba50372
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 9 23:31:33 2010 -0700
+
+    arm: fix a couple of build bugs.
+    tests have not been run yet
+    
+    R=stephenm
+    CC=golang-dev
+    https://golang.org/cl/2165046
+
+ src/libcgo/arm.S                | 1 +
+ src/pkg/runtime/linux/arm/sys.s | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 9a469e6ab536e32600d7a3e002ce387bf10a6780
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 10 11:48:22 2012 +1100
+
+    make.bat: remove double quotes
+    
+    Fixes #2974.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5653052
+
+ src/make.bat | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

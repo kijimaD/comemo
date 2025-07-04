@@ -1,0 +1,13 @@
+commit 976d99b9a883631af276a4cd8e0205095457b430
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 25 03:18:05 2013 +0800
+
+    build, cmd/5l: actually report failures for -linkmode tests
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7938046
+
+ src/cmd/5l/obj.c | 4 +++-
+ src/run.bash     | 1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)

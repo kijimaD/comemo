@@ -1,0 +1,106 @@
+commit 54789eff385780c54254f822e09505b6222918e2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 28 18:17:58 2015 -0700
+
+    cmd/internal/obj/arm64: make function prologue more predictable
+    
+    Static branch prediction guesses that forward branches aren't taken.
+    Since stacks are rarely grown, make the forward branch mean grow.
+    
+    While we're here, remove the debug-only instruction
+    saving the frame size in the temp register.
+    
+    Sample disassembly for
+    
+    func f() {
+            _ = [128]byte{}
+    }
+    
+    Before:
+    
+    0x4008248         ldr        x1, [x28, #0x10]
+    0x400824c         sub        x2, sp, #0x90
+    0x4008250         cmp        x2, x1
+    0x4008254         b.hi       0x4008268
+    0x4008258         mov        x3, x30
+    0x400825c         movz       x27, #0x90
+    0x4008260         bl         runtime.morestack_noctxt
+    0x4008264         b          main.f
+    0x4008268         sub        sp, sp, #0x90
+    0x400826c         add        x16, sp, #0x10
+    0x4008270         str        xzr, [x16]
+    0x4008274         str        xzr, [x16, #0x8]
+    0x4008278         str        xzr, [x16, #0x10]
+    0x400827c         str        xzr, [x16, #0x18]
+    0x4008280         str        xzr, [x16, #0x20]
+    0x4008284         str        xzr, [x16, #0x28]
+    0x4008288         str        xzr, [x16, #0x30]
+    0x400828c         str        xzr, [x16, #0x38]
+    0x4008290         str        xzr, [x16, #0x40]
+    0x4008294         str        xzr, [x16, #0x48]
+    0x4008298         str        xzr, [x16, #0x50]
+    0x400829c         str        xzr, [x16, #0x58]
+    0x40082a0         str        xzr, [x16, #0x60]
+    0x40082a4         str        xzr, [x16, #0x68]
+    0x40082a8         str        xzr, [x16, #0x70]
+    0x40082ac         str        xzr, [x16, #0x78]
+    0x40082b0         add        sp, sp, #0x90
+    0x40082b4         ret
+    
+    After:
+    
+    0x4004bc8         ldr        x1, [x28, #0x10]
+    0x4004bcc         sub        x2, sp, #0x90
+    0x4004bd0         cmp        x2, x1
+    0x4004bd4         b.ls       0x4004c28
+    0x4004bd8         sub        sp, sp, #0x90
+    0x4004bdc         add        x16, sp, #0x10
+    0x4004be0         str        xzr, [x16]
+    0x4004be4         str        xzr, [x16, #0x8]
+    0x4004be8         str        xzr, [x16, #0x10]
+    0x4004bec         str        xzr, [x16, #0x18]
+    0x4004bf0         str        xzr, [x16, #0x20]
+    0x4004bf4         str        xzr, [x16, #0x28]
+    0x4004bf8         str        xzr, [x16, #0x30]
+    0x4004bfc         str        xzr, [x16, #0x38]
+    0x4004c00         str        xzr, [x16, #0x40]
+    0x4004c04         str        xzr, [x16, #0x48]
+    0x4004c08         str        xzr, [x16, #0x50]
+    0x4004c0c         str        xzr, [x16, #0x58]
+    0x4004c10         str        xzr, [x16, #0x60]
+    0x4004c14         str        xzr, [x16, #0x68]
+    0x4004c18         str        xzr, [x16, #0x70]
+    0x4004c1c         str        xzr, [x16, #0x78]
+    0x4004c20         add        sp, sp, #0x90
+    0x4004c24         ret
+    0x4004c28         mov        x3, x30
+    0x4004c2c         bl         runtime.morestack_noctxt
+    0x4004c30         b          main.f
+    
+    Updates #10587.
+    
+    Package sort benchmarks using an iPhone 6:
+    
+    name            old time/op  new time/op  delta
+    SearchWrappers   355ns ± 1%   328ns ± 1%  -7.57%  (p=0.000 n=25+19)
+    SortString1K     580µs ± 1%   577µs ± 1%  -0.48%  (p=0.000 n=25+25)
+    StableString1K  1.04ms ± 0%  1.04ms ± 0%    ~     (p=0.851 n=24+25)
+    SortInt1K        251µs ± 1%   247µs ± 1%  -1.52%  (p=0.000 n=23+25)
+    StableInt1K      267µs ± 2%   261µs ± 2%  -2.02%  (p=0.000 n=25+25)
+    SortInt64K      23.8ms ± 1%  23.6ms ± 0%  -0.97%  (p=0.000 n=25+23)
+    StableInt64K    22.8ms ± 0%  22.4ms ± 1%  -1.76%  (p=0.000 n=24+25)
+    Sort1e2          123µs ± 1%   124µs ± 1%    ~     (p=0.256 n=23+23)
+    Stable1e2        248µs ± 1%   247µs ± 1%  -0.69%  (p=0.000 n=23+25)
+    Sort1e4         24.3ms ± 2%  24.6ms ± 5%  +1.36%  (p=0.017 n=22+25)
+    Stable1e4       77.2ms ± 6%  76.2ms ± 5%  -1.36%  (p=0.020 n=25+25)
+    Sort1e6          3.95s ± 8%   3.95s ± 8%    ~     (p=0.863 n=25+25)
+    Stable1e6        15.7s ± 1%   15.5s ± 1%  -1.11%  (p=0.000 n=22+23)
+    
+    Change-Id: I377b3817af2ed27ddeecf24edef97fad91fc1afc
+    Reviewed-on: https://go-review.googlesource.com/10500
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/internal/obj/arm64/obj7.go | 85 +++++++++++++++++++-------------------
+ 1 file changed, 43 insertions(+), 42 deletions(-)

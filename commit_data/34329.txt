@@ -1,0 +1,16 @@
+commit fceaa2e242823a9dab271a8715eedfadd2a787bb
+Author: mingrammer <mingrammer@gmail.com>
+Date:   Fri Feb 23 22:44:10 2018 +0900
+
+    runtime: rename the TestGcHashmapIndirection to TestGcMapIndirection
+    
+    There was still the word 'Hashmap' in gc_test.go, so I renamed it to just 'Map'
+    
+    Previous renaming commit: https://golang.org/cl/90336
+    
+    Change-Id: I5b0e5c2229d1c30937c7216247f4533effb81ce7
+    Reviewed-on: https://go-review.googlesource.com/96675
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/gc_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,25 @@
+commit 2c987e16937a6abf907ab230b04d42c071a388f5
+Author: Emil Hessman <emil@hessman.se>
+Date:   Sat Dec 27 20:52:17 2014 +0100
+
+    encoding/json: address go vet reports
+    
+    The error message for decoding a unquoted value into a struct field with
+    the ,string option specified has two arguments when one is needed.
+    Make the error message take one argument and add a test in order to cover
+    the case when a unquoted value is specified.
+    
+    Also add error value as the missing argument for Fatalf call in test.
+    
+    Fixes the following go vet reports:
+    
+    decode.go:602: wrong number of args for format in Errorf call: 1 needed but 2 args
+    decode_test.go:1088: missing argument for Fatalf("%v"): format reads arg 1, have only 0 args
+    
+    Change-Id: Id036e10c54c4a7c1ee9952f6910858ecc2b84134
+    Reviewed-on: https://go-review.googlesource.com/2109
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/encoding/json/decode.go      | 2 +-
+ src/encoding/json/decode_test.go | 3 ++-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

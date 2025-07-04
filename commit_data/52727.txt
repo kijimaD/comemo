@@ -1,0 +1,25 @@
+commit 22a840aa9bfbabd7b4daf5c5f9852e1c68908d03
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 19 16:41:37 2023 -0700
+
+    runtime: mix a bit more in arm64 hash function
+    
+    We really need 3 mix steps between the data being hashed and the output.
+    One mix can only spread a 1 bit change to 32 bits. The second mix
+    can spread to all 128 bits, but the spread is not complete. A third mix
+    spreads out ~evenly to all 128 bits.
+    
+    The amd64 version has 3 mix steps.
+    
+    Fixes #59643
+    
+    Change-Id: I54ad8686ca42bcffb6d0ec3779d27af682cc96e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486616
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/asm_arm64.s  | 1 +
+ src/runtime/hash_test.go | 7 +++++--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

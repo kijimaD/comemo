@@ -1,0 +1,27 @@
+commit 1f446432ddfd64f1507e7c85cd603d3c5ae60094
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 21 14:27:40 2016 -0700
+
+    cmd/compile: fix error msg mentioning different packages with same name
+    
+    This is a regression from 1.6. The respective code in importimport
+    (export.go) was not exactly replicated with the new importer. Also
+    copied over the missing cyclic import check.
+    
+    Added test cases.
+    
+    Fixes #16133.
+    
+    Change-Id: I1e0a39ff1275ca62a8054874294d400ed83fb26a
+    Reviewed-on: https://go-review.googlesource.com/24312
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bimport.go |  8 +++++++-
+ src/cmd/compile/internal/gc/export.go  |  4 ++++
+ test/fixedbugs/issue16133.dir/a1.go    |  7 +++++++
+ test/fixedbugs/issue16133.dir/a2.go    |  7 +++++++
+ test/fixedbugs/issue16133.dir/b.go     |  7 +++++++
+ test/fixedbugs/issue16133.dir/c.go     | 10 ++++++++++
+ test/fixedbugs/issue16133.go           | 10 ++++++++++
+ 7 files changed, 52 insertions(+), 1 deletion(-)

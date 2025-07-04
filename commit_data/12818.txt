@@ -1,0 +1,17 @@
+commit 065db4ea99f80cce6d9ed794467697955f0eaa2e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 3 11:44:52 2012 +1000
+
+    text/template: pipelined arg was not typechecked
+    Without this fix, an erroneous template causes a panic; should be caught safely.
+    The bug did not affect correct templates.
+    
+    Fixes #3267.
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5900065
+
+ src/pkg/text/template/exec.go      | 7 ++++++-
+ src/pkg/text/template/exec_test.go | 8 ++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

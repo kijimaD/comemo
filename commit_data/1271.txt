@@ -1,0 +1,35 @@
+commit 2b39165f1eabc309bc774f6b1ac7c0ce62270c5d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 3 14:20:23 2008 -0800
+
+    clean stack trace code.
+    format is unchanged but shows all frames
+    (old loop stopped one frame early).
+    
+    wreck=; 6.out
+    cannot convert type *main.S·interface2 to interface main.I·interface2: missing method Foo
+    throw: interface conversion
+    SIGSEGV: segmentation violation
+    Faulting address: 0x0
+    pc: 0x256d
+    
+    throw+0x46 /home/rsc/go/src/runtime/runtime.c:68
+            throw(0x863a, 0x0)
+    hashmap+0x188 /home/rsc/go/src/runtime/iface.c:167
+            hashmap(0x8760, 0x0, 0x85b0, 0x0, 0x0, ...)
+    sys·ifaceT2I+0xa8 /home/rsc/go/src/runtime/iface.c:201
+            sys·ifaceT2I(0x8760, 0x0, 0x85b0, 0x0, 0x0, ...)
+    main·main+0x4e /home/rsc/go/src/runtime/rt0_amd64_darwin.s:87
+            main·main()
+    mainstart+0xf /home/rsc/go/src/runtime/rt0_amd64.s:70
+            mainstart()
+    sys·goexit /home/rsc/go/src/runtime/proc.c:110
+            sys·goexit()
+    
+    R=r
+    DELTA=44  (5 added, 15 deleted, 24 changed)
+    OCL=20358
+    CL=20368
+
+ src/runtime/rt2_amd64.c | 68 +++++++++++++++++++++----------------------------
+ 1 file changed, 29 insertions(+), 39 deletions(-)

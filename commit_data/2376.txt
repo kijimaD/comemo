@@ -1,0 +1,14 @@
+commit 70ce47058ee6842c6b6f20b059dbd5da288dc01d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 3 17:26:53 2009 -0700
+
+    bug in parallel assignment
+    
+    R=r
+    DELTA=40  (40 added, 0 deleted, 0 changed)
+    OCL=29850
+    CL=29855
+
+ test/bugs/bug159.go | 39 +++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 44 insertions(+)

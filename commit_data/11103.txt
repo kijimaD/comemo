@@ -1,0 +1,15 @@
+commit 0c012af11464ad1d5f2f188f6026c3b8a5483ca4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 10 21:01:58 2012 -0800
+
+    cmd/go: kill test.out after 1 minute
+    
+    Will have to do better but this is enough to
+    stop the builders from hanging, I hope.
+    
+    R=golang-dev, dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/5533066
+
+ src/cmd/go/test.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

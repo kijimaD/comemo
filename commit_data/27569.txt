@@ -1,0 +1,17 @@
+commit 79f7ccf2c3931745aeb97c5c985b6ac7b44befb4
+Author: Keith Randall <khr@golang.org>
+Date:   Sat May 28 21:59:17 2016 -0700
+
+    cmd/compile: add constant fold comparison tests
+    
+    Increases generic.rules coverage from 91% to 95%.
+    
+    Change-Id: I981eb94f3cd10d2f87c836576a43786787a25d83
+    Reviewed-on: https://go-review.googlesource.com/23556
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/gc/constFold_test.go      | 5692 ++++++++++++++++++++
+ .../internal/gc/testdata/gen/constFoldGen.go       |   83 +
+ 2 files changed, 5775 insertions(+)

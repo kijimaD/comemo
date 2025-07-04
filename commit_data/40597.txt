@@ -1,0 +1,29 @@
+commit 0994cc1af63ce084712d6257f9993f9cefa2d441
+Author: Pantelis Sampaziotis <psampaz@gmail.com>
+Date:   Tue Nov 5 17:42:30 2019 +0000
+
+    testing/iotest: add missing tests
+    
+    Adds missing tests for all the types:
+    * OneByteReader
+    * HalfReader
+    * DataErrReader
+    * TimeoutReader
+    * TruncateWriter
+    * writeLogger
+    * readLogger
+    
+    Fixes #33650
+    
+    Change-Id: I1c773f9f1625ff33a1d0b5a045c72a73a9eca9ce
+    GitHub-Last-Rev: 2ab650677bb9cad43ea2ce620c9898123c7ec396
+    GitHub-Pull-Request: golang/go#33651
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190259
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/iotest/logger_test.go | 160 +++++++++++++++++++++++++++
+ src/testing/iotest/reader_test.go | 226 ++++++++++++++++++++++++++++++++++++++
+ src/testing/iotest/writer_test.go |  39 +++++++
+ 3 files changed, 425 insertions(+)

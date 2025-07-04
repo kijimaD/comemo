@@ -1,0 +1,12 @@
+commit 247b034ac04b753d5e3ca7d0d8a172f63db5dcb4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 21 03:46:17 2018 +0000
+
+    cmd/go: run mkalldocs.sh after earlier revert
+    
+    Change-Id: Ie4ed8b3e7d26ae53b2290a7a6e7d9888eb963edc
+    Reviewed-on: https://go-review.googlesource.com/130318
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

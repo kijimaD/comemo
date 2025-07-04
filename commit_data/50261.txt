@@ -1,0 +1,25 @@
+commit 157aae6eed1c092fd9e8ead3527185378eb828e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 31 17:29:28 2022 -0700
+
+    go/types, types2: establish type-checker specific local tests
+    
+    Establish testdata/local directory for tests that are not (yet)
+    shared between the go/types and types2. Move issue47996.go into
+    that directory.
+    
+    For #54511.
+    
+    Change-Id: I274b119990a93cc3657bdddc5246948699226c21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426660
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go                    | 3 ++-
+ .../compile/internal/types2/testdata/{ => local}/issue47996.go   | 0
+ src/go/types/check_test.go                                       | 1 +
+ src/go/types/testdata/local/issue47996.go                        | 9 +++++++++
+ 4 files changed, 12 insertions(+), 1 deletion(-)

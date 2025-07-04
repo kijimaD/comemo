@@ -1,0 +1,18 @@
+commit cf2054088099ca90535f2baf6af02bb495a7439c
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 26 14:51:08 2018 +1100
+
+    doc: improve the interface example in Effective Go
+    
+    The String method is n-squared and overwrites its receiver.
+    Fix both issues, with only a slight loss of clarity.
+    
+    Fixes #28773
+    
+    Change-Id: I588f69d4cbd72931b28b984671512834473bd466
+    Reviewed-on: https://go-review.googlesource.com/c/151217
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/effective_go.html     | 7 +++++--
+ doc/progs/eff_sequence.go | 9 ++++++++-
+ 2 files changed, 13 insertions(+), 3 deletions(-)

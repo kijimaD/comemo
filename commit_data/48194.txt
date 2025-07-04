@@ -1,0 +1,21 @@
+commit 35170365c83085024e4855c14032599f5513d563
+Author: Martin Sucha <anty.sk+git@gmail.com>
+Date:   Tue Feb 22 21:51:04 2022 +0100
+
+    net: document methods of Buffers
+    
+    There is code in the wild that copies the Buffers slice,
+    but not the contents.
+    Let's document explicitly that it is not safe to do so.
+    
+    Updates #45163
+    
+    Change-Id: Id45e27b93037d4e9f2bfde2558e7869983b60bcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387434
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/net.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

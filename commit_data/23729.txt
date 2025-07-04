@@ -1,0 +1,16 @@
+commit 5c62e5f9da1fa0b16fa8da918b8fd1eb807b38c1
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 16 13:47:01 2015 +1000
+
+    cmd/fix: add gotypes module
+    
+    Adjusts for the move from golang.org/x/tools/go/types and .../go/exact
+    to go/types and go/constant in the main repository.
+    
+    Change-Id: I0da7248c540939e3e9b09c915b0a296937f1be73
+    Reviewed-on: https://go-review.googlesource.com/12284
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/fix/gotypes.go      | 75 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/gotypes_test.go | 89 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 164 insertions(+)

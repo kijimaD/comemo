@@ -1,0 +1,20 @@
+commit 623c772814cdae562afb4c63c62d51a228bc672e
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Sep 15 15:30:13 2018 -0700
+
+    cmd/compile: fix CMPconstload rule
+    
+    The CMPconstload opcodes take a ValAndOff as their AuxInt, not just
+    an offset.
+    
+    Originally introduced in CL 135379.
+    
+    Change-Id: I244b2d56ef2e99d2975faa2e97f4291ec97c64b7
+    Reviewed-on: https://go-review.googlesource.com/135418
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 10 +--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 96 ++++++++++++++--------------
+ 2 files changed, 53 insertions(+), 53 deletions(-)

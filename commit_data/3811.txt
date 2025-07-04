@@ -1,0 +1,16 @@
+commit 6238964d7b158ef4ce075d9e8fe1eec1ccd66011
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 14:29:38 2009 -0800
+
+    gofmt-ify nacl
+    
+    R=rsc
+    http://go/go-review/1018062
+
+ src/pkg/exp/nacl/av/av.go       |  73 +++--
+ src/pkg/exp/nacl/av/event.go    | 600 ++++++++++++++++++++--------------------
+ src/pkg/exp/nacl/av/image.go    |  16 +-
+ src/pkg/exp/nacl/srpc/client.go |  44 +--
+ src/pkg/exp/nacl/srpc/msg.go    |  93 +++----
+ src/pkg/exp/nacl/srpc/server.go |  13 +-
+ 6 files changed, 419 insertions(+), 420 deletions(-)

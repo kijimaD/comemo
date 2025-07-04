@@ -1,0 +1,16 @@
+commit 48cc3c4b587f9549f7426776d032da99b3ba471b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 14 15:33:15 2016 -0400
+
+    syscall: skip TestUnshare if kernel does not support net namespace
+    
+    Fixes #16056.
+    
+    Change-Id: Ic3343914742713851b8ae969b101521f25e85e7b
+    Reviewed-on: https://go-review.googlesource.com/24132
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

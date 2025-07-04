@@ -1,0 +1,13 @@
+commit 2d174db6a6eefd9c0034d0d392db666314dc55c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 13 12:15:46 2011 -0400
+
+    5c, 5g: fix build with too-smart gcc
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4543049
+
+ src/cmd/5c/peep.c | 4 ++--
+ src/cmd/5g/peep.c | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

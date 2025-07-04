@@ -1,0 +1,19 @@
+commit 1a9807906df1d1cb9955dfda387b92e03375c0f0
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 18:20:49 2021 -0400
+
+    go/types: more systematic error handling in typeWriter
+    
+    This is a port of CL 346009 to go/types. An unnecessary break statement
+    was removed from both the port and types2.
+    
+    Change-Id: I2cc1328a61100d4b01a2d26ac7bac9044440d579
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346558
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/typestring.go |  1 -
+ src/go/types/typestring.go                    | 81 +++++++++++++--------------
+ 2 files changed, 39 insertions(+), 43 deletions(-)

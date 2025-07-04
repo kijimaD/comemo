@@ -1,0 +1,17 @@
+commit 59c18b0b366f4d65d0c6c33e87ad056d291fea4d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 22 15:31:25 2011 +1000
+
+    os: Open with O_APPEND|O_CREATE to append to the end of file on Windows
+    
+    Credit for the fix goes to Hector, test by PeterGo.
+    
+    Fixes #1655.
+    
+    R=golang-dev, rsc1, peterGo
+    CC=golang-dev, hector
+    https://golang.org/cl/4436051
+
+ src/pkg/os/os_test.go              | 12 ++++++++++++
+ src/pkg/syscall/syscall_windows.go |  7 +++++--
+ 2 files changed, 17 insertions(+), 2 deletions(-)

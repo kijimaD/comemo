@@ -1,0 +1,12 @@
+commit 1a6b1dd0de3adc37e76300290dccc1a74bc5d7fc
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Mar 2 15:05:52 2011 -0500
+
+    xml: fix typo in test.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4218042
+
+ src/pkg/xml/read_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

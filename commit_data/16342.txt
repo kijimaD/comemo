@@ -1,0 +1,14 @@
+commit 13081942042636c6ebeee837a25977f7fdf65f1e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon May 20 08:17:21 2013 +0400
+
+    runtime: zeroize g->fnstart to not prevent GC of the closure
+    Fixes #5493.
+    
+    R=golang-dev, minux.ma, iant
+    CC=golang-dev
+    https://golang.org/cl/9557043
+
+ src/pkg/runtime/proc.c      |  1 +
+ test/fixedbugs/issue5493.go | 52 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

@@ -1,0 +1,15 @@
+commit eab46c6ef4c27cad4675ff0f884608ad8180b07e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 4 13:09:49 2008 -0700
+
+    include math in standard build
+    
+    R=ken
+    OCL=14811
+    CL=14811
+
+ src/lib/clean.bash      | 4 ++++
+ src/lib/make.bash       | 7 +++++++
+ src/lib/math/clean.bash | 7 +++++++
+ src/lib/math/make.bash  | 9 +++++++++
+ 4 files changed, 27 insertions(+)

@@ -1,0 +1,12 @@
+commit 08af4c3a798054ec22a6fdac3af2213d6a34d7eb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 16 21:19:08 2015 -0400
+
+    cmd/internal/obj/x86: fix duffcopy/duffzero for GOEXPERIMENT=framepointer
+    
+    Change-Id: I99aee6dff97a4abcaf5a9cddb505ba90b65667ea
+    Reviewed-on: https://go-review.googlesource.com/7728
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 44 ++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 40 insertions(+), 4 deletions(-)

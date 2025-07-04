@@ -1,0 +1,16 @@
+commit 234283d8aba1e892906e889782ae5723686da6c6
+Author: zhangjian <ZJ.Cosmos@gmail.com>
+Date:   Tue Mar 22 16:35:21 2022 +0000
+
+    go/build: remove unused code in TestDependencies
+    
+    Change-Id: I7ccffbf96bd30f33bb42b6a2592962e2d4dda9fc
+    GitHub-Last-Rev: 2d6e214ac50bf505f8edf5ad8bf1c7f02e7b1194
+    GitHub-Pull-Request: golang/go#51231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386374
+    Reviewed-by: mzh <mzh@golangcn.org>
+    Trust: mzh <mzh@golangcn.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/go/build/deps_test.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

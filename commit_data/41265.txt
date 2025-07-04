@@ -1,0 +1,19 @@
+commit 73859478257884608030e5e8d774ffa3321f0ecf
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Feb 12 10:14:12 2020 -0500
+
+    cmd/go/internal/modcmd: remove dead function addModFlag
+    
+    This function is never called and should have been removed
+    earlier. work.AddModCommonFlags defines the -modfile flag instead.
+    
+    Fixes #37189
+    
+    Change-Id: I73ad2a727013a849cba44bf70de04160f37c97dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219197
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/mod.go | 5 -----
+ 1 file changed, 5 deletions(-)

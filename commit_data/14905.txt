@@ -1,0 +1,18 @@
+commit c02294344943db0e93d24d37526961b3fe851a66
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 18 10:30:12 2013 +1100
+
+    html/template: remove noescape support
+    
+    This was never documented or properly implemented.
+    
+    Fixes #3528.
+    
+    R=mikesamuel, rsc
+    CC=golang-dev
+    https://golang.org/cl/7142048
+
+ doc/go1.1.html                       |  7 +++++++
+ src/pkg/html/template/escape.go      |  5 +----
+ src/pkg/html/template/escape_test.go | 11 -----------
+ 3 files changed, 8 insertions(+), 15 deletions(-)

@@ -1,0 +1,14 @@
+commit d4b46aa1b8c2e62b1e13de15741c7330fd2e9e3a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 7 17:13:35 2016 -0800
+
+    os: document that Rename does not replace an existing directory
+    
+    Fixes #18240.
+    
+    Change-Id: Ife951e2c1320b3f1362c85642615b24fd4291189
+    Reviewed-on: https://go-review.googlesource.com/34135
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

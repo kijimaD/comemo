@@ -1,0 +1,15 @@
+commit c14924bcc8a647111adcc72166a800087561f687
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 22 16:41:14 2008 -0700
+
+    implement zoneinfo reader
+    
+    R=r
+    DELTA=348  (338 added, 0 deleted, 10 changed)
+    OCL=15648
+    CL=15660
+
+ src/lib/time/time.go     |   4 +-
+ src/lib/time/zoneinfo.go | 262 +++++++++++++++++++++++++++++++++++++++++++++--
+ test/timelib.go          |  86 ++++++++++++++++
+ 3 files changed, 344 insertions(+), 8 deletions(-)

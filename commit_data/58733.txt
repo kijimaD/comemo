@@ -1,0 +1,19 @@
+commit 0044bc614af52d3f9acdd4db18e053e635c25ccd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 11 12:56:27 2025 -0800
+
+    os: consolidate and clarify File.Fd docs
+    
+    Change-Id: Id062b969fe7d6908a0797b36a4a379e4d46ba557
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648516
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/os/file.go         | 17 +++++++++++++++++
+ src/os/file_plan9.go   | 37 +++++++++++++++----------------------
+ src/os/file_unix.go    | 15 ++-------------
+ src/os/file_windows.go |  9 ++-------
+ src/os/stat_plan9.go   |  2 +-
+ 5 files changed, 37 insertions(+), 43 deletions(-)

@@ -1,0 +1,20 @@
+commit ccdca832c569727f7985966a3324421a69739f57
+Author: andrew werner <andrew@upthere.com>
+Date:   Tue Dec 15 14:42:28 2015 -0800
+
+    io: make chained multiReader Read more efficient
+    
+    before this change, when io.MultiReader was called many times but contain few
+    underlying readers, calls to Read were unnecessarily expensive.
+    
+    Fixes #13558
+    
+    Change-Id: I3ec4e88c7b50c075b148331fb1b7348a5840adbe
+    Reviewed-on: https://go-review.googlesource.com/17873
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/multi.go      |  7 +++++++
+ src/io/multi_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)

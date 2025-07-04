@@ -1,0 +1,20 @@
+commit c9d6f45fec19a9cb66ddd89d61bfa982f5bf4afe
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 7 15:25:39 2021 -0800
+
+    runtime/metrics: fix a couple of documentation typpos
+    
+    Fixes #44150
+    
+    Change-Id: Ibe5bfba01491dd8c2f0696fab40a1673230d76e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290349
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/metrics/doc.go    | 7 ++++---
+ src/runtime/metrics/sample.go | 6 +++---
+ src/runtime/metrics/value.go  | 2 +-
+ 3 files changed, 8 insertions(+), 7 deletions(-)

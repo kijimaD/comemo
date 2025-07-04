@@ -1,0 +1,24 @@
+commit 7a88c6465b0369506dcc9129d783550fd13c678c
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 24 13:11:43 2015 -0400
+
+    syscall: use Getpgid to emulate Getpgrp on linux
+    
+    Fixes newly introduced test on linux/arm64 because linux/arm64 doesn't
+    have the getpgrp syscall. Getpgid(0) is documented to be equivalent to
+    Getpgrp.
+    
+    Change-Id: I8f30f4f8de8c32fe04a29c9c4a9330d4e4e6b46d
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8022
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/syscall/syscall_linux.go          | 7 ++++++-
+ src/syscall/zsyscall_linux_386.go     | 8 --------
+ src/syscall/zsyscall_linux_amd64.go   | 8 --------
+ src/syscall/zsyscall_linux_arm.go     | 8 --------
+ src/syscall/zsyscall_linux_arm64.go   | 8 --------
+ src/syscall/zsyscall_linux_ppc64.go   | 8 --------
+ src/syscall/zsyscall_linux_ppc64le.go | 8 --------
+ 7 files changed, 6 insertions(+), 49 deletions(-)

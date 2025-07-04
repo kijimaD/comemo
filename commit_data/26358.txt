@@ -1,0 +1,34 @@
+commit f6bca3f32d4cc49eab76e6a16ce8418ae76d1ffc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 17 01:32:18 2016 -0700
+
+    cmd/compile: eliminate a bunch of IterFields/IterMethods calls
+    
+    This is an automated rewrite of all the calls of the form:
+    
+        for f, it := IterFields(t); f != nil; f = it.Next() { ... }
+    
+    Followup CLs will work on cleaning up the remaining cases.
+    
+    Change-Id: Ic1005ad45ae0b50c63e815e34e507e2d2644ba1a
+    Reviewed-on: https://go-review.googlesource.com/20794
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     |  6 +++---
+ src/cmd/compile/internal/gc/bexport.go   |  8 ++++----
+ src/cmd/compile/internal/gc/closure.go   |  4 ++--
+ src/cmd/compile/internal/gc/dcl.go       | 14 +++++++-------
+ src/cmd/compile/internal/gc/esc.go       |  6 +++---
+ src/cmd/compile/internal/gc/export.go    |  6 +++---
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/inl.go       |  8 ++++----
+ src/cmd/compile/internal/gc/order.go     |  2 +-
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/plive.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go   | 32 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/ssa.go       |  4 ++--
+ src/cmd/compile/internal/gc/subr.go      | 24 ++++++++++++------------
+ src/cmd/compile/internal/gc/type.go      |  7 -------
+ src/cmd/compile/internal/gc/typecheck.go |  8 ++++----
+ src/cmd/compile/internal/gc/walk.go      | 10 +++++-----
+ 17 files changed, 69 insertions(+), 76 deletions(-)

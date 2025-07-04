@@ -1,0 +1,12 @@
+commit 522562e71214ef3b6cb1e6b84b535049acbcd426
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 22 22:42:08 2013 -0500
+
+    AUTHORS: remove Vega Garcia Luis Alfonso (covered by Google CLA)
+    
+    R=dsymonds, adg
+    CC=golang-dev
+    https://golang.org/cl/7180050
+
+ AUTHORS | 1 -
+ 1 file changed, 1 deletion(-)

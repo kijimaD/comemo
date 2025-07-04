@@ -1,0 +1,12 @@
+commit b113965ad39aa22c67aded77da2c439771d3cb05
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 6 13:32:47 2013 -0800
+
+    CONTRIBUTORS: add Peter Collingbourne (Google CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/38590043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

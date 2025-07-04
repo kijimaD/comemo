@@ -1,0 +1,19 @@
+commit 7d0b611dbee183ada5e16be9884b90c3cf64fe3f
+Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
+Date:   Mon Sep 11 11:27:30 2023 -0700
+
+    runtime/pprof: TestVMInfo reworked to avoid test flakiness.
+    
+    Fixes #62352.
+    
+    Change-Id: Ib137a5f39d4630c4737badfabe8e6740593ecbcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527276
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/runtime/pprof/vminfo_darwin_test.go | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

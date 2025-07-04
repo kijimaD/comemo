@@ -1,0 +1,40 @@
+commit 7c89ad6a80020e3654129183c528054921899650
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Mar 27 14:24:10 2024 +0100
+
+    os: support relative paths in fixLongPath
+    
+    (This CL takes the tests and some ideas from the abandoned CL 263538).
+    
+    fixLongPath is used on Windows to process all path names
+    before syscalls to switch them to extended-length format
+    (with prefix \\?\) to workaround a historical limit
+    of 260-ish characters.
+    
+    This CL updates fixLongPath to convert relative paths to absolute
+    paths if the working directory plus the relative path exceeds
+    MAX_PATH. This is necessary because the Windows API does not
+    support extended-length paths for relative paths.
+    
+    This CL also adds support for fixing device paths (\\.\-prefixed),
+    which were not previously normalized.
+    
+    Fixes #41734
+    Fixes #21782
+    Fixes #36375
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-amd64-race,gotip-windows-arm64
+    Co-authored-by: Giovanni Bajo <rasky@develer.com>
+    Change-Id: I63cfb79f3ae6b9d42e07deac435b730d97a6f492
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/os/export_windows_test.go |   2 +-
+ src/os/file.go                |   5 ++
+ src/os/file_windows.go        |  13 ++-
+ src/os/path_windows.go        |  74 ++++++++++++++----
+ src/os/path_windows_test.go   | 178 ++++++++++++++++++++++++++++++++++--------
+ 5 files changed, 221 insertions(+), 51 deletions(-)

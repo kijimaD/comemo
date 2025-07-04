@@ -1,0 +1,30 @@
+commit ad0287f4960610c01c12ea99da50d7138509c0b0
+Author: Keith Randall <khr@google.com>
+Date:   Tue Aug 9 15:44:48 2022 +0000
+
+    Revert "runtime: redo heap bitmap"
+    
+    This reverts commit b589208c8cc6e08239868f47e12c1449cd797bac.
+    
+    Reason for revert: Bug somewhere in this code, causing wasm and maybe linux/386 to fail.
+    
+    Change-Id: I5e1e501d839584e0219271bb937e94348f83c11f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422395
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/test/inl_test.go |    8 +-
+ src/reflect/all_test.go                   |   21 +-
+ src/runtime/cgocall.go                    |   11 +-
+ src/runtime/cgocheck.go                   |   18 +-
+ src/runtime/heapdump.go                   |   20 +-
+ src/runtime/malloc.go                     |   10 +-
+ src/runtime/mbitmap.go                    | 1492 ++++++++++++++++++++---------
+ src/runtime/mcache.go                     |    2 +-
+ src/runtime/mcentral.go                   |    2 +-
+ src/runtime/mgcmark.go                    |   31 +-
+ src/runtime/mheap.go                      |   19 +-
+ src/runtime/slice.go                      |    2 -
+ 12 files changed, 1116 insertions(+), 520 deletions(-)

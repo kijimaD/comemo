@@ -1,0 +1,17 @@
+commit b225051f1dbf2e8b7a8fdcf4d740dc20de84658d
+Author: Alexander Menzhinsky <amenzhinsky@gmail.com>
+Date:   Thu Apr 13 16:15:26 2017 -0500
+
+    cmd/go: reject -buildmode=plugin if package is not main
+    
+    Fixes #17625
+    
+    Change-Id: I09319b888b547c631a50dbfab9255cc08e8a2426
+    Reviewed-on: https://go-review.googlesource.com/40691
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go             | 14 ++++++++++++++
+ src/cmd/go/internal/work/build.go | 21 ++++++++++++---------
+ 2 files changed, 26 insertions(+), 9 deletions(-)

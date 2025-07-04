@@ -1,0 +1,15 @@
+commit 537ddc945685cea6fd2f3cbc8bfc6f69616671fd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Dec 30 12:31:17 2014 -0800
+
+    runtime: fix slicecopy return value for zero-width elements
+    
+    Fixes #8620
+    
+    Change-Id: Idb49e586919d21d07e94a39ed9ebb0562f403460
+    Reviewed-on: https://go-review.googlesource.com/2221
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/slice.go        |  6 +++++-
+ test/fixedbugs/issue8620.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)

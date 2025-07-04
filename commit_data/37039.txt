@@ -1,0 +1,19 @@
+commit 0287d8ed1b12229f2ab493602ffa497caabf747c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 18 21:21:46 2018 -0700
+
+    go/types: collect type info for type ...T in variadic functions
+    
+    Because the code type-checks T rather than ...T (and then corrects
+    the type to []T "manually"), it didn't automatically record the
+    type for the ast.Expr corresponding to ...T. Do it manually.
+    
+    Fixes #28277.
+    
+    Change-Id: I3d9aae310c90b01f52d189e70c48dd9007f72207
+    Reviewed-on: https://go-review.googlesource.com/c/143317
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api_test.go | 12 ++++++++++++
+ src/go/types/typexpr.go  |  5 ++++-
+ 2 files changed, 16 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 7986de6e516883c050c00f473d994c26d201af39
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 25 22:08:51 2009 -0700
+
+    gobs part 1: types.
+    not ready to be part of the standard build yet; this is just a checkpoint.
+    
+    R=rsc
+    DELTA=361  (361 added, 0 deleted, 0 changed)
+    OCL=30782
+    CL=30785
+
+ src/pkg/gob/type.go      | 231 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/gob/type_test.go | 132 +++++++++++++++++++++++++++
+ 2 files changed, 363 insertions(+)

@@ -1,0 +1,12 @@
+commit 9e1ee8ff4f09a58f70f68b5d4726afcf5aa315b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 5 23:04:08 2010 -0400
+
+    env.bash: more quoting in case of spaces
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2938041
+
+ src/env.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

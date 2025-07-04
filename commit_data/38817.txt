@@ -1,0 +1,25 @@
+commit 7f1612652b24fbb7f5a361735f656784f2d48cb1
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 2 14:58:31 2019 -0400
+
+    cmd/go/internal/modcmd: skip files with the "ignore" constraint in 'go mod vendor'
+    
+    'go mod vendor' already drops test files and testdata directories, so
+    users should not expect the vendored module to include unnecessary
+    files in general.
+    
+    Files tagged "ignore" are typically only used to refresh or regenerate
+    source files within the module to be vendored, so users of that module
+    do not need them.
+    
+    Fixes #31088
+    
+    Change-Id: I1ce9545e9b37c8e779a1826a9d494ac29d2cbfb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172978
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modcmd/vendor.go      | 38 +++++++++++++++++++++++++------
+ src/cmd/go/testdata/script/mod_vendor.txt |  9 ++++++++
+ 2 files changed, 40 insertions(+), 7 deletions(-)

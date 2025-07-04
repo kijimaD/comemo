@@ -1,0 +1,30 @@
+commit 57afa76471ccb3fd9e92349825f90b6c354fc9b5
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 27 16:49:12 2015 -0400
+
+    runtime: add ragged global barrier function
+    
+    This adds forEachP, which performs a general-purpose ragged global
+    barrier. forEachP takes a callback and invokes it for every P at a GC
+    safe point.
+    
+    Ps that are idle or in a syscall are considered to be at a continuous
+    safe point. forEachP ensures that these Ps do not change state by
+    forcing all syscall Ps into idle and holding the sched.lock.
+    
+    To ensure that Ps do not enter syscall or idle without running the
+    safe-point function, this adds checks for a pending callback every
+    place there is currently a gcwaiting check.
+    
+    We'll use forEachP to replace the STW around enabling the write
+    barrier and to replace the current asynchronous per-M wbuf cache with
+    a cooperatively managed per-P gcWork cache.
+    
+    Change-Id: Ie944f8ce1fead7c79bf271d2f42fcd61a41bb3cc
+    Reviewed-on: https://go-review.googlesource.com/8206
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/proc1.go    | 137 +++++++++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/runtime2.go |  10 +++-
+ 2 files changed, 144 insertions(+), 3 deletions(-)

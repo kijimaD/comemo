@@ -1,0 +1,16 @@
+commit 29cf90a4efb5680430072d21984d533075896111
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 14 23:58:08 2011 -0400
+
+    libmach: fix warnings.
+    
+    Fixes #1706.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/4413051
+
+ src/cmd/5g/peep.c | 4 ++--
+ src/cmd/5l/obj.c  | 2 +-
+ src/libmach/obj.c | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

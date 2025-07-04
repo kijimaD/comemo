@@ -1,0 +1,20 @@
+commit e12b0afa5454c7683cb27bef0b6979f964dd0e96
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 20 15:36:11 2021 -0700
+
+    cmd/compile: separate out parameter and field export encoding
+    
+    These two types of *types.Field encode different concepts, so we
+    encode them separately (and ignore fields that don't matter for
+    each concept).
+    
+    Change-Id: I9d1608413949a109f12a3ebd52cd7af5f476e415
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312130
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/iexport.go | 10 +++++++++-
+ src/cmd/compile/internal/typecheck/iimport.go | 18 ++++++++++++++++--
+ 2 files changed, 25 insertions(+), 3 deletions(-)

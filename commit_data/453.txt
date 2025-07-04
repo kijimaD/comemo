@@ -1,0 +1,14 @@
+commit 0748bf3797149da2a3d32b93fd23d466c164e9d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 30 16:09:29 2008 -0700
+
+    - filed 2 bugs: unary ^ not implemented, compiler crash with illegal const decl
+    
+    R=r
+    OCL=13666
+    CL=13666
+
+ test/bugs/bug081.go | 14 ++++++++++++++
+ test/bugs/bug082.go | 17 +++++++++++++++++
+ test/golden.out     |  6 ++++++
+ 3 files changed, 37 insertions(+)

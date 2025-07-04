@@ -1,0 +1,16 @@
+commit d9f7e1dc7349140aa85f82daa6706a1c205d0768
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 02:51:59 2023 -0700
+
+    runtime: fix asan asm on amd64
+    
+    On amd64, the 8-byte move instruction is MOVQ, not MOVD.
+    
+    Change-Id: I48d9b6f5f9f6c7f2e3fe20fd017b816cfb3983a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517635
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/asan_amd64.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

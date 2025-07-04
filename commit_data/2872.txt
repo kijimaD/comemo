@@ -1,0 +1,16 @@
+commit 0444da91c032b29eea82919054380bcf6c97f0f3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 4 14:07:17 2009 -0700
+
+    improve myrandom() in fasta.
+    add script to automate timing
+    
+    R=rsc
+    DELTA=78  (68 added, 0 deleted, 10 changed)
+    OCL=32729
+    CL=32732
+
+ test/bench/fasta.go   | 22 ++++++++++++++++++++--
+ test/bench/timing.log | 31 +++++++++++++++++++++++--------
+ test/bench/timing.sh  | 38 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 81 insertions(+), 10 deletions(-)

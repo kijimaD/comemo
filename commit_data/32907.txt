@@ -1,0 +1,16 @@
+commit 93f1aac246ac93dbd929b0e5e49bcc65f1dd3b57
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Dec 21 10:58:12 2016 -0500
+
+    cmd/vet: in rangeloop check, inspect for loop variables too
+    
+    + Test.
+    
+    Change-Id: I42eaea1c716217f7945c008ff4bde6de14df5687
+    Reviewed-on: https://go-review.googlesource.com/34619
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/vet/main.go               |  3 ++
+ src/cmd/vet/rangeloop.go          | 61 +++++++++++++++++++++++++++++----------
+ src/cmd/vet/testdata/rangeloop.go | 38 +++++++++++++++++++-----
+ 3 files changed, 79 insertions(+), 23 deletions(-)

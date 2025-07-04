@@ -1,0 +1,12 @@
+commit fafb116c75a25048e5441f6b2c7abdc9faccdedb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 28 15:09:47 2010 -0700
+
+    go/printer: use append
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2793041
+
+ src/pkg/go/printer/nodes.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit 5dbe071cb5e696597ee87bb9db56a5028f1d2112
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Jun 5 17:02:09 2015 +1000
+
+    database/sql: refer correct issue in TestErrBadConnReconnect comment
+    
+    Change-Id: I283ab238b60d3a47e86296e1fbfc73ba121bef19
+    Reviewed-on: https://go-review.googlesource.com/10745
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,33 @@
+commit 56ce83f7ba0b18fd0914439ee75e1164ba82733f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 14 00:20:55 2013 -0400
+
+    undo CL 12603044 / 2ca230b93195
+    
+    fat fingers - did not intend to submit.
+    depends on the Unmarshaler CL anyway.
+    
+    ««« original CL description
+    encoding/xml: add, support Marshaler interface
+    
+    See golang.org/s/go12xml for design.
+    
+    Fixes #2771.
+    Fixes #4169.
+    Fixes #5975.
+    Fixes #6125.
+    
+    R=golang-dev, iant, dan.kortschak
+    CC=golang-dev
+    https://golang.org/cl/12603044
+    »»»
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/12918043
+
+ api/go1.1.txt                        |   1 +
+ api/go1.txt                          |   7 +
+ src/pkg/encoding/xml/marshal.go      | 459 +++++++----------------------------
+ src/pkg/encoding/xml/marshal_test.go |  34 ---
+ 4 files changed, 97 insertions(+), 404 deletions(-)

@@ -1,0 +1,10 @@
+commit f710e8ed0429df654824bdcd4b4c509bf1be1f84
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 26 16:21:51 2008 -0700
+
+    simultaneous assignment test
+    
+    SVN=124994
+
+ test/simasign.go | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 68 insertions(+)

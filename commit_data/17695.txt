@@ -1,0 +1,22 @@
+commit e2e9d1d6841d4ee937568eeb73a9b43e73e88ad3
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 25 10:00:09 2013 +1000
+
+    html/template: update the Tree field after parsing new templates
+    After text/template.Parse, all the templates may have changed, so
+    we need to set them all back to their unescaped state. The code
+    did this but (mea culpa) forgot to set the Tree field of the html/template
+    struct.
+    
+    Since the Tree is reset during escaping, this only matters if an error
+    arises during escaping and we want to print a message.
+    
+    Fixes #6459.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13877043
+
+ src/pkg/html/template/escape_test.go | 5 +++++
+ src/pkg/html/template/template.go    | 2 ++
+ 2 files changed, 7 insertions(+)

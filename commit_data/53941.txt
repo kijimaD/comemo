@@ -1,0 +1,26 @@
+commit fe1daf2e439ec1d650ea1193f10f52525f83f8a7
+Author: David Chase <drchase@google.com>
+Date:   Wed Jul 5 16:21:19 2023 -0400
+
+    cmd/compile: use new for loop semantics for Go 1.22+ compilations
+    
+    This includes version-dependent support for GOEXPERIMENT and
+    -d=loopvar, -d=loopvarhash, to allow testing/porting of old code.
+    
+    Includes tests of downgrade (1.22 -> 1.21) and upgrade (1.21 -> 1.22)
+    based on //go:build lines (while running a 1.22 build/compiler).
+    
+    Change-Id: Idd3be61a2b46acec33c7e7edac0924158cc726b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508819
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/loopvar/loopvar.go        |   2 +-
+ src/cmd/compile/internal/loopvar/loopvar_test.go   | 133 +++++++++++++++++++--
+ .../compile/internal/loopvar/testdata/opt-121.go   |  44 +++++++
+ .../compile/internal/loopvar/testdata/opt-122.go   |  44 +++++++
+ src/cmd/compile/internal/noder/irgen.go            |   1 +
+ src/cmd/compile/internal/noder/reader.go           |   4 +-
+ src/cmd/compile/internal/noder/writer.go           |  21 +++-
+ 7 files changed, 238 insertions(+), 11 deletions(-)

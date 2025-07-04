@@ -1,0 +1,12 @@
+commit ef84fa082caec4d1757377c11e98f3b5ebc934d3
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jun 10 18:02:43 2019 -0400
+
+    doc: document Go 1.12.6
+    
+    Change-Id: I8ae00d2392c20c627d58cf7e79015e982b971802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181551
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/devel/release.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

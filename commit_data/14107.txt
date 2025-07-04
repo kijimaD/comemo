@@ -1,0 +1,12 @@
+commit 749a445ba0697226bd7edd156dffccdce60415ee
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Oct 10 11:59:39 2012 +1100
+
+    bytes: fix tests and fix build
+    
+    R=golang-dev, edsrzf
+    CC=golang-dev
+    https://golang.org/cl/6633051
+
+ src/pkg/bytes/buffer_test.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

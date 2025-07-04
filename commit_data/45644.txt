@@ -1,0 +1,31 @@
+commit bade680867c9b1eecc7b5d177ed94c455a72e50a
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed May 12 12:11:03 2021 -0500
+
+    runtime/cgo: fix crosscall2 on ppc64x
+    
+    Some uses of crosscall2 did not work on ppc64le and probably
+    aix-ppc64. In particular, if there was a main program compiled
+    with -buildmode=pie and used a plugin which invoked crosscall2,
+    then failures could occur due to R2 getting set incorrectly along the
+    way. The problem was due to R2 being saved on the caller's
+    stack; it is now saved on the crosscall2 stack. More details can be
+    found in the issue.
+    
+    This adds a testcase where the main program is built with pie
+    and the plugin invokes crosscall2.
+    
+    This also changes the save of the CR bits from MOVD to MOVW as
+    it should be.
+    
+    Fixes #43228
+    
+    Change-Id: Ib5673e25a2ec5ee46bf9a1ffb0cb1f3ef5449086
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319489
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Heschi Kreinick <heschi@google.com>
+
+ misc/cgo/testplugin/plugin_test.go |  7 +++++++
+ src/runtime/cgo/asm_ppc64x.s       | 12 ++++++++----
+ 2 files changed, 15 insertions(+), 4 deletions(-)

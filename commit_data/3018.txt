@@ -1,0 +1,14 @@
+commit 0f17fc0e508ce4c5f49089c7234e4fa7e302332c
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Aug 19 11:31:27 2009 -0700
+
+    temporarily fix linux-arm by building less
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=33518
+    CL=33527
+
+ src/make-arm.bash | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

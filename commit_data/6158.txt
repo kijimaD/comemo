@@ -1,0 +1,14 @@
+commit dea283750b9b7774cd0ee0d320a038dbff90803f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 2 14:16:01 2010 -0400
+
+    gc: fix spurious syntax error
+    
+    Fixes #1071.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2136043
+
+ src/cmd/gc/go.y | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)

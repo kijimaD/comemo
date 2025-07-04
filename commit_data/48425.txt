@@ -1,0 +1,26 @@
+commit adfee1e1e7b3236770c19d255e945613a53a34cc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Mar 17 22:39:53 2022 +0100
+
+    runtime/cgo: remove memset in _cgo_sys_thread_start on freebsd/arm
+    
+    pthread_attr_init on freebsd properly initializes the pthread_attr,
+    there is no need to zero it before the call. The comment and code were
+    probably copied from the linux/arm implementation.
+    
+    This aligns the implementation on freebsd/arm with the implementation on
+    other freebsd architectures.
+    
+    Fixes #44248
+    
+    Change-Id: If82ebb115b877b6c6f4862018a9419ba8d870f12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393617
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Hajime Hoshi <hajimehoshi@gmail.com>
+    Trust: Hajime Hoshi <hajimehoshi@gmail.com>
+
+ src/runtime/cgo/gcc_freebsd_arm.c | 6 ------
+ 1 file changed, 6 deletions(-)

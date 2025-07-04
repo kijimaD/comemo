@@ -1,0 +1,17 @@
+commit 53a4152d478d75ef4b71e428b9d69ed54144081f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 24 14:34:28 2022 -0700
+
+    os/exec: clarify that Wait must be called
+    
+    Fixes #52580
+    
+    Change-Id: Ib2dd8a793b9c6fcb083abb3f7c346f6279adefc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414056
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/os/exec/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

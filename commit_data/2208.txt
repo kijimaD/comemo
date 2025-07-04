@@ -1,0 +1,16 @@
+commit ea79b82e92500150ada833892507bba9a9c63761
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 14 13:39:17 2009 -0700
+
+    fix Truncate comment:
+    * make a complete sentence.
+    * eliminate reference to byte positions,
+      which are not a concept exposed by the interface.
+    
+    R=gri
+    DELTA=2  (0 added, 1 deleted, 1 changed)
+    OCL=28838
+    CL=28838
+
+ src/lib/io/bytebuffer.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

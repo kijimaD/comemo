@@ -1,0 +1,12 @@
+commit 8b718b9a3794579f1d1e594bdc13d74c55684e10
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 24 20:15:52 2010 -0400
+
+    build: fix build - last CL missed Make.clib
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1981047
+
+ src/Make.clib | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

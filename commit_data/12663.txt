@@ -1,0 +1,12 @@
+commit e5cc09a75db2536c836ab4aeedf33a88794a79b9
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Mar 16 14:27:11 2012 +1100
+
+    doc: use time.Duration in Effective Go.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5841044
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

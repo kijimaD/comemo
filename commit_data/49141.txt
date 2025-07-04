@@ -1,0 +1,38 @@
+commit 7b314d27ce5dbc31eed2076e28c0af4ea8c24473
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Mar 15 18:00:16 2022 +0700
+
+    cmd/compile: fix bad order of evaluation for multi-value f()(g()) calls
+    
+    The compiler use to compile f()(g()) as:
+    
+            t1, t2 := g()
+            f()(t1, t2)
+    
+    That violates the Go spec, since when "..., all function calls, ... are
+    evaluated in lexical left-to-right order"
+    
+    This PR fixes the bug by compiling f()(g()) as:
+    
+            t0 := f()
+            t1, t2 := g()
+            t0(t1, t2)
+    
+    to make "f()" to be evaluated before "g()".
+    
+    Fixes #50672
+    
+    Change-Id: I6a766f3dfc7347d10f8fa3a151f6a5ea79bcf818
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392834
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/transform.go     |   1 +
+ src/cmd/compile/internal/typecheck/const.go     |  57 +++++++------
+ src/cmd/compile/internal/typecheck/func.go      |   1 +
+ src/cmd/compile/internal/typecheck/typecheck.go |  38 ++++++++-
+ test/fixedbugs/issue50672.go                    | 105 ++++++++++++++++++++++++
+ 5 files changed, 175 insertions(+), 27 deletions(-)

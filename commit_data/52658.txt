@@ -1,0 +1,23 @@
+commit 8854be4180fe1fb59c56c645ef8978788eb40170
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Apr 14 13:08:34 2023 +0000
+
+    Revert "cmd/compile: allow more inlining of functions that construct closures"
+    
+    This reverts commit http://go.dev/cl/c/482356.
+    
+    Reason for revert: Reverting this change again, since it is causing additional failures in google-internal testing.
+    
+    Change-Id: I9234946f62e5bb18c2f873a65e8b298d04af0809
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/484735
+    Reviewed-by: Florian Zenker <floriank@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/inline/inl.go    | 11 ++++++-----
+ src/cmd/compile/internal/test/inl_test.go | 22 +++++++++++++---------
+ test/closure3.dir/main.go                 | 26 +++++++++++---------------
+ 3 files changed, 30 insertions(+), 29 deletions(-)

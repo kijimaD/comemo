@@ -1,0 +1,18 @@
+commit 334835e6b3e115919068b662133b975c1de0eccb
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 20 11:25:45 2024 -0700
+
+    cmd/compile/internal/noder: remove wrapName
+    
+    The OPARENs inserted here used to be necessary for better error
+    diagnostics, but now those are handled by types2.
+    
+    Change-Id: I88d50d34d9e00cdd7d0fb32f6e460a179345a787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573115
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/reader.go | 19 +------------------
+ src/cmd/compile/internal/noder/writer.go |  1 -
+ 2 files changed, 1 insertion(+), 19 deletions(-)

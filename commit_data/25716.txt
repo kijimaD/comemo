@@ -1,0 +1,19 @@
+commit 182a9db2dc57ec7da98391f8955d43b2e07fd40e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 2 13:23:32 2016 -0800
+
+    cmd/vet: don't crash in cgo checker if type is unknown
+    
+    Fixes #14201.
+    
+    Change-Id: Ib61f8c00cae72463f59b90ae199fbdc1e7422a79
+    Reviewed-on: https://go-review.googlesource.com/19174
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/vet/cgo.go           | 3 +++
+ src/cmd/vet/testdata/cgo2.go | 9 +++++++++
+ 2 files changed, 12 insertions(+)

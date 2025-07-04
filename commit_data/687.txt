@@ -1,0 +1,14 @@
+commit 0e81bba1fed4e33818f762fbe3e2767f4e77826e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 19 15:23:16 2008 -0700
+
+    export an os.Error constructor
+    
+    R=r
+    DELTA=20  (6 added, 7 deleted, 7 changed)
+    OCL=15569
+    CL=15571
+
+ src/lib/net/net.go     | 18 ++++++------------
+ src/lib/os/os_error.go |  9 +++++++--
+ 2 files changed, 13 insertions(+), 14 deletions(-)

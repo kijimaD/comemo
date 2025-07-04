@@ -1,0 +1,18 @@
+commit 7e639c0229b96c398e04de5acaf3010252b98d2c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 8 21:40:33 2014 -0800
+
+    runtime: change errorCString to a struct
+    
+    This prevents callers from using reflect to create a new
+    instance of errorCString with an arbitrary value and calling
+    the Error method to examine arbitrary memory.
+    
+    Fixes #7084.
+    
+    R=golang-codereviews, minux.ma, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/49600043
+
+ src/pkg/runtime/error.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

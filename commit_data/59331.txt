@@ -1,0 +1,24 @@
+commit 2a881066176d89ba6545134aae008bc9ace3bd31
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 10 19:16:22 2025 -0400
+
+    math/big: add all architectures to mini-compiler
+    
+    Step 2 of the mini-compiler: add all the remaining architectures.
+    
+    Change-Id: I8c5283aa8baa497785a5c15f2248528fa9ae886e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664936
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/math/big/internal/asmgen/386.go     |  58 +++++++++++++
+ src/math/big/internal/asmgen/amd64.go   | 146 ++++++++++++++++++++++++++++++++
+ src/math/big/internal/asmgen/arm64.go   | 111 ++++++++++++++++++++++++
+ src/math/big/internal/asmgen/cheat.go   |  52 ++++++++++++
+ src/math/big/internal/asmgen/loong64.go |  45 ++++++++++
+ src/math/big/internal/asmgen/main.go    |   7 ++
+ src/math/big/internal/asmgen/ppc64.go   |  64 ++++++++++++++
+ src/math/big/internal/asmgen/riscv64.go |  47 ++++++++++
+ src/math/big/internal/asmgen/s390x.go   | 100 ++++++++++++++++++++++
+ 9 files changed, 630 insertions(+)

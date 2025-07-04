@@ -1,0 +1,17 @@
+commit 856a7bc8e975d29b7c221264f8b0c62df2d60e42
+Author: Shulhan <m.shulhan@gmail.com>
+Date:   Mon Dec 30 17:10:57 2024 +0700
+
+    builtin: use list instead of indentation for comments in cap, len, and make
+    
+    Using list make the document more readable in HTML and CLI.
+    
+    Change-Id: Ib84c84656f32806e8612b1ca13938d93f618e27f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639315
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/builtin/builtin.go | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)

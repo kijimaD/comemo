@@ -1,0 +1,14 @@
+commit 8b047893a08f316a5f5179e2d71b45a068c9108a
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Aug 27 09:03:38 2013 -0700
+
+    go/ast: fix comment formatting
+    
+    A bullet list was getting mangled in godoc.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13060047
+
+ src/pkg/go/ast/commentmap.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

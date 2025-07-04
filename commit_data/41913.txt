@@ -1,0 +1,18 @@
+commit b78109e80e1dd5ff79001b2cefb2a0eff819422d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Apr 11 21:49:10 2020 +0700
+
+    cmd/compile: correct comment for len check when make slice
+    
+    CL 226737 optimizes len check when make slice. The comment that cap is
+    constrainted to [0, 2^31) is not quite true, it's 31 or 63 depends on
+    whether it's 32/64-bit systems.
+    
+    Change-Id: I6f54e41827ffe4d0b67a44975da3ce07b2fabbad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227803
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit a627d61d5dc5b3eab0f57800e7cc13154a656f7d
+Author: Stephen Ma <stephenm@golang.org>
+Date:   Sun Feb 28 21:15:56 2010 +1100
+
+    Count utf8 runes, not bytes when determining string width. Note
+    that pad() still counts bytes, but it's currently only used for
+    1 byte runes.
+    
+    Fixes #612.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/217064
+
+ src/pkg/fmt/fmt_test.go | 1 +
+ src/pkg/fmt/format.go   | 3 ++-
+ src/pkg/fmt/print.go    | 4 +++-
+ 3 files changed, 6 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 4d17fe3cd62788b9b15af471806063f8cc071c97
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 29 11:16:05 2012 -0400
+
+    encoding/asn1: don't convert UTCTime to UTC.
+    
+    Previously we converted a time to UTC *and* serialized the timezone of
+    the original time. With this change, we serialize a UTCTime in the
+    original timezone.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6817048
+
+ src/pkg/encoding/asn1/marshal.go      | 5 ++---
+ src/pkg/encoding/asn1/marshal_test.go | 2 +-
+ 2 files changed, 3 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit 6be2639aff73389fce845cd7a6d1c568a5ef5625
+Author: Austin Clements <austin@google.com>
+Date:   Tue Aug 1 13:45:31 2023 -0400
+
+    runtime: store start PC in pcvalueCache
+    
+    Currently, pcvalue only returns a valid start PC if cache is nil.
+    We're about to eliminate the cache argument and always use a pcvalue
+    cache, so make sure the cache stores the start PC and always return it
+    from pcvalue.
+    
+    Change-Id: Ie8854af4b7e7ba1c2a17a495d9229320821daa23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515275
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/symtab.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

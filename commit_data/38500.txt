@@ -1,0 +1,27 @@
+commit 7ae8e53de293dd567c1d02dec679f67381c9ace5
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Thu Mar 21 15:15:40 2019 +0100
+
+    misc/ios: don't override GOCACHE on the device
+    
+    The iOS exec wrapper copies the environment variables to the binary
+    running on the device. However, some variables such as HOME, TMPDIR and
+    GOCACHE refer to directories that might not be valid on the device.
+    
+    The wrapper already ignores HOME and TMPDIR, but after GO111MODULE
+    was flipped to on for the standard library, cmd/go tests started
+    failing without a valid and writable GOCACHE.
+    
+    It took a while to reproduce because go test does not set an explicit
+    GOCACHE but cmd/dist test does.
+    
+    Fixes #30914
+    
+    Change-Id: If186cddc5cfd7ad39a0b3eb95f9c64a7d53a27e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168557
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

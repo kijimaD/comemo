@@ -1,0 +1,18 @@
+commit 98a76029ea9e63f278c0173a944b7debc9e49b70
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 13 20:30:42 2014 +0100
+
+    lib9: fix Solaris build
+    
+    In file included from src/lib9/utf/utfecpy.c:17:0:
+    src/lib9/utf/utfdef.h:28:0: error: "nil" redefined [-Werror]
+    In file included from src/lib9/utf/utfrrune.c:17:0:
+    src/lib9/utf/utfdef.h:28:0: error: "nil" redefined [-Werror]
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/63410043
+
+ src/lib9/utf/utfdef.h | 1 -
+ 1 file changed, 1 deletion(-)

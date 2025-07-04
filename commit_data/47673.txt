@@ -1,0 +1,17 @@
+commit c8c89d20ce206969ea48819af3ef0309299f9f6c
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 16:27:55 2021 -0500
+
+    doc/go1.18: add docs on Cookie.Valid
+    
+    Updates #47694
+    
+    Change-Id: Ibf3e25fbccf82e4abd7bd76b2ea6ceb4b05d4664
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368357
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

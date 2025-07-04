@@ -1,0 +1,13 @@
+commit eb9356b7a296cb3ee6dc355191cab23d29ed3427
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 10 17:14:14 2018 -0400
+
+    doc/go1.11: mention import path restriction
+    
+    Change-Id: I18a6915614a317adb4da710a01268b574300f0e0
+    Reviewed-on: https://go-review.googlesource.com/123096
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.11.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

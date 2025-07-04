@@ -1,0 +1,17 @@
+commit 0d0124daa0a1edc6cf65a3c8a5529d110a0a88ea
+Author: Minux Ma <minux@golang.org>
+Date:   Sun Mar 8 23:23:33 2015 +0000
+
+    Revert "cmd/internal/obj/x86: implement -shared computation of TLS base"
+    
+    Fix the build.
+    
+    This reverts commit e73981512fdc5e1128a9b17c4b9788c600db23ea.
+    
+    Change-Id: I979e138991c06b3295be08212d3ce80b30c2381b
+    Reviewed-on: https://go-review.googlesource.com/7160
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 33 ---------------------------------
+ 1 file changed, 33 deletions(-)

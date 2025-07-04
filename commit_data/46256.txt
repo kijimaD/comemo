@@ -1,0 +1,19 @@
+commit 5a687eeaf186dd109e53860db15f8465b0456fc0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Aug 21 18:40:20 2021 +1000
+
+    cmd/asm,cmd/internal/obj/riscv: add more error tests for riscv64 assembly
+    
+    Add more error tests for riscv64 assembly. Also avoid a panic when one of
+    these error conditions is hit.
+    
+    Change-Id: If5d913894facbd67f7d014eab745da77c8c66ab0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344228
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+
+ src/cmd/asm/internal/asm/testdata/riscv64error.s | 12 ++++++++++++
+ src/cmd/internal/obj/riscv/obj.go                |  3 ++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)

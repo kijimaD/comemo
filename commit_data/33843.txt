@@ -1,0 +1,16 @@
+commit 25363de2266a3b53204065637eb509a8cc4d72c3
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 8 08:38:15 2017 -0800
+
+    doc: add doc about C types that we map to uintptr instead of ptr
+    
+    Update #22906
+    Update #21897
+    
+    Change-Id: I73709b2fdac6981d4bc2f7dab0767f2dd7be3be5
+    Reviewed-on: https://go-review.googlesource.com/82917
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.10.html    | 27 +++++++++++++++++++++++++--
+ src/cmd/cgo/doc.go | 23 +++++++++++++++++++++--
+ 2 files changed, 46 insertions(+), 4 deletions(-)

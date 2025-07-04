@@ -1,0 +1,14 @@
+commit 855f08358b59274e4d4f16bcc0c2c3b4fe16f442
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 22 17:21:02 2010 -0400
+
+    build: add missing files for arm changes
+    
+    R=adg
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/2226046
+
+ test/fail-arm-native.txt   |  11 ++++
+ test/golden-arm-native.out | 151 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 162 insertions(+)

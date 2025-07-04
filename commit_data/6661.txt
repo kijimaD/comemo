@@ -1,0 +1,12 @@
+commit 11684680fa66f82b474e617be58368a97fa02a36
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 29 11:44:48 2010 -0700
+
+    go spec: append is now implemented
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2717043
+
+ doc/go_spec.html | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

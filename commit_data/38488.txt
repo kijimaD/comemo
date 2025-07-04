@@ -1,0 +1,14 @@
+commit af7b7571c4575748cf8cb2ffe683e97286666e1c
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Thu Feb 21 10:58:42 2019 +0100
+
+    cmd/dist: enable cgo for aix/ppc64
+    
+    Change-Id: I78be2b0b857d1ea2fb0b6906eb5afd796580f52d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164019
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

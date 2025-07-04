@@ -1,0 +1,15 @@
+commit d0c1888739ac0d5d0c9f82a4b86945c0351caef6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jun 2 08:11:01 2016 +1000
+
+    doc: revert copyright date to 2009
+    
+    Somehow this date was changed in error (by me) to 2012.
+    It should have always been 2009.
+    
+    Change-Id: I87029079458d4c4eeeff2f2fc0574f10afa9af09
+    Reviewed-on: https://go-review.googlesource.com/23622
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ LICENSE | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

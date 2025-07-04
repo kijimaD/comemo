@@ -1,0 +1,13 @@
+commit cb2730e60cda5ce98e80caa2e463c81be4463a13
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 1 10:48:45 2010 +1000
+
+    spec: delete spurious space (missed fix from previous review)
+    No semantic change.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2099041
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

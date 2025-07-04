@@ -1,0 +1,12 @@
+commit 37c81d58703106af1bafe4710fc0f487f4665a3d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Jun 9 22:01:03 2013 +0800
+
+    misc/pprof: fix html5 doctype declaration
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10099045
+
+ misc/pprof | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

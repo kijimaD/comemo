@@ -1,0 +1,42 @@
+commit d0ee959ab74f39734ae99fdd3e50bea08b52625d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Oct 11 21:34:10 2014 +1100
+
+    cmd/ld: correct pe section names if longer then 8 chars
+    
+    gcc 4.9.1 generates pe sections with names longer then 8 charters.
+    
+    From IMAGE_SECTION_HEADER definition:
+    
+    Name
+    An 8-byte, null-padded UTF-8 string. There is no terminating null character
+    if the string is exactly eight characters long. For longer names, this
+    member contains a forward slash (/) followed by an ASCII representation
+    of a decimal number that is an offset into the string table.
+    
+    Our current pe object file reader does not read string table when section
+    names starts with /. Do that, so (issue 8811 example)
+    
+    c:\go\path\src\isssue8811>go build
+    # isssue8811
+    isssue8811/glfw(.text): isssue8811/glfw(/76): not defined
+    isssue8811/glfw(.text): undefined: isssue8811/glfw(/76)
+    
+    becomes
+    
+    c:\go\path\src\isssue8811>go build
+    # isssue8811
+    isssue8811/glfw(.text): isssue8811/glfw(.rdata$.refptr._glfwInitialized): not defined
+    isssue8811/glfw(.text): undefined: isssue8811/glfw(.rdata$.refptr._glfwInitialized)
+    
+    Small progress to
+    
+    Update #8811
+    
+    LGTM=iant, jfrederich
+    R=golang-codereviews, iant, jfrederich
+    CC=golang-codereviews
+    https://golang.org/cl/154210044
+
+ src/cmd/ld/ldpe.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)

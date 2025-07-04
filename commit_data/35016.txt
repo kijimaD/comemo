@@ -1,0 +1,19 @@
+commit a2ffe3e625b05217e8d44dcda43138fc61390666
+Author: weeellz <weeellz12@gmail.com>
+Date:   Sat Apr 14 18:55:48 2018 +0300
+
+    math/rand: refactor rng.go
+    
+    Made constant names more idiomatic,
+    moved some constants to function seedrand,
+    and found better name for _M.
+    
+    Change-Id: I192172f398378bef486a5bbceb6ba86af48ebcc9
+    Reviewed-on: https://go-review.googlesource.com/107135
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/rand/rng.go | 53 +++++++++++++++++++++++++++-------------------------
+ 1 file changed, 28 insertions(+), 25 deletions(-)

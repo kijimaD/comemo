@@ -1,0 +1,12 @@
+commit 5fd4f768029cd8f84063d08e4a7787689ab6c09b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 19 00:04:30 2009 -0800
+
+    bug219: parsing difficulties with 6g
+    
+    R=r, rsc
+    https://golang.org/cl/157085
+
+ test/bugs/bug219.go | 35 +++++++++++++++++++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 39 insertions(+)

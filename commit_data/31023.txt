@@ -1,0 +1,21 @@
+commit 385c13cf18815bd165791d42aad8417bc1391644
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Apr 5 19:38:21 2017 -0700
+
+    cmd/compile/internal/gc: remove a bunch of uses of iterField
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I9fb91dd78dff149b5e1e1329d00855fd41f12523
+    Reviewed-on: https://go-review.googlesource.com/39796
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/esc.go       | 93 ++++++++++++++------------------
+ src/cmd/compile/internal/gc/order.go     | 47 ++++++++--------
+ src/cmd/compile/internal/gc/subr.go      | 57 ++++++++++++--------
+ src/cmd/compile/internal/gc/type.go      | 42 ++++++++++-----
+ src/cmd/compile/internal/gc/typecheck.go | 49 ++++++++---------
+ src/cmd/compile/internal/gc/walk.go      | 25 +++------
+ 6 files changed, 156 insertions(+), 157 deletions(-)

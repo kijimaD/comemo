@@ -1,0 +1,35 @@
+commit bd41c6783bcb079aac585948868107df8d30f6d9
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 20 16:47:08 2017 -0500
+
+    cmd/compile: improve debugging output for GOSSAFUNC
+    
+    This changes the assembly language output to use the
+    innermost (instead of outermost) position for line
+    number and file.
+    
+    The file is printed separately, only when it changes,
+    to remove redundant and space-consuming noise from the
+    output.
+    
+    Unknown positions have line number "?"
+    
+    The output format was changed slightly to make it
+    easier to read.
+    
+    One source of gratuitous variation in debugging output was
+    removed.
+    
+    Change-Id: I1fd9c8b0ddd82766488582fb684dce4b04f35723
+    Reviewed-on: https://go-review.googlesource.com/78895
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/fmt_test.go           |  2 +-
+ src/cmd/compile/internal/gc/main.go   |  2 +-
+ src/cmd/compile/internal/gc/ssa.go    | 16 +++++++++++-----
+ src/cmd/compile/internal/ssa/value.go |  2 ++
+ src/cmd/internal/obj/inl.go           | 16 +++++++++++++++-
+ src/cmd/internal/obj/util.go          | 21 ++++++++++-----------
+ 6 files changed, 40 insertions(+), 19 deletions(-)

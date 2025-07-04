@@ -1,0 +1,24 @@
+commit da2755b4721bc8f0361690401e4436fec2bbe984
+Author: Nuno Cruces <ncruces@users.noreply.github.com>
+Date:   Tue Apr 11 23:25:07 2023 +0000
+
+    embed: implement openFile.ReadAt
+    
+    Implementation copied from testing/fstest/mapfs.go
+    
+    Fixes #57803
+    
+    Change-Id: I531682b50ab6663511bac41fce7614ab9197bf38
+    GitHub-Last-Rev: d9bcc1c0bf4d339edcdabaf4d4d67b848ad8818d
+    GitHub-Pull-Request: golang/go#59489
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483235
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/embed/embed.go                         | 16 +++++++--
+ src/embed/internal/embedtest/embed_test.go | 57 ++++++++++++++++++++++++++++++
+ 2 files changed, 71 insertions(+), 2 deletions(-)

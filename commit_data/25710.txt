@@ -1,0 +1,17 @@
+commit b6c5edae7c0e9dd6d12dbb8f1c9638dea45f9464
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 22:02:52 2016 -0500
+
+    archive/zip: handle pre-zip64 zip files containing 2³²-1-byte content
+    
+    This corrects a regression from Go 1.5 introduced by CL 18317.
+    
+    Fixes #14185.
+    
+    Change-Id: Ic3215714846d9f28809cd04e3eb3664b599244f4
+    Reviewed-on: https://go-review.googlesource.com/19151
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/reader.go      |  12 ++-
+ src/archive/zip/reader_test.go | 235 +++++++++++++++++++++++++++++++++++++++--
+ 2 files changed, 236 insertions(+), 11 deletions(-)

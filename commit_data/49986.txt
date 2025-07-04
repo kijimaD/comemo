@@ -1,0 +1,29 @@
+commit 52016be3f4e6deba54020ad8c969f1e2dba1eee3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 18 05:20:16 2022 -0700
+
+    cmd/compile: enable more inlining for unified IR
+    
+    The non-unified frontend had repeated issues with inlining and
+    generics (#49309, #51909, #52907), which led us to substantially
+    restrict inlining when shape types were present.
+    
+    However, these issues are evidently not present in unified IR's
+    inliner, and the safety restrictions added for the non-unified
+    frontend can simply be disabled in unified mode.
+    
+    Fixes #54497.
+    
+    Change-Id: I8e6ac9f3393c588bfaf14c6452891b9640a9d1bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424775
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/inline/inl.go | 67 ++++++++++++++++++----------------
+ test/run.go                            |  1 +
+ test/typeparam/issue49309.go           |  1 +
+ test/typeparam/issue54497.go           | 19 ++++++++++
+ 4 files changed, 56 insertions(+), 32 deletions(-)

@@ -1,0 +1,19 @@
+commit 6ecd843e7ceaeff11ec2feb1709fdbb34a7c334b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 22 07:13:25 2017 -0800
+
+    os/signal: make TestTerminalSignal more reliable
+    
+    Look for program output and shell prompt to see when to continue.
+    
+    Updates #22845
+    
+    Change-Id: I44ed1908861f3b0dc098aee9a401324b77268921
+    Reviewed-on: https://go-review.googlesource.com/79395
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/signal/signal_cgo_test.go | 101 ++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 90 insertions(+), 11 deletions(-)

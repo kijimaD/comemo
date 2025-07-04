@@ -1,0 +1,19 @@
+commit 2f04903fec99e8b8291f1bfa91590bddb1b93c68
+Author: tomocy <tomocy.dev@gmail.com>
+Date:   Mon Sep 2 14:34:16 2019 +0000
+
+    net: document concurrency safety and example for Dialer
+    
+    Fixes #33743.
+    
+    Change-Id: I80621321d56b6cf312a86e272800f1ad03c5544c
+    GitHub-Last-Rev: d91cb3697516ccfc3f956e97837404cbfee5922f
+    GitHub-Pull-Request: golang/go#33856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191879
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/dial.go         |  2 ++
+ src/net/example_test.go | 18 ++++++++++++++++++
+ 2 files changed, 20 insertions(+)

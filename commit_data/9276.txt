@@ -1,0 +1,14 @@
+commit 3dbe10c4531fb37c0fd43127bc415eb18479e6ee
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 1 20:02:52 2011 -0700
+
+    exp/template: return nil value from helpers on error, even methods.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4835046
+
+ src/pkg/exp/template/helper.go   | 51 ++++++++++++++++++++--------------------
+ src/pkg/exp/template/set.go      |  2 +-
+ src/pkg/exp/template/set_test.go | 41 +++++++++++++++++---------------
+ 3 files changed, 49 insertions(+), 45 deletions(-)

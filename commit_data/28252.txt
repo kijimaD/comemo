@@ -1,0 +1,24 @@
+commit 141f1a0e24836abbc85933787025edef260fe1f0
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sun Sep 4 03:49:02 2016 -0700
+
+    encoding/hex: implement examples using all exported functions
+    
+    Fixes #11254.
+    Updates #16360.
+    
+    Implements examples using all exported functions.
+    
+    This CL also updates Decode documentation to
+    state that only hexadecimal characters are accepted
+    in the source slice src, but also that the length
+    of src must be even.
+    
+    Change-Id: Id016a4ba814f940cd300f26581fb4b9d2aded306
+    Reviewed-on: https://go-review.googlesource.com/28482
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/hex/example_test.go | 98 ++++++++++++++++++++++++++++++++++++++++
+ src/encoding/hex/hex.go          |  7 +--
+ 2 files changed, 102 insertions(+), 3 deletions(-)

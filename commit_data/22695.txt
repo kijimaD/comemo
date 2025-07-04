@@ -1,0 +1,18 @@
+commit ccc76dba606e2325ad82ac0b15fb5c511a342abd
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Apr 23 20:04:14 2015 +1200
+
+    cmd/internal/ld: fix R_TLS handling now Xsym is not read from object file
+    
+    I think this should fix the arm build. A proper fix involves making the handling
+    of tlsg less fragile, I'll try that tomorrow.
+    
+    Update #10557
+    
+    Change-Id: I9b1b666737fb40aebb6f284748509afa8483cce5
+    Reviewed-on: https://go-review.googlesource.com/9272
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+
+ src/cmd/internal/ld/data.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

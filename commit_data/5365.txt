@@ -1,0 +1,14 @@
+commit 48ccf8247e312098592ac1c07499238652ddb9d4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 27 11:57:17 2010 -0700
+
+    go/parser: don't require parens around composite literals inside a composite literal
+               within an if, for, or switch control clause
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/943046
+
+ src/pkg/go/parser/parser.go      | 2 ++
+ src/pkg/go/parser/parser_test.go | 3 +++
+ 2 files changed, 5 insertions(+)

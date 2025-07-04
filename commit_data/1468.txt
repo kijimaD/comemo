@@ -1,0 +1,13 @@
+commit 58b280db3b161310cdccfd45c9aef1999245af0f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 13 16:32:46 2009 -0800
+
+    change another yacc reference to bison.
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=22662
+    CL=22691
+
+ src/cmd/6a/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

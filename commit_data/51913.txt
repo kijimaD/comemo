@@ -1,0 +1,21 @@
+commit 864b54e2c3b7b2e6634cb22cd70fe1a8ec723ae9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 28 12:30:46 2022 +0700
+
+    cmd/compile: generate type equal func during walk
+    
+    So we don't generate ONAME node with nil Func.
+    
+    Do not pass toolstash-check because the CL changes the order of
+    compiling functions.
+    
+    Change-Id: Ib967328f36b8c59a5525445667103c0c80ccdc82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436436
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/reflectdata/alg.go | 29 ++++++++++++++++++++++++-----
+ src/cmd/compile/internal/walk/compare.go    |  8 ++++++--
+ 2 files changed, 30 insertions(+), 7 deletions(-)

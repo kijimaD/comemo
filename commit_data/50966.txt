@@ -1,0 +1,23 @@
+commit 5b606a9d2b7649532fe25794fa6b99bd24e7697c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Oct 21 11:25:53 2022 -0400
+
+    cmd/go: correct staleness for packages in modules
+    
+    Packages in modules don't have a Target set for them, so the current
+    logic for determining staleness always reports them as stale. Instead it
+    should be reporting whether "go install" would do anything, and sholud
+    be false after a go install. If a package does not have a Target,
+    instead check to see whether we've cached its build artifact.
+    
+    Change-Id: Ie7bdb234944353f6c2727bd8bf939cc27ddf3f18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444619
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/work/buildid.go           | 117 ++++++++++++--------------
+ src/cmd/go/testdata/script/mod_get_commit.txt |   4 +-
+ src/cmd/go/testdata/script/mod_stale.txt      |  15 ++++
+ 3 files changed, 70 insertions(+), 66 deletions(-)

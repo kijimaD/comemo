@@ -1,0 +1,14 @@
+commit 7688f0d9fb13a77113f75f3b85ae7973cabc7044
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 16:34:08 2015 +0000
+
+    cmd/pprof: fix scaling of "gigabyte" unit
+    
+    Fixes #13654
+    
+    Change-Id: Id2ce32c52efcfdbd66630725d62d2ca6bf0916d5
+    Reviewed-on: https://go-review.googlesource.com/17934
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/pprof/internal/report/report.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

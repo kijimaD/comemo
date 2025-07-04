@@ -1,0 +1,20 @@
+commit 01712ae7d3694d28a68032723fd11d94d891b441
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 8 11:52:39 2009 -0700
+
+    embeddability: change bufio.BufRead to bufio.Reader etc.
+    
+    R=rsc
+    DELTA=112  (0 added, 4 deleted, 108 changed)
+    OCL=28537
+    CL=28543
+
+ src/lib/bufio/bufio.go      | 102 ++++++++++++++++++++++----------------------
+ src/lib/bufio/bufio_test.go |  72 +++++++++++++++----------------
+ src/lib/http/request.go     |   8 ++--
+ src/lib/http/server.go      |  12 +++---
+ src/lib/log/log_test.go     |   2 +-
+ src/lib/net/parse_test.go   |   2 +-
+ src/lib/strconv/fp_test.go  |   2 +-
+ usr/gri/pretty/godoc.go     |   1 -
+ 8 files changed, 99 insertions(+), 102 deletions(-)

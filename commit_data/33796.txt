@@ -1,0 +1,26 @@
+commit 49fec9b488177f2f212c5f6746203c519ae02264
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 29 14:16:25 2017 -0500
+
+    cmd/dist: disable test caching during run.bash
+    
+    Sometimes people use run.bash repeatedly
+    or run go tool dist test by hand for cgo tests.
+    Avoid test caching in that case, by request.
+    
+    Refactor code so that all go test commands
+    share a common prefix.
+    
+    If not caching is problematic it will be a one-line
+    change to turn caching back on.
+    
+    Fixes #22758.
+    
+    Change-Id: I17d721b832d97bffe26629d21f85b05dbbf2b3ec
+    Reviewed-on: https://go-review.googlesource.com/80735
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 137 ++++++++++++++++++++++++++++++++++++---------------
+ 1 file changed, 97 insertions(+), 40 deletions(-)

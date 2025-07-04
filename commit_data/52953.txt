@@ -1,0 +1,26 @@
+commit 945a2b17f3b47b4e0bda9a2a92186412b5704c9a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 10 09:06:33 2023 -0700
+
+    go/types, types2: move xlist next to targs in Checker.arguments signature
+    
+    targs and xlist belong together (xlist contains the type expressions for
+    each of the type arguments).
+    
+    Also, in builtins.go, rename xlist to alist2 to avoid some confusion.
+    
+    Preparation for adding more parameters to the Checker.arguments signature.
+    
+    Change-Id: I960501cfd2b88410ec0d581a6520a4e80fcdc56a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494121
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go | 8 ++++----
+ src/cmd/compile/internal/types2/call.go     | 4 ++--
+ src/go/types/builtins.go                    | 8 ++++----
+ src/go/types/call.go                        | 4 ++--
+ 4 files changed, 12 insertions(+), 12 deletions(-)

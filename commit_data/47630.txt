@@ -1,0 +1,33 @@
+commit 4325c37d6789aff6f24b05526080b011dda86477
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 23 12:34:04 2021 -0800
+
+    vendor: update golang.org/x/net to tip
+    
+    This brings in a fix for OpenBSD that lets it correctly gather network
+    interface information.
+    
+    For #42064
+    
+    Change-Id: Ib88fd2f494bb2ee86fd2725d8375b2df1404c4ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366756
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 +-
+ src/net/http/h2_bundle.go                          | 76 ++++++++++++++--------
+ src/vendor/golang.org/x/net/lif/address.go         |  1 +
+ src/vendor/golang.org/x/net/lif/binary.go          |  1 +
+ src/vendor/golang.org/x/net/lif/lif.go             |  1 +
+ src/vendor/golang.org/x/net/lif/link.go            |  1 +
+ src/vendor/golang.org/x/net/lif/sys.go             |  1 +
+ src/vendor/golang.org/x/net/lif/syscall.go         |  1 +
+ src/vendor/golang.org/x/net/route/syscall.go       | 26 ++------
+ .../x/net/route/syscall_go1_12_darwin.go           | 13 ----
+ src/vendor/modules.txt                             |  2 +-
+ 12 files changed, 63 insertions(+), 66 deletions(-)

@@ -1,0 +1,13 @@
+commit 192665ed9980504ca28c20624f3f9e78ba541966
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 29 12:15:25 2014 -0700
+
+    C: add Andres Erbsen (Google CLA)
+    
+    LGTM=bradfitz, minux
+    R=bradfitz, minux
+    CC=golang-codereviews
+    https://golang.org/cl/119540043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

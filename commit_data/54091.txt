@@ -1,0 +1,24 @@
+commit 569def31fae0bc5f6a6868a50160da77e6e5c27a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 17 22:04:49 2023 -0700
+
+    cmd/compile: prune some deadcode around ODCLFUNC
+    
+    An *ir.Func is always ODCLFUNC, so no need to double-check this
+    anymore. The type system statically ensures we have the right Op.
+    
+    Also, pkginit.initRequiredForCoverage appears to be unused, so we can
+    get rid of it completely.
+    
+    Change-Id: If1abb35672b40f705f23c365ad2a828c2661e9c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520603
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/escape/escape.go |  6 ------
+ src/cmd/compile/internal/pkginit/init.go  | 15 ---------------
+ src/cmd/compile/internal/ssagen/nowb.go   |  3 ---
+ 3 files changed, 24 deletions(-)

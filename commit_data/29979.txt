@@ -1,0 +1,16 @@
+commit 1db16711f595d291bdd22f7ca70f4e0df50ac0e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 24 09:56:57 2017 -0800
+
+    doc: clarify what to do with Go 1.4 when installing from source
+    
+    You have to actually run make.bash (or make.bat).
+    
+    Update #18771.
+    
+    Change-Id: Ie6672a4e4abde0150c1ae57cabb1222de2c78716
+    Reviewed-on: https://go-review.googlesource.com/35632
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install-source.html | 3 +++
+ 1 file changed, 3 insertions(+)

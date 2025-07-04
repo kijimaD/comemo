@@ -1,0 +1,62 @@
+commit 9b1f8f32b8b3ace71be1f77a6a500b1550365ec6
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Sep 16 18:50:52 2024 -0400
+
+    go/types: compute effective Go version independent of token.Pos
+    
+    Previously, the Checker.allowVersion method would use a token.Pos
+    to try to infer which file of the current package the checker
+    was "in". This proved fragile when type-checking syntax that
+    had been modified or synthesized and whose positions were invalid.
+    
+    This change records the effective version in the checker state
+    (checker.environment.version). Just like other aspects of the
+    environment, the version changes from one file to the next
+    and must be saved and restored with each check.later closure.
+    
+    Similarly, declInfo captures and temporarily reinstates
+    the effective version when checking each object.
+    
+    + Test of position independence in go/types and types2
+    + Test of panic avoidance in go/types
+    
+    Fixes golang/go#69477
+    Fixes golang/go#69338
+    
+    Change-Id: Ic06f9d88151c64a4f7848f8942d08e3c312cdd6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613735
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/api_predicates.go |  6 +--
+ src/cmd/compile/internal/types2/api_test.go       | 32 +++++++++++++
+ src/cmd/compile/internal/types2/call.go           |  6 +--
+ src/cmd/compile/internal/types2/check.go          | 41 +++++++++--------
+ src/cmd/compile/internal/types2/conversions.go    |  4 +-
+ src/cmd/compile/internal/types2/decl.go           |  4 +-
+ src/cmd/compile/internal/types2/infer.go          |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go    |  9 ++--
+ src/cmd/compile/internal/types2/literals.go       |  2 +-
+ src/cmd/compile/internal/types2/lookup.go         |  9 ++--
+ src/cmd/compile/internal/types2/operand.go        |  4 +-
+ src/cmd/compile/internal/types2/resolver.go       | 13 +++---
+ src/cmd/compile/internal/types2/stmt.go           | 12 ++---
+ src/cmd/compile/internal/types2/typeset.go        |  2 +-
+ src/cmd/compile/internal/types2/version.go        | 23 +++-------
+ src/go/types/api_predicates.go                    |  6 +--
+ src/go/types/api_test.go                          | 55 +++++++++++++++++++++++
+ src/go/types/call.go                              |  6 +--
+ src/go/types/check.go                             | 44 +++++++++---------
+ src/go/types/conversions.go                       |  4 +-
+ src/go/types/decl.go                              |  4 +-
+ src/go/types/infer.go                             |  2 +-
+ src/go/types/instantiate.go                       |  9 ++--
+ src/go/types/literals.go                          |  2 +-
+ src/go/types/lookup.go                            |  9 ++--
+ src/go/types/operand.go                           |  4 +-
+ src/go/types/resolver.go                          | 13 +++---
+ src/go/types/stmt.go                              | 12 ++---
+ src/go/types/typeset.go                           |  2 +-
+ src/go/types/version.go                           | 49 +++-----------------
+ 30 files changed, 222 insertions(+), 168 deletions(-)

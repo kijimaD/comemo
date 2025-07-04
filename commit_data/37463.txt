@@ -1,0 +1,20 @@
+commit 8c5c2b71f4124eb5e72cde327d740a8dbdd4eeb8
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Wed Nov 21 19:06:28 2018 +0200
+
+    cmd/compile: fix TestFormats by using valid formats
+    
+    CL 142517 has used some formats incorrectly. This change fixes it
+    by using %v for errors and invoking Block.Kind.String().
+    Format map stays intact.
+    
+    Updates #28177
+    
+    Change-Id: If53b6cc54ba3c1ffc17b005225787e3b546de404
+    Reviewed-on: https://go-review.googlesource.com/c/150798
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/html.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

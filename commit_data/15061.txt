@@ -1,0 +1,19 @@
+commit 5c659d736241f4904eb3d513f9f585397a3ed8af
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Jan 31 12:54:37 2013 -0500
+
+    crypto/x509: test for negative RSA parameters.
+    
+    Someone found software that generates negative numbers for the RSA
+    modulus in an X.509 certificate. Our error messages were very poor in
+    this case so this change improves that.
+    
+    Update #4728
+    Return more helpful errors when RSA parameters are negative or zero.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7228072
+
+ src/pkg/crypto/x509/x509.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

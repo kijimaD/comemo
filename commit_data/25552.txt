@@ -1,0 +1,60 @@
+commit e779bfa5d212014b65948abe559795ef1e6d056c
+Author: David Chase <drchase@google.com>
+Date:   Mon Jan 4 16:44:20 2016 -0500
+
+    cmd/compile: better modeling of escape across loop levels
+    
+    Brief background on "why heap allocate".  Things can be
+    forced to the heap for the following reasons:
+    
+    1) address published, hence lifetime unknown.
+    2) size unknown/too large, cannot be stack allocated
+    3) multiplicity unknown/too large, cannot be stack allocated
+    4) reachable from heap (not necessarily published)
+    
+    The bug here is a case of failing to enforce 4) when an
+    object Y was reachable from a heap allocation X forced
+    because of 3).  It was found in the case of a closure
+    allocated within a loop (X) and assigned to a variable
+    outside the loop (multiplicity unknown) where the closure
+    also captured a map (Y) declared outside the loop (reachable
+    from heap). Note the variable declared outside the loop (Y)
+    is not published, has known size, and known multiplicity
+    (one). The only reason for heap allocation is that it was
+    reached from a heap allocated item (X), but because that was
+    not forced by publication, it has to be tracked by loop
+    level, but escape-loop level was not tracked and thus a bug
+    results.
+    
+    The fix is that when a heap allocation is newly discovered,
+    use its looplevel as the minimum loop level for downstream
+    escape flooding.
+    
+    Every attempt to generalize this bug to X-in-loop-
+    references-Y-outside loop succeeded, so the fix was aimed
+    to be general.  Anywhere that loop level forces heap
+    allocation, the loop level is tracked.  This is not yet
+    tested for all possible X and Y, but it is correctness-
+    conservative and because it caused only one trivial
+    regression in the escape tests, it is probably also
+    performance-conservative.
+    
+    The new test checks the following:
+    1) in the map case, that if fn escapes, so does the map.
+    2) in the map case, if fn does not escape, neither does the map.
+    3) in the &x case, that if fn escapes, so does &x.
+    4) in the &x case, if fn does not escape, neither does &x.
+    
+    Fixes #13799.
+    
+    Change-Id: Ie280bef2bb86ec869c7c206789d0b68f080c3fdb
+    Reviewed-on: https://go-review.googlesource.com/18234
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go |  56 +++++++----
+ test/escape2.go                    |   2 +-
+ test/escape2n.go                   |   2 +-
+ test/fixedbugs/issue13799.go       | 190 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 232 insertions(+), 18 deletions(-)

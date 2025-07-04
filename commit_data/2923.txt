@@ -1,0 +1,15 @@
+commit 07044ba6e5d1c6bde66da93dd9a63e6ab4c941fc
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Aug 8 15:26:09 2009 -0700
+
+    plateau in divide by a constant
+    still to do - overflow, mod
+    
+    R=rsc
+    OCL=32927
+    CL=32927
+
+ src/cmd/6g/ggen.c  | 27 ++++++++++++++++++++++++---
+ src/cmd/6g/gsubr.c | 32 ++++++++++++++++++++++++++++----
+ src/cmd/gc/go.h    |  2 +-
+ 3 files changed, 53 insertions(+), 8 deletions(-)

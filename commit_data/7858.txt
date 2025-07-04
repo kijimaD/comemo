@@ -1,0 +1,20 @@
+commit 0ac151fd5cb9f6a39927f12016fbe9275229524b
+Author: Sameer Ajmani <ajmani@gmail.com>
+Date:   Thu Mar 24 10:35:39 2011 -0400
+
+    misc/emacs: gofmt: don't clobber the current buffer on failure
+    
+    Change M-x gofmt to display errors in a new buffer instead of
+    clobbering the current buffer.
+    
+    Add gofmt-before-save, which runs gofmt when in go-mode.  This
+    can be used with before-save-hook.  Add to your .emacs:
+      (add-hook 'before-save-hook 'gofmt-before-save)
+    
+    R=rsc, aclements, amdragon
+    CC=golang-dev
+    https://golang.org/cl/4276059
+
+ misc/emacs/go-mode-load.el | 19 ++++++++++++---
+ misc/emacs/go-mode.el      | 58 ++++++++++++++++++++++++++++++++--------------
+ 2 files changed, 57 insertions(+), 20 deletions(-)

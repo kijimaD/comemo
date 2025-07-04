@@ -1,0 +1,15 @@
+commit a375a6b3638f99c33dfc95a398a0e6fd8b5700df
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sun Feb 25 14:26:24 2018 -0500
+
+    cmd/compile: convert untyped bool during walkCases
+    
+    Updates #23834.
+    
+    Change-Id: I1789525a992d37aae9e9b69c1e9d91437d3d0d3b
+    Reviewed-on: https://go-review.googlesource.com/97001
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/swt.go | 4 ++++
+ 1 file changed, 4 insertions(+)

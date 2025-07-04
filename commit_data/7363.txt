@@ -1,0 +1,15 @@
+commit ea2c6a3e5938b9767e4291bdfb45357af920e7f1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 3 16:05:57 2011 -0800
+
+    godoc: minor internal fix
+    
+    The value of the internal flag includeNonGoFile
+    really is the value of the fulltextIndex flag.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4044052
+
+ src/cmd/godoc/index.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

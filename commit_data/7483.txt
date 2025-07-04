@@ -1,0 +1,13 @@
+commit 9b66129fe38e467c5c25eed4ab271ca88c3f8840
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Feb 16 15:05:48 2011 -0500
+
+    net: more accurate IPv4-in-IPv6 API test
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4172045
+
+ src/pkg/net/iprawsock.go |  2 +-
+ src/pkg/net/ipsock.go    | 29 ++++++++++++++++++++++-------
+ 2 files changed, 23 insertions(+), 8 deletions(-)

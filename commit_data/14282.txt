@@ -1,0 +1,15 @@
+commit f07f9de8ec65763498410bb3c8778a87317278aa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 1 11:12:15 2012 -0700
+
+    go/build: support compiler as build constraint
+    
+    This supports writing different .c/.s code when using gccgo.
+    
+    R=golang-dev, dsymonds, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6823055
+
+ src/pkg/go/build/build.go | 4 +++-
+ src/pkg/go/build/doc.go   | 1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)

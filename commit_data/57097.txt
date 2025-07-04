@@ -1,0 +1,18 @@
+commit abc3d2c1191c3b96565ebd10012712ac403c2a9f
+Author: limeidan <limeidan@loongson.cn>
+Date:   Wed Jan 10 10:49:52 2024 +0800
+
+    cmd/internal/objabi, cmd/link/internal: add new relocations used in internal linking
+    
+    Change-Id: I1b7c258f0ea3b847a92ccd6644b653e11e7a5ef0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/internal/objabi/reloctype.go        | 11 +++++++++++
+ src/cmd/internal/objabi/reloctype_string.go | 24 ++++++++++++++----------
+ 2 files changed, 25 insertions(+), 10 deletions(-)

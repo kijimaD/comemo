@@ -1,0 +1,13 @@
+commit d5cfb3b3d5c710945ca894807625ed8ddea04f97
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Aug 9 10:45:20 2010 -0700
+
+    goinstall docs: fixed typos
+    (Added mising closing quotes.)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/1902049
+
+ src/cmd/goinstall/doc.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

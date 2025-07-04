@@ -1,0 +1,12 @@
+commit 466118c5c7d97681a1a2ef5f6027ac7f344575b0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Dec 22 09:32:34 2014 -0800
+
+    doc: note encoding/base64 unpadded encodings in go1.5.txt
+    
+    Change-Id: I04d2e83f86f021464190f0b0fe0e450cb4662ad9
+    Reviewed-on: https://go-review.googlesource.com/1971
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

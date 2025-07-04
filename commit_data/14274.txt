@@ -1,0 +1,15 @@
+commit 5c1422afabb7efa26b382e818314748bb8c857d9
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Thu Nov 1 13:13:20 2012 -0400
+
+    runtime: move Itab to runtime.h
+    
+    The 'type' field of Itab will be used by the garbage collector.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6815059
+
+ src/pkg/runtime/iface.c   | 13 -------------
+ src/pkg/runtime/runtime.h | 14 +++++++++++++-
+ 2 files changed, 13 insertions(+), 14 deletions(-)

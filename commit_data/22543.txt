@@ -1,0 +1,16 @@
+commit f633e445c7d9396dd71ed6572d002523b35bc5a5
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat Apr 11 05:09:12 2015 -0400
+
+    crypto/x509: build the builtin root certs also for darwin/arm64
+    
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f06
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8785
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/x509/root_cgo_darwin.go                          | 2 +-
+ src/crypto/x509/root_darwin.go                              | 2 +-
+ src/crypto/x509/root_darwin_arm_gen.go                      | 7 +++++--
+ src/crypto/x509/{root_darwin_arm.go => root_darwin_armx.go} | 5 ++++-
+ 4 files changed, 11 insertions(+), 5 deletions(-)

@@ -1,0 +1,26 @@
+commit 495eb3f922c8362949812fe65237d2158e25afe5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Feb 26 11:15:41 2018 +0100
+
+    syscall: remove/update outdated TODO comments
+    
+    Error returns for linux/arm syscalls are handled since a long time.
+    
+    Remove another list of unimplemented syscalls, following CL 96315.
+    
+    The root-only check in TestSyscallNoError was shown to be sufficient as
+    part of CL 84485 already.
+    
+    NetBSD and OpenBSD do not implement the sendfile syscall (yet), so add a
+    link to golang.org/issue/5847
+    
+    Change-Id: I07efc3c3203537a4142707385f31b59dc0ecca42
+    Reviewed-on: https://go-review.googlesource.com/97115
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/asm_linux_arm.s       | 2 --
+ src/syscall/syscall_bsd.go        | 8 --------
+ src/syscall/syscall_linux_test.go | 2 --
+ src/syscall/syscall_netbsd.go     | 2 +-
+ src/syscall/syscall_openbsd.go    | 2 +-
+ 5 files changed, 2 insertions(+), 14 deletions(-)

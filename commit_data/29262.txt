@@ -1,0 +1,17 @@
+commit 3f6070cc915b8175f4b7d1324a8320b881e891a2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 31 11:43:40 2016 -0700
+
+    vendor/golang_org/text/unicode/norm: re-vendor
+    
+    This picks up just a trivial fix,
+    making vet (and thus me) happy.
+    
+    Change-Id: Ib82ae44c081ff1ec5c078196a6cd5e1a3505d03b
+    Reviewed-on: https://go-review.googlesource.com/32427
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/vendor/golang_org/x/text/unicode/norm/readwriter.go | 1 -
+ 1 file changed, 1 deletion(-)

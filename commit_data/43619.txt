@@ -1,0 +1,17 @@
+commit 0b798c46cd6994d246c37d011292b02aa2f37a08
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Oct 20 22:04:55 2020 +1100
+
+    cmd/link: add loadelf support for riscv64
+    
+    Update #36641
+    
+    Change-Id: I8618da30d8940a56d6cc86a37a2f54b31ee029e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263601
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 43 +++++++++++++++++++++++++++-------
+ 1 file changed, 35 insertions(+), 8 deletions(-)

@@ -1,0 +1,19 @@
+commit 3357a02b74fea42c3348de83af81900c6623f584
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jul 5 10:33:50 2016 -0700
+
+    math/big: use array instead of slice for deBruijn lookups
+    
+    This allows the compiler to remove a bounds check.
+    
+    math/big/nat.go:681: index bounds check elided
+    math/big/nat.go:683: index bounds check elided
+    
+    Change-Id: Ieecb89ec5e988761b06764bd671672015cd58e9d
+    Reviewed-on: https://go-review.googlesource.com/26663
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/nat.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

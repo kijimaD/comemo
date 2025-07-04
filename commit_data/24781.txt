@@ -1,0 +1,19 @@
+commit 07a6cbf58acd812dd935ef6373d567fd75e5ca3f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Sep 2 22:26:42 2015 +1200
+
+    cmd/dist, cmd/go, misc/cgo/testshared: update testshared and run it on arm
+    
+    And enable PIE in cmd/go because that's all it seems to take.
+    
+    Change-Id: Ie017f427ace5e91de333a9f7cba9684c4641dfd5
+    Reviewed-on: https://go-review.googlesource.com/14222
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testshared/shared_test.go | 8 ++++++--
+ src/cmd/dist/test.go               | 2 +-
+ src/cmd/go/build.go                | 2 +-
+ 3 files changed, 8 insertions(+), 4 deletions(-)

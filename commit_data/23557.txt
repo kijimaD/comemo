@@ -1,0 +1,15 @@
+commit 7749a9ab56be0ace6d8665db36d801c3a1bb425d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 29 11:40:13 2015 -0700
+
+    sync: disable flaky WaitGroup misuse test in short mode
+    
+    Update #11443
+    
+    Change-Id: Icb7ea291a837dcf2799a791a2ba780fd2a5e712b
+    Reviewed-on: https://go-review.googlesource.com/11721
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/sync/waitgroup_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

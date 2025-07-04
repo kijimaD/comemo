@@ -1,0 +1,16 @@
+commit 964fac3ee74fe4df5423dad18f78322d88aae84a
+Author: Felix Cornelius <9767036+fcornelius@users.noreply.github.com>
+Date:   Fri Feb 28 20:15:02 2020 +0000
+
+    doc: update Effective Go with 1.14 language changes
+    
+    Fixes #37560
+    
+    Change-Id: Iccb8e53254c45d203c1b42ea9b4d8509b93dd7a9
+    GitHub-Last-Rev: 5972b67e5d7b3b36ce1854ee9365197e78f654cd
+    GitHub-Pull-Request: golang/go#37563
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221429
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/effective_go.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

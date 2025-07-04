@@ -1,0 +1,31 @@
+commit c6531fae589cf3f9475f3567a5beffb4336fe1d6
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Oct 21 18:14:24 2024 +0000
+
+    go/types,types2: avoid data race to object.color_ through dot imports
+    
+    As described in issue #69912, type checking dot-imported identifiers can
+    result in a call to objDecl on an imported object, which leads to a data
+    race to the color_ field.
+    
+    There are multiple potential fixes for this race. Opt for avoiding the
+    call to objDecl altogether, rather than setting color_ during import.
+    The color_ field is an internal property of objects that should only be
+    valid during the type checking of their package. We should not be
+    calling objDecl on imported objects.
+    
+    Fixes #69912
+    
+    Change-Id: I55eb652479715f2a7ac84104db2f448091c4e7ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621637
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ .../compile/internal/importer/gcimporter_test.go   | 65 +++++++++++++++++++++
+ .../internal/importer/testdata/issue69912.go       |  9 +++
+ src/cmd/compile/internal/types2/typexpr.go         | 15 +++--
+ src/go/internal/gcimporter/gcimporter_test.go      | 66 ++++++++++++++++++++++
+ src/go/internal/gcimporter/testdata/issue69912.go  |  9 +++
+ src/go/types/typexpr.go                            | 15 +++--
+ 6 files changed, 167 insertions(+), 12 deletions(-)

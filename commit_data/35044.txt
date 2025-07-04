@@ -1,0 +1,26 @@
+commit 50ccbe1fc2737f6ea2642aee1c99c9ad141258b2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Apr 14 09:59:25 2018 -0700
+
+    cmd/internal/objfile: emit trailing tab outside of Disasm.Decode
+    
+    Disasm.Decode currently always appends a tab to the formatted instruction,
+    although not to any relocations after it.
+    
+    Decode has two clients: objdump and pprof.
+    pprof emits plain text, so it would be better not to have a trailing tab.
+    objdump wants the trailing tab for text/tabwriter,
+    but it is easy to add that to the Fprintf call.
+    
+    Shifting the responsibility for the trailing tab to the caller
+    simplifies the code, increases correctness, and slightly improves
+    performance by reducing and coalescing string concatenations.
+    
+    Change-Id: I0c85518ee185949e385de819e2e703bce757eba9
+    Reviewed-on: https://go-review.googlesource.com/106983
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/objfile/disasm.go | 13 ++++---------
+ 1 file changed, 4 insertions(+), 9 deletions(-)

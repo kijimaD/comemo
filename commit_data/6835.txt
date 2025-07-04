@@ -1,0 +1,14 @@
+commit 6eee9ed507a6de8fe93c1d1b8372a8bd85547e6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 6 16:22:32 2010 -0500
+
+    time: fix build
+    
+    Allow less precise timing on build machines.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/3391043
+
+ src/pkg/time/sleep_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

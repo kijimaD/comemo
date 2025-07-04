@@ -1,0 +1,24 @@
+commit 9a49f772575f8009355ac7d64d51ef41bc960c3d
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 20 20:08:30 2020 -0700
+
+    runtime/race: update race .syso files
+    
+    Fixes #39186
+    
+    Change-Id: I624ab73b3083f190978c09716672ce1b712a5c81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264082
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/runtime/race/README                  |  14 +++++++-------
+ src/runtime/race/race_darwin_amd64.syso  | Bin 449292 -> 451280 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 579744 -> 583264 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 521752 -> 525176 bytes
+ src/runtime/race/race_linux_arm64.syso   | Bin 500584 -> 505224 bytes
+ src/runtime/race/race_linux_ppc64le.syso | Bin 623824 -> 624648 bytes
+ src/runtime/race/race_netbsd_amd64.syso  | Bin 602664 -> 609424 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 458427 -> 461185 bytes
+ 8 files changed, 7 insertions(+), 7 deletions(-)

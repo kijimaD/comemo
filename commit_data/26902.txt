@@ -1,0 +1,35 @@
+commit 6b85a45edc94786c7669823ee47a6ce1156d6a9a
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 21 11:32:04 2016 -0400
+
+    cmd/compile: move spills to loop exits when easy.
+    
+    For call-free inner loops.
+    
+    Revised statistics:
+      85 inner loop spills sunk
+     341 inner loop spills remaining
+    1162 inner loop spills that were candidates for sinking
+         ended up completely register allocated
+     119 inner loop spills could have been sunk were used in
+         "shuffling" at the bottom of the loop.
+       1 inner loop spill not sunk because the register assigned
+         changed between def and exit,
+    
+     Understanding how to make an inner loop definition not be
+     a candidate for from-memory shuffling (to force the shuffle
+     code to choose some other value) should pick up some of the
+     119 other spills disqualified for this reason.
+    
+     Modified the stats printing based on feedback from Austin.
+    
+    Change-Id: If3fb9b5d5a028f42ccc36c4e3d9e0da39db5ca60
+    Reviewed-on: https://go-review.googlesource.com/21037
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/likelyadjust.go | 142 +++++++++++++-
+ src/cmd/compile/internal/ssa/regalloc.go     | 284 ++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/sparsemap.go    |  16 ++
+ 3 files changed, 435 insertions(+), 7 deletions(-)

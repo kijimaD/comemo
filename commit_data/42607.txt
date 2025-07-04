@@ -1,0 +1,24 @@
+commit 9699086043ae0ea01f14eca827837ad15bea8072
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 6 14:23:26 2020 -0700
+
+    runtime: mark OpenBSD raise function nosplit
+    
+    It is called by the signal handler before switching to gsignal
+    (sigtrampgo -> sigfwdgo -> dieFromSignal -> raise)
+    which means that it must not split the stack.
+    
+    All other instances of raise are already marked nosplit.
+    
+    Fixes #40076
+    
+    Change-Id: I4794491331af48c46d0d8ebc82d34c6483f0e6cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241121
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/os/pipe_test.go       | 19 +++++++++++++++++++
+ src/runtime/os_openbsd.go |  1 +
+ 2 files changed, 20 insertions(+)

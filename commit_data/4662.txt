@@ -1,0 +1,15 @@
+commit fd150e77e18c9bf371458f056b0e97309b4a80c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 24 22:36:26 2010 -0800
+
+    gc: cut some dead code, fix 6g -S output
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/193079
+
+ src/cmd/gc/export.c | 51 ---------------------------------------------------
+ src/cmd/gc/go.h     |  1 -
+ src/cmd/gc/go.y     |  1 -
+ src/cmd/gc/lex.c    | 12 +++++++++++-
+ 4 files changed, 11 insertions(+), 54 deletions(-)

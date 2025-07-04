@@ -1,0 +1,14 @@
+commit 929ee59fce2a314a28a25629e6c99402ec97603e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 25 11:19:25 2014 +1100
+
+    regexp/syntax: document the upper limit of n in x{n}
+    Fixes #7252.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/77990044
+
+ src/pkg/regexp/syntax/doc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

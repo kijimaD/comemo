@@ -1,0 +1,21 @@
+commit 6c0bcb1863fbc84447590226911db9baab7a5c97
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 27 23:58:36 2014 -0400
+
+    cmd/gc: fix method value closures on nacl amd64p32
+    
+    The code was assuming that pointer alignment is the
+    maximum alignment, but on NaCl uint64 alignment is
+    even more strict.
+    
+    Brad checked in the test earlier today; this fixes the build.
+    
+    Fixes #7863.
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/98630046
+
+ src/cmd/gc/closure.c | 2 ++
+ src/cmd/gc/dcl.c     | 2 ++
+ 2 files changed, 4 insertions(+)

@@ -1,0 +1,21 @@
+commit a76c8b243014b884b24642e0d1d044434f583ae4
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 3 11:08:17 2012 -0400
+
+    time: make Format 2.7x faster
+    
+    benchmark             old ns/op    new ns/op    delta
+    BenchmarkFormat            2495          937  -62.44%
+    BenchmarkFormatNow         2308          889  -61.48%
+    
+    Update #3679.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6278047
+
+ src/pkg/time/format.go    | 397 ++++++++++++++++++++++++----------------------
+ src/pkg/time/time.go      |  45 +++++-
+ src/pkg/time/time_test.go |  13 +-
+ src/pkg/time/zoneinfo.go  |  14 +-
+ 4 files changed, 271 insertions(+), 198 deletions(-)

@@ -1,0 +1,26 @@
+commit 61660adc6345f21ecd39f29985d13579963579d2
+Author: Trevor Strohman <trevor.strohman@gmail.com>
+Date:   Thu Nov 19 16:35:34 2009 -0800
+
+    Adds benchmark support to gotest.
+    
+    No benchmarks are run unless the --benchmarks=<regexp> flag
+    is specified on the gotest command line.  This change includes
+    sample benchmarks for regexp.
+    
+    % gotest --benchmarks=.*
+    (standard test output redacted)
+    testing.BenchmarkSimpleMatch    200000        7799 ns/op
+    testing.BenchmarkUngroupedMatch 20000        76898 ns/op
+    testing.BenchmarkGroupedMatch   50000        38148 ns/op
+    
+    R=r, rsc
+    https://golang.org/cl/154173
+
+ src/cmd/gotest/doc.go          |  13 +++-
+ src/cmd/gotest/gotest          |  14 +++-
+ src/pkg/testing/Makefile       |   1 +
+ src/pkg/testing/benchmark.go   | 150 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/testing/regexp_test.go |  30 +++++++++
+ src/pkg/testing/testing.go     |  27 ++++++++
+ 6 files changed, 231 insertions(+), 4 deletions(-)

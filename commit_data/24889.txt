@@ -1,0 +1,16 @@
+commit b4c9ec8be9f15d50e3b7f83b18f1ceaaaae6c9ba
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Oct 26 16:09:48 2015 +0100
+
+    net/rpc: verify that embedding works with changed semantics
+    
+    Exported methods of unexported embedded structs get added
+    correctly to the pool. Behavior is unchanged before and after
+    https://golang.org/cl/14085.
+    
+    Change-Id: I2b4053bab02ff045f0a4577b8114808a60aae27e
+    Reviewed-on: https://go-review.googlesource.com/16305
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/rpc/server_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

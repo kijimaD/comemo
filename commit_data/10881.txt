@@ -1,0 +1,12 @@
+commit 315b361f898e2a7f299a742be5cfcb56c04d5c9d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 19 15:40:10 2011 -0800
+
+    zip: fix data race in test
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5492073
+
+ src/pkg/archive/zip/reader_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

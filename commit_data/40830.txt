@@ -1,0 +1,18 @@
+commit fff450256a541decd2bb2060c46b788d92692faa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 14:52:16 2019 -0500
+
+    cmd/go: convert TestUserOverrideFlags to a script test
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: I08eb0e144387735f7a7811a82e547a581991b335
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207697
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                        | 30 ----------------------------
+ src/cmd/go/testdata/script/build_gcflags.txt | 21 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 30 deletions(-)

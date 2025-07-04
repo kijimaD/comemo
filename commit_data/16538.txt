@@ -1,0 +1,26 @@
+commit caefc5d0caa46f032f6929037371c24f4c7f9b47
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 11 09:35:10 2013 -0700
+
+    cmd/go: add coverage analysis
+    This feature is not yet ready for real use. The CL marks a bite-sized
+    piece that is ready for review. TODOs that remain:
+            provide control over output
+            produce output without setting -v
+            make work on reflect, sync and time packages
+                    (fail now due to link errors caused by inlining)
+            better documentation
+    Almost all packages work now, though, if clumsily; try:
+            go test -v -cover=count encoding/binary
+    
+    R=rsc
+    CC=gobot, golang-dev, remyoudompheng
+    https://golang.org/cl/10050045
+
+ src/cmd/go/build.go    |  32 +++++++++++++-
+ src/cmd/go/doc.go      |  12 ++++++
+ src/cmd/go/pkg.go      |  36 ++++++++++------
+ src/cmd/go/test.go     | 114 ++++++++++++++++++++++++++++++++++++++++++++++---
+ src/cmd/go/testflag.go |   8 ++++
+ src/cmd/go/tool.go     |   2 +-
+ 6 files changed, 184 insertions(+), 20 deletions(-)

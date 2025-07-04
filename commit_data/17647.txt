@@ -1,0 +1,16 @@
+commit db71e1557b0f17921bbca101243f0fdec691d75c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Sep 19 01:20:02 2013 -0400
+
+    cmd/go: fix missing __mingw_fprintf symbol for cgo on windows
+    
+    Fixes #5986.
+    
+    R=golang-dev, rsc, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/13261055
+
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue5986.go | 32 ++++++++++++++++++++++++++++++++
+ src/cmd/go/build.go        |  5 +++--
+ 3 files changed, 36 insertions(+), 2 deletions(-)

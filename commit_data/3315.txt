@@ -1,0 +1,15 @@
+commit d36d191e25053f499f7e84ed4b8a858a4838b3aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 18 11:58:35 2009 -0700
+
+    - added heading to operator precedence section so it's easy to find
+    - fixed broken link to function literals section
+    - minor adjustments
+    
+    R=r
+    DELTA=20  (1 added, 3 deleted, 16 changed)
+    OCL=34792
+    CL=34794
+
+ doc/go_spec.html | 36 +++++++++++++++++-------------------
+ 1 file changed, 17 insertions(+), 19 deletions(-)

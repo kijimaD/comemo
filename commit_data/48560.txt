@@ -1,0 +1,27 @@
+commit 94727bed02d59b6a40757ba583f61d1b03493e5d
+Author: Ben Shi <ben.shi@streamcomputing.com>
+Date:   Mon Mar 28 11:40:02 2022 +0000
+
+    cmd/internal/obj/riscv: add two-operand form to more instructions
+    
+    Add two-operand form "op rs, rd" to
+    ADDW/SUBW/SLLW/SRLW/SRAW/SLLIW/SRLIW/SRAIW.
+    
+    Do the following map:
+    "ADDW $imm, rd" -> "ADDIW $imm, rd"
+    "SLLW $imm, rd" -> "SLLIW $imm, rd"
+    "SRLW $imm, rd" -> "SRLIW $imm, rd"
+    "SRAW $imm, rd" -> "SRAIW $imm, rd"
+    
+    Change-Id: Ie9632ba198ba8c05faac91504e4b97fc45ca1196
+    GitHub-Last-Rev: c6ccc9d5d0612ede1a1ffebb6bbc0309da87f4e1
+    GitHub-Pull-Request: golang/go#51984
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396134
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 13 +++++++++++++
+ src/cmd/internal/obj/riscv/obj.go           |  9 +++++++++
+ 2 files changed, 22 insertions(+)

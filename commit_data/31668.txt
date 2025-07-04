@@ -1,0 +1,16 @@
+commit 00e6b34fed7991e560f99c7b92f6bd1bacbe9a75
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu May 25 03:21:17 2017 +0200
+
+    vendor: update golang.org/x/net/nettest
+    
+    Update golang.org/x/net/nettest to revision 7dcfb8076726a3fdd9353b6b8a1f1b6be6811bd6.
+    
+    Change-Id: Ib6505423910d34142d7b1bcb6792a5017df4da47
+    Reviewed-on: https://go-review.googlesource.com/44131
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/vendor/golang_org/x/net/nettest/conntest.go | 5 +++++
+ 1 file changed, 5 insertions(+)

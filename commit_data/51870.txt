@@ -1,0 +1,16 @@
+commit 356647409d834d823f8ee7e57075b38556638e79
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Jan 27 14:05:36 2023 +0100
+
+    net/netip: use IPv6Loopback in TestIPProperties
+    
+    Change-Id: I667bdaf52e9d32cd89e396616057bc57ecaffe09
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463836
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/net/netip/netip_test.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

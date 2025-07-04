@@ -1,0 +1,14 @@
+commit ff196fbde7c1fa9546c466e30be446881051d5e9
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Sep 15 16:14:49 2009 -0700
+
+    patch in proper branch address in zaddr output
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=12  (11 added, 1 deleted, 0 changed)
+    OCL=34658
+    CL=34664
+
+ src/cmd/5g/gobj.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

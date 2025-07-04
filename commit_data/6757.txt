@@ -1,0 +1,17 @@
+commit fb784785f5c871c7c6d6c90637fa05ca23c16ef9
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 12 14:55:32 2010 -0500
+
+    crypto/elliptic: add package
+    
+    elliptic implements several standard elliptic curves over prime fields.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3065041
+
+ src/pkg/Makefile                         |   1 +
+ src/pkg/crypto/elliptic/Makefile         |  11 ++
+ src/pkg/crypto/elliptic/elliptic.go      | 232 ++++++++++++++++++++++++
+ src/pkg/crypto/elliptic/elliptic_test.go | 300 +++++++++++++++++++++++++++++++
+ 4 files changed, 544 insertions(+)

@@ -1,0 +1,15 @@
+commit 7cfcd2f87a13243004cd343d6ad7c0b4c7b266f6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 18 13:30:25 2013 +1100
+
+    misc/dist: fix file regexp
+    
+    This step makes it possible to upload the -osx10.x binaries
+    separately to their construction (after signing, for example).
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/28160043
+
+ misc/dist/bindist.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

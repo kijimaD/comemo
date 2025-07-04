@@ -1,0 +1,22 @@
+commit 47919799b411f0c1e47591887a233d3692bf19b6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 16 19:14:33 2008 -0700
+
+    new grammar:
+            binary <- is send
+            unary <- is recv
+            -< is gone
+            case a := <-ch: works in select
+            case a = <-ch: works in select
+    support for new cases is not yet in the compiler but all non-select
+    code works
+    
+    second CL will update affected go source
+    
+    R=ken
+    OCL=15414
+    CL=15414
+
+ src/cmd/gc/go.y  | 83 ++++++++++++++++++++++++++++++++++++++------------------
+ src/cmd/gc/lex.c |  6 +---
+ 2 files changed, 58 insertions(+), 31 deletions(-)

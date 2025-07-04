@@ -1,0 +1,19 @@
+commit 8641e6fe2131ac342647fa34398a727f96d15fb5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 28 16:25:45 2016 -0700
+
+    net/http: update bundled http2
+    
+    Updates x/net/http2 to git rev ef2e00e88 for https://golang.org/cl/24560,
+    "http2: make Transport return server's GOAWAY error back to the user"
+    
+    Fixes #14627
+    
+    Change-Id: I2bb123a3041e168db7c9446beef4ee47638f17ee
+    Reviewed-on: https://go-review.googlesource.com/24561
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 29 ++++++++++++++++++++++++++---
+ 1 file changed, 26 insertions(+), 3 deletions(-)

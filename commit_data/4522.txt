@@ -1,0 +1,12 @@
+commit 30e5ed249d2ee5d4ae3703638358a2d0224e0f01
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 4 17:28:02 2010 -0800
+
+    remove reference to "basic literal" since it's never defined
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/183113
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

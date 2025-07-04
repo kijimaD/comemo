@@ -1,0 +1,14 @@
+commit 556506e8692af033fba6411ba926733daf1fcd0a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 22 09:34:13 2011 -0800
+
+    go spec: fix local link
+    
+    Fixes #1543.
+    
+    R=rsc, r2
+    CC=golang-dev
+    https://golang.org/cl/4169068
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

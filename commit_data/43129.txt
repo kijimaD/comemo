@@ -1,0 +1,18 @@
+commit 9a7a981ab796038e9ddb148dabd97067d9cbbb01
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Sep 27 18:32:18 2020 +0200
+
+    cmd/compile: convert more amd64 rules to typed aux
+    
+    Passes
+    
+      gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: I2927283e444e7075e155cf29680553b92d471667
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257897
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  226 ++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 1448 +++++++++++++-------------
+ 2 files changed, 837 insertions(+), 837 deletions(-)

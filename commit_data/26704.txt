@@ -1,0 +1,16 @@
+commit ffeae198d018693f84b15f8f44f9a2eb6b8e9713
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Apr 5 11:31:50 2016 +1000
+
+    runtime: leave directory before removing it in TestDLLPreloadMitigation
+    
+    Fixes #15120
+    
+    Change-Id: I1d9a192ac163826bad8b46e8c0b0b9e218e69570
+    Reviewed-on: https://go-review.googlesource.com/21520
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/syscall_windows_test.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

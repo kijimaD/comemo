@@ -1,0 +1,22 @@
+commit e937eeeccdbf07df30ad4ea8ebd3cc20742b3200
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 10:09:04 2015 -0700
+
+    math/big: removed more unnecessary string conversions
+    
+    - renamed (nat) itoa to utoa (since that's what it is)
+    - added (nat) itoa that takes a sign parameter; this helps removing a few string copies
+    - used buffers instead of string+ in Rat conversions
+    
+    Change-Id: I6b37a6b39557ae311cafdfe5c4a26e9246bde1a9
+    Reviewed-on: https://go-review.googlesource.com/14995
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/decimal.go      |  2 +-
+ src/math/big/ftoa.go         |  6 +++---
+ src/math/big/intconv.go      | 13 +++----------
+ src/math/big/nat_test.go     | 10 +++++-----
+ src/math/big/natconv.go      | 17 +++++++++++++++--
+ src/math/big/natconv_test.go | 22 +++++++++++-----------
+ src/math/big/ratconv.go      | 36 ++++++++++++++++++++++++------------
+ 7 files changed, 62 insertions(+), 44 deletions(-)

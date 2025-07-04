@@ -1,0 +1,13 @@
+commit f4dfbd1cf03abaac35f912a91e5f60885c099bb1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 25 22:10:35 2010 -0800
+
+    channel types parsed not according to spec by 6g
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/193101
+
+ test/bugs/bug249.go | 39 +++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  7 +++++++
+ 2 files changed, 46 insertions(+)

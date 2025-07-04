@@ -1,0 +1,24 @@
+commit 5e3c4016a436c357a57a6f7870913c6911c6904e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 23 14:40:37 2024 -0800
+
+    go/types, types2: separate formatting from error handling functions
+    
+    This change moves formatting-specific functionality into a new file
+    format.go and rearranges the code in the errors.go files to be in
+    the same order for go/types and types2, making them more similar.
+    
+    No functionality change. This is a pure code reordering.
+    
+    Change-Id: Ibd818792397be146ad510a6c7308c85d3bb65956
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/errors.go | 163 ++-------------------------
+ src/cmd/compile/internal/types2/format.go | 153 +++++++++++++++++++++++++
+ src/go/types/errors.go                    | 178 ++++--------------------------
+ src/go/types/format.go                    | 153 +++++++++++++++++++++++++
+ 4 files changed, 337 insertions(+), 310 deletions(-)

@@ -1,0 +1,12 @@
+commit fc61b77754f3a06ae60b7ab43f7f57a6a91de3e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 28 14:10:20 2009 -0700
+
+    - clarify type declaration (specifying status quo)
+    
+    DELTA=68  (51 added, 8 deleted, 9 changed)
+    OCL=35038
+    CL=35046
+
+ doc/go_spec.html | 77 +++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 60 insertions(+), 17 deletions(-)

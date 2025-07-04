@@ -1,0 +1,19 @@
+commit 7eec656bfd111531f548dbb5c7f3b6d18525f4ab
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 13 12:44:45 2015 +0900
+
+    net: fix the series of TestLookup and external tests
+    
+    On Windows, we need to make sure that the node under test has external
+    connectivity.
+    
+    Fixes #10795.
+    
+    Change-Id: I99f2336180c7b56474fa90a4a6cdd5a6c4dd3805
+    Reviewed-on: https://go-review.googlesource.com/10006
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/external_test.go |  43 ++-------
+ src/net/lookup_test.go   | 236 +++++++++++++++++++++++++++++++++--------------
+ src/net/main_test.go     |   6 ++
+ 3 files changed, 178 insertions(+), 107 deletions(-)

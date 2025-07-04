@@ -1,0 +1,16 @@
+commit c3c2e453c968c7b450c59a47dc9502bd44257164
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 2 12:30:58 2017 -0700
+
+    cmd/cgo: document that structs and arrays don't work with //export
+    
+    Fixes #18412
+    
+    Change-Id: Ib457eeced7820517aa35df9e7dfda1c0de4ac004
+    Reviewed-on: https://go-review.googlesource.com/52852
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/doc.go | 3 +++
+ src/cmd/cgo/out.go | 3 ++-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

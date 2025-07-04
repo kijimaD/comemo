@@ -1,0 +1,15 @@
+commit e258249c247d7135f164f4f0b3abb29bebe75767
+Author: Francesc Campoy Flores <campoy@golang.org>
+Date:   Thu Aug 24 10:07:15 2017 -0700
+
+    cmd/vet: check only for ASCII spaces (0x20) in struct tags
+    
+    Change-Id: I6e9b5caeca842b6bf72afefb31f5140608b86d20
+    Reviewed-on: https://go-review.googlesource.com/58530
+    Run-TryBot: Francesc Campoy Flores <campoy@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/structtag.go          |  3 +--
+ src/cmd/vet/testdata/structtag.go | 21 ++++++++++-----------
+ 2 files changed, 11 insertions(+), 13 deletions(-)

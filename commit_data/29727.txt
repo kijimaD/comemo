@@ -1,0 +1,22 @@
+commit 130ad87ab7b02a87401246d4a5f0c3f00fc7d709
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 1 22:48:52 2016 -0800
+
+    cmd/link: don't overalign ELF reloc sections
+    
+    Internal linking on an ELF system creates two reloc sections, which
+    must be adjacent. The default is to base section alignment on the
+    section size, but doing that for ELF reloc sections can introduce a
+    gap. Set the reloc section alignment explicitly to avoid that.
+    
+    Fixes #18044.
+    
+    Change-Id: I8ccc131e60937d30c5f715a34c7803258833fc2f
+    Reviewed-on: https://go-review.googlesource.com/33872
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go            | 9 +++++++++
+ src/cmd/link/internal/ld/data.go | 7 +++++++
+ 2 files changed, 16 insertions(+)

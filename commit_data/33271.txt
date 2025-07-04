@@ -1,0 +1,52 @@
+commit 3beaf26e4fbf1bfd166fc3b5b7584a58b11e726c
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 22 21:37:05 2017 -0400
+
+    runtime: remove write barriers from newstack, gogo
+    
+    Currently, newstack and gogo have write barriers for maintaining the
+    context register saved in g.sched.ctxt. This is troublesome, because
+    newstack can be called from go:nowritebarrierrec places that can't
+    allow write barriers. It happens to be benign because g.sched.ctxt
+    will always be nil on entry to newstack *and* it so happens the
+    incoming ctxt will also always be nil in these contexts (I
+    think/hope), but this is playing with fire. It's also desirable to
+    mark newstack go:nowritebarrierrec to prevent any other, non-benign
+    write barriers from creeping in, but we can't do that right now
+    because of this one write barrier.
+    
+    Fix all of this by observing that g.sched.ctxt is really just a saved
+    live pointer register. Hence, we can shade it when we scan g's stack
+    and otherwise move it back and forth between the actual context
+    register and g.sched.ctxt without write barriers. This means we can
+    save it in morestack along with all of the other g.sched, eliminate
+    the save from newstack along with its troublesome write barrier, and
+    eliminate the shenanigans in gogo to invoke the write barrier when
+    restoring it.
+    
+    Once we've done all of this, we can mark newstack
+    go:nowritebarrierrec.
+    
+    Fixes #22385.
+    For #22460.
+    
+    Change-Id: I43c24958e3f6785b53c1350e1e83c2844e0d1522
+    Reviewed-on: https://go-review.googlesource.com/72553
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_386.s      | 16 +---------------
+ src/runtime/asm_amd64.s    | 16 +---------------
+ src/runtime/asm_amd64p32.s | 16 +---------------
+ src/runtime/asm_arm.s      | 18 ++----------------
+ src/runtime/asm_arm64.s    | 17 ++---------------
+ src/runtime/asm_mips64x.s  | 18 +++---------------
+ src/runtime/asm_mipsx.s    | 18 +++---------------
+ src/runtime/asm_ppc64x.s   | 17 ++---------------
+ src/runtime/asm_s390x.s    | 18 +++---------------
+ src/runtime/mgcmark.go     |  7 +++++++
+ src/runtime/runtime2.go    | 18 ++++++++++--------
+ src/runtime/stack.go       | 12 ++++++------
+ 12 files changed, 41 insertions(+), 150 deletions(-)

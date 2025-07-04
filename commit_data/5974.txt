@@ -1,0 +1,14 @@
+commit 18063d46868b28c7cac1e2a08f6f07c28f955b36
+Author: Rob Pike <r@golang.org>
+Date:   Sat Aug 7 10:02:04 2010 +1000
+
+    fmt.Scan: empty strings are errors
+    Fixes #1002.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1882046
+
+ src/pkg/fmt/scan.go      | 14 ++++++++++----
+ src/pkg/fmt/scan_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit 9cf8312a579090ed3bca8e3fc8d5dea7bf6c3710
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 30 10:14:39 2008 -0700
+
+    - bug in function invocation
+    
+    R=r
+    OCL=13640
+    CL=13640
+
+ test/bugs/bug080.go | 23 +++++++++++++++++++++++
+ test/golden.out     | 10 ++++++++--
+ 2 files changed, 31 insertions(+), 2 deletions(-)

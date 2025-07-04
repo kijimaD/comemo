@@ -1,0 +1,15 @@
+commit c1ea3395a6fdb2b66e6f445358ca40b78882adce
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 1 22:25:55 2021 -0700
+
+    doc/go1.18: add net/netip
+    
+    Updates #46518
+    
+    Change-Id: Iefc2fec93becc7b36ba2b933ae79f7c9424317fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360634
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.18.html | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

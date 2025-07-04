@@ -1,0 +1,61 @@
+commit 2c783dc038250fe602be6436ae9f11ab6ceb8deb
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Oct 27 15:52:14 2017 +0200
+
+    math/big: save one subtraction per iteration in Float.Sqrt
+    
+    The Sqrt Newton method computes g(t) = f(t)/f'(t) and then iterates
+    
+      t2 = t1 - g(t1)
+    
+    We can save one operation by including the final subtraction in g(t)
+    and evaluating the resulting expression symbolically.
+    
+    For example, for the direct method,
+    
+      g(t) = ½(t² - x)/t
+    
+    and we use 2 multiplications, 1 division and 1 subtraction in g(),
+    plus 1 final subtraction; but if we compute
+    
+      t - g(t) = t - ½(t² - x)/t = ½(t² + x)/t
+    
+    we only use 2 multiplications, 1 division and 1 addition.
+    
+    A similar simplification can be done for the inverse method.
+    
+    name                 old time/op    new time/op    delta
+    FloatSqrt/64-4          889ns ± 4%     790ns ± 1%  -11.19%  (p=0.000 n=8+7)
+    FloatSqrt/128-4        1.82µs ± 0%    1.64µs ± 1%  -10.07%  (p=0.001 n=6+8)
+    FloatSqrt/256-4        3.56µs ± 4%    3.10µs ± 3%  -12.96%  (p=0.000 n=7+8)
+    FloatSqrt/1000-4       9.06µs ± 3%    8.86µs ± 1%   -2.20%  (p=0.001 n=7+7)
+    FloatSqrt/10000-4       109µs ± 1%     107µs ± 1%   -1.56%  (p=0.000 n=8+8)
+    FloatSqrt/100000-4     2.91ms ± 0%    2.89ms ± 2%   -0.68%  (p=0.026 n=7+7)
+    FloatSqrt/1000000-4     237ms ± 1%     239ms ± 1%   +0.72%  (p=0.021 n=8+8)
+    
+    name                 old alloc/op   new alloc/op   delta
+    FloatSqrt/64-4           448B ± 0%      416B ± 0%   -7.14%  (p=0.000 n=8+8)
+    FloatSqrt/128-4          752B ± 0%      720B ± 0%   -4.26%  (p=0.000 n=8+8)
+    FloatSqrt/256-4        2.05kB ± 0%    1.34kB ± 0%  -34.38%  (p=0.000 n=8+8)
+    FloatSqrt/1000-4       6.91kB ± 0%    5.09kB ± 0%  -26.39%  (p=0.000 n=8+8)
+    FloatSqrt/10000-4      60.5kB ± 0%    45.9kB ± 0%  -24.17%  (p=0.000 n=8+8)
+    FloatSqrt/100000-4      617kB ± 0%     533kB ± 0%  -13.57%  (p=0.000 n=8+8)
+    FloatSqrt/1000000-4    10.3MB ± 0%     9.2MB ± 0%  -10.85%  (p=0.000 n=8+8)
+    
+    name                 old allocs/op  new allocs/op  delta
+    FloatSqrt/64-4           9.00 ± 0%      9.00 ± 0%     ~     (all equal)
+    FloatSqrt/128-4          13.0 ± 0%      13.0 ± 0%     ~     (all equal)
+    FloatSqrt/256-4          20.0 ± 0%      15.0 ± 0%  -25.00%  (p=0.000 n=8+8)
+    FloatSqrt/1000-4         31.0 ± 0%      24.0 ± 0%  -22.58%  (p=0.000 n=8+8)
+    FloatSqrt/10000-4        50.0 ± 0%      40.0 ± 0%  -20.00%  (p=0.000 n=8+8)
+    FloatSqrt/100000-4       76.0 ± 0%      66.0 ± 0%  -13.16%  (p=0.000 n=8+8)
+    FloatSqrt/1000000-4       146 ± 0%       143 ± 0%   -2.05%  (p=0.000 n=8+8)
+    
+    Change-Id: I271c00de1ca9740e585bf2af7bcd87b18c1fa68e
+    Reviewed-on: https://go-review.googlesource.com/73879
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/sqrt.go | 37 +++++++++++++++++++------------------
+ 1 file changed, 19 insertions(+), 18 deletions(-)

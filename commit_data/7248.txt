@@ -1,0 +1,12 @@
+commit bba20fc1fa4d2c3059ccaca6d7f61307127dcf6a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 26 13:02:09 2011 -0500
+
+    codelab/wiki: fix freebsd build
+    
+    TBR=adg
+    CC=golang-dev
+    https://golang.org/cl/4092042
+
+ doc/codelab/wiki/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 51cb717d272545c2d4160f76a9f13741aa1e7abd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 2 15:47:08 2023 -0700
+
+    go/types, types2: don't implicitly modify an argument function's type
+    
+    See the comment in the (very small) fix for a detailed description.
+    Use the opportunity to introduce a generic clone function which may
+    be useful elsewhere.
+    
+    Fixes #63260.
+    
+    Change-Id: Ic63c6b8bc443011b1a201908254f7d062e1aec71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532157
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/call.go        |  7 ++++
+ src/cmd/compile/internal/types2/issues_test.go | 44 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/predicates.go  |  6 ++++
+ src/go/types/call.go                           |  7 ++++
+ src/go/types/issues_test.go                    | 44 ++++++++++++++++++++++++++
+ src/go/types/predicates.go                     |  6 ++++
+ 6 files changed, 114 insertions(+)

@@ -1,0 +1,15 @@
+commit 24cce5c60c1cfc66567bf11203671e004c028c8d
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Apr 28 09:47:15 2012 +1000
+
+    misc/dashboard/codereview: don't depend on map iteration order for unit calculation.
+    
+    Fix auth requirements for /gc endpoint too.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6133049
+
+ misc/dashboard/codereview/app.yaml        |  2 +-
+ misc/dashboard/codereview/dashboard/cl.go | 19 +++++++++++--------
+ 2 files changed, 12 insertions(+), 9 deletions(-)

@@ -1,0 +1,47 @@
+commit bbe1be5c19f04816f5f9162c2be75351480c92a0
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Nov 29 11:45:17 2021 -0800
+
+    cmd/compile: report channel size errors correctly for -G=3
+    
+    First, we need to set base.Pos in varDecl() and typeDecl(), so it will
+    be correct if we need to report type size errors while converting types.
+    Changed error calls in types/sizes.go to use Errorf, not ErrorfAt, since
+    we want to use base.Pos (which will set from t.Pos(), if that is
+    available).
+    
+    Second, we need to add an extra call CalcSize(t1.Elem()) in the
+    TCHANARGS case of CalcSize(). We can use CalcSize() rather than
+    CheckSize(), since we know the top-level recursive type will have been
+    calculated by the time we process the fake TCHANARGS type. In -G=0 mode,
+    the size of the channel element has often been calculated because of
+    some other processing (but not in the case of #49767). But in -G=3 mode,
+    we just calculate sizes during the single noder2 pass, so we are more
+    likely to have not gotten to calculating the size of the element yet,
+    depending on the order of processing of the deferredTypeStack.
+    
+    Fixes the tests fixedbugs/issue{42058a,42058b}.go that were
+    disabled for -G=3 mode.
+    
+    Had to add exceptions in stdlib_test.go for go/types and types2, because
+    the types2 typechecker does not know about type size limits.
+    
+    Fixes #49814
+    Fixes #49771
+    Updates #49767
+    
+    Change-Id: I77d058e8ceff68a58c4c386a8cf46799c54b04c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367955
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/decl.go         |  4 ++++
+ src/cmd/compile/internal/types/size.go         | 15 ++++++++++-----
+ src/cmd/compile/internal/types2/stdlib_test.go |  2 ++
+ src/go/types/stdlib_test.go                    |  2 ++
+ test/fixedbugs/issue49767.go                   | 12 ++++++++++++
+ test/fixedbugs/issue49814.go                   | 14 ++++++++++++++
+ test/run.go                                    | 15 ++++++++-------
+ 7 files changed, 52 insertions(+), 12 deletions(-)

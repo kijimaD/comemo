@@ -1,0 +1,21 @@
+commit 783f166e659558414d846d16bbe65e6fe9c7099b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 24 18:03:17 2017 -0700
+
+    cmd/compile/internal/syntax: remove need for missing_statement (fixed TODO)
+    
+    Now that we have consistent use of xOrNil parse methods, we don't
+    need a special missing_statement singleton to distinguish between
+    missing actually statements and other errors (which have returned
+    nil before).
+    
+    For #19663.
+    
+    Change-Id: I8364f1441bdf8dd966bcd6d8219b2a42d6b88abd
+    Reviewed-on: https://go-review.googlesource.com/38656
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 45 ++++++++++++++++---------------
+ 1 file changed, 23 insertions(+), 22 deletions(-)

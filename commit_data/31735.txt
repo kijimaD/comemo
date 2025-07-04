@@ -1,0 +1,15 @@
+commit 90b39f33c40e8d4ae085426313be69473f304e7d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 6 22:03:45 2017 +0000
+
+    doc: add type aliases to go1.9.html
+    
+    Updates #20587
+    
+    Change-Id: I5df603505ae1d4b65687bec1e973a4ab318b34f1
+    Reviewed-on: https://go-review.googlesource.com/45014
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.9.html | 43 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 36 insertions(+), 7 deletions(-)

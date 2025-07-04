@@ -1,0 +1,21 @@
+commit a0948493ac693b46b4124a4380fd044c6a05f1b3
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Jun 13 11:05:18 2022 -0500
+
+    debug/elf: fix reloc number of R_PPC64_SECTOFF_LO_DS
+    
+    R_PPC64_SECTOFF_LO_DS is defined as reloc 62 on all PPC64 ELF ABIs.
+    
+    Fixes #53356
+    
+    Change-Id: I5fabf6be32f3310c5aed47d4d654e05fb7bc9de0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411915
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/except.txt       | 1 +
+ api/next/53356.txt   | 1 +
+ src/debug/elf/elf.go | 4 ++--
+ 3 files changed, 4 insertions(+), 2 deletions(-)

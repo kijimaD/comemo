@@ -1,0 +1,21 @@
+commit 1e1c0a7ea879284725de56b88c3b4f84c4db5c7f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 17 19:16:52 2024 +0100
+
+    crypto/ed25519: move implementation to crypto/internal/fips/ed25519
+    
+    For #69536
+    
+    Change-Id: Ifba3e2bcb03966f2ed576d3f88e2e09193215b4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628856
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/ed25519/ed25519.go               | 208 ++++------------
+ src/crypto/internal/fips/ed25519/cast.go    |  69 ++++++
+ src/crypto/internal/fips/ed25519/ed25519.go | 352 ++++++++++++++++++++++++++++
+ src/crypto/internal/fipstest/cast_test.go   |   6 +
+ src/go/build/deps_test.go                   |   1 +
+ 5 files changed, 469 insertions(+), 167 deletions(-)

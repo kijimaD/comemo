@@ -1,0 +1,19 @@
+commit 95e809f0e525fca000ec634e1e8cc10d6cebdf30
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 23:12:10 2016 -0400
+
+    cmd/go: clear GIT_ALLOW_PROTOCOL during tests
+    
+    Clear it before any tests begin.
+    Clear it again after TestIsSecureGitAllowProtocol sets it.
+    
+    Fixes #17700.
+    
+    Change-Id: I6ea50d37f8222d8c7c9fee0b1eac3bbdfb5d133e
+    Reviewed-on: https://go-review.googlesource.com/32640
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/go_test.go  | 1 +
+ src/cmd/go/vcs_test.go | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,19 @@
+commit 2ec648aa8c42d1215ddf59c6a461b21fb6723b74
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Mar 12 10:34:04 2023 +0800
+
+    cmd/go: update help for empty environment variables
+    
+    Fixes #50335
+    
+    Change-Id: I44b9dc6afa8c70b5cc8c79fb3ebddc3f45d3cef8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475695
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/alldocs.go               | 6 +++---
+ src/cmd/go/internal/help/helpdoc.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit 953f2dec8985298ff29bb8a88b8933d34b64db7e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 1 10:35:15 2012 -0800
+
+    spec: minor tweaks
+    
+    - more idiomatic examples of pointer types
+    - show use of _ in examples of function types
+    - remove "legal:" qualification in examples
+      for consistency
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5711054
+
+ doc/go_spec.html | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)

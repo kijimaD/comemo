@@ -1,0 +1,14 @@
+commit 125ed11c0abac7580125cb745b725a6fdd8be207
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 30 13:24:58 2015 -0700
+
+    net/http: document ServeFile and FileServer index.html redirect behavior
+    
+    Fixes #9876
+    
+    Change-Id: I97a354fde827dfccc9e373fadea2e37d094439b0
+    Reviewed-on: https://go-review.googlesource.com/9538
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/http/fs.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

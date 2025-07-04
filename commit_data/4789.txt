@@ -1,0 +1,13 @@
+commit 1e66428d59919b4e2f58e47d989ef10d1781b3aa
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Feb 4 13:09:02 2010 -0800
+
+    time: Sleep through interruptions
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/202043
+
+ src/pkg/time/sleep.go      | 15 +++++++++++++--
+ src/pkg/time/sleep_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 2 deletions(-)

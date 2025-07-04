@@ -1,0 +1,26 @@
+commit 8ed5a161ce85ee6d1e5fdef097a57593cfe15185
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 9 14:19:27 2023 -0800
+
+    go/types: generate more files from types2 sources
+    
+    Change-Id: I5e00b4367d7288867b03702d0c76b8210c125668
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461083
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/go/types/array.go            |  6 ++-
+ src/go/types/basic.go            |  6 ++-
+ src/go/types/context_test.go     |  2 +
+ src/go/types/generator.go        | 86 ++++++++++++++++++++++++++++++----------
+ src/go/types/instantiate_test.go |  7 +---
+ src/go/types/object.go           | 51 ++++++++++++++++++++++--
+ src/go/types/package.go          |  4 +-
+ src/go/types/predicates.go       | 16 ++++----
+ src/go/types/sizeof_test.go      |  2 +-
+ src/go/types/typeterm_test.go    |  2 +
+ src/go/types/universe.go         |  2 +
+ 11 files changed, 142 insertions(+), 42 deletions(-)

@@ -1,0 +1,12 @@
+commit 3577398f82980a1c47689b932e728497839abf84
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Wed May 22 22:45:38 2013 +0200
+
+    test: add test for issue 3888.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9676043
+
+ test/escape2.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

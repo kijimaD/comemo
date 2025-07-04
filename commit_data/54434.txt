@@ -1,0 +1,19 @@
+commit 0460c61e5fd2242d27451f527dafc4d9a098fef4
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Sep 12 22:43:28 2023 +0000
+
+    go/doc/comment: update TODO for isStdPkg
+    
+    Even better is slices.BinarySearch, leave a TODO to update to that when possible.
+    
+    Change-Id: Ie1ec75c34c0329c536725b45e520693790f0520e
+    GitHub-Last-Rev: 6cd811b186c95752794cead3ae747f54c2d0d0c5
+    GitHub-Pull-Request: golang/go#62585
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527341
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/go/doc/comment/parse.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

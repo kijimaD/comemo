@@ -1,0 +1,18 @@
+commit 4cc8be60e99286bcef6c4dc247d01210e89ba73f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 6 16:10:08 2014 -0400
+
+    codereview: fix submit of merge + include branch prefix in submitted message
+    
+    hg insists that we not list explicit files for a merge.
+    
+    for benefit of other tools reading logs, include branch prefix
+    at start of every commit message.
+    
+    LGTM=minux
+    R=minux
+    CC=golang-codereviews
+    https://golang.org/cl/124780044
+
+ lib/codereview/codereview.py | 29 +++++++++++++++++++++--------
+ 1 file changed, 21 insertions(+), 8 deletions(-)

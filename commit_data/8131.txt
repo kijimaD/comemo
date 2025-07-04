@@ -1,0 +1,17 @@
+commit 90e4ece365cd8220a7efd589556fa7e59c1ca939
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 15 16:33:52 2011 -0700
+
+    mime: bunch more tests, few minor parsing fixes
+    
+    Working towards issue 1119
+    
+    Using test data from http://greenbytes.de/tech/tc2231/
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4430049
+
+ src/pkg/mime/mediatype.go      | 35 ++++++++++++++-
+ src/pkg/mime/mediatype_test.go | 99 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 120 insertions(+), 14 deletions(-)

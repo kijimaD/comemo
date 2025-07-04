@@ -1,0 +1,19 @@
+commit 46e0d724b3f14fd0d350123bbf101e815b493791
+Author: pokutuna <popopopopokutuna@gmail.com>
+Date:   Fri Oct 25 18:58:48 2019 +0000
+
+    net/http: fix comment TimeoutHandler no longer supports Flusher
+    
+    Fixes #35161
+    Updates #34439
+    
+    Change-Id: I978534cbb8b9fb32c115dba0066cf099c61d8ee9
+    GitHub-Last-Rev: d60581635e8cefb7cfc4b571057542395034c575
+    GitHub-Pull-Request: golang/go#35162
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203478
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

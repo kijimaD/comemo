@@ -1,0 +1,21 @@
+commit ee3e24f2d7da60d28c1f6321fa6faddff9b26eec
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 9 23:46:48 2012 -0500
+
+    dashboard: add gobuilder -fail mode
+    
+    This is for filling a column with "fail", like I just did for
+    Windows, when the builder would get stuck running that
+    build.  (We have safeguards against the tests getting stuck
+    but this was the bootstrap build getting stuck.)
+    
+    I usually use -cmd=/bin/false, but this avoids the Mercurial
+    checkouts, which means it runs instantly instead of requiring
+    ~1 minute per "fail".
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5649049
+
+ misc/dashboard/builder/main.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)

@@ -1,0 +1,12 @@
+commit f6279b46f8220a90fb5bcadcfc8cdbe3eedd7cf2
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Nov 18 01:06:59 2011 -0200
+
+    html: fix doc after Err method name change
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5411045
+
+ src/pkg/html/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

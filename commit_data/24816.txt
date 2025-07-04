@@ -1,0 +1,16 @@
+commit b2b8559987bb2f6779fe993bb173e945692f24fc
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Wed Nov 11 23:05:06 2015 -0500
+
+    runtime/internal/atomic: added mips64 support.
+    
+    Change-Id: I2eaf0658771a0ff788429e2f503d116531166315
+    Reviewed-on: https://go-review.googlesource.com/16834
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/internal/atomic/arch1_mips64.go   |   9 +
+ src/runtime/internal/atomic/arch1_mips64le.go |   9 +
+ src/runtime/internal/atomic/asm_mips64x.s     | 231 ++++++++++++++++++++++++++
+ src/runtime/internal/atomic/atomic_mips64x.go |  56 +++++++
+ src/runtime/internal/atomic/atomic_mips64x.s  |  36 ++++
+ 5 files changed, 341 insertions(+)

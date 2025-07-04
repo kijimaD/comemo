@@ -1,0 +1,25 @@
+commit 4a4ec238707ac1a7fd83c322c3ab024464d81f20
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 18 18:57:15 2009 -0700
+
+    8l: step toward native client.
+      - ELF header bits and addresses
+      - do not let instructions span 32-byte boundary
+      - align CALLs so return is to 32-byte boundary
+      - align indirect jump targets to 32-byte boundary
+        (only possible indirect jumps are function entries)
+    
+    still to do:
+      - replace indirect jump, indirect call, and ret with
+        nacl-approved instruction sequences
+      - switch to GS segment for m-local storage
+    
+    R=ken
+    OCL=34818
+    CL=34818
+
+ src/cmd/8l/asm.c  | 65 +++++++++++++++++++++++++++++++++++++++++++++----------
+ src/cmd/8l/l.h    |  2 +-
+ src/cmd/8l/obj.c  | 12 ++++++++++
+ src/cmd/8l/span.c | 52 +++++++++++++++++++++++++++++++++++++-------
+ 4 files changed, 111 insertions(+), 20 deletions(-)

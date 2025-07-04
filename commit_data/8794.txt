@@ -1,0 +1,15 @@
+commit da7b96f714c3b5047a1af6903fa2d73f29693b00
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 20 10:33:07 2011 -0700
+
+    http: fix req.Cookie(name) with cookies in one header
+    
+    Fixes #1974
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4654042
+
+ src/pkg/http/cookie.go      |  4 ++--
+ src/pkg/http/cookie_test.go | 17 ++++++++++++++++-
+ 2 files changed, 18 insertions(+), 3 deletions(-)

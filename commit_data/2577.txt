@@ -1,0 +1,16 @@
+commit 0c33d4353ef6be546e75737dc714174bba1b60fc
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 16:43:46 2009 -0700
+
+    arrays, not slices, and only with non-pointer elements.
+    (actually slices encode but do not decode yet)
+    
+    R=rsc
+    DELTA=221  (82 added, 65 deleted, 74 changed)
+    OCL=31095
+    CL=31095
+
+ src/pkg/gob/codec_test.go | 113 +++++++++++++++-------------------------------
+ src/pkg/gob/decode.go     |  58 ++++++++++++++++++++----
+ src/pkg/gob/encode.go     | 104 +++++++++++++++++++++++++-----------------
+ 3 files changed, 146 insertions(+), 129 deletions(-)

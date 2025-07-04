@@ -1,0 +1,14 @@
+commit 3693cd2988df1ec6c26a92c7f65aabdad41c1dd2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 29 10:55:21 2011 -0400
+
+    runtime: add runtime· prefix to showframe
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4978042
+
+ src/pkg/runtime/amd64/traceback.c | 2 +-
+ src/pkg/runtime/arm/traceback.c   | 2 +-
+ src/pkg/runtime/symtab.c          | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

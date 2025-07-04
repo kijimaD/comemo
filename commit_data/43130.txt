@@ -1,0 +1,21 @@
+commit 79e681d2a291142aa0ac8297229e182b2d1a78ac
+Author: Chen.Zhidong <njutczd@gmail.com>
+Date:   Tue Sep 29 09:05:41 2020 +0000
+
+    crypto/tls: make config.Clone return nil if the source is nil
+    
+    Fixes #40565
+    
+    Change-Id: I13a67be193f8cd68df02b8729529e627a73d364b
+    GitHub-Last-Rev: b03d2c04fd88db909b40dfd7bd08fe13d8994ab9
+    GitHub-Pull-Request: golang/go#40566
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246637
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/crypto/tls/common.go   | 5 ++++-
+ src/crypto/tls/tls_test.go | 7 +++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

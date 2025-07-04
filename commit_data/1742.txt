@@ -1,0 +1,19 @@
+commit 5958dd6f94696c6b88600be6b2033824202f8b13
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 17:19:21 2009 -0800
+
+    Suggested tweaks up to package section.
+    
+    Major ones:
+    * Be consistent: "numeric type" and "arithmetic operator".
+    * if/swtch take "simple statement" not "short variable declaration".
+    * There was a comment that implied for x,y := range z() might
+      evaluate z() multiple times.  I deleted it.
+    
+    R=r,gri
+    DELTA=124  (24 added, 4 deleted, 96 changed)
+    OCL=25706
+    CL=25715
+
+ doc/go_spec.html | 230 ++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 125 insertions(+), 105 deletions(-)

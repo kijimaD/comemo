@@ -1,0 +1,16 @@
+commit 682ecea9a0370c017e004336931d36726d796e72
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 19 08:26:02 2015 +1000
+
+    image/gif: (temporarily) disable broken tests.
+    
+    The compress/lzw encoder now rejects too-large input bytes, as of
+    https://go-review.googlesource.com/#/c/11227/, so we can't generate bad
+    GIFs programatically.
+    
+    Change-Id: I0b32ce8e1f1776cd6997869db61e687430464e45
+    Reviewed-on: https://go-review.googlesource.com/11270
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/image/gif/reader_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

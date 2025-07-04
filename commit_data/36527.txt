@@ -1,0 +1,27 @@
+commit 09df9b06a1e5ff07dd349401795c85360743a3fb
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 17 11:02:57 2018 -0400
+
+    cmd/link: split out Extname into cold portion of sym.Symbol
+    
+    Create a new "AuxSymbol" struct into which 'cold' or 'infrequently
+    set' symbol fields are located. Move the Extname field from the
+    main Symbol struct to AuxSymbol.
+    
+    Updates #26186
+    
+    Change-Id: I9e795fb0cc48f978e2818475fa073ed9f2db202d
+    Reviewed-on: https://go-review.googlesource.com/125476
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/elf.go          |  6 ++--
+ src/cmd/link/internal/ld/go.go           | 12 +++----
+ src/cmd/link/internal/ld/lib.go          |  4 +--
+ src/cmd/link/internal/ld/macho.go        |  8 ++---
+ src/cmd/link/internal/ld/pe.go           | 19 ++++++-----
+ src/cmd/link/internal/sym/sizeof_test.go |  2 +-
+ src/cmd/link/internal/sym/symbol.go      | 57 +++++++++++++++++++++++---------
+ src/cmd/link/internal/sym/symbols.go     |  6 ++--
+ 8 files changed, 70 insertions(+), 44 deletions(-)

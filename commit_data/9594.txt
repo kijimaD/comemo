@@ -1,0 +1,14 @@
+commit 6cf61bb5b90fa64d450bb93a9f79032e520f7340
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Sep 5 07:40:50 2011 -0400
+
+    runtime: add test for multiple concurrent channel consumers
+    
+    There was a time (in the past) when this wasn't robust.
+    
+    R=rsc, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/4965058
+
+ src/pkg/runtime/chan_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

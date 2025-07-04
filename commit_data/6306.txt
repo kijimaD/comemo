@@ -1,0 +1,13 @@
+commit b6ad32b183ec981568c6b937ddf6315418941dfe
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 20 07:37:41 2010 +1000
+
+    doc/go_mem.html: update location of "once".
+    Fixes #1118.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2225044
+
+ doc/go_mem.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

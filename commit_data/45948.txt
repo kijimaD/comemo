@@ -1,0 +1,20 @@
+commit c8cf0f74e4a8f078ab5570e76c37621a0daf0309
+Author: 180909 <734461790@qq.com>
+Date:   Tue Jul 27 09:49:55 2021 +0000
+
+    cmd/go: add missing flag in UsageLine
+    
+    Change-Id: I31689dc8de1f6b95bb35578b20533c63903f7258
+    GitHub-Last-Rev: 5bfee0535ded703f84d45390d5a87295b6e5fe5a
+    GitHub-Pull-Request: golang/go#47418
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337691
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/alldocs.go              | 4 ++--
+ src/cmd/go/internal/modcmd/edit.go | 2 +-
+ src/cmd/go/internal/modcmd/init.go | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)

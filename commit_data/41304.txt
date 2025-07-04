@@ -1,0 +1,23 @@
+commit 7e368b3f5ae7a11648dcf590ec1f14a4126169f4
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 14:48:49 2020 -0500
+
+    cmd/go: convert TestGoBuildOutput to the script framework
+    
+    Adds a in-script go binary called inarchive to check that an
+    archive is produced. A weaker could be done faster using grep,
+    but this is more faithful to the original test.
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I001fa0698063be80fe3da947c81d4eb0829be47f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214295
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                       | 76 -------------------------
+ src/cmd/go/testdata/script/build_output.txt | 87 +++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 76 deletions(-)

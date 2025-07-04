@@ -1,0 +1,21 @@
+commit 845c4ff52a624a61be5a0669ec315b6f3a651b51
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 4 21:04:11 2015 -0800
+
+    cmd/asm: update to use new encoding for x86 instructions
+    
+    Support the old syntax for AX:DX by rewriting into the new form,
+    AX, DX. Delete now-unnecessary hacks for some special cases.
+    
+    Change-Id: Icd42697c7617f8a50864ca8b0c69469321a2296e
+    Reviewed-on: https://go-review.googlesource.com/6901
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/asm/asm.go             |  28 +------
+ src/cmd/asm/internal/asm/endtoend_test.go   |   2 -
+ src/cmd/asm/internal/asm/operand_test.go    |  34 ---------
+ src/cmd/asm/internal/asm/parse.go           |  46 +++++------
+ src/cmd/asm/internal/asm/testdata/386.out   |  98 ++++++++++++------------
+ src/cmd/asm/internal/asm/testdata/amd64.out | 114 ++++++++++++++--------------
+ src/cmd/asm/internal/asm/testdata/amd64.s   |   2 +-
+ 7 files changed, 134 insertions(+), 190 deletions(-)

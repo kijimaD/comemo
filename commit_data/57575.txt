@@ -1,0 +1,26 @@
+commit aec9b916a2d54a3248553b920cf3a29b52f54998
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 27 10:17:48 2024 -0700
+
+    net: use correct address family when testing for MPTCP support
+    
+    Before this patch, on a system that only supports IPv6, we would
+    get EAFNOSUPPORT and decide that MPTCP might be available later.
+    The effect is that every socket tries to get MPTCP. If the system
+    does not support MPTCP, every socket call turns into two system calls.
+    
+    Also avoid the uname if MPTCP is not supported.
+    
+    For #56539
+    
+    Change-Id: I628b44eda83b455f5493a9dd59076f1acea2f65b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616335
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Matthieu Baerts <matttbe@kernel.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/net/mptcpsock_linux.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit fbaf71f36bda00fc9eba71720a3c903d15988046
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Thu Aug 31 10:16:01 2023 -0400
+
+    cmd/compile/internal/dwarfgen: make scope test less sensitive to changes in escape analysis
+    
+    The test function fi is used in TestEscape, and the intent of fi
+    seems to be to leak its argument, but fi is currently
+    sensitive to changes in escape analysis regarding interface receivers.
+    
+    Make fi less sensitive by directly leaking its argument.
+    
+    Change-Id: I16cc3d3a6bd7b08a08c8fc292b0b99c9a54d68d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524943
+    Run-TryBot: t hepudds <thepudds1460@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/dwarfgen/scope_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

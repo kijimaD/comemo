@@ -1,0 +1,39 @@
+commit 7b6c94dd037b5d78afca70975109294d7439517c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 17 10:40:41 2024 -0500
+
+    cmd/go: drop fips140 build ID hacks
+    
+    We were trying to keep all binaries stale in fips140 mode
+    so that every build would write and leave behind a fips.o
+    in the work directory for use by validating labs.
+    That breaks various staleness checks, including the one
+    in cmd/dist during GOFIPS140=latest ./make.bash.
+    
+    Revert the fips140 hack. Validating labs will still be able
+    to find the fips.o when building against a clean cache.
+    
+    Add the default godebug to the link hash though,
+    so that it is clear that GOFIPS140=latest
+    and GOFIPS140=off binaries have different hashes.
+    (The only effect is the default GODEBUG setting.)
+    They already had different hashes, because the
+    default GODEBUG ends up in p.Internal.BuildInfo,
+    and that gets hashed in a "modinfo" line,
+    but better to be explicit.
+    
+    Fixes #70873.
+    
+    Change-Id: I49a38c180208098c2b6720facef48f4e96d44c54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637116
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/fips140/fips140.go  | 10 ++--------
+ src/cmd/go/internal/work/buildid.go     | 16 +---------------
+ src/cmd/go/internal/work/exec.go        |  1 +
+ src/cmd/go/testdata/script/fips.txt     |  6 ++----
+ src/cmd/go/testdata/script/fipssnap.txt |  4 ++--
+ 5 files changed, 8 insertions(+), 29 deletions(-)

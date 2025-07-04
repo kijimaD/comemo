@@ -1,0 +1,19 @@
+commit dab1a10a98e376502e0ab5dfb6d2ab82394c19b6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 15 13:03:40 2019 -0800
+
+    time: only fail TestAfterStop if it fails five times in a row
+    
+    The test is inherently slightly flaky, so repeat to reduce flakiness.
+    
+    Fixes #35537
+    
+    Change-Id: Id918d48d33c7d5e19c4f24df104adc7fbf3720f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/sleep_test.go | 71 ++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 51 insertions(+), 20 deletions(-)

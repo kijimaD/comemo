@@ -1,0 +1,14 @@
+commit 25a81e77c22af89cb40f374e77167f0efb3fd95e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Nov 27 09:36:54 2016 +0900
+
+    net: add missing comma on BUGS section for consistency
+    
+    Change-Id: Ic96fb52f37257e06e77cc08da5c73ea6f9ff158c
+    Reviewed-on: https://go-review.googlesource.com/33592
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/udpsock.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

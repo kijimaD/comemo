@@ -1,0 +1,18 @@
+commit 9d23975d89e6cc3df4f2156b2ae0df5d2cef16fb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 17 14:39:31 2019 -0500
+
+    cmd/go/internal/modload: ensure that __debug_modinfo__ is not discarded during linking
+    
+    Fixes #28753
+    Updates #29628
+    
+    Change-Id: I4a561be7d491a0d088e656b00151ae1bdbd16a84
+    Reviewed-on: https://go-review.googlesource.com/c/158357
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modload/build.go       | 11 +++-
+ src/cmd/go/testdata/script/mod_modinfo.txt | 85 +++++++++++++++++++++++-------
+ 2 files changed, 77 insertions(+), 19 deletions(-)

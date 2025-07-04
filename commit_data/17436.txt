@@ -1,0 +1,14 @@
+commit 8869cc159e25f571f7b24f23735679d1a0531d82
+Author: Emil Hessman <c.emil.hessman@gmail.com>
+Date:   Fri Aug 30 10:11:18 2013 +1000
+
+    misc/dist: remove Xcode files from the darwin binary distribution
+    
+    Fixes #6132.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/12858049
+
+ misc/dist/darwin/scripts/postinstall | 21 ---------------------
+ 1 file changed, 21 deletions(-)

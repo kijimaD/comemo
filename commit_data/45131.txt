@@ -1,0 +1,18 @@
+commit 72483de87a36969f0c4d6f01db19f769c8e16e82
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 15 16:15:23 2021 -0700
+
+    runtime: incorporate hbits advancement in scanobject into loop
+    
+    This makes it clearer that i and hbits advance together.
+    As a bonus, it generates slightly better code.
+    
+    Change-Id: I24d51102535c39f962a59c1a4a7c5c894339aa18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309569
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgcmark.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

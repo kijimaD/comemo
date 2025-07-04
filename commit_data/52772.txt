@@ -1,0 +1,26 @@
+commit ddd822e5ca0e686ae64d921bcfe28119c34278fb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Apr 21 16:28:57 2023 -0400
+
+    cmd/link: don't sort data symbols by name
+    
+    For data symbols, we currently sort them by size, then by name if
+    the size is the same. Sorting by name is not really necessary.
+    Instead, we sort by symbol index. Like name, the symbol index is
+    deterministic, and pretty stable if only a small portion of the
+    input is changed, and also naturally partitioned by packages. This
+    reduces the CPU time for reading the symbol names and comparing
+    strings.
+    
+    Linking cmd/compile (on macOS/amd64),
+    
+    Dodata    57.2ms ± 6%    54.5ms ± 4%   -4.74%  (p=0.000 n=19+17)
+    
+    Change-Id: I1c4f2b83dbbb4b984b2c8ab4a7e8543b9f7f22b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487515
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 29 +++++++++++++++++------------
+ 1 file changed, 17 insertions(+), 12 deletions(-)

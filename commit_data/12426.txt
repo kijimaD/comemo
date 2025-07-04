@@ -1,0 +1,12 @@
+commit 39b186da6c17c96a0370273e2a8b65c389331ae8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 6 11:23:27 2012 -0800
+
+    go/parser: fix build (temporarily disable recent change)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5752059
+
+ src/pkg/go/parser/parser.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

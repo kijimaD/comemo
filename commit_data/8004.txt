@@ -1,0 +1,37 @@
+commit 48ae1f2d9bd7504410a3a008c716bdfaa2f5973c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 6 17:52:02 2011 -0400
+
+    syscall: add Mmap, Munmap on Linux, FreeBSD, OS X
+    
+    * tweak mksyscall*.pl to be more gofmt-compatible.
+    * add mkall.sh -syscalls option.
+    * add sys/mman.h constants on OS X
+    
+    R=r, eds, niemeyer
+    CC=golang-dev
+    https://golang.org/cl/4369044
+
+ .hgignore                                 |  2 +
+ src/pkg/syscall/asm_darwin_386.s          | 30 ++++++++++++++
+ src/pkg/syscall/mkall.sh                  |  7 ++++
+ src/pkg/syscall/mkerrors.sh               |  1 +
+ src/pkg/syscall/mksyscall.pl              |  7 +++-
+ src/pkg/syscall/mksyscall_windows.pl      | 12 +++++-
+ src/pkg/syscall/syscall.go                | 65 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_bsd.go            | 18 ++++++++-
+ src/pkg/syscall/syscall_darwin_386.go     |  2 +
+ src/pkg/syscall/syscall_linux.go          | 17 ++++++++
+ src/pkg/syscall/syscall_linux_386.go      | 10 +++++
+ src/pkg/syscall/syscall_linux_amd64.go    |  1 +
+ src/pkg/syscall/syscall_linux_arm.go      | 10 +++++
+ src/pkg/syscall/zerrors_darwin_386.go     | 29 +++++++++++---
+ src/pkg/syscall/zerrors_darwin_amd64.go   | 29 +++++++++++---
+ src/pkg/syscall/zsyscall_darwin_386.go    | 17 ++++++++
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 17 ++++++++
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 17 ++++++++
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 17 ++++++++
+ src/pkg/syscall/zsyscall_linux_386.go     | 17 ++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go   | 17 ++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go     | 17 ++++++++
+ 22 files changed, 343 insertions(+), 16 deletions(-)

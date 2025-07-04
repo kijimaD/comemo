@@ -1,0 +1,15 @@
+commit 2f45f2801da90350c2a2dbf7e36cd97f5fb7ce0f
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Tue Dec 11 11:06:07 2012 -0500
+
+    net/url: fix handling of relative paths in ResolveReference.
+    
+    Fixes #3560.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6886047
+
+ src/pkg/net/url/url.go      | 14 ++++++++++++--
+ src/pkg/net/url/url_test.go |  9 +++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

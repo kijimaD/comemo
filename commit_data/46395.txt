@@ -1,0 +1,22 @@
+commit c981874a5a87605b446b3a56abba9907d17e8493
+Author: korzhao <korzhao95@gmail.com>
+Date:   Thu Sep 9 21:51:43 2021 +0800
+
+    cmd/compile: fix implement for closure in a global assignment
+    
+    If closure in a global assignment and has a method receiver.
+    We should assign receiver as a global variable, not a local variable.
+    
+    Fixes #48225
+    
+    Change-Id: I8f65dd6e8baf66a5eff24028d28ad0a594091add
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348512
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go | 12 +++++++---
+ test/typeparam/issue48225.go              | 37 +++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 3 deletions(-)

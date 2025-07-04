@@ -1,0 +1,14 @@
+commit cf6e4238b63a180abd5a390dc8f11d50f024ba35
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Sat Oct 27 14:12:52 2018 -0700
+
+    database/sql: prefer to return Rows.lasterr rather then a static error
+    
+    Fixes #25829
+    
+    Change-Id: I400fdaf0ef3a23bc0d61c4873ffa298e0cf0fc6a
+    Reviewed-on: https://go-review.googlesource.com/c/145204
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 28 +++++++++++++++++++---------
+ 1 file changed, 19 insertions(+), 9 deletions(-)

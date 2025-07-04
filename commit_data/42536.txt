@@ -1,0 +1,24 @@
+commit 0ce1ffc49d3935a41e1fff2aec224c254a9fad1d
+Author: Andy Balholm <andy@balholm.com>
+Date:   Mon Jun 15 15:54:49 2020 -0700
+
+    regexp/syntax: append patchLists in constant time
+    
+    By keeping a tail pointer, we can append to a patchList in constant
+    time, rather than in time proportional to the length of the list. This
+    gets rid of the quadratic compile times we were seeing for long series
+    of alternations.
+    
+    This is basically the same change as
+    https://github.com/google/re2/commit/e9d517989f66f2e0a24cde42f4d2424dd3e4a9b9.
+    
+    Fixes #39542.
+    
+    Change-Id: Ib4ca0ca9c55abd1594df1984653c7d311ccf7572
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238079
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/syntax/compile.go | 68 +++++++++++++++++++-------------------------
+ 1 file changed, 29 insertions(+), 39 deletions(-)

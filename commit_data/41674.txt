@@ -1,0 +1,22 @@
+commit 7cfb814b0a43831ec6f847d7bb6ff00020393fcf
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Feb 19 20:54:25 2020 +0000
+
+    runtime: add ReadMemStats latency benchmark
+    
+    This change adds a benchmark to the runtime which measures ReadMemStats
+    latencies. It generates allocations with lots of pointers to keep the GC
+    busy while hitting ReadMemStats and measuring the time it takes to
+    complete.
+    
+    Updates #19812.
+    
+    Change-Id: I7a76aaf497ba5324d3c7a7b3df32461b3e6c3ac8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220177
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/gc_test.go | 85 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 85 insertions(+)

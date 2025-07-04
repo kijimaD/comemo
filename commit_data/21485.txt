@@ -1,0 +1,12 @@
+commit 08ca401444cd3e08a98d7fd3f57e44b95243b4fb
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 5 16:50:11 2015 +0300
+
+    expvar: fix build
+    
+    Change-Id: I6ee7aa76673e51576b5a84c512b22a0f8af5b02f
+    Reviewed-on: https://go-review.googlesource.com/3966
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/expvar/expvar_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 93369001c76e01b2fe8b0d8a5074d62d0b8fdc81
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 26 23:43:19 2016 -0400
+
+    cmd/compile: delete Func.Outer
+    
+    This was just storage for a linked list.
+    
+    Change-Id: I850e8db1e1f5e72410f5c904be9409179b56a94a
+    Reviewed-on: https://go-review.googlesource.com/23484
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go         | 28 +++++++++++++++++-----------
+ src/cmd/compile/internal/gc/go.go          |  2 --
+ src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/gc/syntax.go      |  3 +--
+ 4 files changed, 19 insertions(+), 16 deletions(-)

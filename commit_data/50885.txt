@@ -1,0 +1,25 @@
+commit 498ee73a4b9f48c0916bb5a2bdd22ddf6aca79c6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 12 15:11:16 2022 -0400
+
+    os/exec: reduce arbitrary sleeps in TestWaitid
+    
+    If we use the "pipetest" helper command instead of "sleep",
+    we can use its stdout pipe to determine when the process
+    is ready to handle a SIGSTOP, and we can additionally check
+    that sending a SIGCONT actually causes the process to continue.
+    
+    This also allows us to remove the "sleep" helper command,
+    making the test file somewhat more concise.
+    
+    Noticed while looking into #50138.
+    
+    Change-Id: If4fdee4b1ddf28c6ed07ec3268c81b73c2600238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/442576
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/os/exec/exec_posix_test.go | 57 ++++++++++++++++++++++++++++--------------
+ 1 file changed, 38 insertions(+), 19 deletions(-)

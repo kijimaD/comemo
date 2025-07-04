@@ -1,0 +1,29 @@
+commit ecba3714a3291073a2cde989c255de568bd1d512
+Author: Peter Teichman <pteichman@fastly.com>
+Date:   Mon Feb 12 19:23:31 2018 +0000
+
+    image/gif: support non-looping animated gifs (LoopCount=-1)
+    
+    The Netscape looping application extension encodes how many
+    times the animation should restart, and if it's present
+    there is no way to signal that a GIF should play only once.
+    
+    Use LoopCount=-1 to signal when a decoded GIF had no looping
+    extension, and update the encoder to omit that extension
+    block when LoopCount=-1.
+    
+    Fixes #15768
+    
+    GitHub-Last-Rev: 249744f0e28ef8907aa876070a102cb5493f5084
+    GitHub-Pull-Request: golang/go#23761
+    Change-Id: Ic915268505bf12bdad690b59148983a7d78d693b
+    Reviewed-on: https://go-review.googlesource.com/93076
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/gif/reader.go      | 13 ++++++--
+ src/image/gif/reader_test.go | 71 ++++++++++++++++++++++++++++++++++----------
+ src/image/gif/writer.go      |  5 +---
+ 3 files changed, 66 insertions(+), 23 deletions(-)

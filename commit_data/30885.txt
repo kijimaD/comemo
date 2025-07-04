@@ -1,0 +1,16 @@
+commit 54af18708b4459beec6b54fcd9bb51848d3fbe6c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Mar 27 15:27:44 2017 +1100
+
+    cmd/internal/obj/x86: clean up byteswapreg
+    
+    Make byteswapreg more Go like.
+    
+    Change-Id: Ibdf3603cae9cad2b3465b4c224a28a4c4c745c2e
+    Reviewed-on: https://go-review.googlesource.com/38615
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 55 +++++++++++++++-------------------------
+ 1 file changed, 20 insertions(+), 35 deletions(-)

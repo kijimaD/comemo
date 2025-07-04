@@ -1,0 +1,21 @@
+commit 37519d950d24a466ea96d7a65164ceaab17a40e0
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 12 20:53:17 2012 -0700
+
+    encoding/gob: reduce decoder memory
+    Gob decoding reads a whole message into memory and then
+    copies it into a bytes.Buffer. For large messages this wastes
+    an entire copy of the message. In this CL, we use a staging
+    buffer to avoid the large temporary.
+    
+    Update #2539
+    RSS drops to 775MB from 1GB.
+    Active memory drops to 858317048 from 1027878136,
+    essentially the size of one copy of the input file.
+    
+    R=dsymonds, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6392057
+
+ src/pkg/encoding/gob/decoder.go | 37 +++++++++++++++++++++++++++----------
+ 1 file changed, 27 insertions(+), 10 deletions(-)

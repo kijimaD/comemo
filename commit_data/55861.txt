@@ -1,0 +1,28 @@
+commit 5a329c3bfb6328a66812e21bd1a5a32f8a5c76b0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 7 14:49:30 2024 +0700
+
+    cmd/compile: fix copying SSA-able variables optimization
+    
+    CL 541715 added an optimization to copy SSA-able variables.
+    
+    When handling m[k] = append(m[k], ...) case, it uses ir.SameSafeExpr to
+    check that m[k] expressions are the same, then doing type assertion to
+    convert the map index to ir.IndexExpr node. However, this assertion is
+    not safe for m[k] expression in append(m[k], ...), since it may be
+    wrapped by ir.OCONVNOP node.
+    
+    Fixing this by un-wrapping any ir.OCONVNOP before doing type assertion.
+    
+    Fixes #66096
+    
+    Change-Id: I9ff7165ab97bc7f88d0e9b7b31604da19a8ca206
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569716
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/walk/order.go |  7 ++++++-
+ test/fixedbugs/issue66096.go           | 17 +++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

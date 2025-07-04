@@ -1,0 +1,12 @@
+commit 1338347b9caee12b92d4693600df57683aeec2fc
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 16 14:59:50 2011 +1100
+
+    dashboard: improve key panic message
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5495060
+
+ misc/dashboard/app/build/key.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

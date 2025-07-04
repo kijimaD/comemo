@@ -1,0 +1,28 @@
+commit 66da885594b6dbf61d93b627f5f2d5cd34cf9023
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Aug 10 19:46:48 2016 +0000
+
+    syscall: test Gettimeofday everywhere, not just on Darwin
+    
+    The Darwin-only restriction was because we were late in the Go 1.7
+    cycle when the test was added.
+    
+    In the process, I noticed Gettimeofday wasn't in the "unimplemented
+    midden heap" section of syscall_nacl.go, despite this line in the
+    original go1.txt:
+    
+    pkg syscall, func Gettimeofday(*Timeval) error
+    
+    So, add it, returning ENOSYS like the others.
+    
+    Change-Id: Id7e02e857b753f8d079bee335c22368734e92254
+    Reviewed-on: https://go-review.googlesource.com/26772
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/syscall/syscall_darwin_test.go | 23 -----------------------
+ src/syscall/syscall_nacl.go        |  1 +
+ src/syscall/syscall_test.go        | 14 ++++++++++++++
+ 3 files changed, 15 insertions(+), 23 deletions(-)

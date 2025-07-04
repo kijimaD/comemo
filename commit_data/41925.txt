@@ -1,0 +1,22 @@
+commit 916ecbc731874bc33f116b0f62c60fc1d64d3841
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 13 12:11:23 2020 +0200
+
+    internal/cpu: unify HWCap/HWCap2 comments
+    
+    HWCap and HWCap2 are no longer linknamed into package runtime. Also,
+    merge two sentences both starting with "These are..." and don't mention
+    any file name where archauxv is defined, as it become outdated if
+    support for a new $GOOS/$GOARCH combination is added. This is e.g.
+    already the case for arm64, where archauxv is also defined for
+    freebsd/arm64.
+    
+    Change-Id: I9314a66633736b12e777869a832d8b79d442a6f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228057
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/cpu/cpu_arm.go     | 5 ++---
+ src/internal/cpu/cpu_arm64.go   | 4 ++--
+ src/internal/cpu/cpu_mips64x.go | 4 ++--
+ src/internal/cpu/cpu_ppc64x.go  | 4 ++--
+ 4 files changed, 8 insertions(+), 9 deletions(-)

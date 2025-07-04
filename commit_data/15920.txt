@@ -1,0 +1,14 @@
+commit 2f2f9fef90d8397e666eed45b312d055099cb218
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Mar 25 13:25:28 2013 +0900
+
+    net: disable tests with controlling network facilities in short mode
+    
+    Perhaps it would make FreeBSD 10-CURRENT/ARM on Raspberry Pi builders happy.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/8008043
+
+ src/pkg/net/interface_unix_test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

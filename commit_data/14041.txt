@@ -1,0 +1,12 @@
+commit b0c3429ac30ae91d00c3fb0e2a62b220f25d6e65
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sun Oct 7 11:24:14 2012 +1100
+
+    doc/debugging_with_gdb: fix minor typo (space before comma)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6610061
+
+ doc/debugging_with_gdb.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

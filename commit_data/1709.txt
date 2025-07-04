@@ -1,0 +1,14 @@
+commit f27e9f072d006d1378864f1c4af8fd2f960c14f3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 23 19:22:05 2009 -0800
+
+    Work on declarations, unsafe, alignment.
+    Change <tt> to <code>
+    
+    R=gri
+    DELTA=664  (222 added, 189 deleted, 253 changed)
+    OCL=25294
+    CL=25352
+
+ doc/go_spec.html | 811 +++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 422 insertions(+), 389 deletions(-)

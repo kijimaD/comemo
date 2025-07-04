@@ -1,0 +1,25 @@
+commit 2622235a99800d1d7add47c5c138f5efbe51361c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Oct 31 17:58:34 2021 +1100
+
+    runtime: do not generate crash dump on Windows 7
+    
+    It appears Windows 7 ignores WER_FAULT_REPORTING_NO_UI WerSetFlags
+    API flag.
+    
+    And now after CL 307372, runtime will display WER GUI dialogue.
+    
+    We don't want to introduce random GUI dialogues during Go program
+    execution. So disable dump crash creation on Windows 7 altogether.
+    
+    Updates #20498
+    
+    Change-Id: Ie268a7d4609f8a0eba4fe9ecf250856b0a61b331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360617
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Patrik Nyblom <pnyb@google.com>
+
+ src/runtime/signal_windows.go | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)

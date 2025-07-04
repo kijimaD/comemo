@@ -1,0 +1,19 @@
+commit 35755d772fab1828c9b79563b98912f3c6025b7a
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sun Dec 4 21:41:47 2022 +0100
+
+    cmd/compile: teach prove about unsigned division, modulus and rsh
+    
+    Fixes: #57077
+    Change-Id: Icffcac42e28622eadecdba26e3cd7ceca6c4aacc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455095
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go |  9 ++++++++
+ test/prove.go                         | 39 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

@@ -1,0 +1,38 @@
+commit e93d5b5e0509c052afe23b05866e013dacc21f57
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Apr 18 23:57:28 2020 +0200
+
+    unicode/utf8: optimize Valid and ValidString for ASCII checks
+    
+    Add a fastpath that uses 32bit loads and compares to check
+    8 ASCII characters per loop iteration.
+    
+    This avoids the overhead of comparing and branching
+    for every byte individually.
+    
+    Combining two 32bit loads into an uint32 allows the same
+    code to be used for 32bit and 64bit platforms.
+    
+    amd64 (Intel i7-3520M):
+    name                         old time/op  new time/op  delta
+    ValidTenASCIIChars           15.6ns ± 4%   8.5ns ±14%  -45.27%  (p=0.000 n=10+10)
+    ValidTenJapaneseChars        50.0ns ± 2%  52.7ns ±15%     ~     (p=0.469 n=10+10)
+    ValidStringTenASCIIChars     13.5ns ± 1%   7.9ns ± 5%  -41.56%  (p=0.000 n=10+10)
+    ValidStringTenJapaneseChars  46.3ns ± 2%  45.8ns ± 2%     ~     (p=0.085 n=10+10)
+    
+    arm (Raspberry Pi 3):
+    name                         old time/op  new time/op  delta
+    ValidTenASCIIChars           87.5ns ± 0%  58.5ns ± 0%  -33.11%  (p=0.000 n=9+10)
+    ValidTenJapaneseChars         359ns ± 0%   384ns ± 0%   +6.96%  (p=0.000 n=10+9)
+    ValidStringTenASCIIChars     87.5ns ± 0%  57.5ns ± 0%  -34.31%  (p=0.000 n=10+10)
+    ValidStringTenJapaneseChars   356ns ± 0%   377ns ± 0%   +5.90%  (p=0.000 n=10+10)
+    
+    Change-Id: I9da942bddb250ee1f0ef7aabb4a8cb48edd9053e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228823
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/unicode/utf8/utf8.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

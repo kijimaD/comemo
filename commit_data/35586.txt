@@ -1,0 +1,14 @@
+commit 0680c03ea49ae1ae0a797255f98f48ccf41a084f
+Author: cch123 <buaa.cch@gmail.com>
+Date:   Mon Jun 4 15:20:07 2018 +0000
+
+    runtime: fix typo in the templateThread godoc
+    
+    Change-Id: Ie8d563d39b88ab1631bc150d7d5bdbf1aa400f76
+    GitHub-Last-Rev: d092c8c8eb886fd9abad9bdaed7330a6cbd7f9a4
+    GitHub-Pull-Request: golang/go#25716
+    Reviewed-on: https://go-review.googlesource.com/116115
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

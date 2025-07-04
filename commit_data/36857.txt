@@ -1,0 +1,17 @@
+commit 011b8eb6bb9783ec6b22697810863f30ca7bda1f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jun 30 12:18:27 2017 -0400
+
+    runtime: don't double-zero treap nodes
+    
+    mheap_.treapalloc.alloc() already returns a zeroed treapNode. Don't
+    bother re-zeroing all of the fields.
+    
+    Change-Id: Iea317040fbb72dfe5ef1e2c56c287680b065f2d9
+    Reviewed-on: https://go-review.googlesource.com/c/139460
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgclarge.go | 12 ------------
+ 1 file changed, 12 deletions(-)

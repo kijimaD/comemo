@@ -1,0 +1,30 @@
+commit 38b623f42da899ba7fd6b3fd791a7a72ebd5fad0
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Aug 16 17:45:14 2023 -0700
+
+    syscall: fix skipping TestUseCgroupFD
+    
+    The check in prepareCgroupFD tried to find out if clone3 with
+    CLONE_INTO_CGROUP flag is supported, by supplying arguments in
+    SysProcAttr that will make ForkExec use clone3 with CLONE_INTO_CGROUP
+    and fail.
+    
+    CL 456375 inadvertently broke the above check by adding more errno
+    values to ignore. As a result, TestUseCgroupFD is always skipped, even
+    when the test could in fact be run.
+    
+    Fix by removing the check entirely, instead let's use the functionality
+    and figure out from the errno if this has failed because of unsupported
+    syscall, lack of permissions, or other reason.
+    
+    Change-Id: I108b27b6cfeec390ebd3f161ac39e8597569b666
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520265
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/syscall/exec_linux_test.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

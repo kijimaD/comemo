@@ -1,0 +1,13 @@
+commit f4bf4c3b2fa5b757d9523d88b5d5ca34037d7820
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 13 16:32:23 2012 +1100
+
+    doc: update weekly notes, untag weekly
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5783093
+
+ .hgtags               |  2 --
+ doc/devel/weekly.html | 42 +++++++++++++++++++++++++++++-------------
+ 2 files changed, 29 insertions(+), 15 deletions(-)

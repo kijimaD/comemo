@@ -1,0 +1,13 @@
+commit a72a067b37656c0a282b8821ae6f702d77e8b0f2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 2 14:43:51 2014 +1000
+
+    tag go1.3rc1
+    
+    LGTM=minux
+    R=golang-codereviews, minux
+    CC=golang-codereviews
+    https://golang.org/cl/106750043
+
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,22 @@
+commit f1ce59d988f02deb47c3fd33cbc40542726ea76c
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Sat Oct 28 20:50:57 2017 -0400
+
+    encoding/json: Include the offset of a SyntaxError
+    
+    When a SyntaxError occurs, report the current offset within the stream.
+    The code already accounted for the offset within the current buffer
+    being scanned. By including how much data was already scanned, the
+    current offset can be computed.
+    
+    Fixes #22478
+    
+    Change-Id: I91ecd4cad0b85a5c1556bc597f3ee914e769af01
+    Reviewed-on: https://go-review.googlesource.com/74251
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/stream.go      | 34 ++++++++++++++++------------------
+ src/encoding/json/stream_test.go | 21 ++++++++++++++-------
+ 2 files changed, 30 insertions(+), 25 deletions(-)

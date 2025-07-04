@@ -1,0 +1,20 @@
+commit 9d1b2f888ef4b8c19630df6af18cabfc42d911a9
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 24 11:36:40 2017 -0400
+
+    runtime: rename gcBits -> gcBitsArena
+    
+    This clarifies that the gcBits type is actually an arena of gcBits and
+    will let us introduce a new gcBits type representing a single
+    mark/alloc bitmap allocated from the arena.
+    
+    For #19325.
+    
+    Change-Id: Idedf76d202d9174a17c61bcca9d5539e042e2445
+    Reviewed-on: https://go-review.googlesource.com/38579
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

@@ -1,0 +1,34 @@
+commit e4e033a74cfcc75cb828cbd37e8279703e4620a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 3 16:21:18 2022 -0400
+
+    go/doc/comment: add text wrapping
+    
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
+    
+    Implement wrapping of text output, for the “go doc” command.
+    The algorithm is from D. S. Hirschberg and L. L. Larmore,
+    “The least weight subsequence problem,” FOCS 1985, pp. 137-143.
+    
+    For #51082.
+    
+    Change-Id: I07787be3b4f1716b8ed9de9959f94ecbc596cc43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397283
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/doc/comment/testdata/doclink.txt |   4 +-
+ src/go/doc/comment/testdata/link2.txt   |   4 +-
+ src/go/doc/comment/testdata/link6.txt   |   7 +-
+ src/go/doc/comment/testdata/quote.txt   |  12 ++
+ src/go/doc/comment/testdata/text3.txt   |  28 +++++
+ src/go/doc/comment/testdata/text4.txt   |  29 +++++
+ src/go/doc/comment/testdata/text5.txt   |  38 +++++++
+ src/go/doc/comment/testdata/text6.txt   |  18 +++
+ src/go/doc/comment/testdata/text7.txt   |  21 ++++
+ src/go/doc/comment/text.go              | 193 +++++++++++++++++++++++++++++++-
+ src/go/doc/comment/wrap_test.go         | 141 +++++++++++++++++++++++
+ 11 files changed, 488 insertions(+), 7 deletions(-)

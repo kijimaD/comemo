@@ -1,0 +1,25 @@
+commit a35701b3525ccd140995a216758760c60e7c58d7
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jun 10 11:12:10 2025 -0400
+
+    cmd/dist: only install necessary tools when doing local test
+    
+    Instead of installing all of cmd, install only the tools that cmd/dist
+    would normally install.
+    
+    Also, remove the addition of the buildid tool to the list of commands in
+    the toolchain in debug mode. The uses of buildid were removed in CL 451360.
+    
+    For #71867
+    
+    Change-Id: I062909d23c18294aa23ea43b9f7eeb69bfa80c8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680475
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Matloob <matloob@google.com>
+
+ src/cmd/dist/build.go | 33 +++++++++++++++------------------
+ src/cmd/dist/test.go  |  2 +-
+ 2 files changed, 16 insertions(+), 19 deletions(-)

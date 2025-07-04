@@ -1,0 +1,20 @@
+commit 5cf3b523080ea35a5148c3dc6c8a701305f1f875
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Mar 29 18:48:33 2018 -0700
+
+    api: add exception for os.ModeType value
+    
+    The ModeType constant is a bit-wise OR of several other values.
+    It is reasonable for this to change without breaking compatibility.
+    
+    This fixes the failures introduced by https://golang.org/cl/103597
+    
+    Change-Id: I817e351cf3d1e0115dce665c8efbce21bc36426c
+    Reviewed-on: https://go-review.googlesource.com/103616
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/except.txt | 1 +
+ 1 file changed, 1 insertion(+)

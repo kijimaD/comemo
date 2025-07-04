@@ -1,0 +1,16 @@
+commit 49bc5690a39b09c60601c21349ee730aea9e5ca6
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Mon Feb 4 12:42:55 2019 +0000
+
+    cmd/link: add missing error check in test
+    
+    Change-Id: I54998f1b7daa8f8db7a2007b4eb86e9789c03656
+    GitHub-Last-Rev: 97667ead6f62dad2af0d6b1f78deccef16417044
+    GitHub-Pull-Request: golang/go#30006
+    Reviewed-on: https://go-review.googlesource.com/c/160430
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/linkbig_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,14 @@
+commit 76ea456e450c4d49266cdab16cbaca09aa1e8af0
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Sep 28 12:00:17 2011 -0400
+
+    hgpatch: do not use hg exit status
+    
+    Fixes #2243.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5146041
+
+ src/cmd/hgpatch/main.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

@@ -1,0 +1,24 @@
+commit 969a0da362ce846360782b34bfad7a18c2f64628
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 25 15:40:39 2025 -0800
+
+    runtime: route calls to msan_memmove through cgo
+    
+    This avoids problems when the C linker doesn't want to see the Go relocation.
+    
+    Fixes #71954
+    
+    Change-Id: I7cf884c4059d596cad6074ade02020d5a724f20e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652180
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/msan.go        | 2 +-
+ src/runtime/msan/msan.go   | 6 ++++++
+ src/runtime/msan_amd64.s   | 4 ++--
+ src/runtime/msan_arm64.s   | 4 ++--
+ src/runtime/msan_loong64.s | 4 ++--
+ 5 files changed, 13 insertions(+), 7 deletions(-)

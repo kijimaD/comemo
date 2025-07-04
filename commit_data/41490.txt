@@ -1,0 +1,21 @@
+commit 62ff72d87669b85f89417186bd79ad31aa0c3055
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 15:39:20 2020 -0500
+
+    cmd/go: convert TestLinkXImportPathEscape to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: Ib386838081abad8bc6b01c1f0a4656553d0b6ff3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214579
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 44 ----------------------
+ .../script/build_link_x_import_path_escape.txt     | 18 +++++++++
+ src/cmd/go/testdata/src/my.pkg/main/main.go        |  7 ----
+ src/cmd/go/testdata/src/my.pkg/pkg.go              |  3 --
+ 4 files changed, 18 insertions(+), 54 deletions(-)

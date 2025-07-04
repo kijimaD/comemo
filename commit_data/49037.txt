@@ -1,0 +1,24 @@
+commit a6a49d128bbd67051c2246fbb9abae85c8601a5d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon May 2 17:49:32 2022 -0700
+
+    cmd/compile: remove ir.Name.Ntype
+    
+    No longer needed now that IR construction uses types2.
+    
+    Change-Id: If8b7aff80cd8472be7d87fd3a36da911a5df163c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403839
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go     |  9 ---------
+ src/cmd/compile/internal/ir/fmt.go         | 10 ----------
+ src/cmd/compile/internal/ir/name.go        |  1 -
+ src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/noder/reader.go   |  4 ----
+ src/cmd/compile/internal/typecheck/dcl.go  | 19 ++++++++-----------
+ src/cmd/compile/internal/typecheck/func.go |  5 +----
+ src/cmd/compile/internal/typecheck/type.go |  2 +-
+ 8 files changed, 11 insertions(+), 41 deletions(-)

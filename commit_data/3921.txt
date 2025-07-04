@@ -1,0 +1,17 @@
+commit bb097d4649139caa09a6644a221c386f76d94c84
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 23:37:46 2009 -0800
+
+    change highlight color from green to yellow
+    (fits better in the color scheme).
+    
+    eliminate background color on line numbers at
+    bottom of search results, now that they are grouped.
+    
+    live at http://r45:3456/search?q=Reader
+    
+    R=r, gri
+    http://go/go-review/1024030
+
+ doc/style.css | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

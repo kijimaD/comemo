@@ -1,0 +1,32 @@
+commit 1edc2769ca5eb60293747c37e765bc56ce04d2da
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Feb 7 15:00:46 2022 -0500
+
+    cmd/link/internal/loadpe: add rudimentary COMDAT support
+    
+    Add some rudimentary support to the PE file loader for handling
+    sections in COMDAT when reading host object files. This is needed
+    in order to link programs with support libraries that are of a more
+    modern vintage than GCC 5.X.
+    
+    If a given section XYZ is in COMDAT, the symbol for that section will
+    be flagged, e.g. section 'Characteristics' field will have the
+    IMAGE_SCN_LNK_COMDAT bit set, and the symbol will be followed by an
+    "aux" symbol that includes the COMDAT handling strategy that the
+    linker needs to use.
+    
+    This patch supports two COMDAT strategies (IMAGE_COMDAT_SELECT_ANY and
+    IMAGE_COMDAT_SELECT_SAME_SIZE); more work will have to be done in the
+    future to support other flavors if it turns out that they are needed.
+    
+    Updates #35006.
+    
+    Change-Id: I516e825c30ed3df94ba08323b8a24fb847e10c1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383835
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/loadpe/ldpe.go | 92 ++++++++++++++++++++++++++++--------
+ 1 file changed, 71 insertions(+), 21 deletions(-)

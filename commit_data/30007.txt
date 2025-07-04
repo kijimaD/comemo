@@ -1,0 +1,13 @@
+commit ec4062f8eab9ce771d0ecece5b5388f960498606
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Jan 26 13:41:56 2017 -0800
+
+    database/sql: fix spelling mistake
+    
+    Change-Id: I67db3b342929a7bd11f01bf3b9afb49f4da69a0a
+    Reviewed-on: https://go-review.googlesource.com/35841
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      | 2 +-
+ src/database/sql/sql_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

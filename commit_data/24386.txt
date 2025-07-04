@@ -1,0 +1,12 @@
+commit 652d2386e99526eccc6634af2eaa7ff4c9a113c4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 29 08:43:07 2015 +1000
+
+    doc: add text/template blocks and redefinition to go1.6.txt
+    
+    Change-Id: Ide82ac98dc7cb1035ceb9d461ed95af899f8f983
+    Reviewed-on: https://go-review.googlesource.com/15081
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.6.txt | 1 +
+ 1 file changed, 1 insertion(+)

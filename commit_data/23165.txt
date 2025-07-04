@@ -1,0 +1,15 @@
+commit ccc037699e2966b7c79ba84c67471cef5e67a3b8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 28 11:58:42 2015 -0700
+
+    go/types: fix error message for embedded non-interface types in interfaces
+    
+    Fixes #10979.
+    
+    Change-Id: Iac25645ba8181a56a75ddfcd29ff6d64c15c4f57
+    Reviewed-on: https://go-review.googlesource.com/10466
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/testdata/issues.src | 24 ++++++++++++++++++++++++
+ src/go/types/typexpr.go          | 18 ++++++------------
+ 2 files changed, 30 insertions(+), 12 deletions(-)

@@ -1,0 +1,20 @@
+commit 9ae0b35fad5d4bb95cdcf4a05fcf4b077a798572
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 3 13:57:25 2021 -0800
+
+    test: add test of select inside generic function
+    
+    Make sure that we can import/export selects for generics.
+    
+    Change-Id: Ibf36e98fc574ce9275820aa426b3e6703b0aae6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369101
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ test/typeparam/select.dir/a.go    | 15 +++++++++++++++
+ test/typeparam/select.dir/main.go | 28 ++++++++++++++++++++++++++++
+ test/typeparam/select.go          |  7 +++++++
+ 3 files changed, 50 insertions(+)

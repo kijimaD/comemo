@@ -1,0 +1,22 @@
+commit fdde7ba2a2d35839d26c09ca79f1d8f3398f6e02
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 11 17:39:41 2017 -0500
+
+    runtime: avoid clobbering C callee-save register in cgoSigtramp
+    
+    Use R11 (a caller-saved temp register) instead of RBX (a callee-saved
+    register).
+    
+    I believe this only affects linux/amd64, since it is the only platform
+    with a non-trivial cgoSigtramp implementation.
+    
+    Updates #18328.
+    
+    Change-Id: I3d35c4512624184d5a8ece653fa09ddf50e079a2
+    Reviewed-on: https://go-review.googlesource.com/35068
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/sys_linux_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

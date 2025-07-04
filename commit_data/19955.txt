@@ -1,0 +1,15 @@
+commit 77a8dcab03c1bf8efa5cafaa2d9dc0a9f7a3dcf6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Aug 8 08:57:41 2014 +1000
+
+    encoding/json: document coercion of invalid UTF-8 characters
+    
+    Fixes #8342.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/122180043
+
+ src/pkg/encoding/json/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

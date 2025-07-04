@@ -1,0 +1,19 @@
+commit 677935034962a5a89eb92fdfe5d96b41cf5e6b71
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 16 13:21:13 2011 -0500
+
+    runtime: minor cleanup
+    
+    implement runtime.casp on amd64.
+    keep simultaneous panic messages separate.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4188053
+
+ src/pkg/runtime/amd64/asm.s | 20 ++++++++++++++++++++
+ src/pkg/runtime/mfinal.c    |  4 +++-
+ src/pkg/runtime/proc.c      | 17 +++++++++--------
+ src/pkg/runtime/runtime.c   | 39 ++++++++++++++++++++++++++++++++-------
+ src/pkg/runtime/runtime.h   |  4 +++-
+ 5 files changed, 67 insertions(+), 17 deletions(-)

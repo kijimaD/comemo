@@ -1,0 +1,12 @@
+commit 077fe40867d1d150ce0a9f2ffa00f939641734c8
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Sep 8 13:10:11 2008 -0700
+
+    bug with struct literal with metods
+    
+    R=r
+    OCL=14937
+    CL=14937
+
+ src/cmd/gc/walk.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

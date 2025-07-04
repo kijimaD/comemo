@@ -1,0 +1,27 @@
+commit 259de39375d39a1ba32de640cde5d112b7b80acf
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Thu Jan 31 11:22:21 2019 -0600
+
+    cmd/internal/obj/ppc64: fix wrong register encoding in XX1-Form instructions
+    
+    A bug in the encoding of XX1-Form is flipping bit 31 of such instructions.
+    This may result in register clobering when using VSX instructions.
+    
+    This was not exposed before because we currently don't generate these
+    instructions in SSA, and the asm files in which they are present aren't
+    affected by register clobbering.
+    
+    This change fixes the bug and adds a testcase for the problem.
+    
+    Fixes #30112
+    
+    Change-Id: I77b606159ae1efea33d2ba3e1c74b7fae8d5d2e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163759
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  6 ++++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 12 ++++++------
+ 2 files changed, 12 insertions(+), 6 deletions(-)

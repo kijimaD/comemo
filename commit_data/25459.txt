@@ -1,0 +1,24 @@
+commit b598a7fc5d167fe5be137d2c5cc9f1f6a01636ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 4 21:04:01 2016 -0500
+
+    net: check /etc/hosts for modifications every 5 seconds, not 5 minutes
+    
+    But also cache the previous parsed form and don't reread if the
+    size and modification time are both unchanged from before.
+    
+    On systems with stable /etc/hosts this should result in more stat calls
+    but only a single parsing of /etc/hosts.
+    
+    On systems with variable /etc/hosts files (like some Docker systems)
+    this should result in quicker adoption of changes.
+    
+    Fixes #13340.
+    
+    Change-Id: Iba93b204be73d6d903cd17c58038a4fcfd0952b9
+    Reviewed-on: https://go-review.googlesource.com/18258
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/hosts.go | 80 ++++++++++++++++++++++++++++++++------------------------
+ src/net/parse.go |  9 +++++++
+ 2 files changed, 55 insertions(+), 34 deletions(-)

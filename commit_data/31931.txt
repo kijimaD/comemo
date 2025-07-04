@@ -1,0 +1,21 @@
+commit 289a8719ce4a84cec0ed4e47037da0e82d67dcb8
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Jun 4 12:11:19 2017 +0900
+
+    cmd/cgo: unwrap typedef-chains before type checking
+    
+    clang can emit some dwarf.VoidType which are wrapped by multiple
+    dwarf.TypedefType. We need to unwrap those before further processing.
+    
+    Fixes #20129
+    
+    Change-Id: I671ce6aef2dc7b55f1a02aec5f9789ac1b369643
+    Reviewed-on: https://go-review.googlesource.com/44772
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue20129.go | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          |  2 +-
+ 3 files changed, 35 insertions(+), 1 deletion(-)

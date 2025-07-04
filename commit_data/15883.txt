@@ -1,0 +1,12 @@
+commit dc71ace28261a37922afe02d36a02adf50ba2f94
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 21 19:59:49 2013 -0700
+
+    bufio: add some tests
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7927044
+
+ src/pkg/bufio/bufio_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 44 insertions(+), 3 deletions(-)

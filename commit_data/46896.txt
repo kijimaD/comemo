@@ -1,0 +1,16 @@
+commit 0400d536e4f349c8f30777c975af78b6a19e73b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 14 12:41:29 2021 -0700
+
+    go/types, types2: add a test case to ConvertibleTo
+    
+    string(int) conversions are somewhat special and deserve an entry.
+    
+    Change-Id: Ia68d047cfdb2f98e837bf663659f7f46404b16ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355989
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go | 4 ++--
+ src/go/types/api_test.go                    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

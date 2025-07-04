@@ -1,0 +1,27 @@
+commit 9f4c25e2236617c27e5b430c774b4d9c4b86ba1b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 24 20:54:57 2015 +0000
+
+    cmd/gc: reduce lexer allocs when parsing numeric constants
+    
+    This reduces the number of allocs when
+    running the rotate.go tests by
+    about 20%, after applying CL 5700.
+    
+    Combining
+    
+    s = "const str"
+    s += <another string>
+    
+    generally saves an alloc and might be a candidate for
+    rsc's grind tool. However, I'm sending this CL now
+    because this also reuses the result of calling lexbuf.String.
+    
+    Change-Id: If3a7300b7da9612ab62bb910ee90349dca88dde3
+    Reviewed-on: https://go-review.googlesource.com/5821
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/gc/lex.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

@@ -1,0 +1,19 @@
+commit cc6e568c818053ddc16b80b0406a87d19de7a120
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 30 15:07:04 2018 -0700
+
+    cmd/go: accept more safe CFLAGS/LDFLAGS
+    
+    Fixes #23749
+    Fixes #24703
+    Fixes #24858
+    
+    Change-Id: Ib32d8efee294004c70fdd602087df2da0867f099
+    Reviewed-on: https://go-review.googlesource.com/115415
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/security.go      | 37 +++++++++++++++++++++++++++----
+ src/cmd/go/internal/work/security_test.go |  5 +++++
+ 2 files changed, 38 insertions(+), 4 deletions(-)

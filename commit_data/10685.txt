@@ -1,0 +1,12 @@
+commit e77f057bf345f9e0ef78608abdbd9e85b6e203c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 9 08:28:17 2011 -0500
+
+    gc: resolve built-ins to built-in symbol
+    
+    R=lvd
+    CC=golang-dev
+    https://golang.org/cl/5480049
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

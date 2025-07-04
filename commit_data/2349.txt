@@ -1,0 +1,16 @@
+commit d6a9817051b05c9fb21f0c5f92d1142cd2d4a8c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat May 30 21:18:15 2009 -0700
+
+    bug157
+    
+    R=ken
+    OCL=29651
+    CL=29653
+
+ src/cmd/gc/go.y                    | 131 ++++++++++++++++++++++++-------------
+ src/cmd/gc/swt.c                   | 104 +++++++++++++----------------
+ src/cmd/gc/walk.c                  | 121 +++++++++++++++++-----------------
+ test/{bugs => fixedbugs}/bug157.go |   0
+ test/golden.out                    |   5 --
+ 5 files changed, 190 insertions(+), 171 deletions(-)

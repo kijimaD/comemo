@@ -1,0 +1,58 @@
+commit eb1774fa19d1027a8c25a5030429bb162dace95d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 29 23:50:10 2015 -0500
+
+    cmd/gc: factor newly-portable code into gc directory
+    
+    This isn't everything, but it's a start.
+    Still producing bit-identical compiler output.
+    
+    The semantics of the old back ends is preserved,
+    even when they are probably buggy.
+    There are some TODOs in gc/gsubr.c to
+    remove special cases to preserve bugs in 5g and 8g.
+    
+    Change-Id: I28ae295fbfc94ef9df43e13ab96bd6fc2f194bc4
+    Reviewed-on: https://go-review.googlesource.com/3802
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ include/link.h       |   3 +
+ src/cmd/5g/galign.c  |  26 +-
+ src/cmd/5g/gg.h      |   3 -
+ src/cmd/5g/ggen.c    |  65 +----
+ src/cmd/5g/gobj.c    | 267 ---------------------
+ src/cmd/5g/gsubr.c   | 556 -------------------------------------------
+ src/cmd/5g/reg.c     |   2 +-
+ src/cmd/5l/5.out.h   |   1 +
+ src/cmd/6g/galign.c  |  26 +-
+ src/cmd/6g/gg.h      |   3 -
+ src/cmd/6g/ggen.c    |  60 -----
+ src/cmd/6g/gobj.c    | 244 -------------------
+ src/cmd/6g/gsubr.c   | 546 ------------------------------------------
+ src/cmd/6l/6.out.h   |   1 +
+ src/cmd/8g/galign.c  |  26 +-
+ src/cmd/8g/gg.h      |   3 -
+ src/cmd/8g/ggen.c    |  58 -----
+ src/cmd/8g/gobj.c    | 257 --------------------
+ src/cmd/8g/gsubr.c   | 545 +-----------------------------------------
+ src/cmd/8l/8.out.h   |   1 +
+ src/cmd/9g/galign.c  |  26 +-
+ src/cmd/9g/gg.h      |   3 -
+ src/cmd/9g/ggen.c    |  61 +----
+ src/cmd/9g/gobj.c    | 250 --------------------
+ src/cmd/9g/gsubr.c   | 547 ------------------------------------------
+ src/cmd/9l/9.out.h   |   2 +-
+ src/cmd/gc/gen.c     |  68 +++---
+ src/cmd/gc/go.h      |  57 +++--
+ src/cmd/gc/gsubr.c   | 654 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gc/obj.c     | 224 +++++++++++++++++-
+ src/cmd/gc/pgen.c    |  18 +-
+ src/cmd/gc/plive.c   |  12 +-
+ src/cmd/gc/reflect.c | 130 +++++-----
+ src/cmd/gc/sinit.c   |  42 ++--
+ src/cmd/gc/walk.c    |  14 +-
+ src/liblink/asm5.c   |   9 +-
+ src/liblink/go.c     |  21 ++
+ src/liblink/obj5.c   |  10 +-
+ src/liblink/obj6.c   |  12 -
+ 39 files changed, 1085 insertions(+), 3768 deletions(-)

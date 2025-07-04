@@ -1,0 +1,18 @@
+commit a25d0d8fb901e9b6fa68b0f9d4e23d16bf201aff
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Mar 27 16:00:57 2018 -0400
+
+    crypto/x509: cache the result of SystemCertPool
+    
+    Fixes #24540
+    
+    Change-Id: I65e9f2f99403e22d25ea64cc26701bf62a31d070
+    Reviewed-on: https://go-review.googlesource.com/102699
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/cert_pool.go | 27 +++++++++++++++++++++++++++
+ src/crypto/x509/root.go      |  3 +++
+ src/crypto/x509/x509_test.go | 38 +++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 67 insertions(+), 1 deletion(-)

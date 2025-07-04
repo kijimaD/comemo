@@ -1,0 +1,29 @@
+commit e62adb1c0b8e7ca49eefc70389fbb9f739d6e32c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 29 13:30:54 2020 -0700
+
+    cmd/compile: fix devirtualization of promoted interface methods
+    
+    A method selector expression can pick out a method or promoted method
+    (represented by ODOTMETH), but it can also pick out an interface
+    method from an embedded interface-typed field (represented by
+    ODOTINTER).
+    
+    In the case that we're picking out an interface method, we're not able
+    to fully devirtualize the method call. However, we're still able to
+    improve escape analysis somewhat. E.g., the included test case
+    demonstrates that we can optimize "i.M()" to "i.(T).I.M()", which
+    means the T literal can be stack allocated instead of heap allocated.
+    
+    Fixes #42279.
+    
+    Change-Id: Ifa21d19011e2f008d84f9624b7055b4676b6d188
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266300
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/inl.go | 26 +++++++++++++++++---------
+ test/escape_iface.go               |  8 ++++++++
+ 2 files changed, 25 insertions(+), 9 deletions(-)

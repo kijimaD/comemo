@@ -1,0 +1,15 @@
+commit df0b471533938d05550de16b165f3bd33349a033
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 8 22:08:55 2009 -0700
+
+    First cut at templating library for text generation
+    
+    R=rsc
+    DELTA=663  (663 added, 0 deleted, 0 changed)
+    OCL=27239
+    CL=27241
+
+ src/lib/Makefile         |   3 +
+ src/lib/template.go      | 489 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/template_test.go | 176 +++++++++++++++++
+ 3 files changed, 668 insertions(+)

@@ -1,0 +1,15 @@
+commit e8f2692ca20eb3bb390be5830e64ab622f8ed763
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 12:50:10 2011 -0500
+
+    5l: document -F, force it on old ARMs
+    
+    Fixes #1341.
+    
+    R=ken2, r
+    CC=golang-dev
+    https://golang.org/cl/4006045
+
+ src/cmd/5l/doc.go | 3 +++
+ src/cmd/5l/obj.c  | 5 +++++
+ 2 files changed, 8 insertions(+)

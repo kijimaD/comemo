@@ -1,0 +1,19 @@
+commit d90f0b920054e5e3fba981eea67fe092732a4376
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Oct 11 09:59:40 2021 -0400
+
+    cmd/compile/internal/types2: avoid duplicate errors for invalid bounds
+    
+    Resolve a TODO from an earlier CL: we should only check type parameter
+    bounds once in collectTypeParams.
+    
+    Change-Id: Icf6053ec359f8ac8143cf68ee2defd504f8f86e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355069
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/decl.go                   | 15 ++++++++++-----
+ .../internal/types2/testdata/examples/typesets.go2        |  2 ++
+ 2 files changed, 12 insertions(+), 5 deletions(-)

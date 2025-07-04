@@ -1,0 +1,18 @@
+commit f753d7223e5c10f53af8bbe5f5558292b08d5e8a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 7 13:43:55 2021 -0400
+
+    doc/go1.17: resolve TODO for cmd/cover
+    
+    Updates #32211
+    
+    Change-Id: Ie38e831fcf557534023afd552d9394fe9e055caa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/325909
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ doc/go1.17.html | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit f23a6dba5e7a477b15bb10c5f630df01b5f0ea88
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 7 18:13:11 2012 -0800
+
+    cmd/api: compare multiple contexts
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5626045
+
+ src/cmd/api/goapi.go | 85 +++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 71 insertions(+), 14 deletions(-)

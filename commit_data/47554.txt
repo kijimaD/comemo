@@ -1,0 +1,18 @@
+commit 0f75a9ecdf3f320a22e52d9493b879c4a6ddc536
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Fri Nov 19 13:56:24 2021 -0500
+
+    [go] doc: add new bufio functionality
+    
+    cl/345570
+    cl/345569
+    
+    Updates: #47694
+    Change-Id: I170af16d5fc9f022d3d29ed0772cfc3d02b8bbcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/365317
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+
+ doc/go1.18.html | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

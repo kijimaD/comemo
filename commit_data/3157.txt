@@ -1,0 +1,15 @@
+commit 1e55e4a3e613412680e0f8d7743bd359319afcc8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 31 16:43:17 2009 -0700
+
+    add property tables
+    
+    R=rsc
+    DELTA=1087  (1001 added, 78 deleted, 8 changed)
+    OCL=34137
+    CL=34147
+
+ src/pkg/unicode/maketables.go  | 151 +++++---
+ src/pkg/unicode/script_test.go |  59 +++
+ src/pkg/unicode/tables.go      | 831 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 982 insertions(+), 59 deletions(-)

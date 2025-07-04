@@ -1,0 +1,12 @@
+commit 25a738234e5608fee8e1490c7bb58f619a437a12
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 19:03:00 2009 -0700
+
+    fix build: testing depends on regexp now; re-ran deps.bash
+    
+    TBR=r
+    OCL=29991
+    CL=29994
+
+ src/lib/Make.deps | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

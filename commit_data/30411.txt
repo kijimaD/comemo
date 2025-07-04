@@ -1,0 +1,19 @@
+commit ba6e5776fd6796282533ba49e80a5afd8b1ced23
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Feb 27 20:39:49 2017 +0100
+
+    runtime: remove unused RaceSemacquire declaration
+    
+    These functions are not defined and are not used.
+    
+    Fixes #19290
+    
+    Change-Id: I2978147220af83cf319f7439f076c131870fb9ee
+    Reviewed-on: https://go-review.googlesource.com/37448
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/race.go | 3 ---
+ 1 file changed, 3 deletions(-)

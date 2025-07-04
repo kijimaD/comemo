@@ -1,0 +1,49 @@
+commit 6201a963f1ea19e1473dc13f4d5f397a9eac543a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 14:11:26 2008 -0700
+
+    move src/syscall to src/lib/syscall.
+    enforce rule: all kernel data structures and constants
+            go in syscall module.
+    move things that should be in syscall out of net.
+    make net a single package.
+    
+    R=r
+    OCL=15985
+    CL=15994
+
+ src/clean.bash                                     |   2 +-
+ src/lib/clean.bash                                 |   2 +-
+ src/lib/make.bash                                  |   2 +-
+ src/lib/net/Makefile                               |  65 +--
+ src/lib/net/cvt.s                                  |  38 --
+ src/lib/net/fd_darwin.go                           |  79 ++++
+ src/lib/net/fd_linux.go                            |  79 ++++
+ src/lib/net/ip.go                                  |   2 +-
+ src/lib/net/net.go                                 | 171 +++----
+ src/lib/net/net_darwin.go                          |  70 +++
+ src/lib/net/net_linux.go                           |  70 +++
+ src/lib/syscall/Makefile                           |  58 +++
+ .../syscall/asm_amd64_darwin.s}                    |  15 +-
+ .../syscall/asm_amd64_linux.s}                     |  21 -
+ src/lib/syscall/cast_amd64.s                       |  70 +++
+ src/{ => lib}/syscall/errstr_darwin.go             |   0
+ src/{ => lib}/syscall/errstr_linux.go              |   0
+ src/lib/syscall/file_darwin.go                     |  88 ++++
+ src/lib/syscall/file_linux.go                      |  84 ++++
+ src/lib/syscall/mkdarwin                           |  34 ++
+ src/lib/syscall/mklinux                            |  28 ++
+ src/lib/syscall/socket_darwin.go                   | 109 +++++
+ src/lib/syscall/socket_linux.go                    |  99 +++++
+ src/{ => lib}/syscall/syscall.go                   |   3 +
+ src/lib/syscall/syscall_amd64_darwin.go            | 489 +++++++++++++++++++++
+ src/lib/syscall/syscall_amd64_linux.go             | 297 +++++++++++++
+ src/{ => lib}/syscall/time_amd64_darwin.go         |   3 +-
+ src/{ => lib}/syscall/time_amd64_linux.go          |  13 +-
+ src/lib/syscall/types_amd64_darwin.go              | 191 ++++++++
+ src/lib/syscall/types_amd64_linux.go               | 149 +++++++
+ src/make.bash                                      |   2 +-
+ src/syscall/Makefile                               |  54 ---
+ src/syscall/file_amd64_darwin.go                   | 149 -------
+ src/syscall/file_amd64_linux.go                    | 151 -------
+ 34 files changed, 2140 insertions(+), 547 deletions(-)

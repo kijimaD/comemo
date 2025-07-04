@@ -1,0 +1,16 @@
+commit 2ae8bf7054b3320682e547396d9b6b5e51f5ade1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Oct 17 20:16:45 2018 +0000
+
+    runtime: fix stale comments about mheap and mspan
+    
+    As of 07e738e all spans are allocated out of a treap, and not just
+    large spans or spans for large objects. Also, now we have a separate
+    treap for spans that have been scavenged.
+    
+    Change-Id: I9c2cb7b6798fc536bbd34835da2e888224fd7ed4
+    Reviewed-on: https://go-review.googlesource.com/c/142958
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mheap.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

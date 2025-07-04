@@ -1,0 +1,13 @@
+commit 81b7bad10279913ea468e954b92414509c5c1625
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 25 17:18:44 2012 -0400
+
+    A+C: Amir Mohammad Saied, Thomas Alan Copeland (both individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6330059
+
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 2 ++
+ 2 files changed, 4 insertions(+)

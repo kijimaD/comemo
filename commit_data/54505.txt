@@ -1,0 +1,22 @@
+commit 30886b1b1ea0ff0282419e4deefdd35a51b2c9fc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Sep 18 16:49:41 2023 -0400
+
+    cmd/go: in TestScript/gotoolchain_path, remove the user's PATH
+    
+    This test checks a behavior of GOTOOLCHAIN when an appropriate
+    toolchain is found in PATH. That requires it to exclude any suitable
+    toolchain binaries from the user's $PATH, which may otherwise
+    interfere.
+    
+    Fixes #62709.
+    
+    Change-Id: Ie9161e52d33a65be0b5265cb49e9f2bc8473e057
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529217
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/testdata/script/gotoolchain_path.txt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

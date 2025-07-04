@@ -1,0 +1,13 @@
+commit 89f8238a996e08a0a7df85db81cf0338c89de244
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 29 18:54:44 2009 -0700
+
+    don't set CLONE_PTRACE -- it confuses strace
+    
+    R=r
+    DELTA=4  (3 added, 1 deleted, 0 changed)
+    OCL=28063
+    CL=28065
+
+ src/runtime/linux/thread.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 8613eb56b25afaa8e73c289d36292c79bdb8bc96
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Nov 11 19:54:35 2010 -0800
+
+    last of the arm conversions
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3053041
+
+ src/cmd/5g/gsubr.c         | 139 +++++++++++++++++++++++----------------------
+ src/cmd/5l/5.out.h         |   2 +-
+ src/cmd/5l/asm.c           | 112 ++++++++++++++++++++++--------------
+ src/cmd/5l/optab.c         |  23 +++++---
+ src/cmd/5l/span.c          |   7 ++-
+ src/cmd/gc/walk.c          |  26 ++++++---
+ src/pkg/runtime/arm/vlrt.c |  29 ++++++++--
+ 7 files changed, 204 insertions(+), 134 deletions(-)

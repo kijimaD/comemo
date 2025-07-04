@@ -1,0 +1,21 @@
+commit 4991bc6257a9e9d922f7b6e29e393d764c4e4295
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jun 21 16:56:13 2018 -0400
+
+    runtime: avoid recursive panic on bad lock count
+    
+    Currently, if lock or unlock calls throw because the g.m.lock count is
+    corrupted, we're unlikely to get a stack trace because startpanic_m
+    will itself attempt to acquire a lock, causing a recursive failure.
+    
+    Avoid this by forcing the g.m.locks count to a sane value if it's
+    currently bad.
+    
+    This might be enough to get a stack trace from #25128.
+    
+    Change-Id: I52d7bd4717ffae94a821f4249585f3eb6cd5aa41
+    Reviewed-on: https://go-review.googlesource.com/120416
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/panic.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

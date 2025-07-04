@@ -1,0 +1,20 @@
+commit 516d9ef53b656aa5e6eebdc2c09e8d257b13e033
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 4 09:43:37 2014 -0500
+
+    gc: abort if given an unknown debug (-d) flag
+    
+    The check for unknown command line debug flags in gc was
+    incorrect: the loop over debugtab terminates when it reaches a
+    nil entry, but it was only reporting an error if the parser
+    had passed the last entry of debugtab (which it never did).
+    Fix this by reporting the usage error if the loop reaches a
+    nil entry.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166110043
+
+ src/cmd/gc/lex.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

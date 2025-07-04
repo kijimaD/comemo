@@ -1,0 +1,16 @@
+commit 8db371b3d58a1c139f0854738f9962de05ca5d7a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 14:23:08 2015 -0800
+
+    api: create go1.6.txt
+    
+    Change-Id: If2b30ab412d6799c8be01eb007462d6b58660ece
+    Reviewed-on: https://go-review.googlesource.com/18014
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ api/go1.6.txt      | 267 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next.txt       | 160 --------------------------------
+ src/cmd/api/run.go |   2 +-
+ 3 files changed, 268 insertions(+), 161 deletions(-)

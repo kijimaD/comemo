@@ -1,0 +1,35 @@
+commit 1f9dce749db804a8cce767adde3701378db1461c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 20 14:02:24 2021 -0400
+
+    cmd/go: download fewer dependencies in 'go mod download'
+    
+    In modules that specify 'go 1.17' or higher, the go.mod file
+    explicitly requires modules for all packages transitively imported by
+    the main module. Users tend to use 'go mod download' to prepare for
+    testing the main module itself, so we should only download those
+    relevant modules.
+    
+    In 'go 1.16' and earlier modules, we continue to download all modules
+    in the module graph (because we cannot in general tell which ones are
+    relevant without loading the full package import graph).
+    
+    'go mod download all' continues to download every module in
+    'go list all', as it did before.
+    
+    Fixes #44435
+    
+    Change-Id: I3f286c0e2549d6688b3832ff116e6cd77a19401c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357310
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.18.html                             | 13 ++++++
+ src/cmd/go/alldocs.go                       |  7 +++-
+ src/cmd/go/internal/modcmd/download.go      | 61 ++++++++++++++++++++++-------
+ src/cmd/go/internal/modload/buildlist.go    |  2 +-
+ src/cmd/go/internal/modload/modfile.go      |  6 +--
+ src/cmd/go/testdata/script/mod_download.txt | 44 +++++++++++++++++++++
+ 6 files changed, 113 insertions(+), 20 deletions(-)

@@ -1,0 +1,19 @@
+commit 565ad134c994b7a831e1bea336fdc64f0aeefc85
+Author: chainhelen <chainhelen@gmail.com>
+Date:   Tue Sep 8 03:36:19 2020 +0000
+
+    runtime: make PCDATA_RegMapUnsafe more clear and remove magic number
+    
+    Change-Id: Ibf3ee755c3fbec03a9396840dc92ce148c49d9f7
+    GitHub-Last-Rev: 945d8aaa136003dc381c6aa48bff9ea7ca2c6991
+    GitHub-Pull-Request: golang/go#41262
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253377
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/objabi/funcdata.go | 2 +-
+ src/runtime/debugcall.go            | 2 +-
+ src/runtime/preempt.go              | 2 +-
+ src/runtime/symtab.go               | 3 +++
+ 4 files changed, 6 insertions(+), 3 deletions(-)

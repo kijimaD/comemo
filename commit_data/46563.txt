@@ -1,0 +1,30 @@
+commit 93453233bd00cc641d2f959f1faf236e0094c2bf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 22 15:56:58 2021 -0700
+
+    cmd/compile: fix unsafe.Add with small-size offsets operands
+    
+    Like other builtin functions, unsafe.Add's len operand is allowed to
+    be variable sized. However, unlike other builtins, it doesn't get
+    lowered to a runtime function call, so we never end up coercing it to
+    a specific type. As a result, we could end up constructing an OpAddPtr
+    value but with a less-than-ptr-sized addend operand.
+    
+    This CL fixes this by always coercing the second operand to uintptr
+    during SSA construction.
+    
+    Theoretically, we could do this during walk instead, but the frontend
+    doesn't allow converting negative constants to uintptr.
+    
+    Fixes #48536.
+    
+    Change-Id: Ib0619ea79df58b256b250fec967a6d3c8afea631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351592
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go |  5 +++++
+ test/fixedbugs/issue48536.go           | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

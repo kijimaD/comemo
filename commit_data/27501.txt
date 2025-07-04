@@ -1,0 +1,23 @@
+commit 2f9eeea212681927385a4713004438cd864966e0
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Tue May 24 23:46:11 2016 +0600
+
+    cmd/go: document testdata directory in "go help test"
+    
+    Document the correct use of the testdata directory
+    where test writers might be expecting to find it.
+    
+    It seems that alldocs.go was out of date, so it
+    has picked up some other changes with this commit.
+    
+    Fixes #14715.
+    
+    Change-Id: I0a22676bb7a64b2a61b56495f7ea38db889d8b37
+    Reviewed-on: https://go-review.googlesource.com/23353
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go | 16 ++++++++++++++--
+ src/cmd/go/test.go    |  3 +++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

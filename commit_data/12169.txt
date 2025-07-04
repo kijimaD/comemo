@@ -1,0 +1,27 @@
+commit 436f297d1e8cb941d859a00467395a8c541035e6
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Thu Feb 23 14:28:16 2012 -0500
+
+    cc: fix an out of bounds array access
+    
+    Alternatively, we could expand the ewidth array
+    in [568]c/txt.c to have NALLTYPES elements and
+    give all types above NTYPE a width of -1.
+    
+    I don't think it's worth it since TDOT and TOLD
+    are the only two type values above NTYPE that
+    are passed to typ:
+    
+    $ /tmp/cctypes
+    cc/dcl.c:683:                   t->down = typ(TOLD, T);
+    cc/dcl.c:919:           return typ(TDOT, T);
+    $
+    
+    Fixes #3063.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5694047
+
+ src/cmd/cc/sub.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

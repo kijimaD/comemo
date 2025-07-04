@@ -1,0 +1,24 @@
+commit f2e94de6d62be39044b28ca61b8659cd295253c2
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Jun 21 21:00:49 2011 -0400
+
+    crypto/openpgp: add ElGamal support.
+    
+    R=bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/4639049
+
+ src/pkg/Makefile                                   |   1 +
+ src/pkg/crypto/openpgp/elgamal/Makefile            |  11 ++
+ src/pkg/crypto/openpgp/elgamal/elgamal.go          | 122 ++++++++++++++++
+ src/pkg/crypto/openpgp/elgamal/elgamal_test.go     |  49 +++++++
+ src/pkg/crypto/openpgp/packet/encrypted_key.go     |  71 ++++++++--
+ .../crypto/openpgp/packet/encrypted_key_test.go    |  17 ++-
+ src/pkg/crypto/openpgp/packet/packet.go            |   4 +-
+ src/pkg/crypto/openpgp/packet/private_key.go       |  22 +++
+ src/pkg/crypto/openpgp/packet/private_key_test.go  |  64 ++++++---
+ src/pkg/crypto/openpgp/packet/public_key.go        |  43 +++++-
+ src/pkg/crypto/openpgp/read.go                     |   8 +-
+ src/pkg/crypto/openpgp/read_test.go                |  96 ++++++++-----
+ src/pkg/crypto/openpgp/write_test.go               | 156 +++++++++++++--------
+ 13 files changed, 524 insertions(+), 140 deletions(-)

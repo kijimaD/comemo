@@ -1,0 +1,14 @@
+commit 8e4ea2f5e8ee2b9c455adb329d96fb13cd3c64da
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 26 22:34:40 2016 +0000
+
+    net/http/httptest: add more docs on ResponseRecord fields
+    
+    Fixes #16717
+    
+    Change-Id: I7b6518609796a537437539c35461a18e9e6f207f
+    Reviewed-on: https://go-review.googlesource.com/32190
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+
+ src/net/http/httptest/recorder.go | 24 ++++++++++++++++++++----
+ 1 file changed, 20 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit 2115f514d047df9c0e7679e2d0df05781b4b961c
+Author: Eden Li <eden.li@gmail.com>
+Date:   Tue Nov 17 23:42:21 2009 -0800
+
+    cgo no longer translates function args that are void* into
+    unsafe.Pointer.
+    Fixes #254.
+    
+    R=rsc
+    https://golang.org/cl/157060
+
+ src/cmd/cgo/gcc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

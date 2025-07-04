@@ -1,0 +1,18 @@
+commit d9d1399eeac037f4e2057d32831e574c0f1e6fc8
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 6 08:02:30 2016 -0400
+
+    cmd/link: mark rel.ro segment as PT_GNU_RELRO
+    
+    Details: http://www.airs.com/blog/archives/189
+    
+    Part of adding PIE internal linking on linux/amd64.
+    
+    Change-Id: I8843a97f22f6f120346cccd694c7fff32f09f60b
+    Reviewed-on: https://go-review.googlesource.com/28541
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/elf.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

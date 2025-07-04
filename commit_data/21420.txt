@@ -1,0 +1,17 @@
+commit a0c5d2840336b74db781757a7d40472ef204a7b9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 30 14:25:55 2015 -0800
+
+    math/big: split int conversion routines and tests into separate files
+    
+    No other functional changes.
+    
+    Change-Id: If0d9e6208d53478e70d991b6926ea196b2cccf2e
+    Reviewed-on: https://go-review.googlesource.com/3672
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/int.go          | 215 ---------------------------
+ src/math/big/int_test.go     | 331 -----------------------------------------
+ src/math/big/intconv.go      | 228 +++++++++++++++++++++++++++++
+ src/math/big/intconv_test.go | 342 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 570 insertions(+), 546 deletions(-)

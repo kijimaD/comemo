@@ -1,0 +1,24 @@
+commit 8f734d4e2fc4592054a5cb3989465323465a93ac
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Jan 9 11:57:51 2015 -0800
+
+    cmd/5g, cmd/6g, cmd/8g, cmd/9g: zero more in componentgen
+    
+    Fix a flipped nil check.
+    The flipped check prevented componentgen
+    from zeroing a non-cadable nl.
+    This fix reduces the number of non-SB LEAQs
+    in godoc from 35323 to 34920 (-1.1%).
+    
+    Update #1914
+    
+    Change-Id: I15ea303068835f606f883ddf4a2bb4cb2287e9ae
+    Reviewed-on: https://go-review.googlesource.com/2605
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/5g/cgen.c | 2 +-
+ src/cmd/6g/cgen.c | 2 +-
+ src/cmd/8g/cgen.c | 2 +-
+ src/cmd/9g/cgen.c | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

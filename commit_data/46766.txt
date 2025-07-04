@@ -1,0 +1,26 @@
+commit 8e36ab055162efa6f67f3b9ee62f625ac8874901
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 21 10:59:16 2021 -0400
+
+    bytes, strings: add Cut
+    
+    Using Cut is a clearer way to write the vast majority (>70%)
+    of existing code that calls Index, IndexByte, IndexRune, and SplitN.
+    There is more discussion on https://golang.org/issue/46336.
+    
+    Fixes #46336.
+    
+    Change-Id: Ia418ed7c3706c65bf61e1b2c5baf534cb783e4d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351710
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bytes/bytes.go          |  13 +++++
+ src/bytes/bytes_test.go     |  23 ++++++++
+ src/bytes/example_test.go   | 138 ++++++++++++++++++++++----------------------
+ src/strings/example_test.go |  58 ++++++++++++-------
+ src/strings/strings.go      |  11 ++++
+ src/strings/strings_test.go |  25 +++++++-
+ 6 files changed, 178 insertions(+), 90 deletions(-)

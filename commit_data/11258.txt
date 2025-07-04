@@ -1,0 +1,19 @@
+commit 3358a5068a87bc25bd551698f4f0be7c5677168d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 19 18:59:06 2012 +1100
+
+    godoc: add anchors to cmd documentation headings
+    
+    Also, disable server-side generation of TOC for commands as they would
+    only ever show Overview. The JS does a better job (for now).
+    
+    Fixes #2732.
+    
+    R=gri, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5558046
+
+ doc/godocs.js             | 54 ++++++++++++++++++-----------------------------
+ lib/godoc/package.html    |  2 ++
+ src/pkg/go/doc/comment.go | 18 +++++++++++++++-
+ 3 files changed, 40 insertions(+), 34 deletions(-)

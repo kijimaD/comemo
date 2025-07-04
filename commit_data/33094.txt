@@ -1,0 +1,17 @@
+commit 245e386e4c56d3d92843b390871d763392fad26a
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Thu Oct 12 17:42:18 2017 -0300
+
+    reflect: allow Copy to a byte array or byte slice from a string
+    
+    This somewhat mirrors the special case behavior of the copy built-in.
+    
+    Fixes #22215
+    
+    Change-Id: Ic353003ad3de659d3a6b4e9d97295b42510f3bf7
+    Reviewed-on: https://go-review.googlesource.com/70431
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/all_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 21 +++++++++++++++++----
+ 2 files changed, 58 insertions(+), 4 deletions(-)

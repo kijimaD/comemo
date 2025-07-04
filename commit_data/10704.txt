@@ -1,0 +1,14 @@
+commit b78a7b7dabd367722affa7188adb26d503b39109
+Author: Rob Pike <r@golang.org>
+Date:   Sun Dec 11 21:03:49 2011 -0800
+
+    doc/go_tutorial: make clear the file example is Unix-specific
+    Fixes #2553.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5472074
+
+ doc/go_tutorial.html | 10 ++++++++--
+ doc/go_tutorial.tmpl | 10 ++++++++--
+ 2 files changed, 16 insertions(+), 4 deletions(-)

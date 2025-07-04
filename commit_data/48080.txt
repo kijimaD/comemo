@@ -1,0 +1,21 @@
+commit 2aafd9ea179ec308607c131dbda438abac2b9184
+Author: Brandon Bennett <bbennett@fb.com>
+Date:   Fri Feb 4 12:45:18 2022 -0700
+
+    cmd/go: preserve LIBRARY_PATH and C_INCLUDE_PATH  for script tests
+    
+    In bespoke build environments default libraries may be specificied with
+    LIBRARY_PATH, C_INCLUDE_PATH enviroment variables to overide the system
+    (i.e glibc). Allow them though to allow cgo testing of these enviroments.
+    
+    Fixes #50985
+    
+    Change-Id: I7497a7715d9b635a6ae97efaab94a7ff01cdf8e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383334
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/script_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

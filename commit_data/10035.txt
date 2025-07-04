@@ -1,0 +1,13 @@
+commit d604cf780814f1f216f653a677d7a3e5eea7d88b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 14:55:28 2011 -0400
+
+    5g, 6g: comment out uses of -r
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5299043
+
+ src/cmd/5g/gsubr.c | 4 ++--
+ src/cmd/6g/gobj.c  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

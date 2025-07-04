@@ -1,0 +1,19 @@
+commit 7f099cdc76a04fa93425f422ea844f88e4cb82f1
+Author: Adam Langley <agl@golang.org>
+Date:   Fri May 20 10:20:08 2011 -0700
+
+    asn1: add big support.
+    
+    Initially I wanted to minimise dependencies but it's become clear that
+    big int support in ASN.1 is a common need and that it should be part
+    of the core.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4550063
+
+ src/pkg/asn1/asn1.go      | 27 +++++++++++++++++++++++++++
+ src/pkg/asn1/asn1_test.go | 27 +++++++++++++++++++++++++++
+ src/pkg/asn1/common.go    |  2 ++
+ src/pkg/asn1/marshal.go   | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 99 insertions(+)

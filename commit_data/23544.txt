@@ -1,0 +1,13 @@
+commit 694b244e1dbc35ebc8f2491a27b452859bbbabcb
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 29 13:27:41 2015 +1000
+
+    doc: update FAQ for Go 1.5
+    
+    Change-Id: I4befb21d0811819ce0a5721421a2f6df7a9b62fa
+    Reviewed-on: https://go-review.googlesource.com/11605
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go_faq.html | 153 +++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 96 insertions(+), 57 deletions(-)

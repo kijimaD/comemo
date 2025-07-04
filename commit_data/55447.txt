@@ -1,0 +1,22 @@
+commit bdb0a1abfcf30bf05ef6e981179826b02e4539e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 24 13:09:55 2024 -0800
+
+    go/types, types2: in struct processing, set name position in types2
+    
+    As a consequence, the positions needed by the Checker.structType
+    internal helper functions add and addInvalid are always the positions
+    of the provided identifiers, and we can leave away the extra position
+    arguments.
+    
+    Change-Id: Iddc275c83d3781261476b8e1903050e0a049957c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558316
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/struct.go | 15 ++++++++-------
+ src/go/types/struct.go                    | 13 +++++++------
+ 2 files changed, 15 insertions(+), 13 deletions(-)

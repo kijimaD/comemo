@@ -1,0 +1,27 @@
+commit 85cdc49e8abed5c48d9b24eedff85e44e38269b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 1 11:17:15 2014 -0700
+
+    os, syscall: add Unsetenv
+    
+    Also address a TODO, making Clearenv pass through to cgo.
+    
+    Based largely on Minux's earlier https://golang.org/cl/82040044
+    
+    Fixes #6423
+    
+    LGTM=iant, alex.brainman, r, rsc
+    R=rsc, iant, r, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/148370043
+
+ src/os/env.go                |  5 +++++
+ src/os/env_test.go           | 26 ++++++++++++++++++++++++++
+ src/runtime/cgo/gcc_setenv.c |  7 +++++++
+ src/runtime/cgo/setenv.c     |  3 +++
+ src/runtime/env_posix.go     | 13 ++++++++++++-
+ src/runtime/thunk.s          |  3 +++
+ src/syscall/env_plan9.go     | 38 +++++++++++++++++++++++++++++++++++---
+ src/syscall/env_unix.go      | 44 ++++++++++++++++++++++++++++++++++++--------
+ src/syscall/env_windows.go   |  8 ++++++++
+ 9 files changed, 135 insertions(+), 12 deletions(-)

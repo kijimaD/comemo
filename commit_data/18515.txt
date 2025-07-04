@@ -1,0 +1,18 @@
+commit b0db7e870c50a38239c2bd541a862fe544b05350
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Feb 14 12:22:13 2014 +0900
+
+    syscall: fix system calls with misaligned arguments on freebsd/arm
+    
+    This CL enables the current tree to work with FreeBSD 10-STABLE
+    on ARM EABI platforms, though there are still a few test fails.
+    
+    Also updates documentation.
+    
+    LGTM=iant
+    R=iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/61060044
+
+ src/pkg/syscall/asm_freebsd_arm.s | 51 +++++++++++++++++++++------------------
+ 1 file changed, 27 insertions(+), 24 deletions(-)

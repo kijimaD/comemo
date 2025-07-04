@@ -1,0 +1,12 @@
+commit bc4a9caa415bc9bb623961ce8432aa0b2df10028
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 9 11:30:33 2010 +1000
+
+    runtime: free memory returned by windows GetEnvironmentStrings
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/1917048
+
+ src/pkg/runtime/windows/thread.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

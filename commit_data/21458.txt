@@ -1,0 +1,16 @@
+commit f7e78aa5868c9bd5cd43c902343e035f4f902725
+Author: Paul van Brouwershaven <paul@vanbrouwershaven.com>
+Date:   Mon Jan 5 11:15:18 2015 +0000
+
+    crypto/x509/pkix: Parse and add additional elements in a DN
+    
+    Additional elements in a DN can be added in via ExtraNames. This
+    option can also be used for sorting DN elements in a custom order.
+    
+    Change-Id: Ie408d332de913dc2a33bdd86433be38abb7b55be
+    Reviewed-on: https://go-review.googlesource.com/2257
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/pkix/pkix.go | 43 ++++++++++++++++++++++++++++++-------------
+ src/crypto/x509/x509_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 13 deletions(-)

@@ -1,0 +1,14 @@
+commit f9c22f7e7804ba4fcee37c75c3ba18788624b7b4
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Jun 18 23:20:17 2013 +1000
+
+    cmd/cgo: avoid leaking fds
+    
+    Fixes #5714.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/10386043
+
+ src/cmd/cgo/gcc.go | 3 +++
+ 1 file changed, 3 insertions(+)

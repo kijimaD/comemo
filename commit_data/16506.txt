@@ -1,0 +1,13 @@
+commit 8bf57c3dcba00951a96de3d8ee58d844253da621
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jun 6 23:06:12 2013 +0400
+
+    runtime: remove unused field from Hchan
+    Remove alignment logic as well, it's not respected by chanbuf() anyway.
+    
+    R=golang-dev, dave, minux.ma, r, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/9678046
+
+ src/pkg/runtime/chan.c | 19 +++++++------------
+ 1 file changed, 7 insertions(+), 12 deletions(-)

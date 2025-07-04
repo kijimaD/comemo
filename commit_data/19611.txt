@@ -1,0 +1,26 @@
+commit da1c2b182a029a4f3b050442573cd47abfe93291
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 25 12:04:36 2014 +1000
+
+    undo CL 107320046 / 97cd07dcb9d8
+    
+    Breaks the build
+    
+    ««« original CL description
+    cmd/go: build test files containing non-runnable examples
+    
+    Even if we can't run them, we should at least check that they compile.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/107320046
+    »»»
+    
+    TBR=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/110140044
+
+ src/cmd/go/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

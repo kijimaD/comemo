@@ -1,0 +1,12 @@
+commit c80746aa900749672c44dfc88d4cc2b1090b3066
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Aug 19 10:03:58 2010 +1000
+
+    doc: add missing paren (pointed out by nbjoerg)
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1983045
+
+ doc/effective_go.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

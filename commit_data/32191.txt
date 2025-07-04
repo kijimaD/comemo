@@ -1,0 +1,30 @@
+commit 57bf6aca711a53aa7fea877b98896cd0445c6ad0
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Sat Aug 5 14:44:00 2017 +0800
+
+    runtime, cmd/compile: add intrinsic getclosureptr
+    
+    Intrinsic enabled on all architectures,
+    runtime asm implementation removed on all architectures.
+    
+    Fixes #21258
+    
+    Change-Id: I2cb86d460b497c2f287a5b3df5c37fdb231c23a7
+    Reviewed-on: https://go-review.googlesource.com/53411
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go |  6 +++---
+ src/cmd/compile/internal/gc/ssa.go |  5 +++++
+ src/runtime/alg.go                 | 10 ++++++----
+ src/runtime/asm_386.s              | 17 -----------------
+ src/runtime/asm_amd64.s            | 17 -----------------
+ src/runtime/asm_amd64p32.s         | 17 -----------------
+ src/runtime/asm_arm.s              | 17 -----------------
+ src/runtime/asm_arm64.s            | 17 -----------------
+ src/runtime/asm_mips64x.s          | 17 -----------------
+ src/runtime/asm_mipsx.s            | 17 -----------------
+ src/runtime/asm_ppc64x.s           | 17 -----------------
+ src/runtime/asm_s390x.s            | 17 -----------------
+ src/runtime/stubs.go               | 16 ++++++++++++++++
+ 13 files changed, 30 insertions(+), 160 deletions(-)

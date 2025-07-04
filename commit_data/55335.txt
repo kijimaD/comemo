@@ -1,0 +1,18 @@
+commit 26ba75fe5927a078695288da0efefba37b4a4d6e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 18 17:09:18 2023 -0800
+
+    doc: document new iteration variable semantics in spec
+    
+    For #56010.
+    
+    Change-Id: Icca987a03d80587dd0e901f596ff7788584893ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551095
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 56 +++++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 51 insertions(+), 5 deletions(-)

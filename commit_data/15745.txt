@@ -1,0 +1,14 @@
+commit ea75ada36ba410c437ab21a62900d8436fadafa1
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Wed Mar 13 07:45:31 2013 -0700
+
+    unicode/utf8: fix insignificant typos in tests
+    
+    Fixes #4972.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7649044
+
+ src/pkg/unicode/utf8/utf8_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

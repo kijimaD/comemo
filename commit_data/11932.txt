@@ -1,0 +1,12 @@
+commit def2022bc08f0326503df4f661eeaca3809dd5f0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 15 09:02:45 2012 -0500
+
+    cmd/dist: use correct package target when cross-compiling
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5672050
+
+ src/cmd/dist/build.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

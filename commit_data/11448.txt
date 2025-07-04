@@ -1,0 +1,16 @@
+commit ba31d662fe52921b8035f4c5d7895d780d66a481
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jan 29 12:33:13 2012 -0500
+
+    codereview: die if initialized twice
+    
+    If this happens, something is misconfigured.
+    If we don't test for this explicitly, MatchAt ends
+    up calling itself recursively forever.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5576066
+
+ lib/codereview/codereview.py | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

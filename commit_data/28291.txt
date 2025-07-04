@@ -1,0 +1,18 @@
+commit 3d562de8e38317a06fbf860e60f71c5e4f0ceab6
+Author: bogem <albertnigma@gmail.com>
+Date:   Sat Sep 10 18:34:07 2016 +0500
+
+    os: delete code duplications in error files
+    
+    Change-Id: I1ec2fcf81a7a9e45a2fae8c02c8adabc7841b4fa
+    Reviewed-on: https://go-review.googlesource.com/29013
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/error.go         | 13 +++++++++++++
+ src/os/error_plan9.go   | 48 ++++++++++++++++--------------------------------
+ src/os/error_unix.go    | 33 +++------------------------------
+ src/os/error_windows.go | 33 +++------------------------------
+ 4 files changed, 35 insertions(+), 92 deletions(-)

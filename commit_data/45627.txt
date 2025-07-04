@@ -1,0 +1,49 @@
+commit 0fa2302ee5db35b4caae6211656f81ebb92cdb0a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed May 12 18:07:43 2021 +0200
+
+    cmd/vendor: update golang.org/x/sys to latest
+    
+    To pull in CL 318212.
+    
+    For #41184
+    
+    Change-Id: Iec0d7bee2d3a5874c24a55ec20efd7746bf70902
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319410
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go.mod                                     |    2 +-
+ src/cmd/go.sum                                     |    4 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkall.sh      |   12 -
+ .../golang.org/x/sys/unix/syscall_darwin.1_13.go   |    4 +-
+ .../golang.org/x/sys/unix/syscall_darwin_386.go    |   51 -
+ .../golang.org/x/sys/unix/syscall_darwin_arm.go    |   51 -
+ .../x/sys/unix/syscall_darwin_libSystem.go         |    9 +-
+ .../golang.org/x/sys/unix/zerrors_darwin_386.go    | 1789 --------------
+ .../golang.org/x/sys/unix/zerrors_darwin_arm.go    | 1789 --------------
+ .../x/sys/unix/zsyscall_darwin_386.1_13.go         |   40 -
+ .../x/sys/unix/zsyscall_darwin_386.1_13.s          |   13 -
+ .../golang.org/x/sys/unix/zsyscall_darwin_386.go   | 2431 --------------------
+ .../golang.org/x/sys/unix/zsyscall_darwin_386.s    |  291 ---
+ .../x/sys/unix/zsyscall_darwin_amd64.1_13.go       |    8 +-
+ .../x/sys/unix/zsyscall_darwin_amd64.1_13.s        |   18 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |  572 ++---
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |  852 +++++--
+ .../x/sys/unix/zsyscall_darwin_arm.1_13.go         |   40 -
+ .../x/sys/unix/zsyscall_darwin_arm.1_13.s          |   13 -
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm.go   | 2417 -------------------
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm.s    |  289 ---
+ .../x/sys/unix/zsyscall_darwin_arm64.1_13.go       |    8 +-
+ .../x/sys/unix/zsyscall_darwin_arm64.1_13.s        |   18 +-
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |  572 ++---
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |  852 +++++--
+ .../golang.org/x/sys/unix/zsysnum_darwin_386.go    |  438 ----
+ .../golang.org/x/sys/unix/zsysnum_darwin_arm.go    |  438 ----
+ .../golang.org/x/sys/unix/ztypes_darwin_386.go     |  524 -----
+ .../golang.org/x/sys/unix/ztypes_darwin_arm.go     |  524 -----
+ src/cmd/vendor/golang.org/x/sys/windows/empty.s    |    1 +
+ src/cmd/vendor/modules.txt                         |    2 +-
+ 31 files changed, 2038 insertions(+), 12034 deletions(-)

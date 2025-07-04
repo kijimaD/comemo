@@ -1,0 +1,14 @@
+commit 0ea0919534bc2d39f6fc7c62c92a1d40b7f58c1f
+Author: Peter McKenzie <petermck@google.com>
+Date:   Mon Apr 6 17:03:07 2009 -0700
+
+    Extremely minor fix to ByteBuffer.
+    
+    R=r
+    APPROVED=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=27123
+    CL=27130
+
+ src/lib/io/bytebuffer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

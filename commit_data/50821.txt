@@ -1,0 +1,26 @@
+commit 5ca0cd3f1824f189b6c5edf59b669f22a393e2e1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 4 13:53:46 2022 +0200
+
+    internal/poll, internal/syscall/unix, syscall: move writev definition for solaris
+    
+    Move the writev definition for solaris from package
+    internal/syscall/unix to package syscall. This corresponds to where
+    writev is defined on aix, darwin and openbsd as well and is
+    go:linkname'ed from internal/poll. This also allows updating the
+    generated wrappers more easily if needed.
+    
+    Change-Id: I671ed8232d25319f8e63f549f786d77a17602148
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436597
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/poll/fd_writev_libc.go         |  2 +-
+ src/internal/poll/fd_writev_solaris.go      | 14 --------------
+ src/internal/syscall/unix/writev_solaris.go | 28 ----------------------------
+ src/syscall/syscall_solaris.go              |  1 +
+ src/syscall/zsyscall_solaris_amd64.go       | 18 ++++++++++++++++++
+ 5 files changed, 20 insertions(+), 43 deletions(-)

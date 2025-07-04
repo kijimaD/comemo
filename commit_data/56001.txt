@@ -1,0 +1,22 @@
+commit 364687bda969d8bb70b1f50b5cce617bbdb094b0
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Mar 20 12:42:11 2024 -0400
+
+    doc/go1.23: document "net/http".Request.CookiesNamed method
+    
+    CL 511516 added the method but didn't include a release note for it
+    because it was authored and tested before the new release note flow.
+    
+    For #61472.
+    
+    Change-Id: I38f73e97093a2badaea658ed430e174b73e35b3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571278
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/next/6-stdlib/99-minor/net/http/61472.md | 1 +
+ 1 file changed, 1 insertion(+)

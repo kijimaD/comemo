@@ -1,0 +1,14 @@
+commit 6bf6cae28ee008a47cb23d6b80167cb6f45a8973
+Author: Patrick Higgins <patrick.allen.higgins@gmail.com>
+Date:   Wed Jun 5 21:09:43 2013 -0700
+
+    doc/contribute: add "Understanding the extension" section
+    
+    Fixes #4996
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7547043
+
+ doc/contribute.html | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)

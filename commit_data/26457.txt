@@ -1,0 +1,12 @@
+commit 7c86263be2ed0967313ec29c4130dccce7105e74
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 18 12:31:37 2016 -0700
+
+    math/big: much simplified and faster Float rounding
+    
+    Change-Id: Iab0add7aee51a8c72a81f51d980d22d2fd612f5c
+    Reviewed-on: https://go-review.googlesource.com/20817
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go | 134 ++++++++++++++++++--------------------------------
+ 1 file changed, 49 insertions(+), 85 deletions(-)

@@ -1,0 +1,21 @@
+commit f4936d09fd5a1fff890d63ee2ab9543243dc4da6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 14 12:56:37 2020 -0700
+
+    cmd/compile: call fninit earlier
+    
+    This allows the global initializers function to go through normal
+    mid-end optimizations (e.g., inlining, escape analysis) like any other
+    function.
+    
+    Updates #33485.
+    
+    Change-Id: I9bcfe98b8628d1aca09b4c238d8d3b74c69010a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254839
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/init.go | 8 +++-----
+ src/cmd/compile/internal/gc/main.go | 6 ++----
+ test/inline.go                      | 2 +-
+ 3 files changed, 6 insertions(+), 10 deletions(-)

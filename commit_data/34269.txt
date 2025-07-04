@@ -1,0 +1,22 @@
+commit 2e78f2afdb6714f2eb902d16039f4c475c2282f3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Feb 20 10:02:10 2018 +0000
+
+    html/template: make more use of stringer
+    
+    The code was maintaining manual versions of it in multiple places -
+    replace all of them.
+    
+    Change-Id: I04c3063877b05ba914de9f5dddb33ffe09f308fe
+    Reviewed-on: https://go-review.googlesource.com/95356
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/html/template/context.go        | 100 ++++--------------------------------
+ src/html/template/delim_string.go   |  16 ++++++
+ src/html/template/element_string.go |  16 ++++++
+ src/html/template/jsctx_string.go   |  16 ++++++
+ src/html/template/state_string.go   |  16 ++++++
+ src/html/template/urlpart_string.go |  16 ++++++
+ 6 files changed, 90 insertions(+), 90 deletions(-)

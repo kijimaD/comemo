@@ -1,0 +1,19 @@
+commit a95f1b51be6cdf39235dd4a00f03bab9bf17a3f3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 13 09:26:28 2021 -0700
+
+    test: change issue10441.go from "build" to "compile"
+    
+    We use "build" for tests in the main package with a main function.
+    We use "compile" for tests that are not in the main package.
+    
+    Change-Id: I9876b55a9e4672277483fd24e69058d439c66658
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334329
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/fixedbugs/issue10441.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

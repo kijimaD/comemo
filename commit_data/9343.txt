@@ -1,0 +1,12 @@
+commit 1b13131c6bf7f3e26a38f5afbd1aa561cd77e317
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 12 14:31:12 2011 +1000
+
+    CLA: Add Mike Samuel, Googler.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev, mikesamuel
+    https://golang.org/cl/4875042
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

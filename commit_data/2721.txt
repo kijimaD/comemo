@@ -1,0 +1,22 @@
+commit e76a335adacb2f9dd3a930a53eb9ab4a7c766209
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 15 16:10:17 2009 -0700
+
+    make the low-level encoder and decoder private and have them access byte.Buffers rather
+    than io.Readers and io.Writers.
+    change the Encoder/Decoder protocol so that each message is preceded by its length in bytes.
+    
+    R=rsc
+    DELTA=468  (119 added, 23 deleted, 326 changed)
+    OCL=31700
+    CL=31702
+
+ src/pkg/Make.deps           |   2 +-
+ src/pkg/gob/codec_test.go   | 142 ++++++++++++++++++++---------------------
+ src/pkg/gob/decode.go       | 152 +++++++++++++++++++++++++-------------------
+ src/pkg/gob/decoder.go      |  81 +++++++++++++++--------
+ src/pkg/gob/encode.go       | 136 +++++++++++++++++++--------------------
+ src/pkg/gob/encoder.go      |  53 ++++++++++++---
+ src/pkg/gob/encoder_test.go |  50 ++++++++++-----
+ src/pkg/gob/type.go         |  10 +--
+ 8 files changed, 361 insertions(+), 265 deletions(-)

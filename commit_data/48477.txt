@@ -1,0 +1,19 @@
+commit 29866aa2b6a6a48672a386d05b53779e768c13d6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 17 17:35:11 2022 -0700
+
+    go/types, types2: remove predecl. test functions from ordinary tests
+    
+    The type checker implements additional built-in functions (assert
+    and trace) that are useful for debugging. Only permit them in
+    manual tests (go test -run Manual), not for other tests where they
+    are not needed.
+    
+    Change-Id: Idc7723d9e3f6b2c27769b34743561e9d0339565c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393659
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go | 11 ++++-------
+ src/go/types/check_test.go                    | 11 ++++-------
+ 2 files changed, 8 insertions(+), 14 deletions(-)

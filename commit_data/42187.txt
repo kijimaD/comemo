@@ -1,0 +1,16 @@
+commit 03efd426316a0a1cde419d5ad200b683766bbc84
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Apr 29 14:55:07 2020 +1000
+
+    image: add a NewUniform doc comment
+    
+    Fixes #38739
+    
+    Change-Id: I42b9b601e63ab8df69a0e5ce9bcabf75bb98d83e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230777
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/image/names.go | 1 +
+ 1 file changed, 1 insertion(+)

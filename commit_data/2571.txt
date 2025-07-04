@@ -1,0 +1,16 @@
+commit 77baac11e17613ad95bdfaca074b5c17d25f6f76
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 13:43:47 2009 -0700
+
+    encode and decode for nested structures.
+    fix a bug in delta encoding: only update the delta-base if something is marshaled.
+    
+    R=rsc
+    DELTA=154  (94 added, 56 deleted, 4 changed)
+    OCL=31069
+    CL=31071
+
+ src/pkg/gob/codec_test.go |  5 +++
+ src/pkg/gob/decode.go     | 68 +++++++++++++++++++++------------------
+ src/pkg/gob/encode.go     | 81 +++++++++++++++++++++++++++++++----------------
+ 3 files changed, 96 insertions(+), 58 deletions(-)

@@ -1,0 +1,12 @@
+commit 335c5db76a3cefb98fdd30068440497ed119a8eb
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Fri Dec 23 22:01:46 2011 +0900
+
+    net/rpc: trivial test cleanup
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5498066
+
+ src/pkg/net/rpc/server_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit a8484753242a47ba43786395315a9edf09a0d8de
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat May 18 02:41:49 2013 +0800
+
+    cmd/ld: emit .tbss section when doing dynamic internal linking
+    Fixes #5200.
+    
+    R=iant, dave
+    CC=golang-dev
+    https://golang.org/cl/9383043
+
+ src/cmd/ld/elf.c | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

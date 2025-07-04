@@ -1,0 +1,17 @@
+commit e9850462aa1e35d92ff428915df7bb0c9e79df81
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 11 12:51:44 2020 +0700
+
+    cmd/compile: don't inline reflect.Value.UnsafeAddr/Pointer if enable checkptr
+    
+    Fixes #35073
+    
+    Change-Id: I4b555bbc33d39a97544e6dd9c61d95ae212f472b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222878
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl.go |  6 ++++++
+ test/fixedbugs/issue35073.go       | 23 +++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

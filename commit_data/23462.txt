@@ -1,0 +1,18 @@
+commit 58d177c63e9e9e50df4341d9aa5518c87a3309d8
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 23 06:23:04 2015 +1000
+
+    cmd/asm: fix handling of negative shifts.
+    
+    The change that "fixed" LSH was incorrect, and the fix for RSH was poor.
+    Make both use a correct, simple test: if the 64-bit value as a signed
+    integer is negative, it's an error.
+    
+    Really fixes #11278.
+    
+    Change-Id: I72cca03d7ad0d64fd649fa33a9ead2f31bd2977b
+    Reviewed-on: https://go-review.googlesource.com/11325
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/asm/internal/asm/parse.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

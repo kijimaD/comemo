@@ -1,0 +1,19 @@
+commit f5c3eda4c9519641265279bcb8a484f846750258
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Sep 24 19:32:11 2020 +0200
+
+    cmd/compile: enforce strongly typed rules for ARM (mergesym)
+    
+    Replace mergeSym by mergeSymTyped.
+    L435-L459
+    
+    toolstash-check successful.
+    
+    Change-Id: Icbefe5c3589ed4ecdbca3dff9b3a758bdba3b34b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257642
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  50 ++++-----
+ src/cmd/compile/internal/ssa/rewriteARM.go | 168 ++++++++++++++---------------
+ 2 files changed, 109 insertions(+), 109 deletions(-)

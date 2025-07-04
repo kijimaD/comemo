@@ -1,0 +1,18 @@
+commit ce3a5c0d1036bea6d0abb9ff638f3a5382e428ee
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 29 09:33:07 2022 -0400
+
+    os/exec: avoid leaking a process in TestDoubleStartLeavesPipesOpen
+    
+    Updates #52580.
+    For #50436.
+    
+    Change-Id: I0929055ffca1ca429f6ebec7d877f4268bd1fda2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436656
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/os/exec/exec_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,12 @@
+commit 6bb3c48d3d09d4e5a4dd4802bf8207c19f558cad
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jul 4 13:59:08 2009 -0700
+
+    another seg fault
+    
+    R=r
+    OCL=31156
+    CL=31156
+
+ src/cmd/gc/walk.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

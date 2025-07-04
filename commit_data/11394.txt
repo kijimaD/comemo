@@ -1,0 +1,12 @@
+commit 73ce14d0aa693f84e86dd61b3d3e862bcd4979d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 25 14:50:37 2012 -0800
+
+    regexp: remove vestigial Error type
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5573069
+
+ src/pkg/regexp/regexp.go | 7 -------
+ 1 file changed, 7 deletions(-)

@@ -1,0 +1,22 @@
+commit 81d7c5183722af90f66a989a68c617484eb1388f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 18 16:58:37 2008 -0700
+
+    First cut at a Go pretty printer:
+    - code scavenged from Go-in-Go front-end (will merge back)
+    - using "symbol-table" free parsing to build AST
+    - no printing yet
+    
+    R=r
+    OCL=15504
+    CL=15504
+
+ usr/gri/pretty/Makefile    |   39 ++
+ usr/gri/pretty/ast.go      |   39 ++
+ usr/gri/pretty/parser.go   | 1320 ++++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/platform.go |   70 +++
+ usr/gri/pretty/pretty.go   |   48 ++
+ usr/gri/pretty/printer.go  |    8 +
+ usr/gri/pretty/scanner.go  |  792 ++++++++++++++++++++++++++
+ usr/gri/pretty/utils.go    |   63 +++
+ 8 files changed, 2379 insertions(+)

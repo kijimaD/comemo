@@ -1,0 +1,35 @@
+commit f1d5ce0185fe184c016016d55f1718778b799f6d
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Feb 13 18:35:19 2019 -0500
+
+    cmd/go: make go list error behavior consistent in tests
+    
+    "go list -test" constructs a package graph, then creates test packages
+    for the target. If it encounters an error (for example, a syntax error
+    in a test file or a test function with the wrong signature), it
+    reports the error and exits without printing the test packages or
+    their dependencies, even if the -e flag is given. This is a problem
+    for tools that operate on test files while users are editing them. For
+    example, autocomplete may not work while the user is typing.
+    
+    With this change, a new function, load.TestPackagesAndErrors replaces
+    TestPackagesFor. The new function attaches errors to the returned test
+    packages instead of returning immediately. "go list -test" calls this
+    when the -e flag is set. TestPackagesFor now returns the same error as
+    before, but it returns non-nil packages so that "go list -test"
+    without -e can print partial results.
+    
+    Fixes #28491
+    
+    Change-Id: I141765c4574eae424d872eb9bf7dd63fdfb85efb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164357
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go             |  45 +++++-----
+ src/cmd/go/internal/load/pkg.go              |  78 +++++++++--------
+ src/cmd/go/internal/load/test.go             |  99 +++++++++++++--------
+ src/cmd/go/testdata/script/list_test_e.txt   |   2 +-
+ src/cmd/go/testdata/script/list_test_err.txt | 124 +++++++++++++++++++++++++++
+ 5 files changed, 253 insertions(+), 95 deletions(-)

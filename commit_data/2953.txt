@@ -1,0 +1,25 @@
+commit b5c57fea969e527a8127ffc3e62bba63ca861945
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 14:40:47 2009 -0700
+
+    delete forward type declarations
+    
+    R=r
+    DELTA=163  (1 added, 149 deleted, 13 changed)
+    OCL=33106
+    CL=33111
+
+ src/pkg/datafmt/datafmt.go  |  2 --
+ src/pkg/flag/flag.go        |  9 ---------
+ src/pkg/go/ast/ast.go       | 36 +++++++++++-------------------------
+ src/pkg/gob/decode.go       |  1 -
+ src/pkg/gob/encode.go       |  1 -
+ src/pkg/http/server.go      |  2 --
+ src/pkg/reflect/type.go     |  2 --
+ src/pkg/runtime/type.go     |  2 --
+ src/run.bash                |  4 ++--
+ test/fixedbugs/bug066.go    |  5 -----
+ test/interface/fail.go      |  2 --
+ test/interface/recursive.go |  2 --
+ test/ken/rob2.go            |  6 ------
+ 13 files changed, 13 insertions(+), 61 deletions(-)

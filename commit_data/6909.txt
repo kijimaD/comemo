@@ -1,0 +1,13 @@
+commit 3e2231e41fba17b474e434ecc39896a7e26f18bb
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 9 14:49:21 2010 -0500
+
+    A+C: Lorenzo Stoakes, Nigel Kerr (both individual CLA)
+    
+    R=r
+    CC=golang-dev, lstoakes, nk
+    https://golang.org/cl/3549041
+
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 2 ++
+ 2 files changed, 4 insertions(+)

@@ -1,0 +1,18 @@
+commit e1c1fa291934e49056b738166e243fd3aea7a7dd
+Author: Dave Day <djd@golang.org>
+Date:   Tue Dec 23 15:19:30 2014 +1100
+
+    reflect: add FuncOf function
+    
+    This also involves adding functions to typelinks along with a minor
+    change to ensure they are sorted correctly.
+    
+    Change-Id: I054a79b6498a634cbccce17579f52c299733c2cf
+    Reviewed-on: https://go-review.googlesource.com/1996
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/gc/reflect.go |  11 ++--
+ src/reflect/all_test.go        |  61 +++++++++++++++++++++
+ src/reflect/export_test.go     |  10 ++++
+ src/reflect/type.go            | 122 +++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 199 insertions(+), 5 deletions(-)

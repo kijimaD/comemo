@@ -1,0 +1,17 @@
+commit 0ff40a76ad81e2b02c24e83eee8aa93352498f6f
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Mon May 30 00:41:03 2016 -0700
+
+    crypto/x509: check that the issuer name matches the issuer's subject name.
+    
+    Fixes #14955.
+    
+    Change-Id: I157432584bb51088bec565f6bb9e64348345cff9
+    Reviewed-on: https://go-review.googlesource.com/23571
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/verify.go      |  13 ++++
+ src/crypto/x509/verify_test.go | 139 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 152 insertions(+)

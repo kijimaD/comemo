@@ -1,0 +1,13 @@
+commit a20a50b0b261450a46cff105d923cca78440b817
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 13 19:27:35 2009 -0700
+
+    \r is white space
+    
+    R=rsc
+    DELTA=2  (0 added, 0 deleted, 2 changed)
+    OCL=27397
+    CL=27400
+
+ src/lib/template/template.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

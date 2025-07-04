@@ -1,0 +1,19 @@
+commit 829c140f149dba8933dea0cead3a78de4c83b529
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 14 13:54:05 2019 -0700
+
+    cmd/compile: move Strongly Connected Components code into new file
+    
+    This logic is used by the current escape analysis pass, but otherwise
+    logically independent. Move (unchanged) into a separate file to make
+    that clearer, and to make it easier to replace esc.go later.
+    
+    Updates #23109.
+    
+    Change-Id: Iec8c0c47ea04c0008165791731c11d9104d5a474
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167715
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go | 138 -----------------------------------
+ src/cmd/compile/internal/gc/scc.go | 145 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 145 insertions(+), 138 deletions(-)

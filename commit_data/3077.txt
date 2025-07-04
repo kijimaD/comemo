@@ -1,0 +1,23 @@
+commit fdc4b4a47ffdd7bf9f1cba0f29c0efa44584f17d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 24 17:30:00 2009 -0700
+
+    start of FFI support, and a demo.
+    
+    R=r
+    DELTA=494  (492 added, 0 deleted, 2 changed)
+    OCL=33784
+    CL=33810
+
+ src/libcgo/Makefile               |  24 ++++
+ src/libcgo/cgocall.c              | 278 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/Makefile          |   2 +
+ src/pkg/runtime/cgocall.c         |  38 ++++++
+ src/pkg/runtime/cgocall.h         |  39 ++++++
+ src/pkg/runtime/linux/amd64/rt0.s |   4 +-
+ usr/rsc/fib/6c.c                  |  20 +++
+ usr/rsc/fib/Makefile              |  36 +++++
+ usr/rsc/fib/gcc.c                 |  34 +++++
+ usr/rsc/fib/go.go                 |   8 ++
+ usr/rsc/fib/main.go               |  13 ++
+ 11 files changed, 494 insertions(+), 2 deletions(-)

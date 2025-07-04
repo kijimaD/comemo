@@ -1,0 +1,14 @@
+commit e2621b80374f74f07cd7e7c9265e2d20b242bdae
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 13 15:20:52 2008 -0800
+
+    add a %v format to print an arbitrary value in its "println" form.
+    also add code to print (pointers to) arrays, through %v.
+    
+    R=rsc
+    DELTA=108  (70 added, 33 deleted, 5 changed)
+    OCL=19184
+    CL=19192
+
+ src/lib/fmt/print.go | 113 ++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 75 insertions(+), 38 deletions(-)

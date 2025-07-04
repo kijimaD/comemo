@@ -1,0 +1,16 @@
+commit 5136a9e1f7ed5fbeaa7d48641ae8c28c513727ae
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Mar 16 15:27:08 2009 -0700
+
+    change format of Sigt and Sigi
+    to allow room for type hash
+    needed for log-time type switch.
+    
+    R=r
+    OCL=26354
+    CL=26354
+
+ src/cmd/6g/obj.c    |  82 ++++++++++++++++----------
+ src/cmd/gc/subr.c   |   5 --
+ src/runtime/iface.c | 167 ++++++++++++++++++++++++++++++----------------------
+ 3 files changed, 147 insertions(+), 107 deletions(-)

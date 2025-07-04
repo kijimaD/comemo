@@ -1,0 +1,15 @@
+commit 1086dd7cfb70e382d6bb3242d26e7f673fffb808
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 25 08:00:55 2012 +1100
+
+    cmd/go: in list, don't print blank lines for no output
+    Otherwise
+            go list -f "{{if .Stale}}{{.ImportPath}}{{end}}" all
+    and similar commands can print pages of empty lines.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5696058
+
+ src/cmd/go/list.go | 41 ++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 38 insertions(+), 3 deletions(-)

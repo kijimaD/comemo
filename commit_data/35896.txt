@@ -1,0 +1,16 @@
+commit be1dfb0e1acc676b1b2de4c1802e047a56e146ab
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 5 22:29:34 2018 -0400
+
+    doc: describe modules in Go 1.11 release notes and Go FAQ
+    
+    Fixes #25517.
+    
+    Change-Id: I801eebe17eaed9be09f290e8f219a808dc98f837
+    Reviewed-on: https://go-review.googlesource.com/122408
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.11.html | 51 +++++++++++++++++++++++++++++++++++++++++++++++----
+ doc/go_faq.html | 11 ++++++-----
+ 2 files changed, 53 insertions(+), 9 deletions(-)

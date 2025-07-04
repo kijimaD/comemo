@@ -1,0 +1,27 @@
+commit 792a26130347c9b9db344ba56f86645679a1a9d9
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jul 24 13:30:28 2024 -0400
+
+    doc/next: use relative link to Go issue
+    
+    The Go release notes are served on multiple domains (go.dev,
+    golang.google.cn, tip.golang.org, localhost:8080 and so on), so links
+    pointing to the Go website itself need to be relative to work in all
+    those contexts.
+    
+    Caught by a test in x/website. The next CL adds the same test to this
+    repository so these kinds of problems are caught sooner and with less
+    friction.
+    
+    For #68545.
+    Fixes #68575.
+    
+    Change-Id: I08056b98968c77a1d0ed93b63fccfbe41274ec8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600656
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/3-tools.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

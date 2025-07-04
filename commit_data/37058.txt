@@ -1,0 +1,18 @@
+commit 956af978806749448af86d7e2878405ee0bef94d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 23 07:01:35 2018 +1100
+
+    encoding/gob: delete out of memory test
+    
+    Now that the library allows much larger data, it can kill
+    machines with less memory.
+    
+    Fixes #28321
+    
+    Change-Id: I98e1a5fdf812fd75adfb22bf01542423de405fe2
+    Reviewed-on: https://go-review.googlesource.com/c/143817
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/encoding/gob/encoder_test.go | 22 ----------------------
+ 1 file changed, 22 deletions(-)

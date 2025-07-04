@@ -1,0 +1,16 @@
+commit 400fa1c893825ab0da8406871fc22c6fbb8d564a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 13 13:05:42 2009 -0700
+
+    align the tutorial with the renaming of SortInterface.
+    fix a bug in makehtml - was deleting the output!
+    
+    R=rsc
+    DELTA=11  (2 added, 0 deleted, 9 changed)
+    OCL=35672
+    CL=35674
+
+ doc/go_tutorial.html | 14 ++++++++------
+ doc/go_tutorial.txt  |  6 +++---
+ doc/progs/sort.go    |  6 +++---
+ 3 files changed, 14 insertions(+), 12 deletions(-)

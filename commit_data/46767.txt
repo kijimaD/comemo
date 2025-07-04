@@ -1,0 +1,98 @@
+commit 4d8db00641cc9ff4f44de7df9b8c4f4a4f9416ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 22 10:46:32 2021 -0400
+
+    all: use bytes.Cut, strings.Cut
+    
+    Many uses of Index/IndexByte/IndexRune/Split/SplitN
+    can be written more clearly using the new Cut functions.
+    Do that. Also rewrite to other functions if that's clearer.
+    
+    For #46336.
+    
+    Change-Id: I68d024716ace41a57a8bf74455c62279bde0f448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351711
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/errors/errors_test.go                     |  9 ++--
+ misc/cgo/testcshared/cshared_test.go               |  4 +-
+ misc/cgo/testsanitizers/cc_test.go                 |  2 +-
+ misc/ios/go_ios_exec.go                            | 10 ++--
+ misc/linkcheck/linkcheck.go                        |  6 +--
+ src/archive/tar/strconv.go                         | 43 +++++-----------
+ src/archive/tar/writer_test.go                     |  4 +-
+ src/archive/zip/writer_test.go                     |  2 +-
+ src/cmd/doc/dirs.go                                |  6 +--
+ src/cmd/doc/pkg.go                                 |  4 +-
+ src/cmd/fix/typecheck.go                           | 18 +++----
+ src/cmd/vet/vet_test.go                            |  4 +-
+ src/crypto/ecdsa/ecdsa_test.go                     |  6 +--
+ src/crypto/tls/handshake_client_test.go            | 10 ++--
+ src/crypto/tls/handshake_test.go                   | 13 +++--
+ src/crypto/x509/pem_decrypt.go                     |  5 +-
+ src/encoding/asn1/common.go                        |  9 +---
+ src/encoding/json/tags.go                          | 16 ++----
+ src/encoding/pem/pem.go                            | 10 ++--
+ src/encoding/xml/typeinfo.go                       |  4 +-
+ src/encoding/xml/xml.go                            | 49 +++++++++---------
+ src/go/build/build.go                              | 24 +++------
+ src/go/build/build_test.go                         |  2 +-
+ src/go/build/read.go                               |  8 +--
+ src/go/build/read_test.go                          | 21 +++-----
+ src/go/constant/value_test.go                      | 12 ++---
+ src/go/doc/comment.go                              | 16 +++---
+ src/go/doc/headscan.go                             | 17 +++----
+ src/go/importer/importer_test.go                   |  3 +-
+ src/go/printer/nodes.go                            |  2 +-
+ src/go/printer/printer.go                          | 13 ++---
+ src/go/types/eval_test.go                          |  6 +--
+ src/html/template/attr.go                          |  6 +--
+ src/html/template/js.go                            |  4 +-
+ src/html/template/url.go                           |  4 +-
+ src/internal/profile/legacy_profile.go             | 10 ++--
+ src/mime/encodedword.go                            | 22 +++-----
+ src/mime/mediatype.go                              | 15 ++----
+ src/net/http/cgi/child.go                          |  4 +-
+ src/net/http/cgi/host.go                           |  5 +-
+ src/net/http/cgi/host_test.go                      | 10 ++--
+ src/net/http/client_test.go                        |  7 ++-
+ src/net/http/cookie.go                             | 27 +++-------
+ src/net/http/fs.go                                 |  6 +--
+ src/net/http/internal/chunked.go                   |  9 ++--
+ src/net/http/main_test.go                          |  7 +--
+ src/net/http/request.go                            | 25 +++++-----
+ src/net/http/response.go                           | 15 +++---
+ src/net/http/server.go                             |  2 +-
+ src/net/http/transport.go                          |  6 +--
+ src/net/mail/message.go                            |  2 +-
+ src/net/main_posix_test.go                         |  4 +-
+ src/net/main_test.go                               |  7 +--
+ src/net/platform_test.go                           | 10 ++--
+ src/net/smtp/smtp.go                               |  8 +--
+ src/net/textproto/reader.go                        | 28 ++++-------
+ src/net/url/url.go                                 | 58 ++++++----------------
+ src/net/url/url_test.go                            |  9 ----
+ src/os/exec/exec.go                                | 10 ++--
+ src/os/exec/exec_test.go                           |  8 ++-
+ src/os/os_test.go                                  |  4 +-
+ src/os/user/cgo_lookup_unix.go                     |  4 +-
+ src/os/user/lookup_unix.go                         |  4 +-
+ src/regexp/exec_test.go                            | 14 ++----
+ src/regexp/regexp.go                               | 22 ++++----
+ src/regexp/syntax/parse.go                         |  8 +--
+ src/runtime/debug/mod.go                           |  5 +-
+ src/runtime/pprof/pprof_test.go                    | 17 +++----
+ src/runtime/pprof/proto.go                         | 33 +++++-------
+ src/runtime/pprof/proto_test.go                    |  5 +-
+ src/runtime/runtime-gdb_test.go                    |  2 +-
+ src/runtime/testdata/testprog/numcpu_freebsd.go    | 11 ++--
+ .../testdata/testprog/traceback_ancestors.go       | 38 +++++++-------
+ src/strconv/fp_test.go                             | 20 ++++----
+ src/syscall/exec_linux_test.go                     |  4 +-
+ src/text/template/option.go                        | 10 ++--
+ test/run.go                                        | 44 +++++++---------
+ test/zerodivide.go                                 |  2 +-
+ 78 files changed, 356 insertions(+), 577 deletions(-)

@@ -1,0 +1,14 @@
+commit 7da1f7addf54e55c7b40c1a7bffe5a64989154d8
+Author: Mikio Hara <mikioh.public.networking@gmail.com>
+Date:   Thu Nov 8 09:48:55 2018 +0900
+
+    net: simplify nested if-blocks
+    
+    Change-Id: I32e1829c955a48d8c4566430c13679e237bb0611
+    Reviewed-on: https://go-review.googlesource.com/c/148337
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/interface.go | 28 ++++++++++++----------------
+ 1 file changed, 12 insertions(+), 16 deletions(-)

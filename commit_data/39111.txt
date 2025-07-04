@@ -1,0 +1,23 @@
+commit 2aa8971910a24e35c47c304e5b8d241c134ddd5a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu May 9 16:22:38 2019 -0400
+
+    cmd/go: move two vcs test repos to vcs-test.golang.org
+    
+    Follow-up to CL 174061. This also fixes a break after GOSUMDB
+    was introduced.
+    
+    Updates #31946
+    Updates #31673
+    Updates #31287
+    Updates #27171
+    
+    Change-Id: I8e91e857f301b6b73cc90f2f2c68523412e22b46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176417
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .../script/mod_get_pseudo_other_branch.txt         | 50 +++++++++++++++++++---
+ .../go/testdata/script/mod_get_pseudo_prefix.txt   | 47 ++++++++++++++++----
+ 2 files changed, 81 insertions(+), 16 deletions(-)

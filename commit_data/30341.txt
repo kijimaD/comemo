@@ -1,0 +1,17 @@
+commit 84a855e547b8ef9a1a7aaaaedc3b1058ef7d1c09
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Feb 13 16:19:51 2017 -0800
+
+    cmd/vet/all: add mips and mipsle
+    
+    Change-Id: I689b2e8e214561350f88fa4e20c8f34cf69dc6a7
+    Reviewed-on: https://go-review.googlesource.com/37301
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/all/main.go              |  2 ++
+ src/cmd/vet/all/whitelist/mips.txt   |  7 +++++++
+ src/cmd/vet/all/whitelist/mipsle.txt |  7 +++++++
+ src/cmd/vet/all/whitelist/mipsx.txt  | 11 +++++++++++
+ 4 files changed, 27 insertions(+)

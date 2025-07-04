@@ -1,0 +1,28 @@
+commit 771f5f2e487db4eb2bcf6fa1660dc8cef1feaf14
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Oct 16 15:05:04 2020 +0100
+
+    compress/flate: revert a goto for-loop
+    
+    In https://golang.org/cl/16528, a goto loop was chosen over a regular
+    for loop since that would make the function inlinable.
+    
+    Thanks to the recent https://golang.org/cl/256459, for loops without a
+    label can now be inlined. So we can undo the workaround and simplify the
+    code.
+    
+    Also add the function to TestIntendedInlining, which passes both before
+    and after the change, as expected.
+    
+    For #14768.
+    
+    Change-Id: Ie5df55a6bcb07c538ca331eef2f908807ff0b516
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263037
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl_test.go | 1 +
+ src/compress/flate/dict_decoder.go      | 6 ++----
+ 2 files changed, 3 insertions(+), 4 deletions(-)

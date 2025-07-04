@@ -1,0 +1,12 @@
+commit 51ddddc67e406db9960135a503f42cb653734289
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue May 26 16:30:35 2009 -0700
+
+    bug 151
+    
+    R=r
+    OCL=29409
+    CL=29409
+
+ src/cmd/gc/walk.c | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)

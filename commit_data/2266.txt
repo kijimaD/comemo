@@ -1,0 +1,16 @@
+commit 23e62d169fce3e85b6df74a878d2911d74d6b168
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 20 18:23:19 2009 -0700
+
+    stricter interface conversion rule: i.(T)
+    must have non-nil i.
+    
+    R=ken
+    OCL=29136
+    CL=29136
+
+ src/cmd/gc/builtin.c.boot |  1 +
+ src/cmd/gc/sys.go         |  1 +
+ src/cmd/gc/walk.c         |  7 ++++++-
+ src/runtime/iface.c       | 39 +++++++++++++++++++++++++++++++--------
+ 4 files changed, 39 insertions(+), 9 deletions(-)

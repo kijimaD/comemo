@@ -1,0 +1,26 @@
+commit 8c39bbf9c93f773ab351bbddb4c3dd93e4fddc76
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 11 13:19:57 2020 -0700
+
+    cmd/compile: stop race instrumentation from clobbering frame pointer
+    
+    There is an optimization rule that removes calls to racefuncenter and
+    racefuncexit, if there are no other race calls in the function. The
+    rule removes the call to racefuncenter, but it does *not* remove the
+    store of its argument to the outargs section of the frame. If the
+    outargs section is now size 0 (because the calls to racefuncenter/exit
+    were the only calls), then that argument store clobbers the frame
+    pointer instead.
+    
+    The fix is to remove the argument store when removing the call to
+    racefuncenter.  (Racefuncexit doesn't have an argument.)
+    
+    Change-Id: I183ec4d92bbb4920200e1be27b7b8f66b89a2a0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248262
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/racewalk.go | 2 +-
+ src/cmd/compile/internal/ssa/rewrite.go | 9 +++++++++
+ 2 files changed, 10 insertions(+), 1 deletion(-)

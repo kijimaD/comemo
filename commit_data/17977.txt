@@ -1,0 +1,12 @@
+commit 1e6996ff2e4360db0b6f87f11688d7b23831be06
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 17:25:02 2013 -0800
+
+    .hgignore: remove merge markers
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/40720049
+
+ .hgignore | 3 ---
+ 1 file changed, 3 deletions(-)

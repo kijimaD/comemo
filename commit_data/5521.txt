@@ -1,0 +1,13 @@
+commit 977475fd491680157eda8f33dfd11261ec85fabd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 24 09:58:59 2010 -0700
+
+    syscall: update freebsd_amd64
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1268041
+
+ src/pkg/syscall/zerrors_freebsd_amd64.go  | 1113 +++++++++++++++--------------
+ src/pkg/syscall/zsyscall_freebsd_amd64.go |   14 +-
+ 2 files changed, 604 insertions(+), 523 deletions(-)

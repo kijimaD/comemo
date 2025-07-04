@@ -1,0 +1,16 @@
+commit fba015ecb415ecd84b2d2e2c98f1a6efc09fbd5b
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Oct 7 09:12:17 2013 -0700
+
+    os/user: enable tests on all supported platforms
+    
+    All of the currently supported platforms have a working user
+    implementation and do not use stubs. As a result, enable the tests
+    on all platforms rather than whitelisting.
+    
+    R=golang-dev, dave, iant
+    CC=golang-dev
+    https://golang.org/cl/14454044
+
+ src/pkg/os/user/user_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,0 +1,21 @@
+commit 757f3c802aaf3e01647e644ff7ee160af1751c63
+Author: Damien Neil <dneil@google.com>
+Date:   Tue May 24 16:13:42 2022 -0700
+
+    net: add even more timing slop for TestDialParallel
+    
+    This test expects dials of a closed port to complete in about the same
+    amount of time: an initial probe value +/- 20%. Reduce test flakes on
+    Windows by increasing the slop to +/- 50% of the original value.
+    
+    Fixes #52173
+    
+    Change-Id: I813492c36aca2b0264b3b5b8c96e8bf97193af76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408354
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/dial_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 1161e1172bfc17a23fb38f8e930d230c5bc78eae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 13 17:53:00 2011 -0500
+
+    fix build, sorry
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/5488066
+
+ src/clean.bash               | 2 +-
+ test/bench/shootout/Makefile | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

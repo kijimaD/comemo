@@ -1,0 +1,18 @@
+commit 659d1df1bcd44ec6bb92f9592a8c92670d862d3c
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Mon Sep 24 08:30:28 2012 +1000
+
+    pkg/go/ast: Avoid doing zero-length writes to the fd.
+    
+    After each line, ast.Print would do a zero-length write,
+    which would hit the boundary condition on Plan 9 when
+    reading over pipes (since message boundaries are
+    preserved). This change makes sure we only do positive-
+    length writes.
+    
+    R=rsc, rminnich, dave, r
+    CC=golang-dev
+    https://golang.org/cl/6558046
+
+ src/pkg/go/ast/print.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit 6764d7aeacd24f48875ce88a8e3c789cedfb2e28
+Author: Jordan Rhee <jordanrh@microsoft.com>
+Date:   Tue Dec 11 14:24:07 2018 -0800
+
+    runtime: fix profiling on windows/ARM
+    
+    Fix profiling handler to get the correct g for the m being profiled.
+    Store a pointer to the TLS slot holding g in the thread's m. This
+    enables the profiling handler to get the current g for the thread,
+    even if the thread is executing external code or system code.
+    
+    Updates #26148
+    
+    Signed-off-by: Jordan Rhee <jordanrh@microsoft.com>
+    
+    Change-Id: Ie061284c12341c76c7d96cc0c2d5bac969230829
+    Reviewed-on: https://go-review.googlesource.com/c/153718
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os_windows.go     | 16 ++------
+ src/runtime/sys_windows_arm.s | 95 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/tls_arm.s         | 45 ++------------------
+ 3 files changed, 101 insertions(+), 55 deletions(-)

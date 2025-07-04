@@ -1,0 +1,19 @@
+commit d40ae949934344ccea67d52a6bf5c1cce8a35143
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Wed Feb 9 10:57:59 2011 -0800
+
+    rpc: make more tolerant of errors.
+    Add Error type to enable clients to distinguish
+    between local and remote errors.
+    Also return "connection shut down error" after
+    the first error return rather than returning the
+    same error each time.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4080058
+
+ src/pkg/rpc/client.go      |  55 ++++++++++++++++--------
+ src/pkg/rpc/server.go      |  85 +++++++++++++++++++++++--------------
+ src/pkg/rpc/server_test.go | 103 ++++++++++++++++-----------------------------
+ 3 files changed, 127 insertions(+), 116 deletions(-)

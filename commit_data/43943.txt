@@ -1,0 +1,17 @@
+commit 2c2980aa0cde1a44789103981774e34a4c8a0f2d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Oct 30 00:04:00 2020 +0100
+
+    doc/go1.16: pre-announce GODEBUG=x509ignoreCN=0 removal in Go 1.17
+    
+    For #40700
+    Updates #24151
+    
+    Change-Id: Id63dcaad238f7534bfce8902b8cb3efd8db5942d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266539
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/go1.16.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

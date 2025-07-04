@@ -1,0 +1,18 @@
+commit 1da575a7bc501e95cbf301e372b6eaf38e41eb30
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Oct 29 21:02:35 2019 -0400
+
+    cmd/internal/obj/s390x: add support of SPM instruction
+    
+    For restoring condition code (we already support IPM instruction
+    for saving condition code).
+    
+    Change-Id: I56d376df44a5f831134a130d052521cec6b5b781
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204104
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+
+ src/cmd/asm/internal/asm/testdata/s390x.s | 3 +++
+ src/cmd/internal/obj/s390x/a.out.go       | 3 +++
+ src/cmd/internal/obj/s390x/anames.go      | 1 +
+ src/cmd/internal/obj/s390x/asmz.go        | 6 ++++++
+ 4 files changed, 13 insertions(+)

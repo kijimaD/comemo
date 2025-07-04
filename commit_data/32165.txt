@@ -1,0 +1,19 @@
+commit 3b87defe4e3f865862cbe2e0627d94a8c456ae0c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Aug 8 16:40:07 2017 -0700
+
+    cmd/compile: unexport gc.Sysfunc
+    
+    Updates #21352
+    
+    Change-Id: If21342f30be32e25840b4072b932a6d4257b420d
+    Reviewed-on: https://go-review.googlesource.com/54091
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/gen.go     |  2 +-
+ src/cmd/compile/internal/gc/reflect.go |  6 ++---
+ src/cmd/compile/internal/gc/ssa.go     | 48 +++++++++++++++++-----------------
+ 3 files changed, 28 insertions(+), 28 deletions(-)

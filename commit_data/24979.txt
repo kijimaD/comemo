@@ -1,0 +1,26 @@
+commit b43b375c6c3d540b8ed4ab69bfc634991cd5dcd3
+Author: Austin Clements <austin@google.com>
+Date:   Tue Nov 17 17:14:32 2015 -0500
+
+    runtime: eliminate write barriers from gentraceback
+    
+    gentraceback is used in many contexts where write barriers are
+    disallowed. This currently works because the only write barrier is in
+    assigning frame.argmap in setArgInfo and in practice frame is always
+    on the stack, so this write barrier is a no-op.
+    
+    However, we can easily eliminate this write barrier, which will let us
+    statically disallow write barriers (using go:nowritebarrierrec
+    annotations) in many more situations. As a bonus, this makes the code
+    a little more idiomatic.
+    
+    Updates #10600.
+    
+    Change-Id: I45ba5cece83697ff79f8537ee6e43eadf1c18c6d
+    Reviewed-on: https://go-review.googlesource.com/17003
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/traceback.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit 7bcc6a1615c8265eb64d44e6c066ab699577db18
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 9 12:08:59 2015 -0700
+
+    cmd/compile: add -importmap option
+    
+    The -importmap option takes an argument of the form old=new
+    and specifies that import "old" should be interpreted as if it said
+    import "new". The option may be repeated to specify multiple mappings.
+    
+    This option is here to support the go command's new -vendor flag.
+    
+    Change-Id: I31b4ed4249b549982a720bf61bb230462b33c59b
+    Reviewed-on: https://go-review.googlesource.com/10922
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/doc.go             |  3 +++
+ src/cmd/compile/internal/gc/lex.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)

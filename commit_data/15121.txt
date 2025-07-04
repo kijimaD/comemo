@@ -1,0 +1,12 @@
+commit 4e285bac6e6bafb443e0c3aef94c424bc96967e8
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Feb 4 15:30:41 2013 +1100
+
+    container/heap: fix package doc comment about ordering.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/7280044
+
+ src/pkg/container/heap/heap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

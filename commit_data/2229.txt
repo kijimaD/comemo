@@ -1,0 +1,16 @@
+commit e8c1e2b93a194fdd2cf855f32af4f3160a6c3bb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 15 19:15:45 2009 -0700
+
+    get rid of unused files in my home dir
+    
+    TBR=r
+    DELTA=9270  (0 added, 9270 deleted, 0 changed)
+    OCL=28958
+    CL=28958
+
+ usr/gri/gosrc/test/a.go |  7 -------
+ usr/gri/gosrc/test/b.go | 13 -------------
+ usr/gri/gosrc/test/c.go |  7 -------
+ usr/gri/gosrc/test/d.go | 19 -------------------
+ 4 files changed, 46 deletions(-)

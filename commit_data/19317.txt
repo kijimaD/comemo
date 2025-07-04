@@ -1,0 +1,23 @@
+commit 4118665775dd21b2f244e763bfcccba18902d682
+Author: Dmitri Shuralyov <shurcooL@gmail.com>
+Date:   Sat May 10 18:06:58 2014 -0700
+
+    cmd/go: simplify code, reduce allocations.
+    
+    This is a trivial change to make use of an existing `nl` byte slice
+    containing a single '\n' character. It's already declared and
+    used in another place in this file, so it might as well be used
+    in the other location instead of
+    a new slice literal. There should be no change in behavior,
+    aside from potentially less allocations.
+    
+    This is my first CL, so I wanted to use a simple, hopefully non-controversial,
+    minor improvement to get more comfortable with golang contribution process.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/97280043
+
+ src/cmd/go/list.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

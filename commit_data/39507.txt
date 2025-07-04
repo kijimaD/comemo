@@ -1,0 +1,19 @@
+commit e0739d12007f4fabbbef91deee9de9923d5924d8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jul 11 16:09:50 2019 -0400
+
+    test: add a test for gccgo bug #33062.
+    
+    Gccgo generates incorrect type equality functions for some types.
+    CL 185817 fixes it. This CL adds a test.
+    
+    Updates #33062.
+    
+    Change-Id: Id445c5d44a437512c65c46a029e49b7fc32e4d89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/185818
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue33062.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

@@ -1,0 +1,15 @@
+commit b440a650330f288ce1f230673440ec4b356751fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 13 00:19:18 2012 -0500
+
+    strconv: disable issue 2917 test
+    
+    It did in fact break on the darwin/386 builder.
+    Will investigate later; reopened issue 2917.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5654070
+
+ src/pkg/strconv/atof_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

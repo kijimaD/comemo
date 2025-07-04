@@ -1,0 +1,13 @@
+commit 92ac0cfbb2b3244784b5ab52d1dd31598975a76d
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Fri Apr 9 18:57:03 2010 -0700
+
+    strings: add IndexRune, Trim, TrimLeft, TrimRight, and the generic equivalents TrimFunc, TrimLeftFunc, TrimRightFunc
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/799048
+
+ src/pkg/strings/strings.go      | 81 ++++++++++++++++++++++++++++++++++++-----
+ src/pkg/strings/strings_test.go | 69 ++++++++++++++++++++++++++++++++++-
+ 2 files changed, 139 insertions(+), 11 deletions(-)

@@ -1,0 +1,14 @@
+commit edcd70e07a803b13bff09b950be80a23261f7f89
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Mon Apr 5 22:32:36 2010 -0700
+
+    test/bench: add k-nucleotide-parallel
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/881042
+
+ test/bench/k-nucleotide-parallel.go  | 155 +++++++++++++++++++++++++++++++++++
+ test/bench/k-nucleotide-parallel.txt |  27 ++++++
+ test/bench/timing.sh                 |   2 +
+ 3 files changed, 184 insertions(+)

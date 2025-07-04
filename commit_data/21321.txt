@@ -1,0 +1,14 @@
+commit e6982fadd2b5b6a8172fca86cfd2e7158fdd0523
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 21 16:20:14 2015 +0000
+
+    Revert "runtime: fix trigger for concurrent GC"
+    
+    This reverts commit 44529d939192c3034a04e2eff865d04ee51ae532.
+    
+    Change-Id: I7671e2cd6f6a476efffa16e8110500a98258c0c1
+    Reviewed-on: https://go-review.googlesource.com/3130
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

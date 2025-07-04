@@ -1,0 +1,36 @@
+commit 969f48a3a24032c3dd1ec351302b5b62407dfb88
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Fri Jul 29 14:24:26 2022 +0800
+
+    cmd/compile: intrinsify Add64 on riscv64
+    
+    According to RISCV instruction set manual v2.2 Sec 2.4, we can
+    implement overflowing check for unsigned addition cheaply using
+    SLTU instructions.
+    
+    After this CL, the performance difference in crypto/elliptic
+    benchmarks on linux/riscv64 are:
+    
+    name                 old time/op    new time/op    delta
+    ScalarBaseMult/P256    1.93ms ± 1%    1.64ms ± 1%  -14.96%  (p=0.008 n=5+5)
+    ScalarBaseMult/P224    1.80ms ± 2%    1.53ms ± 1%  -14.89%  (p=0.008 n=5+5)
+    ScalarBaseMult/P384    6.15ms ± 2%    5.12ms ± 2%  -16.73%  (p=0.008 n=5+5)
+    ScalarBaseMult/P521    25.9ms ± 1%    22.3ms ± 2%  -13.78%  (p=0.008 n=5+5)
+    ScalarMult/P256        5.59ms ± 1%    4.49ms ± 2%  -19.79%  (p=0.008 n=5+5)
+    ScalarMult/P224        5.42ms ± 1%    4.33ms ± 1%  -20.01%  (p=0.008 n=5+5)
+    ScalarMult/P384        19.9ms ± 2%    16.3ms ± 1%  -18.15%  (p=0.008 n=5+5)
+    ScalarMult/P521        97.3ms ± 1%   100.7ms ± 0%   +3.48%  (p=0.008 n=5+5)
+    
+    Change-Id: Ic4c82ced4b072a4a6575343fa9f29dd09b0cabc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420094
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  7 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 76 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/ssa.go         |  4 +-
+ test/codegen/mathbits.go                       |  8 +++
+ 4 files changed, 93 insertions(+), 2 deletions(-)

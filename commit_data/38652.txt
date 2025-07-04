@@ -1,0 +1,23 @@
+commit bead358611e36fe0991c171a8a4a4924f4f0e584
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 4 11:01:22 2019 -0400
+
+    math/bits: add gccgo-friendly code for compiler bootstrap
+    
+    When building as part of the bootstrap process, avoid
+    use of "go:linkname" applied to variables, since this
+    feature is ill-defined/unsupported for gccgo.
+    
+    Updates #30771.
+    
+    Change-Id: Id44d01b5c98d292702e5075674117518cb59e2d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170737
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/bits/bits.go                  |  8 --------
+ src/math/bits/bits_errors.go           | 15 +++++++++++++++
+ src/math/bits/bits_errors_bootstrap.go | 22 ++++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 8 deletions(-)

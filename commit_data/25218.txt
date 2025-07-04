@@ -1,0 +1,24 @@
+commit 07f9c25b357d2eb1305e5016a967df1b00d345bd
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 9 12:53:28 2015 -0800
+
+    cmd/compile: remove unneeded error message cleanup pass
+    
+    This code used to be necessary because of the error messages generated
+    by the YACC-based parser, but they're no longer relevant under the new
+    recursive descent parser:
+    
+      - LBRACE no longer exists, so "{ or {" can never occur.
+    
+      - The parser never generates error messages about "@" or "?" now
+        (except in import sections, where they're actually legitimate).
+    
+      - The s/LLITERAL/litbuf/ substitution is handled in p.syntax_error.
+    
+    Change-Id: Id39f747e4aa492c5830d14a47b161920bd4589ad
+    Reviewed-on: https://go-review.googlesource.com/17690
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go |  1 -
+ src/cmd/compile/internal/gc/subr.go   | 10 ----------
+ 2 files changed, 11 deletions(-)

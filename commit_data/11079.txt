@@ -1,0 +1,17 @@
+commit 4bcc9c6b5e91eca8de1329ea2151610e2f3e3ada
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Tue Jan 10 11:18:56 2012 +0100
+
+    gc: disallow declaration of variables outside package.
+    
+    Fixes #2231.
+    
+    Declaring main.i in package main in the same way already triggers syntax errors.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5483078
+
+ src/cmd/gc/dcl.c         |  5 +++++
+ test/fixedbugs/bug388.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

@@ -1,0 +1,25 @@
+commit 61e2b8ec598e33b0d55a0652f86eeb075de3dc9d
+Author: Oleg Zaytsev <mail@olegzaytsev.com>
+Date:   Fri Dec 9 13:05:34 2022 +0100
+
+    cmd/gc: test temp string comparison with all ops
+    
+    The comment on `slicebytetostringtmp` mention that `==` operator does
+    not allocate []byte to string conversion, but the test was testing only
+    `==` and `!=` and the compiler actually optimizes all comparison
+    operators.
+    
+    Also added a test for concatenation comparison, which also should not
+    allocate.
+    
+    Change-Id: I6f4c5c4f238808138fa901732e1fd5b6ab25f725
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456415
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/string_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

@@ -1,0 +1,12 @@
+commit 54eec3db2c631d6d3b16ba0316db0e0e6f3367a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 17:42:14 2012 -0800
+
+    godoc: fine-tuning .css
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5699057
+
+ doc/style.css | 27 ++++++++-------------------
+ 1 file changed, 8 insertions(+), 19 deletions(-)

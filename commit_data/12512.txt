@@ -1,0 +1,13 @@
+commit b6618c118f33b2ade689ee1e77c52361f4657e33
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 8 17:31:20 2012 +1100
+
+    doc: drop google +1 button from the home page
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5784048
+
+ doc/root.html | 2 --
+ doc/style.css | 3 ---
+ 2 files changed, 5 deletions(-)

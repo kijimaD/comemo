@@ -1,0 +1,19 @@
+commit cdf136217922ecc2681c0d12072348018a7db1cf
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Oct 28 17:42:51 2023 +0000
+
+    runtime: move userArenaHeapBitsSetType into mbitmap.go
+    
+    This will make the upcoming GOEXPERIMENT easier to implement, since this
+    function relies on a lot of heap bitmap internals.
+    
+    Change-Id: I2ab76e928e7bfd383dcdb5bfe72c9b23c2002a4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537979
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/arena.go   | 96 --------------------------------------------------
+ src/runtime/mbitmap.go | 95 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 96 deletions(-)

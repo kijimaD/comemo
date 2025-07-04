@@ -1,0 +1,14 @@
+commit 8b96bc6818ca673b4d6b832190f7e823c80804ca
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 26 21:50:44 2016 -0800
+
+    cmd/compile: remove unneeded test binary
+    
+    Accidentally added in https://golang.org/cl/19968.
+    
+    Change-Id: Id70917c4d1f69db149688d797c90a19557d16f72
+    Reviewed-on: https://go-review.googlesource.com/19985
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/gc/test | Bin 2243120 -> 0 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

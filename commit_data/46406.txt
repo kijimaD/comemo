@@ -1,0 +1,18 @@
+commit 5a94a90d84cc65a04ab44737baa406023e9b2001
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 8 22:08:14 2021 -0700
+
+    cmd/compile/internal/types2: better error message for invalid array decls
+    
+    Fixes #43527.
+    
+    Change-Id: I988a4d49f2f54b4b1741688fb52a55bf313d39e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348731
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../internal/types2/testdata/fixedbugs/issue43527.go2    | 16 ++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go               | 10 ++++++++++
+ src/go/types/testdata/fixedbugs/issue43527.go2           | 16 ++++++++++++++++
+ src/go/types/typexpr.go                                  | 10 ++++++++++
+ 4 files changed, 52 insertions(+)

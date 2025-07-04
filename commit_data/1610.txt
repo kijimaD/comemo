@@ -1,0 +1,15 @@
+commit f9cc900ae833b5a02e78223214fa52a8dba50145
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 3 16:59:26 2009 -0800
+
+    bugs cleanup, including deleting one near-identical duplicate bug
+    
+    R=rsc
+    DELTA=52  (15 added, 37 deleted, 0 changed)
+    OCL=24274
+    CL=24274
+
+ test/bugs/bug105.go                | 20 --------------------
+ test/{bugs => fixedbugs}/bug041.go |  0
+ test/golden.out                    | 12 +++---------
+ 3 files changed, 3 insertions(+), 29 deletions(-)

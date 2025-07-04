@@ -1,0 +1,21 @@
+commit c62b003eba484d54c2707b379d29240e5367e98f
+Author: David du Colombier <0intro@gmail.com>
+Date:   Fri Feb 27 17:51:25 2015 +0100
+
+    build: restore original timeouts in run.rc
+    
+    The timeouts were increased in CL 2462 and CL 2510
+    to work around a slowness issue when running Go
+    programs on a Plan 9 machine on GCE.
+    
+    Since we figured out this issue, we can restore
+    the timeouts to their original values.
+    
+    Updates #10028.
+    
+    Change-Id: I2e5b91666461715df69df97ea791f3d88d9de4d0
+    Reviewed-on: https://go-review.googlesource.com/6261
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/run.rc | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

@@ -1,0 +1,14 @@
+commit 2001f0c28ef4f2b7b907d060901a6fad2f1e9eb0
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Mar 20 20:36:33 2013 +0100
+
+    runtime: prevent garbage collection during hashmap insertion (fix 2)
+    
+    Fixes #5074 in multi-threaded scenarios.
+    
+    R=golang-dev, daniel.morsing, dave, dvyukov, bradfitz, rsc
+    CC=golang-dev, remyoudompheng
+    https://golang.org/cl/7916043
+
+ src/pkg/runtime/malloc.goc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

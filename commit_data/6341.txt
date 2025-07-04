@@ -1,0 +1,13 @@
+commit ad9042bdfacbfe295157103fa44e0ce41ce12875
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Sep 22 16:59:35 2010 +1000
+
+    http: don't always escape all reserved chars (fix build)
+    
+    R=nigeltao, nigeltao_golang
+    CC=golang-dev
+    https://golang.org/cl/2206044
+
+ src/pkg/http/request.go |  2 +-
+ src/pkg/http/url.go     | 21 ++++++++++++---------
+ 2 files changed, 13 insertions(+), 10 deletions(-)

@@ -1,0 +1,21 @@
+commit 627d17cf2980c97b76badf7893cfc2c4b1289738
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 10 14:43:35 2013 -0400
+
+    cmd/go: fix go test using package main_test
+    
+    A package main binary (that is, a command) being installed
+    does not mean we can skip the build of the package archive
+    during a test.
+    
+    Fixes #3417.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13462046
+
+ src/cmd/go/test.bash                        | 21 +++++++++++++++++++++
+ src/cmd/go/test.go                          |  2 +-
+ src/cmd/go/testdata/src/main_test/m.go      |  4 ++++
+ src/cmd/go/testdata/src/main_test/m_test.go | 10 ++++++++++
+ 4 files changed, 36 insertions(+), 1 deletion(-)

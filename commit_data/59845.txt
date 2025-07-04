@@ -1,0 +1,40 @@
+commit 6bd9944c9a9fb6b1da6288358b0620218d621441
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Jun 30 15:40:20 2025 -0700
+
+    encoding/json/v2: avoid escaping jsonopts.Struct
+    
+    The jsonopts.Struct.join method unfortunately escapes
+    the receiver because it is passed to JoinUnknownOption,
+    which is a dynamically implemented function.
+    
+    This affects jsontext.Encoder.reset and jsontext.Decoder.reset,
+    which relied on a local jsonopts.Struct to temporarily store
+    prior options such that it would have to be heap allocated.
+    
+    Adjust the signature of JoinUnknownOption to avoid pointers
+    so that nothing escape.
+    
+    This is a regression from
+    https://github.com/go-json-experiment/json/pull/163
+    
+    Performance:
+    
+            name             old time/op    new time/op    delta
+            Marshal/Bool-32    72.1ns ± 2%    51.3ns ± 1%  -28.77%  (p=0.000 n=10+9)
+    
+            name             old allocs/op  new allocs/op  delta
+            Marshal/Bool-32      2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    
+    Updates #71845
+    
+    Change-Id: Ife500d82d3d2beb13652553a4ffdf882c136f5a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/685135
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/encoding/json/internal/jsonopts/options.go | 8 ++++----
+ src/encoding/json/v2/options.go                | 5 +++--
+ 2 files changed, 7 insertions(+), 6 deletions(-)

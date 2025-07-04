@@ -1,0 +1,24 @@
+commit cff3e7587a516933d842c11b68bdd346ae6fc9be
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Oct 10 15:27:34 2016 -0700
+
+    crypto/tls: add Config.GetConfigForClient
+    
+    GetConfigForClient allows the tls.Config to be updated on a per-client
+    basis.
+    
+    Fixes #16066.
+    Fixes #15707.
+    Fixes #15699.
+    
+    Change-Id: I2c675a443d557f969441226729f98502b38901ea
+    Reviewed-on: https://go-review.googlesource.com/30790
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/common.go                |  53 ++++++++++++-
+ src/crypto/tls/handshake_server.go      |  67 +++++++++-------
+ src/crypto/tls/handshake_server_test.go | 135 ++++++++++++++++++++++++++++++++
+ src/crypto/tls/tls_test.go              |   2 +-
+ 4 files changed, 225 insertions(+), 32 deletions(-)

@@ -1,0 +1,20 @@
+commit d41dede2803d36db138a0f3220dcd9ebf4749a25
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Feb 24 12:06:24 2013 +0900
+
+    syscall: add if_announce support for netbsd
+    
+    Update #4866.
+    
+    R=golang-dev, bradfitz, dave
+    CC=golang-dev
+    https://golang.org/cl/7382052
+
+ src/pkg/syscall/types_netbsd.go         | 13 ++++++++-----
+ src/pkg/syscall/zerrors_netbsd_386.go   |  2 ++
+ src/pkg/syscall/zerrors_netbsd_amd64.go |  2 ++
+ src/pkg/syscall/zerrors_netbsd_arm.go   |  2 ++
+ src/pkg/syscall/ztypes_netbsd_386.go    | 20 +++++++++++++++-----
+ src/pkg/syscall/ztypes_netbsd_amd64.go  | 20 +++++++++++++++-----
+ src/pkg/syscall/ztypes_netbsd_arm.go    | 20 +++++++++++++++-----
+ 7 files changed, 59 insertions(+), 20 deletions(-)

@@ -1,0 +1,13 @@
+commit 473de6035930f4014a07f5b2a1315993cb42fb27
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 1 11:44:17 2011 -0800
+
+    time: update doc string for Error method
+    Fixes #2512.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5449057
+
+ src/pkg/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

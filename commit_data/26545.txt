@@ -1,0 +1,45 @@
+commit 8eec2bbfbc4f209950f677906c6ce67e01d32930
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 11 00:10:52 2016 -0500
+
+    cmd/compile: added some intrinsics to SSA back end
+    
+    One intrinsic was needed to help get the very best
+    performance out of a future GC; as long as that one was
+    being added, I also added Bswap since that is sometimes
+    a handy thing to have.  I had intended to fill out the
+    bit-scan intrinsic family, but the mismatch between the
+    "scan forward" instruction and "count leading zeroes"
+    was large enough to cause me to leave it out -- it poses
+    a dilemma that I'd rather dodge right now.
+    
+    These intrinsics are not exposed for general use.
+    That's a separate issue requiring an API proposal change
+    ( https://github.com/golang/proposal )
+    
+    All intrinsics are tested, both that they are substituted
+    on the appropriate architecture, and that they produce the
+    expected result.
+    
+    Change-Id: I5848037cfd97de4f75bdc33bdd89bba00af4a8ee
+    Reviewed-on: https://go-review.googlesource.com/20564
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/prog.go         |  58 ++--
+ src/cmd/compile/internal/amd64/ssa.go          |  36 ++-
+ src/cmd/compile/internal/gc/go.go              |   7 +-
+ src/cmd/compile/internal/gc/inl.go             |   2 +-
+ src/cmd/compile/internal/gc/ssa.go             |  77 ++++-
+ src/cmd/compile/internal/ssa/compile.go        |  18 ++
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  32 +++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  29 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  11 +
+ src/cmd/compile/internal/ssa/opGen.go          | 278 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 383 +++++++++++++++++++++++++
+ src/runtime/internal/sys/intrinsics.go         | 105 +++++++
+ test/intrinsic.dir/main.go                     | 109 +++++++
+ test/intrinsic.go                              |   8 +
+ test/run.go                                    |  26 +-
+ 15 files changed, 1143 insertions(+), 36 deletions(-)

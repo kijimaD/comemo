@@ -1,0 +1,16 @@
+commit 4e6e8e8c582bcd7d74378be31f070eecf0f1d5e4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 19 18:39:25 2016 -0800
+
+    cmd/compile: change two pushedio.bin tests to use importpkg instead
+    
+    pushedio.bin and importpkg are both non-nil iff we're parsing an
+    package's export data, so "pushedio.bin == nil" and "importpkg == nil"
+    are equivalent tests.
+    
+    Change-Id: I571ee908fef867117ef72c5da1eb24fe9b3fd12d
+    Reviewed-on: https://go-review.googlesource.com/19751
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

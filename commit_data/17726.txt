@@ -1,0 +1,15 @@
+commit d38ed2a9f224dbc79adbed4fe49fe2aef137bf5b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 2 11:35:25 2013 -0700
+
+    doc/effective_go: fix server example that shares var between goroutines
+    Use it as a teaching example about how to solve this problem.
+    
+    Fixes #6501
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/14250043
+
+ doc/effective_go.html | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 57 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit 6dbaf0352a911f2f4c835dcfbf32aeb38f0b4462
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 8 18:01:16 2018 -0700
+
+    go/types: better cycle reporting for some cyclic composite literals
+    
+    To evaluate the type of composite literals, the type checker called
+    Checker.typ which breaks cycles. As a result, certain cycles were
+    not reported with actual cycle reporting, but caught due to other
+    uninitialized fields (with less nice error message).
+    
+    The change now calls Checker.typExpr at the relevant call site.
+    
+    For #18643.
+    
+    Change-Id: Iecb3f0e1afb4585b85553b6c581212f52ac3a1c4
+    Reviewed-on: https://go-review.googlesource.com/115456
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/builtins.go         | 2 +-
+ src/go/types/expr.go             | 2 +-
+ src/go/types/testdata/cycles.src | 2 +-
+ src/go/types/typexpr.go          | 5 +++++
+ 4 files changed, 8 insertions(+), 3 deletions(-)

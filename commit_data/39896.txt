@@ -1,0 +1,17 @@
+commit 03f63654c4ce5885bf804fe242a4e15b70edc2c4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 12 20:43:42 2019 +0000
+
+    Revert "cmd/link: prefix syms with "_" on external darwin links"
+    
+    This reverts CL 194381
+    
+    Reason for revert: break tests like add2line.
+    
+    Change-Id: I9e858c7ada340a842bd0cad719616ad30fae4aaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195137
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/link/internal/ld/issue33808_test.go | 53 -----------------------------
+ src/cmd/link/internal/ld/macho.go           |  5 ++-
+ 2 files changed, 2 insertions(+), 56 deletions(-)

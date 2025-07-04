@@ -1,0 +1,14 @@
+commit 7468b1d36ab4bc3e488a824edc01e62e733c464b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 18 15:26:15 2013 +1000
+
+    doc: style tweaks in preparation for Google Feedback link
+    
+    Fixes #5589.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/10272051
+
+ doc/style.css | 3 +++
+ 1 file changed, 3 insertions(+)

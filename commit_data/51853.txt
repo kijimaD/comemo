@@ -1,0 +1,32 @@
+commit adc1db23ee17078590d81fb2201a12212d539628
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Jan 31 17:04:08 2023 +0100
+
+    cmd/internal/obj/x86: use mov instead of lea to load the frame pointer
+    
+    This CL instructs the Go x86 compiler to load the frame pointer address
+    using a MOV instead of a LEA instruction, being MOV 1 byte shorter:
+    
+    Before
+      55            PUSHQ   BP
+      48 8d 2c 24   LEAQ    0(SP), BP
+    
+    After
+      55            PUSHQ   BP
+      48 89 e5      MOVQ    SP, BP
+    
+    This reduces the size of the Go toolchain ~0.06%.
+    
+    Updates #6853
+    
+    Change-Id: I5557cf34c47e871d264ba0deda9b78338681a12c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463845
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/obj6.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

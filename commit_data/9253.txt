@@ -1,0 +1,16 @@
+commit eb2b3f5dc74181b66848bef194bfd0ec1401345c
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Jul 29 13:47:20 2011 -0400
+
+    syscall: move bsd pipe syscall
+    
+    Not all BSDs have the same pipe() syscall implementation - move the Darwin/FreeBSD specific implementation into their respective OS syscall files. This will be needed to add OpenBSD syscall support.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4823057
+
+ src/pkg/syscall/syscall_bsd.go     | 10 ----------
+ src/pkg/syscall/syscall_darwin.go  | 10 ++++++++++
+ src/pkg/syscall/syscall_freebsd.go | 10 ++++++++++
+ 3 files changed, 20 insertions(+), 10 deletions(-)

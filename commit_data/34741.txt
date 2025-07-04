@@ -1,0 +1,46 @@
+commit 8623503fe54642a21854c551129d550139f3bbac
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Mar 24 16:18:07 2018 -0700
+
+    cmd/compile/internal/gc: speed up arith const tests
+    
+    This change reduces the time to run this test on my machine from
+    
+    real    0m2.491s
+    user    0m3.020s
+    sys     0m0.331s
+    
+    to
+    
+    real    0m0.237s
+    user    0m0.180s
+    sys     0m0.173s
+    
+    This will make it reasonable to add more constants to the test.
+    I am also hopeful that it might help a bit with intermittent
+    cmd/compile/internal/gc test timeouts on the build dashboard
+    on the slower builders.
+    
+    The time savings are entirely in compilation time,
+    by avoiding generating one giant func main.
+    Instead, generate tables of tests to be run,
+    which are translated into static data,
+    and then loop over those tests.
+    
+    While we're here, do some minor cleanup:
+    
+    * Remove the _ssa suffix on function names,
+      as that was only needed during ssa bootstrapping.
+    * Clean up error handling during test generation.
+    * Make functions single-line, to reduce future diff sizes.
+      Diffing giant files is slow.
+    
+    Change-Id: Ic5fccdb71679169bea756c7d33c07d05e4801860
+    Reviewed-on: https://go-review.googlesource.com/102956
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/testdata/arithConst.go | 28886 ++++---------------
+ .../internal/gc/testdata/gen/arithConstGen.go      |    99 +-
+ 2 files changed, 5216 insertions(+), 23769 deletions(-)

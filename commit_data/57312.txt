@@ -1,0 +1,20 @@
+commit 995c816a7a9190db1ac0870cf2c424385b03ac4b
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Fri Aug 30 00:23:50 2024 -0700
+
+    internal/testenv: use sync.OnceValues for hasSymlink
+    
+    On some platforms (android, wasip1) this function is called many
+    times which probably results in some slowdown, especially for wasip1.
+    
+    Wrap it into sync.OnceValues.
+    
+    Change-Id: Id290ffd8d1e7ad806302f457e8fff2e3123b49a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609418
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/internal/testenv/testenv_notwin.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

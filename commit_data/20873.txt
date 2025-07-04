@@ -1,0 +1,25 @@
+commit 9a571deed6f9bebcbb3fad864600936b55aeea22
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 10 09:39:17 2014 +1100
+
+    undo CL 166380043 / 0b54a0927656
+    
+    This was a mistake; the cmd/api tool
+    depends on an old version of go/types.
+    
+    ««« original CL description
+    cmd/api: bump go.tools golden CL hash
+    
+    TBR=bradfitz
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166380043
+    »»»
+    
+    TBR=bradfitz, rsc
+    R=bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/167430043
+
+ src/cmd/api/run.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

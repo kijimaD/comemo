@@ -1,0 +1,18 @@
+commit 7c1e33033ddc2370c468b0f3087d5a584dfd2c7e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 1 07:52:09 2014 -0800
+
+    reflect: Fix reflect.funcLayout.  The GC bitmap has two bits per
+    pointer, not one.
+    
+    Fixes #9179
+    
+    LGTM=iant, rsc
+    R=golang-codereviews, iant, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/182160043
+
+ src/reflect/all_test.go    | 101 +++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/export_test.go |  19 +++++++++
+ src/reflect/type.go        |   4 +-
+ 3 files changed, 122 insertions(+), 2 deletions(-)

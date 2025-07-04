@@ -1,0 +1,54 @@
+commit 40effca7a13d11f3549a24a5d4b02e87c12fc6bb
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Nov 15 16:19:29 2021 -0500
+
+    cmd: pull in golang.org/x/mod@3a5865c
+    
+    This change updates the cmd module's requirement on x/mod and vendors in
+    the changes.
+    
+    This pulls in the following changes into our vendored copy of x/mod:
+    golang.org/cl/351319: module: accept trailing slash in MatchPrefixPattern
+    golang.org/cl/353749: semver: remove unused err field
+    golang.org/cl/355630: x/mod: update requirement on x/crypto
+    golang.org/cl/359412: modfile: rename directory directive to use
+    
+    Changes have been made in cmd/go renaming all uses of directory to use
+    and fixing references to functions in x/mod/modfile to account for the
+    changes in the last of thse CLs.
+    
+    For #45713
+    
+    Change-Id: I9121d08f6e6b11838bca50e6cbd756baeeae867b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364114
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ src/cmd/go/alldocs.go                              |  8 ++--
+ src/cmd/go/internal/modload/init.go                |  8 ++--
+ src/cmd/go/internal/workcmd/edit.go                | 40 ++++++++---------
+ src/cmd/go/internal/workcmd/use.go                 |  6 +--
+ src/cmd/go/testdata/script/work.txt                | 10 ++---
+ src/cmd/go/testdata/script/work_edit.txt           | 52 +++++++++++-----------
+ src/cmd/go/testdata/script/work_env.txt            |  2 +-
+ src/cmd/go/testdata/script/work_prune.txt          |  2 +-
+ src/cmd/go/testdata/script/work_replace.txt        |  2 +-
+ .../go/testdata/script/work_replace_conflict.txt   |  4 +-
+ .../script/work_replace_conflict_override.txt      |  4 +-
+ src/cmd/go/testdata/script/work_sum.txt            |  2 +-
+ src/cmd/go/testdata/script/work_sum_mismatch.txt   |  4 +-
+ src/cmd/go/testdata/script/work_sync.txt           |  2 +-
+ .../script/work_sync_irrelevant_dependency.txt     |  2 +-
+ .../script/work_sync_relevant_dependency.txt       |  2 +-
+ src/cmd/go/testdata/script/work_use.txt            |  6 +--
+ .../go/testdata/script/work_why_download_graph.txt |  2 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |  4 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/work.go    | 50 ++++++++++-----------
+ src/cmd/vendor/golang.org/x/mod/module/module.go   |  2 +
+ src/cmd/vendor/golang.org/x/mod/semver/semver.go   | 10 -----
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 25 files changed, 112 insertions(+), 120 deletions(-)

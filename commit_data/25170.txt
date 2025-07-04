@@ -1,0 +1,21 @@
+commit 77328b8d120eb12af035b01fc1ef41a9b68f2cb0
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Sat Oct 10 10:57:35 2015 +0000
+
+    cmd/link: clean up dwarf.go
+    
+    Try to remove the most visible artefacts resulting from the
+    C to Go translation. It includes:
+    
+    - refactoring the find function to eliminate goto and variable declarations
+    - removing useless variables still having a _ = xxx
+    - decreasing the number of upfront variable declarations
+    
+    No semantic changes.
+    
+    Change-Id: I84d981c48b2d9e22e6b9db5f2a703c80c60249ba
+    Reviewed-on: https://go-review.googlesource.com/15681
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 232 +++++++++++++-------------------------
+ 1 file changed, 79 insertions(+), 153 deletions(-)

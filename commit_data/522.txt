@@ -1,0 +1,18 @@
+commit 58ba20b5a209f4400b20972f8acf7ff4f3a745a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 11 20:40:37 2008 -0700
+
+    - allow reserved words as field and method names
+    
+    R=r
+    OCL=14102
+    CL=14102
+
+ usr/gri/gosrc/base.go    |  9 ++++++-
+ usr/gri/gosrc/export.go  |  2 +-
+ usr/gri/gosrc/import.go  |  2 +-
+ usr/gri/gosrc/object.go  |  3 ++-
+ usr/gri/gosrc/parser.go  | 69 ++++++++++++++++++++----------------------------
+ usr/gri/gosrc/printer.go |  2 +-
+ usr/gri/gosrc/scanner.go |  7 +++--
+ 7 files changed, 46 insertions(+), 48 deletions(-)

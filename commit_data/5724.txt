@@ -1,0 +1,12 @@
+commit 059c7ba996c66e5782c8dbafa3f72858f880bd97
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Jun 29 07:12:14 2010 -0700
+
+    runtime: fix windows build
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/1747041
+
+ src/pkg/runtime/windows/386/signal.c | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,24 @@
+commit 20f6a8fdaf07db0cdb817bb4e8f7b8bf07797334
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 20 13:28:27 2012 +0400
+
+    net/http: reduce mutex contention
+    benchmark                           old ns/op    new ns/op    delta
+    BenchmarkClientServerParallel          155909       154454   -0.93%
+    BenchmarkClientServerParallel-2         86012        82986   -3.52%
+    BenchmarkClientServerParallel-4         70211        55168  -21.43%
+    BenchmarkClientServerParallel-8         80755        47862  -40.73%
+    BenchmarkClientServerParallel-12        77753        51478  -33.79%
+    BenchmarkClientServerParallel-16        77920        50278  -35.47%
+    The benchmark is https://golang.org/cl/6441134
+    The machine is 2 x 4 HT cores (16 HW threads total).
+    Fixes #3946.
+    Now contention moves to net.pollServer.AddFD().
+    
+    R=bradfitz
+    CC=bradfitz, dave, dsymonds, gobot, golang-dev, remyoudompheng
+    https://golang.org/cl/6454142
+
+ src/pkg/net/http/export_test.go |  8 ++++----
+ src/pkg/net/http/transport.go   | 43 ++++++++++++++++++++++++-----------------
+ 2 files changed, 29 insertions(+), 22 deletions(-)

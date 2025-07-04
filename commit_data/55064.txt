@@ -1,0 +1,33 @@
+commit af1242932e121f510ad04282277740cceff2e550
+Author: Tim King <taking@google.com>
+Date:   Mon Nov 20 12:56:26 2023 -0800
+
+    cmd: go get golang.org/x/tools@8966034e and revendor
+    
+    go get golang.org/x/tools@8966034e # CL 542639
+    go mod tidy
+    go mod vendor
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: Id2a7322006ff3985e3c97482cd78c8963c4df140
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543975
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/go.mod                                     |   6 +-
+ src/cmd/go.sum                                     |  12 +-
+ .../tools/go/analysis/passes/errorsas/errorsas.go  |   3 -
+ .../x/tools/go/analysis/passes/loopclosure/doc.go  |  13 +-
+ .../go/analysis/passes/loopclosure/loopclosure.go  |  16 +-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |   2 +
+ .../golang.org/x/tools/go/analysis/validate.go     |   2 +
+ .../golang.org/x/tools/internal/versions/gover.go  | 172 +++++++++++++++++++++
+ .../golang.org/x/tools/internal/versions/types.go  |  19 +++
+ .../x/tools/internal/versions/types_go121.go       |  20 +++
+ .../x/tools/internal/versions/types_go122.go       |  24 +++
+ .../x/tools/internal/versions/versions_go121.go    |  49 ++++++
+ .../x/tools/internal/versions/versions_go122.go    |  38 +++++
+ src/cmd/vendor/modules.txt                         |   7 +-
+ 14 files changed, 363 insertions(+), 20 deletions(-)

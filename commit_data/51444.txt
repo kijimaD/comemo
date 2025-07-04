@@ -1,0 +1,18 @@
+commit ff18af84019c7f6ce245db2aa6b19bb62c4ae02b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Nov 22 09:43:04 2022 +0100
+
+    doc/go1.20: document changes to os on Windows
+    
+    This CL documents the changes introduced by
+    https://go-review.googlesource.com/c/go/+/405275.
+    
+    Change-Id: I541712d65f2823ecdf606c5b91035cde55ecdac6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452735
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ doc/go1.20.html | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

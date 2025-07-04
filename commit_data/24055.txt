@@ -1,0 +1,14 @@
+commit c049d34006b055cabd6c0f146936ee156231ef13
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Aug 22 11:03:11 2015 +0900
+
+    net: drop redundant domain name length check
+    
+    It is already validated by isDoaminName.
+    
+    Change-Id: I7a955b632a5143e16b012641cf12bad452900753
+    Reviewed-on: https://go-review.googlesource.com/13789
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/dnsclient_unix.go | 3 ---
+ 1 file changed, 3 deletions(-)

@@ -1,0 +1,20 @@
+commit 0067586953f7a6b6048e2abaec8794cbaccd0168
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 25 14:43:06 2019 -0400
+
+    cmd/go: add a Latest field to the output of 'go mod download -json'
+    
+    Fixes #32239
+    
+    Change-Id: I5723abaa9b6bed7e8fb2d95f749a4e03ecc8741b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183841
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                              |  1 +
+ src/cmd/go/internal/modcmd/download.go             | 25 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_download.txt        |  4 +++-
+ src/cmd/go/testdata/script/mod_download_latest.txt | 20 +++++++++++++++++
+ src/cmd/go/testdata/script/mod_list_upgrade.txt    | 20 +++++++++++++++++
+ 5 files changed, 69 insertions(+), 1 deletion(-)

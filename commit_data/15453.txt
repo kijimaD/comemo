@@ -1,0 +1,12 @@
+commit 15cce227c78ac2b499e9ad3c49ccb67d2f870169
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Feb 27 13:05:57 2013 +1100
+
+    exp/cookiejar: add a test for canonicalHost errors.
+    
+    R=dr.volker.dobler
+    CC=golang-dev
+    https://golang.org/cl/7389048
+
+ src/pkg/exp/cookiejar/jar_test.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

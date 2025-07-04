@@ -1,0 +1,14 @@
+commit 265e547658ac6e91df308326041ea462593053fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 12 17:35:25 2016 +0000
+
+    doc: remove Reddit as an official space where Code of Conduct applies
+    
+    Fixes #18289
+    
+    Change-Id: I047e98cc36b861ef15292170aeaff8bc29243cab
+    Reviewed-on: https://go-review.googlesource.com/34281
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/conduct.html | 1 -
+ 1 file changed, 1 deletion(-)

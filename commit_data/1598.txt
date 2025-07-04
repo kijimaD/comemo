@@ -1,0 +1,18 @@
+commit 47e27758dbe26e17aa0955780f37f41036151a2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 30 17:10:10 2009 -0800
+
+    keep line number history even when
+    throwing away dead code at end of file.
+    
+    also fix an uninitialized memory error
+    found by valgrind.
+    
+    R=r
+    DELTA=7  (5 added, 2 deleted, 0 changed)
+    OCL=23991
+    CL=23994
+
+ src/cmd/6l/obj.c  | 3 +++
+ src/cmd/6l/span.c | 4 ++--
+ 2 files changed, 5 insertions(+), 2 deletions(-)

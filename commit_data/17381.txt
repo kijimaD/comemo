@@ -1,0 +1,23 @@
+commit de8de8912efea014ceda6819ddf8da09b2a0d056
+Author: Nicolas Owens <mischief@offblast.org>
+Date:   Fri Aug 23 21:05:49 2013 -0500
+
+    os/user: Current support on Plan 9
+    
+    Current for Plan 9 is implemented with /dev/user for
+    Uid/Gid/Username/Name, and $home environment variable for
+    HomeDir.
+    
+    Implementing Lookup/LookupId is not done, which would
+    require parsing /adm/users. It is unclear of how much benefit
+    this would be.
+    
+    R=golang-dev
+    CC=bradfitz, golang-dev, r
+    https://golang.org/cl/13203043
+
+ src/pkg/os/user/lookup_plan9.go | 46 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/user/lookup_stubs.go |  2 +-
+ src/pkg/os/user/user.go         |  2 ++
+ src/pkg/os/user/user_test.go    | 10 ++++++++-
+ 4 files changed, 58 insertions(+), 2 deletions(-)

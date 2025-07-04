@@ -1,0 +1,36 @@
+commit b87e3e8b7f37a97c383ae5bbfadb401ec6fc243c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 31 00:20:07 2009 -0700
+
+    * move go-specific loader code
+    into gc directory, where it gets included as ../gc/ldbody
+    this is similar to the assemblers including ../cc/lexbody
+    and ../cc/macbody.
+    
+    * hook go-specific loader code into 8l.
+    
+    * make current 8.out.h and 6.out.h backward compatible
+    with plan 9's versions.  i had added some constants in
+    the middle of enums and have now moved them to the end.
+    this keeps us from invalidating old .8 and .6 files.
+    not sure how much it really matters, but easy to do.
+    
+    R=r
+    DELTA=1314  (667 added, 623 deleted, 24 changed)
+    OCL=26938
+    CL=26941
+
+ src/cmd/6l/6.out.h  |   4 +-
+ src/cmd/6l/Makefile |   2 +
+ src/cmd/6l/go.c     | 600 +---------------------------------------------------
+ src/cmd/6l/l.h      |   1 -
+ src/cmd/8l/8.out.h  |  11 +-
+ src/cmd/8l/Makefile |   4 +
+ src/cmd/8l/l.h      |  23 +-
+ src/cmd/8l/list.c   |   2 +-
+ src/cmd/8l/obj.c    |  34 +--
+ src/cmd/8l/optab.c  |   9 +-
+ src/cmd/8l/pass.c   |  26 ++-
+ src/cmd/8l/span.c   |  33 ++-
+ src/cmd/ld/go.c     | 587 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 13 files changed, 692 insertions(+), 644 deletions(-)

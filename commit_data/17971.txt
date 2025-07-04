@@ -1,0 +1,13 @@
+commit d12b08d228aff8b62d6a90297689856bf67890f7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 12 17:13:27 2013 -0800
+
+    test: disable a couple of precise GC tests for gccgo
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/41610043
+
+ test/deferfin.go            | 4 ++++
+ test/fixedbugs/issue5493.go | 5 +++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)

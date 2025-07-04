@@ -1,0 +1,16 @@
+commit 6bfd2d19ffa5b9700e1ddc8744bdfedf40d2b705
+Author: Ivan Moscoso <moscoso@gmail.com>
+Date:   Sat Jul 15 11:53:48 2017 -0600
+
+    regexp: clarify example for 'FindString'
+    
+    Clarifying that FindString only provides left-most match
+    
+    Change-Id: Ic6ecec12cca759fd4b3565ef5901a110843ffd56
+    Reviewed-on: https://go-review.googlesource.com/48609
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/example_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

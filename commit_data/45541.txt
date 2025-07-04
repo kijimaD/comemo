@@ -1,0 +1,19 @@
+commit cb0658e624e33ca3e96036dbdd48b1282acb189d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 4 15:07:37 2021 -0700
+
+    go/types: expose more API under -tags=typeparams
+    
+    Updates #44933.
+    
+    Change-Id: I0c4c2a54f67b47771f4fa59f11c47fa7b0dde799
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317029
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/types/api_typeparams.go | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

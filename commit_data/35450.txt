@@ -1,0 +1,20 @@
+commit 37c11dc0aab72d212e222c44ac1853cefb5f7126
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon May 21 13:21:26 2018 +0200
+
+    log/syslog: skip tests that depend on daemon on builders
+    
+    Some functions in log/syslog depend on syslogd running. Instead of
+    treating errors caused by the daemon not running as test failures,
+    ignore them and skip the test.
+    
+    Fixes the longtest builder.
+    
+    Change-Id: I628fe4aab5f1a505edfc0748861bb976ed5917ea
+    Reviewed-on: https://go-review.googlesource.com/113838
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/log/syslog/syslog_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

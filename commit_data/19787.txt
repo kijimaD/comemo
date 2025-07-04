@@ -1,0 +1,17 @@
+commit 4676e260e3b0f285037bf357e1b91ffb6135273c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 21 12:06:30 2014 -0700
+
+    cmd/api: ignore internal packages
+    
+    We might want to add a go/build.IsInternal(pkg string) bool
+    later, but this works for now.
+    
+    LGTM=dave, rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/113300044
+
+ src/cmd/api/goapi.go      |  8 +++++++-
+ src/cmd/api/goapi_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)

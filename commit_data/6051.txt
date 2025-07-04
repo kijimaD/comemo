@@ -1,0 +1,13 @@
+commit 60c5dadbc846f3193fc79724b08ec40300c1980a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 19 00:07:55 2010 -0400
+
+    A+C: Eric Clark (individual CLA)
+    
+    R=ec
+    CC=golang-dev
+    https://golang.org/cl/1982045
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

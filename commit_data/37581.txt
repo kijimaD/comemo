@@ -1,0 +1,27 @@
+commit 8a5797a00e0bbe483e88aab4830e8854af55b508
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Dec 4 16:25:39 2018 +0000
+
+    cmd/go: revert multi-flag GOFLAGS doc example
+    
+    This partially reverts https://golang.org/cl/135035.
+    
+    Reason for revert: multiple -ldflags=-foo flags simply override each
+    other, since that's the logic for per-package flags. The suggested
+    'GOFLAGS=-ldflags=-s -ldflags=-w' has never worked for 'go build', and
+    even breaks 'go test' and 'go vet'.
+    
+    There should be a way to specify -ldflags='-w -s' via GOFLAGS, which is
+    being tracked in #29096. For now, just remove the incorrect suggestion.
+    
+    Fixes #29053.
+    
+    Change-Id: I9203056f7e5191e894bcd16595a92df2fb704ea7
+    Reviewed-on: https://go-review.googlesource.com/c/152479
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/go/alldocs.go               | 4 +---
+ src/cmd/go/internal/help/helpdoc.go | 4 +---
+ 2 files changed, 2 insertions(+), 6 deletions(-)

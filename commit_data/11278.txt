@@ -1,0 +1,19 @@
+commit 743c2d0f48ce54c4a885561cd6c21d2245d705c9
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Jan 20 07:31:13 2012 +0900
+
+    net: fix broken setDefaultSockopts
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5536068
+
+ src/pkg/net/fd.go              | 10 +++++-----
+ src/pkg/net/ipsock_posix.go    |  4 ++--
+ src/pkg/net/sock.go            |  8 ++++----
+ src/pkg/net/sockopt_bsd.go     |  5 +++--
+ src/pkg/net/sockopt_linux.go   |  5 +++--
+ src/pkg/net/sockopt_windows.go |  2 +-
+ src/pkg/net/unicast_test.go    | 15 +++++++++++----
+ src/pkg/net/unixsock_posix.go  | 30 +++++++++++++++---------------
+ 8 files changed, 44 insertions(+), 35 deletions(-)

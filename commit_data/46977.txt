@@ -1,0 +1,18 @@
+commit 8b9c0d1a79251969e46731e46e72e4e8f8998817
+Author: Archana R <aravind5@in.ibm.com>
+Date:   Wed Oct 20 04:11:57 2021 -0500
+
+    test/codegen: updated comparison test to verify on ppc64,ppc64le
+    
+    Updated test/codegen/comparison.go to verify memequal is inlined
+    as implemented in CL 328291.
+    
+    Change-Id: If7824aed37ee1f8640e54fda0f9b7610582ba316
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357289
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ test/codegen/comparisons.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

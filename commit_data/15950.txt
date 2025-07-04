@@ -1,0 +1,13 @@
+commit 02b755081764bd1cc36e5e7af2d485f5bc9cabe3
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 26 11:05:06 2013 -0700
+
+    builtin: add linkable-to declarations for iota and nil
+    Aids godoc.
+    
+    R=golang-dev, gri, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7992044
+
+ src/pkg/builtin/builtin.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

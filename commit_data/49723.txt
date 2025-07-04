@@ -1,0 +1,33 @@
+commit fb1bfd4d37d40cd5e4969ac631cf979d7b08f1a2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 3 23:01:08 2022 -0400
+
+    all: remove pre-Go 1.17 workarounds
+    
+    The Go bootstrap toolchain requirement is now Go 1.17.
+    We can finally delete all these pre-Go 1.17 workarounds.
+    
+    For #44505.
+    
+    Change-Id: I59d4dff1cde23da022892b5b6a116eb3dbad9ce4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420903
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bootstrap.go           | 17 ------------
+ src/cmd/compile/internal/gc/pprof.go               | 14 ----------
+ src/cmd/compile/internal/gc/trace.go               | 30 ----------------------
+ src/cmd/compile/internal/gc/util.go                | 16 ++++++++----
+ src/cmd/compile/internal/logopt/escape.go          | 14 ----------
+ .../compile/internal/logopt/escape_bootstrap.go    | 13 ----------
+ src/cmd/compile/internal/logopt/log_opts.go        |  4 +--
+ src/internal/pkgbits/frames_go1.go                 | 21 ---------------
+ src/internal/pkgbits/frames_go17.go                | 28 --------------------
+ src/internal/pkgbits/sync.go                       | 19 ++++++++++++++
+ src/sort/slice.go                                  | 15 ++++++-----
+ src/sort/slice_go113.go                            | 13 ----------
+ src/sort/slice_go14.go                             | 23 -----------------
+ src/sort/slice_go18.go                             | 13 ----------
+ 14 files changed, 41 insertions(+), 199 deletions(-)

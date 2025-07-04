@@ -1,0 +1,12 @@
+commit 2ef09148a0ca70bb6a164df0ee615adc137f071d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 13 13:52:19 2010 -0800
+
+    time: fix bug in Ticker: shutdown using channel rather than memory
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3609042
+
+ src/pkg/time/tick.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

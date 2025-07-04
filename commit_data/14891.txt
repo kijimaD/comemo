@@ -1,0 +1,18 @@
+commit 3b73aaafdcd35ad20329730f5193859f491e59f4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 15 09:13:05 2013 -0800
+
+    net/http: fix racy test
+    
+    We need to wait for the handler to actually finish running,
+    not almost be done running.
+    
+    This was always a bug, but now that handler output is buffered
+    it shows up easily on GOMAXPROCS >1 systems.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7109043
+
+ src/pkg/net/http/serve_test.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

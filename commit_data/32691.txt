@@ -1,0 +1,17 @@
+commit 27a70ea560bc21559aa180dd3ea5298d0732b5b9
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 11 21:23:44 2017 +0200
+
+    cmd/compile: simplify a few early var declarations
+    
+    These were likely written in C or added by an automated tool. Either
+    way, they're unnecessary now. Clean up the code.
+    
+    Change-Id: I56de2c7bb60ebab8c500803a8b6586bdf4bf75c7
+    Reviewed-on: https://go-review.googlesource.com/62951
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 28 +++++++++-------------------
+ 1 file changed, 9 insertions(+), 19 deletions(-)

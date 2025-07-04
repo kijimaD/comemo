@@ -1,0 +1,23 @@
+commit 5e43856aa9c3d17c79688415b1347650d711744b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 6 12:26:57 2019 -0700
+
+    cmd/compile: rename Etype to ctxType
+    
+    golang.org/cl/150140 renamed the other Efoo constants to ctxFoo, but
+    forgot about Etype.
+    
+    gorename -from '"cmd/compile/internal/gc".Etype -to ctxType
+    
+    Change-Id: I142dd42ca84a398f8d2316d75ead3331c023b820
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193958
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/closure.go   |  2 +-
+ src/cmd/compile/internal/gc/dcl.go       |  6 +--
+ src/cmd/compile/internal/gc/subr.go      |  2 +-
+ src/cmd/compile/internal/gc/swt.go       |  8 ++--
+ src/cmd/compile/internal/gc/typecheck.go | 72 ++++++++++++++++----------------
+ 5 files changed, 45 insertions(+), 45 deletions(-)

@@ -1,0 +1,21 @@
+commit 82ac9ab83a47468046bda9bf6c4676a9695fae24
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 29 10:50:18 2021 -0700
+
+    text/template: check final value for short-circuit and/or
+    
+    There was a bug in the short-circuit code for and/or added in CL 321490:
+    it ignored the value passed in by an earlier pipeline.
+    
+    For #31103
+    
+    Change-Id: Ic31f4d7cedfe563ef968cbb712ecfb2413c42eb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353130
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/text/template/exec.go      | 5 ++++-
+ src/text/template/exec_test.go | 4 ++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

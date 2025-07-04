@@ -1,0 +1,21 @@
+commit 5a34472d74637c84752d2c13ace78e4e6ab756b7
+Author: James Bardin <j.bardin@gmail.com>
+Date:   Wed Mar 16 13:53:53 2016 -0400
+
+    cmd/cgo: add C.CBytes
+    
+    Add a C.CBytes function to copy a Go byte slice into C memory. This
+    returns an unsafe.Pointer, since that is what needs to be passed to
+    C.free, and the data is often opaque bytes anyway.
+    
+    Fixes #14838
+    
+    Change-Id: Ic7bc29637eb6f1f5ee409b3898c702a59833a85a
+    Reviewed-on: https://go-review.googlesource.com/20762
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue14838.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/doc.go          |  7 +++++++
+ src/cmd/cgo/out.go          | 18 ++++++++++++++++++
+ 4 files changed, 63 insertions(+)

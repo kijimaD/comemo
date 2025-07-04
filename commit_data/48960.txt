@@ -1,0 +1,35 @@
+commit d4bfc87218335cb48c9d1d1a308d720f9195cae7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 29 11:58:03 2022 -0700
+
+    cmd/compile: simplify code from CL 398474
+    
+    This CL:
+    
+    1. extracts typecheck.LookupNum into a method on *types.Pkg, so that
+    it can be used with any package, not just types.LocalPkg,
+    
+    2. adds a new helper function closureSym to generate symbols in the
+    appropriate package as needed within stencil.go, and
+    
+    3. updates the existing typecheck.LookupNum+Name.SetSym code to call
+    closureSym instead.
+    
+    No functional change (so no need to backport to Go 1.18), but a little
+    cleaner, and avoids polluting types.LocalPkg.Syms with symbols that we
+    won't end up using.
+    
+    Updates #52117.
+    
+    Change-Id: Ifc8a3b76a37c830125e9d494530d1f5b2e3e3e2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403197
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/stencil.go  | 28 ++++++++++++++--------------
+ src/cmd/compile/internal/typecheck/subr.go |  9 ++-------
+ src/cmd/compile/internal/types/pkg.go      | 10 ++++++++++
+ 3 files changed, 26 insertions(+), 21 deletions(-)

@@ -1,0 +1,181 @@
+commit 52eaed66335e90ceb6ad65873889ccca46851ee9
+Author: Lénaïc Huard <lenaic.huard@datadoghq.com>
+Date:   Sat Feb 1 14:19:04 2025 +0100
+
+    runtime: decorate anonymous memory mappings
+    
+    Leverage the prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, ...) API to name
+    the anonymous memory areas.
+    
+    This API has been introduced in Linux 5.17 to decorate the anonymous
+    memory areas shown in /proc/<pid>/maps.
+    
+    This is already used by glibc. See:
+    * https://sourceware.org/git/?p=glibc.git;a=blob;f=malloc/malloc.c;h=27dfd1eb907f4615b70c70237c42c552bb4f26a8;hb=HEAD#l2434
+    * https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/unix/sysv/linux/setvmaname.c;h=ea93a5ffbebc9e5a7e32a297138f465724b4725f;hb=HEAD#l63
+    
+    This can be useful when investigating the memory consumption of a
+    multi-language program.
+    On a 100% Go program, pprof profiler can be used to profile the memory
+    consumption of the program. But pprof is only aware of what happens
+    within the Go world.
+    
+    On a multi-language program, there could be a doubt about whether the
+    suspicious extra-memory consumption comes from the Go part or the native
+    part.
+    
+    With this change, the following Go program:
+    
+            package main
+    
+            import (
+                    "fmt"
+                    "log"
+                    "os"
+            )
+    
+            /*
+            #include <stdlib.h>
+    
+            void f(void)
+            {
+              (void)malloc(1024*1024*1024);
+            }
+            */
+            import "C"
+    
+            func main() {
+                    C.f()
+    
+                    data, err := os.ReadFile("/proc/self/maps")
+                    if err != nil {
+                            log.Fatal(err)
+                    }
+                    fmt.Println(string(data))
+            }
+    
+    produces this output:
+    
+            $ GLIBC_TUNABLES=glibc.mem.decorate_maps=1 ~/doc/devel/open-source/go/bin/go run .
+            00400000-00402000 r--p 00000000 00:21 28451768                           /home/lenaic/.cache/go-build/9f/9f25a17baed5a80d03eb080a2ce2a5ff49c17f9a56e28330f0474a2bb74a30a0-d/test_vma_name
+            00402000-004a4000 r-xp 00002000 00:21 28451768                           /home/lenaic/.cache/go-build/9f/9f25a17baed5a80d03eb080a2ce2a5ff49c17f9a56e28330f0474a2bb74a30a0-d/test_vma_name
+            004a4000-00574000 r--p 000a4000 00:21 28451768                           /home/lenaic/.cache/go-build/9f/9f25a17baed5a80d03eb080a2ce2a5ff49c17f9a56e28330f0474a2bb74a30a0-d/test_vma_name
+            00574000-00575000 r--p 00173000 00:21 28451768                           /home/lenaic/.cache/go-build/9f/9f25a17baed5a80d03eb080a2ce2a5ff49c17f9a56e28330f0474a2bb74a30a0-d/test_vma_name
+            00575000-00580000 rw-p 00174000 00:21 28451768                           /home/lenaic/.cache/go-build/9f/9f25a17baed5a80d03eb080a2ce2a5ff49c17f9a56e28330f0474a2bb74a30a0-d/test_vma_name
+            00580000-005a4000 rw-p 00000000 00:00 0
+            2e075000-2e096000 rw-p 00000000 00:00 0                                  [heap]
+            c000000000-c000400000 rw-p 00000000 00:00 0                              [anon: Go: heap]
+            c000400000-c004000000 ---p 00000000 00:00 0                              [anon: Go: heap reservation]
+            777f40000000-777f40021000 rw-p 00000000 00:00 0                          [anon: glibc: malloc arena]
+            777f40021000-777f44000000 ---p 00000000 00:00 0
+            777f44000000-777f44021000 rw-p 00000000 00:00 0                          [anon: glibc: malloc arena]
+            777f44021000-777f48000000 ---p 00000000 00:00 0
+            777f48000000-777f48021000 rw-p 00000000 00:00 0                          [anon: glibc: malloc arena]
+            777f48021000-777f4c000000 ---p 00000000 00:00 0
+            777f4c000000-777f4c021000 rw-p 00000000 00:00 0                          [anon: glibc: malloc arena]
+            777f4c021000-777f50000000 ---p 00000000 00:00 0
+            777f50000000-777f50021000 rw-p 00000000 00:00 0                          [anon: glibc: malloc arena]
+            777f50021000-777f54000000 ---p 00000000 00:00 0
+            777f55afb000-777f55afc000 ---p 00000000 00:00 0
+            777f55afc000-777f562fc000 rw-p 00000000 00:00 0                          [anon: glibc: pthread stack: 216378]
+            777f562fc000-777f562fd000 ---p 00000000 00:00 0
+            777f562fd000-777f56afd000 rw-p 00000000 00:00 0                          [anon: glibc: pthread stack: 216377]
+            777f56afd000-777f56afe000 ---p 00000000 00:00 0
+            777f56afe000-777f572fe000 rw-p 00000000 00:00 0                          [anon: glibc: pthread stack: 216376]
+            777f572fe000-777f572ff000 ---p 00000000 00:00 0
+            777f572ff000-777f57aff000 rw-p 00000000 00:00 0                          [anon: glibc: pthread stack: 216375]
+            777f57aff000-777f57b00000 ---p 00000000 00:00 0
+            777f57b00000-777f58300000 rw-p 00000000 00:00 0                          [anon: glibc: pthread stack: 216374]
+            777f58300000-777f58400000 rw-p 00000000 00:00 0                          [anon: Go: page alloc index]
+            777f58400000-777f5a400000 rw-p 00000000 00:00 0                          [anon: Go: heap index]
+            777f5a400000-777f6a580000 ---p 00000000 00:00 0                          [anon: Go: scavenge index]
+            777f6a580000-777f6a581000 rw-p 00000000 00:00 0                          [anon: Go: scavenge index]
+            777f6a581000-777f7a400000 ---p 00000000 00:00 0                          [anon: Go: scavenge index]
+            777f7a400000-777f8a580000 ---p 00000000 00:00 0                          [anon: Go: page summary]
+            777f8a580000-777f8a581000 rw-p 00000000 00:00 0                          [anon: Go: page alloc]
+            777f8a581000-777f9c430000 ---p 00000000 00:00 0                          [anon: Go: page summary]
+            777f9c430000-777f9c431000 rw-p 00000000 00:00 0                          [anon: Go: page alloc]
+            777f9c431000-777f9e806000 ---p 00000000 00:00 0                          [anon: Go: page summary]
+            777f9e806000-777f9e807000 rw-p 00000000 00:00 0                          [anon: Go: page alloc]
+            777f9e807000-777f9ec00000 ---p 00000000 00:00 0                          [anon: Go: page summary]
+            777f9ec36000-777f9ecb6000 rw-p 00000000 00:00 0                          [anon: Go: immortal metadata]
+            777f9ecb6000-777f9ecc6000 rw-p 00000000 00:00 0                          [anon: Go: gc bits]
+            777f9ecc6000-777f9ecd6000 rw-p 00000000 00:00 0                          [anon: Go: allspans array]
+            777f9ecd6000-777f9ece7000 rw-p 00000000 00:00 0                          [anon: Go: immortal metadata]
+            777f9ece7000-777f9ed67000 ---p 00000000 00:00 0                          [anon: Go: page summary]
+            777f9ed67000-777f9ed68000 rw-p 00000000 00:00 0                          [anon: Go: page alloc]
+            777f9ed68000-777f9ede7000 ---p 00000000 00:00 0                          [anon: Go: page summary]
+            777f9ede7000-777f9ee07000 rw-p 00000000 00:00 0                          [anon: Go: page alloc]
+            777f9ee07000-777f9ee0a000 rw-p 00000000 00:00 0                          [anon: glibc: loader malloc]
+            777f9ee0a000-777f9ee2e000 r--p 00000000 00:21 48158213                   /usr/lib/libc.so.6
+            777f9ee2e000-777f9ef9f000 r-xp 00024000 00:21 48158213                   /usr/lib/libc.so.6
+            777f9ef9f000-777f9efee000 r--p 00195000 00:21 48158213                   /usr/lib/libc.so.6
+            777f9efee000-777f9eff2000 r--p 001e3000 00:21 48158213                   /usr/lib/libc.so.6
+            777f9eff2000-777f9eff4000 rw-p 001e7000 00:21 48158213                   /usr/lib/libc.so.6
+            777f9eff4000-777f9effc000 rw-p 00000000 00:00 0
+            777f9effc000-777f9effe000 rw-p 00000000 00:00 0                          [anon: glibc: loader malloc]
+            777f9f00a000-777f9f04a000 rw-p 00000000 00:00 0                          [anon: Go: immortal metadata]
+            777f9f04a000-777f9f04c000 r--p 00000000 00:00 0                          [vvar]
+            777f9f04c000-777f9f04e000 r--p 00000000 00:00 0                          [vvar_vclock]
+            777f9f04e000-777f9f050000 r-xp 00000000 00:00 0                          [vdso]
+            777f9f050000-777f9f051000 r--p 00000000 00:21 48158204                   /usr/lib/ld-linux-x86-64.so.2
+            777f9f051000-777f9f07a000 r-xp 00001000 00:21 48158204                   /usr/lib/ld-linux-x86-64.so.2
+            777f9f07a000-777f9f085000 r--p 0002a000 00:21 48158204                   /usr/lib/ld-linux-x86-64.so.2
+            777f9f085000-777f9f087000 r--p 00034000 00:21 48158204                   /usr/lib/ld-linux-x86-64.so.2
+            777f9f087000-777f9f088000 rw-p 00036000 00:21 48158204                   /usr/lib/ld-linux-x86-64.so.2
+            777f9f088000-777f9f089000 rw-p 00000000 00:00 0
+            7ffc7bfa7000-7ffc7bfc8000 rw-p 00000000 00:00 0                          [stack]
+            ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]
+    
+    The anonymous memory areas are now labelled so that we can see which
+    ones have been allocated by the Go runtime versus which ones have been
+    allocated by the glibc.
+    
+    Fixes #71546
+    
+    Change-Id: I304e8b4dd7f2477a6da794fd44e9a7a5354e4bf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646095
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/runtime/syscall/defs_linux.go         |  3 ++
+ src/internal/runtime/syscall/defs_linux_386.go     |  1 +
+ src/internal/runtime/syscall/defs_linux_amd64.go   |  1 +
+ src/internal/runtime/syscall/defs_linux_arm.go     |  1 +
+ src/internal/runtime/syscall/defs_linux_arm64.go   |  1 +
+ src/internal/runtime/syscall/defs_linux_loong64.go |  1 +
+ src/internal/runtime/syscall/defs_linux_mips64x.go |  1 +
+ src/internal/runtime/syscall/defs_linux_mipsx.go   |  1 +
+ src/internal/runtime/syscall/defs_linux_ppc64x.go  |  1 +
+ src/internal/runtime/syscall/defs_linux_riscv64.go |  1 +
+ src/internal/runtime/syscall/defs_linux_s390x.go   |  1 +
+ src/runtime/arena.go                               |  2 +-
+ src/runtime/debuglog.go                            |  4 +--
+ src/runtime/export_test.go                         |  2 +-
+ src/runtime/heapdump.go                            |  2 +-
+ src/runtime/malloc.go                              | 28 +++++++++----------
+ src/runtime/mem.go                                 | 12 ++++----
+ src/runtime/mem_aix.go                             |  6 ++--
+ src/runtime/mem_bsd.go                             |  6 ++--
+ src/runtime/mem_darwin.go                          |  6 ++--
+ src/runtime/mem_linux.go                           | 16 ++++++++---
+ src/runtime/mem_sbrk.go                            |  6 ++--
+ src/runtime/mem_windows.go                         |  6 ++--
+ src/runtime/mheap.go                               |  8 +++---
+ src/runtime/mpagealloc.go                          |  4 ++-
+ src/runtime/mpagealloc_32bit.go                    |  6 ++--
+ src/runtime/mpagealloc_64bit.go                    |  8 +++---
+ src/runtime/mprof.go                               |  2 +-
+ src/runtime/os_freebsd.go                          |  2 +-
+ src/runtime/os_linux.go                            |  2 +-
+ src/runtime/set_vma_name_linux.go                  | 32 ++++++++++++++++++++++
+ src/runtime/set_vma_name_stub.go                   | 12 ++++++++
+ src/runtime/stack.go                               |  2 +-
+ src/runtime/tracebuf.go                            |  2 +-
+ src/runtime/traceregion.go                         |  2 +-
+ src/runtime/vgetrandom_linux.go                    |  1 +
+ 36 files changed, 130 insertions(+), 62 deletions(-)

@@ -1,0 +1,13 @@
+commit 24dafbaa371f11b161ab518b6fbcc023403a67f7
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 13 12:06:43 2010 +1100
+
+    to improve the chances for compatibility, open a window of unused ids
+    and specify a lowest id granted to users.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186081
+
+ src/pkg/gob/type.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

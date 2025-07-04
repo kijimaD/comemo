@@ -1,0 +1,15 @@
+commit 45ca908f890776459b46110dc44a4a99fc2160fb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 12 17:54:17 2012 -0800
+
+    godoc: fix missing name change
+    
+    Fixes godoc text mode (i.e., URL?m=text).
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5545043
+
+ lib/godoc/package.html | 2 +-
+ lib/godoc/package.txt  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

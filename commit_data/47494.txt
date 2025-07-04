@@ -1,0 +1,22 @@
+commit 46e98d489fda3bc1e36af92ee625b2fce3c1f88e
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 15 22:33:22 2021 -0500
+
+    go/types: refer to structural rather than single underlying type in errors
+    
+    This is a port of CL 362997 from types2 to go/types. Some error
+    positions were adjusted in tests.
+    
+    Change-Id: I6a932aee1a8d9bcbf4cd8c16a95bbb41b5c7e13f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363990
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/builtins.go                   |  2 +-
+ src/go/types/index.go                      |  2 +-
+ src/go/types/stmt.go                       |  4 ++--
+ src/go/types/testdata/check/builtins.go2   |  6 +++---
+ src/go/types/testdata/check/typeparams.go2 | 12 ++++++------
+ 5 files changed, 13 insertions(+), 13 deletions(-)

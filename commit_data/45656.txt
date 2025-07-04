@@ -1,0 +1,25 @@
+commit 658b5e66ecbc41a49e6fb5aa63c5d9c804cf305f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue May 18 12:23:56 2021 -0400
+
+    net: return nil UDPAddr from ReadFromUDP
+    
+    In cases where the socket operation has no underlying address,
+    golang.org/cl/291509 unintentionally changed ReadFromUDP from return a
+    nil *UDPAddr to a non-nil (but zero value) *UDPAddr.
+    
+    This may break callers that assume "no address" is always addr == nil,
+    so change it back to remain nil.
+    
+    Fixes #46238
+    
+    Change-Id: I8531e8fa16b853ed7560088eabda0b9e3e53f5be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320909
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/net/udpsock_posix.go |  3 +++
+ src/net/udpsock_test.go  | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

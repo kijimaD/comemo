@@ -1,0 +1,16 @@
+commit df7b720708e9da9e1bd00fe2424d765095427831
+Author: Uriel Mangado <uriel@berlinblue.org>
+Date:   Thu Oct 11 00:23:53 2012 +0800
+
+    codereview.py: Fix crash on auth error handling.
+    
+    In recent Python versions .reason is a read-only property that simply gives you the msg value.
+    
+    Fixes #4024
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6545052
+
+ lib/codereview/codereview.py | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)

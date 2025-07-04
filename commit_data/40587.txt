@@ -1,0 +1,18 @@
+commit 9a0a82445650eebedf5633fdfe6e73b5836dc5c9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Oct 28 14:41:49 2019 -0400
+
+    cmd/internal/obj/mips: add a flag field to Optab
+    
+    The flag field will be used for marking unsafe points. This CL
+    just adds the field, not doing anything with it. The next CL will
+    make use of it. This is for making the diff simpler.
+    
+    Change-Id: I6ff5406ba2e53ae8a882184733d88482a2ca8e2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203938
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/mips/asm0.go | 627 +++++++++++++++++++-------------------
+ 1 file changed, 314 insertions(+), 313 deletions(-)

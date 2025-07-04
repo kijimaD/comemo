@@ -1,0 +1,19 @@
+commit b88e669a8fee64634898e6ad66eb03ff7cda1c91
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Jun 21 12:02:40 2011 -0400
+
+    nacl, tiny: remove vestiges
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4635053
+
+ misc/nacl/naclrun            | 15 ---------------
+ src/cmd/8l/asm.c             |  4 ----
+ src/cmd/8l/obj.c             | 15 ---------------
+ src/cmd/ld/elf.h             |  1 -
+ src/cmd/ld/lib.h             |  2 --
+ src/pkg/runtime/mkasmh.sh    |  1 -
+ src/pkg/syscall/mksyscall.pl |  5 -----
+ test/run                     |  6 ------
+ 8 files changed, 49 deletions(-)

@@ -1,0 +1,13 @@
+commit bdca78e1a76cd97a20d45d5f6990b52533154aee
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 26 01:36:26 2012 +0800
+
+    cmd/yacc/units.y: update comment, give better error messages when $GOROOT not set
+    
+    R=r, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5698062
+
+ src/cmd/yacc/Makefile |  3 +++
+ src/cmd/yacc/units.y  | 12 ++++++++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)

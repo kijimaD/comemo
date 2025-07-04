@@ -1,0 +1,88 @@
+commit a9831633be548c039ada30a2fb9d7290c35ac0c0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 2 14:44:13 2019 -0700
+
+    cmd/compile: update escape analysis tests for newescape
+    
+    The new escape analysis implementation tries to emit debugging
+    diagnostics that are compatible with the existing implementation, but
+    there's a handful of cases that are easier to handle by updating the
+    test expectations instead.
+    
+    For regress tests that need updating, the original file is copied to
+    oldescapeXXX.go.go with -newescape=false added to the //errorcheck
+    line, while the file is updated in place with -newescape=true and new
+    test requirements.
+    
+    Notable test changes:
+    
+    1) escape_because.go looks for a lot of detailed internal debugging
+    messages that are fairly particular to how esc.go works and that I
+    haven't attempted to port over to escape.go yet.
+    
+    2) There are a lot of "leaking param: x to result ~r1 level=-1"
+    messages for code like
+    
+        func(p *int) *T { return &T{p} }
+    
+    that were simply wrong. Here &T must be heap allocated unconditionally
+    (because it's being returned); and since p is stored into it, p
+    escapes unconditionally too. esc.go incorrectly reports that p escapes
+    conditionally only if the returned pointer escaped.
+    
+    3) esc.go used to print each "leaking param" analysis result as it
+    discovered them, which could lead to redundant messages (e.g., that a
+    param leaks at level=0 and level=1). escape.go instead prints
+    everything at the end, once it knows the shortest path to each sink.
+    
+    4) esc.go didn't precisely model direct-interface types, resulting in
+    some values unnecessarily escaping to the heap when stored into
+    non-escaping interface values.
+    
+    5) For functions written in assembly, esc.go only printed "does not
+    escape" messages, whereas escape.go prints "does not escape" or
+    "leaking param" as appropriate, consistent with the behavior for
+    functions written in Go.
+    
+    6) 12 tests included "BAD" annotations identifying cases where esc.go
+    was unnecessarily heap allocating something. These are all fixed by
+    escape.go.
+    
+    Updates #23109.
+    
+    Change-Id: Iabc9eb14c94c9cadde3b183478d1fd54f013502f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170447
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/escape2.go                          |   15 +-
+ test/escape2n.go                         |   15 +-
+ test/escape5.go                          |    4 +-
+ test/escape_because.go                   |    2 +-
+ test/escape_calls.go                     |    4 +-
+ test/escape_closure.go                   |   41 +-
+ test/escape_field.go                     |    8 +-
+ test/escape_iface.go                     |    5 +-
+ test/escape_param.go                     |    4 +-
+ test/escape_struct_return.go             |    4 +-
+ test/fixedbugs/issue12006.go             |    4 +-
+ test/fixedbugs/issue17318.go             |    8 +-
+ test/fixedbugs/oldescape_issue12006.go   |  174 +++
+ test/fixedbugs/oldescape_issue17318.go   |   47 +
+ test/linkname.dir/linkname2.go           |    2 +-
+ test/linkname.go                         |    2 +-
+ test/oldescape2.go                       | 1847 ++++++++++++++++++++++++++++++
+ test/oldescape2n.go                      | 1847 ++++++++++++++++++++++++++++++
+ test/oldescape5.go                       |  247 ++++
+ test/oldescape_calls.go                  |   54 +
+ test/oldescape_closure.go                |  173 +++
+ test/oldescape_field.go                  |  174 +++
+ test/oldescape_iface.go                  |  261 +++++
+ test/oldescape_linkname.dir/linkname1.go |   10 +
+ test/oldescape_linkname.dir/linkname2.go |   13 +
+ test/oldescape_linkname.dir/linkname3.go |   11 +
+ test/oldescape_linkname.go               |   15 +
+ test/oldescape_param.go                  |  441 +++++++
+ test/oldescape_struct_return.go          |   74 ++
+ 29 files changed, 5442 insertions(+), 64 deletions(-)

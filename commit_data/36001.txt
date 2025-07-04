@@ -1,0 +1,12 @@
+commit e07e9c4fd50687370a4027fb9f319edb75f5ac04
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 16 16:35:04 2018 +0000
+
+    doc: add net/http additions to go1.11 notes
+    
+    Change-Id: Ib2da2b0ceb33867a41b0b9b7e4dcecb11f964b73
+    Reviewed-on: https://go-review.googlesource.com/124035
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)

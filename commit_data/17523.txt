@@ -1,0 +1,15 @@
+commit a6149da08a6bcdca087977f053c529eea03032aa
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Sep 10 14:50:29 2013 +1000
+
+    os/exec: change windows LookPath so it works like cmd.exe
+    
+    Fixes #6224
+    
+    R=golang-dev, hcwfrichter, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13410045
+
+ src/pkg/os/exec/lp_windows.go      |  15 +-
+ src/pkg/os/exec/lp_windows_test.go | 391 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 402 insertions(+), 4 deletions(-)

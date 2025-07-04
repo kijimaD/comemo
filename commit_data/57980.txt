@@ -1,0 +1,117 @@
+commit 102d031a5833cdbcd4accfcd9d6d632d95fd1d61
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Thu Oct 31 10:24:30 2024 +0100
+
+    internal/fuzz: add benchmarks for byte slice mutators
+    
+    Cover each byte slice mutation function in a benchmark.
+    Grants visibility into the cost of each transformation
+    and allows us to perform informed optimization.
+    
+    Results on go1.23/Intel Alder Lake i5-12600K (n=16):
+    
+    name                                                  time/op
+    ByteSliceMutators/RemoveBytes/64-16                   14.8ns ± 0%
+    ByteSliceMutators/RemoveBytes/128-16                  14.6ns ± 0%
+    ByteSliceMutators/RemoveBytes/256-16                  14.7ns ± 0%
+    ByteSliceMutators/RemoveBytes/512-16                  17.0ns ± 0%
+    ByteSliceMutators/RemoveBytes/1024-16                 18.3ns ± 0%
+    ByteSliceMutators/InsertRandomBytes/64-16             9.88ns ± 0%
+    ByteSliceMutators/InsertRandomBytes/128-16            9.88ns ± 1%
+    ByteSliceMutators/InsertRandomBytes/256-16            9.87ns ± 0%
+    ByteSliceMutators/InsertRandomBytes/512-16            9.88ns ± 0%
+    ByteSliceMutators/InsertRandomBytes/1024-16           9.87ns ± 0%
+    ByteSliceMutators/DuplicateBytes/64-16                12.4ns ± 0%
+    ByteSliceMutators/DuplicateBytes/128-16               12.3ns ± 0%
+    ByteSliceMutators/DuplicateBytes/256-16               12.3ns ± 0%
+    ByteSliceMutators/DuplicateBytes/512-16               12.3ns ± 0%
+    ByteSliceMutators/DuplicateBytes/1024-16              12.3ns ± 0%
+    ByteSliceMutators/OverwriteBytes/64-16                17.5ns ± 0%
+    ByteSliceMutators/OverwriteBytes/128-16               17.3ns ± 0%
+    ByteSliceMutators/OverwriteBytes/256-16               17.1ns ± 0%
+    ByteSliceMutators/OverwriteBytes/512-16               17.0ns ± 0%
+    ByteSliceMutators/OverwriteBytes/1024-16              17.0ns ± 0%
+    ByteSliceMutators/BitFlip/64-16                       5.06ns ± 1%
+    ByteSliceMutators/BitFlip/128-16                      5.07ns ± 1%
+    ByteSliceMutators/BitFlip/256-16                      5.07ns ± 1%
+    ByteSliceMutators/BitFlip/512-16                      5.07ns ± 0%
+    ByteSliceMutators/BitFlip/1024-16                     5.06ns ± 1%
+    ByteSliceMutators/XORByte/64-16                       5.33ns ± 1%
+    ByteSliceMutators/XORByte/128-16                      5.30ns ± 1%
+    ByteSliceMutators/XORByte/256-16                      5.29ns ± 1%
+    ByteSliceMutators/XORByte/512-16                      5.29ns ± 1%
+    ByteSliceMutators/XORByte/1024-16                     5.29ns ± 1%
+    ByteSliceMutators/SwapByte/64-16                      5.75ns ± 0%
+    ByteSliceMutators/SwapByte/128-16                     5.70ns ± 0%
+    ByteSliceMutators/SwapByte/256-16                     5.67ns ± 0%
+    ByteSliceMutators/SwapByte/512-16                     5.67ns ± 1%
+    ByteSliceMutators/SwapByte/1024-16                    5.67ns ± 0%
+    ByteSliceMutators/ArithmeticUint8/64-16               9.55ns ± 0%
+    ByteSliceMutators/ArithmeticUint8/128-16              9.56ns ± 0%
+    ByteSliceMutators/ArithmeticUint8/256-16              9.57ns ± 0%
+    ByteSliceMutators/ArithmeticUint8/512-16              9.56ns ± 0%
+    ByteSliceMutators/ArithmeticUint8/1024-16             9.56ns ± 0%
+    ByteSliceMutators/ArithmeticUint16/64-16              13.2ns ± 0%
+    ByteSliceMutators/ArithmeticUint16/128-16             13.2ns ± 0%
+    ByteSliceMutators/ArithmeticUint16/256-16             13.2ns ± 0%
+    ByteSliceMutators/ArithmeticUint16/512-16             13.2ns ± 0%
+    ByteSliceMutators/ArithmeticUint16/1024-16            13.2ns ± 0%
+    ByteSliceMutators/ArithmeticUint32/64-16              13.4ns ± 0%
+    ByteSliceMutators/ArithmeticUint32/128-16             13.4ns ± 0%
+    ByteSliceMutators/ArithmeticUint32/256-16             13.4ns ± 0%
+    ByteSliceMutators/ArithmeticUint32/512-16             13.4ns ± 0%
+    ByteSliceMutators/ArithmeticUint32/1024-16            13.4ns ± 0%
+    ByteSliceMutators/ArithmeticUint64/64-16              13.4ns ± 0%
+    ByteSliceMutators/ArithmeticUint64/128-16             13.5ns ± 0%
+    ByteSliceMutators/ArithmeticUint64/256-16             13.5ns ± 0%
+    ByteSliceMutators/ArithmeticUint64/512-16             13.5ns ± 0%
+    ByteSliceMutators/ArithmeticUint64/1024-16            13.5ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint8/64-16     5.39ns ± 2%
+    ByteSliceMutators/OverwriteInterestingUint8/128-16    5.38ns ± 1%
+    ByteSliceMutators/OverwriteInterestingUint8/256-16    5.37ns ± 1%
+    ByteSliceMutators/OverwriteInterestingUint8/512-16    5.41ns ± 2%
+    ByteSliceMutators/OverwriteInterestingUint8/1024-16   5.38ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint16/64-16    10.7ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint16/128-16   10.7ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint16/256-16   10.7ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint16/512-16   10.7ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint16/1024-16  10.7ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint32/64-16    10.9ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint32/128-16   10.9ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint32/256-16   10.9ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint32/512-16   10.9ns ± 0%
+    ByteSliceMutators/OverwriteInterestingUint32/1024-16  10.9ns ± 0%
+    ByteSliceMutators/InsertConstantBytes/64-16           10.1ns ± 0%
+    ByteSliceMutators/InsertConstantBytes/128-16          10.1ns ± 0%
+    ByteSliceMutators/InsertConstantBytes/256-16          10.1ns ± 0%
+    ByteSliceMutators/InsertConstantBytes/512-16          10.1ns ± 0%
+    ByteSliceMutators/InsertConstantBytes/1024-16         10.1ns ± 0%
+    ByteSliceMutators/OverwriteConstantBytes/64-16        18.7ns ± 0%
+    ByteSliceMutators/OverwriteConstantBytes/128-16       18.8ns ± 0%
+    ByteSliceMutators/OverwriteConstantBytes/256-16       18.8ns ± 0%
+    ByteSliceMutators/OverwriteConstantBytes/512-16       19.0ns ± 0%
+    ByteSliceMutators/OverwriteConstantBytes/1024-16      19.3ns ± 0%
+    ByteSliceMutators/ShuffleBytes/64-16                  24.5ns ± 0%
+    ByteSliceMutators/ShuffleBytes/128-16                 25.4ns ± 0%
+    ByteSliceMutators/ShuffleBytes/256-16                 26.6ns ± 0%
+    ByteSliceMutators/ShuffleBytes/512-16                 28.2ns ± 0%
+    ByteSliceMutators/ShuffleBytes/1024-16                33.3ns ± 0%
+    ByteSliceMutators/SwapBytes/64-16                     16.2ns ± 1%
+    ByteSliceMutators/SwapBytes/128-16                    15.8ns ± 0%
+    ByteSliceMutators/SwapBytes/256-16                    15.5ns ± 0%
+    ByteSliceMutators/SwapBytes/512-16                    15.4ns ± 0%
+    ByteSliceMutators/SwapBytes/1024-16                   15.3ns ± 0%
+    [Geo mean]                                            11.0ns
+    
+    Note that implementing this via a single parent benchmark function
+    adds an overhead of about 1-8%, but that should be acceptable and
+    results in more concise code.
+    
+    Change-Id: Ifa2693f8fc8c2058513a615208d0d6862efd3617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/internal/fuzz/mutators_byteslice_test.go | 41 ++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)

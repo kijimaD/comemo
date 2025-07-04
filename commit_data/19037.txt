@@ -1,0 +1,13 @@
+commit e25d73d7f90870aeae04d2a788479664adb0a56f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 4 17:36:01 2014 +1100
+
+    net: fix format string in TestAcceptIgnoreSomeErrors
+    
+    LGTM=mikioh.mikioh
+    R=golang-codereviews, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/84340043
+
+ src/pkg/net/net_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

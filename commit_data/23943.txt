@@ -1,0 +1,13 @@
+commit 3c10bdd118cf59e3c2721723a628c3d49c703337
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jul 31 11:43:57 2015 +1000
+
+    doc: link to proposal process from contribution guidelines
+    
+    Change-Id: I992cb1afeef498353d529238e508fa438d6c069c
+    Reviewed-on: https://go-review.googlesource.com/12912
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/contribute.html | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

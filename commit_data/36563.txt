@@ -1,0 +1,14 @@
+commit 1d15354fb931a81a66fdc4a6101df711bd738a4b
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Fri Aug 31 23:34:39 2018 +0200
+
+    os/exec: document how to do special args quoting on Windows
+    
+    Updates #27199
+    
+    Change-Id: I5cb6540266901697d3558ce75b8de63b1bfc2ce0
+    Reviewed-on: https://go-review.googlesource.com/132695
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/exec/exec.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

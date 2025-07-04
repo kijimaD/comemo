@@ -1,0 +1,18 @@
+commit 72d24a7484063d1ca1113badb481f725382e39b8
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Thu Feb 28 15:20:59 2019 +0100
+
+    cmd/compile: simplify zero ext operations on wasm
+    
+    On wasm every integer is stored with 64 bits. We can do zero
+    extension by simply zeroing the upper bits.
+    
+    Change-Id: I02c54a38b3b2b7654fff96055edab1b92d48ff32
+    Reviewed-on: https://go-review.googlesource.com/c/164461
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  6 +-
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 90 ++++++++++-------------------
+ 2 files changed, 33 insertions(+), 63 deletions(-)

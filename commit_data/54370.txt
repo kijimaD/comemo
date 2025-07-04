@@ -1,0 +1,28 @@
+commit af8a2bde7b5b0b9db3d18c82d4b51ad30760eb09
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 6 21:48:28 2023 -0700
+
+    cmd/compile/internal/ssa: remove Frontend.MyImportPath
+    
+    This method is only used to find the path of the function being
+    compiled for hash debugging, but it was instead returning the path of
+    the package being compiled. These are typically the same, but can be
+    different for certain functions compiled across package boundaries
+    (e.g., method value wrappers and generic functions).
+    
+    It's redundant either with f.fe.Func().Sym().Pkg.Path (package path of
+    the function being compiled) or f.Config.ctxt.Pkgpath (package path of
+    the compilation unit), so just remove it instead.
+    
+    Change-Id: I1daae09055043d0ecb1fcc874a0b0006a6f8bddf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526516
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/config.go      | 3 ---
+ src/cmd/compile/internal/ssa/export_test.go | 3 ---
+ src/cmd/compile/internal/ssa/func.go        | 3 ++-
+ src/cmd/compile/internal/ssagen/ssa.go      | 4 ----
+ 4 files changed, 2 insertions(+), 11 deletions(-)

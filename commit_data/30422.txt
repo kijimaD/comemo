@@ -1,0 +1,19 @@
+commit 417f49a363e7dbd01e91c79fc4f13c03681c2cc8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 18 13:58:59 2017 -0800
+
+    cmd/compile: fold (NegNN (ConstNN ...))
+    
+    Fix up and enable a few rules.
+    They trigger a handful of times in std,
+    despite the frontend handling.
+    
+    Change-Id: I83378c057cbbc95a4f2b58cd8c36aec0e9dc547f
+    Reviewed-on: https://go-review.googlesource.com/37227
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules | 13 ++--
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 98 ++++++++++++++++++++++++++
+ 2 files changed, 104 insertions(+), 7 deletions(-)

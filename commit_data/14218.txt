@@ -1,0 +1,15 @@
+commit 38070a72c5ba4f7eb2d90e79be8e06f2f991f7e7
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Oct 26 08:39:36 2012 +0200
+
+    reflect: stop thinking that MaxFloat32 overflows float32.
+    
+    Fixes #4282.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6759052
+
+ src/pkg/reflect/all_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/reflect/value.go    |  2 +-
+ 2 files changed, 40 insertions(+), 1 deletion(-)

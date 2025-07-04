@@ -1,0 +1,14 @@
+commit dbee8ad0f9eff310e1d3c696b334e9a596cab42b
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Wed May 22 21:13:30 2013 +0200
+
+    cmd/cc: reject unions containing pointers
+    
+    If a union contains a pointer, it will mess up the garbage collector, causing memory corruption.
+    
+    R=golang-dev, dave, nightlyone, adg, dvyukov, bradfitz, minux.ma, r, iant
+    CC=golang-dev
+    https://golang.org/cl/8469043
+
+ src/cmd/cc/dcl.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

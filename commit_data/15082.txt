@@ -1,0 +1,14 @@
+commit 11d16dc53545438067fef0103c10eae126c11535
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Fri Feb 1 10:02:23 2013 -0800
+
+    reflect: document that Value.Slice panics on an unaddressable array.
+    
+    Fixes #4736.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7239045
+
+ src/pkg/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

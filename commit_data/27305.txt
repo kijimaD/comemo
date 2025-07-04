@@ -1,0 +1,14 @@
+commit ef92857e27556804d66e72e2360dc2c6b6554bd7
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 5 09:10:49 2016 -0700
+
+    cmd/go, cmd/cgo: pass "-mabi=64" to gcc on mips64
+    
+    Change-Id: I9ac2ae57a00cee23d6255db02419b0a0f087d4f3
+    Reviewed-on: https://go-review.googlesource.com/22801
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Minux Ma <minux@golang.org>
+
+ src/cmd/cgo/gcc.go  | 2 ++
+ src/cmd/go/build.go | 2 ++
+ 2 files changed, 4 insertions(+)

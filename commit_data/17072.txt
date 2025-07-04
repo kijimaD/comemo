@@ -1,0 +1,17 @@
+commit 96c583b84cf976348b781be7c43e7220ce672474
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 7 11:19:07 2013 -0700
+
+    test: fix return.go to remove unused labels
+    
+    The gc compiler only gives an error about an unused label if
+    it has not given any errors in an earlier pass.  Remove all
+    unused labels in this test because they don't test anything
+    useful and they cause gccgo to give unexpected errors.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12580044
+
+ test/return.go | 4 ----
+ 1 file changed, 4 deletions(-)

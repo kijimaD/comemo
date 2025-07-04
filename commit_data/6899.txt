@@ -1,0 +1,20 @@
+commit 062406bc644f1606a2c0fa6f0e25ac04aebfd55e
+Author: Ryan Hitchman <hitchmanr@gmail.com>
+Date:   Wed Dec 8 21:36:56 2010 -0800
+
+    throughout: simplify two-variable ranges with unused second variable
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/3529041
+
+ src/cmd/godoc/godoc.go                   | 2 +-
+ src/pkg/container/vector/numbers_test.go | 2 +-
+ src/pkg/exp/draw/draw.go                 | 2 +-
+ src/pkg/go/parser/parser_test.go         | 2 +-
+ src/pkg/http/transfer.go                 | 2 +-
+ src/pkg/index/suffixarray/suffixarray.go | 2 +-
+ src/pkg/reflect/type.go                  | 2 +-
+ src/pkg/unicode/maketables.go            | 4 ++--
+ test/blank.go                            | 2 +-
+ 9 files changed, 10 insertions(+), 10 deletions(-)

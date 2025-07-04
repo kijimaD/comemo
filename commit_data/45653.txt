@@ -1,0 +1,27 @@
+commit 6d2ef2ef2a3ed375b5c782e6c8b0f8a59c3d3c8c
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 18 12:58:02 2021 -0400
+
+    cmd/compile: don't emit inltree for closure within body of inlined func
+    
+    When inlining functions with closures, ensure that we don't mark the
+    body of the closure with a src.Pos marker that reflects the inline,
+    since this will result in the generation of an inltree table for the
+    closure itself (as opposed to the routine that the func-with-closure
+    was inlined into).
+    
+    Fixes #46234.
+    
+    Change-Id: I348296de6504fc4745d99adab436640f50be299a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320913
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/inline/inl.go |  16 ++++-
+ test/closure3.dir/main.go              |   8 +--
+ test/fixedbugs/issue46234.go           | 103 +++++++++++++++++++++++++++++++++
+ test/inline.go                         |   4 +-
+ 4 files changed, 124 insertions(+), 7 deletions(-)

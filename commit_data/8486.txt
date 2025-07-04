@@ -1,0 +1,14 @@
+commit 2ad58d48fb88d84989e0e6bf5844cd31fb7beb9d
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed May 25 07:53:00 2011 -0400
+
+    8l: emit resources (.rsrc) in Windows PE.
+    
+    R=alex.brainman, rsc
+    CC=golang-dev, vcc.163
+    https://golang.org/cl/4516055
+
+ src/cmd/ld/ldpe.c |  5 ++++-
+ src/cmd/ld/pe.c   | 48 +++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/ld/pe.h   |  2 ++
+ 3 files changed, 53 insertions(+), 2 deletions(-)

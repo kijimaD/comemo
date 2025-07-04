@@ -1,0 +1,15 @@
+commit 94f3d8cfed14e4bcb99a0389ea083cfc2ae3ab1d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 1 16:09:55 2014 -0700
+
+    encoding/binary: slightly better documentation
+    
+    Fixes #7306.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/153820044
+
+ src/encoding/binary/binary.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

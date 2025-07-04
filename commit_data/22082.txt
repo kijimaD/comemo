@@ -1,0 +1,25 @@
+commit d26fdf295ed1f0154f65110b17ac6ecf4300dad4
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Mar 16 17:13:10 2015 -0700
+
+    crypto/tls: disable RC4 by default.
+    
+    RC4 is frowned upon[1] at this point and major providers are disabling it
+    by default[2].
+    
+    Those who still need RC4 support in crypto/tls can enable it by
+    specifying the CipherSuites slice in crypto/tls.Config explicitly.
+    
+    Fixes #10094.
+    
+    [1] https://tools.ietf.org/html/rfc7465
+    [2] https://blog.cloudflare.com/killing-rc4-the-long-goodbye/
+    
+    Change-Id: Ia03a456f7e7a4362b706392b0e3c4cc93ce06f9f
+    Reviewed-on: https://go-review.googlesource.com/7647
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/crypto/tls/cipher_suites.go         |  9 ++++++---
+ src/crypto/tls/common.go                |  9 ++++++---
+ src/crypto/tls/handshake_server_test.go | 35 +++++++++++++++++++++++++++------
+ 3 files changed, 41 insertions(+), 12 deletions(-)

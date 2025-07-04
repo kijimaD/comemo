@@ -1,0 +1,23 @@
+commit 2541cc81978dc5e41e2e2db6345d8ca7a365ca8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 19 10:00:44 2014 -0500
+
+    cmd/ld: drop gcargs, gclocals symbols from symbol table
+    
+    Update #6853
+    
+    Every function now has a gcargs and gclocals symbol
+    holding associated garbage collection information.
+    Put them all in the same meta-symbol as the go.func data
+    and then drop individual entries from symbol table.
+    
+    Removing gcargs and gclocals reduces the size of a
+    typical binary by 10%.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/65870044
+
+ src/cmd/ld/symtab.c | 5 +++++
+ 1 file changed, 5 insertions(+)

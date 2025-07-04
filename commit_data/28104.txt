@@ -1,0 +1,16 @@
+commit d3134b6450d08bba13e904f572a34d411614533e
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Aug 18 09:14:22 2016 -0700
+
+    cmd/compile: document more Node fields
+    
+    Change-Id: Ic8d37e5612b68bc73c4b50b59db54d8966b69838
+    Reviewed-on: https://go-review.googlesource.com/27326
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/go.go     | 2 +-
+ src/cmd/compile/internal/gc/syntax.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,20 @@
+commit 79c036238d83c8fceb49aa4bab4d6dade1c321f6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Oct 18 19:43:04 2016 +0900
+
+    net: update docs on network interface API
+    
+    This change documents that the InterfaceAddrs function is less usable on
+    multi-homed IP nodes because of the lack of network interface
+    identification information.
+    
+    Also updates documentation on exposed network interface API.
+    
+    Fixes #14518.
+    
+    Change-Id: I5e86606f8019ab475eb5d385bd797b052cba395d
+    Reviewed-on: https://go-review.googlesource.com/31371
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit b602daea1b94a8a578bafdc6ef6336c07fe63300
+Author: korzhao <korzhao95@gmail.com>
+Date:   Mon Aug 30 17:09:51 2021 +0800
+
+    cmd/compile: fix error when revcType is ptr in selectorExpr
+    
+    Fixes #48056
+    
+    Change-Id: I13ca4caadbabf02084f66ab28b4cf0c4a3705370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346049
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/expr.go |  2 +-
+ test/typeparam/issue48056.go           | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

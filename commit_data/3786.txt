@@ -1,0 +1,14 @@
+commit 55ba9d6a2cef972e46a2da20e9180227f45c3095
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Nov 4 21:34:54 2009 -0800
+
+    fixing (badly) linux_arm syscall.
+    
+    R=rsc
+    http://go/go-review/1017037
+
+ src/pkg/syscall/syscall_linux_arm.go  |  2 ++
+ src/pkg/syscall/zerrors_linux_arm.go  |  1 +
+ src/pkg/syscall/zsyscall_linux_arm.go | 21 ++++++++++++++++
+ src/pkg/syscall/ztypes_linux_arm.go   | 46 +++++++++++++++++------------------
+ 4 files changed, 47 insertions(+), 23 deletions(-)

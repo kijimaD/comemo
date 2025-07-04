@@ -1,0 +1,15 @@
+commit fb3ed166e39fd13689b35ca7aa2496e113cbeaf5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 29 11:04:07 2013 -0700
+
+    runtime: fix gdb printing of maps
+    Fixes #5098
+    
+    R=minux.ma, bradfitz, khr, rsc
+    CC=golang-dev
+    https://golang.org/cl/7746045
+
+ src/cmd/ld/dwarf.c             | 72 +++++++++++++++++++++++++++++++++++++++---
+ src/pkg/runtime/hashmap.c      |  2 +-
+ src/pkg/runtime/runtime-gdb.py | 49 ++++++++++++++++------------
+ 3 files changed, 98 insertions(+), 25 deletions(-)

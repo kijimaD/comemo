@@ -1,0 +1,19 @@
+commit d86c35e5232744674907fec5bd738dd3fbbf0f53
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 11 15:47:33 2019 -0400
+
+    test: add testcases for gccgo bug
+    
+    Add a couple of testcase for a gccgo type checking bug.
+    
+    Updates #31412.
+    
+    Change-Id: I7a813dafde78e4add1432602d2af5fe879415e1c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171761
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/fixedbugs/issue31412a.go | 32 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue31412b.go | 20 ++++++++++++++++++++
+ 2 files changed, 52 insertions(+)

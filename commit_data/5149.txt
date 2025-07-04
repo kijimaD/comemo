@@ -1,0 +1,12 @@
+commit bc83042b0721d2de54e0a908ff61d77014e84ed0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 26 14:48:04 2010 -0700
+
+    godoc: export pprof debug information
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/784041
+
+ src/cmd/godoc/main.go | 1 +
+ 1 file changed, 1 insertion(+)

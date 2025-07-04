@@ -1,0 +1,18 @@
+commit c6810e76edffb2777fc0c3bf0344fa3f107c5d72
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Wed Mar 23 14:33:48 2011 -0400
+
+    syscall: GetsockoptInt.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/4271060
+
+ src/pkg/syscall/syscall_linux.go        |  8 +++++++-
+ src/pkg/syscall/syscall_linux_386.go    |  5 +++++
+ src/pkg/syscall/syscall_linux_amd64.go  |  1 +
+ src/pkg/syscall/syscall_linux_arm.go    |  1 +
+ src/pkg/syscall/zsyscall_linux_386.go   |  2 +-
+ src/pkg/syscall/zsyscall_linux_amd64.go | 10 +++++++++-
+ src/pkg/syscall/zsyscall_linux_arm.go   | 10 +++++++++-
+ 7 files changed, 33 insertions(+), 4 deletions(-)

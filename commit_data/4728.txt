@@ -1,0 +1,16 @@
+commit 05f26366e5821f1c46ce040e0c8960d0f70c04d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 18:18:40 2010 -0800
+
+    two minor build fixes
+    
+    Fixes #572.
+    Fixes #570.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/194134
+
+ doc/install.html      |  2 +-
+ src/cmd/gotest/gotest | 14 +++++++-------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

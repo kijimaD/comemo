@@ -1,0 +1,13 @@
+commit 91e69efb0d731f20010c9c5093a1cbc036eb9ab1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 19 10:20:32 2010 +1100
+
+    A+C: Yasuhiro Matsumoto
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2543044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

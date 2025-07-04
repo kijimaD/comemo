@@ -1,0 +1,34 @@
+commit 3d62000adcec9b6e4a2d7ca89020f3bf68ece2ef
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Aug 23 18:36:46 2017 -0700
+
+    archive/tar: return better WriteHeader errors
+    
+    WriteHeader may fail to encode a header for any number of reasons,
+    which can be frustrating for the user when trying to create a tar archive.
+    As we validate the Header, we generate an informative error message
+    intended for human consumption and return that if and only if no
+    format can be selected.
+    
+    This allows WriteHeader to return informative errors like:
+        tar: cannot encode header: invalid PAX record: "linkpath = \x00hello"
+        tar: cannot encode header: invalid PAX record: "SCHILY.xattr.foo=bar = baz"
+        tar: cannot encode header: Format specifies GNU; and only PAX supports Xattrs
+        tar: cannot encode header: Format specifies GNU; and GNU cannot encode ModTime=1969-12-31 15:59:59.0000005 -0800 PST
+        tar: cannot encode header: Format specifies GNU; and GNU supports sparse files only with TypeGNUSparse
+        tar: cannot encode header: Format specifies USTAR; and USTAR cannot encode ModTime=292277026596-12-04 07:30:07 -0800 PST
+        tar: cannot encode header: Format specifies USTAR; and USTAR does not support sparse files
+        tar: cannot encode header: Format specifies PAX; and only GNU supports TypeGNUSparse
+    
+    Updates #18710
+    
+    Change-Id: I82a498d6f29d02c4e73bce47b768eb578da8499c
+    Reviewed-on: https://go-review.googlesource.com/58310
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/common.go      | 105 +++++++++++++++++++++++++++++++----------
+ src/archive/tar/tar_test.go    |  43 +++++++++++++++--
+ src/archive/tar/writer.go      |   5 +-
+ src/archive/tar/writer_test.go |  24 ++++++----
+ 4 files changed, 138 insertions(+), 39 deletions(-)

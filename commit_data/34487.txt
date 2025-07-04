@@ -1,0 +1,21 @@
+commit 05962561ae490ae006377a7b8d0fd1495ad6eb2e
+Author: Wei Xiao <wei.xiao@arm.com>
+Date:   Mon Mar 5 03:50:25 2018 +0000
+
+    cmd/compile/internal/ssa: improve store combine optimization on arm64
+    
+    Current implementation doesn't consider MOVDreg type operand and fail to combine
+    it into larger store. This patch fixes the issue.
+    
+    Fixes #24242
+    
+    Change-Id: I7d68697f80e76f48c3528ece01a602bf513248ec
+    Reviewed-on: https://go-review.googlesource.com/98397
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  34 +++
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 371 ++++++++++++++++++++++++++-
+ test/codegen/memcombine.go                   |  16 +-
+ 3 files changed, 411 insertions(+), 10 deletions(-)

@@ -1,0 +1,29 @@
+commit dc8e2a6a8ec94f2c98ba20edd57932eba284efb1
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Tue May 17 11:24:03 2022 +0800
+
+    io: add OffsetWriter, NewOffsetWriter
+    
+    Offsetwriter refers to the design of SectionReader and removes
+    the section parameter n.
+    
+    Since the size of the written data is determined by the user,
+    we cannot know where the end offset of the original data is.
+    The offset of SeekEnd is not valid in Seek method.
+    
+    Fixes #45899.
+    
+    Change-Id: I9d9445aecfa0dd4fc5168f2f65e1e3055c201b45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406776
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ api/next/45899.txt    |   5 ++
+ src/io/export_test.go |   2 +
+ src/io/io.go          |  40 ++++++++++++
+ src/io/io_test.go     | 177 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 224 insertions(+)

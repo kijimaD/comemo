@@ -1,0 +1,14 @@
+commit c876a1b11ee8d22b50df2b9b615f8199675f0470
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 10:44:05 2016 -0800
+
+    cmd/internal/obj: remove unused ar.go
+    
+    Change-Id: I3eab54cd27c43bab38641fbead4adb6442481356
+    Reviewed-on: https://go-review.googlesource.com/20248
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/ar.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

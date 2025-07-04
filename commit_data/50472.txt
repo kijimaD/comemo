@@ -1,0 +1,22 @@
+commit 72e07dbee086659833ef560ecce517a183d95b23
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Aug 25 14:55:00 2022 -0400
+
+    cmd/go/testdata/script: remove reference to fixed issue
+    
+    The issue referenced in work_prune.txt was fixed in CL 362754, but we
+    forgot to update the TODO or mark the issue as fixed in the commit
+    message.
+    
+    Updates #48331.
+    
+    Change-Id: Id2115e496aeaef275dd3c8d32c5c5564e6addb07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425485
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/go/testdata/script/work_prune.txt | 1 -
+ 1 file changed, 1 deletion(-)

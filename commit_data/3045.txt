@@ -1,0 +1,14 @@
+commit cfa52e5e0bfb0aaea7dec2a864b0f562a28d1d15
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 21 14:14:25 2009 -0700
+
+    unexpected shift conversion behavior
+    
+    R=r
+    DELTA=20  (20 added, 0 deleted, 0 changed)
+    OCL=33646
+    CL=33667
+
+ test/bugs/bug193.go | 15 +++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 20 insertions(+)

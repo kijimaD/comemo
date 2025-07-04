@@ -1,0 +1,17 @@
+commit daacf269802eaa856705063159b55b5e752e7058
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jan 7 16:25:34 2020 -0500
+
+    cmd/go: fix TestScript/test_main_twice
+    
+    The TMPDIR environment variable isn't always available. Use $WORK/tmp
+    instead, to fix this test on Windows.
+    
+    Change-Id: I521c470430c6eea4d1f2fc7db749d38178a03a13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213680
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/test_main_twice.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

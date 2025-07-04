@@ -1,0 +1,64 @@
+commit 403ab0f2214f583db84a2dae275389be92072a35
+Author: Keith Randall <khr@google.com>
+Date:   Thu Mar 1 16:38:41 2018 -0800
+
+    internal/bytealg: move IndexByte asssembly to the new bytealg package
+    
+    Move the IndexByte function from the runtime to a new bytealg package.
+    The new package will eventually hold all the optimized assembly for
+    groveling through byte slices and strings. It seems a better home for
+    this code than randomly keeping it in runtime.
+    
+    Once this is in, the next step is to move the other functions
+    (Compare, Equal, ...).
+    
+    Update #19792
+    
+    This change seems complicated enough that we might just declare
+    "not worth it" and abandon.  Opinions welcome.
+    
+    The core assembly is all unchanged, except minor modifications where
+    the code reads cpu feature bits.
+    
+    The wrapper functions have been cleaned up as they are now actually
+    checked by vet.
+    
+    Change-Id: I9fa75bee5d85db3a65b3fd3b7997e60367523796
+    Reviewed-on: https://go-review.googlesource.com/98016
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes_decl.go                     |   4 +-
+ src/cmd/dist/build.go                       |   5 +
+ src/cmd/link/internal/ld/data.go            |   5 +-
+ src/cmd/vet/all/whitelist/all.txt           |   4 +-
+ src/cmd/vet/all/whitelist/amd64.txt         |   1 -
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt |   1 -
+ src/cmd/vet/all/whitelist/s390x.txt         |   1 -
+ src/go/build/deps_test.go                   |   6 +-
+ src/internal/bytealg/indexbyte_386.s        |  40 ++++
+ src/internal/bytealg/indexbyte_amd64.s      | 169 +++++++++++++++
+ src/internal/bytealg/indexbyte_amd64p32.s   | 129 +++++++++++
+ src/internal/bytealg/indexbyte_arm.s        |  60 +++++
+ src/internal/bytealg/indexbyte_arm64.s      | 140 ++++++++++++
+ src/internal/bytealg/indexbyte_generic.go   |  47 ++++
+ src/internal/bytealg/indexbyte_mips64x.s    |  60 +++++
+ src/internal/bytealg/indexbyte_mipsx.s      |  58 +++++
+ src/internal/bytealg/indexbyte_native.go    |  23 ++
+ src/internal/bytealg/indexbyte_ppc64x.s     | 325 ++++++++++++++++++++++++++++
+ src/internal/bytealg/indexbyte_s390x.s      | 122 +++++++++++
+ src/internal/cpu/cpu.go                     |   8 +
+ src/runtime/asm_386.s                       |  28 ---
+ src/runtime/asm_amd64.s                     | 142 ------------
+ src/runtime/asm_amd64p32.s                  | 107 ---------
+ src/runtime/asm_arm.s                       |  48 ----
+ src/runtime/asm_arm64.s                     | 120 ----------
+ src/runtime/asm_mips64x.s                   |  46 ----
+ src/runtime/asm_mipsx.s                     |  44 ----
+ src/runtime/asm_ppc64x.s                    | 302 --------------------------
+ src/runtime/asm_s390x.s                     | 102 ---------
+ src/runtime/error.go                        |  11 +-
+ src/runtime/os_linux_s390x.go               |   3 +
+ src/strings/strings_decl.go                 |   2 +-
+ 32 files changed, 1204 insertions(+), 959 deletions(-)

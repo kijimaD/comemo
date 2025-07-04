@@ -1,0 +1,20 @@
+commit 042200145fbf994e3fcbfa87e75b10d042867b3a
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 30 12:11:35 2015 -0700
+
+    text/template: allow newlines in raw quotes
+    
+    This was disallowed for error-checking reasons but people ask for
+    it, it's easy, and it's clear what it all means.
+    
+    Fixes #7323.
+    
+    Change-Id: I26542f5ac6519e45b335ad789713a4d9e356279b
+    Reviewed-on: https://go-review.googlesource.com/9537
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/text/template/doc.go            |  4 ++--
+ src/text/template/exec_test.go      | 13 +++++++++++++
+ src/text/template/parse/lex.go      |  2 +-
+ src/text/template/parse/lex_test.go | 29 ++++++++++++++++-------------
+ 4 files changed, 32 insertions(+), 16 deletions(-)

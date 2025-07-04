@@ -1,0 +1,26 @@
+commit 157cd6ef3af96b2b81e4f3a2b63063a20c67a406
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 14 09:42:37 2011 -0800
+
+    gofmt, go/printer: do not insert extra linebreaks where they may break the code
+    
+    Introduced a printer mode (pmode) type and corresponding
+    pmode values which permit easy toggling of the current
+    printer mode for fine-tuning of layout.
+    
+    Use the printer mode to disable potential introduction of
+    line breaks before a closing '}' in composite literals.
+    
+    Added extra test case. Applied gofmt to src and misc.
+    
+    Fixes #1365.
+    
+    R=r2
+    CC=golang-dev
+    https://golang.org/cl/4008041
+
+ src/pkg/go/printer/nodes.go                 |  7 +++--
+ src/pkg/go/printer/printer.go               | 42 +++++++++++++++++++++--------
+ src/pkg/go/printer/testdata/comments.golden |  6 ++++-
+ src/pkg/go/printer/testdata/comments.input  |  6 ++++-
+ 4 files changed, 46 insertions(+), 15 deletions(-)

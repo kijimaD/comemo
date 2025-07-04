@@ -1,0 +1,21 @@
+commit b7c2ade6964139b99d35f8f4d10d061e4443985f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 1 18:42:36 2012 -0700
+
+    api: add FreeBSD to go1 API
+    
+    Now that gri has made go/parser 15% faster, I offer this
+    change to slow back down cmd/api ~proportionately, adding
+    FreeBSD to the go1-checked set of platforms.
+    
+    Really we should have done this earlier. This will prevent us
+    from breaking FreeBSD compatibility accidentally in the
+    future.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6279044
+
+ api/go1.txt          | 4069 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/api/goapi.go |    2 +
+ 2 files changed, 4064 insertions(+), 7 deletions(-)

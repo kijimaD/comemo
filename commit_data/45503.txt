@@ -1,0 +1,19 @@
+commit 169155d61ede128caa8452bdff3ce9995287c138
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Sat May 1 18:45:57 2021 +0200
+
+    cmd/compile: preserve argument order in debug_info
+    
+    When regabi is used sorting by stack offset will not preserve the order
+    of function arguments. Trust that variables are already ordered
+    correctly when creating debug_info entries.
+    
+    Fixes #45720
+    
+    Change-Id: I1dbdd185975273f70244a23302d34f082347603d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315280
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Trust: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/dwarfgen/scope.go | 28 +++++++++++++++++++++++++---
+ 1 file changed, 25 insertions(+), 3 deletions(-)

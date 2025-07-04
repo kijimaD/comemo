@@ -1,0 +1,17 @@
+commit 7e5b7d7720e07588f752a3672d9983cc20626d89
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 22 20:37:13 2023 +0000
+
+    doc: update release notes from the relnote tool
+    
+    For #61422.
+    
+    Change-Id: I0e091c30a445dbc55054c31837c6f051fea3c07d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544537
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 498 +++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 492 insertions(+), 6 deletions(-)

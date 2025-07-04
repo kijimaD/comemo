@@ -1,0 +1,20 @@
+commit e9d7f54a1acf6706f790776f69972ce92d59e910
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 10 12:46:09 2021 -0500
+
+    runtime: tricky replacements of _g_ in proc.go
+    
+    This manually replaces uses of _g_ that cannot be trivially switched to
+    gp since there is another gp variable in scope.
+    
+    Most of these functions only use the current g to reach the m, so this
+    helps with clarity by switching all accesses directly to an mp variable.
+    
+    Change-Id: I96a4fc1c32470a7f3d12ddec9f147c2743210e71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418577
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go | 103 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 49 insertions(+), 54 deletions(-)

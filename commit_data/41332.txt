@@ -1,0 +1,19 @@
+commit 6396bc9df705310c9e7848773154960b7c92978c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 20 12:53:32 2020 -0500
+
+    cmd/go: in tests, add sync before closing file in copyFile helper
+    
+    An experiment to see if this helps flakiness go away in
+    TestExecutableGOROOT.
+    
+    Updates #37306
+    
+    Change-Id: I2f4f63bdb507359ca07267d86cdb41fe4968f151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220317
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

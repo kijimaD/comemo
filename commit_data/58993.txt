@@ -1,0 +1,36 @@
+commit 01688daca63c3775f07f908268af99bd3d3c9386
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Wed Feb 19 12:39:32 2025 -0500
+
+    crypto/tls: support bogo -wait-for-debugger
+    
+    When this command line flag is provided to the BoGo runner it will:
+    
+    * Disable some timeouts
+    * Limit concurrency to 1 worker at a time
+    * Pass the -wait-for-debugger flag to the shim process
+    * Print the PID of the shim process to status output
+    
+    On the shim-side, we need to react to -wait-for-debugger by sending
+    ourselves a SIGSTOP signal. When a debugger attaches to the shim the
+    process will be resumed.
+    
+    This makes it possible to debug both the runner side and the shim side
+    of a BoGo interaction without resorting to print style debugging.
+    
+    Since SIGSTOP is not a signal we can use on Windows this functionality
+    is limited to unix builds.
+    
+    Updates #72006
+    
+    Change-Id: Iafa08cf71830cdfde3e6ee4826914236e3cd7e57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650737
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/tls/bogo_shim_notunix_test.go | 11 +++++++++++
+ src/crypto/tls/bogo_shim_test.go         |  8 ++++++++
+ src/crypto/tls/bogo_shim_unix_test.go    | 18 ++++++++++++++++++
+ 3 files changed, 37 insertions(+)

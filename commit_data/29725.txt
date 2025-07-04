@@ -1,0 +1,14 @@
+commit c676b0f9cfff52c4d3cde736ce2a64c142573b3c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 1 22:06:41 2016 -0800
+
+    cmd/compile/internal/syntax: remove dead type declaration
+    
+    Change-Id: I8a3ce0fa513ff943009c5669531132cd23ecf155
+    Reviewed-on: https://go-review.googlesource.com/33870
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/syntax/parser.go | 2 --
+ 1 file changed, 2 deletions(-)

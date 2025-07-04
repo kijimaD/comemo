@@ -1,0 +1,12 @@
+commit 36397814ccf9d54e896c1311b32a6a2f27d5b7f5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 19 20:57:32 2011 -0800
+
+    strconv: remove obsolete comment.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5490078
+
+ src/pkg/strconv/ftoa.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)

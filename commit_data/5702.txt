@@ -1,0 +1,13 @@
+commit 537e5f4b7e2879b3758e15e19c5b4c2ed87c0d9d
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 22 14:56:16 2010 -0700
+
+    debug/dwarf: update PDF link.
+    Fixes #881.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/1696044
+
+ src/pkg/debug/dwarf/open.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

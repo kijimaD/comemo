@@ -1,0 +1,13 @@
+commit 2ddd07138d08d12e5662b9480c1fb23d3feb6a5d
+Author: griesemer <gri@golang.org>
+Date:   Wed Oct 4 15:20:52 2017 -0700
+
+    math/bits: complete examples
+    
+    Change-Id: Icbe6885ffd3aa4e77441ab03a2b9a04a9276d5eb
+    Reviewed-on: https://go-review.googlesource.com/68311
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/math/bits/example_test.go  |  80 ++++++++++++++++---
+ src/math/bits/make_examples.go | 174 +++++++++++++----------------------------
+ 2 files changed, 121 insertions(+), 133 deletions(-)

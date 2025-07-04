@@ -1,0 +1,17 @@
+commit a0f373ca08b05eb97e4bff7e8710c023d94231c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 2 13:56:22 2021 -0700
+
+    runtime/asan: declare asan reporting functions in C
+    
+    Fixes #49287
+    
+    Change-Id: I3f970d6db0b1dee886df2f7bb6cbeb56a37c42c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360860
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/asan/asan.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

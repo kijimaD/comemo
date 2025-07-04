@@ -1,0 +1,25 @@
+commit 42023d6f529239680773eab5343eedf641e78bb3
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Mar 29 05:10:45 2023 +0800
+
+    runtime: save/fetch g register during VDSO on linux/loong64
+    
+    Like arm64, ppc64 and risv64, on loong64, the G register may be temporarily
+    broken during a VDSO call. If a signal is received during a VDSO call, an
+    invalid G may be obtained.
+    
+    See #34391.
+    
+    Change-Id: Iaffa8cce4f0ef8ef74225c355ec3c20ed238025f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426355
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/signal_unix.go      |  2 +-
+ src/runtime/sys_linux_loong64.s | 44 +++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 41 insertions(+), 5 deletions(-)

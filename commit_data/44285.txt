@@ -1,0 +1,26 @@
+commit b19e7b518e564cd309d3eb68dfd2da8839a7433b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 09:23:35 2021 -0500
+
+    runtime: clean up windows a bit
+    
+    Document the various hard-coded architecture checks
+    or remove them in favor of more general checks.
+    This should be a no-op now but will make the arm64 port
+    have fewer diffs.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    This CL is, however, not windows/arm64-specific.
+    It is cleanup meant to make the port (and future ports) easier.
+    
+    Change-Id: Ifd6b19e44e8c9ca4a0d2590f314928ce235821b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288813
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go      | 12 ++++++++----
+ src/runtime/signal_windows.go  | 13 ++++++-------
+ src/runtime/syscall_windows.go |  3 ++-
+ 3 files changed, 16 insertions(+), 12 deletions(-)

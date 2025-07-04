@@ -1,0 +1,14 @@
+commit efddc161d2a15529b4b3ac27fab5a557b88ae443
+Author: Andrii Soldatenko <andrii.soldatenko@gmail.com>
+Date:   Wed Jun 13 18:58:09 2018 +0300
+
+    math: add examples to Ceil, Floor, Pow, Pow10 functions
+    
+    Change-Id: I9154df128b349c102854bb0f21e4c313685dd0e6
+    Reviewed-on: https://go-review.googlesource.com/118659
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/example_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

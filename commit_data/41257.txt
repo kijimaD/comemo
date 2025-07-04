@@ -1,0 +1,17 @@
+commit cfe2ab42e764d2eea3a3339aac1eaff97520baa0
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Sat Feb 8 15:46:14 2020 +0000
+
+    doc/go1.14: rearrange in alphabetical order
+    
+    "Minor changes to the library" are basically arranged in alphabetical
+    order, but there are some mistakes so we will correct them.
+    
+    Updates #36878
+    
+    Change-Id: I8498563b739eff9f1b0a76ead3cf290191e0ce36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218638
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.14.html | 68 ++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 34 insertions(+), 34 deletions(-)

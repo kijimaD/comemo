@@ -1,0 +1,32 @@
+commit a1c4fb4361c3bc58760400b99f026fb2088610c6
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Sep 20 20:56:40 2024 +0000
+
+    runtime: specialize heapSetType
+    
+    Last CL we separated mallocgc into several specialized paths. Let's
+    split up heapSetType too. This will make the specialized heapSetType
+    functions inlineable and cut out some branches as well as a function
+    call.
+    
+    Microbenchmark results at this point in the stack:
+    
+                       │ before.out  │            after-5.out             │
+                       │   sec/op    │   sec/op     vs base               │
+    Malloc8-4            13.52n ± 3%   12.15n ± 2%  -10.13% (p=0.002 n=6)
+    Malloc16-4           21.49n ± 2%   18.32n ± 4%  -14.75% (p=0.002 n=6)
+    MallocTypeInfo8-4    27.12n ± 1%   18.64n ± 2%  -31.30% (p=0.002 n=6)
+    MallocTypeInfo16-4   28.71n ± 3%   21.63n ± 5%  -24.65% (p=0.002 n=6)
+    geomean              21.81n        17.31n       -20.64%
+    
+    Change-Id: I5de9ac5089b9eb49bf563af2a74e6dc564420e05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614795
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/test/inl_test.go |   2 +
+ src/runtime/malloc.go                     |   6 +-
+ src/runtime/mbitmap.go                    | 161 ++++++++++++++++--------------
+ 3 files changed, 92 insertions(+), 77 deletions(-)

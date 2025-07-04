@@ -1,0 +1,13 @@
+commit c1497a05898957ebc1deefb408a6781146c1424e
+Author: Vincent Ambo <tazjin@googlemail.com>
+Date:   Mon Aug 30 15:07:33 2010 +1000
+
+    misc/fraise: syntax highlighting for Fraise.app (OS X)
+    
+    R=golang-dev, adg1, adg
+    CC=golang-dev
+    https://golang.org/cl/2075041
+
+ misc/fraise/go.plist   | 93 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ misc/fraise/readme.txt | 16 +++++++++
+ 2 files changed, 109 insertions(+)

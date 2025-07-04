@@ -1,0 +1,22 @@
+commit 4cb086b838548fa5dbdcb502a51b29294e268db6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 20 14:33:03 2013 +1000
+
+    os: be consistent about File methods with nil receivers
+    Some crashed, some didn't. Make a nil receiver always
+    return ErrInvalid rather than crash.
+    Fixes #5824.
+    The program in the bug listing is silent now, at least on my Mac.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/13108044
+
+ src/pkg/os/doc.go          |  6 ++++++
+ src/pkg/os/file.go         |  6 ++++++
+ src/pkg/os/file_plan9.go   | 17 ++++++++++++++++-
+ src/pkg/os/file_posix.go   |  9 +++++++++
+ src/pkg/os/file_unix.go    |  6 ++++++
+ src/pkg/os/file_windows.go |  3 +++
+ src/pkg/os/stat_windows.go |  3 +++
+ 7 files changed, 49 insertions(+), 1 deletion(-)

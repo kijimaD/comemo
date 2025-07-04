@@ -1,0 +1,10 @@
+commit d9d5f3b3bc07a079ab071f1909347c600e6f5335
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 15 09:22:20 2008 -0700
+
+    - fixed issue with parsing function literals in statement lists
+    
+    SVN=127218
+
+ usr/gri/gosrc/parser.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

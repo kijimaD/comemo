@@ -1,0 +1,21 @@
+commit a37f2b4f60aef93fec1911eeac43c33dc5ff1857
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Sep 19 03:53:50 2019 +1000
+
+    cmd/internal/obj/riscv: implement control transfer instructions
+    
+    Add support for assembling control transfer instructions.
+    
+    Based on the riscv-go port.
+    
+    Updates #27532
+    
+    Change-Id: I205d3ccd0a48deeaace0f20fca8516f382a83fae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196841
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s | 18 +++++-
+ src/cmd/internal/obj/riscv/obj.go            | 96 +++++++++++++++++++++++++++-
+ 2 files changed, 111 insertions(+), 3 deletions(-)

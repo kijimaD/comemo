@@ -1,0 +1,74 @@
+commit ef0dedce87b505f6115dd39b4329da9e9231ff95
+Author: doujiang24 <doujiang24@gmail.com>
+Date:   Fri Mar 24 01:30:46 2023 +0000
+
+    runtime/cgo: store M for C-created thread in pthread key
+    
+    In a C thread, it's necessary to acquire an extra M by using needm while invoking a Go function from C. But, needm and dropm are heavy costs due to the signal-related syscalls.
+    So, we change to not dropm while returning back to C, which means binding the extra M to the C thread until it exits, to avoid needm and dropm on each C to Go call.
+    Instead, we only dropm while the C thread exits, so the extra M won't leak.
+    
+    When invoking a Go function from C:
+    Allocate a pthread variable using pthread_key_create, only once per shared object, and register a thread-exit-time destructor.
+    And store the g0 of the current m into the thread-specified value of the pthread key,  only once per C thread, so that the destructor will put the extra M back onto the extra M list while the C thread exits.
+    
+    When returning back to C:
+    Skip dropm in cgocallback, when the pthread variable has been created, so that the extra M will be reused the next time invoke a Go function from C.
+    
+    This is purely a performance optimization. The old version, in which needm & dropm happen on each cgo call, is still correct too, and we have to keep the old version on systems with cgo but without pthreads, like Windows.
+    
+    This optimization is significant, and the specific value depends on the OS system and CPU, but in general, it can be considered as 10x faster, for a simple Go function call from a C thread.
+    
+    For the newly added BenchmarkCGoInCThread, some benchmark results:
+    1. it's 28x faster, from 3395 ns/op to 121 ns/op, in darwin OS & Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+    2. it's 6.5x faster, from 1495 ns/op to 230 ns/op, in Linux OS & Intel(R) Xeon(R) CPU E5-2630 0 @ 2.30GHz
+    
+    Fixes #51676
+    
+    Change-Id: I380702fe2f9b6b401b2d6f04b0aba990f4b9ee6c
+    GitHub-Last-Rev: 93dc64ad98e5583372e41f65ee4b7ab78b5aff51
+    GitHub-Pull-Request: golang/go#51679
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392854
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: thepudds <thepudds1460@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/test/cgo_test.go                 |  7 ++-
+ misc/cgo/test/cthread_unix.c              | 24 ++++++++
+ misc/cgo/test/cthread_windows.c           | 22 ++++++++
+ misc/cgo/test/testx.go                    | 14 +++++
+ src/runtime/asm_386.s                     | 41 ++++++++++++--
+ src/runtime/asm_amd64.s                   | 38 +++++++++++--
+ src/runtime/asm_arm.s                     | 37 +++++++++++--
+ src/runtime/asm_arm64.s                   | 32 +++++++++--
+ src/runtime/asm_loong64.s                 | 32 +++++++++--
+ src/runtime/asm_mips64x.s                 | 32 +++++++++--
+ src/runtime/asm_mipsx.s                   | 32 +++++++++--
+ src/runtime/asm_ppc64x.s                  | 35 ++++++++++--
+ src/runtime/asm_riscv64.s                 | 32 +++++++++--
+ src/runtime/asm_s390x.s                   | 32 +++++++++--
+ src/runtime/cgo.go                        |  7 +++
+ src/runtime/cgo/asm_386.s                 |  8 +++
+ src/runtime/cgo/asm_amd64.s               |  8 +++
+ src/runtime/cgo/asm_arm.s                 |  8 +++
+ src/runtime/cgo/asm_arm64.s               |  8 +++
+ src/runtime/cgo/asm_loong64.s             |  8 +++
+ src/runtime/cgo/asm_mips64x.s             |  8 +++
+ src/runtime/cgo/asm_mipsx.s               |  8 +++
+ src/runtime/cgo/asm_ppc64x.s              | 24 ++++++++
+ src/runtime/cgo/asm_riscv64.s             |  8 +++
+ src/runtime/cgo/asm_s390x.s               |  8 +++
+ src/runtime/cgo/asm_wasm.s                |  3 +
+ src/runtime/cgo/callbacks.go              | 36 ++++++++++++
+ src/runtime/cgo/gcc_libinit.c             | 35 ++++++++++++
+ src/runtime/cgo/gcc_libinit_windows.c     |  9 +++
+ src/runtime/cgo/libcgo.h                  |  5 ++
+ src/runtime/cgocall.go                    |  6 ++
+ src/runtime/crash_cgo_test.go             | 13 +++++
+ src/runtime/proc.go                       | 92 +++++++++++++++++++++++++++----
+ src/runtime/runtime2.go                   |  1 +
+ src/runtime/signal_unix.go                | 16 +++++-
+ src/runtime/stubs.go                      |  3 +
+ src/runtime/testdata/testprogcgo/bindm.go | 89 ++++++++++++++++++++++++++++++
+ 37 files changed, 760 insertions(+), 61 deletions(-)

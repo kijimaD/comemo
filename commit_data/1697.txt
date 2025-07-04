@@ -1,0 +1,18 @@
+commit ebc10db3e14facac2cb843e12486f1f2176727d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 18 10:07:46 2009 -0800
+
+    allow parens to disambiguate types.
+    examples:
+    
+            chan <- (chan int)
+            chan (<- chan int)
+            (map[string]func())("a": main)
+    
+    R=ken
+    OCL=25151
+    CL=25151
+
+ src/cmd/gc/go.y   | 13 ++++++++++++-
+ test/parentype.go | 17 +++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

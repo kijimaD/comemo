@@ -1,0 +1,21 @@
+commit e356f1d88f398a0fdb098fb9f2309cc102d80d8a
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Fri Jul 23 12:34:35 2010 -0700
+
+    bytes: port IndexFunc and LastIndexFunc from strings package
+    
+    This CL basically applies the same changes as
+    
+            http://code.google.com/p/go/source/detail?r=5e0a29014e8e
+    
+    but for bytes package.
+    
+    R=r, rog
+    CC=golang-dev
+    https://golang.org/cl/1670052
+
+ src/pkg/bytes/bytes.go          | 116 +++++++++++++++++++++++++++++-----------
+ src/pkg/bytes/bytes_test.go     |  94 ++++++++++++++++++++++++++++----
+ src/pkg/strings/strings.go      |   6 +--
+ src/pkg/strings/strings_test.go |  38 +++----------
+ 4 files changed, 177 insertions(+), 77 deletions(-)

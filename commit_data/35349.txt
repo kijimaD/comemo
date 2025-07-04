@@ -1,0 +1,17 @@
+commit df480036185715432a6e3f740e65bceed26c748f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 13 11:57:13 2018 -0400
+
+    spec: clarify “Constant expressions” for untyped operands
+    
+    This change addresses the grammatical complexity described in
+    https://groups.google.com/forum/#!topic/golang-dev/RmP-LMC3g58.
+    
+    Change-Id: Ib292b4ca9c880c7c1c8c992e7c033a0f8f951f2c
+    Reviewed-on: https://go-review.googlesource.com/106855
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 21 ++++++++++++---------
+ 1 file changed, 12 insertions(+), 9 deletions(-)

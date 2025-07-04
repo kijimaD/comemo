@@ -1,0 +1,12 @@
+commit 4c89a10fb9f4fcb2ed01b6e7325e53b4bc487fc2
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Fri Feb 15 16:41:33 2019 +0800
+
+    database/sql/driver: fix typo
+    
+    Change-Id: I6e7035db4b3e2a09e5655eb7646eea9d99fb7118
+    Reviewed-on: https://go-review.googlesource.com/c/162917
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/driver/driver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

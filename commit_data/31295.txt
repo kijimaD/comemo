@@ -1,0 +1,14 @@
+commit c202d4d303d797146a58ef00dd6951af005166e5
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri Apr 21 20:18:28 2017 +0900
+
+    cmd/cgo: avoid C++ style comments
+    
+    Change-Id: I9d399db8ac26ad44adeace3bf1e5b11cbfe3e0d3
+    Reviewed-on: https://go-review.googlesource.com/41313
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

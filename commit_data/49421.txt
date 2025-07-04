@@ -1,0 +1,17 @@
+commit 346698eea71139280e3b3380554371b5d332ce02
+Author: Damien Neil <dneil@google.com>
+Date:   Thu May 26 15:09:34 2022 -0700
+
+    doc/go1.19: add release notes for net/http and net/url
+    
+    For #51400
+    
+    Change-Id: I6412132db79074eef7d2cb3d66456c48b0d745a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408877
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ doc/go1.19.html | 38 +++++++++++++++++++++++++++++++-------
+ 1 file changed, 31 insertions(+), 7 deletions(-)

@@ -1,0 +1,37 @@
+commit f41460145ef6b75303e5f766a676274f456387d3
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu Feb 4 00:11:12 2021 +0100
+
+    cmd/link: recognize ARM64 PE files and relocations
+    
+    For now, this only add a single relocation type, which is sufficient for
+    Windows resources. Later we'll see if we need more for cgo.
+    
+    In order to ensure these code paths are actually tested, this expands
+    the rsrc tests to include all the architectures of PE objects that we
+    need to be recognizing, and splits things more clearly between binutils
+    and llvm objects, which have a slightly different layout, so that we
+    test both.
+    
+    This CL is part of a stack adding windows/arm64
+    support (#36439), intended to land in the Go 1.17 cycle.
+    
+    Change-Id: Ia1ee840265e9d12c0b12dd1c5d0810f8b300e557
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/289429
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/lib.go                    |   6 +++-
+ src/cmd/link/internal/loadpe/ldpe.go               |  29 ++++++++++++++++
+ src/cmd/link/link_test.go                          |  38 +++++++++++++++------
+ .../testdata/{testPErsrc => pe-binutils}/main.go   |   7 ++--
+ src/cmd/link/testdata/pe-binutils/rsrc_386.syso    | Bin 0 -> 228 bytes
+ .../rsrc.syso => pe-binutils/rsrc_amd64.syso}      | Bin
+ .../{testPErsrc-complex => pe-llvm}/main.go        |   4 +--
+ src/cmd/link/testdata/pe-llvm/rsrc_386.syso        | Bin 0 -> 352 bytes
+ .../rsrc.syso => pe-llvm/rsrc_amd64.syso}          | Bin 352 -> 352 bytes
+ src/cmd/link/testdata/pe-llvm/rsrc_arm.syso        | Bin 0 -> 352 bytes
+ src/cmd/link/testdata/pe-llvm/rsrc_arm64.syso      | Bin 0 -> 352 bytes
+ 11 files changed, 67 insertions(+), 17 deletions(-)

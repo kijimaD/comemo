@@ -1,0 +1,15 @@
+commit 200176edd11e39e90b19289ea0999e60fdd210f7
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Tue May 28 17:17:40 2019 -0700
+
+    cmd/compile: add GCNode to VarDef in tests
+    
+    Change-Id: I0f79d317ae7ac46c7e824bd382a4f51d53adaaa6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179257
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/cse_test.go  | 7 +++++--
+ src/cmd/compile/internal/ssa/loop_test.go | 3 ++-
+ 2 files changed, 7 insertions(+), 3 deletions(-)

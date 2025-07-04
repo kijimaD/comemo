@@ -1,0 +1,14 @@
+commit cfbd73ba33fc6a3635b3a63096fd6c6bff9d73e8
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jul 9 16:22:32 2021 -0400
+
+    doc/go1.17: editing pass over the "Compiler" section
+    
+    Change-Id: I08c082f548daa7011a8dc42769371329684c90e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333609
+    Trust: Austin Clements <austin@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ doc/go1.17.html | 62 +++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 36 insertions(+), 26 deletions(-)

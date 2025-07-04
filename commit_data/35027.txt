@@ -1,0 +1,16 @@
+commit fc215989319aac0a2d5a0f3b7247db9fcb366ff7
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Tue Apr 17 18:38:06 2018 -0400
+
+    encoding/json: simplify dominantField
+    
+    Fixes #18037
+    
+    Change-Id: I20e27bcc013b00b726eb348daf5ca86b138ddcc2
+    Reviewed-on: https://go-review.googlesource.com/107598
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/encode.go | 30 ++++--------------------------
+ 1 file changed, 4 insertions(+), 26 deletions(-)

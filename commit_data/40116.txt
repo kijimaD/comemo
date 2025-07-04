@@ -1,0 +1,40 @@
+commit c33d45a898ab1d966faba33d18acdffefb0fae0d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 3 10:49:28 2019 -0700
+
+    cmd/compile: don't statically copy string-typed variables
+    
+    During package initialization, the compiler tries to optimize:
+    
+        var A = "foo"
+        var B = A
+    
+    into
+    
+        var A = "foo"
+        var B = "foo"
+    
+    so that we can statically initialize both A and B and skip emitting
+    dynamic initialization code to assign "B = A".
+    
+    However, this isn't safe in the presence of cmd/link's -X flag, which
+    might overwrite an initialized string-typed variable at link time. In
+    particular, if cmd/link changes A's static initialization, it won't
+    know it also needs to change B's static initialization.
+    
+    To address this, this CL disables this optimization for string-typed
+    variables.
+    
+    Fixes #34675.
+    
+    Change-Id: I1c18f3b855f6d7114aeb39f96aaaf1b452b88236
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198657
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 3 +++
+ test/linkx.go                        | 9 +++++++++
+ test/linkx_run.go                    | 2 +-
+ 3 files changed, 13 insertions(+), 1 deletion(-)

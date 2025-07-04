@@ -1,0 +1,18 @@
+commit 94323206aee1363471a4ae3b8d40dd4ae7a5cd9c
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Oct 4 08:00:20 2021 -0500
+
+    cmd/compile: fix PPC64.rules to correct failure in issue45344.go with regabi
+    
+    This changes a rule in PPC64.rules to fix a failure in
+    test/issue45344.go when regabi is enabled.
+    
+    Change-Id: I98baf2ae92c766b7276b0f3167b2e6fef37dfe84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353789
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules | 2 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

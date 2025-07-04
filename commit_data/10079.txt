@@ -1,0 +1,35 @@
+commit 5791233461d9eaef94f8a29cee7a1933a5c015d2
+Author: Dave Cheney <dave@cheney.net>
+Date:   Mon Oct 24 19:13:55 2011 -0400
+
+    exp/ssh: introduce Session to replace Cmd for interactive commands
+    
+    This CL replaces the Cmd type with a Session type representing
+    interactive channels. This lays the foundation for supporting
+    other kinds of channels like direct-tcpip or x11.
+    
+    client.go:
+    * replace chanlist map with slice.
+    * generalize stdout and stderr into a single type.
+    * unexport ClientChan to clientChan.
+    
+    doc.go:
+    * update ServerConfig/ServerConn documentation.
+    * update Client example for Session.
+    
+    message.go:
+    * make channelExtendedData more like channelData.
+    
+    session.go:
+    * added Session which replaces Cmd.
+    
+    R=agl, rsc, n13m3y3r, gustavo
+    CC=golang-dev
+    https://golang.org/cl/5302054
+
+ src/pkg/exp/ssh/Makefile    |   1 +
+ src/pkg/exp/ssh/client.go   | 290 ++++++++++++--------------------------------
+ src/pkg/exp/ssh/doc.go      |  36 +++---
+ src/pkg/exp/ssh/messages.go |   2 +-
+ src/pkg/exp/ssh/session.go  | 132 ++++++++++++++++++++
+ 5 files changed, 230 insertions(+), 231 deletions(-)

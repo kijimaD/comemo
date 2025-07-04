@@ -1,0 +1,19 @@
+commit 7ea62121a7de25559cb88389983086f45910aed6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 30 19:24:06 2016 +0000
+
+    all: be consistent about spelling of cancelation
+    
+    We had ~30 one way, and these four new occurrences the other way.
+    
+    Updates #11626
+    
+    Change-Id: Ic6403dc4905874916ae292ff739d33482ed8e5bf
+    Reviewed-on: https://go-review.googlesource.com/24683
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.7.html                     | 2 +-
+ src/cmd/compile/internal/gc/ssa.go | 4 ++--
+ src/cmd/vet/doc.go                 | 4 ++--
+ src/cmd/vet/lostcancel.go          | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

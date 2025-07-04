@@ -1,0 +1,31 @@
+commit c5da4fb7ac5cb7434b41fc9a1df3bee66c7f1a4d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jul 21 18:23:39 2022 -0400
+
+    cmd/compile: make jump table symbol local
+    
+    When using plugins, if the plugin and the main executable both
+    have the same function, and if it uses jump table, currently the
+    jump table symbol have the same name so it will be deduplicated by
+    the dynamic linker. This causes a function in the plugin may (in
+    the middle of the function) jump to the function with the same name
+    in the main executable (or vice versa). But the function may be
+    compiled slightly differently, because the plugin needs to be PIC.
+    Jumping from the middle of one function to the other will not work.
+    Avoid this problem by marking the jump table symbol local to a DSO.
+    
+    Fixes #53989.
+    
+    Change-Id: I2b573b9dfc22401c8a09ffe9b9ea8bb83d3700ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418960
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ misc/cgo/testplugin/plugin_test.go                |  6 +++
+ misc/cgo/testplugin/testdata/issue53989/main.go   | 32 ++++++++++++++
+ misc/cgo/testplugin/testdata/issue53989/p/p.go    | 52 +++++++++++++++++++++++
+ misc/cgo/testplugin/testdata/issue53989/plugin.go | 13 ++++++
+ src/cmd/compile/internal/ssa/rewrite.go           |  1 +
+ 5 files changed, 104 insertions(+)

@@ -1,0 +1,68 @@
+commit f67b0a73e30d4780c90f2a7d7dd659affea99f43
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Mar 17 10:20:01 2023 -0400
+
+    log/slog: initial commit
+    
+    The slog structured logging package.
+    
+    This code was copied from the slog directory of the x/exp repo
+    at commit 642cacee5cc05231f45555a333d07f1005ffc287, with the
+    following changes:
+    
+    - Change import paths.
+    - Delete unused files list.go, list_test.go.
+    - Rename example_depth_test.go to example_wrap_test.go and
+      adjust example output.
+    - Change the tag safe_values to safe_slog_values.
+    - Make captureHandler goroutine-safe to fix a race condition
+      in benchmarks.
+    - Other small changes as suggested in review comments.
+    
+    Also, add dependencies to go/build/deps_test.go.
+    
+    Also, add new API for the API checker.
+    
+    Updates golang/go#56345.
+    
+    Change-Id: Id8d720967571ced5c5f32c84a8dd9584943cd7df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477295
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ api/next/56345.txt                            | 158 +++++++
+ src/go/build/deps_test.go                     |  15 +-
+ src/log/slog/attr.go                          |  84 ++++
+ src/log/slog/attr_test.go                     |  43 ++
+ src/log/slog/doc.go                           | 316 ++++++++++++++
+ src/log/slog/example_custom_levels_test.go    |  91 ++++
+ src/log/slog/example_level_handler_test.go    |  73 ++++
+ src/log/slog/example_logvaluer_group_test.go  |  35 ++
+ src/log/slog/example_logvaluer_secret_test.go |  32 ++
+ src/log/slog/example_test.go                  |  31 ++
+ src/log/slog/example_wrap_test.go             |  50 +++
+ src/log/slog/handler.go                       | 589 ++++++++++++++++++++++++++
+ src/log/slog/handler_test.go                  | 510 ++++++++++++++++++++++
+ src/log/slog/internal/buffer/buffer.go        |  84 ++++
+ src/log/slog/internal/buffer/buffer_test.go   |  22 +
+ src/log/slog/internal/buffer/norace_test.go   |  26 ++
+ src/log/slog/internal/ignorepc.go             |   9 +
+ src/log/slog/internal/testutil/testutil.go    |  18 +
+ src/log/slog/json_handler.go                  | 345 +++++++++++++++
+ src/log/slog/json_handler_test.go             | 271 ++++++++++++
+ src/log/slog/level.go                         | 201 +++++++++
+ src/log/slog/level_test.go                    | 168 ++++++++
+ src/log/slog/logger.go                        | 300 +++++++++++++
+ src/log/slog/logger_test.go                   | 511 ++++++++++++++++++++++
+ src/log/slog/norace_test.go                   |  23 +
+ src/log/slog/record.go                        | 173 ++++++++
+ src/log/slog/record_test.go                   | 163 +++++++
+ src/log/slog/text_handler.go                  | 167 ++++++++
+ src/log/slog/text_handler_test.go             | 201 +++++++++
+ src/log/slog/value.go                         | 397 +++++++++++++++++
+ src/log/slog/value_access_benchmark_test.go   | 215 ++++++++++
+ src/log/slog/value_test.go                    | 226 ++++++++++
+ src/log/slog/value_unsafe.go                  | 102 +++++
+ 33 files changed, 5647 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 9b7e728ee8ddacad70cbf5bced36c8f72af65f38
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Thu Jul 23 15:45:23 2015 +0200
+
+    crypt/rand: update docs for Linux
+    
+    Update the docs to explain the code added in
+    commit 67e1d400.
+    
+    Fixes #11831.
+    
+    Change-Id: I8fe72e449507847c4bd9d77de40947ded7f2ff9d
+    Reviewed-on: https://go-review.googlesource.com/12515
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/crypto/rand/rand.go | 2 ++
+ 1 file changed, 2 insertions(+)

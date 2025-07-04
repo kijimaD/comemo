@@ -1,0 +1,17 @@
+commit 29517daff955b0188f0129b8da1578ae6201e851
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Mar 14 16:53:30 2018 -0700
+
+    cmd/compile: extract common noding code from func{Decl,Lit}
+    
+    Passes toolstash-check.
+    
+    Change-Id: I8290221d6169e077dfa4ea737d685c7fcecf6841
+    Reviewed-on: https://go-review.googlesource.com/100835
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 13 +------------
+ src/cmd/compile/internal/gc/noder.go   | 34 ++++++++++++++++------------------
+ 2 files changed, 17 insertions(+), 30 deletions(-)

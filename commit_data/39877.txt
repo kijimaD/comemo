@@ -1,0 +1,24 @@
+commit 0b739fd4df6be871edcc17dd7832142a50a6f80e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 10 20:06:51 2019 -0700
+
+    cmd/compile: move duplicate type-case checking into typecheck
+    
+    Part of the general trend of moving yyerror calls out of walk and into
+    typecheck.
+    
+    Notably, this requires splitting test/typeswitch2.go into two files,
+    because now some of the errors are reported during typecheck and
+    others are still reported during walk; and if there were any errors
+    during typecheck, then cmd/compile exits without invoking walk.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I05ee0c00b99af659ee1eef098d342d0d736cf31e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194659
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go | 66 ++++++++++++++++++++------------------
+ test/typeswitch2.go                | 10 ------
+ test/typeswitch2b.go               | 20 ++++++++++++
+ 3 files changed, 54 insertions(+), 42 deletions(-)

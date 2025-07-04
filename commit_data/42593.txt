@@ -1,0 +1,26 @@
+commit 20afbe86beda00676a608399638887538bd8f669
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jul 6 14:22:38 2020 -0400
+
+    cmd/oldlink: port bug fixes to old linker
+    
+    This CL ports CL 234105 and CL 240621 to the old linker, which
+    fix critical bugs (runtime crashes).
+    
+    Updates #39049.
+    Updates #39927.
+    
+    Change-Id: I47afc84349119e320d2e60d64b7188a410835d2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241087
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/oldlink/internal/arm/asm.go       |  6 +++++-
+ src/cmd/oldlink/internal/ld/decodesym.go  | 32 ++++++++++++++++++-------------
+ src/cmd/oldlink/internal/ld/lib.go        |  4 +++-
+ src/cmd/oldlink/internal/ld/pcln.go       |  2 +-
+ src/cmd/oldlink/internal/ppc64/asm.go     |  6 +++++-
+ src/cmd/oldlink/internal/sym/attribute.go |  6 +++++-
+ 6 files changed, 38 insertions(+), 18 deletions(-)

@@ -1,0 +1,19 @@
+commit 9c9df65c539a0e2b1de9094382b87cc0f2748ae3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Aug 10 11:17:59 2017 +0900
+
+    reflect: remove useless parameter from newName
+    
+    pkgPath always received the empty string. Worse yet, it panicked if it
+    received anything else. This has been the case ever since newName was
+    introduced in early 2016.
+    
+    Change-Id: I5f164305bd30c34455ef35e776c7616f303b37e4
+    Reviewed-on: https://go-review.googlesource.com/54331
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/reflect/export_test.go |  2 +-
+ src/reflect/type.go        | 29 +++++++++++------------------
+ 2 files changed, 12 insertions(+), 19 deletions(-)

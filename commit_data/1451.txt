@@ -1,0 +1,14 @@
+commit 8f5bba0d8230c5ab5719d351ccde595e539027f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 9 11:13:59 2009 -0800
+
+    silence gcc warnings.
+    not sure if the warning in reg.c was a real bug.
+    
+    R=ken
+    OCL=22408
+    CL=22410
+
+ src/cmd/6g/obj.c | 3 +--
+ src/cmd/6g/reg.c | 1 +
+ 2 files changed, 2 insertions(+), 2 deletions(-)

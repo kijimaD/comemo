@@ -1,0 +1,13 @@
+commit 8ff1da0b8182667560ed6bd3079ad7692e5c722b
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Apr 26 14:30:00 2021 -0400
+
+    runtime: fix offset in comment
+    
+    Change-Id: I2770195cb53220948081a6265f891ef064e4f763
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313629
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/sys_windows_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

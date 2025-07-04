@@ -1,0 +1,14 @@
+commit 4cc708ae1dc5fd6b8a04ee884e34303b81ddd223
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Apr 28 14:29:45 2014 -0400
+
+    log/syslog: document if network=="" for Dial, it will connect to local syslog server.
+    Fixes #7828.
+    
+    LGTM=robert.hencke, iant, bradfitz
+    R=golang-codereviews, robert.hencke, iant, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/97780045
+
+ src/pkg/log/syslog/syslog.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

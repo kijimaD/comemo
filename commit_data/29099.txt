@@ -1,0 +1,18 @@
+commit 8e4e103a00c88f297b7f28360d3d021a2e5bb865
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Oct 26 08:50:23 2016 +0200
+
+    net/rpc: enable TestGobError on Plan 9
+    
+    This issue has been fixed in CL 31271.
+    
+    Fixes #8908.
+    
+    Change-Id: I8015490e2d992e09c664560e42188315e0e0669e
+    Reviewed-on: https://go-review.googlesource.com/32150
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/rpc/client_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

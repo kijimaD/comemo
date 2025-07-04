@@ -1,0 +1,25 @@
+commit d856e05d64591d3dec6411e3d86fe325e85eecc5
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Nov 10 08:42:54 2019 +0100
+
+    cmd/link/internal/ld: set MachO platform to PLATFORM_IOS on iOS
+    
+    CL 205340 changed the linker to skip certain flags when linking
+    for iOS. However, for host linking on iOS (such as on the Corellium
+    darwin/arm64 builders) the MachO platform defaults to PLATFORM_MACOS,
+    and the flags are not skipped.
+    
+    Avoids warnings such as
+    
+        ld: warning: -no_pie ignored for arm64
+    
+    Updates #32963
+    
+    Change-Id: Ib6b4c2375fd14cf89410bf5ff1537b692b7a1c15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206337
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/macho.go | 35 ++++++++++++++++++++---------------
+ 1 file changed, 20 insertions(+), 15 deletions(-)

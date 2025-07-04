@@ -1,0 +1,28 @@
+commit ab4c9298b8185a056ff1152f2c7bd9b38d3d06f3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Nov 23 15:26:00 2015 +1100
+
+    runtime: do not call timeBeginPeriod on windows
+    
+    Calling timeBeginPeriod changes Windows global timer resolution
+    from 15ms to 1ms. This used to improve Go runtime scheduler
+    performance, but not anymore. Thanks to @aclements, scheduler now
+    behaves the same way if we call timeBeginPeriod or not.
+    
+    Remove call to timeBeginPeriod, since it is machine global
+    resource, and there are downsides of using low timer resolution.
+    See issue #8687 for details.
+    
+    Fixes #8687
+    
+    Change-Id: Ib7e41aa4a81861b62a900e0e62776c9ef19bfb73
+    Reviewed-on: https://go-review.googlesource.com/17164
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Yasuhiro MATSUMOTO <mattn.jp@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/export_windows_test.go  | 5 +----
+ src/runtime/os1_windows.go          | 8 +-------
+ src/runtime/syscall_windows_test.go | 7 -------
+ 3 files changed, 2 insertions(+), 18 deletions(-)

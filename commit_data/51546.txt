@@ -1,0 +1,21 @@
+commit 5dca7ed66fd7e46ad371dd5c9655077da57eb9cf
+Author: Shengyu Zhang <zhangshengyu.0@bytedance.com>
+Date:   Thu Dec 8 18:39:06 2022 +0000
+
+    doc/go1.20: fix URL anchor
+    
+    The URL anchor was invalid. Add the missing "array_or_" part.
+    
+    Change-Id: Ib27f4d0f21b0148bea8b63ef962ba0ea30166ed3
+    GitHub-Last-Rev: f8addc607812290ebbdbb1560f336f56390d0d8d
+    GitHub-Pull-Request: golang/go#57154
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/456175
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.20.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

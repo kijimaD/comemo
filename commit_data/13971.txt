@@ -1,0 +1,13 @@
+commit 063b074407185223ccdb2f5986243e027ff8cf8e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 27 15:47:18 2012 +1000
+
+    CLA: Josh Holland <jrh@joshh.co.uk> individual contributor
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6568059
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

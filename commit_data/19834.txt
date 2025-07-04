@@ -1,0 +1,13 @@
+commit fe3ee5741d42551e81a40de0b8220498d5c18aac
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 29 22:06:20 2014 +0400
+
+    runtime: verify hmap type size
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, khr
+    https://golang.org/cl/114510044
+
+ src/pkg/runtime/hashmap.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

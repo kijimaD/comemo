@@ -1,0 +1,12 @@
+commit 42852feb56a04911965dfdbfe6905bdc7d15c8cf
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 30 14:42:58 2010 +1000
+
+    Contributors: add Kirklin McDonald (a Google employee)
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1679045
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

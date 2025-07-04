@@ -1,0 +1,25 @@
+commit 654297cb0233d0af84c8d5dbf18f46b1bcdcee85
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 9 14:00:40 2015 -0500
+
+    runtime: add GODEBUG=gccheckmark=0/1
+    
+    Previously, gccheckmark could only be enabled or disabled by calling
+    runtime.GCcheckmarkenable/GCcheckmarkdisable.  This was a necessary
+    hack because GODEBUG was broken.
+    
+    Now that GODEBUG works again, move control over gccheckmark to a
+    GODEBUG variable and remove these runtime functions.  Currently,
+    gccheckmark is enabled by default (and will probably remain so for
+    much of the 1.5 development cycle).
+    
+    Change-Id: I2bc6f30c21b795264edf7dbb6bd7354b050673ab
+    Reviewed-on: https://go-review.googlesource.com/2603
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ api/next.txt            |  2 --
+ src/runtime/extern.go   |  6 ++++++
+ src/runtime/malloc.go   |  8 --------
+ src/runtime/mgc.go      | 24 +++++++-----------------
+ src/runtime/runtime1.go |  5 +++++
+ 5 files changed, 18 insertions(+), 27 deletions(-)

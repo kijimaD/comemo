@@ -1,0 +1,13 @@
+commit b04bf3882b403ebba3b4c80297daa91dd56a1f85
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 3 10:05:27 2012 -0700
+
+    encoding/gob: fix bug in Register
+    The old code added a star but did not indirect the reflect.Type.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6348067
+
+ src/pkg/encoding/gob/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

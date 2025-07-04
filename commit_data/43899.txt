@@ -1,0 +1,20 @@
+commit f5978a09589badb927d3aa96998fc785524cae02
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 22 11:52:55 2020 +1100
+
+    cmd/internal/obj/riscv: add tests for BGE/BGEU/BLT/BLTU
+    
+    Add tests for BGE/BGEU/BLT/BLTU branch instructions. Also add pure Go variants
+    of these to ensure that the test data, Go and assembly all match up.
+    
+    Change-Id: I84c68605e116a4e57f6c5c765bf0aaecab84b675
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271913
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Quey-Liang Kao <s101062801@m101.nthu.edu.tw>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ .../obj/riscv/testdata/testbranch/branch_test.go   | 54 +++++++++++++++++++++-
+ .../obj/riscv/testdata/testbranch/branch_test.s    | 44 ++++++++++++++++++
+ 2 files changed, 97 insertions(+), 1 deletion(-)

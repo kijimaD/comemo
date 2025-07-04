@@ -1,0 +1,17 @@
+commit ebdba42d9e1de46ebf611baec98d53f01c534cac
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 10 21:07:55 2018 -0700
+
+    runtime: check tgkill error in Debug tests
+    
+    Updates #25519
+    
+    Change-Id: Ibcdf948fd38d8d02d467b62213566ec0d7ce0d6a
+    Reviewed-on: https://go-review.googlesource.com/123180
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/debug_test.go        | 4 ++--
+ src/runtime/export_debug_test.go | 6 ++++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

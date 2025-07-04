@@ -1,0 +1,10 @@
+commit 0ca551fc36c1212b0cb5a1a7c4c267e9279bb046
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jul 17 18:15:05 2008 -0700
+
+    loop in subtype
+    
+    SVN=127933
+
+ src/cmd/gc/subr.c | 19 ++++++++++++-------
+ 1 file changed, 12 insertions(+), 7 deletions(-)

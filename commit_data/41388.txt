@@ -1,0 +1,17 @@
+commit 87c0db9916f992d5e869450deccc1185f642bfc9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Jan 30 10:59:11 2020 +0100
+
+    misc/cgo: correct GOOS in skip message
+    
+    Tests are skipped on linux/ppc64, not aix/ppc64.
+    
+    Change-Id: I6b91b89f24d76b0f9be3eaf816f81ad4246e418f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220423
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testso/so_test.go    | 2 +-
+ misc/cgo/testsovar/so_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

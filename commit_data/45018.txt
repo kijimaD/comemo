@@ -1,0 +1,22 @@
+commit 96a67450887314cedbd9e8634ad92b76a0443779
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 8 12:13:58 2021 -0400
+
+    runtime: use register ABI in panicIndex/Slice functions
+    
+    runtime.panicIndex*/panicSlice* functions move the arguments in
+    the right place then tail calls goPanicIndex*/Slice* using
+    internal ABI. (It uses internal ABI to avoid wrappers, because
+    the callee needs to get the caller's PC, to know whether it panics
+    in the runtime.) This CL makes it to use the register ABI if it
+    is enabled.
+    
+    Change-Id: Id2ebb51b4bfb3e9aa7cb66d0a9aee63fccee5ecd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308649
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/asm_amd64.s | 70 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 70 insertions(+)

@@ -1,0 +1,34 @@
+commit c606b964a06459c6522b4649bfee2e6d21c65695
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 26 14:36:13 2010 -0700
+
+    go/typechecker: 2nd step towards augmenting AST with full type information.
+    
+    - refine/define Scope, Object, and Type structures
+      (note: scope.go has the addition of types, the rest is only re-organized
+      for better readability)
+    - implemented top-level of type checker:
+      resolve global type declarations (deal with double decls, cycles, etc.)
+    - temporary hooks for checking of const/var declarations, function/method bodies
+    - test harness for fine-grained testing (exact error locations)
+      with initial set of tests
+    
+    This is a subset of the code for easier review.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1967049
+
+ src/cmd/godoc/godoc.go                     |  46 ++-
+ src/pkg/Makefile                           |   1 +
+ src/pkg/go/ast/scope.go                    | 278 ++++++++++++-----
+ src/pkg/go/typechecker/Makefile            |  13 +
+ src/pkg/go/typechecker/scope.go            | 119 +++++++
+ src/pkg/go/typechecker/testdata/test0.go   |  94 ++++++
+ src/pkg/go/typechecker/testdata/test1.go   |  13 +
+ src/pkg/go/typechecker/testdata/test3.go   |  38 +++
+ src/pkg/go/typechecker/testdata/test4.go   |  11 +
+ src/pkg/go/typechecker/typechecker.go      | 484 +++++++++++++++++++++++++++++
+ src/pkg/go/typechecker/typechecker_test.go | 174 +++++++++++
+ src/pkg/go/typechecker/universe.go         |  38 +++
+ 12 files changed, 1226 insertions(+), 83 deletions(-)

@@ -1,0 +1,23 @@
+commit 0ea74401399c6bd66138693e7ca0cc54307d3289
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Oct 22 14:44:29 2019 +0200
+
+    runtime: remove stale runtime check in tests
+    
+    The check is not relevant anymore.
+    The comment claims that go run does not rebuild packages,
+    but this is not true. And we use go build anyway.
+    We may have added the check because without caching
+    rebuilding everything starting from runtime for each test
+    takes a while. But now we have caching.
+    So from every side this check just adds code and pain.
+    
+    Change-Id: Ifbbb643724100622e5f9db884339b67cde4ba729
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202450
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/crash_test.go      | 30 ------------------------------
+ src/runtime/crash_unix_test.go |  2 --
+ 2 files changed, 32 deletions(-)

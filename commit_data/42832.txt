@@ -1,0 +1,22 @@
+commit d4986e0e1d6e03e1b92e905ca5e01b4c223fbeb3
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Dec 16 17:18:06 2019 -0500
+
+    cmd/go/internal/modload: reject empty go.mod files
+    
+    Don't add a module declaration to a go.mod file when
+    loading a module. Require a user to call go mod init or to
+    add the module declaration themselves.
+    
+    Fixes #35070
+    
+    Change-Id: If5543580d3c1cfee1fc528eb853b872c4173ca82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234107
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/init.go             | 10 +++-------
+ src/cmd/go/testdata/script/mod_find.txt         |  5 +++++
+ src/cmd/go/testdata/script/mod_invalid_path.txt | 12 ++++++++++++
+ 3 files changed, 20 insertions(+), 7 deletions(-)

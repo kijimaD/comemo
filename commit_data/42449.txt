@@ -1,0 +1,18 @@
+commit f98b9ae07c512f824fc0327eb8b0aca0847ecdb8
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 3 17:07:09 2020 +0000
+
+    Revert "cmd/compile: improve equality algs for arrays of interfaces"
+    
+    This reverts commit 7eab9506c92562fe49861597e7bf1fcb28f2fd40.
+    
+    Reason for revert: Undoing to get back to semantics discussed in #8606.
+    
+    Change-Id: If0cd7518c10c37a81fdbb4ae112239e04c0b1448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236278
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/alg.go | 18 ------------------
+ 1 file changed, 18 deletions(-)

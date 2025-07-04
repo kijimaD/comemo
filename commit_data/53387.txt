@@ -1,0 +1,30 @@
+commit 0f91f92ee0021b10930bb9eefa24b2e244b7d2e3
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 30 19:16:56 2023 -0400
+
+    internal/coverage/pods: sort counter files first by origin, then name
+    
+    This patch fixes a problem with the way pods (clumps of related
+    coverage meta+counter data files) are collected, which was causing
+    problems for "go tool covdata subtract".
+    
+    A subtract operation such as "go tool covdata subtract -i=dir1,dir2
+    -o=out" works by loading in all the counter data files from "dir1"
+    before any of the data files from "dir2" are loaded. The sorting
+    function in the pods code was sorting counter files for a given pod
+    based purely on name, which meant that differences in process ID
+    assignment could result in some files from "dir2" being presented
+    before "dir1". The fix is to change the sorting compare function to
+    prefer origin directory over filename.
+    
+    Fixes #60526.
+    
+    Change-Id: I2226ea675fc99666a9a28e6550d823bcdf2d6977
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499317
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/coverage/pods/pods.go      |  3 +++
+ src/internal/coverage/pods/pods_test.go | 32 ++++++++++++++++----------------
+ 2 files changed, 19 insertions(+), 16 deletions(-)

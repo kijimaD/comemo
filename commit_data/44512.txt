@@ -1,0 +1,28 @@
+commit b87e9b9f68f1eb0d685fd250b3b47495710e0059
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Mar 4 10:35:17 2021 -0500
+
+    cmd/go: clarify errors for commands run outside a module
+    
+    The new error message tells the user what was wrong (no go.mod found)
+    and directs them to 'go help modules', which links to tutorials.
+    
+    Fixes #44745
+    
+    Change-Id: I98f31fec4a8757eb1792b45491519da4c552cb0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298650
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/query.go            |  2 +-
+ src/cmd/go/internal/modload/import.go          | 18 +++++----
+ src/cmd/go/internal/modload/init.go            |  6 ++-
+ src/cmd/go/internal/modload/list.go            |  2 +-
+ src/cmd/go/internal/run/run.go                 | 20 +---------
+ src/cmd/go/testdata/script/mod_convert_dep.txt |  2 +-
+ src/cmd/go/testdata/script/mod_find.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_outside.txt     | 52 +++++++++++++-------------
+ src/go/build/build_test.go                     |  2 +-
+ 9 files changed, 47 insertions(+), 59 deletions(-)

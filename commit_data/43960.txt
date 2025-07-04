@@ -1,0 +1,21 @@
+commit 9c0e2db051093767526c96cbe02d3c3b7d28f770
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 5 08:08:47 2020 -0800
+
+    test: add new test that gofrontend failed to handle
+    
+    The gofrontend code would in some circumstances incorrectly generate a
+    type descriptor for an alias type, causing the type to fail to be
+    equal to the unaliased type.
+    
+    Change-Id: I47d33b0bfde3c72a9a186049539732bdd5a6a96e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275632
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/fixedbugs/bug510.dir/a.go | 13 +++++++++++++
+ test/fixedbugs/bug510.dir/b.go | 14 ++++++++++++++
+ test/fixedbugs/bug510.go       |  9 +++++++++
+ 3 files changed, 36 insertions(+)

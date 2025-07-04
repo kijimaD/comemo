@@ -1,0 +1,12 @@
+commit 6c240d76718a6334f692b8ebdc1b328494b8cb5d
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Thu Jan 20 09:21:04 2011 -0500
+
+    runtime: fix tabs in windows/386/sys.s
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/4030043
+
+ src/pkg/runtime/windows/386/sys.s | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

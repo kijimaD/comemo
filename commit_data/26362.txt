@@ -1,0 +1,20 @@
+commit 16029babe24c516230399205a74becb2c215e11a
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Thu Mar 17 13:18:34 2016 +0200
+
+    cmd/compile: deduplicate symbol references
+    
+    Reduces size of archives in pkg/linux_amd64 by 1.4MB (3.2%),
+    slightly improving link time.
+    
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.52 ± 3%  0.51 ± 2%  -0.65%  (p=0.000 n=98+99)
+    
+    Change-Id: I7e265f4d4dd08967c5c5d55c1045e533466bbbec
+    Reviewed-on: https://go-review.googlesource.com/20802
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/objfile.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

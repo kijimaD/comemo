@@ -1,0 +1,17 @@
+commit acfff428029130654d44b56e80a5e9c7e825e951
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Jun 4 05:42:30 2022 +0000
+
+    doc/go1.19: add release notes for the soft memory limit and idle GC
+    
+    This change resolves some TODOs in the release notes, and while we're
+    here, also clarifies how CPU profile samples are represented in runtime
+    traces.
+    
+    Change-Id: Idaa36ccf65b03fd5463b2d5da682d3fa578d2f46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410356
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.19.html | 33 +++++++++++++++++++++++++++++----
+ 1 file changed, 29 insertions(+), 4 deletions(-)

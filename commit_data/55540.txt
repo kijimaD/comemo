@@ -1,0 +1,20 @@
+commit 23ac1599abfc558edce5841323e2c679b094fc26
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 13 14:51:17 2022 -0800
+
+    net: don't return errno from _C_res_nsearch
+    
+    We ignore the value anyhow.
+    
+    Change-Id: I1b1db7831c42bf852652236212812fd5cf258530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457439
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/cgo_unix.go          | 2 +-
+ src/net/cgo_unix_cgo_res.go  | 6 +++---
+ src/net/cgo_unix_cgo_resn.go | 6 +++---
+ src/net/cgo_unix_syscall.go  | 5 +++--
+ 4 files changed, 10 insertions(+), 9 deletions(-)

@@ -1,0 +1,19 @@
+commit ecec63c8a14229619fac41be9b64dd73aff29c79
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Tue Jul 31 15:17:31 2018 +0200
+
+    syscall/js: improve documentation about mappings to JavaScript values
+    
+    This commit moves the documentation about how Go values are mapped to
+    JavaScript values to the functions that apply the mapping, instead of
+    mentioning them in the documentation of the types being mapped. This
+    should be easier to read.
+    
+    Change-Id: I2465eb4a45f71b3b61624349e908a195010a09f1
+    Reviewed-on: https://go-review.googlesource.com/126856
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/js/callback.go   | 5 +----
+ src/syscall/js/js.go         | 7 +++++--
+ src/syscall/js/typedarray.go | 1 -
+ 3 files changed, 6 insertions(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit c353f1b41dc869210fda0cc0bd29d8587f1a5edf
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Nov 5 12:22:50 2021 -0500
+
+    crypt/aes: update formatting of ppc64le asm comments
+    
+    This does not change any code, just reformats the comments in
+    the asm code.
+    
+    Change-Id: I70fbfa77db164898d25b59b589d3e85b8399b0fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361694
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/crypto/aes/asm_ppc64le.s | 795 +++++++++++++++++++++----------------------
+ 1 file changed, 397 insertions(+), 398 deletions(-)

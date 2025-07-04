@@ -1,0 +1,21 @@
+commit 3924fe92b61042df7bef5c19db0ab0316d111e9b
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Feb 7 09:55:15 2025 -0800
+
+    runtime: establish happens-before between goroutine and bubble exit
+    
+    synctest.Run waits for all bubbled goroutines to exit before returning.
+    Establish a happens-before relationship between the bubbled goroutines
+    exiting and Run returning.
+    
+    For #67434
+    
+    Change-Id: Ibda7ec2075ae50838c0851e60dc5b3c6f3ca70fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647755
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/synctest/synctest_test.go | 26 ++++++++++++++++++++++++++
+ src/runtime/synctest.go                |  7 +++++++
+ 2 files changed, 33 insertions(+)

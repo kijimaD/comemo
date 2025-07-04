@@ -1,0 +1,12 @@
+commit 9322b53396dc8aeb8bdfa825beb4d89f33216d93
+Author: avsharapov <analytics.kzn@gmail.com>
+Date:   Sat Oct 13 13:51:16 2018 +0300
+
+    cmd/cgo: simplify switch statement to if statement
+    
+    Change-Id: Ie7dce45d554fde69d682680f55abba6a7fc55036
+    Reviewed-on: https://go-review.googlesource.com/c/142017
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit ef2593905de3bcdd760bab020667a8aa972a951e
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Feb 2 16:43:24 2017 -0800
+
+    readme: add attribution for the Gopher image
+    
+    Change-Id: I3b1317f0ab46e03d8c5a0af74c83183710a75055
+    Reviewed-on: https://go-review.googlesource.com/36214
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ README.md | 4 ++++
+ 1 file changed, 4 insertions(+)

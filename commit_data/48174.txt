@@ -1,0 +1,27 @@
+commit d3c9ef57ce5a887f6eb3d87a22adf38ef4e651ee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 15 13:38:57 2022 -0800
+
+    Revert "net: send EDNS(0) packet length in DNS query"
+    
+    This reverts https://go.dev/cl/385035. For 1.18 we will use a simple
+    change to increase the accepted DNS packet size, to handle what appear
+    to be broken resolvers that don't honor the 512 byte limit. For 1.19
+    we will restore CL 385035 to make a proper EDNS request, so that it
+    has more testing time before it goes out in a release.
+    
+    For #6464
+    For #21160
+    For #44135
+    For #51127
+    For #51153
+    
+    Change-Id: Ie4a0eb85ca0a6a73bee5cd4cfc6b7d2a15ef259f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386014
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/dnsclient_unix.go      | 19 +-------------
+ src/net/dnsclient_unix_test.go | 57 +-----------------------------------------
+ 2 files changed, 2 insertions(+), 74 deletions(-)

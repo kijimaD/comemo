@@ -1,0 +1,12 @@
+commit 36494b0acdb3d2123f85f5506d7d3153ca66937d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Nov 14 20:53:03 2011 +1100
+
+    doc/progs: fix windows version to satisfy new error
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5376089
+
+ doc/progs/file_windows.go | 22 +++++-----------------
+ 1 file changed, 5 insertions(+), 17 deletions(-)

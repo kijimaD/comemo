@@ -1,0 +1,16 @@
+commit 8f406af8e8a9c594cf40fcfbeaa78f589ed0ad27
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Mar 11 04:07:58 2018 +0900
+
+    net: avoid unnecessary type conversions
+    
+    CL generated mechanically with github.com/mdempsky/unconvert.
+    
+    Change-Id: I6c555da5972618dca4302ef8be8d93c765f95db3
+    Reviewed-on: https://go-review.googlesource.com/100035
+    Run-TryBot: Kunpei Sakai <namusyaka@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

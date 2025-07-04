@@ -1,0 +1,16 @@
+commit 64df53ed7f46db4a404812e2ef347521dc95a039
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Sep 26 11:02:09 2014 +1000
+
+    crypto/tls: ensure that we don't resume when tickets are disabled.
+    
+    LGTM=r
+    R=r, adg, rsc
+    https://golang.org/cl/148080043
+
+ src/crypto/tls/handshake_server.go                 |  4 +
+ src/crypto/tls/handshake_server_test.go            | 26 +++++++
+ .../testdata/Server-TLSv12-IssueTicketPreDisable   | 87 ++++++++++++++++++++++
+ .../tls/testdata/Server-TLSv12-ResumeDisabled      | 87 ++++++++++++++++++++++
+ src/crypto/tls/ticket.go                           |  3 +-
+ 5 files changed, 206 insertions(+), 1 deletion(-)

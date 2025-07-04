@@ -1,0 +1,12 @@
+commit ff68f96df08646b130a6153e600c2b89f5f31c34
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 15 10:40:30 2010 -0800
+
+    Test evaluation of range variables.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/189088
+
+ test/range.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

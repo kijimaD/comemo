@@ -1,0 +1,22 @@
+commit 77b527e283112d33000990c59e766074c9396292
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 11 17:39:00 2016 -0800
+
+    cmd/compile: strength reduce *24
+    
+    We use *24 a lot for pointer arithmetic when accessing slices
+    of slices ([][]T).  Rewrite to use an LEA and a shift.
+    The shift will likely be free, as it often gets folded into
+    an indexed load/store.
+    
+    Update #14606
+    
+    Change-Id: Ie0bf6dc1093876efd57e88ce5f62c26a9bf21cec
+    Reviewed-on: https://go-review.googlesource.com/20567
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)

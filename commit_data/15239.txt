@@ -1,0 +1,15 @@
+commit 89fde30fbda9a86a7b53db7b7cee1cfd8e1a36ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 14 14:21:09 2013 -0500
+
+    os: cache Getwd result as hint for next time
+    
+    Avoids the dot-dot-based algorithm on repeated calls
+    when the directory hasn't changed.
+    
+    R=golang-dev, iant, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7340043
+
+ src/pkg/os/getwd.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

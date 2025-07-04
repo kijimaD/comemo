@@ -1,0 +1,16 @@
+commit 23e6e1124522267655b05a5f47f62fc99f0e56c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 12:18:00 2016 -0400
+
+    encoding/asn1: document that default:x tag only has meaning with optional tag
+    
+    Fixes #16712.
+    
+    Change-Id: Ib216059c6c0c952162c19e080dcf3799f0652a8d
+    Reviewed-on: https://go-review.googlesource.com/32171
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/encoding/asn1/asn1.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

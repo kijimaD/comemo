@@ -1,0 +1,12 @@
+commit 6fd387b35b1559b0f125e1d77a23923c12798ded
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 6 09:30:52 2015 -0700
+
+    doc/go1.5.txt: LookupEnv
+    
+    Change-Id: Iff27fa0ca50fe9e41d811d30df41fc2d3057aa1d
+    Reviewed-on: https://go-review.googlesource.com/9792
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

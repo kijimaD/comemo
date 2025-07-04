@@ -1,0 +1,220 @@
+commit 79065f0a5eb48534142ed01d569e742b60a13f34
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 5 22:08:02 2024 +0000
+
+    net/netip: use the unique package instead of internal/intern
+    
+    This change replaces net/netip's use of the internal/intern package with
+    the new unique package.
+    
+    Below are the benchmark results for the package. Lots of things get
+    faster, but some things get slower. The single-core performance of
+    unique.Make is expected to be a tad slower than internal/intern, but is
+    vastly more scalable. No benchmark in this package currently
+    demonstrates this, however.
+    
+                                        │ before.bench  │             after.bench              │
+                                        │    sec/op     │    sec/op      vs base               │
+    IPNextPrev-48                          85.66n ± ∞ ¹    85.61n ± ∞ ¹        ~ (p=0.690 n=5)
+    BinaryMarshalRoundTrip/ipv4-48         16.12n ± ∞ ¹    15.84n ± ∞ ¹   -1.74% (p=0.008 n=5)
+    BinaryMarshalRoundTrip/ipv6-48         33.14n ± ∞ ¹    32.49n ± ∞ ¹   -1.96% (p=0.016 n=5)
+    BinaryMarshalRoundTrip/ipv6+zone-48    88.84n ± ∞ ¹   101.50n ± ∞ ¹  +14.25% (p=0.008 n=5)
+    StdIPv4-48                             126.6n ± ∞ ¹    157.2n ± ∞ ¹  +24.17% (p=0.008 n=5)
+    IPv4-48                                101.2n ± ∞ ¹    101.0n ± ∞ ¹        ~ (p=0.452 n=5)
+    IPv4_inline-48                         131.7n ± ∞ ¹    101.2n ± ∞ ¹  -23.16% (p=0.008 n=5)
+    StdIPv6-48                             180.6n ± ∞ ¹    178.7n ± ∞ ¹   -1.05% (p=0.040 n=5)
+    IPv6-48                                136.7n ± ∞ ¹    137.4n ± ∞ ¹        ~ (p=0.135 n=5)
+    IPv4Contains-48                        4.650n ± ∞ ¹    5.287n ± ∞ ¹  +13.70% (p=0.008 n=5)
+    IPv6Contains-48                        5.284n ± ∞ ¹    5.290n ± ∞ ¹        ~ (p=0.540 n=5)
+    ParseAddr/v4-48                        23.94n ± ∞ ¹    23.62n ± ∞ ¹        ~ (p=0.841 n=5)
+    ParseAddr/v6-48                        84.95n ± ∞ ¹    80.64n ± ∞ ¹   -5.07% (p=0.008 n=5)
+    ParseAddr/v6_ellipsis-48               51.54n ± ∞ ¹    51.62n ± ∞ ¹        ~ (p=1.000 n=5)
+    ParseAddr/v6_v4-48                     55.85n ± ∞ ¹    56.56n ± ∞ ¹   +1.27% (p=0.008 n=5)
+    ParseAddr/v6_zone-48                   110.0n ± ∞ ¹    124.6n ± ∞ ¹  +13.27% (p=0.008 n=5)
+    StdParseIP/v4-48                       54.05n ± ∞ ¹    53.74n ± ∞ ¹   -0.57% (p=0.016 n=5)
+    StdParseIP/v6-48                       111.6n ± ∞ ¹    111.7n ± ∞ ¹        ~ (p=0.651 n=5)
+    StdParseIP/v6_ellipsis-48              81.81n ± ∞ ¹    82.15n ± ∞ ¹   +0.42% (p=0.008 n=5)
+    StdParseIP/v6_v4-48                    89.36n ± ∞ ¹    90.72n ± ∞ ¹   +1.52% (p=0.008 n=5)
+    StdParseIP/v6_zone-48                  138.7n ± ∞ ¹    150.7n ± ∞ ¹   +8.65% (p=0.008 n=5)
+    AddrString/v4-48                       36.43n ± ∞ ¹    36.33n ± ∞ ¹        ~ (p=0.508 n=5)
+    AddrString/v6-48                       106.1n ± ∞ ¹    102.5n ± ∞ ¹   -3.39% (p=0.008 n=5)
+    AddrString/v6_ellipsis-48              93.93n ± ∞ ¹    92.87n ± ∞ ¹   -1.13% (p=0.008 n=5)
+    AddrString/v6_v4-48                    43.09n ± ∞ ¹    43.33n ± ∞ ¹        ~ (p=0.111 n=5)
+    AddrString/v6_zone-48                  91.15n ± ∞ ¹    89.22n ± ∞ ¹   -2.12% (p=0.008 n=5)
+    IPStringExpanded/v4-48                 37.99n ± ∞ ¹    37.77n ± ∞ ¹   -0.58% (p=0.032 n=5)
+    IPStringExpanded/v6-48                 63.59n ± ∞ ¹    63.58n ± ∞ ¹        ~ (p=0.690 n=5)
+    IPStringExpanded/v6_ellipsis-48        64.33n ± ∞ ¹    63.50n ± ∞ ¹   -1.29% (p=0.024 n=5)
+    IPStringExpanded/v6_v4-48              64.79n ± ∞ ¹    63.08n ± ∞ ¹   -2.64% (p=0.008 n=5)
+    IPStringExpanded/v6_zone-48            111.7n ± ∞ ¹    109.7n ± ∞ ¹   -1.79% (p=0.016 n=5)
+    AddrMarshalText/v4-48                  34.45n ± ∞ ¹    34.04n ± ∞ ¹        ~ (p=0.151 n=5)
+    AddrMarshalText/v6-48                  105.2n ± ∞ ¹    102.6n ± ∞ ¹   -2.47% (p=0.008 n=5)
+    AddrMarshalText/v6_ellipsis-48         99.69n ± ∞ ¹    98.56n ± ∞ ¹        ~ (p=0.151 n=5)
+    AddrMarshalText/v6_v4-48               48.22n ± ∞ ¹    47.33n ± ∞ ¹        ~ (p=0.151 n=5)
+    AddrMarshalText/v6_zone-48             98.55n ± ∞ ¹    94.82n ± ∞ ¹   -3.78% (p=0.008 n=5)
+    AddrPortString/v4-48                   59.03n ± ∞ ¹    50.09n ± ∞ ¹  -15.14% (p=0.008 n=5)
+    AddrPortString/v6-48                   118.2n ± ∞ ¹    113.3n ± ∞ ¹   -4.15% (p=0.008 n=5)
+    AddrPortString/v6_ellipsis-48          110.1n ± ∞ ¹    107.3n ± ∞ ¹   -2.54% (p=0.008 n=5)
+    AddrPortString/v6_v4-48                66.48n ± ∞ ¹    58.80n ± ∞ ¹  -11.55% (p=0.008 n=5)
+    AddrPortString/v6_zone-48              106.7n ± ∞ ¹    104.9n ± ∞ ¹   -1.69% (p=0.008 n=5)
+    AddrPortMarshalText/v4-48              56.67n ± ∞ ¹    54.19n ± ∞ ¹   -4.38% (p=0.008 n=5)
+    AddrPortMarshalText/v6-48              125.1n ± ∞ ¹    122.1n ± ∞ ¹   -2.40% (p=0.008 n=5)
+    AddrPortMarshalText/v6_ellipsis-48     120.1n ± ∞ ¹    118.0n ± ∞ ¹   -1.75% (p=0.024 n=5)
+    AddrPortMarshalText/v6_v4-48           71.53n ± ∞ ¹    70.25n ± ∞ ¹        ~ (p=0.548 n=5)
+    AddrPortMarshalText/v6_zone-48         116.4n ± ∞ ¹    114.0n ± ∞ ¹   -2.06% (p=0.016 n=5)
+    PrefixMasking/IPv4_/32-48              5.259n ± ∞ ¹    5.289n ± ∞ ¹   +0.57% (p=0.016 n=5)
+    PrefixMasking/IPv4_/17-48              5.286n ± ∞ ¹    5.284n ± ∞ ¹        ~ (p=0.937 n=5)
+    PrefixMasking/IPv4_/0-48               5.266n ± ∞ ¹    5.280n ± ∞ ¹        ~ (p=0.151 n=5)
+    PrefixMasking/IPv6_/128-48             5.271n ± ∞ ¹    5.284n ± ∞ ¹        ~ (p=0.151 n=5)
+    PrefixMasking/IPv6_/65-48              5.256n ± ∞ ¹    5.282n ± ∞ ¹        ~ (p=0.317 n=5)
+    PrefixMasking/IPv6_/0-48               5.253n ± ∞ ¹    5.284n ± ∞ ¹        ~ (p=0.095 n=5)
+    PrefixMasking/IPv6_zone_/128-48        5.274n ± ∞ ¹    5.284n ± ∞ ¹        ~ (p=0.222 n=5)
+    PrefixMasking/IPv6_zone_/65-48         5.280n ± ∞ ¹    5.291n ± ∞ ¹        ~ (p=0.095 n=5)
+    PrefixMasking/IPv6_zone_/0-48          5.283n ± ∞ ¹    5.292n ± ∞ ¹        ~ (p=0.095 n=5)
+    PrefixMarshalText-48                   44.60n ± ∞ ¹    44.81n ± ∞ ¹        ~ (p=1.000 n=5)
+    ParseAddrPort/v4-48                    46.40n ± ∞ ¹    41.27n ± ∞ ¹  -11.06% (p=0.008 n=5)
+    ParseAddrPort/v6-48                   106.90n ± ∞ ¹    99.29n ± ∞ ¹   -7.12% (p=0.008 n=5)
+    ParseAddrPort/v6_ellipsis-48           77.10n ± ∞ ¹    69.98n ± ∞ ¹   -9.23% (p=0.008 n=5)
+    ParseAddrPort/v6_v4-48                 71.82n ± ∞ ¹    74.97n ± ∞ ¹   +4.39% (p=0.008 n=5)
+    ParseAddrPort/v6_zone-48               130.0n ± ∞ ¹    148.5n ± ∞ ¹  +14.23% (p=0.008 n=5)
+    As16-48                                7.446n ± ∞ ¹    7.437n ± ∞ ¹        ~ (p=0.286 n=5)
+    geomean                                45.52n          45.18n         -0.76%
+    ¹ need >= 6 samples for confidence interval at level 0.95
+    
+                                       │ before.bench │             after.bench             │
+                                       │     B/op     │    B/op      vs base                │
+    StdIPv4-48                            16.00 ± ∞ ¹   16.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPv4-48                               0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPv4_inline-48                        0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdIPv6-48                            16.00 ± ∞ ¹   16.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPv6-48                               0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPv4Contains-48                       0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPv6Contains-48                       0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddr/v4-48                       0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddr/v6-48                       0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddr/v6_ellipsis-48              0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddr/v6_v4-48                    0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddr/v6_zone-48                  0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdParseIP/v4-48                      16.00 ± ∞ ¹   16.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdParseIP/v6-48                      16.00 ± ∞ ¹   16.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdParseIP/v6_ellipsis-48             16.00 ± ∞ ¹   16.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdParseIP/v6_v4-48                   16.00 ± ∞ ¹   16.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdParseIP/v6_zone-48                 16.00 ± ∞ ¹   16.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrString/v4-48                      16.00 ± ∞ ¹   16.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrString/v6-48                      48.00 ± ∞ ¹   48.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrString/v6_ellipsis-48             24.00 ± ∞ ¹   24.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrString/v6_v4-48                   24.00 ± ∞ ¹   24.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrString/v6_zone-48                 24.00 ± ∞ ¹   24.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPStringExpanded/v4-48                16.00 ± ∞ ¹   16.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPStringExpanded/v6-48                48.00 ± ∞ ¹   48.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPStringExpanded/v6_ellipsis-48       48.00 ± ∞ ¹   48.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPStringExpanded/v6_v4-48             48.00 ± ∞ ¹   48.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPStringExpanded/v6_zone-48           128.0 ± ∞ ¹   128.0 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrMarshalText/v4-48                 16.00 ± ∞ ¹   16.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrMarshalText/v6-48                 48.00 ± ∞ ¹   48.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrMarshalText/v6_ellipsis-48        48.00 ± ∞ ¹   48.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrMarshalText/v6_v4-48              32.00 ± ∞ ¹   32.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrMarshalText/v6_zone-48            48.00 ± ∞ ¹   48.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortString/v4-48                  24.00 ± ∞ ¹   24.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortString/v6-48                  48.00 ± ∞ ¹   48.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortString/v6_ellipsis-48         32.00 ± ∞ ¹   32.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortString/v6_v4-48               32.00 ± ∞ ¹   32.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortString/v6_zone-48             32.00 ± ∞ ¹   32.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortMarshalText/v4-48             24.00 ± ∞ ¹   24.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortMarshalText/v6-48             64.00 ± ∞ ¹   64.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortMarshalText/v6_ellipsis-48    64.00 ± ∞ ¹   64.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortMarshalText/v6_v4-48          64.00 ± ∞ ¹   64.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortMarshalText/v6_zone-48        64.00 ± ∞ ¹   64.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv4_/32-48             0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv4_/17-48             0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv4_/0-48              0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_/128-48            0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_/65-48             0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_/0-48              0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_zone_/128-48       0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_zone_/65-48        0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_zone_/0-48         0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMarshalText-48                  24.00 ± ∞ ¹   24.00 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddrPort/v4-48                   0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddrPort/v6-48                   0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddrPort/v6_ellipsis-48          0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddrPort/v6_v4-48                0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddrPort/v6_zone-48              0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    geomean                                         ³                +0.00%               ³
+    ¹ need >= 6 samples for confidence interval at level 0.95
+    ² all samples are equal
+    ³ summaries must be >0 to compute geomean
+    
+                                       │ before.bench │             after.bench             │
+                                       │  allocs/op   │  allocs/op   vs base                │
+    StdIPv4-48                            1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPv4-48                               0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPv4_inline-48                        0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdIPv6-48                            1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPv6-48                               0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPv4Contains-48                       0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPv6Contains-48                       0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddr/v4-48                       0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddr/v6-48                       0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddr/v6_ellipsis-48              0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddr/v6_v4-48                    0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddr/v6_zone-48                  0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdParseIP/v4-48                      1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdParseIP/v6-48                      1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdParseIP/v6_ellipsis-48             1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdParseIP/v6_v4-48                   1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    StdParseIP/v6_zone-48                 1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrString/v4-48                      1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrString/v6-48                      1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrString/v6_ellipsis-48             1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrString/v6_v4-48                   1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrString/v6_zone-48                 1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPStringExpanded/v4-48                1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPStringExpanded/v6-48                1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPStringExpanded/v6_ellipsis-48       1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPStringExpanded/v6_v4-48             1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    IPStringExpanded/v6_zone-48           2.000 ± ∞ ¹   2.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrMarshalText/v4-48                 1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrMarshalText/v6-48                 1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrMarshalText/v6_ellipsis-48        1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrMarshalText/v6_v4-48              1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrMarshalText/v6_zone-48            1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortString/v4-48                  1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortString/v6-48                  1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortString/v6_ellipsis-48         1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortString/v6_v4-48               1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortString/v6_zone-48             1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortMarshalText/v4-48             1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortMarshalText/v6-48             1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortMarshalText/v6_ellipsis-48    1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortMarshalText/v6_v4-48          1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    AddrPortMarshalText/v6_zone-48        1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv4_/32-48             0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv4_/17-48             0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv4_/0-48              0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_/128-48            0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_/65-48             0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_/0-48              0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_zone_/128-48       0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_zone_/65-48        0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMasking/IPv6_zone_/0-48         0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    PrefixMarshalText-48                  1.000 ± ∞ ¹   1.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddrPort/v4-48                   0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddrPort/v6-48                   0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddrPort/v6_ellipsis-48          0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddrPort/v6_v4-48                0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    ParseAddrPort/v6_zone-48              0.000 ± ∞ ¹   0.000 ± ∞ ¹       ~ (p=1.000 n=5) ²
+    geomean                                         ³                +0.00%               ³
+    ¹ need >= 6 samples for confidence interval at level 0.95
+    ² all samples are equal
+    ³ summaries must be >0 to compute geomean
+    
+    Change-Id: Ieec7d1f0836f3ee93a33653aee9b0c0fc77f399d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577035
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/go/build/deps_test.go    |  2 +-
+ src/net/netip/export_test.go |  6 ++++--
+ src/net/netip/netip.go       | 31 +++++++++++++++----------------
+ src/net/netip/netip_test.go  | 12 ++++++------
+ 4 files changed, 26 insertions(+), 25 deletions(-)

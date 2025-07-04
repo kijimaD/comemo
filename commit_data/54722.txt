@@ -1,0 +1,17 @@
+commit 045ce51b056429f5872fc6c41764111be0f39e8f
+Author: Austin Clements <austin@google.com>
+Date:   Sun Sep 17 18:20:11 2023 -0400
+
+    cmd/go: delete showOutput, formatOutput, and processOutput
+    
+    This functions have been replaced with Builder.reportCmd.
+    
+    For #62067.
+    
+    Change-Id: Ifeccee720b3da3dc44c49fe11da1eca7b5f46551
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529220
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/work/exec.go | 137 ---------------------------------------
+ 1 file changed, 137 deletions(-)

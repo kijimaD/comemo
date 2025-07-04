@@ -1,0 +1,23 @@
+commit fa31093ec4e9bbfce51c11c8ab90dd9b711d0052
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 11 17:48:33 2018 -0400
+
+    cmd/compile: attach slots to incoming params for better debugging
+    
+    This change attaches a slots to the OpArg values for
+    incoming params, and this in turn causes location lists
+    to be generated for params, and that yields better
+    debugging, in delve and sometimes in gdb.
+    
+    The parameter lifetimes could start earlier; they are in
+    fact defined on entry, not at the point where the OpArg is
+    finally mentioned.  (that will be addressed in another CL)
+    
+    Change-Id: Icca891e118291d260c35a14acd5bc92bb82d9e9f
+    Reviewed-on: https://go-review.googlesource.com/c/141697
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,10 @@
+commit 1efa6a054459f864e16829cfdee3e13107e3841f
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jul 3 18:05:20 2008 -0700
+
+    better recovery after syntax error
+    
+    SVN=126003
+
+ src/cmd/gc/go.y | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

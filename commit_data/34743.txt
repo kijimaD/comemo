@@ -1,0 +1,24 @@
+commit 6a74fe2f15650572adfd1b49dec760052295b21f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 23 19:09:23 2018 -0700
+
+    cmd/compile: strength reduce more x86 constant multiplication
+    
+    The additions were machine-generated.
+    
+    The change for x * 7 avoids a reg-reg move,
+    reducing the number of instructions from 3 to 2.
+    
+    Change-Id: Ib002e39f29ca5e46cfdb8daaf87ddc7ba50a17e5
+    Reviewed-on: https://go-review.googlesource.com/102395
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/testdata/arithConst.go | 2952 ++++++++++++++++++++
+ .../internal/gc/testdata/gen/arithConstGen.go      |   32 +-
+ src/cmd/compile/internal/ssa/gen/386.rules         |   18 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules       |   16 +-
+ src/cmd/compile/internal/ssa/rewrite386.go         |  152 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       |  152 +-
+ 6 files changed, 3277 insertions(+), 45 deletions(-)

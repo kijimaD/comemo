@@ -1,0 +1,18 @@
+commit 347259cbae30f876be11fe5e71710969afa24374
+Author: Xia Bin <snyh@snyh.org>
+Date:   Sun Jan 24 14:22:54 2016 +0800
+
+    misc/cgo/test: add test that gccgo fails
+    
+    Gccgo isn't locking the OS thread properly during calls.
+    
+    Change-Id: Idb2475291405e390cbb83abb27a402fd0381d0c4
+    Reviewed-on: https://go-review.googlesource.com/18882
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/test/basic.go           |  3 +++
+ misc/cgo/test/cgo_test.go        |  1 +
+ misc/cgo/test/cgo_thread_lock.go | 53 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 57 insertions(+)

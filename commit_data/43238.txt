@@ -1,0 +1,15 @@
+commit eb67eab861442e6275deb584ecf08c95a639cedb
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 12 15:46:19 2020 -0400
+
+    cmd/compile: late call expansion for rtcall
+    
+    Change-Id: I0708c9d649d8a579857330b68d9fbcbbeced29e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248189
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 48 ++++++++++++++++++++++++++++++--------
+ 1 file changed, 38 insertions(+), 10 deletions(-)

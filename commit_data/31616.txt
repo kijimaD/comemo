@@ -1,0 +1,24 @@
+commit 0a09c72c2e9f64a0888f0215db478840d152355f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Feb 14 05:55:41 2017 +0900
+
+    internal/poll: add RawControl, RawRead and RawWrite methods to FD
+    
+    This change adds RawControl, RawRead and RawWrite methods to type FD
+    to make the runtime-integrated network poller work together with a
+    user-defined function. The methods are used via the net package from
+    external packages and type FD is considered as an implementation of
+    syscall.Conn and syscall.RawConn interfaces.
+    
+    Updates #19435.
+    
+    Change-Id: I4ad04b10ffddb2b54fa8d70587440960d73c0a2d
+    Reviewed-on: https://go-review.googlesource.com/37038
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_plan9.go   | 17 ++++++++++++++
+ src/internal/poll/fd_unix.go    | 49 +++++++++++++++++++++++++++++++++++++++++
+ src/internal/poll/fd_windows.go | 16 ++++++++++++++
+ 3 files changed, 82 insertions(+)

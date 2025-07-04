@@ -1,0 +1,39 @@
+commit e4bde0510465eecd4c8a8293418b1cbed1e0e623
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Mon Jan 1 16:16:43 2018 -0800
+
+    archive/tar: automatically promote TypeRegA
+    
+    Change Reader to promote TypeRegA to TypeReg in headers, unless their
+    name have a trailing slash which is already promoted to TypeDir. This
+    will allow client code to handle just TypeReg instead both TypeReg and
+    TypeRegA.
+    
+    Change Writer to promote TypeRegA to TypeReg or TypeDir in the headers
+    depending on whether the name has a trailing slash. This normalization
+    is motivated by the specification (in pax(1)):
+    
+       0 represents a regular file. For backwards-compatibility, a
+       typeflag value of binary zero ( '\0' ) should be recognized as
+       meaning a regular file when extracting files from the
+       archive. Archives written with this version of the archive file
+       format create regular files with a typeflag value of the
+       ISO/IEC 646:1991 standard IRV '0'.
+    
+    Fixes #22768.
+    
+    Change-Id: I149ec55824580d446cdde5a0d7a0457ad7b03466
+    Reviewed-on: https://go-review.googlesource.com/85656
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/common.go                   |   7 +++++--
+ src/archive/tar/reader.go                   |   8 ++++++--
+ src/archive/tar/reader_test.go              |  11 ++++++-----
+ src/archive/tar/tar_test.go                 |   1 +
+ src/archive/tar/testdata/file-and-dir.tar   | Bin 0 -> 2560 bytes
+ src/archive/tar/testdata/trailing-slash.tar | Bin 2560 -> 2560 bytes
+ src/archive/tar/writer.go                   |  10 ++++++++++
+ src/archive/tar/writer_test.go              |  13 +++++++++++--
+ 8 files changed, 39 insertions(+), 11 deletions(-)

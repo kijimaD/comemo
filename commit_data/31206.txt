@@ -1,0 +1,22 @@
+commit 619af172055dccfd92a87ec116236ef3a885ac2c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 13 05:25:20 2017 -0700
+
+    runtime: refactor hmap setoverflow into newoverflow
+    
+    This simplifies the code, as well as providing
+    a single place to modify to change the
+    allocation of new overflow buckets.
+    
+    Updates #19931
+    Updates #19992
+    
+    Change-Id: I77070619f5c8fe449bbc35278278bca5eda780f2
+    Reviewed-on: https://go-review.googlesource.com/40975
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/hashmap.go      | 13 ++++++-------
+ src/runtime/hashmap_fast.go |  9 +++------
+ 2 files changed, 9 insertions(+), 13 deletions(-)

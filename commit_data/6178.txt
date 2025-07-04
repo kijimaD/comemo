@@ -1,0 +1,16 @@
+commit c849b23ce9f8c72dd14392ad7b4d2bf7a97622ee
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 6 19:22:49 2010 +1000
+
+    exp/draw: unify a draw.Context's keyboard, mouse, etc. channels into a
+    single event channel.
+    
+    A quit event is now represented by closing that channel.
+    
+    R=r, rsc, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/2114042
+
+ src/pkg/exp/draw/event.go    | 50 +++++++++++++++++++++-----------------------
+ src/pkg/exp/draw/x11/conn.go | 31 ++++++++-------------------
+ 2 files changed, 33 insertions(+), 48 deletions(-)

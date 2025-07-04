@@ -1,0 +1,31 @@
+commit 6f84993e90e7076427c1bd0aaebe4e10b764194a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Nov 21 20:11:03 2020 -0500
+
+    cmd/link: code-sign on darwin/arm64
+    
+    This CL lets the linker code-sign output binaries on
+    darwin/arm64, as the kernel requires binaries must be signed in
+    order to run.
+    
+    This signature will likely be invalidated when we stamp the
+    buildid after linking. We still do it in the linker, for
+    - plain "go tool link" works.
+    - the linker generates the LC_CODE_SIGNATURE load command with
+      the right size and offset, so we don't need to update it when
+      stamping the buildid.
+    
+    Updates #38485, #42684.
+    
+    Change-Id: Ia306328906d73217221ba31093fe61a935a46122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272256
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/lib.go    |  11 +++
+ src/cmd/link/internal/ld/macho.go  | 146 ++++++++++++++++++++++++++++++++++---
+ src/cmd/link/internal/ld/outbuf.go |   9 +++
+ 3 files changed, 155 insertions(+), 11 deletions(-)

@@ -1,0 +1,14 @@
+commit 3c4ebd20235e965237f5856d30d6ce6513b9f6c9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed May 4 21:38:45 2016 -0700
+
+    cmd/link: fix external linker argument for mips64
+    
+    I overlooked it when rebasing CL 19803.
+    
+    Change-Id: Ife9d6bcc6a772715d137af903c64bafac0cdb216
+    Reviewed-on: https://go-review.googlesource.com/22797
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

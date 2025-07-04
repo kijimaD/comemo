@@ -1,0 +1,42 @@
+commit a25c403b3a21c84c7ece8b00b9229b00a31e6d40
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 11 18:15:23 2013 -0400
+
+    cmd/pprof: never use c++filt
+    
+    The copy of c++filt shipped on OS X is six years old,
+    and in our case it does far more mangling than it
+    does demangling. People on non-OS X systems will
+    have a working nm --demangle, so this won't affect them.
+    
+    $ sw_vers
+    ProductName:    Mac OS X
+    ProductVersion: 10.8.2
+    BuildVersion:   12C2034
+    $ c++filt --version
+    GNU c++filt 070207 20070207
+    Copyright 2005 Free Software Foundation, Inc.
+    This program is free software; you may redistribute it under the terms of
+    the GNU General Public License.  This program has absolutely no warranty.
+    $
+    
+    $ go tool nm -n revcomp | grep quoteWith
+       4f560 T strconv.quoteWith
+    $ go tool nm -n revcomp | grep quoteWith  | c++filt
+       f560 T strconv.quoteWith
+    $
+    
+    $ nm -n revcomp | grep quoteWith
+    000000000004f560 t _strconv.quoteWith
+    $ nm -n revcomp | grep quoteWith | c++filt
+    000000000004f560 unsigned short _strconv.quoteWith
+    $
+    
+    Fixes #4818.
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7729043
+
+ misc/pprof | 27 +++++++++++----------------
+ 1 file changed, 11 insertions(+), 16 deletions(-)

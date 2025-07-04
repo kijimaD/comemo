@@ -1,0 +1,30 @@
+commit a4440e3d236dc2ca65851c39a51958cc1b3c03fb
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue Apr 2 10:13:32 2024 +0200
+
+    net/http: speed up go test
+    
+    Optimize the execution speed of go test ./net/http from ~38s to ~28s.
+    This is achieved by shortening the sleep interval utilized for
+    identifying goroutine leaks.
+    
+    This optimization is motivated by noticing significant periods of
+    inactivity in the -trace output. Even after applying this CL, many
+    Off-CPU wait periods seem to remain:
+    
+    $ go test ./net/http
+    ok      net/http        27.744s
+    
+    real    0m28.204s
+    user    0m4.991s
+    sys     0m1.797s
+    
+    Change-Id: I6108ebbb715c33900f1506d810c0a8f8ed674d35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575975
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ src/net/http/main_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

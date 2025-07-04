@@ -1,0 +1,19 @@
+commit 04f059f9efbb2a202ddb6a3c6f87efa8073e562f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 28 10:29:58 2023 -0700
+
+    net: don't recheck goosPrefersCgo in hostLookupOrder
+    
+    We only did it for testing. Remove the single test that required it.
+    
+    Change-Id: Ib6c3a2debfd3f48e95af37f23fdfde847ff87a41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490395
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/conf.go      | 13 +++----------
+ src/net/conf_test.go | 12 ------------
+ 2 files changed, 3 insertions(+), 22 deletions(-)

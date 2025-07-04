@@ -1,0 +1,26 @@
+commit 5a3243e6b60ec7b006d8b65fd564133018cad777
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Nov 11 10:05:39 2022 +0800
+
+    all: fix problematic comments
+    
+    Change-Id: Ib6ea1bd04d9b06542ed2b0f453c718115417c62c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449755
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssa/op.go      | 2 +-
+ src/cmd/compile/internal/ssagen/pgen.go | 2 +-
+ src/cmd/compile/internal/types/type.go  | 2 +-
+ src/cmd/go/internal/script/cmds.go      | 2 +-
+ src/cmd/internal/obj/link.go            | 2 +-
+ src/cmd/internal/objabi/reloctype.go    | 4 ++--
+ src/crypto/tls/cipher_suites.go         | 2 +-
+ src/runtime/metrics.go                  | 2 +-
+ src/runtime/mgc.go                      | 2 +-
+ src/runtime/symtab.go                   | 2 +-
+ 10 files changed, 11 insertions(+), 11 deletions(-)

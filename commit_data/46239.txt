@@ -1,0 +1,31 @@
+commit 7637345b6ea00faf6c453a5f8128d8b548ee0a2c
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Aug 31 16:24:00 2021 -0400
+
+    go/internal/typeparams: remove typeparams.{Get,Set} (cleanup)
+    
+    These helper functions are no longer necessary, now that type parameters
+    are enabled; we can access type parameters directly.
+    
+    When considering the existence or non-existence of type parameters, we
+    can either check whether node.TParams != nil, or whether
+    node.TParams.NumFields() > 0. The heuristic I'm using for deciding
+    between these checks is as follows:
+     - For data access, just check node.TParams != nil.
+     - For producing errors if type parameters exist, check NumFields() > 0.
+    
+    Change-Id: I6597536898e975564e9e8bf6a3a91bc798e0f110
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346549
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/internal/typeparams/typeparams.go | 23 -----------------------
+ src/go/parser/parser.go                  | 12 ++++++++----
+ src/go/parser/resolver.go                | 12 ++++--------
+ src/go/printer/nodes.go                  |  9 ++++-----
+ src/go/types/decl.go                     |  7 +++----
+ src/go/types/interface.go                |  5 ++---
+ src/go/types/signature.go                |  6 +++---
+ 7 files changed, 24 insertions(+), 50 deletions(-)

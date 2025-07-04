@@ -1,0 +1,19 @@
+commit 2ff463948c92e71651a31c621826281035a7071a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 6 23:17:29 2016 -0700
+
+    cmd/compile/internal/gc: use new AST parser
+    
+    Introduce a new noder type to transform package syntax's AST into gc's
+    Node tree. Hidden behind a new -newparser flag.
+    
+    Change-Id: Id0e862ef6196c41533876afc4ec289e21d422d18
+    Reviewed-on: https://go-review.googlesource.com/27198
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/main.go   |   26 +-
+ src/cmd/compile/internal/gc/noder.go  | 1116 +++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/parser.go |   17 +-
+ 3 files changed, 1139 insertions(+), 20 deletions(-)

@@ -1,0 +1,18 @@
+commit 193eac7917f8743e70ffc35affaf1abb6f092c31
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Sep 4 17:15:15 2008 -0700
+
+    bugs 29, 61, 62, 74
+    fixedbugs 49 now (correctly) fails
+    bugs 32, 41, 68, 77 shouldnt be bugs
+    
+    R=r
+    OCL=14842
+    CL=14842
+
+ src/cmd/6g/cgen.c  |  8 ++++++
+ src/cmd/6g/gen.c   | 18 -------------
+ src/cmd/gc/const.c |  6 ++---
+ src/cmd/gc/go.y    | 10 +++++--
+ src/cmd/gc/walk.c  | 76 ++++++++++++++++++++++++++++++------------------------
+ 5 files changed, 60 insertions(+), 58 deletions(-)

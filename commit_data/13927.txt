@@ -1,0 +1,14 @@
+commit 5e3fb887a3a9faf6fac1cd227d4b6b66bef9225a
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Sep 24 20:55:11 2012 +0200
+
+    cmd/[568]g: explain the purpose of various Reg fields.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/6554062
+
+ src/cmd/5g/opt.h | 20 ++++++++++++--------
+ src/cmd/6g/opt.h | 20 ++++++++++++--------
+ src/cmd/8g/opt.h | 20 ++++++++++++--------
+ 3 files changed, 36 insertions(+), 24 deletions(-)

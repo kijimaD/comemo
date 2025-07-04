@@ -1,0 +1,22 @@
+commit 64e29f94e29ce6fa01537f639aec5fbea28a6a7f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Apr 19 16:09:17 2019 +0000
+
+    internal/goversion: add new package, move Go 1.x constant there out of go/build
+    
+    Found by Josh, who says in the bug that it shrinks cmd/compile by 1.6 MB (6.5%).
+    
+    Fixes #31563
+    
+    Change-Id: I35127af539630e628a0a4f2273af519093536c38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172997
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/dep_test.go | 26 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go     |  5 ++---
+ src/cmd/dist/buildtool.go               |  1 +
+ src/go/build/build.go                   | 18 +++++++++---------
+ src/go/build/deps_test.go               |  2 +-
+ src/internal/goversion/goversion.go     | 13 +++++++++++++
+ 6 files changed, 52 insertions(+), 13 deletions(-)

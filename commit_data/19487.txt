@@ -1,0 +1,15 @@
+commit bb824b6a0f345c41a83f3a50a3708f785c9166d0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jun 2 16:26:08 2014 +1000
+
+    misc/makerelease: fix secret
+    
+    Not sure how this snuck in undetected.
+    
+    TBR=bradfitz
+    R=golang-codereviews
+    CC=golang-codereviews
+    https://golang.org/cl/106760043
+
+ misc/makerelease/makerelease.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

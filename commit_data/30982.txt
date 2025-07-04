@@ -1,0 +1,22 @@
+commit 7439ba32ffe5461372a5b51cc315d8c0e8dae03e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 3 10:00:02 2017 -0700
+
+    cmd/compile: respect Node.Bounded when inserting OpArraySelect
+    
+    This triggers 119 times during make.bash.
+    
+    This CL reduces the time it takes for the
+    compiler to panic while compiling the code in #19751
+    from 22 minutes to 15 minutes. Yay, I guess.
+    
+    Updates #19751
+    
+    Change-Id: I8ca7f1ae75f89d1eb2a361d67b3055a975221734
+    Reviewed-on: https://go-review.googlesource.com/39294
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

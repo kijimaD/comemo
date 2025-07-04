@@ -1,0 +1,23 @@
+commit bf23a4e61ddceb26744da8f462ce6351fca66089
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Mon May 7 16:18:19 2018 +0200
+
+    cmd/internal/obj/wasm: avoid invalid offsets for Load/Store
+    
+    Offsets for Load and Store instructions have type i32. Bad index
+    expression offsets can cause an offset to be larger than MaxUint32,
+    which is not allowed. One example for this is the test test/index0.go.
+    
+    Generate valid code by adding a guard to the responsible rewrite rule.
+    Also emit a proper error when using such a bad index in assembly code.
+    
+    Change-Id: Ie90adcbf3ae3861c26680eb81790f28692913ccf
+    Reviewed-on: https://go-review.googlesource.com/111955
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/Wasm.rules | 19 +++++--------
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 44 ++++++++++++++---------------
+ src/cmd/internal/obj/wasm/wasmobj.go        |  6 ++++
+ 3 files changed, 35 insertions(+), 34 deletions(-)

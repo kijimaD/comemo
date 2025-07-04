@@ -1,0 +1,12 @@
+commit d1f6e27880f1e867c62704c32aa8917f902925fd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 26 10:00:06 2012 +0800
+
+    go/build: cgoEnabled is not known to cmd/dist anymore
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5901051
+
+ src/pkg/go/build/build.go | 1 -
+ 1 file changed, 1 deletion(-)

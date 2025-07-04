@@ -1,0 +1,27 @@
+commit d5e722034ab19d47377507f3606c1a72f484d7eb
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 10 09:54:22 2018 +1100
+
+    go/doc: add new mode bit PreserveAST to control clearing of data in AST
+    
+    To save memory in godoc, this package routinely clears fields of
+    the AST to avoid keeping data that godoc no longer needs. For other
+    programs, such as cmd/doc, this behavior is unfortunate. Also, one
+    should be able to tell any package like this, "don't change my
+    data".
+    
+    Add a Mode bit, defaulting to off to preserve existing behavior,
+    that allows a client to specify that the AST is inviolate.
+    
+    This is necessary to address some of the outstanding issues
+    in cmd/doc that require, for example, looking at function bodies.
+    
+    Fixes #26835
+    
+    Change-Id: I01cc97c6addc5ab6abff885fff4bd53454a03bbc
+    Reviewed-on: https://go-review.googlesource.com/c/140958
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/doc.go    | 13 +++++++++----
+ src/go/doc/reader.go | 40 ++++++++++++++++++++++++++--------------
+ 2 files changed, 35 insertions(+), 18 deletions(-)

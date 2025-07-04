@@ -1,0 +1,16 @@
+commit ca6be91cbc39574a3f422a07dc4f0f4922c6668f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue May 20 14:42:07 2014 -0400
+
+    all: fix "the the" typos.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/93470043
+
+ doc/articles/wiki/index.html             | 2 +-
+ src/cmd/gofmt/testdata/typeswitch.golden | 2 +-
+ src/cmd/gofmt/testdata/typeswitch.input  | 2 +-
+ src/pkg/runtime/runtime-gdb.py           | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

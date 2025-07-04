@@ -1,0 +1,22 @@
+commit ad3e82e7369556f84b6fcf3002cba93f1c4cbc4b
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 10 16:11:31 2012 +0900
+
+    undo CL 5530063 / 1d7295fdf62e
+    
+    runtime: enable runtime.ncpu on FreeBSD
+    
+    ««« original CL description
+    cmd/go: fix freebsd build
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5530063
+    »»»
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5531059
+
+ src/cmd/go/build.go | 3 ---
+ 1 file changed, 3 deletions(-)

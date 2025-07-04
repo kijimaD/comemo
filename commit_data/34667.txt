@@ -1,0 +1,45 @@
+commit a3d8326993f25869ffb01f27a085abcfabbb42ef
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue Feb 13 02:51:23 2018 +0100
+
+    doc: first version of new contribute guide
+    
+    I've reorganized the guide and rewritten large sections.
+    
+    The structure is now more clear and logical, and can
+    be understood and navigated using the summary displayed at
+    the top of the page (before, the summary was confusing because
+    the guide contained H1s that were being ignored by the summary).
+    
+    Both the initial onboarding process and the Gerrit
+    change submission process have been reworked to
+    include a concise checklist of steps that can be
+    read and understood in a few seconds, for people
+    that don't want or need to bother with details.
+    More in-depth descriptions have been moved into
+    separate sections, one per each checklist step.
+    This is by far the biggest improvement, as the previous
+    approach of having to read several pages just to understand
+    the requires steps was very scaring for beginners, in
+    addition of being harder to navigate.
+    
+    GitHub pull requests have been integrated as a different
+    way to submit a change, suggested for first time contributors.
+    
+    The review process has been described in more details,
+    documenting the workflow and the used conventions.
+    
+    Most miscellanea have been moved into an "advanced
+    topics" chapter.
+    
+    Paragraphs describing how to use git have been removed
+    to simplify reading. This guide should focus on Go contribution,
+    and not help users getting familiar with git, for which many
+    guides are available.
+    
+    Change-Id: I6f4b76583c9878b230ba1d0225745a1708fad2e8
+    Reviewed-on: https://go-review.googlesource.com/93495
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/contribute.html | 1142 +++++++++++++++++++++++++++++----------------------
+ 1 file changed, 655 insertions(+), 487 deletions(-)

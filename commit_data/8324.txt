@@ -1,0 +1,15 @@
+commit ffd550455cb02fb61331fe3d6dbe5058731c0a67
+Author: Adam Langley <agl@golang.org>
+Date:   Thu May 5 13:44:36 2011 -0400
+
+    crypto/tls: export the verified chains.
+    
+    The verified chains are the chains that were actually verified.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4462046
+
+ src/pkg/crypto/tls/common.go | 2 ++
+ src/pkg/crypto/tls/conn.go   | 1 +
+ 2 files changed, 3 insertions(+)

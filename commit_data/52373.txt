@@ -1,0 +1,18 @@
+commit efaca3170fc6d363704153586c7ad94255bf02c6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Mar 22 11:44:04 2023 +0700
+
+    reflect: add test for interface type NumMethod
+    
+    While at it, also use concrete type for non-interface type test.
+    
+    Change-Id: Ie468c30ee31ba99ef8f9a810d3be851fd37b9b43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478356
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/reflect/all_test.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

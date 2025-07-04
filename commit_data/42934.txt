@@ -1,0 +1,44 @@
+commit 015a5a5c5c4b4ce4dce55601032b8e2f5fbcca9a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 28 18:19:22 2020 -0400
+
+    cmd/go/internal/modload: rework import resolution
+    
+    modload.Import previously performed two otherwise-separable tasks:
+    
+    1. Identify which module in the build list contains the requested
+       package.
+    
+    2. If no such module exists, search available modules to try to find
+       the missing package.
+    
+    This change splits those two tasks into two separate unexported
+    functions, and reports import-resolution errors by attaching them to
+    the package rather than emitting them directly to stderr. That allows
+    'list' to report the errors, but 'list -e' to ignore them.
+    
+    With the two tasks now separate, it will be easier to avoid the
+    overhead of resolving missing packages during lazy loading if we
+    discover that some existing dependency needs to be promoted to the top
+    level (potentially altering the main module's selected versions, and
+    thus suppling packages that were previously missing).
+    
+    For #36460
+    Updates #26909
+    
+    Change-Id: I32bd853b266d7cd231d1f45f92b0650d95c4bcbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/251445
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/list/list.go                   | 21 ++++++-
+ src/cmd/go/internal/modload/import.go              | 71 ++++++++++++++--------
+ src/cmd/go/internal/modload/import_test.go         | 44 +++++++++++---
+ src/cmd/go/internal/modload/load.go                | 59 ++++++++++--------
+ src/cmd/go/testdata/script/list_bad_import.txt     | 18 +++---
+ src/cmd/go/testdata/script/list_test_err.txt       |  3 +
+ src/cmd/go/testdata/script/mod_list_bad_import.txt | 18 +++---
+ .../testdata/script/mod_missingpkg_prerelease.txt  |  4 +-
+ 8 files changed, 158 insertions(+), 80 deletions(-)

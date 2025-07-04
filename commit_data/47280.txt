@@ -1,0 +1,20 @@
+commit 3796df1b13c6be62ca28244dcd6121544770e371
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 4 21:35:55 2021 -0700
+
+    net/netip: don't accept ParseAddr with leading zeros
+    
+    Fixes #49365
+    Updates #30999
+    
+    Change-Id: Ic92bce01b435baf70574c65524bde82f9cee3d8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361534
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/netip/netip.go      |  6 ++++++
+ src/net/netip/netip_test.go | 32 +++++++++++++++++++++-----------
+ 2 files changed, 27 insertions(+), 11 deletions(-)

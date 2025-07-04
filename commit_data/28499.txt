@@ -1,0 +1,34 @@
+commit ad5d91c17a3c0bc4acf9e4036b050517972432f0
+Author: Kale Blankenship <kale@lemnisys.com>
+Date:   Wed Sep 21 19:03:06 2016 -0700
+
+    net/url: prefix relative paths containing ":" in the first segment with "./"
+    
+    This change modifies URL.String to prepend "./" to a relative URL which
+    contains a colon in the first path segment.
+    
+    Per RFC 3986 §4.2:
+    
+    > A path segment that contains a colon character (e.g., "this:that")
+    > cannot be used as the first segment of a relative-path reference, as
+    > it would be mistaken for a scheme name.  Such a segment must be
+    > preceded by a dot-segment (e.g., "./this:that") to make a relative-
+    > path reference.
+    
+    https://go-review.googlesource.com/27440 corrects the behavior for http.FileServer,
+    but URL.String will still return an invalid URL. This CL reverts the changes to
+    http.FileServer as they are unnecessary with this fix.
+    
+    Fixes #17184
+    
+    Change-Id: I9211ae20f82c91b785d1b079b2cd766487d94225
+    Reviewed-on: https://go-review.googlesource.com/29610
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs.go      |  2 +-
+ src/net/http/fs_test.go | 11 ++++++-----
+ src/net/url/url.go      | 11 +++++++++++
+ src/net/url/url_test.go | 51 ++++++++++++++++++++++++++++++++++++++++---------
+ 4 files changed, 60 insertions(+), 15 deletions(-)

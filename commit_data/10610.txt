@@ -1,0 +1,18 @@
+commit abc7df9686839950f3a2ce108a5a683cce9001fe
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Dec 5 14:01:24 2011 -0500
+
+    math: add special-cases comments to Sinh and Tanh.
+    
+    Also change "Special conditions" to "Special cases" as in other functions.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5440078
+
+ src/pkg/math/sin.go    |  2 +-
+ src/pkg/math/sincos.go |  2 +-
+ src/pkg/math/sinh.go   | 10 ++++++++++
+ src/pkg/math/tan.go    |  2 +-
+ src/pkg/math/tanh.go   |  5 +++++
+ 5 files changed, 18 insertions(+), 3 deletions(-)

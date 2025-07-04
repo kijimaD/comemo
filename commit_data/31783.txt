@@ -1,0 +1,17 @@
+commit 32543a8bf7c74320acb6bb147bc17bf0dd7df9bb
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Jun 10 10:36:28 2017 +0900
+
+    go/parser: handle last line comments
+    
+    Fixes #20636
+    
+    Change-Id: Icea0012fecb73944c95f6037922505c63b57b245
+    Reviewed-on: https://go-review.googlesource.com/45295
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/parser/parser.go      |  2 +-
+ src/go/parser/parser_test.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

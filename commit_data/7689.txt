@@ -1,0 +1,15 @@
+commit 4c052844dd74f6be5401d343405ba5560dc95fdd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 7 19:36:17 2011 -0500
+
+    gc: fix handling of return values named _
+    
+    Fixes #1586.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4244057
+
+ src/cmd/gc/dcl.c         | 29 +++++++++++++++--------------
+ test/fixedbugs/bug326.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 14 deletions(-)

@@ -1,0 +1,19 @@
+commit 2f2cd557a642b96a697b09cc84c0a5e342d41d3b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 21 22:06:39 2017 -0700
+
+    cmd/internal/obj: clean up brloop
+    
+    Add docs.
+    Reduce indentation.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: I968d1af25989886ae9945052e05e211a107dde9c
+    Reviewed-on: https://go-review.googlesource.com/38443
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/pass.go | 36 +++++++++++++++++++-----------------
+ 1 file changed, 19 insertions(+), 17 deletions(-)

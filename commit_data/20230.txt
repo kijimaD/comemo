@@ -1,0 +1,14 @@
+commit 686ecd83c04c9904de9457c7b14380cc2c04cff2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Sep 1 10:02:52 2014 +1000
+
+    image/png: make the CompressionLevel constants negative, reserving
+    positive numbers to mean a numeric zlib compression level.
+    
+    LGTM=bradfitz, ruiu
+    R=bradfitz, ruiu
+    CC=golang-codereviews, jeff.allen
+    https://golang.org/cl/138860043
+
+ src/pkg/image/png/writer.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

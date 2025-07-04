@@ -1,0 +1,27 @@
+commit 03ba6b070d625bf00eac5350c4f363e5e87828b2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Apr 15 18:01:00 2020 +0000
+
+    runtime: prevent preemption while releasing worldsema in gcStart
+    
+    Currently, as a result of us releasing worldsema now to allow STW events
+    during a mark phase, we release worldsema between starting the world and
+    having the goroutine block in STW mode. This inserts preemption points
+    which, if followed through, could lead to a deadlock. Specifically,
+    because user goroutine scheduling is disabled in STW mode, the goroutine
+    will block before properly releasing worldsema.
+    
+    The fix here is to prevent preemption while releasing the worldsema.
+    
+    Fixes #38404.
+    Updates #19812.
+    
+    Change-Id: I8ed5b3aa108ab2e4680c38e77b0584fb75690e3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228337
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

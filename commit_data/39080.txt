@@ -1,0 +1,23 @@
+commit 41df5aeb7f02a47ff7ccf5002140b70b04a4fd46
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 8 21:28:14 2019 +0000
+
+    cmd/go: set the "generate" build tag in go generate, per design doc
+    
+    And use it in two internal windows packages, so they don't show up in
+    "go list std" or binary releases on non-Windows platforms.
+    
+    Fixes #31920
+    
+    Change-Id: Iaa292b6015c9d7310dd677c9e296006440ba5e27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175983
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                              | 4 +++-
+ src/cmd/go/internal/generate/generate.go           | 7 ++++++-
+ src/internal/syscall/windows/mksyscall.go          | 2 ++
+ src/internal/syscall/windows/registry/mksyscall.go | 2 ++
+ 4 files changed, 13 insertions(+), 2 deletions(-)

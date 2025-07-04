@@ -1,0 +1,18 @@
+commit 4f2ebfe34be7453ab144d82558cc4e735a55d644
+Author: korzhao <korzhao95@gmail.com>
+Date:   Tue Aug 17 19:34:40 2021 +0800
+
+    cmd/compile: allow embed into any byte slice type
+    
+    Fixes #47735
+    
+    Change-Id: Ia21ea9a67f36a3edfef1b299ae4f3b00c306cd68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342851
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Alexander Rakoczy <alex@golang.org>
+
+ src/cmd/compile/internal/staticdata/embed.go |  2 +-
+ src/embed/internal/embedtest/embed_test.go   | 40 ++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 1 deletion(-)

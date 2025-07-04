@@ -1,0 +1,17 @@
+commit a0a45bbb71d6232040d18ee5d8e3d6eebcbfe944
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 24 08:43:08 2013 +0900
+
+    net: consolidate listenerBacklog declaration
+    
+    Also adds maxListenerBacklog placeholder for Plan 9.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/11674044
+
+ src/pkg/net/ipsock_plan9.go |  3 ---
+ src/pkg/net/net.go          |  2 ++
+ src/pkg/net/sock_plan9.go   | 10 ++++++++++
+ src/pkg/net/sock_posix.go   |  2 --
+ 4 files changed, 12 insertions(+), 5 deletions(-)

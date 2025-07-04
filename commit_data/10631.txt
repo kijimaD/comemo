@@ -1,0 +1,21 @@
+commit bf59f081c16764633e072824fdc582a6ce9136db
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Dec 6 18:13:20 2011 -0500
+
+    exp/ssh: cleanup client auth tests
+    
+    This CL cleans up the client auth tests, making the
+    individual test body more manageable.
+    
+    Also, adds tests for rsa and dsa key negotiation.
+    
+    Finally, remove the package level use of the variable
+    strings, which avoids conflicting with the strings pkg.
+    
+    R=gustav.paul, agl, n13m3y3r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5447049
+
+ src/pkg/exp/ssh/client_auth_test.go | 233 +++++++++++++++++++-----------------
+ src/pkg/exp/ssh/common_test.go      |  16 +--
+ 2 files changed, 129 insertions(+), 120 deletions(-)

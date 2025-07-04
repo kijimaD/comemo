@@ -1,0 +1,42 @@
+commit 45dc81d8565adb7d0a62502d039f4930e73d75e0
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 26 15:03:51 2022 -0800
+
+    cmd/compile: add memory argument to GetCallerSP
+    
+    We need to make sure that when we get the stack pointer, we get it
+    at the right time.
+    
+    V = GetCallerSP
+    Call()
+    W = GetCallerSP
+    
+    If Call causes a stack growth, then we will be in a situation
+    where V != W. So it matters when GetCallerSP operations get scheduled.
+    Add a memory argument to GetCallerSP so it can't be reordered with
+    things like calls.
+    
+    Change-Id: I6cc801134c38e358c5a1ec0c09d38379a16a4184
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453515
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/386Ops.go     |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go   |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go   |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/ARMOps.go     |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go  |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/MIPSOps.go    |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go   |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/S390XOps.go   |  4 ++--
+ src/cmd/compile/internal/ssa/_gen/WasmOps.go    |  2 +-
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |  2 +-
+ src/cmd/compile/internal/ssa/expand_calls.go    |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go           | 24 ++++++++++++------------
+ src/cmd/compile/internal/ssagen/ssa.go          |  4 ++--
+ 15 files changed, 37 insertions(+), 37 deletions(-)

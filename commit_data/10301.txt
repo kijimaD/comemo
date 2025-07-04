@@ -1,0 +1,13 @@
+commit 9c6a73e478e6e46859c68057144b8c3297e7a881
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Nov 9 15:48:05 2011 +1100
+
+    net/http: fix sniffing when using ReadFrom.
+    
+    R=golang-dev, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5362046
+
+ src/pkg/net/http/server.go     | 10 ++++++----
+ src/pkg/net/http/sniff_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 4 deletions(-)

@@ -1,0 +1,16 @@
+commit 6b902628709f694967d54045de949d2db20ddadd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 29 16:49:31 2011 -0700
+
+    godoc: fix bug in zip.go
+    
+    The result of sort.Search is in the interval [0,n);
+    specifically, if no entry is found, the result is n
+    and not -1.
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4982041
+
+ src/cmd/godoc/zip.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

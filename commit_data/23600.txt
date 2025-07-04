@@ -1,0 +1,19 @@
+commit 173fa1d8093409eb6a409f4e3196c7d334c10c48
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jul 5 10:43:34 2015 +1000
+
+    cmd/go: delete references to old tools (5a etc.) from cmd/go docs
+    
+    Don't talk about commands that no longer exist.
+    
+    There are still references throughout the tree, mostly in comments,
+    but they provide a charming historical backdrop for the idle tourist.
+    
+    Change-Id: I637ebdce05bbc7df5addcc46cb772d2bb9f3e073
+    Reviewed-on: https://go-review.googlesource.com/11885
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 18 ++++++++----------
+ src/cmd/go/build.go   |  6 +++---
+ src/cmd/go/help.go    | 12 +++++-------
+ 3 files changed, 16 insertions(+), 20 deletions(-)

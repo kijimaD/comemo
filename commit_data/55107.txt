@@ -1,0 +1,35 @@
+commit c785be4c6ac8f042e91d7333862737078831ece4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Nov 12 23:10:04 2023 +0000
+
+    cmd/trace: common up the mmu page and add it to cmd/trace/v2
+    
+    This change moves the MMU HTTP handlers and functionality into the
+    traceviewer package, since unlike the goroutine pages the vast majority
+    of that functionality is identical between v1 and v2. This change
+    involves some refactoring so that callers can plug in their own mutator
+    utilization computation functions (which is the only point of difference
+    between v1 and v2). The new interface isn't especially nice, but part of
+    the problem is the MMU handlers depend on specific endpoints to exist. A
+    follow-up CL will clean this up a bit.
+    
+    Like the previous CL did for goroutine analysis, modify the v2 mutator
+    utilization API to accept a slice of trace events. Again, we might as
+    well reuse what was already parsed and will be needed for other
+    purposes. It also simplifies the API slightly.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: I6c21ec8d1bf7e95eff5363d0e0005c9217fa00e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541258
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/trace/main.go                              |  15 ++-
+ src/cmd/trace/v2/main.go                           |   6 ++
+ src/internal/trace/gc.go                           |  28 ++----
+ src/internal/trace/gc_test.go                      |  22 ++++-
+ .../trace => internal/trace/traceviewer}/mmu.go    | 104 +++++++++++----------
+ 5 files changed, 100 insertions(+), 75 deletions(-)

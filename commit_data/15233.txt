@@ -1,0 +1,29 @@
+commit 78cee8b3bbf4173af79a4d02a26bbe8bea1cd175
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Feb 14 15:04:22 2013 +1100
+
+    sort: use fewer comparisons when choosing pivot.
+    
+    This is based on rsc's code posted to issue 2585.
+    
+    Benchmark results are greatly improved:
+            benchmark                old ns/op    new ns/op    delta
+            BenchmarkSortString1K       564397       445897  -21.00%
+            BenchmarkSortInt1K          270889       221249  -18.32%
+            BenchmarkSortInt64K       26850765     21351967  -20.48%
+    
+    Eyeballing a sampling of the raw number of comparisons shows a drop
+    on the order of 20-30% almost everywhere. The test input data that
+    doesn't match that are some of sawtooth/rand/plateau distributions,
+    where there is no change in the number of comparisons; that is,
+    there are no situations where this makes *more* comparisons.
+    
+    Fixes #2585.
+    
+    R=iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/7306098
+
+ src/pkg/sort/sort.go      | 41 +++++++++++++++++++++++------------------
+ src/pkg/sort/sort_test.go | 24 ++++++++++++++----------
+ 2 files changed, 37 insertions(+), 28 deletions(-)

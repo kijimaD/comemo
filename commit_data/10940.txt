@@ -1,0 +1,13 @@
+commit 8feab4d5f7713dba73ce4b6bfe96f062e2e88831
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 08:20:25 2011 -0500
+
+    os/signal: not on windows
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5500061
+
+ src/pkg/os/signal/signal.go      | 4 +++-
+ src/pkg/os/signal/signal_test.go | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

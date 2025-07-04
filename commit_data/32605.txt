@@ -1,0 +1,27 @@
+commit d349fa25dfe2a86c01620f8b049c5e78e46759f3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 30 14:17:24 2017 -0700
+
+    cmd/compile: fix and improve struct field reflect information
+    
+    The previous logic was overly complicated, generated suboptimally
+    encoded struct type descriptors, and mishandled embeddings of
+    predeclared universal types.
+    
+    Fixes #21122.
+    Fixes #21353.
+    Fixes #21696.
+    Fixes #21702.
+    Updates #21357.
+    
+    Change-Id: If34761fa6dbe4af2af59dee501e7f30845320376
+    Reviewed-on: https://go-review.googlesource.com/60410
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 50 +++++++------------
+ src/reflect/all_test.go                | 88 ++++++++++++++++++++++++++++++++++
+ src/reflect/type.go                    | 21 ++------
+ src/runtime/type.go                    |  6 +--
+ 4 files changed, 111 insertions(+), 54 deletions(-)

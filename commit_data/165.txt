@@ -1,0 +1,24 @@
+commit b6c9221bb164a0bf9f1b90a2839d7aaa4b7d0fb7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 14:52:41 2008 -0700
+
+    fix name of mach_amd64 library source dir
+    
+    SVN=122506
+
+ src/{libmachamd64 => libmach_amd64}/6.c          | 0
+ src/{libmachamd64 => libmach_amd64}/6obj.c       | 0
+ src/{libmachamd64 => libmach_amd64}/8.c          | 0
+ src/{libmachamd64 => libmach_amd64}/8db.c        | 0
+ src/{libmachamd64 => libmach_amd64}/Makefile     | 0
+ src/{libmachamd64 => libmach_amd64}/access.c     | 0
+ src/{libmachamd64 => libmach_amd64}/elf.h        | 0
+ src/{libmachamd64 => libmach_amd64}/executable.c | 0
+ src/{libmachamd64 => libmach_amd64}/machdata.c   | 0
+ src/{libmachamd64 => libmach_amd64}/map.c        | 0
+ src/{libmachamd64 => libmach_amd64}/obj.c        | 0
+ src/{libmachamd64 => libmach_amd64}/obj.h        | 0
+ src/{libmachamd64 => libmach_amd64}/setmach.c    | 0
+ src/{libmachamd64 => libmach_amd64}/swap.c       | 0
+ src/{libmachamd64 => libmach_amd64}/sym.c        | 0
+ 15 files changed, 0 insertions(+), 0 deletions(-)

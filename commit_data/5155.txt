@@ -1,0 +1,13 @@
+commit 55b145e32ac948d90c46ba1f8bf59cb09b8fcd6c
+Author: Dean Prichard <dean.prichard@gmail.com>
+Date:   Fri Mar 26 23:27:24 2010 -0700
+
+    arm: fix build
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/800041
+
+ src/cmd/5g/ggen.c | 9 ++++-----
+ test/arm-pass.txt | 1 -
+ 2 files changed, 4 insertions(+), 6 deletions(-)

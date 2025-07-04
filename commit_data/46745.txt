@@ -1,0 +1,31 @@
+commit c1a0aa300a1003ab823d5633e521e064a063271c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Oct 4 15:51:22 2021 -0700
+
+    cmd/compile: make stkobj symbols content-addressable
+    
+    Shrinks binaries a little bit.
+    
+    size    before    after     Δ       %
+    api     4892370   4875858   -16512  -0.338%
+    asm     4711218   4694706   -16512  -0.350%
+    cgo     4164770   4148258   -16512  -0.396%
+    compile 21875922  21826386  -49536  -0.226%
+    cover   4358370   4341858   -16512  -0.379%
+    doc     3532562   3516050   -16512  -0.467%
+    link    6110786   6094274   -16512  -0.270%
+    objdump 3982914   3966402   -16512  -0.415%
+    pprof   12869986  12836962  -33024  -0.257%
+    trace   9614626   9598114   -16512  -0.172%
+    vet     6580322   6563810   -16512  -0.251%
+    total   102897284 102666116 -231168 -0.225%
+    
+    Change-Id: Idf4ba3c05e35ec1d1ae957d6ded00ae79cc0fd2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172198
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/liveness/plive.go | 1 +
+ 1 file changed, 1 insertion(+)

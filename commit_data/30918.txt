@@ -1,0 +1,17 @@
+commit 944d56d7635f1f5e599805d621cd3a171534e333
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 29 21:03:09 2017 -0700
+
+    cmd/compile: move haspointers to type.go
+    
+    100% code movement.
+    
+    Change-Id: Idb51c61b7363229258a3b48045e901bea68c7a85
+    Reviewed-on: https://go-review.googlesource.com/38911
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 43 ----------------------------------
+ src/cmd/compile/internal/gc/type.go    | 43 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 43 deletions(-)

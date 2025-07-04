@@ -1,0 +1,19 @@
+commit 2953cd00836323112846b21f60fa1d68aa0f9a77
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 10 08:20:28 2021 +0700
+
+    go/internal/gcimporter: prevent importReader reading type parameter twice
+    
+    This is port of CL 349009 to go/internal/gcimporter.
+    
+    Updates #48280
+    
+    Change-Id: I7d40d8b67333538ca58fe012535d54e891d0ed16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349010
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/internal/gcimporter/iimport.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

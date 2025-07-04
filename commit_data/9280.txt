@@ -1,0 +1,14 @@
+commit a496c9eaa62a5456dbb53502c186193c0528440f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Aug 3 15:51:55 2011 -0400
+
+    runtime: correct Note documentation
+    Reflect the fact that notesleep() can be called
+    by exactly one thread.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4816064
+
+ src/pkg/runtime/runtime.h | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

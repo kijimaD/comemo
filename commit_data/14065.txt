@@ -1,0 +1,15 @@
+commit 9844e4cd7cc52ecbe7d49307b6546a118de5bea7
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 21:52:57 2012 +0200
+
+    test: correct type in declbad.go
+    
+    The test is not about type mismatches and it causes
+    an extra error to appear.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6614062
+
+ test/declbad.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

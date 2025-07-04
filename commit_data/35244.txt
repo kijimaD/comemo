@@ -1,0 +1,18 @@
+commit eff1e68528fc9052a7ff1ac7afe222696f85db8c
+Author: Anmol Sethi <me+git@anmol.io>
+Date:   Sun Mar 18 02:36:40 2018 -0400
+
+    testing: fix racey access to t.failed
+    
+    We need to grab the mutex before we can access it.
+    
+    Fixes #24438
+    
+    Change-Id: Idd6130036691acec5bc5f8b40d6884f8db1d9d3c
+    Reviewed-on: https://go-review.googlesource.com/101283
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

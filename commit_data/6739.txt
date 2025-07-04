@@ -1,0 +1,27 @@
+commit e9afb9d399125e3f8bcda135913905ff3a3a6b5e
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Nov 9 08:58:23 2010 -0800
+
+    container/list: make Remove return Value of removed element.
+    When it is known that there is already at least one element in the
+    list, it is awkwardly verbose to use three lines and an extra
+    variable declaration to remove the first or last item (a common
+    case), rather than use a simple expression.
+    
+    a stack:
+            stk.PushFront(x)
+            x = stk.Front().Remove().(T)
+    
+    vs.
+            stk.PushFront(x)
+            e := stk.Front()
+            e.Remove()
+            x = e.Value.(T)
+    [An alternative CL might be to add PopFront and PopBack methods].
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/3000041
+
+ src/pkg/container/list/list.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

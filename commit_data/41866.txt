@@ -1,0 +1,18 @@
+commit 7a35d39b56dacf9ef248d3e77bc2f9e8147d6b75
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 7 12:03:31 2020 -0700
+
+    runtime/race: update ppc64 .syso file
+    
+    Update #14881
+    Update #37355
+    
+    Change-Id: I5edd53b7532836cfe6037fb668b1b8fe8f7a32f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227443
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/race/README                  |   2 +-
+ src/runtime/race/race_linux_ppc64le.syso | Bin 570032 -> 618664 bytes
+ 2 files changed, 1 insertion(+), 1 deletion(-)

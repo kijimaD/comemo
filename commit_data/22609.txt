@@ -1,0 +1,17 @@
+commit 8a3132dd5ec1e1ffcad1dfdb33d98ea9b134cd1d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 17 08:36:11 2015 +0200
+
+    cmd/6g: let the compiler use R15 when it is not needed for GOT indirection
+    
+    Thanks to Russ for the hints.
+    
+    Change-Id: Ie35a71d432b9d68bd30c7a364b4dce1bd3db806e
+    Reviewed-on: https://go-review.googlesource.com/9102
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/6g/prog.go | 12 ++++++++++++
+ src/cmd/6g/reg.go  | 16 +++++++---------
+ 2 files changed, 19 insertions(+), 9 deletions(-)

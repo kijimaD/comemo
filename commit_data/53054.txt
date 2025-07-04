@@ -1,0 +1,32 @@
+commit 4cf79e479bbf334f2a5d248852b83c169a11c727
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 1 10:06:22 2023 -0500
+
+    cmd/link/internal/ppc64: link ELFv2 objects built with -mcpu=power10
+    
+    Specifically, objects built via cgo using CGO_CFLAGS="-O2 -g -mcpu=power10".
+    
+    These use new relocations defined by ELFv2 1.5, and the R_PPC64_REL24_NOTOC
+    relocation. These objects contain functions which may not use a TOC
+    pointer requiring the insertion of trampolines to use correctly.
+    
+    The relocation targets of these ELFv2 objects may also contain non-zero
+    values. Clear the relocated bits before setting them.
+    
+    Extra care is taken if GOPPC64 < power10. The R_PPC64_REL24_NOTOC reloc
+    existed prior to ELFv2 1.5. The presence of this relocation itself does
+    not imply a power10 target. Generate power8 compatible stubs if
+    GOPPC64 < power10.
+    
+    Updates #44549
+    
+    Change-Id: I06ff8c4e47ed9af835a7dcfbafcfa4c538f75544
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492617
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/link/internal/ppc64/asm.go | 304 ++++++++++++++++++++++++++++++-------
+ 1 file changed, 253 insertions(+), 51 deletions(-)

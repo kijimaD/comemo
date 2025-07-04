@@ -1,0 +1,22 @@
+commit 8c666697646bc820beb3725b3ff4a4cd5514bbe7
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Apr 23 12:53:51 2021 +0700
+
+    cmd/compile: make sure ascompatee walk lhs init statements
+    
+    CL 281152 improved ascompatee by removing the call to safeExpr on lhs.
+    But we forgot that lhs int statements, if any, must be walked prior
+    saving subexpressions, which cause the bug in #45706.
+    
+    Fixes #45706
+    
+    Change-Id: I0064315056ef4ca92ebf3c332c2e3a9bb2b26f68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312632
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/walk/assign.go |  3 +++
+ test/fixedbugs/issue45706.go            | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+)

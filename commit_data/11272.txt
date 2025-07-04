@@ -1,0 +1,20 @@
+commit fec7aa952f37ad5aa2cfdfe44bdc0e7a02fe8783
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Jan 19 17:13:33 2012 -0500
+
+    doc: update out-of-date comments about runtime/cgo
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5532100
+
+ src/cmd/6l/obj.c                       | 6 +++---
+ src/cmd/8l/obj.c                       | 6 +++---
+ src/make.bash                          | 2 +-
+ src/pkg/runtime/cgo/gcc_darwin_386.c   | 4 ++--
+ src/pkg/runtime/cgo/gcc_darwin_amd64.c | 4 ++--
+ src/pkg/runtime/mkasmh.sh              | 8 ++++----
+ src/pkg/runtime/runtime.h              | 4 ++--
+ src/pkg/runtime/sys_darwin_386.s       | 2 +-
+ src/pkg/runtime/sys_darwin_amd64.s     | 4 ++--
+ 9 files changed, 20 insertions(+), 20 deletions(-)

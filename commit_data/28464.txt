@@ -1,0 +1,19 @@
+commit e9fddf8f863c17e7112e8dd0a52490ecf165ef13
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Sep 19 14:11:20 2016 -0400
+
+    cmd/internal/obj, cmd/link: darwin dynlink support
+    
+    This makes it possible for cmd/compile, when run with -dynlink on
+    darwin/amd64, to generate TLS_LE relocations which the linker then
+    turns into the appropriate PC-relative GOT load.
+    
+    Change-Id: I1a71da432608bdb108ff66c22de600100209c873
+    Reviewed-on: https://go-review.googlesource.com/29393
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go   | 2 +-
+ src/cmd/link/internal/amd64/asm.go | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

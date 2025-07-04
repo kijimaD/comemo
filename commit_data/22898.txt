@@ -1,0 +1,14 @@
+commit 9d0a2e4d6ef6bb97e9780f2def181e5d5edca718
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed May 6 21:34:29 2015 +0900
+
+    net: fix inconsistent error values on Read for solaris
+    
+    Updates #4856.
+    
+    Change-Id: Ia04e24fb1fe57e244d7b1cd417f7f419ad610acd
+    Reviewed-on: https://go-review.googlesource.com/9776
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/net/sendfile_solaris.go | 3 +++
+ 1 file changed, 3 insertions(+)

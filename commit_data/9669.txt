@@ -1,0 +1,16 @@
+commit 15d47ce2194258021ad6f26da8ed866e42cbd1e9
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Sep 13 17:53:55 2011 -0700
+
+    exp/template/html: move transition functions to a separate file
+    
+    This CL moves code but makes no changes otherwise.
+    
+    R=nigeltao, r
+    CC=golang-dev
+    https://golang.org/cl/5012045
+
+ src/pkg/exp/template/html/Makefile      |   1 +
+ src/pkg/exp/template/html/escape.go     | 553 -------------------------------
+ src/pkg/exp/template/html/transition.go | 564 ++++++++++++++++++++++++++++++++
+ 3 files changed, 565 insertions(+), 553 deletions(-)

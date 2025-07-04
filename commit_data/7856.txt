@@ -1,0 +1,16 @@
+commit 1c05a90ae28df67ae74a2ad49293e11d9222cb1c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 24 11:45:12 2011 +1100
+
+    runtime: fix freebsd-amd64 (and part of 386)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4285063
+
+ src/pkg/runtime/freebsd/386/signal.c   |  5 +++--
+ src/pkg/runtime/freebsd/amd64/defs.h   | 23 +++++++++++++++++++----
+ src/pkg/runtime/freebsd/amd64/signal.c |  5 +++--
+ src/pkg/runtime/freebsd/defs.c         |  2 ++
+ src/pkg/runtime/freebsd/os.h           |  1 +
+ 5 files changed, 28 insertions(+), 8 deletions(-)

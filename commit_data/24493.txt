@@ -1,0 +1,16 @@
+commit c478c48597e2fb7c52ea39d1dde51448949860ce
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 10 11:25:47 2015 +1100
+
+    image: add NYCbCrA types.
+    
+    Fixes #12722
+    
+    Change-Id: I6a630d8b072ef2b1c63de941743148f8c96b8e5f
+    Reviewed-on: https://go-review.googlesource.com/15671
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/image/color/ycbcr.go |  40 +++++++++++++++
+ src/image/image.go       |  21 ++++----
+ src/image/ycbcr.go       | 126 +++++++++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 174 insertions(+), 13 deletions(-)

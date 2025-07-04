@@ -1,0 +1,16 @@
+commit 56f0c046cfe9019e30ad0d0f85ac974de394ebd7
+Author: Valentin Vidic <vvidic@valentin-vidic.from.hr>
+Date:   Wed Feb 27 20:20:58 2019 +0000
+
+    regexp: add ReplaceAllStringFunc example
+    
+    Change-Id: I016312f3ecf3dfcbf0eaf24e31b6842d80abb029
+    GitHub-Last-Rev: 360047c9006dba643429c006f89d813d927999b3
+    GitHub-Pull-Request: golang/go#30445
+    Reviewed-on: https://go-review.googlesource.com/c/164257
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/regexp/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

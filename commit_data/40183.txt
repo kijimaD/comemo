@@ -1,0 +1,17 @@
+commit ce83f41fed32bfc7826ec0cd7756a34594f8746b
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue Oct 8 14:19:34 2019 -0400
+
+    net/textproto: do not allow multi-line header field names
+    
+    Fixes #34702
+    
+    Change-Id: I98320d54726e646a310e583283ddab676c3503e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199838
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/textproto/reader.go      | 35 +++++++++++++++++++++++++++++++----
+ src/net/textproto/reader_test.go |  4 ++++
+ 2 files changed, 35 insertions(+), 4 deletions(-)

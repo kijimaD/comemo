@@ -1,0 +1,27 @@
+commit 8cc280aa727bc7159adfdd083861472aa3066a35
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 23 20:13:49 2020 +0000
+
+    runtime: define and enforce synchronization on heap_scan
+    
+    Currently heap_scan is mostly protected by the heap lock, but
+    gcControllerState.revise sometimes accesses it without a lock. In an
+    effort to make gcControllerState.revise callable from more contexts (and
+    have its synchronization guarantees actually respected), make heap_scan
+    atomically read from and written to, unless the world is stopped.
+    
+    Note that we don't update gcControllerState.revise's erroneous doc
+    comment here because this change isn't about revise's guarantees, just
+    about heap_scan. The comment is updated in a later change.
+    
+    Change-Id: Iddbbeb954767c704c2bd1d221f36e6c4fc9948a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246960
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go    | 5 +++--
+ src/runtime/mheap.go  | 4 ++--
+ src/runtime/mstats.go | 4 +++-
+ 3 files changed, 8 insertions(+), 5 deletions(-)

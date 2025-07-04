@@ -1,0 +1,28 @@
+commit 14c347f5ce924b5a0f05ec5737984cfeb294d9ac
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 19 17:04:06 2023 -0400
+
+    cmd/compile/internal/pgo: readability refactor
+    
+    Construction of Profile is getting more complex. Currently, we construct
+    a partial Profile and then use methods to slowly complete the structure.
+    This can hide dependencies and make refactoring fragile as the
+    requirements and outputs of the methods is not clearly specified.
+    
+    Refactor construction to build the Profile only once all of the parts
+    are complete. The intermediate states explicitly pass input and outputs
+    as arguments.
+    
+    Additionally, rename Profile.NodeMap to NamedEdgeMap to make its
+    contents more clear (edges, specified by caller/callee name rather than
+    IR). Remove the node flat/cumulative weight from this map; they are
+    unused.
+    
+    Change-Id: I2079cd991daac6398d74375b04dfe120b473d908
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529558
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/inline/inl.go  |  14 +-
+ src/cmd/compile/internal/pgo/irgraph.go | 266 ++++++++++++++------------------
+ 2 files changed, 124 insertions(+), 156 deletions(-)

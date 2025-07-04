@@ -1,0 +1,13 @@
+commit fbff033ecf3a644f083552e04958a14aa3b5c91d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 12 18:01:02 2011 -0500
+
+    A+C: add Christoph Hack (individual CLA)
+    
+    R=golang-dev, dsymonds, gri
+    CC=golang-dev
+    https://golang.org/cl/5485048
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

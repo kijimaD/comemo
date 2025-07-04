@@ -1,0 +1,20 @@
+commit 400f7a6ba569cd9835f4b0e7852f5cb9b4a7c9ab
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Wed Jun 30 14:58:21 2010 -0700
+
+    syscall: add socketpair
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1319042
+
+ src/pkg/syscall/syscall_bsd.go            | 5 +++++
+ src/pkg/syscall/syscall_linux.go          | 5 +++++
+ src/pkg/syscall/syscall_linux_386.go      | 7 +++++++
+ src/pkg/syscall/zsyscall_darwin_386.go    | 9 +++++++++
+ src/pkg/syscall/zsyscall_darwin_amd64.go  | 8 ++++++++
+ src/pkg/syscall/zsyscall_freebsd_386.go   | 8 ++++++++
+ src/pkg/syscall/zsyscall_freebsd_amd64.go | 9 +++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go   | 8 ++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go     | 8 ++++++++
+ 9 files changed, 67 insertions(+)

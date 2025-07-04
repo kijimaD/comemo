@@ -1,0 +1,20 @@
+commit 80e25fc9232d07e5f28a9087722718ce2c84ff77
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 19 23:07:38 2011 -0500
+
+    docs: float->float64 plus a couple of other tweaks.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/3978042
+
+ doc/devel/roadmap.html          |  5 ++---
+ doc/effective_go.html           |  9 +++++----
+ doc/gccgo_install.html          |  4 ++--
+ doc/go_faq.html                 | 13 +++++++++----
+ doc/go_for_cpp_programmers.html |  2 +-
+ doc/go_tutorial.html            | 20 +++++++++++++-------
+ doc/go_tutorial.txt             | 20 +++++++++++++-------
+ doc/install.html                |  7 +++----
+ doc/progs/sort.go               | 12 ++++++------
+ 9 files changed, 54 insertions(+), 38 deletions(-)

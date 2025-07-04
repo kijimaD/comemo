@@ -1,0 +1,22 @@
+commit 57933b86b1a09a44d1350437f42a3305a30ad2b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 30 22:52:10 2013 -0400
+
+    cmd/go: send timed out test SIGQUIT before SIGKILL
+    
+    There is a chance that the SIGQUIT will make the test process
+    dump its stacks as part of exiting, which would be nice for
+    finding out what it is doing.
+    
+    Right now the builders are occasionally timing out running
+    the runtime test. I hope this will give us some information
+    about the state of the runtime.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/12041051
+
+ src/cmd/go/signal_notunix.go |  4 ++++
+ src/cmd/go/signal_unix.go    |  4 ++++
+ src/cmd/go/test.go           | 13 +++++++++++++
+ 3 files changed, 21 insertions(+)

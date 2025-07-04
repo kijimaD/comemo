@@ -1,0 +1,12 @@
+commit 508a22d5bcec2508779fbc4e3e4c745ffe8ea961
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 10 13:05:37 2014 +1100
+
+    misc/makerelease: use new storage api, handle git sub-repos
+    
+    Change-Id: I8c5b77d861aafdc594714982503da7bee053c9fe
+    Reviewed-on: https://go-review.googlesource.com/1291
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/makerelease/makerelease.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

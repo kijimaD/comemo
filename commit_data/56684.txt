@@ -1,0 +1,19 @@
+commit 7bc7039a6a518ed43f6177763d584e354ebd4bd7
+Author: Andy Pan <i@andypan.me>
+Date:   Fri May 24 10:07:54 2024 +0800
+
+    syscall: prevent redundant newline from empty $extraimports
+    
+    Currently mksyscall script produces one redundant newline
+    when $extraimports is empty, leading to a gofmt warning
+    reported by "git codereview change".
+    
+    Change-Id: I57b0fa040347375698973e777285deded16ab62e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587877
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/syscall/mksyscall.pl | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

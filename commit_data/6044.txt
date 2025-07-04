@@ -1,0 +1,17 @@
+commit 31339c32244a58263dd2f375d0c32d5f0ac596e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 18 10:03:01 2010 -0400
+
+    cgo: fix build: use $GCC, not $CC
+    
+    I'm not sure there's a better way.
+    Cgo is juggling two different C compilers.
+    
+    Fixes #1008.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/1972044
+
+ src/cmd/cgo/gcc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

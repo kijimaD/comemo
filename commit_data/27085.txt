@@ -1,0 +1,22 @@
+commit ab52ad894f453a02153fb2bc106d08c47ba643b6
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Sat Apr 9 21:18:22 2016 -0700
+
+    encoding/json: add Encoder.DisableHTMLEscaping
+    
+    This provides a way to disable the escaping of <, >, and & in JSON
+    strings.
+    
+    Fixes #14749.
+    
+    Change-Id: I1afeb0244455fc8b06c6cce920444532f229555b
+    Reviewed-on: https://go-review.googlesource.com/21796
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/encode.go      | 139 +++++++++++++++++++++------------------
+ src/encoding/json/encode_test.go |  56 ++++++++--------
+ src/encoding/json/stream.go      |  15 +++--
+ src/encoding/json/stream_test.go |  33 ++++++++++
+ 4 files changed, 150 insertions(+), 93 deletions(-)

@@ -1,0 +1,13 @@
+commit 3ab7830d7da597b85d48b76f51b35e0ee44e9d5c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 3 17:04:54 2010 -0700
+
+    A+C: Anthony Martin, Christian Himpel (individual CLA)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1689061
+
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 2 ++
+ 2 files changed, 4 insertions(+)

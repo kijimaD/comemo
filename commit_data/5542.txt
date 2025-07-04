@@ -1,0 +1,18 @@
+commit 8c2bc4419bed5a7b6c3fb17ae8db1387909fd7af
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 16:55:23 2010 -0700
+
+    gc: fix shift/reduce conflict in go.y export syntax
+    
+    Fixes #771.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1267042
+
+ src/cmd/gc/go.y                 | 15 +++++++++++++--
+ src/cmd/gc/subr.c               |  8 ++++++--
+ test/fixedbugs/bug282.dir/p1.go | 10 ++++++++++
+ test/fixedbugs/bug282.dir/p2.go |  8 ++++++++
+ test/fixedbugs/bug282.go        |  7 +++++++
+ 5 files changed, 44 insertions(+), 4 deletions(-)

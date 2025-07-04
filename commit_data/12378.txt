@@ -1,0 +1,13 @@
+commit cae604f734ac4e444a36bc3dc18afa42c6f4c737
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 5 13:51:44 2012 -0500
+
+    cmd/gc: must not inline panic, recover
+    
+    R=lvd, gri
+    CC=golang-dev
+    https://golang.org/cl/5731061
+
+ src/cmd/gc/inl.c |  2 ++
+ test/escape4.go  | 20 +++++++++++++-------
+ 2 files changed, 15 insertions(+), 7 deletions(-)

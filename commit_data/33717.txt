@@ -1,0 +1,15 @@
+commit f09a3d822383e8ffc9e213d2e7d714b154da52ef
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Wed Nov 29 19:34:10 2017 +0100
+
+    runtime: fix documentation typo for gostartcall
+    
+    This CL is a simple doc typo fix, uncovered while reviewing the go-wasm
+    port.
+    
+    Change-Id: I0fce915c341aaaea3a7cc365819abbc5f2c468c3
+    Reviewed-on: https://go-review.googlesource.com/80715
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/sys_x86.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

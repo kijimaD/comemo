@@ -1,0 +1,12 @@
+commit c2b6418c265c1a97ed706b99263be19be6afb850
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 1 20:54:11 2009 -0800
+
+    fixups to "effective go"
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1016020
+
+ doc/effective_go.html | 64 ++++++++++++++++++++++++++-------------------------
+ 1 file changed, 33 insertions(+), 31 deletions(-)

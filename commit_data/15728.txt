@@ -1,0 +1,55 @@
+commit 4ce79096b6a88051bd1253672593f07ce0234155
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 12 13:55:58 2013 -0700
+
+    go/types: delete from main repo; part of move to go.exp
+    See also https://golang.org/cl/7656044
+    
+    R=golang-dev, gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/7625048
+
+ src/cmd/vet/types.go                      |    5 +-
+ src/make.bash                             |    5 +-
+ src/make.bat                              |    6 +-
+ src/pkg/go/types/api.go                   |  105 --
+ src/pkg/go/types/builtins.go              |  451 --------
+ src/pkg/go/types/check.go                 |  512 ---------
+ src/pkg/go/types/check_test.go            |  244 -----
+ src/pkg/go/types/const.go                 |  724 -------------
+ src/pkg/go/types/conversions.go           |  155 ---
+ src/pkg/go/types/errors.go                |  335 ------
+ src/pkg/go/types/exportdata.go            |  111 --
+ src/pkg/go/types/expr.go                  | 1637 -----------------------------
+ src/pkg/go/types/gcimporter.go            |  950 -----------------
+ src/pkg/go/types/gcimporter_test.go       |  180 ----
+ src/pkg/go/types/objects.go               |  187 ----
+ src/pkg/go/types/operand.go               |  411 --------
+ src/pkg/go/types/predicates.go            |  303 ------
+ src/pkg/go/types/resolve.go               |  197 ----
+ src/pkg/go/types/resolver_test.go         |  167 ---
+ src/pkg/go/types/return.go                |  189 ----
+ src/pkg/go/types/scope.go                 |   78 --
+ src/pkg/go/types/sizes.go                 |  162 ---
+ src/pkg/go/types/stdlib_test.go           |  133 ---
+ src/pkg/go/types/stmt.go                  |  722 -------------
+ src/pkg/go/types/testdata/builtins.src    |  426 --------
+ src/pkg/go/types/testdata/const0.src      |  215 ----
+ src/pkg/go/types/testdata/conversions.src |   36 -
+ src/pkg/go/types/testdata/decls0.src      |  187 ----
+ src/pkg/go/types/testdata/decls1.src      |  132 ---
+ src/pkg/go/types/testdata/decls2a.src     |   66 --
+ src/pkg/go/types/testdata/decls2b.src     |   28 -
+ src/pkg/go/types/testdata/decls3.src      |  253 -----
+ src/pkg/go/types/testdata/exports.go      |   89 --
+ src/pkg/go/types/testdata/expr0.src       |  161 ---
+ src/pkg/go/types/testdata/expr1.src       |    7 -
+ src/pkg/go/types/testdata/expr2.src       |   23 -
+ src/pkg/go/types/testdata/expr3.src       |  338 ------
+ src/pkg/go/types/testdata/shifts.src      |  266 -----
+ src/pkg/go/types/testdata/stmt0.src       |  288 -----
+ src/pkg/go/types/testdata/stmt1.src       |  164 ---
+ src/pkg/go/types/types.go                 |  236 -----
+ src/pkg/go/types/types_test.go            |  171 ---
+ src/pkg/go/types/universe.go              |  146 ---
+ 43 files changed, 8 insertions(+), 11193 deletions(-)

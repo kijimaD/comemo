@@ -1,0 +1,87 @@
+commit b30bf958da0cd7583b277c6446abecc4285cc529
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 16 15:15:50 2018 -0400
+
+    cmd/compile: enable scopes unconditionally
+    
+    This revives Alessandro Arzilli's CL to enable scopes
+    whenever any dwarf is emitted (with optimization or not),
+    adds a test that detects this changes and shows that it
+    creates more truthful debugging output.
+    
+    Reverted change to ssa/debug_test tests made when
+    scopes were disabled during dwarflocationlist development.
+    
+    Also included are updates to the Delve test output (it
+    had fallen out of sync; creating test output for one
+    updates it for all) and minor naming changes in
+    ssa/debug_test.
+    
+    Compile-time/space changes (relative to tip including dwarflocationlists):
+    
+    benchstat -geomean after.log scopes.log
+    name        old time/op     new time/op     delta
+    Template        182ms ± 1%      182ms ± 1%    ~     (p=0.666 n=9+9)
+    Unicode        82.8ms ± 1%     86.6ms ±14%    ~     (p=0.211 n=9+10)
+    GoTypes         611ms ± 1%      616ms ± 2%  +0.97%  (p=0.001 n=10+9)
+    Compiler        2.95s ± 1%      2.95s ± 0%    ~     (p=0.573 n=10+8)
+    SSA             6.70s ± 1%      6.81s ± 1%  +1.68%  (p=0.000 n=9+10)
+    Flate           117ms ± 1%      118ms ± 1%  +0.60%  (p=0.036 n=9+8)
+    GoParser        145ms ± 1%      145ms ± 1%    ~     (p=1.000 n=9+9)
+    Reflect         398ms ± 1%      396ms ± 1%    ~     (p=0.053 n=9+10)
+    Tar             171ms ± 1%      171ms ± 1%    ~     (p=0.356 n=9+10)
+    XML             214ms ± 1%      214ms ± 1%    ~     (p=0.605 n=9+9)
+    StdCmd          12.4s ± 2%      12.4s ± 1%    ~     (p=1.000 n=9+9)
+    [Geo mean]      506ms           509ms       +0.71%
+    
+    name        old user-ns/op  new user-ns/op  delta
+    Template         254M ± 4%       249M ± 6%    ~     (p=0.155 n=10+10)
+    Unicode          121M ±11%       124M ± 6%    ~     (p=0.516 n=10+10)
+    GoTypes          824M ± 2%       869M ± 5%  +5.49%  (p=0.001 n=8+10)
+    Compiler        4.01G ± 2%      4.02G ± 1%    ~     (p=0.561 n=9+9)
+    SSA             10.0G ± 2%      10.2G ± 2%  +2.29%  (p=0.000 n=9+10)
+    Flate            154M ± 7%       154M ± 7%    ~     (p=0.960 n=10+9)
+    GoParser         190M ± 7%       196M ± 6%    ~     (p=0.064 n=9+10)
+    Reflect          528M ± 2%       517M ± 3%  -1.97%  (p=0.025 n=10+10)
+    Tar              227M ± 5%       232M ± 3%    ~     (p=0.061 n=9+10)
+    XML              286M ± 4%       283M ± 4%    ~     (p=0.343 n=9+9)
+    [Geo mean]       502M            508M       +1.09%
+    
+    name        old text-bytes  new text-bytes  delta
+    HelloSize        672k ± 0%       672k ± 0%  +0.01%  (p=0.000 n=10+10)
+    CmdGoSize       7.21M ± 0%      7.21M ± 0%  -0.00%  (p=0.000 n=10+10)
+    [Geo mean]      2.20M           2.20M       +0.00%
+    
+    name        old data-bytes  new data-bytes  delta
+    HelloSize       9.88k ± 0%      9.88k ± 0%    ~     (all equal)
+    CmdGoSize        248k ± 0%       248k ± 0%    ~     (all equal)
+    [Geo mean]      49.5k           49.5k       +0.00%
+    
+    name        old bss-bytes   new bss-bytes   delta
+    HelloSize        125k ± 0%       125k ± 0%    ~     (all equal)
+    CmdGoSize        144k ± 0%       144k ± 0%  -0.04%  (p=0.000 n=10+10)
+    [Geo mean]       135k            135k       -0.02%
+    
+    name        old exe-bytes   new exe-bytes   delta
+    HelloSize       1.30M ± 0%      1.34M ± 0%  +3.15%  (p=0.000 n=10+10)
+    CmdGoSize       13.5M ± 0%      13.9M ± 0%  +2.70%  (p=0.000 n=10+10)
+    [Geo mean]      4.19M           4.31M       +2.92%
+    
+    Change-Id: Id53b8d57bd00440142ccbd39b95710e14e083fb5
+    Reviewed-on: https://go-review.googlesource.com/101217
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/compile/internal/gc/main.go                |  2 +-
+ src/cmd/compile/internal/ssa/debug_test.go         | 15 ++++--
+ .../internal/ssa/testdata/hist.dlv-opt.nexts       |  5 --
+ .../internal/ssa/testdata/hist.gdb-dbg.nexts       | 36 +++++++--------
+ .../internal/ssa/testdata/hist.gdb-opt.nexts       | 54 +++++++++++-----------
+ src/cmd/compile/internal/ssa/testdata/hist.go      |  6 +--
+ ...58.dlv-dbg-22558.nexts => i22558.dlv-dbg.nexts} |  0
+ ...58.gdb-dbg-22558.nexts => i22558.gdb-dbg.nexts} |  0
+ .../internal/ssa/testdata/scopes.dlv-dbg.nexts     | 19 ++++++++
+ .../internal/ssa/testdata/scopes.dlv-opt.nexts     | 27 +++++++++++
+ .../internal/ssa/testdata/scopes.gdb-dbg.nexts     | 27 +++++++++++
+ .../internal/ssa/testdata/scopes.gdb-opt.nexts     | 41 ++++++++++++++++
+ src/cmd/compile/internal/ssa/testdata/scopes.go    | 28 +++++++++++
+ 13 files changed, 201 insertions(+), 59 deletions(-)

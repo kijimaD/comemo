@@ -1,0 +1,18 @@
+commit 3c529c53676f809c7df55aac20e8b756462f0583
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Feb 1 11:29:28 2023 +0100
+
+    internal/poll: use atomic.Bool in DupCloseOnExec
+    
+    Invert the meaning of the var to make use of the zero value.
+    
+    Change-Id: If18db09896a67cb37cb3fe7dc0fb3493c6050a87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463847
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/poll/fd_unix.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

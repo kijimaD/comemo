@@ -1,0 +1,19 @@
+commit 346d5883eb53d3e3a5bac7ee37beaa3db5c01fd8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Mar 17 16:05:31 2017 +0000
+
+    go/build: remove unused returnImports parameter
+    
+    The code uses the filename suffix instead of the bool parameter to
+    determine what to do.
+    
+    Fixes #19474.
+    
+    Change-Id: Ic552a54e50194592a4b4ae7f74d3109af54e6d36
+    Reviewed-on: https://go-review.googlesource.com/38265
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/build/build.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

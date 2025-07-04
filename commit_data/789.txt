@@ -1,0 +1,13 @@
+commit 970d6a14c4c1b9f068b88bbc08b9fa60867713ae
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Oct 1 14:16:57 2008 -0700
+
+    initialization of
+    var a,b int;
+    
+    R=r
+    OCL=16318
+    CL=16318
+
+ src/cmd/6g/gen.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit cc43e191ce562cd879a9baaf7a2e4fb1a7216d31
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Apr 14 14:02:25 2022 -0700
+
+    crypto/x509: don't allow too long serials
+    
+    Don't create certificates that have serial numbers that are longer
+    than 20 octets (when encoded), since these are explicitly disallowed
+    by RFC 5280.
+    
+    Change-Id: I292b7001f45bed0971b2d519b6de26f0b90860ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400377
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/crypto/x509/x509.go      | 12 ++++++++++++
+ src/crypto/x509/x509_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

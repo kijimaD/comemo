@@ -1,0 +1,22 @@
+commit fa3a121a79f85a4c957f29372b5ebfde7211a980
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 2 17:32:01 2019 -0500
+
+    runtime: add a simple version number parser
+    
+    This will be used to parse the Linux kernel versions, but this code is
+    generic and can be tested on its own.
+    
+    For #35777.
+    
+    Change-Id: If1df48d07250e5855dde45bc9d57c66f777b9fb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209597
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/export_test.go |  2 ++
+ src/runtime/string.go      | 34 ++++++++++++++++++++++++++++++++++
+ src/runtime/string_test.go | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 67 insertions(+)

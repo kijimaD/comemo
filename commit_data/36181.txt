@@ -1,0 +1,17 @@
+commit 27a9b1bbecc0b1aa02d88128ef36904e6f56ec43
+Author: as <as.utf8@gmail.com>
+Date:   Wed Aug 1 18:38:46 2018 +0000
+
+    cmd/go: avoid panic on 'go mod' without arguments
+    
+    Fixes #26738
+    
+    Change-Id: Icede3f59acb5b0e388660653cefc24a195b5d43b
+    GitHub-Last-Rev: 9989b74c12e94163c1f18859485a4ac0d74c5453
+    GitHub-Pull-Request: golang/go#26739
+    Reviewed-on: https://go-review.googlesource.com/127160
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

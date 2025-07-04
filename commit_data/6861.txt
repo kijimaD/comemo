@@ -1,0 +1,13 @@
+commit 8694959b1214f87c76d08d8fdc875d5cb7f43dde
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 7 16:20:15 2010 -0500
+
+    http: fix build
+    
+    R=dsymonds
+    TBR=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/3425044
+
+ src/pkg/http/url_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

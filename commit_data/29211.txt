@@ -1,0 +1,13 @@
+commit 91c1cdfbdbecbc33ad396f55d9e8b5619959fde1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Oct 28 13:16:25 2016 -0700
+
+    cmd/compile: add Param to Sizeof test
+    
+    Change-Id: I2a710f0e9b484b3dfc581d3a9a23aa13321ec267
+    Reviewed-on: https://go-review.googlesource.com/32316
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/sizeof_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit 09cd13c51dabd709e79329a9b8591fc4d15b6f3f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 15 11:38:50 2013 -0700
+
+    doc/go_faq.html: add entry about pointer to interface
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7546050
+
+ doc/go_faq.html | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

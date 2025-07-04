@@ -1,0 +1,26 @@
+commit d487488135735e9dfd30c6c37940e6abc3189ba3
+Author: quasilyte <quasilyte@gmail.com>
+Date:   Wed Apr 18 19:49:27 2018 +0300
+
+    cmd/internal/obj/x86: disallow PC/FP/SB scaled index
+    
+    Reject to compile I386/AMD64 asm code that contains
+    (Register)(PseudoReg*scale) forms of memory operands.
+    Example of such program: "CALL (AX)(PC*2)".
+    PseudoReg is one of the PC, FP, SB (but not SP).
+    
+    When pseudo-register is used in register indirect as
+    scaled index base, x86 backend will panic because
+    its register file misses SB/FP/PC registers.
+    
+    Fixes #12657.
+    
+    Change-Id: I30fca797b537cbc86ab47583ae96c6a0c59acaa1
+    Reviewed-on: https://go-review.googlesource.com/107835
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/amd64error.s | 4 ++++
+ src/cmd/internal/obj/x86/asm6.go               | 6 ++++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit 3cf8e8e5e684e2f9233ed507f91d3d2e2fe38ab8
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 11 15:12:45 2023 -0400
+
+    cmd/dist: put cgo tests under a "Testing cgo" heading
+    
+    Currently the cgo tests mostly use their package name as a heading,
+    which means we get a large number of test sections that each have a
+    single test package in them.
+    
+    Unify them all under "Testing cgo" to reduce output noise.
+    
+    This leaves just the cmd/api test without a heading, so we give it a
+    heading and require that all tests have a heading.
+    
+    Change-Id: I24cd9a96eb35bbc3ff9335ca8a382ec2426306c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/494497
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/dist/test.go | 50 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 24 insertions(+), 26 deletions(-)

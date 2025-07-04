@@ -1,0 +1,14 @@
+commit e066db3acbd65f12349d0dff36332e2c7648711d
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Feb 6 13:24:45 2012 +1100
+
+    html: add package doc.
+    
+    Fixes #2857.
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/5635046
+
+ src/pkg/html/escape.go | 1 +
+ 1 file changed, 1 insertion(+)

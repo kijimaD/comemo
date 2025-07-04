@@ -1,0 +1,12 @@
+commit 129b2bb19a6b6849bc8e42512460a77393c56172
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 17 11:05:43 2012 -0700
+
+    misc/dashboard/builder: increase default command timeout
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6499127
+
+ misc/dashboard/builder/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

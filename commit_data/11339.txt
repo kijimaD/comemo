@@ -1,0 +1,17 @@
+commit 77cb8956a061181619e661a530955dd93e65cb64
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 24 02:59:43 2012 +0900
+
+    net: consistent OpError message
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5562047
+
+ src/pkg/net/iprawsock_posix.go |  6 +++---
+ src/pkg/net/tcpsock_plan9.go   |  4 ++--
+ src/pkg/net/tcpsock_posix.go   |  4 ++--
+ src/pkg/net/udpsock_plan9.go   |  6 +++---
+ src/pkg/net/udpsock_posix.go   | 32 ++++++++++++++++----------------
+ src/pkg/net/unixsock_posix.go  |  6 +++---
+ 6 files changed, 29 insertions(+), 29 deletions(-)

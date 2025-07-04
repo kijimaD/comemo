@@ -1,0 +1,14 @@
+commit 48025d2ce0c4989da691113009cf0429c8cbee8a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 26 14:31:35 2015 -0700
+
+    archive/tar: disable new failing test on windows and plan9
+    
+    Update #11426
+    
+    Change-Id: If406d2efcc81965825a63c76f5448d544ba2a740
+    Reviewed-on: https://go-review.googlesource.com/11590
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/archive/tar/tar_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

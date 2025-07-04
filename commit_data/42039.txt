@@ -1,0 +1,27 @@
+commit af55060b39d2f6f39711abc95a23bd8f47968e8e
+Author: Rohith Ravi <entombedvirus@gmail.com>
+Date:   Sun Apr 19 02:21:15 2020 +0000
+
+    cmd/trace: fix the broken link in region pages and improve UX
+    
+    The trace tool had a broken link due to a parameter encoding error,
+    which has been corrected.
+    
+    In addition:
+    
+    - the user regions page has been enhanced to include links to
+    pprof style profiles for region specific io, block, syscall and
+    schedwait profiles.
+    
+    - sortable table headers have a pointer cursor to indicate they're
+    clickable.
+    
+    Fixes #38518
+    
+    Change-Id: I26cd5157bd9753750f5f53ea03aac5d2d41b021c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228899
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/annotations.go | 55 ++++++++++++++++++++++++++++++++++++--------
+ src/cmd/trace/goroutines.go  | 16 ++++++++++---
+ 2 files changed, 59 insertions(+), 12 deletions(-)

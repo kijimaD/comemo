@@ -1,0 +1,48 @@
+commit 9101bf19165ecde1967a0163d2fafa168e40ac6d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 17 17:44:55 2024 -0700
+
+    go/types, types2: use types2.Config flag to control Alias node creation
+    
+    Move Checker.enableAlias to Config.EnableAlias (for types2) and
+    Config._EnableAlias (for go/types), and adjust all uses.
+    
+    Use Config.EnableAlias to control Alias creation for types2 and
+    with that remove dependencies on the gotypesalias GODEBUG setting
+    and problems during bootstrap. The only client is the compiler and
+    there we simply use the desired configuration; it is undesirable
+    for the compiler to be dependent on gotypesalias.
+    
+    Use the gotypesalias GODEBUG setting to control Config._EnableAlias
+    for go/types (similar to before).
+    
+    Adjust some related code. We plan to remove gotypesalias eventually
+    which will remove some of the new discrepancies between types2 and
+    go/types again.
+    
+    Fixes #66874.
+    
+    Change-Id: Id7cc4805e7ea0697e0d023c7f510867e59a24871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579935
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/noder/irgen.go        |  8 +++---
+ src/cmd/compile/internal/types2/api.go         |  6 +++++
+ src/cmd/compile/internal/types2/check.go       | 29 +++++++++-------------
+ src/cmd/compile/internal/types2/check_test.go  |  7 +++---
+ src/cmd/compile/internal/types2/decl.go        |  6 ++---
+ src/cmd/compile/internal/types2/issues_test.go |  4 +--
+ src/cmd/compile/internal/types2/object_test.go |  7 ++----
+ src/cmd/compile/internal/types2/resolver.go    |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ src/go/types/api.go                            |  6 +++++
+ src/go/types/check.go                          | 34 ++++++++++++--------------
+ src/go/types/decl.go                           |  6 ++---
+ src/go/types/generate_test.go                  |  9 ++++---
+ src/go/types/object_test.go                    |  3 ---
+ src/go/types/resolver.go                       |  2 +-
+ src/go/types/typexpr.go                        |  2 +-
+ 16 files changed, 64 insertions(+), 69 deletions(-)

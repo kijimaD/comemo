@@ -1,0 +1,16 @@
+commit 5bfba30d3325d87ef89dd877f05e5d1e2d618bc3
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Sat Dec 24 00:06:02 2016 -0800
+
+    cmd/compile: lock-in test for repeated variables in range declaration
+    
+    Fixes #6772.
+    
+    Lock-in test for invalid range loop: repeated variables in range declaration.
+    
+    Change-Id: I37dd8b1cd7279abe7810deaf8a5d485c5c3b73ca
+    Reviewed-on: https://go-review.googlesource.com/34714
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/fixedbugs/issue6772.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

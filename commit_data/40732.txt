@@ -1,0 +1,18 @@
+commit 696c41488a2e3c0f86b01e420701c9aa05951228
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sat Aug 10 08:00:55 2019 +0200
+
+    cmd/go: error out of 'go mod download' if the main module is passed as argument
+    
+    Test added.
+    
+    Fixes #28338
+    
+    Change-Id: Iab72ba5646360ae91671261161d8fda451f7a717
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189797
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/download.go      | 16 ++++++++++++++--
+ src/cmd/go/testdata/script/mod_download.txt |  6 ++++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 7e4d87b7708dbd319f3c44c8b4d49ef7f51504c8
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Fri Oct 4 16:48:17 2019 +0200
+
+    syscall: replace mksyscall_windows.go with wrapper to new x/sys home
+    
+    We replace the existing file with a thin wrapper around its target so
+    that we don't break anybody's workflow.
+    
+    Updates #34388
+    
+    Change-Id: I0d00371c483cb78f4be18fe987df33c79cd40f05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198977
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/mksyscall_windows.go | 919 +--------------------------------------
+ 1 file changed, 8 insertions(+), 911 deletions(-)

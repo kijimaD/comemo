@@ -1,0 +1,31 @@
+commit aff222cd185d10400b9177fe26ec06eb647b092d
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Wed Mar 14 11:25:02 2018 -0400
+
+    cmd/compile: improve PPC64.rules to reduce size of rewritePPC64.go
+    
+    Some rules in PPC64.rules cause an extremely large rewritePPC64.go
+    file to be generated, due to rules with commutative operations and
+    many operands. This happens with the existing
+    rules for combining byte loads in little endian order, and
+    also happens with the pending change to do the same for bytes
+    in big endian order.
+    
+    The change improves the existing rules and reduces the size of
+    the rewrite file by more than 60%. Once this change is merged,
+    then the pending change for big endian ordered rules will be
+    updated to use rules that avoid generating an excessively large
+    rewrite file.
+    
+    This also includes a fix to a performance regression for
+    littleEndian.PutUint16 on ppc64le.
+    
+    Change-Id: I8d2ea42885fa2b84b30c63aa124b0a9b130564ff
+    Reviewed-on: https://go-review.googlesource.com/100675
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |    98 +-
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 29640 ++-----------------------
+ 2 files changed, 1618 insertions(+), 28120 deletions(-)

@@ -1,0 +1,14 @@
+commit 4522efb7f1e9bb7242c9f82076d3db5461f8647b
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jul 17 11:35:39 2017 +0200
+
+    time: fix 400 years offset in comment
+    
+    Fixes #21043
+    
+    Change-Id: I12db4f67ddee80500ff323f84e8fa34511650e63
+    Reviewed-on: https://go-review.googlesource.com/49230
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/time.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

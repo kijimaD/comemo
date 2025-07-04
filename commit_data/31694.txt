@@ -1,0 +1,17 @@
+commit 2f73efa97136a6d4a602a94e87d2a948240e7e8a
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Wed May 31 11:20:16 2017 -0700
+
+    doc: update bootstrap archive URL
+    
+    This includes the patch for systems that build PIE executables by
+    defaul
+    
+    Updates #20276.
+    
+    Change-Id: Iecf8dfcf11bc18d397b8075559c37e3610f825cb
+    Reviewed-on: https://go-review.googlesource.com/44470
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

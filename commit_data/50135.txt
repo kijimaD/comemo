@@ -1,0 +1,18 @@
+commit e0ec1d6770879518af726b6cd8693dab3390db24
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Aug 25 03:03:35 2022 +0800
+
+    runtime: convert forcegcstate.idle to internal atomic type
+    
+    Note that this changes a few unsynchronized operations of forcegcstate.idle to synchronized operations.
+    
+    Updates #53821
+    
+    Change-Id: I041654cc84a188fad45e2df7abce3a434f9a1f15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425361
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/proc.go     | 8 ++++----
+ src/runtime/runtime2.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

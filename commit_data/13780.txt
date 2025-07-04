@@ -1,0 +1,17 @@
+commit a7743d7ad25a5a37699c1bc8378f8f2523956f72
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 10 10:16:09 2012 -0700
+
+    net/http: add If-None-Match and If-Range support to ServeContent
+    
+    Also, clear Content-Type and Content-Length on Not Modified
+    responses before server.go strips them and spams the logs with
+    warnings.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6503090
+
+ src/pkg/net/http/fs.go      |  64 ++++++++++++++++-
+ src/pkg/net/http/fs_test.go | 163 ++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 189 insertions(+), 38 deletions(-)

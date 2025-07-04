@@ -1,0 +1,22 @@
+commit 5edcff01343f36618dd6330438cf8b456bd914ef
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Apr 29 14:17:04 2016 +1000
+
+    cmd/compile/internal/gc: bv.go cleanup
+    
+    Drive by gardening of bv.go.
+    
+    - Unexport the Bvec type, it is not used outside internal/gc.
+      (machine translated with gofmt -r)
+    - Removed unused constants and functions.
+      (driven by cmd/unused)
+    
+    Change-Id: I3433758ad4e62439f802f4b0ed306e67336d9aba
+    Reviewed-on: https://go-review.googlesource.com/22602
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/bv.go    | 73 ++++++++++--------------------------
+ src/cmd/compile/internal/gc/plive.go | 40 ++++++++++----------
+ 2 files changed, 39 insertions(+), 74 deletions(-)

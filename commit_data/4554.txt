@@ -1,0 +1,12 @@
+commit 35403e4cf2bd61158548c1d275dfa63c5ee1a7f9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 7 09:27:24 2010 -0800
+
+    added some missing periods
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181171
+
+ src/pkg/unicode/letter.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

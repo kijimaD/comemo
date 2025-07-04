@@ -1,0 +1,45 @@
+commit d17b65ff54a1824288eb68fe3fbc8c7beed14bb6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 22 09:05:21 2022 -0500
+
+    crypto/x509, runtime: fix occasional spurious “certificate is expired”
+    
+    As documented in #51209, we have been seeing a low-rate failure
+    on macOS builders caused by spurious x509 “certificate is expired” errors.
+    
+    The root cause is that CFDateCreate takes a float64, but it is being
+    passed a uintptr instead. That is, we're not even putting CFDateCreate's
+    argument in the right register during the call. Luckily, having just
+    computed the argument by calling time.Duration.Seconds, which
+    returns a float64, most of the time the argument we want is still
+    in the right floating point register, somewhat accidentally.
+    
+    The only time the lucky accident doesn't happen is when the goroutine
+    is rescheduled between calling time.Duration.Seconds and calling
+    into CFDateCreate *and* the rescheduling smashes the floating point
+    register, which can happen during various block memory moves,
+    since the floating point registers are also the SIMD registers.
+    
+    Passing the float64 through explicitly eliminates the problem.
+    It is difficult to write a test for this that is suitable for inclusion
+    in the standard library. We will have to rely on the builders to
+    start flaking again if somehow this problem is reintroduced.
+    
+    For future reference, there is a standalone test that used to fail
+    every few seconds at https://go.dev/play/p/OWfDpxgnW9g.
+    
+    Fixes #51209.
+    
+    Change-Id: I8b334a51e41f406b13f37270e9175c64fe6f55ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/387255
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/x509/internal/macos/corefoundation.go | 8 ++++----
+ src/runtime/sys_darwin.go                        | 6 +++---
+ src/runtime/sys_darwin_amd64.s                   | 9 +++++----
+ src/runtime/sys_darwin_arm64.s                   | 9 +++++----
+ 4 files changed, 17 insertions(+), 15 deletions(-)

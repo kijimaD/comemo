@@ -1,0 +1,21 @@
+commit 3048a4c7b35cd8af0d8d0fe97a4a970e7ffe6478
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 13 17:37:37 2013 -0400
+
+    cmd/vet: make struct tag literal test work better with no go/types
+    
+    Eliminate false positives when you can tell even without
+    type information that the literal does not need field tags.
+    
+    Far too noisy otherwise.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7797043
+
+ src/cmd/vet/Makefile       |  5 ++++-
+ src/cmd/vet/taglit.go      | 33 ++++++++++++++++++++++++++++++++-
+ src/cmd/vet/test_taglit.go | 34 ++++++++++++++++++++++++++++++++++
+ src/cmd/vet/types.go       | 18 ++++++++----------
+ src/cmd/vet/typestub.go    |  2 +-
+ 5 files changed, 79 insertions(+), 13 deletions(-)

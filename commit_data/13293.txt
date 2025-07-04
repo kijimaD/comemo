@@ -1,0 +1,19 @@
+commit ee3c272611ab59ee68399596e5fb764b81a9dd8d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 6 15:08:00 2012 -0400
+
+    fmt: fix inadvertent change to %#v
+    
+    The reordering speedup in CL 6245068 changed the semantics
+    of %#v by delaying the clearing of some flags.  Restore the old
+    semantics and add a test.
+    
+    Fixes #3706.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6302048
+
+ src/pkg/fmt/fmt_test.go |  1 +
+ src/pkg/fmt/print.go    | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+)

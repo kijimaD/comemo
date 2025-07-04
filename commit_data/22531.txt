@@ -1,0 +1,17 @@
+commit 828de09f8bfb64fc7d3eee728e7292055fd25364
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 10 22:16:11 2015 -0400
+
+    runtime/cgo: darwin/arm64 support
+    
+    Fixes #10116.
+    
+    Change-Id: I3b3f80791a1db4c2b7318f81a115972cd2237f05
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/8784
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/cgo/cgo.go             |   3 +-
+ src/runtime/cgo/gcc_arm64.S        |   4 +
+ src/runtime/cgo/gcc_darwin_arm64.c | 152 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 158 insertions(+), 1 deletion(-)

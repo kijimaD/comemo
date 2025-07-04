@@ -1,0 +1,20 @@
+commit 3dd96e9d82c59755117fd259a836a55098507001
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Sep 13 17:45:51 2017 +0200
+
+    unicode: allow version to be passed by env var
+    
+    This, in turn, to make it work with x/text’s
+    go generate.
+    
+    Also eliminates need to manually update version
+    string in maketables.go.
+    
+    Change-Id: Id5a8b8e27bdce5b1b5920eb9223a2d27b889149a
+    Reviewed-on: https://go-review.googlesource.com/63952
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+
+ src/unicode/maketables.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit cc2157ed4f26d635868a9b4b67377c8324d5e233
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Sep 8 13:58:09 2010 -0700
+
+    test: Recognize gccgo error messages.
+    
+    bug299.go:16:2: error: expected field name
+    bug299.go:17:2: error: expected field name
+    bug299.go:18:3: error: expected field name
+    bug299.go:25:9: error: expected receiver name or type
+    bug299.go:26:10: error: expected receiver name or type
+    bug299.go:27:9: error: expected receiver name or type
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2150044
+
+ test/fixedbugs/bug299.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

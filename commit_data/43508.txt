@@ -1,0 +1,26 @@
+commit c8638498008f9874dc5a48734418e0fbea08cee9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jul 24 19:58:31 2020 +0000
+
+    runtime: rename mcache fields to match Go style
+    
+    This change renames a bunch of malloc statistics stored in the mcache
+    that are all named with the "local_" prefix. It also renames largeAlloc
+    to allocLarge to prevent a naming conflict, and next_sample because it
+    would be the last mcache field with the old C naming style.
+    
+    Change-Id: I29695cb83b397a435ede7e9ad5c3c9be72767ea3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246969
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go      | 14 ++++----
+ src/runtime/malloc.go           | 12 +++----
+ src/runtime/mcache.go           | 78 ++++++++++++++++++++---------------------
+ src/runtime/mgc.go              |  8 ++---
+ src/runtime/mgcsweep.go         |  6 ++--
+ src/runtime/mstats.go           | 22 ++++++------
+ src/runtime/pprof/mprof_test.go |  2 +-
+ 7 files changed, 71 insertions(+), 71 deletions(-)

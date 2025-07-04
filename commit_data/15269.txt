@@ -1,0 +1,12 @@
+commit f8f2727ab50decb8db6d2235e77e8079b8d22eba
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 11:32:31 2013 -0500
+
+    exp/cookiejar: fix windows builder
+    
+    TBR=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/7322084
+
+ src/pkg/exp/cookiejar/jar_test.go | 1 +
+ 1 file changed, 1 insertion(+)

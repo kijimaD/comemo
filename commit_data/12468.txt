@@ -1,0 +1,14 @@
+commit e54ad64ff346281b707c75c72566b63080864dcf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 7 08:24:10 2012 -0800
+
+    test: add inherited interface test to ddd.go
+    
+    The gccgo compiler incorrectly gave an error for this code.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5767043
+
+ test/ddd.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

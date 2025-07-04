@@ -1,0 +1,23 @@
+commit 83af3229dbd672d62868ffd77f526eb52be7fa56
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 5 17:15:36 2009 -0800
+
+    Lots of cleanups in prep. for checking in parser and ast into lib:
+    - removed any symbol table stuff
+    - some interface cleanup
+    - removed lot's of dead wood
+    - half the support for type switches (simple form)
+    - name capitalization
+    Several rounds to come.
+    
+    R=r
+    OCL=25797
+    CL=25797
+
+ usr/gri/pretty/ast.go         |  36 ++-
+ usr/gri/pretty/compilation.go |   4 +-
+ usr/gri/pretty/parser.go      | 736 +++++++++++++++++++-----------------------
+ usr/gri/pretty/pretty.go      |   1 -
+ usr/gri/pretty/printer.go     | 162 +++++-----
+ usr/gri/pretty/selftest2.go   |  15 +-
+ 6 files changed, 453 insertions(+), 501 deletions(-)

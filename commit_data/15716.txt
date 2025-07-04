@@ -1,0 +1,14 @@
+commit 0d559f7b92c1425b9a78ff67933a9baaa0534928
+Author: Adrian Nos <nos.adrian@gmail.com>
+Date:   Tue Mar 12 11:45:56 2013 -0400
+
+    net/rpc/jsonrpc: nil pointer deference on invalid reply.
+    Fixes #5006.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7691045
+
+ src/pkg/net/rpc/jsonrpc/all_test.go | 17 +++++++++++++++++
+ src/pkg/net/rpc/jsonrpc/client.go   |  2 +-
+ 2 files changed, 18 insertions(+), 1 deletion(-)

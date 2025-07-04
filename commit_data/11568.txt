@@ -1,0 +1,12 @@
+commit e489ab8ecc36c8b2caeeda662e6d7b57b64e8475
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Feb 2 23:52:30 2012 +0100
+
+    cmd/go: fix error message on non-existing tools.
+    
+    R=golang-dev, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5617053
+
+ src/cmd/go/tool.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

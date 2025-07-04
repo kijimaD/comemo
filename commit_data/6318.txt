@@ -1,0 +1,23 @@
+commit 6989f6e312d52b9f4a200cb4691206b654669b36
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Sep 20 10:32:08 2010 -0400
+
+    Fix certificate validation.
+    
+    asn1: add support for T61String because this is the string type which
+        several www.google.com certificates are now using for fields like
+        CommonName
+    tls: force a handshake in Dial so that certificates are ready
+        afterwards.
+    
+    Fixes #1114.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2216043
+
+ src/pkg/asn1/asn1.go       | 12 ++++++++++++
+ src/pkg/asn1/common.go     |  1 +
+ src/pkg/crypto/tls/conn.go | 10 +++++++++-
+ src/pkg/crypto/tls/tls.go  |  8 +++++++-
+ 4 files changed, 29 insertions(+), 2 deletions(-)

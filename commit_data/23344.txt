@@ -1,0 +1,15 @@
+commit 6b24da6ae8321387e9dd02181ccf5b425d4c05f9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jun 13 13:46:10 2015 -0700
+
+    syscall: skip TestCloneNEWUSERAndRemapNoRootDisableSetgroups before 3.19
+    
+    The test fails on Ubuntu Trusty for some reason, probably because of
+    some set of kernel patches.
+    
+    Change-Id: I52f7ca50b96fea5725817c9e9198860d419f9313
+    Reviewed-on: https://go-review.googlesource.com/11055
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/syscall/exec_linux_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

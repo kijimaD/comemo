@@ -1,0 +1,26 @@
+commit 48c0cef6dc9e7c95edaffb261250f99732686466
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Oct 29 13:27:00 2019 +0700
+
+    bufio: return the underlying error in ReadFrom if not nil
+    
+    If a previous Write returned an error, any subsequent Write or ReadFrom
+    must return that error before any operations.
+    
+    However, only Write behaved correctly and this change fixes that problem
+    by making sure that ReadFrom firstly checks for the underlying error.
+    
+    Fixes #35194
+    
+    Change-Id: I31356a9e8bd945bc0168b2e3be470f3ae69d4813
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204000
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bufio/bufio.go      |  3 +++
+ src/bufio/bufio_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+)

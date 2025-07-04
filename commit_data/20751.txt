@@ -1,0 +1,20 @@
+commit 0edafefc36b39dd456d3b6410f81dfcecfef6a3b
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Mon Oct 20 15:59:10 2014 +0100
+
+    cmd/gc: emit code for extern = <N>
+    
+    https://golang.org/cl/152700045/ made it possible for struct literals assigned to globals to use <N> as the RHS. Normally, this is to zero out variables on first use. Because globals are already zero (or their linker initialized value), we just ignored this.
+    
+    Now that <N> can occur from non-initialization code, we need to emit this code. We don't use <N> for initialization of globals any more, so this shouldn't cause any excessive zeroing.
+    
+    Fixes #8961.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=bradfitz, golang-codereviews
+    https://golang.org/cl/154540044
+
+ src/cmd/gc/gen.c            | 10 +++-------
+ test/fixedbugs/issue8961.go | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 7 deletions(-)

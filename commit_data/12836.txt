@@ -1,0 +1,14 @@
+commit 4b943bded8b92296e50aaafe3e55fc4bc96b4f23
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Apr 5 15:17:24 2012 +1000
+
+    path/filepath: move out of temp directory before deleting it in TestAbs
+    
+    Fixes #3476.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5986045
+
+ src/pkg/path/filepath/path_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,22 @@
+commit c18b163c1590d43d78a1a7386d624d4aab234f40
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 4 22:47:27 2015 -0400
+
+    runtime: control background scan credit flushing with flag
+    
+    Currently callers of gcDrain control whether it flushes scan work
+    credit to gcController.bgScanCredit by passing a value other than -1
+    for the flush threshold. Shortly we're going to make this always flush
+    scan work to gcController.scanWork and optionally also flush scan work
+    to gcController.bgScanCredit. This will be much easier if the flush
+    threshold is simply a constant (which it is in practice) and callers
+    merely control whether or not the flush includes the background
+    credit. Hence, replace the flush threshold argument with a flag.
+    
+    Change-Id: Ia27db17de8a3f1e462a5d7137d4b5dc72f99a04e
+    Reviewed-on: https://go-review.googlesource.com/15406
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     |  8 ++++----
+ src/runtime/mgcmark.go | 18 ++++++++++--------
+ 2 files changed, 14 insertions(+), 12 deletions(-)

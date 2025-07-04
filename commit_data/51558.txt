@@ -1,0 +1,23 @@
+commit 4f8bc6224b64bf7149a03678ab5448830e7df80d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 14 11:48:02 2022 -0800
+
+    cmd/compile: desugar OCALLMETH->OCALLFUNC within devirtualization
+    
+    Devirtualization can turn OCALLINTER into OCALLMETH, but then we want
+    to actually desugar into OCALLFUNC instead for later phases. Just
+    needs a missing call to typecheck.FixMethodCall.
+    
+    Fixes #57309.
+    
+    Change-Id: I331fbd40804e1a370134ef17fa6dd501c0920ed3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457715
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ .../compile/internal/devirtualize/devirtualize.go  |  3 +++
+ test/fixedbugs/issue57309.go                       | 23 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

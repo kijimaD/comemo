@@ -1,0 +1,19 @@
+commit 39cfb7609d293ae9acc40d09645d01258dc8edbf
+Author: Luke Young <bored-engineer@users.noreply.github.com>
+Date:   Sun Oct 20 06:03:55 2019 +0000
+
+    net/http: make Transport.roundTrip close body on invalid method
+    
+    Updates #35015
+    
+    Change-Id: Ibfe8f72ed3887ca88ce9c1d8a29dacda72f3fe17
+    GitHub-Last-Rev: 4bfc56e71660ad9624ac5eb594b3afd0d221c99d
+    GitHub-Pull-Request: golang/go#35014
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202237
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      |  1 +
+ src/net/http/transport_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

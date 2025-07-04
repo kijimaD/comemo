@@ -1,0 +1,12 @@
+commit 39ed682206332cf0ab557b715ec80c9ab2cbba5f
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 4 20:16:07 2015 -0700
+
+    runtime: explain why continuous assist revising is necessary
+    
+    Change-Id: I950af8d80433b3ae8a1da0aa7a8d2d0b295dd313
+    Reviewed-on: https://go-review.googlesource.com/15404
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

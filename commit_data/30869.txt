@@ -1,0 +1,19 @@
+commit 1acba7d4fafef57d44bbd757abce58d632ee8475
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 27 11:02:13 2017 -0700
+
+    cmd/internal/obj: remove prasm
+    
+    Fold the printing of the offending instruction
+    into the neighboring Diag call, if it is not
+    already present.
+    
+    Change-Id: I310f1479e16a4d2a24ff3c2f7e2c60e5e2015c1b
+    Reviewed-on: https://go-review.googlesource.com/38714
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/arm/asm5.go   | 20 +++++---------------
+ src/cmd/internal/obj/arm64/asm7.go | 26 +++++++-------------------
+ 2 files changed, 12 insertions(+), 34 deletions(-)

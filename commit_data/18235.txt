@@ -1,0 +1,15 @@
+commit 7dcc652f10a5ca74101381bb27b6755ee2ab4691
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 13 23:08:10 2014 -0500
+
+    cmd/link: implement dead code removal
+    
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/51470043
+
+ src/cmd/link/dead.go         |  63 ++++++++++++++++++++++++++++
+ src/cmd/link/dead_test.go    |  97 +++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/testdata/dead.6 | Bin 0 -> 1062 bytes
+ src/cmd/link/testdata/dead.s |  49 ++++++++++++++++++++++
+ 4 files changed, 209 insertions(+)

@@ -1,0 +1,19 @@
+commit 448a7b46a9bb48b97959d5bc6c9303a6c18c1882
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 23 21:53:01 2009 -0700
+
+    daily snapshot:
+    - minor bug fixes in pretty, godoc
+    - first cut at template-driven printing of ast
+    
+    TBR=r
+    OCL=27825
+    CL=27825
+
+ usr/gri/pretty/Makefile      |   2 +-
+ usr/gri/pretty/ast.txt       |  14 ++
+ usr/gri/pretty/astprinter.go |   3 +-
+ usr/gri/pretty/format.go     | 482 +++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/godoc.go      |  21 +-
+ usr/gri/pretty/pretty.go     |  60 +++---
+ 6 files changed, 544 insertions(+), 38 deletions(-)

@@ -1,0 +1,22 @@
+commit 747cde816142cc737b0a7c0ce4fd45504611fcce
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 2 12:03:20 2009 -0700
+
+    s/vm/Thread/
+    change eval functions from taking *Frame to *Thread
+    
+    R=austin
+    DELTA=500  (7 added, 4 deleted, 489 changed)
+    OCL=34256
+    CL=34260
+
+ usr/austin/eval/abort.go     |  24 +--
+ usr/austin/eval/bridge.go    |   4 +-
+ usr/austin/eval/eval_test.go |  14 +-
+ usr/austin/eval/expr.go      | 155 +++++++++---------
+ usr/austin/eval/expr1.go     | 380 +++++++++++++++++++++----------------------
+ usr/austin/eval/func.go      |  15 +-
+ usr/austin/eval/gen.go       |  48 +++---
+ usr/austin/eval/stmt.go      |  93 ++++++-----
+ usr/austin/eval/value.go     |   2 +-
+ 9 files changed, 369 insertions(+), 366 deletions(-)

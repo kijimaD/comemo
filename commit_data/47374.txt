@@ -1,0 +1,45 @@
+commit 4aa0746f6abae7dc112883e79f93993a430bd340
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Oct 19 14:05:29 2021 -0400
+
+    cmd/go: add workspace pruning mode
+    
+    [ this is a roll-forward of golang.org/cl/357169 with minor changes
+    to fix the cmd/go/internal/modload tests: because they don't run the
+    go command, some initialization isn't run on the test and modroots is
+    empty in cases it can't be when the full command setup is done. So
+    directly check for workFilePath != "" instead of calling inWorkspaceMode
+    which checks that Init is called first, and check that modRoots is non
+    empty when calling mustGetSingleMainModule.]
+    
+    This change corrects a bug in the handling of module loading of
+    workspaces. Namely, there is an assumption by the module pruning code
+    that if a root module is selected then the packages of that module can
+    be resolved without loading the whole module graph. This is not true
+    in workspace mode because two workspace modules can require different
+    versions of a dependency. Worse, one workspace module can directly
+    require a depencency that is transitively required by another
+    workspace module, changing the version of that module loaded in the
+    fully expanded graph.
+    
+    To correct this, a new 'workspace' pruning mode is added where the
+    roots are the workspace modules themselves, satisfying the assumption
+    made by the module pruning logic.
+    
+    The rest of this change accounts for the new pruning mode where it's
+    used and correctly sets the requirements in this pruning mode.
+    
+    Change-Id: I8bdf4b30f669c1ded0ed8a5dd202ac8d1939bbbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362754
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/buildlist.go   | 86 ++++++++++++++++++++++--------
+ src/cmd/go/internal/modload/import_test.go |  2 +-
+ src/cmd/go/internal/modload/init.go        | 44 +++++++--------
+ src/cmd/go/internal/modload/load.go        | 24 ++++++++-
+ src/cmd/go/internal/modload/modfile.go     | 14 +++--
+ src/cmd/go/testdata/script/work_prune.txt  |  2 +-
+ 6 files changed, 122 insertions(+), 50 deletions(-)

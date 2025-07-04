@@ -1,0 +1,20 @@
+commit 5cec8b85e5dc75ef21b62efb6bd93f9007385e34
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Mar 25 11:11:03 2021 -0700
+
+    net/http/httptest: wait for user ConnState hooks
+    
+    Ensure that user ConnState callbacks have completed before returning
+    from (*httptest.Server).Close.
+    
+    Fixes: #37510
+    Fixes: #37505
+    Fixes: #45237
+    Change-Id: I8fe7baa089fbe4f3836bf6ae9767c7b1270d1331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304829
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/net/http/httptest/server.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

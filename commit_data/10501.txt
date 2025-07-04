@@ -1,0 +1,15 @@
+commit 49dfaad870208969ff3129ed1e1bda8f12302c03
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 25 12:53:05 2011 +1100
+
+    dashboard: builder-facing implementation and tests
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5431048
+
+ misc/dashboard/app/app.yaml       |   5 +
+ misc/dashboard/app/build/build.go | 327 ++++++++++++++++++++++++++++++++++++--
+ misc/dashboard/app/build/key.go   |  16 ++
+ misc/dashboard/app/build/test.go  | 141 ++++++++++++++++
+ 4 files changed, 473 insertions(+), 16 deletions(-)

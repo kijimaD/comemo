@@ -1,0 +1,43 @@
+commit 00274a13cb76fc826f65978f3ab6fa1f90e46dab
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 14 10:46:04 2009 -0700
+
+    rename libmach_amd64 libmach
+    
+    R=rsc
+    OCL=33273
+    CL=33276
+
+ include/{mach_amd64.h => mach.h}            | 12 ------------
+ src/clean.bash                              |  2 +-
+ src/cmd/ar/Makefile                         |  2 +-
+ src/cmd/ar/ar.c                             |  2 +-
+ src/cmd/cov/Makefile                        |  2 +-
+ src/cmd/cov/main.c                          |  2 +-
+ src/cmd/nm/Makefile                         |  2 +-
+ src/cmd/nm/nm.c                             | 26 +++++++++++++-------------
+ src/cmd/prof/Makefile                       |  2 +-
+ src/cmd/prof/main.c                         |  2 +-
+ src/{libmach_amd64 => libmach}/5obj.c       |  2 +-
+ src/{libmach_amd64 => libmach}/6.c          |  2 +-
+ src/{libmach_amd64 => libmach}/6obj.c       |  2 +-
+ src/{libmach_amd64 => libmach}/8.c          |  2 +-
+ src/{libmach_amd64 => libmach}/8db.c        |  4 ++--
+ src/{libmach_amd64 => libmach}/8obj.c       |  2 +-
+ src/{libmach_amd64 => libmach}/Makefile     | 28 ++--------------------------
+ src/{libmach_amd64 => libmach}/access.c     |  2 +-
+ src/{libmach_amd64 => libmach}/darwin.c     |  2 +-
+ src/{libmach_amd64 => libmach}/elf.h        |  0
+ src/{libmach_amd64 => libmach}/executable.c | 14 +++++++-------
+ src/{libmach_amd64 => libmach}/fakeobj.c    |  2 +-
+ src/{libmach_amd64 => libmach}/linux.c      |  2 +-
+ src/{libmach_amd64 => libmach}/machdata.c   |  2 +-
+ src/{libmach_amd64 => libmach}/macho.h      |  0
+ src/{libmach_amd64 => libmach}/map.c        |  2 +-
+ src/{libmach_amd64 => libmach}/obj.c        |  4 ++--
+ src/{libmach_amd64 => libmach}/obj.h        |  0
+ src/{libmach_amd64 => libmach}/setmach.c    |  2 +-
+ src/{libmach_amd64 => libmach}/swap.c       |  0
+ src/{libmach_amd64 => libmach}/sym.c        |  2 +-
+ src/make.bash                               |  2 +-
+ 32 files changed, 48 insertions(+), 84 deletions(-)

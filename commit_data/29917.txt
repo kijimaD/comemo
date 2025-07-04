@@ -1,0 +1,23 @@
+commit 41d2278eef7a834c0c5191c479a1ba4934c7ec0a
+Author: David Chase <drchase@google.com>
+Date:   Fri Dec 23 12:00:07 2016 -0500
+
+    cmd/compile: rewrite literal.method to ensure full initialization
+    
+    CALLPART of STRUCTLIT did not check for incomplete initialization
+    of struct; modify PTRLIT treatment to force zeroing.
+    
+    Test for structlit, believe this might have also failed for
+    arraylit.
+    
+    Fixes #18410.
+    
+    Change-Id: I511abf8ef850e300996d40568944665714efe1fc
+    Reviewed-on: https://go-review.googlesource.com/34622
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go |  2 ++
+ test/fixedbugs/issue18410.go         | 40 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+)

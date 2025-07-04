@@ -1,0 +1,34 @@
+commit d0c9b40964f1951d2684545f1a6df64be899d26d
+Author: Justin Nuß <nuss.justin@gmail.com>
+Date:   Wed Sep 9 21:10:43 2015 +0200
+
+    mime: Remove an allocation in word decoding.
+    
+    This fixes a TODO in (*WordDecoder).Decode by replacing a call to strings.Split with
+    simple prefix/suffix checking and some custom slicing.
+    
+    Benchmark results:
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkQEncodeWord-8       740           693           -6.35%
+    BenchmarkQDecodeWord-8       1291          727           -43.69%
+    BenchmarkQDecodeHeader-8     1194          767           -35.76%
+    
+    benchmark                    old allocs     new allocs     delta
+    BenchmarkQEncodeWord-8       1              1              +0.00%
+    BenchmarkQDecodeWord-8       3              2              -33.33%
+    BenchmarkQDecodeHeader-8     3              2              -33.33%
+    
+    benchmark                    old bytes     new bytes     delta
+    BenchmarkQEncodeWord-8       48            48            +0.00%
+    BenchmarkQDecodeWord-8       128           48            -62.50%
+    BenchmarkQDecodeHeader-8     128           48            -62.50%
+    
+    Change-Id: I2d6844c75ec2e2b79be2e49b7fc4ca320b7e84e5
+    Reviewed-on: https://go-review.googlesource.com/14432
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/encodedword.go | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)

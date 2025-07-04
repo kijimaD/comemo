@@ -1,0 +1,32 @@
+commit 699721a0ea2efbf7bd241d9e66a6a550b7c51d69
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 29 17:00:18 2009 -0800
+
+    - removed obsolete files from repository
+    (most of this has been integrated into pretty,
+    the rest has been archived).
+    
+    R=r
+    OCL=23842
+    CL=23842
+
+ usr/gri/gosrc/ast.go          |  218 -----
+ usr/gri/gosrc/base.go         |   23 -
+ usr/gri/gosrc/compilation.go  |  176 ----
+ usr/gri/gosrc/decls.go        |  121 ---
+ usr/gri/gosrc/export.go       |  294 ------
+ usr/gri/gosrc/expr.go         |  164 ----
+ usr/gri/gosrc/globals.go      |  350 -------
+ usr/gri/gosrc/go.go           |   91 --
+ usr/gri/gosrc/import.go       |  323 -------
+ usr/gri/gosrc/object.go       |   36 -
+ usr/gri/gosrc/parser.go       | 2041 -----------------------------------------
+ usr/gri/gosrc/platform.go     |   70 --
+ usr/gri/gosrc/printer.go      |  285 ------
+ usr/gri/gosrc/scanner.go      |  785 ----------------
+ usr/gri/gosrc/test_scanner.go |   64 --
+ usr/gri/gosrc/type.go         |  204 ----
+ usr/gri/gosrc/universe.go     |  145 ---
+ usr/gri/gosrc/utils.go        |   63 --
+ usr/gri/gosrc/verifier.go     |  165 ----
+ 19 files changed, 5618 deletions(-)

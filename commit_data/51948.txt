@@ -1,0 +1,20 @@
+commit bb6952fa25da050d04c2df3787fa0d508adb9b1a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 8 18:48:17 2023 +0000
+
+    Revert "cmd/compile/internal/pgo: fix hard-coded PGO sample data position"
+    
+    This reverts CL 465135.
+    
+    Reason for revert: This broke cmd/go.TestScript/build_pgo on the linux-amd64-longtest builder: https://build.golang.org/log/8f8ed7bf576f891a06d295c4a5bca987c6e941d6
+    
+    Change-Id: Ie2f2cc2731099eb28eda6b94dded4dfc34e29441
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466439
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/cmd/compile/internal/pgo/irgraph.go       | 18 +------
+ src/cmd/compile/internal/test/pgo_inl_test.go | 68 ---------------------------
+ 2 files changed, 1 insertion(+), 85 deletions(-)

@@ -1,0 +1,14 @@
+commit 95d7d3d658989cb2af98f753b9731a4af3e363be
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 3 09:36:09 2012 +1100
+
+    doc/install-source.html: update for go tool
+    Make some updates, get rid of mentions of make.
+    There remain a number of open questions.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5720057
+
+ doc/install-source.html | 104 ++++++++++++++++++++++--------------------------
+ 1 file changed, 48 insertions(+), 56 deletions(-)

@@ -1,0 +1,23 @@
+commit a6462a608d60b6175db9dd9a7244b9609a12e7fc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 5 15:11:09 2020 -0500
+
+    cmd/go: set FOSSIL_HOME in TestScript/mod_get_fossil
+    
+    Without HOME or FOSSIL_HOME set, this test fails for me when run with
+    fossil 2.12.1.
+    
+    Also verify that the 'go get' command produces an executable, which
+    helps to verify that the files extracted by fossil are not corrupted.
+    
+    Updates #42323
+    
+    Change-Id: Ie6f5d2eab6a6338e997a4f85591195e5bd9a0d37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267884
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/mod_get_fossil.txt | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

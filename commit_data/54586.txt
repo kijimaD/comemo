@@ -1,0 +1,28 @@
+commit deb8e29000ebecbd788e0e86e239d52c26707457
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Sep 20 15:45:08 2023 -0400
+
+    log/slog: JSONHandler elides empty groups even with replacement
+    
+    Previously, the built-in handlers assumed a group was empty if and
+    only if it had no attributes. But a ReplaceAttr function that
+    returned an empty Attr could produce an empty group even if the group
+    had attrs prior to replacement.
+    
+    The obvious solution, doing the replacement first and then checking,
+    would require allocating storage to hold the replaced Attrs.  Instead,
+    we write to the buffer, and if no attributes were written, we back up
+    to before the group name.
+    
+    Fixes #62512.
+    
+    Change-Id: I140e0901f4b157e36594d8d476f1ab326f8f2c2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529855
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/handler.go                | 59 +++++++++++++++++++++++++++-------
+ src/log/slog/handler_test.go           | 31 ++++++++++++++++--
+ src/log/slog/internal/buffer/buffer.go | 10 +++++-
+ 3 files changed, 84 insertions(+), 16 deletions(-)

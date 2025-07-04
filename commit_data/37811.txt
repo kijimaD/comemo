@@ -1,0 +1,20 @@
+commit 5ec5c5741ec7d0e051667f13094f532833d41578
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Dec 28 11:46:35 2018 +0100
+
+    cmd/dist: list only supported platforms
+    
+    Introduce an incomplete map in dist alongside cgoEnabled and filter out
+    the incomplete ports in 'dist list'.
+    
+    Fixes #28944
+    
+    Change-Id: I15aae56aec570e1cd9e28906900cd5ba0db77811
+    Reviewed-on: https://go-review.googlesource.com/c/155839
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go | 10 ++++++++++
+ src/cmd/dist/test.go  |  3 +++
+ 2 files changed, 13 insertions(+)

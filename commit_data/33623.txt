@@ -1,0 +1,14 @@
+commit ce68e1b81c470ef29ece6a33980ab05e2b8bb30c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 16 09:35:31 2017 -0800
+
+    builtin: improve docs for make slice
+    
+    Fixes #22764
+    
+    Change-Id: I339d3bbb08983e0d69d69a1d00c4d15d0661762a
+    Reviewed-on: https://go-review.googlesource.com/78335
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/builtin/builtin.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,28 @@
+commit d36466fe2aaf51c4b38c3a2ea3164cb3a56b8059
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 13 11:23:50 2022 +0200
+
+    cmd/link/internal/ld, syscall: use libc based msync on darwin for Go ≥ 1.20
+    
+    Direct syscalls should no longer be used on darwin. Instead, directly
+    call libc's msync when using Go ≥ 1.20 for bootstrap.
+    
+    For #54265
+    
+    Change-Id: Ie3f1e6ccd1a06e7f0ddd88cdef5067393a69e8db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430336
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/link/internal/ld/msync_darwin_libc.go    | 12 ++++++++++++
+ src/cmd/link/internal/ld/msync_darwin_syscall.go | 24 ++++++++++++++++++++++++
+ src/cmd/link/internal/ld/outbuf_darwin.go        |  2 +-
+ src/syscall/syscall_darwin.go                    |  1 +
+ src/syscall/zsyscall_darwin_amd64.go             | 20 ++++++++++++++++++++
+ src/syscall/zsyscall_darwin_amd64.s              |  2 ++
+ src/syscall/zsyscall_darwin_arm64.go             | 20 ++++++++++++++++++++
+ src/syscall/zsyscall_darwin_arm64.s              |  2 ++
+ 8 files changed, 82 insertions(+), 1 deletion(-)

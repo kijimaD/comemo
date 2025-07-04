@@ -1,0 +1,19 @@
+commit ccfc41eee01772576f83784ae44578e955e4ae6f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 22 13:13:08 2021 -0400
+
+    cmd/compile: check out-of-range shifts on ARM and ARM64
+    
+    When encoding ARM or ARM64 shifted register operand, check that
+    the shift is in range.
+    
+    Change-Id: If0014933bfd0a1b8eaaa01e0220a6eeb17ab9f40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351530
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/arm/ssa.go   | 51 ++++++++++++++++++-----------------
+ src/cmd/compile/internal/arm64/ssa.go | 33 ++++++++++++-----------
+ 2 files changed, 45 insertions(+), 39 deletions(-)

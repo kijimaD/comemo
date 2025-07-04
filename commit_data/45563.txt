@@ -1,0 +1,29 @@
+commit b4ca1cec69f8248b77d8d8ce019943ced5235ed0
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 9 20:43:49 2021 -0500
+
+    cmd/compile: set unsayable "names" for regabi testing triggers
+    
+    This disables the "testing names" for method names and
+    trailing input types passed to closure/interface/other calls.
+    The logic using the names remains, so that editing the change
+    to enable local testing is not too hard.
+    
+    Also fixes broken build tag in reflect/abi_test.go
+    
+    Updates #44816.
+    
+    Change-Id: I3d222d2473c98d04ab6f1122ede9fea70c994af1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300150
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go |  7 +++--
+ src/reflect/abi_test.go                |  7 +++--
+ test/abi/fibish2.go                    | 40 --------------------------
+ test/abi/fibish2.out                   |  1 -
+ test/abi/methods.go                    | 52 ----------------------------------
+ test/abi/methods.out                   |  2 --
+ 6 files changed, 9 insertions(+), 100 deletions(-)

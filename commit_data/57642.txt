@@ -1,0 +1,41 @@
+commit 0733682e5ff4cd294f5eccb31cbe87a543147bc6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Apr 22 15:48:57 2024 -0400
+
+    internal/runtime/maps: initial swiss table map implementation
+    
+    Add a new package that will contain a new "Swiss Table"
+    (https://abseil.io/about/design/swisstables) map implementation, which
+    is intended to eventually replace the existing runtime map
+    implementation.
+    
+    This implementation is based on the fabulous
+    github.com/cockroachdb/swiss package contributed by Peter Mattis.
+    
+    This CL adds an hash map implementation. It supports all the core
+    operations, but does not have incremental growth.
+    
+    For #54766.
+    
+    Change-Id: I52cf371448c3817d471ddb1f5a78f3513565db41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582415
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/go/build/deps_test.go                          |   2 +
+ src/internal/runtime/maps/export_test.go           |  56 ++
+ src/internal/runtime/maps/fuzz_test.go             | 212 +++++++
+ src/internal/runtime/maps/group.go                 | 249 ++++++++
+ .../runtime/maps/internal/abi/map_swiss.go         |  44 ++
+ src/internal/runtime/maps/map.go                   | 128 ++++
+ src/internal/runtime/maps/map_test.go              | 447 ++++++++++++++
+ src/internal/runtime/maps/runtime.go               |  24 +
+ src/internal/runtime/maps/table.go                 | 669 +++++++++++++++++++++
+ src/internal/runtime/maps/table_debug.go           | 128 ++++
+ src/runtime/malloc.go                              |   5 +
+ src/runtime/mbarrier.go                            |  10 +
+ src/runtime/rand.go                                |   5 +
+ 13 files changed, 1979 insertions(+)

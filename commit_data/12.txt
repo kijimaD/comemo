@@ -1,0 +1,12 @@
+commit 250767174b355e51e79a34f2314dbe73e03c0234
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 6 19:40:52 2008 -0800
+
+    add HTML formatting; use
+            /home/sanjay/bin/makehtml --mode=document go_lang.txt
+    to generate the html output.
+    
+    SVN=111681
+
+ doc/go_lang.txt | 475 ++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 272 insertions(+), 203 deletions(-)

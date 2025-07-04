@@ -1,0 +1,13 @@
+commit 459837c86ecf583ea7597b47b1d2591c332440c9
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 25 11:33:27 2012 +1000
+
+    all: fix errors found by go vet
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6125044
+
+ src/pkg/exp/norm/maketables.go     | 4 ++--
+ src/pkg/text/template/parse/lex.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

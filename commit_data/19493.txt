@@ -1,0 +1,16 @@
+commit 14a75ecf4a673e99ff41c1a1166289840d4f3cbb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 3 11:44:17 2014 +0900
+
+    time: support version 3 zone records
+    
+    Fixes #8134
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews, r, rsc
+    https://golang.org/cl/100930044
+
+ src/pkg/time/zoneinfo_read.go | 4 ++--
+ src/pkg/time/zoneinfo_test.go | 9 +++++++++
+ 2 files changed, 11 insertions(+), 2 deletions(-)

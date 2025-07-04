@@ -1,0 +1,15 @@
+commit fa88ba1e8adacda08973d112cca8d6e66c1390e1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 3 10:52:52 2021 -0800
+
+    doc/go1.18: add documentation for changes to go/ast
+    
+    Updates #47694
+    
+    Change-Id: Ied26f6345df2c8640d4be5132a05db3897b59009
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369096
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ doc/go1.18.html | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)

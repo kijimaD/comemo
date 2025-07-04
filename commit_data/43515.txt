@@ -1,0 +1,21 @@
+commit c02134abb01e019683daf051029d66b15dd11213
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 3 20:08:25 2020 +0000
+
+    runtime: add helper for getting an mcache in allocation contexts
+    
+    This change adds a function getMCache which returns the current P's
+    mcache if it's available, and otherwise tries to get mcache0 if we're
+    bootstrapping. This function will come in handy as we need to replicate
+    this behavior in multiple places in future changes.
+    
+    Change-Id: I536073d6f6dc6c6390269e613ead9f8bcb6e7f98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246976
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/malloc.go | 25 ++-----------------------
+ src/runtime/mcache.go | 23 +++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 23 deletions(-)

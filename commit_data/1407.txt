@@ -1,0 +1,17 @@
+commit 859ba57bbb58e685da1e82b91935c55f26dc85de
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 6 09:53:30 2009 -0800
+
+    make acid build with bison.
+    ask for bison explicitly in cc, gc to try to
+    avoid problems with other yaccs that
+    might be installed.
+    
+    R=r
+    DELTA=29  (10 added, 2 deleted, 17 changed)
+    OCL=22110
+    CL=22113
+
+ src/cmd/cc/Makefile | 5 +----
+ src/cmd/gc/Makefile | 2 +-
+ 2 files changed, 2 insertions(+), 5 deletions(-)

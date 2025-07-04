@@ -1,0 +1,22 @@
+commit b036d7e17f1cf5ecf9411e604fbc5bb40dc3dc95
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 24 17:05:50 2023 -0700
+
+    cmd/compile/internal/noder: avoid ir.Node temps in FixValue
+    
+    Instead of constructing an untyped basic literal IR node, having
+    typecheck convert it and return a new one, only to extract the
+    constant.Value; just have typecheck export the underlying value
+    conversion function, so we can call it directly.
+    
+    Change-Id: Ie98f5362b3926a728d80262b0274a0b4fd023eaf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522878
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/helpers.go   |  2 +-
+ src/cmd/compile/internal/typecheck/const.go | 11 ++++++-----
+ 2 files changed, 7 insertions(+), 6 deletions(-)

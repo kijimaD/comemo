@@ -1,0 +1,19 @@
+commit f09887cdce9dbb63e01503e0598bdeae74ee4e0b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 3 23:28:00 2015 -0500
+
+    cmd/internal/gc: do not show original expression for constants in export data
+    
+    Fixes #10066.
+    
+    Change-Id: I43c423793dd094989e921e163a06b12181a35719
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/6750
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/internal/gc/fmt.go         | 13 +++++++++----
+ test/fixedbugs/issue10066.dir/a.go | 11 +++++++++++
+ test/fixedbugs/issue10066.dir/b.go |  7 +++++++
+ test/fixedbugs/issue10066.go       | 10 ++++++++++
+ 4 files changed, 37 insertions(+), 4 deletions(-)

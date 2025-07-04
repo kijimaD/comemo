@@ -1,0 +1,86 @@
+commit a376435ae54c404a442d1387256caf09e917c550
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 2 10:23:58 2018 -0400
+
+    regexp: use pools for NFA machines
+    
+    Now the machine struct is only used for NFA execution.
+    Use global pools to cache machines instead of per-Regexp lists.
+    
+    Also eliminate some tail calls in NFA execution, to pay for
+    the added overhead of sync.Pool.
+    
+    name                             old time/op    new time/op    delta
+    Find-12                             252ns ± 0%     252ns ± 0%     ~     (p=1.000 n=10+10)
+    FindAllNoMatches-12                 134ns ± 1%     136ns ± 4%     ~     (p=0.443 n=9+10)
+    FindString-12                       246ns ± 0%     246ns ± 0%   -0.16%  (p=0.046 n=10+8)
+    FindSubmatch-12                     333ns ± 2%     332ns ± 1%     ~     (p=0.489 n=10+9)
+    FindStringSubmatch-12               320ns ± 0%     321ns ± 1%   +0.55%  (p=0.005 n=10+9)
+    Literal-12                         91.1ns ± 0%    91.6ns ± 0%   +0.55%  (p=0.000 n=10+9)
+    NotLiteral-12                      1.45µs ± 0%    1.47µs ± 0%   +0.82%  (p=0.000 n=10+9)
+    MatchClass-12                      2.19µs ± 0%    2.15µs ± 0%   -2.01%  (p=0.000 n=9+10)
+    MatchClass_InRange-12              2.09µs ± 0%    2.09µs ± 0%     ~     (p=0.082 n=10+9)
+    ReplaceAll-12                      1.39µs ± 0%    1.40µs ± 0%   +0.50%  (p=0.000 n=10+10)
+    AnchoredLiteralShortNonMatch-12    82.4ns ± 0%    83.5ns ± 0%   +1.36%  (p=0.000 n=8+9)
+    AnchoredLiteralLongNonMatch-12      106ns ± 1%     101ns ± 0%   -4.36%  (p=0.000 n=10+10)
+    AnchoredShortMatch-12               130ns ± 0%     131ns ± 0%   +0.77%  (p=0.000 n=9+10)
+    AnchoredLongMatch-12                272ns ± 0%     268ns ± 1%   -1.46%  (p=0.000 n=8+10)
+    OnePassShortA-12                    615ns ± 0%     614ns ± 0%     ~     (p=0.094 n=10+6)
+    NotOnePassShortA-12                 549ns ± 0%     552ns ± 0%   +0.52%  (p=0.000 n=9+10)
+    OnePassShortB-12                    494ns ± 0%     494ns ± 0%     ~     (p=0.247 n=8+9)
+    NotOnePassShortB-12                 412ns ± 1%     411ns ± 0%     ~     (p=0.625 n=10+9)
+    OnePassLongPrefix-12                108ns ± 0%     109ns ± 0%   +0.93%  (p=0.000 n=10+8)
+    OnePassLongNotPrefix-12             402ns ± 0%     403ns ± 0%   +0.14%  (p=0.041 n=8+9)
+    MatchParallelShared-12             38.6ns ± 2%    38.9ns ± 1%     ~     (p=0.172 n=9+10)
+    MatchParallelCopied-12             39.4ns ± 7%    39.2ns ± 1%     ~     (p=0.423 n=10+10)
+    QuoteMetaAll-12                    94.9ns ± 0%    94.5ns ± 0%   -0.42%  (p=0.000 n=9+10)
+    QuoteMetaNone-12                   52.7ns ± 0%    52.7ns ± 0%     ~     (all equal)
+    Match/Easy0/32-12                  72.1ns ± 0%    72.2ns ± 0%     ~     (p=0.435 n=9+8)
+    Match/Easy0/1K-12                   298ns ± 0%     296ns ± 1%   -1.01%  (p=0.000 n=8+10)
+    Match/Easy0/32K-12                 4.64µs ± 1%    4.57µs ± 3%   -1.39%  (p=0.030 n=10+10)
+    Match/Easy0/1M-12                   234µs ± 0%     234µs ± 0%     ~     (p=0.971 n=10+10)
+    Match/Easy0/32M-12                 7.95ms ± 0%    7.96ms ± 0%     ~     (p=0.278 n=9+10)
+    Match/Easy0i/32-12                 1.10µs ± 0%    1.09µs ± 0%   -0.29%  (p=0.000 n=9+8)
+    Match/Easy0i/1K-12                 31.8µs ± 1%    31.7µs ± 0%     ~     (p=0.704 n=10+9)
+    Match/Easy0i/32K-12                1.62ms ± 1%    1.61ms ± 0%   -1.12%  (p=0.000 n=10+8)
+    Match/Easy0i/1M-12                 51.8ms ± 0%    51.4ms ± 0%   -0.84%  (p=0.000 n=8+8)
+    Match/Easy0i/32M-12                 1.65s ± 0%     1.65s ± 0%   -0.46%  (p=0.000 n=9+9)
+    Match/Easy1/32-12                  67.7ns ± 1%    67.6ns ± 1%     ~     (p=0.723 n=10+10)
+    Match/Easy1/1K-12                   873ns ± 0%     873ns ± 2%     ~     (p=0.345 n=10+9)
+    Match/Easy1/32K-12                 39.4µs ± 0%    39.7µs ± 1%   +0.66%  (p=0.000 n=10+10)
+    Match/Easy1/1M-12                  1.39ms ± 0%    1.41ms ± 1%   +1.10%  (p=0.000 n=10+10)
+    Match/Easy1/32M-12                 44.3ms ± 0%    44.9ms ± 1%   +1.18%  (p=0.000 n=10+10)
+    Match/Medium/32-12                 1.04µs ± 0%    1.04µs ± 0%   -0.58%  (p=0.000 n=9+9)
+    Match/Medium/1K-12                 31.4µs ± 0%    31.2µs ± 0%   -0.62%  (p=0.000 n=8+8)
+    Match/Medium/32K-12                1.45ms ± 0%    1.45ms ± 1%     ~     (p=0.356 n=9+10)
+    Match/Medium/1M-12                 46.4ms ± 0%    46.4ms ± 0%     ~     (p=0.142 n=8+6)
+    Match/Medium/32M-12                 1.49s ± 1%     1.49s ± 1%     ~     (p=0.739 n=10+10)
+    Match/Hard/32-12                   1.48µs ± 0%    1.47µs ± 0%   -0.53%  (p=0.000 n=9+9)
+    Match/Hard/1K-12                   45.0µs ± 1%    44.5µs ± 1%   -1.06%  (p=0.000 n=10+10)
+    Match/Hard/32K-12                  2.24ms ± 0%    2.09ms ± 0%   -6.56%  (p=0.000 n=8+8)
+    Match/Hard/1M-12                   71.6ms ± 0%    67.8ms ± 5%   -5.36%  (p=0.000 n=7+10)
+    Match/Hard/32M-12                   2.29s ± 0%     2.17s ± 5%   -5.40%  (p=0.000 n=9+10)
+    Match/Hard1/32-12                  7.89µs ± 0%    7.89µs ± 0%     ~     (p=0.053 n=9+9)
+    Match/Hard1/1K-12                   244µs ± 0%     246µs ± 0%   +0.71%  (p=0.000 n=10+9)
+    Match/Hard1/32K-12                 10.3ms ± 0%     8.9ms ± 0%  -13.76%  (p=0.000 n=10+9)
+    Match/Hard1/1M-12                   331ms ± 0%     286ms ± 0%  -13.72%  (p=0.000 n=9+9)
+    Match/Hard1/32M-12                  10.6s ± 0%      9.2s ± 0%  -13.72%  (p=0.000 n=10+9)
+    Match_onepass_regex/32-12           830ns ± 0%     825ns ± 0%   -0.57%  (p=0.000 n=9+8)
+    Match_onepass_regex/1K-12          28.7µs ± 1%    28.7µs ± 1%   -0.22%  (p=0.040 n=9+9)
+    Match_onepass_regex/32K-12          949µs ± 0%     950µs ± 1%     ~     (p=0.236 n=8+9)
+    Match_onepass_regex/1M-12          30.4ms ± 0%    30.4ms ± 0%     ~     (p=0.059 n=8+9)
+    Match_onepass_regex/32M-12          973ms ± 0%     974ms ± 1%     ~     (p=0.258 n=9+9)
+    CompileOnepass-12                  4.64µs ± 0%    4.60µs ± 0%   -0.90%  (p=0.000 n=10+8)
+    [Geo mean]                         23.3µs         23.1µs        -1.16%
+    
+    https://perf.golang.org/search?q=upload:20181004.3
+    
+    Change-Id: I46f3d52ce89c8cd992cf554473c27af81fd81bfd
+    Reviewed-on: https://go-review.googlesource.com/c/139781
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/regexp/exec.go   |  27 ++++--------
+ src/regexp/regexp.go | 119 ++++++++++++++++++++++++++++++---------------------
+ 2 files changed, 80 insertions(+), 66 deletions(-)

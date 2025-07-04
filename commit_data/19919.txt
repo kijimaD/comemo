@@ -1,0 +1,14 @@
+commit ea3ac6ba75c5b7496b29117687b0859ad40f3f39
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 6 13:42:00 2014 -0700
+
+    runtime: shorten hash declarations
+    
+    LGTM=iant
+    R=dvyukov, iant
+    CC=golang-codereviews
+    https://golang.org/cl/117680044
+
+ src/cmd/api/goapi.go   |  2 +-
+ src/pkg/runtime/alg.go | 34 ++++++++++++++++------------------
+ 2 files changed, 17 insertions(+), 19 deletions(-)

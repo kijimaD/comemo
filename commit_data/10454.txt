@@ -1,0 +1,16 @@
+commit 28cead8b6c342126d2c2277303ba0a8bde4e7bfe
+Author: David Crawshaw <david.crawshaw@zentus.com>
+Date:   Fri Nov 18 12:42:30 2011 -0800
+
+    codereview: gofmt check for non-src/ files
+    
+    Gives other projects the benefit of the gofmt presubmit.
+    Results in minor changes in the doc/ directory:
+            find doc -name \*.go -exec gofmt -d {} \;
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/5158042
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

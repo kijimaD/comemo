@@ -1,0 +1,21 @@
+commit cdc77d34d7770ed02d84b9193380f9646017dce6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Aug 17 17:31:21 2020 -0400
+
+    testing: treat PAUSE lines as changing the active test name
+    
+    We could instead fix cmd/test2json to treat PAUSE lines as *not*
+    changing the active test name, but that seems like it would be more
+    confusing to humans, and also wouldn't fix tools that parse output
+    using existing builds of cmd/test2json.
+    
+    Fixes #40657
+    
+    Change-Id: I937611778f5b1e7dd1d6e9f44424d7e725a589ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248727
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jean de Klerk <deklerk@google.com>
+
+ .../go/testdata/script/test_json_interleaved.txt   | 27 ++++++++++++++++++++++
+ src/testing/testing.go                             | 25 ++++++++++++++++----
+ 2 files changed, 47 insertions(+), 5 deletions(-)

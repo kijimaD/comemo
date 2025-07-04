@@ -1,0 +1,19 @@
+commit 369c48cafb34aa4a5db242f1bbcc88467f1fdb8b
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 5 16:05:35 2011 -0800
+
+    gob: don't send type information about unexported fields.
+    
+    A change a while back stop sending data for unexported fields
+    but due to an oversight the type info was being sent also. It's
+    inconsequential but wrong to do that.
+    
+    R=rsc, rh
+    CC=golang-dev
+    https://golang.org/cl/4252058
+
+ src/pkg/gob/decode.go    |  8 --------
+ src/pkg/gob/encode.go    |  5 +++--
+ src/pkg/gob/type.go      | 20 ++++++++++++--------
+ src/pkg/gob/type_test.go | 22 +++++++++++-----------
+ 4 files changed, 26 insertions(+), 29 deletions(-)

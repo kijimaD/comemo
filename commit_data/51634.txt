@@ -1,0 +1,20 @@
+commit d4639ecdfc9051a7adcfb8945d93a45da56576ae
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 5 14:51:31 2023 -0800
+
+    go/types, types2: test that error format strings have matching parentheses/brackets
+    
+    Also, for go/types, switch to using syntax.Inspect instead of
+    (deprecated) syntax.Crawl.
+    
+    Change-Id: I8333079040e9676e0a61c23d09d41ca790526eeb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460759
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/errorcalls_test.go | 56 +++++++++++++++++++---
+ src/go/types/errorcalls_test.go                    | 50 +++++++++++++++++--
+ 2 files changed, 97 insertions(+), 9 deletions(-)

@@ -1,0 +1,15 @@
+commit d3a2118b8a2f1b38ad46305ef35b6c24758313ef
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Tue Oct 12 15:42:07 2010 +1100
+
+    syscall: implement WaitStatus and Wait4() for windows
+    
+    R=brainman, rsc, kardia, Joe Poirier
+    CC=golang-dev
+    https://golang.org/cl/1910041
+
+ src/pkg/syscall/exec_windows.go         | 10 +++++++---
+ src/pkg/syscall/syscall_windows.go      | 32 +++++++++++++++++++++++++++-----
+ src/pkg/syscall/zsyscall_windows_386.go | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows_386.go   | 12 +++++++++++-
+ 4 files changed, 77 insertions(+), 9 deletions(-)

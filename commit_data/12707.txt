@@ -1,0 +1,12 @@
+commit 0532f4d382ad4f9813dcebcf4cfb1a086c8588bf
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 21 09:33:55 2012 -0700
+
+    doc/effective_go: minor corrections
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5848063
+
+ doc/effective_go.html | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

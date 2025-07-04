@@ -1,0 +1,14 @@
+commit bd486c39bad4c9f90190ae58de8a592bb9a2aae9
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Wed Jun 10 18:26:29 2020 +0300
+
+    doc/go1.15: add release notes for database/sql and database/sql/driver
+    
+    Updates #37419.
+    
+    Change-Id: Ifb6aa9a671f677e1a3e908f0b75bf0da17a57ad0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237397
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+
+ doc/go1.15.html | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

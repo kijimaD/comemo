@@ -1,0 +1,29 @@
+commit e4b03f9425a70f53acb9526dc9cd9c21373308e5
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Apr 20 07:28:50 2023 +0000
+
+    internal/cpu: add a detection for Neoverse(N2, V2) cores
+    
+    The memmove implementation relies on the variable
+    runtime.arm64UseAlignedLoads to select fastest code
+    path. Considering Neoverse N2 and V2 cores prefer aligned
+    loads, this patch adds code to detect them for
+    memmove performance.
+    
+    And this patch uses a new variable ARM64.IsNeoverse to
+    represent all Neoverse cores, removing the more specific
+    versions.
+    
+    Change-Id: I9e06eae01a0325a0b604ac6af1e55711dd6133f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487815
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Fannie Zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/cpu/cpu.go             | 23 +++++++++++------------
+ src/internal/cpu/cpu_arm64.go       |  3 +--
+ src/internal/cpu/cpu_arm64_hwcap.go | 20 +++++++++++---------
+ src/runtime/cpuflags_arm64.go       |  2 +-
+ 4 files changed, 24 insertions(+), 24 deletions(-)

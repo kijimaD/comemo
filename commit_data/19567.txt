@@ -1,0 +1,23 @@
+commit 2fbfe55e6374d212e49cff4c6723936af8e4ce89
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Jun 18 12:05:46 2014 -0700
+
+    encoding/base64, encoding/base32: make Encode faster
+    
+    Storing temporary values to a slice is slower than storing
+    them to local variables of type byte.
+    
+    benchmark                         old MB/s     new MB/s  speedup
+    BenchmarkEncodeToStringBase32       102.21       156.66    1.53x
+    BenchmarkEncodeToStringBase64       124.25       177.91    1.43x
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw, bradfitz, dave
+    CC=golang-codereviews
+    https://golang.org/cl/109820045
+
+ src/pkg/encoding/base32/base32.go      | 44 ++++++++++++++++------------------
+ src/pkg/encoding/base32/base32_test.go | 16 +++++++++++++
+ src/pkg/encoding/base64/base64.go      | 24 +++++++++----------
+ src/pkg/encoding/base64/base64_test.go |  8 +++++++
+ 4 files changed, 56 insertions(+), 36 deletions(-)

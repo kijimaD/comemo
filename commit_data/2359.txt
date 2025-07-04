@@ -1,0 +1,41 @@
+commit e11f833bed1f445a4fd8ccb813fa000386d277e1
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 1 22:15:08 2009 -0700
+
+    auto-generated, renamed, and deleted files
+    associated with CL 29709.
+    
+    R=r
+    DELTA=6444  (3476 added, 2958 deleted, 10 changed)
+    OCL=29710
+    CL=29724
+
+ src/lib/syscall/Makefile                           |  36 +-
+ .../{asm_amd64_darwin.s => asm_darwin_amd64.s}     |   2 +-
+ .../{asm_amd64_linux.s => asm_linux_amd64.s}       |   2 +-
+ src/lib/syscall/errstr_darwin.go                   | 242 -------
+ src/lib/syscall/errstr_linux.go                    | 292 --------
+ src/lib/syscall/file_darwin.go                     | 186 -----
+ src/lib/syscall/file_linux.go                      | 193 ------
+ src/lib/syscall/mkdarwin                           |  34 -
+ src/lib/syscall/mksignal                           |  26 -
+ src/lib/syscall/{mklinux => mksysnum_linux}        |   0
+ src/lib/syscall/proc_darwin.go                     |  20 -
+ src/lib/syscall/proc_linux.go                      |  19 -
+ src/lib/syscall/signal_amd64_darwin.go             |  43 --
+ src/lib/syscall/signal_amd64_linux.go              |  46 --
+ src/lib/syscall/socket_darwin.go                   | 114 ---
+ src/lib/syscall/socket_linux.go                    | 123 ----
+ src/lib/syscall/time_amd64_darwin.go               |  24 -
+ src/lib/syscall/time_amd64_linux.go                |  25 -
+ src/lib/syscall/types_amd64_darwin.go              | 317 ---------
+ src/lib/syscall/types_amd64_linux.go               | 314 ---------
+ src/lib/syscall/zerrors_darwin_amd64.go            | 260 +++++++
+ src/lib/syscall/zerrors_linux_amd64.go             | 316 +++++++++
+ src/lib/syscall/zsyscall_darwin_amd64.go           | 622 +++++++++++++++++
+ src/lib/syscall/zsyscall_linux_amd64.go            | 764 +++++++++++++++++++++
+ ...all_amd64_darwin.go => zsysnum_darwin_amd64.go} |  10 +-
+ ...scall_amd64_linux.go => zsysnum_linux_amd64.go} |   7 +-
+ src/lib/syscall/ztypes_darwin_amd64.go             | 248 +++++++
+ src/lib/syscall/ztypes_linux_amd64.go              | 300 ++++++++
+ 28 files changed, 2539 insertions(+), 2046 deletions(-)

@@ -1,0 +1,21 @@
+commit 1f4bcee2cd064fdb5b02f36b4e96c1dc3aac48c9
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 19 13:46:16 2024 -0400
+
+    runtime: move zeroVal out of map.go
+    
+    It isn't specific to maps, so put it in a more general location.
+    
+    For #54766.
+    
+    Change-Id: Ia3f3ebe8c347cfa5a8582082a306f4df4e05818d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580777
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/abi/map.go     | 3 ---
+ src/internal/abi/runtime.go | 8 ++++++++
+ src/runtime/map.go          | 2 --
+ src/runtime/runtime.go      | 3 +++
+ 4 files changed, 11 insertions(+), 5 deletions(-)

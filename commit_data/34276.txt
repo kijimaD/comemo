@@ -1,0 +1,18 @@
+commit fdcf4f712b7c160fe76a15b4b405be9916be558b
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Jan 25 15:13:12 2018 -0500
+
+    cmd/trace: task-oriented view includes child tasks
+    
+    R=go1.11
+    
+    Change-Id: Ibb09e309c745eba811a0b53000c063bc10a055e1
+    Reviewed-on: https://go-review.googlesource.com/90218
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/cmd/trace/annotations.go      | 73 ++++++++++++++++++++++++++++---
+ src/cmd/trace/annotations_test.go | 90 ++++++++++++++++++++++++++++++++++++++-
+ src/cmd/trace/trace.go            | 43 ++++++++++++-------
+ 3 files changed, 182 insertions(+), 24 deletions(-)

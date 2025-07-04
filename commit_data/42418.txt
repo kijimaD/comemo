@@ -1,0 +1,37 @@
+commit 0aed2a4133d4a6cbefa9f86096500009bacc8e4c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri May 29 16:01:17 2020 -0400
+
+    runtime: no SIGWINCH to pgrp while GDB is running
+    
+    When run with stdin == /dev/null and stdout/stderr == pipe (i.e., as
+    os/exec.Command.CombinedOutput), GDB suffers from a bug
+    (https://sourceware.org/bugzilla/show_bug.cgi?id=26056) that causes
+    SIGSEGV when sent a SIGWINCH signal.
+    
+    Package runtime tests TestEINTR and TestSignalDuringExec both send
+    SIGWINCH signals to the entire process group, thus including GDB if one
+    of the GDB tests is running in parallel.
+    
+    TestEINTR only intends its signals for the current process, so it is
+    changed to do so. TestSignalDuringExec, really does want its signals to
+    go to children. However, it does not call t.Parallel(), so it won't run
+    at the same time as GDB tests.
+    
+    This is a simple fix, but GDB is vulnerable, so we must be careful not
+    to add new parallel tests that send SIGWINCH to the entire process
+    group.
+    
+    Fixes #39021
+    
+    Change-Id: I803606fb000f08c65c1b10ec554d4ef6819e5dd5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235557
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/runtime-gdb_test.go           | 6 ++++++
+ src/runtime/testdata/testprogcgo/eintr.go | 3 ++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)

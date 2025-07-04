@@ -1,0 +1,14 @@
+commit dd94bacddcd3039e63207856138028c9541b3067
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 06:37:55 2017 +0000
+
+    time: unify the Time.Equals vs == pitfall documentation
+    
+    Fixes #19510 (good details therein)
+    
+    Change-Id: Id28b66d91435d839fd79eeed486527cc77257c12
+    Reviewed-on: https://go-review.googlesource.com/45698
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/time.go | 32 +++++++++++++++++++-------------
+ 1 file changed, 19 insertions(+), 13 deletions(-)

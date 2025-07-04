@@ -1,0 +1,19 @@
+commit 3cafbeab2a56f52f7c8265a0b0c45d494b541f84
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 24 04:46:12 2019 -0400
+
+    cmd/vendor: add golang.org/x/crypto/ed25519
+    
+    Needed for Go checksum database integration in cmd/go.
+    Generated with "go mod vendor" in client with that CL already applied.
+    
+    Change-Id: I1aa84977ba3a62504d3f4c069f48c07c67b83023
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173949
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ .../vendor/golang.org/x/crypto/ed25519/ed25519.go  |  217 +++
+ .../crypto/ed25519/internal/edwards25519/const.go  | 1422 ++++++++++++++++
+ .../ed25519/internal/edwards25519/edwards25519.go  | 1793 ++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |    2 +
+ 4 files changed, 3434 insertions(+)

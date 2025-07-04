@@ -1,0 +1,23 @@
+commit 95a4f793c077ab7b13fdb7505b65ff19a97a07f9
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 6 10:16:17 2018 -0800
+
+    cmd/compile: don't deadcode eliminate labels
+    
+    Dead-code eliminating labels is tricky because there might
+    be gotos that can still reach them.
+    
+    Bug probably introduced with CL 91056
+    
+    Fixes #28616
+    
+    Change-Id: I6680465134e3486dcb658896f5172606cc51b104
+    Reviewed-on: https://go-review.googlesource.com/c/147817
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 12 +++++++++++-
+ test/fixedbugs/issue28616.go             | 25 +++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit 6fa08c0fdbc8435d0a7b0c2576ba2183adfac8f3
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Aug 29 07:06:31 2018 -0600
+
+    text/template: fix newline counting in raw strings
+    
+    lexRawQuote already uses the next method, which keeps track of newlines
+    on a character by character basis. Adding up newlines in emit again
+    results in the newlines being counted twice, which can mean bad position
+    information in error messages.
+    
+    Fix that, and add a test.
+    
+    Fixes #27319.
+    
+    Change-Id: Id803be065c541412dc808d388bc6d8a86a0de41e
+    Reviewed-on: https://go-review.googlesource.com/131996
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/text/template/parse/lex.go        | 2 +-
+ src/text/template/parse/parse_test.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

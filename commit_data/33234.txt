@@ -1,0 +1,30 @@
+commit 187957d37056592203fd758ae0245a28f4518122
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 17 13:57:34 2017 -0700
+
+    os: add deadline methods for File type
+    
+    Add SetDeadline, SetReadDeadline, and SetWriteDeadline methods to os.File,
+    just as they exist today for the net package.
+    
+    Fixes #22114
+    
+    Change-Id: I4d390d739169b991175baba676010897dc8568fa
+    Reviewed-on: https://go-review.googlesource.com/71770
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/internal/poll/fd.go              |   4 +
+ src/internal/poll/fd_poll_runtime.go |   2 +-
+ src/os/error.go                      |  25 ++
+ src/os/file.go                       |  45 +++
+ src/os/file_plan9.go                 |  25 ++
+ src/os/file_posix.go                 |  24 ++
+ src/os/file_unix.go                  |  25 +-
+ src/os/pipe_bsd.go                   |   2 +-
+ src/os/pipe_freebsd.go               |   2 +-
+ src/os/pipe_linux.go                 |   2 +-
+ src/os/timeout_test.go               | 589 +++++++++++++++++++++++++++++++++++
+ 11 files changed, 734 insertions(+), 11 deletions(-)

@@ -1,0 +1,25 @@
+commit 1349c6eb1e3faf8b83db9a1ea30764d56b40c7dc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 13 15:42:31 2021 +0200
+
+    syscall: separate ProcSysAttr and forkAndExecInChild for FreeBSD
+    
+    To allow adding fields to ProcSysAttr which are supported on FreeBSD but
+    not on other BSDs.
+    
+    For now exec_freebsd.go is an exact copy of exec_bsd.go with adjusted
+    build tags and copyright year.
+    
+    For #46258
+    For #46259
+    
+    Change-Id: I7667a0cdf1ca86ef64a147b77c06db70c5f8eb90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355569
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_bsd.go     |   4 +-
+ src/syscall/exec_freebsd.go | 263 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 265 insertions(+), 2 deletions(-)

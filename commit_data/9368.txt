@@ -1,0 +1,17 @@
+commit e6ae13d35d38a19e9a0031114714a351a0d3e888
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 15 15:42:27 2011 -0700
+
+    godoc: fix lib/godoc/package.txt template
+    
+    - show documentation in text mode; e.g.:
+    http://localhost:7777/cmd/godoc/?f=text
+    
+    - simplify template by using $ variable
+    
+    R=r, adg
+    CC=golang-dev
+    https://golang.org/cl/4873045
+
+ lib/godoc/package.txt | 30 +++++++++++-------------------
+ 1 file changed, 11 insertions(+), 19 deletions(-)

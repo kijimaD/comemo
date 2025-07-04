@@ -1,0 +1,22 @@
+commit e9ad52e46dee4b4f9c73ff44f44e1e234815800f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 24 21:42:20 2020 -0700
+
+    net: export ErrClosed
+    
+    This permits programs to reliably detect whether they are using a
+    closed network connection.
+    
+    Fixes #4373
+    
+    Change-Id: Ib4ce8cc82bbb134c4689f0ebc8b9b11bb8b32a22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250357
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.16.html       | 12 ++++++++++++
+ src/net/error_test.go | 17 +++++++++++------
+ src/net/net.go        | 12 ++++++++++++
+ 3 files changed, 35 insertions(+), 6 deletions(-)

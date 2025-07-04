@@ -1,0 +1,23 @@
+commit 521d2614df0cf4fa3a92bd01e1c98d77bfeac9ed
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Feb 8 09:40:44 2023 +0100
+
+    runtime: use explicit NOFRAME on linux/amd64
+    
+    This CL marks some linux assembly functions as NOFRAME to avoid relying
+    on the implicit amd64 NOFRAME heuristic, where NOSPLIT functions
+    without stack were also marked as NOFRAME.
+    
+    Updates #58378
+    
+    Change-Id: I7792cff4f6e539bfa56c02868f2965088ca1975a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466316
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/x86/obj6.go                    | 10 ++++++++--
+ src/cmd/link/internal/ld/testdata/stackcheck/main.s |  5 +++--
+ src/runtime/sys_linux_amd64.s                       | 14 ++++++--------
+ 3 files changed, 17 insertions(+), 12 deletions(-)

@@ -1,0 +1,17 @@
+commit 6d1aaf143c879ae7acbd20a1e60bf74681bf6055
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 25 10:58:47 2019 -0700
+
+    misc/cgo/test: use char, not int, so test works on big-endian systems
+    
+    Updates #32579
+    Fixes #32770
+    
+    Change-Id: I32d1dea7505e8ad22e11a9806e10d096924b729b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183778
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ misc/cgo/test/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

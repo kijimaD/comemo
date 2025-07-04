@@ -1,0 +1,19 @@
+commit 308064fc5975836596d89d34046947f2e8261eb4
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Mar 5 15:55:26 2010 -0500
+
+    big: fix mistakes with probablyPrime
+    
+    probablyPrime would return false negatives in some cases.
+    
+    This code has now been tested against GMP for several million iterations without issues.
+    
+    Fixes #638.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/252041
+
+ src/pkg/big/int_test.go | 7 +++++--
+ src/pkg/big/nat.go      | 9 +++++++--
+ 2 files changed, 12 insertions(+), 4 deletions(-)

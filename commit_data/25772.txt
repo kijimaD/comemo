@@ -1,0 +1,38 @@
+commit b04f3b06ec347543b0eafe82dcfb0e05885d3feb
+Author: Nathan VanBenschoten <nvanbenschoten@gmail.com>
+Date:   Tue Dec 22 02:40:47 2015 -0500
+
+    all: replace strings.Index with strings.Contains where possible
+    
+    Change-Id: Ia613f1c37bfce800ece0533a5326fca91d99a66a
+    Reviewed-on: https://go-review.googlesource.com/18120
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/big/ratconv.go | 4 ++--
+ src/cmd/compile/internal/gc/bexport.go  | 2 +-
+ src/encoding/csv/writer.go              | 2 +-
+ src/encoding/gob/codec_test.go          | 2 +-
+ src/encoding/gob/encoder_test.go        | 8 ++++----
+ src/encoding/gob/gobencdec_test.go      | 4 ++--
+ src/encoding/xml/marshal.go             | 2 +-
+ src/fmt/scan_test.go                    | 8 ++++----
+ src/go/doc/comment.go                   | 2 +-
+ src/go/types/universe.go                | 2 +-
+ src/math/big/ratconv.go                 | 4 ++--
+ src/mime/grammar.go                     | 2 +-
+ src/net/http/fs.go                      | 2 +-
+ src/net/rpc/server_test.go              | 4 ++--
+ src/net/url/url.go                      | 2 +-
+ src/os/exec/lp_windows.go               | 2 +-
+ src/path/filepath/match.go              | 4 ++--
+ src/path/filepath/match_test.go         | 2 +-
+ src/path/match.go                       | 2 +-
+ src/regexp/regexp.go                    | 2 +-
+ src/regexp/syntax/regexp.go             | 2 +-
+ src/runtime/debug/stack_test.go         | 2 +-
+ src/text/template/exec.go               | 2 +-
+ src/text/template/funcs.go              | 2 +-
+ src/text/template/parse/lex.go          | 4 ++--
+ src/time/format_test.go                 | 2 +-
+ 26 files changed, 38 insertions(+), 38 deletions(-)

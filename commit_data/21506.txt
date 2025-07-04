@@ -1,0 +1,16 @@
+commit f961a99a35c180e90cf4cd9ae29947ccc1e0dfae
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Dec 26 01:24:42 2014 -0500
+
+    misc/ios: add README and wrapper script to ease cross-compiling for darwin/arm
+    
+    Fixes #837.
+    
+    Change-Id: I2d601504addbd220b304d32d587144d2a702f753
+    Reviewed-on: https://go-review.googlesource.com/2127
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/ios/README       | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ misc/ios/clangwrap.sh | 10 ++++++++++
+ 2 files changed, 54 insertions(+)

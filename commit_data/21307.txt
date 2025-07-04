@@ -1,0 +1,14 @@
+commit dc72db90ea880267ef4b8e3db71da410030fc1b5
+Author: Burcu Dogan <jbd@google.com>
+Date:   Fri Jan 16 16:53:13 2015 -0800
+
+    runtime/pprof: ignore CPU profile test failures in QEMU
+    
+    Fixes #9605
+    
+    Change-Id: Iafafa4c1362bbd1940f8e4fb979f72feae3ec3ad
+    Reviewed-on: https://go-review.googlesource.com/3000
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

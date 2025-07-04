@@ -1,0 +1,12 @@
+commit 01afb79c5960c746238c21b1eadc222af85d7c19
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 26 14:44:38 2012 -0800
+
+    FAQ: more words about why GOMAXPROCS>1 might not speed you up
+    
+    R=golang-dev, adg, gri
+    CC=golang-dev
+    https://golang.org/cl/5572067
+
+ doc/go_faq.html | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)

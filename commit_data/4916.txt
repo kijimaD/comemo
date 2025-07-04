@@ -1,0 +1,13 @@
+commit f5b8124bd9a29841d28e890d198dcb8391b7f86e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 22 14:30:45 2010 -0800
+
+    A+C: add Sergei Skorobogatov (individual CLA)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/218060
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

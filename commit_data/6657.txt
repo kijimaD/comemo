@@ -1,0 +1,24 @@
+commit 4e9cc085d28713097dd8f32e50205da59a7eaa08
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 28 16:54:24 2010 -0700
+
+    testing: eliminate testing/regexp
+    Rather than updating the stripped-down regexp implementation embedded
+    in testing, delete it by passing the one function we need from the package
+    main file created by gotest.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2761043
+
+ src/cmd/gotest/gotest              |   5 +-
+ src/pkg/Makefile                   |   1 +
+ src/pkg/exp/eval/eval_test.go      |   7 +-
+ src/pkg/fmt/scan_test.go           |   5 +-
+ src/pkg/io/ioutil/tempfile_test.go |   2 +-
+ src/pkg/testing/Makefile           |   1 -
+ src/pkg/testing/benchmark.go       |  14 +-
+ src/pkg/testing/regexp.go          | 751 -------------------------------------
+ src/pkg/testing/regexp_test.go     | 143 -------
+ src/pkg/testing/testing.go         |  14 +-
+ 10 files changed, 26 insertions(+), 917 deletions(-)

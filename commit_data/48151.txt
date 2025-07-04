@@ -1,0 +1,25 @@
+commit f14ad78e844d7dff286421754c462886336b1eb6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 10 20:09:07 2022 -0800
+
+    net: send EDNS(0) packet length in DNS query
+    
+    We used to only accept up to 512 bytes in a DNS packet, per RFC 1035.
+    Increase the size we accept to 1232 bytes, per https://dnsflagday.net/2020/,
+    and advertise that larger limit in a EDNS(0) OPT record.
+    
+    Fixes #6464
+    Fixes #21160
+    Fixes #44135
+    Fixes #51127
+    
+    Change-Id: I496a294e9a8015de4161cbc1825b0dc5b4e9f5d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385035
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/net/dnsclient_unix.go      | 19 +++++++++++++-
+ src/net/dnsclient_unix_test.go | 57 +++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 74 insertions(+), 2 deletions(-)

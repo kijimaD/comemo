@@ -1,0 +1,19 @@
+commit f1ebe8a03c397fd5a14dde71994f170c303bbf26
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sun Sep 4 01:39:16 2016 +0000
+
+    Revert "cmd/compile/internal/gc: clean up sinit.go"
+    
+    Revert to make josharians branch land cleanly
+    
+    This reverts commit 38abd43b6a4d215375901d137a3eac9d0d3393a5.
+    
+    Change-Id: Idde1df953baf6e5742c87c4edd4bee0b6b418aca
+    Reviewed-on: https://go-review.googlesource.com/28480
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/sinit.go | 83 +++++++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 2 files changed, 54 insertions(+), 31 deletions(-)

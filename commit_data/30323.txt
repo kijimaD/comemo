@@ -1,0 +1,14 @@
+commit 1e69aefb7e7ed34f8e425287b126b0f3edbf144e
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sat Feb 18 07:28:49 2017 +0000
+
+    net/url: document that Query returns only valid values
+    
+    Fixes #19110
+    
+    Change-Id: I291fa4ec3c61145162acd019e3f0e5dd3d7c97e9
+    Reviewed-on: https://go-review.googlesource.com/37194
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go | 2 ++
+ 1 file changed, 2 insertions(+)

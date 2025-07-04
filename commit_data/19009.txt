@@ -1,0 +1,15 @@
+commit 81bc9b3ffd8a51ba171eafb554aef2c9731196d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 2 16:55:30 2014 -0400
+
+    runtime: revert change to PoisonPtr value
+    
+    Submitted accidentally in CL 83630044.
+    Fixes various builds.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/83100047
+
+ src/pkg/runtime/malloc.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

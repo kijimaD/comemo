@@ -1,0 +1,36 @@
+commit 52dbffeac86863e1e0c9455b5b216ec50c828946
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 19 09:21:45 2023 -0500
+
+    cmd/go/internal/toolchain: revert "make a best effort to parse 'go run' and 'go install' flags"
+    
+    This caused other problems, and for the purposes of the Go 1.22
+    release, we can just roll back to the Go 1.21 behavior and then
+    decide in January what the correct path forward is.
+    
+    Revert of CL 546635.
+    
+    Unfixes #64282.
+    Fixes #64738.
+    For #57001.
+    
+    This reverts commit e44b8b15b19058b7a22a859ab4159f924856f688.
+    
+    Change-Id: I78753c76dcd0bc6dbc90caa17f73248c42e5f64a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/base/goflags.go                | 10 ++--
+ src/cmd/go/internal/modfetch/fetch.go              | 20 ++++----
+ src/cmd/go/internal/test/testflag.go               |  2 +-
+ src/cmd/go/internal/toolchain/exec.go              |  6 +--
+ src/cmd/go/internal/toolchain/select.go            | 56 ++++++++--------------
+ src/cmd/go/internal/vet/vetflag.go                 |  2 +-
+ src/cmd/go/main.go                                 |  2 +-
+ .../script/install_modcacherw_issue64282.txt       | 32 -------------
+ .../testdata/script/malformed_gosum_issue62345.txt |  2 +-
+ src/cmd/go/testdata/script/work_sum_mismatch.txt   |  4 +-
+ 10 files changed, 45 insertions(+), 91 deletions(-)

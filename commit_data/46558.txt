@@ -1,0 +1,20 @@
+commit 41bb7446dcc5179047512aa10c5e6d01eb870b54
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 22 13:38:05 2021 -0700
+
+    cmd/compile/internal/types2: don't panic if targs don't match tparams when substituting
+    
+    This is a clean port of CL 351337 from go/types to types2.
+    
+    Change-Id: I974bf79fcc1ec0016c38e4c0b361d05f7b44e649
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351466
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/named.go                      |  2 +-
+ src/cmd/compile/internal/types2/subst.go                      |  4 +++-
+ .../compile/internal/types2/testdata/fixedbugs/issue46461.go2 | 11 +++++++++++
+ .../compile/internal/types2/testdata/fixedbugs/issue48529.go2 | 11 +++++++++++
+ 4 files changed, 26 insertions(+), 2 deletions(-)

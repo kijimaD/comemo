@@ -1,0 +1,19 @@
+commit 8c4170b2c9d0769ee970aeedadde239cfe519059
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue May 1 12:10:14 2018 +0200
+
+    math/bits: move tests into their own package
+    
+    This makes math/bits not have any explicit imports even
+    when compiling tests and thereby avoids import cycles when
+    dependencies of testing want to import math/bits.
+    
+    Change-Id: I95eccae2f5c4310e9b18124abfa85212dfbd9daa
+    Reviewed-on: https://go-review.googlesource.com/110479
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/bits/bits_test.go   | 7 ++++---
+ src/math/bits/export_test.go | 7 +++++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

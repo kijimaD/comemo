@@ -1,0 +1,22 @@
+commit a9922d096f0de877fba68739b35367d4c25f6ecb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 10 16:10:27 2024 -0800
+
+    reflect: consistently document when value must be settable
+    
+    Fixes #70760
+    
+    Change-Id: Ia00723698b7e502fa2c63f8f1dbe1143af22e0a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634799
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/map_noswiss.go |  2 ++
+ src/reflect/map_swiss.go   |  2 ++
+ src/reflect/value.go       | 36 +++++++++++++++++++++++-------------
+ 3 files changed, 27 insertions(+), 13 deletions(-)

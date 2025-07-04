@@ -1,0 +1,29 @@
+commit beabd872f430b4048c12bab6102df13e8e10013f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 10:12:19 2016 -0800
+
+    cmd/compile: fix lineno restoration after SSA compilation
+    
+    Without SSA:
+    
+    $ go build -a -gcflags='-S -ssa=0' runtime 2>&1 | grep 'TEXT.*""\.init(SB)'
+            0x0000 00000 ($GOROOT/src/runtime/write_err.go:14)        TEXT    "".init(SB), $88-0
+    
+    With SSA, before this CL:
+    
+    $ go build -a -gcflags='-S -ssa=1' runtime 2>&1 | grep 'TEXT.*""\.init(SB)'
+            0x0000 00000 ($GOROOT/src/runtime/traceback.go:608)       TEXT    "".init(SB), $152-0
+    
+    With SSA, after this CL:
+    
+    $ go build -a -gcflags='-S -ssa=1' runtime 2>&1 | grep 'TEXT.*""\.init(SB)'
+            0x0000 00000 ($GOROOT/src/runtime/write_err.go:14)        TEXT    "".init(SB), $152-0
+    
+    Change-Id: Ida3541e03a1af6ffc753ee5c3abeb653459edbf6
+    Reviewed-on: https://go-review.googlesource.com/20321
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

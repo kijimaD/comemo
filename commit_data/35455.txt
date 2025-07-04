@@ -1,0 +1,46 @@
+commit e391faded721cdb136102d4e00725f9d775dc168
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 22 13:49:50 2018 -0400
+
+    runtime: fix defer matching of leaf functions on LR machines
+    
+    Traceback matches the defer stack with the function call stack using
+    the SP recorded in defer frames when the defer frame is created.
+    However, on LR machines this is ambiguous: if function A pushes a
+    defer and then calls function B, where B is a leaf function with a
+    zero-sized frame, then both A and B have the same SP and will *both*
+    match the defer on the defer stack. Since traceback unwinds through B
+    first, it will incorrectly match up the defer with B's frame instead
+    of A's frame.
+    
+    Where this goes particularly wrong is if function B causes a signal
+    that turns into a panic (e.g., a nil pointer dereference). In order to
+    handle the fact that we may not have a liveness map at the location
+    that caused the signal and injected a sigpanic call, traceback has
+    logic to unwind the panicking frame's continuation PC to the PC where
+    the most recent defer was pushed (this is safe because the frame is
+    dead other than any defers it pushed). However, if traceback
+    mis-matches the defer stack, it winds up reporting the B's
+    continuation PC is in A. If the runtime then uses this continuation PC
+    to look up PCDATA in B, it will panic because the PC is out of range
+    for B. This failure mode can be seen in
+    sync/atomic/atomic_test.go:TestNilDeref. An example failure is:
+    https://build.golang.org/log/8e07a762487839252af902355f6b1379dbd463c5
+    
+    This CL fixes all of this by recognizing that a function that pushes a
+    defer must also have a non-zero-sized frame and using this fact to
+    refine the defer matching logic.
+    
+    Fixes the build for arm64, mips, mipsle, ppc64, ppc64le, and s390x.
+    
+    Fixes #25499.
+    
+    Change-Id: Iff7c01d08ad42f3de22b3a73658cc2f674900101
+    Reviewed-on: https://go-review.googlesource.com/114078
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/stack_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/runtime/traceback.go  | 11 +++++++++--
+ 2 files changed, 42 insertions(+), 2 deletions(-)

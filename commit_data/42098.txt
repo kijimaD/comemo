@@ -1,0 +1,18 @@
+commit e47a17aeee8bea72b82eeceb5380805b2ba758b3
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Apr 23 11:12:04 2020 +0200
+
+    cmd/compile: convert remaining mips rules to typed aux
+    
+    Passes
+    
+      GOARCH=mips gotip build -toolexec 'toolstash -cmp' -a std
+      GOARCH=mipsle gotip build -toolexec 'toolstash -cmp' -a std
+    
+    Change-Id: I35df0522e299aa755491cd25f47f1f1bf447848c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229637
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/MIPS.rules |  510 +++++-----
+ src/cmd/compile/internal/ssa/rewriteMIPS.go | 1364 +++++++++++++--------------
+ 2 files changed, 921 insertions(+), 953 deletions(-)

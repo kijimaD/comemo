@@ -1,0 +1,12 @@
+commit 29e3ef88af1aa9cf75a6a006a72b48055a49050b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Nov 18 18:24:59 2011 -0500
+
+    cgo: document export of Go functions to C.
+    
+    R=mpimenov, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5376082
+
+ src/cmd/cgo/doc.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

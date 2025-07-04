@@ -1,0 +1,18 @@
+commit e7d238aaf44b420dc65c39f16733d57de8e9bbd1
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Mon Apr 17 12:39:37 2023 +0300
+
+    cmd/go/internal/vcweb: replace ioutil with os and io
+    
+    Change-Id: I251788cbbb6d740ef24e7561cc4bee880b7bdff8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/485017
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/vcweb/auth.go   | 4 ++--
+ src/cmd/go/internal/vcweb/fossil.go | 3 +--
+ 2 files changed, 3 insertions(+), 4 deletions(-)

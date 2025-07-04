@@ -1,0 +1,24 @@
+commit 3c1b7bc7212cd894dae684ae064f4e7708b080ec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 4 17:18:22 2018 -0700
+
+    go/types: fix internal comments and add additional test case
+    
+    https://go-review.googlesource.com/c/go/+/132355 addressed
+    a crash and inadvertently fixed #27346; however the comment
+    added to the type-checker was incorrect and misleading.
+    
+    This CL fixes the comment, and adds a test case for #27346.
+    
+    Fixes #27346.
+    Updates #22467.
+    
+    Change-Id: Ib6d5caedf302fd42929c4dacc55e973c1aebfe85
+    Reviewed-on: https://go-review.googlesource.com/133415
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rebecca Stambler <rstambler@golang.org>
+
+ src/go/types/expr.go             | 19 ++++++++++++-------
+ src/go/types/testdata/issues.src |  8 ++++++++
+ 2 files changed, 20 insertions(+), 7 deletions(-)

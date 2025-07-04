@@ -1,0 +1,40 @@
+commit d153df8e4b5874692f4948e9c8e10720446058e3
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Thu Oct 5 15:50:11 2017 +0200
+
+    all: revert "all: prefer strings.LastIndexByte over strings.LastIndex"
+    
+    This reverts https://golang.org/cl/66372.
+    
+    Updates #22148
+    
+    Change-Id: I3e94af3dfc11a2883bf28e1d5e1f32f98760b3ee
+    Reviewed-on: https://go-review.googlesource.com/68431
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/writer.go          | 2 +-
+ src/cmd/doc/main.go                | 2 +-
+ src/cmd/fix/fix.go                 | 2 +-
+ src/cmd/vet/print.go               | 2 +-
+ src/crypto/tls/handshake_client.go | 2 +-
+ src/crypto/tls/tls.go              | 2 +-
+ src/debug/gosym/symtab.go          | 8 ++++----
+ src/encoding/xml/marshal.go        | 2 +-
+ src/go/build/build.go              | 6 +++---
+ src/go/doc/testdata/testing.go     | 2 +-
+ src/go/printer/printer.go          | 2 +-
+ src/go/types/resolver.go           | 4 ++--
+ src/internal/trace/parser.go       | 2 +-
+ src/net/http/cookiejar/jar.go      | 6 +++---
+ src/net/http/cookiejar/jar_test.go | 2 +-
+ src/net/http/http.go               | 2 +-
+ src/net/http/request.go            | 4 ++--
+ src/net/http/transport.go          | 6 +++---
+ src/net/mail/message.go            | 2 +-
+ src/net/rpc/server.go              | 2 +-
+ src/net/url/url.go                 | 6 +++---
+ src/os/exec/lp_windows.go          | 2 +-
+ src/path/path.go                   | 4 ++--
+ src/testing/testing.go             | 2 +-
+ src/time/mono_test.go              | 2 +-
+ 25 files changed, 39 insertions(+), 39 deletions(-)

@@ -1,0 +1,14 @@
+commit 4439b21d0cf1fa3be7bd52ff79e83149f314458c
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Sep 2 10:36:01 2017 +0900
+
+    cmd/go: don't write file if -n option is given
+    
+    Change-Id: I01f5d3b4748d0ead8642ff3e53d1ae9c4378bcbc
+    Reviewed-on: https://go-review.googlesource.com/61111
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/build.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

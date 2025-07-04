@@ -1,0 +1,15 @@
+commit 182f91ffe02c924082f917e9db816818f0abbbf9
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Sep 3 14:40:22 2008 -0700
+
+    map literals
+    
+    R=r
+    OCL=14759
+    CL=14759
+
+ src/cmd/gc/go.h   |  4 ++--
+ src/cmd/gc/go.y   |  2 +-
+ src/cmd/gc/subr.c |  1 +
+ src/cmd/gc/walk.c | 55 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 56 insertions(+), 6 deletions(-)

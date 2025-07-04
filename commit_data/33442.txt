@@ -1,0 +1,20 @@
+commit b4c84a1b010f012668b5e3ccaf63f609cd11c5fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 16:09:46 2017 -0500
+
+    cmd/go: fix corner case missed rebuild of binary
+    
+    If the only thing changing in the binary is the embedded main.a action ID,
+    go install was declining to install the binary, but go list could see that the
+    binary needed reinstalling (was stale).
+    
+    Fixes #22531.
+    
+    Change-Id: I4a53b0ebd4c34aad907bab7da571fada545f3c6f
+    Reviewed-on: https://go-review.googlesource.com/76014
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/go_test.go            | 27 +++++++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go |  5 +++++
+ 2 files changed, 32 insertions(+)

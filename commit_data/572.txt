@@ -1,0 +1,14 @@
+commit f5cb258195f1627dd7da96d7483a41b5ecb61ccc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 3 16:41:31 2008 -0700
+
+    - clarification of type of array literals (always fixed array)
+    - clarification of const decl syntax
+    
+    R=r
+    DELTA=9  (4 added, 0 deleted, 5 changed)
+    OCL=14771
+    CL=14771
+
+ doc/go_spec.txt | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

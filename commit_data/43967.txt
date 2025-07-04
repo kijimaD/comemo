@@ -1,0 +1,18 @@
+commit 48d6275952184f1e858c2796d36c6b205d5d7e83
+Author: Austin Clements <austin@google.com>
+Date:   Sun Dec 6 21:20:15 2020 -0500
+
+    doc/go1.16: improve channel race detector changes description
+    
+    Based on text from Daniel Fava.
+    
+    For #40700.
+    
+    Change-Id: I0bc3a4340b8a777ff96d3cf226a7d51d3f65db2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275786
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Daniel Fava <danielsfava@gmail.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ doc/go1.16.html | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

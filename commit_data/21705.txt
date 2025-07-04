@@ -1,0 +1,24 @@
+commit 8f8d066bfd86c736e35f1c0e36ae01fb0bdd7190
+Author: Adam Langley <agl@golang.org>
+Date:   Mon Feb 23 14:51:40 2015 -0800
+
+    crypto/tls: allow larger initial records.
+    
+    Some servers which misunderstood the point of the CertificateRequest
+    message send huge reply records. These records are large enough that
+    they were considered “insane” by the TLS code and rejected.
+    
+    This change removes the sanity test for record lengths. Although the
+    maxCiphertext test still remains, just above, which (roughly) enforces
+    the 16KB protocol limit on record sizes:
+    https://tools.ietf.org/html/rfc5246#section-6.2.1
+    
+    Fixes #8928.
+    
+    Change-Id: Idf89a2561b1947325b7ddc2613dc2da638d7d1c9
+    Reviewed-on: https://go-review.googlesource.com/5690
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/conn.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

@@ -1,0 +1,19 @@
+commit e64d337726542492f5a3610229e4e112eda77389
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 30 15:26:53 2011 -0700
+
+    scanner: treat line comments like in Go
+    
+    - don't consume '\n' as part of line comment
+    (otherwise grammars where '\n' are tokens won't
+    see them after a line comment)
+    
+    - permit line comments to end in EOF
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4277089
+
+ src/pkg/scanner/scanner.go      | 43 ++++++++++----------------
+ src/pkg/scanner/scanner_test.go | 68 ++++++++++++++++++++++++++++-------------
+ 2 files changed, 62 insertions(+), 49 deletions(-)

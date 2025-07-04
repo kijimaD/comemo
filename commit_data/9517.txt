@@ -1,0 +1,39 @@
+commit f6a9807f565e4e7c4091833737ea77fa5eb3e412
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Fri Aug 26 17:42:59 2011 -0400
+
+    8g: fix build on Plan 9
+    
+    8g/cgen.c:
+    8g/gobj.c
+    . dropped unnecessary assignments;
+    8g/gg.h
+    . added varargckk pragmas;
+    8g/ggen.c
+    . dropped duplicate assignment;
+    8g/gsubr.c
+    . adjusted format in print statement;
+    . dropped unnecessary assignment;
+    . replaced GCC's _builtin_return_address(0) with Plan 9's
+      getcallerpc(&n) which is defined as a macro in <u.h>;
+    8g/list.c
+    . adjusted format in snprint statement;
+    8g/opt.h
+    . added varargck pragma (Adr*) that is specific for the invoking
+      modules;
+    8g/peep.c
+    . dropped unnecessary incrementation;
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4974044
+
+ src/cmd/8g/cgen.c  | 5 -----
+ src/cmd/8g/gg.h    | 2 ++
+ src/cmd/8g/ggen.c  | 1 -
+ src/cmd/8g/gobj.c  | 1 -
+ src/cmd/8g/gsubr.c | 5 ++---
+ src/cmd/8g/list.c  | 2 +-
+ src/cmd/8g/opt.h   | 2 ++
+ src/cmd/8g/peep.c  | 1 -
+ 8 files changed, 7 insertions(+), 12 deletions(-)

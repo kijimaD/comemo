@@ -1,0 +1,15 @@
+commit d2788dc50308104ae642bd3fc043f2faf9bb413f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 8 17:40:32 2014 -0700
+
+    syscall: fix comment in mkall_windows.bat
+    
+    src/pkg -> src
+    
+    LGTM=alex.brainman
+    R=alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/139400043
+
+ src/syscall/mkall_windows.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

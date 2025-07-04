@@ -1,0 +1,27 @@
+commit d183253572461eb0cfa46b847b4abd966deb39df
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 13 16:56:50 2019 +0000
+
+    runtime: check summary before scavenging in fast path
+    
+    In scavengeOne's fast path, we currently don't check the summary for the
+    chunk that scavAddr points to, which means that we might accidentally
+    scavenge unused address space if the previous scavenge moves the
+    scavAddr into that space. The result of this today is a crash.
+    
+    This change makes it so that scavengeOne's fast path only happens after
+    the check, following the comment in mpagealloc.go. It also adds a test
+    for this case.
+    
+    Fixes #35465.
+    Updates #35112.
+    
+    Change-Id: I861d44ee75e42a0e1f5aaec243bc449228273903
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206978
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/mgcscavenge.go      | 21 ++++++++++++++-------
+ src/runtime/mgcscavenge_test.go | 19 +++++++++++++++++++
+ 2 files changed, 33 insertions(+), 7 deletions(-)

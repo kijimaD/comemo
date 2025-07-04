@@ -1,0 +1,33 @@
+commit 44d22869a8df6419f894317b10c9f8329706467a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 30 23:10:35 2020 -0400
+
+    cmd/link: don't mark a symbol's Gotype reachable
+    
+    A symbol being reachable doesn't imply its type descriptor is
+    needed. Don't mark it.
+    
+    If the type is converted to interface somewhere in the program,
+    there will be an explicit use of the type descriptor, which
+    will make it marked.
+    
+    A println("hello") program before and after
+    
+    -rwxr-xr-x  1 cherryyz  primarygroup  1259824 Apr 30 23:00 hello
+    -rwxr-xr-x  1 cherryyz  primarygroup  1169680 Apr 30 23:10 hello
+    
+    Updates #38782.
+    Updates #6853.
+    
+    Change-Id: I88884c126ce75ba073f1ba059c4b892c87d2ac96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231397
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/link/internal/ld/deadcode.go               | 11 ++++-
+ src/cmd/link/internal/ld/deadcode_test.go          | 54 +++++++++-------------
+ .../internal/ld/testdata/deadcode/reflectcall.go   | 24 ++++++++++
+ .../link/internal/ld/testdata/deadcode/typedesc.go | 16 +++++++
+ 4 files changed, 71 insertions(+), 34 deletions(-)

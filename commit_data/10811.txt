@@ -1,0 +1,14 @@
+commit 7e6890a670e676f8040e690c7dc1409d0972bf22
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Dec 15 17:50:59 2011 +0100
+
+    gc: inlining, allow empty bodies, fix _ arguments.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5487077
+
+ src/cmd/gc/fmt.c | 4 ++++
+ src/cmd/gc/inl.c | 6 +++---
+ test/cmp.go      | 3 ++-
+ 3 files changed, 9 insertions(+), 4 deletions(-)

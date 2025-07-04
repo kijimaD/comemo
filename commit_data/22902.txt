@@ -1,0 +1,12 @@
+commit 5e80fc640bef471c60df350f709cfc7183a84adc
+Author: Burcu Dogan <jbd@google.com>
+Date:   Wed May 6 10:41:12 2015 -0400
+
+    CONTRIBUTORS: add Burcu Dogan's personal mail
+    
+    Change-Id: I2bc92f6d33db44f96df4219e6144393d5150fe0f
+    Reviewed-on: https://go-review.googlesource.com/9785
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 55c0ad4b62289e243e37d86e9cc16ae8289bd8b0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 11 13:25:29 2019 +0700
+
+    cmd/compile: allow iota inside function in a ConstSpec
+    
+    Fixes #22344
+    
+    Change-Id: I7c400d9d4ebcab279d08a8c190508d82cbd20899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194717
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/closure.go   |  6 +++
+ src/cmd/compile/internal/gc/syntax.go    |  1 +
+ src/cmd/compile/internal/gc/typecheck.go | 22 +++++++--
+ test/fixedbugs/issue22344.go             | 83 ++++++++++++++++++++++++++++++++
+ 4 files changed, 108 insertions(+), 4 deletions(-)

@@ -1,0 +1,58 @@
+commit 846f925464e20fe9c09b289aefa4db0cdcd886b0
+Author: haya14busa <haya14busa@gmail.com>
+Date:   Wed Mar 29 13:51:00 2017 +0900
+
+    cmd/go: add -json flag to go env
+    
+    "go env" prints Go environment information as a shell script format by
+    default but it's difficult for some tools (e.g. editor packages) to
+    interpret it.
+    
+    The -json flag prints the environment in JSON format which
+    can be easily interpreted by a lot of tools.
+    
+    $ go env -json
+    {
+            "CC": "gcc",
+            "CGO_CFLAGS": "-g -O2",
+            "CGO_CPPFLAGS": "",
+            "CGO_CXXFLAGS": "-g -O2",
+            "CGO_ENABLED": "1",
+            "CGO_FFLAGS": "-g -O2",
+            "CGO_LDFLAGS": "-g -O2",
+            "CXX": "g++",
+            "GCCGO": "gccgo",
+            "GOARCH": "amd64",
+            "GOBIN": "/home/haya14busa/go/bin",
+            "GOEXE": "",
+            "GOGCCFLAGS": "-fPIC -m64 -pthread -fmessage-length=0 -fdebug-prefix-map=/tmp/go-build498013955=/tmp/go-build -gno-record-gcc-switches",
+            "GOHOSTARCH": "amd64",
+            "GOHOSTOS": "linux",
+            "GOOS": "linux",
+            "GOPATH": "/home/haya14busa",
+            "GORACE": "",
+            "GOROOT": "/home/haya14busa/src/go.googlesource.com/go",
+            "GOTOOLDIR": "/home/haya14busa/src/go.googlesource.com/go/pkg/tool/linux_amd64",
+            "PKG_CONFIG": "pkg-config"
+    }
+    
+    Also, it supports arguments with -json flag.
+    
+    $ go env -json GOROOT GOPATH GOBIN
+    {
+            "GOBIN": "/home/haya14busa/go/bin",
+            "GOPATH": "/home/haya14busa",
+            "GOROOT": "/home/haya14busa/src/go.googlesource.com/go"
+    }
+    
+    Fixes #12567
+    
+    Change-Id: I75db3780f14a8ab8c7fa58cc3c9cc488ef7b66a1
+    Reviewed-on: https://go-review.googlesource.com/38757
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/deps.go              |  4 ++--
+ src/cmd/go/internal/envcmd/env.go | 46 +++++++++++++++++++++++++++++++++++----
+ 2 files changed, 44 insertions(+), 6 deletions(-)

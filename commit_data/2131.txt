@@ -1,0 +1,14 @@
+commit 5963f59067914162ff44bfc512bbd19879b91ab1
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun May 3 19:09:14 2009 -0700
+
+    more morestack fiddling
+    
+    R=r
+    OCL=28204
+    CL=28204
+
+ src/cmd/6l/pass.c       | 95 +++++++++++++++++++++++++++++++------------------
+ src/cmd/ld/go.c         | 25 +++++++++++--
+ src/runtime/amd64/asm.s | 39 ++++++++++++++++++++
+ 3 files changed, 123 insertions(+), 36 deletions(-)

@@ -1,0 +1,19 @@
+commit 0568cda10aa9a3b26e519da15bcff18ab6ef974d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Oct 16 14:50:22 2024 +0200
+
+    crypto/internal/mlkem768: move field implementation to its own file
+    
+    Change-Id: Id2676f1fd446feda506a3f1d4fbdadffe87ecc95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621978
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ src/crypto/internal/mlkem768/field.go         | 456 ++++++++++++++++++++++++++
+ src/crypto/internal/mlkem768/field_test.go    | 191 +++++++++++
+ src/crypto/internal/mlkem768/mlkem768.go      | 445 -------------------------
+ src/crypto/internal/mlkem768/mlkem768_test.go | 182 ----------
+ 4 files changed, 647 insertions(+), 627 deletions(-)

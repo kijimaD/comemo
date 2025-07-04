@@ -1,0 +1,15 @@
+commit d2aa74118c0d81a866be14bdd1004a12123868f4
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue May 18 22:41:12 2010 -0700
+
+    gc: Better error when computing remainder of non-int
+    
+    Previously the compiler would just emit "internal compiler error" when
+    trying to compute the remainder of floats or complex types.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1243041
+
+ src/cmd/gc/align.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

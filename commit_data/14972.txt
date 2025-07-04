@@ -1,0 +1,32 @@
+commit f86ae990e859e026475380f0a1e0c86203d7a0d5
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Jan 23 14:15:51 2013 +0100
+
+    exp/locale/collate: preparation for adding Search API. Also changed the collate API
+    further to how (I believe) it will end up being.
+    It is nicer to separate search from sorting functionality. Collation needs tables that
+    are not needed by search and vice-versa.  The common functionality is separated out
+    in the Weigher interface.  As this interface is very low-level, it will be moved to
+    a sub package (colltab) in a next CL.
+    The types that will move to this package are Weigher, Elem, and Level.  The addition
+    of Elem allows for removing some of the duplicate code between collate and collate/build.
+    This CL also introduces some stubs for a higher-level API for options. The default
+    proposed options are quite complex and require the user to have a decent understanding
+    of Unicode collation.  The new options hide a lot of the complexity.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7058051
+
+ src/pkg/exp/locale/collate/build/builder.go |   6 +-
+ src/pkg/exp/locale/collate/build/table.go   |  20 +--
+ src/pkg/exp/locale/collate/colelem.go       | 125 +++++++++-----
+ src/pkg/exp/locale/collate/colelem_test.go  |  68 ++++----
+ src/pkg/exp/locale/collate/collate.go       | 244 +++++++++++++---------------
+ src/pkg/exp/locale/collate/colltab.go       |  28 ++++
+ src/pkg/exp/locale/collate/export.go        |  11 +-
+ src/pkg/exp/locale/collate/export_test.go   |  18 +-
+ src/pkg/exp/locale/collate/table.go         | 116 ++++++++++++-
+ src/pkg/exp/locale/collate/tables.go        |  11 +-
+ src/pkg/exp/locale/collate/trie.go          |  12 +-
+ 11 files changed, 395 insertions(+), 264 deletions(-)

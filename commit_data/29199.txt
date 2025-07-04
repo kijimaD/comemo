@@ -1,0 +1,18 @@
+commit 2a7272b42230c0d55c1ec243d123fea9ba035063
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 22:18:02 2016 -0400
+
+    runtime/trace: deflake TestTraceSymbolize
+    
+    Waiting 2ms for all the kicked-off goroutines to run and block
+    seems a little optimistic. No harm done by waiting for 200ms instead.
+    
+    Fixes #17238.
+    
+    Change-Id: I827532ea2f5f1f3ed04179f8957dd2c563946ed0
+    Reviewed-on: https://go-review.googlesource.com/32103
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/trace/trace_stack_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

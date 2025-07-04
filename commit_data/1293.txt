@@ -1,0 +1,20 @@
+commit 26b357ca5b4555225803668a88c6d7145eeab59b
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Dec 5 18:24:05 2008 -0800
+
+    range statement
+    
+    R=r
+    OCL=20667
+    CL=20667
+
+ src/cmd/gc/dcl.c       |   2 +-
+ src/cmd/gc/go.h        |  28 ++++++++++++
+ src/cmd/gc/go.y        |  48 +++++----------------
+ src/cmd/gc/sys.go      |   8 +++-
+ src/cmd/gc/sysimport.c |   6 ++-
+ src/cmd/gc/walk.c      | 104 +++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/hashmap.c  |  85 ++++++++++++++++++++++++++++++++++++-
+ src/runtime/hashmap.h  |  25 +++++------
+ test/ken/range.go      | 113 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 9 files changed, 364 insertions(+), 55 deletions(-)

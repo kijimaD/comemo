@@ -1,0 +1,26 @@
+commit d56199d68e3f34d88dac92997662dc6d6ab6ae14
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 11:45:38 2019 -0400
+
+    cmd/vendor: import vet fixes from x/tools
+    
+    Fixes build - I did not understand that vetall was
+    effectively pinned to a vet version by cmd/go.mod.
+    
+    Change-Id: I56bfd8f62eadacc97cad0ed48e41a178bbc18b8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176179
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  5 +--
+ .../golang.org/x/tools/go/analysis/analysis.go     | 22 +++++++++++++
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  | 36 +++++++++++++++++-----
+ .../go/analysis/passes/lostcancel/lostcancel.go    | 17 +++++++++-
+ .../x/tools/go/analysis/passes/printf/printf.go    | 16 +++++++---
+ .../go/analysis/passes/stdmethods/stdmethods.go    |  7 +++++
+ .../go/analysis/passes/structtag/structtag.go      |  7 +++++
+ .../go/analysis/passes/unmarshal/unmarshal.go      |  7 +++++
+ src/cmd/vendor/modules.txt                         |  2 +-
+ src/cmd/vet/all/main.go                            |  2 +-
+ 11 files changed, 106 insertions(+), 17 deletions(-)

@@ -1,0 +1,12 @@
+commit aee4f42a2bab915f617ff9d1be51b1514af2a50f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 20 19:46:12 2015 -0700
+
+    doc: add missing preposition in go1.5.html
+    
+    Change-Id: I2f855b9ad1676b3c4efedd764ce99e21c104a4ec
+    Reviewed-on: https://go-review.googlesource.com/12446
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

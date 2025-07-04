@@ -1,0 +1,17 @@
+commit 2bc2b1031483330cbe9620ca819fa45b014686d3
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 16 14:32:19 2017 -0400
+
+    cmd/go: make TestBuildDashIInstallsDependencies not depend only on time
+    
+    When we make the go command pay attention to content
+    instead of time, we want this test to continue working.
+    
+    Change-Id: Ib7d9d0d62bfe87810d71bdfc4f29561a8c70eccc
+    Reviewed-on: https://go-review.googlesource.com/56273
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

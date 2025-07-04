@@ -1,0 +1,27 @@
+commit c8ab8c1f99123173aa8840f82f2eb947f7353617
+Author: Ben Shi <powerman1st@163.com>
+Date:   Sat May 27 10:00:55 2017 +0000
+
+    cmd/internal/obj/arm:  fix constant decomposition
+    
+    There are two issues in constant decomposition.
+    
+    1. A typo in "func immrot2s" blocks "case 107" of []optab be triggered.
+    
+    2. Though "ADD $0xffff, R0, R0" is decomposed to "ADD $0xff00, R0, R0" and
+       "ADD $0x00ff, R0, R0" as expected, "ADD $0xffff, R0" still uses the
+       constant pool, which should be the same as "ADD $0xffff, R0, R0".
+    
+    This patch fixes them and adds more instruction encoding tests.
+    
+    fix #20516
+    
+    Change-Id: Icd7bdfa1946b29db15580dcb429111266f1384c6
+    Reviewed-on: https://go-review.googlesource.com/44335
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm.s | 117 ++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/arm/asm5.go        |  11 ++-
+ 2 files changed, 127 insertions(+), 1 deletion(-)

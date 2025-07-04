@@ -1,0 +1,21 @@
+commit 2326a668781a664707f5775d896879668ab378e8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue May 21 15:00:50 2019 -0400
+
+    crypto/x509: fix and cleanup loadSystemRoots on macOS
+    
+    Note how untrustedData is never NULL, so loadSystemRoots was checking
+    the wrong thing.
+    
+    Also, renamed the C function to CopyPEMRoots to follow the
+    CoreFoundation naming convention on ownership.
+    
+    Finally, redirect all debug output to standard error.
+    
+    Change-Id: Ie80abefadf8974a75c0646aa02fcfcebcbe3bde8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178538
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/x509/root_cgo_darwin.go  | 39 ++++++++++++++++++-------------------
+ src/crypto/x509/root_darwin_test.go |  6 ++----
+ 2 files changed, 21 insertions(+), 24 deletions(-)

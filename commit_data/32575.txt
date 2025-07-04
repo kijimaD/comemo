@@ -1,0 +1,31 @@
+commit 7846500a5a7659615051fe46dee481bde623989f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 30 12:11:29 2017 -0400
+
+    cmd/compile: remove redundant constant shift rules
+    
+    Normal shift rules plus constant folding are enough to generate
+    efficient shift-by-constant instructions.
+    
+    Add test to make sure we don't generate comparisons for constant
+    shifts.
+    
+    TODO: there are still constant shift rules on PPC64. If they
+    are removed, the constant folding rules are not enough to remove
+    all the test and mask stuff for constant shifts. Leave them in
+    for now.
+    
+    Fixes #20663.
+    
+    Change-Id: I724cc324aa8607762d0c8aacf9bfa641bda5c2a1
+    Reviewed-on: https://go-review.googlesource.com/60330
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go       |  29 ++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules  | 148 +++---
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules | 118 ++---
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 650 ++++----------------------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 192 ++++----
+ 5 files changed, 339 insertions(+), 798 deletions(-)

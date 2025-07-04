@@ -1,0 +1,30 @@
+commit e9fd40a866e9e47ba65976d4cfeaeef7eaf76266
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 10 13:13:14 2022 -0700
+
+    go/types: add errorcalls_test, apply it, and fix errorf call sites
+    
+    The errorcalls_test makes sure that we use error instead of errorf
+    where possible. Copied from types2 and adjusted for go/types.
+    
+    Change-Id: Ib0572308c87e4415bf89aec8d64e662abe94754b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/441958
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/types/builtins.go        | 12 +++++-----
+ src/go/types/check.go           |  2 +-
+ src/go/types/decl.go            |  2 +-
+ src/go/types/errorcalls_test.go | 53 +++++++++++++++++++++++++++++++++++++++++
+ src/go/types/expr.go            |  8 +++----
+ src/go/types/index.go           |  6 ++---
+ src/go/types/interface.go       |  4 ++--
+ src/go/types/mono.go            |  2 +-
+ src/go/types/resolver.go        | 12 +++++-----
+ src/go/types/signature.go       |  6 ++---
+ src/go/types/stmt.go            | 20 ++++++++--------
+ src/go/types/typexpr.go         |  2 +-
+ src/go/types/version.go         |  8 +++----
+ 13 files changed, 95 insertions(+), 42 deletions(-)

@@ -1,0 +1,22 @@
+commit 3f5b02d09f0d345c2d6bef83eddbd518e9327276
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 16 20:24:03 2022 -0500
+
+    cmd/fix: allow cgo commands in tests to fail if 'go build' is not supported
+    
+    testenv.HasCgo reports whether the test binary may have been built
+    with cgo enabled, but having been built with cgo does not necessarily
+    imply that the test can invoke the cgo tool itself.
+    
+    This should fix a test failure on the android builders introduced in
+    CL 450714.
+    
+    Change-Id: I2eed4098736e1cb285ca20bc248b0ab3515f0dea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451221
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/fix/main_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

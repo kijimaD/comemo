@@ -1,0 +1,17 @@
+commit f9df4ea0c9426eecb93375d31e36cccf95b46e1f
+Author: Dan Scales <danscales@google.com>
+Date:   Thu Jan 20 13:33:28 2022 -0800
+
+    cmd/compile: improve comments, mainly in cmd/compile/internal/types
+    
+    Add some useful comments, mainly relates to types.Type. (No non-comment
+    changes.)
+    
+    Change-Id: I3665ed69b180c4e790af2f9243f65c805083391a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379918
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go |  2 ++
+ src/cmd/compile/internal/types/type.go     | 33 ++++++++++++++++++++++--------
+ 2 files changed, 27 insertions(+), 8 deletions(-)

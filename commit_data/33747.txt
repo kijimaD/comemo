@@ -1,0 +1,21 @@
+commit 9cc9f1085561400425cc9705d041d37398666156
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 29 11:40:52 2017 -0500
+
+    archive/zip: add test for Modified vs ModTime behavior
+    
+    Lock in fix for #22738, submitted in CL 78031.
+    
+    Fixes #22738.
+    
+    Change-Id: I6896feb158569e3f12fa7055387cbd7caad29ef4
+    Reviewed-on: https://go-review.googlesource.com/80635
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/archive/zip/reader_test.go          | 371 +++++++++++++++++---------------
+ src/archive/zip/testdata/time-22738.zip | Bin 0 -> 140 bytes
+ src/archive/zip/writer_test.go          |   2 +-
+ 3 files changed, 197 insertions(+), 176 deletions(-)

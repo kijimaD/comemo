@@ -1,0 +1,13 @@
+commit 9c497443ae0aca6ae5b66dfa6d3127c8605bd3a8
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Jan 30 16:32:48 2012 -0200
+
+    encoding/xml: fix decoding of xml.Name with sub-elements
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5569090
+
+ src/pkg/encoding/xml/marshal_test.go | 5 +++++
+ src/pkg/encoding/xml/read.go         | 5 +++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)

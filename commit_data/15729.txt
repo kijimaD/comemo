@@ -1,0 +1,12 @@
+commit 4e6e9f9b28bf7f76a8164efdf812c23923558df5
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue Mar 12 22:25:15 2013 +0100
+
+    test/bench/garbage: fix parser benchmark
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7762046
+
+ test/bench/garbage/parser.go | 1 -
+ 1 file changed, 1 deletion(-)

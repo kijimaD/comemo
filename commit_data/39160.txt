@@ -1,0 +1,37 @@
+commit 38431f1044880b936e35034ded19a6a8bc9faa21
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 9 21:56:53 2019 -0400
+
+    cmd/go: do not build test packages unnecessarily during go vet
+    
+    Vet needs export data for the imports of the package it is analyzing.
+    Vet does not need export data for the package itself, since vet will
+    do its own type checking. Assuming that vet is just as good as the compiler
+    at detecting invalid programs, don't run the compiler unnecessarily.
+    
+    This especially matters for tests without external test files or for
+    which the external test files do not import the test-augmented original
+    package. In that case, the test-augmented original package need not
+    be compiled at all.
+    
+    Cuts time for 'go clean -cache && go vet -x cmd/compile/internal/ssa'
+    from 7.6r 24.3u 2.8s to 3.5r 8.5u 1.9s, by not running the compiler
+    on the augmented test package.
+    
+    There is still more to be done here - if we do need to build a
+    test-augmented package, we rerun cgo unnecessarily.
+    But this is a big help.
+    
+    Cuts time for 'go vet std cmd' by about 30%.
+    
+    For #31916.
+    
+    Change-Id: If6136b4d384f1da77aed90b43f1a6b95f09b5d86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176438
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go              | 10 +++++++--
+ src/cmd/go/internal/work/action.go | 29 ++++++++++++++++++++-----
+ src/cmd/go/internal/work/exec.go   | 43 +++++++++++++++++++-------------------
+ 3 files changed, 53 insertions(+), 29 deletions(-)

@@ -1,0 +1,18 @@
+commit 59abd0e88b4aecad099f21d00afbb50a78edc4c5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 25 16:41:17 2023 -0700
+
+    doc/go1.22: mention new #cgo directives
+    
+    For #56378
+    
+    Change-Id: I0c9c662c6d765cad6f7bf17fdd648db8d73e429b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522937
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.22.html | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

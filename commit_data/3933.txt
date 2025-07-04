@@ -1,0 +1,12 @@
+commit 9f42ccb7819d7ffee449b26c0c9246c9993072f9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 9 15:25:18 2009 -0800
+
+    error rewording suggested by robert.
+    update comment.
+    
+    R=ken
+    http://go/go-review/1025031
+
+ src/cmd/gc/go.y | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)

@@ -1,0 +1,13 @@
+commit b813ee0e44cc10f75fe2bbfae991797a7e799f6e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 5 15:01:54 2009 -0800
+
+    revert QualifiedIdent to old production
+    
+    R=r
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=25732
+    CL=25777
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

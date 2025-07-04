@@ -1,0 +1,21 @@
+commit 2c23b0fdcbf640462c39118230d49b450eab327c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Mar 12 02:08:45 2023 +1100
+
+    cmd/dist: add openbsd/ppc64 as a known GOOS/GOARCH
+    
+    Also map uname output containing powerpc64 to ppc64 on openbsd.
+    
+    Updates #56001
+    
+    Change-Id: I6a4470cb0e5d6c6940d5268a6a06d23430c7859a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475635
+    Reviewed-by: Eric Grosse <grosse@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 1 +
+ src/cmd/dist/main.go  | 2 ++
+ 2 files changed, 3 insertions(+)

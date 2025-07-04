@@ -1,0 +1,36 @@
+commit e57350f4c091c80333d37b2ba5af50de193147fa
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 8 15:40:28 2017 -0500
+
+    runtime: fix _cgo_yield usage with sysmon and on BSD
+    
+    There are a few problems from change 35494, discovered during testing
+    of change 37852.
+    
+    1. I was confused about the usage of n.key in the sema variant, so we
+       were looping on the wrong condition. The error was not caught by
+       the TryBots (presumably due to missing TSAN coverage in the BSD and
+       darwin builders?).
+    
+    2. The sysmon goroutine sometimes skips notetsleep entirely, using
+       direct usleep syscalls instead. In that case, we were not calling
+       _cgo_yield, leading to missed signals under TSAN.
+    
+    3. Some notetsleep calls have long finite timeouts. They should be
+       broken up into smaller chunks with a yield at the end of each
+       chunk.
+    
+    updates #18717
+    
+    Change-Id: I91175af5dea3857deebc686f51a8a40f9d690bcc
+    Reviewed-on: https://go-review.googlesource.com/37867
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/test.bash |  9 ++-----
+ misc/cgo/testsanitizers/tsan11.go | 55 +++++++++++++++++++++++++++++++++++++++
+ src/runtime/lock_futex.go         |  6 +++++
+ src/runtime/lock_sema.go          | 11 +++++---
+ src/runtime/proc.go               |  4 +++
+ 5 files changed, 75 insertions(+), 10 deletions(-)

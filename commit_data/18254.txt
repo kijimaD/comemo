@@ -1,0 +1,12 @@
+commit 71377d3cd3a8e9cc97258c3252717e8f0165e7fa
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 14 15:34:27 2014 -0800
+
+    cmd/ld: document the -w flag, which disables DWARF generation
+    
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/52360044
+
+ src/cmd/ld/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

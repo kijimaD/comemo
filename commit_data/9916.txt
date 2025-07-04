@@ -1,0 +1,17 @@
+commit c832ecf03eb5df16949b785ac017eb2dcb205ba1
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 10 12:38:49 2011 -0700
+
+    gob: avoid one copy for every message written.
+    Plus the need for a second in-memory buffer.
+    Plays a bit fast and loose with the contents of a byte buffer,
+    but saves a potentially huge allocation. The gotest
+    run is about 10% faster overall after this change.
+    
+    R=golang-dev, r, gri
+    CC=golang-dev
+    https://golang.org/cl/5236043
+
+ src/pkg/gob/encode.go  |  1 +
+ src/pkg/gob/encoder.go | 36 ++++++++++++++++++++++--------------
+ 2 files changed, 23 insertions(+), 14 deletions(-)

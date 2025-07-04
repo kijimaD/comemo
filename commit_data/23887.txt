@@ -1,0 +1,40 @@
+commit 87f97c73d37d41e8de261215f7dc7768697246b5
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 28 14:33:39 2015 -0400
+
+    runtime: avoid race between SIGPROF traceback and stack barriers
+    
+    The following sequence of events can lead to the runtime attempting an
+    out-of-bounds access on a stack barrier slice:
+    
+    1. A SIGPROF comes in on a thread while the G on that thread is in
+       _Gsyscall. The sigprof handler calls gentraceback, which saves a
+       local copy of the G's stkbar slice. Currently the G has no stack
+       barriers, so this slice is empty.
+    
+    2. On another thread, the GC concurrently scans the stack of the
+       goroutine being profiled (it considers it stopped because it's in
+       _Gsyscall) and installs stack barriers.
+    
+    3. Back on the sigprof thread, gentraceback comes across a stack
+       barrier in the stack and attempts to look it up in its (zero
+       length) copy of G's old stkbar slice, which causes an out-of-bounds
+       access.
+    
+    This commit fixes this by adding a simple cas spin to synchronize the
+    SIGPROF handler with stack barrier insertion.
+    
+    In general I would prefer that this synchronization be done through
+    the G status, since that's how stack scans are otherwise synchronized,
+    but adding a new lock is a much smaller change and G statuses are full
+    of subtlety.
+    
+    Fixes #11863.
+    
+    Change-Id: Ie89614a6238bb9c6a5b1190499b0b48ec759eaf7
+    Reviewed-on: https://go-review.googlesource.com/12748
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc1.go    | 12 ++++++++++++
+ src/runtime/runtime2.go |  1 +
+ 2 files changed, 13 insertions(+)

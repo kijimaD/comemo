@@ -1,0 +1,20 @@
+commit fc8e77ca65ab7d4dfd6fd58ad67145f253aab829
+Author: Kyle Isom <kyle@gokyle.net>
+Date:   Thu Feb 13 12:54:04 2014 -0500
+
+    crypto/x509: Add certificate signature request (CSR) support.
+    
+    This change adds support for parsing and serialisation of PKCS #10,
+    certificate signature requests.
+    
+    LGTM=agl
+    R=golang-codereviews, agl
+    CC=agl, golang-codereviews, nick
+    https://golang.org/cl/49830048
+
+ src/pkg/crypto/x509/pkix/pkix.go   |   7 +
+ src/pkg/crypto/x509/x509.go        | 567 +++++++++++++++++++++++++++++--------
+ src/pkg/crypto/x509/x509_test.go   | 214 +++++++++++++-
+ src/pkg/encoding/asn1/asn1.go      |  14 +
+ src/pkg/encoding/asn1/asn1_test.go |   4 +
+ 5 files changed, 691 insertions(+), 115 deletions(-)

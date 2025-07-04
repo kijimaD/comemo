@@ -1,0 +1,16 @@
+commit 1473789b74d69ba3d27c4880d2a8b442151e784d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 18 17:17:26 2018 +0000
+
+    net/http: remove stderr log spam in test
+    
+    Fixes #24831
+    
+    Change-Id: Icd39093d1b7d9b25aa8374c0298cdb1dea48e672
+    Reviewed-on: https://go-review.googlesource.com/107817
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/net/http/transport_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,16 @@
+commit c4aa9c5c4ef32cdc65d29ac7e7cfa96fdbf7d394
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Aug 29 13:55:30 2013 -0700
+
+    regexp: fix a benchmark case
+    
+    I noticed that this one benchmark in particular was very
+    noisy.  Looking into it, I saw that the table was wrong
+    and inconsistent with the lines above and below.
+    
+    R=golang-dev, crawshaw
+    CC=golang-dev
+    https://golang.org/cl/13393045
+
+ src/pkg/regexp/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

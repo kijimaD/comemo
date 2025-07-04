@@ -1,0 +1,28 @@
+commit cfb281754ec94859e86962ee3a66b8347e3161ab
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Nov 7 10:28:56 2023 -0500
+
+    cmd/compile/internal/inline: revise -m=2 status messages
+    
+    This patch revises the compiler's "-m=2" status messages related to
+    inlining. The "can inline" remarks will continue to use the same
+    format, but the remarks when a specific call site is inlined will be
+    changed to refer to the score used; before we had
+    
+      runtime/traceback.go:1131:28: inlining call to gotraceback
+      runtime/traceback.go:1183:25: inlining call to readgstatus
+    
+    and with GOEXPERIMENT=newinliner the new messages will be:
+    
+      runtime/traceback.go:1131:28: inlining call to gotraceback with score 62
+      runtime/traceback.go:1183:25: inlining call to readgstatus with score 9
+    
+    Change-Id: Ia86cf5351d29eda64a5426ca0a2a2ec0c2900d81
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540775
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/inline/inl.go             | 71 ++++++++++++++--------
+ src/cmd/compile/internal/inline/inlheur/analyze.go |  2 +-
+ src/cmd/compile/internal/inline/inlheur/scoring.go | 12 +++-
+ 3 files changed, 55 insertions(+), 30 deletions(-)

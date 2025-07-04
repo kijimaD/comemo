@@ -1,0 +1,19 @@
+commit 505dff4fe260cc0b92482cfcf6d4dce233d2b10d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 10 17:25:58 2023 +0000
+
+    internal/trace/v2: disable TestTrace* tests on Windows for now
+    
+    There are a couple known issues here. Disable the tests for now so it's
+    not blocking anyone.
+    
+    For #64061.
+    
+    Change-Id: Iaaa9007b93ea78739cb7d2b59b2a1715de29d72b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541197
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/internal/trace/v2/trace_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

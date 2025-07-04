@@ -1,0 +1,15 @@
+commit f0a31b5fc2e64ad1c597a5efc72749ab77058b87
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Thu Sep 6 13:16:02 2012 +0900
+
+    exp/locale/collate/build: moved some of the code to the appropriate file, as
+    promised in CL 13985.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6503071
+
+ src/pkg/exp/locale/collate/build/builder.go | 176 +---------------------------
+ src/pkg/exp/locale/collate/build/colelem.go |  80 +++++++++++++
+ src/pkg/exp/locale/collate/build/order.go   |  79 ++++++++++++-
+ 3 files changed, 163 insertions(+), 172 deletions(-)

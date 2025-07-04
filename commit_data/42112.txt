@@ -1,0 +1,19 @@
+commit 1cc46d3a255ee0ecbb2b602095e6e4ec4d22fd61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 22 16:03:30 2020 -0700
+
+    runtime: sleep in TestSegv program to let signal be delivered
+    
+    Since we're sleeping rather than waiting for the goroutines,
+    let the goroutines run forever.
+    
+    Fixes #38595
+    
+    Change-Id: I4cd611fd7565f6e8d91e50c9273d91c514825314
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229484
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/runtime/testdata/testprogcgo/segv.go | 18 +++++++-----------
+ 1 file changed, 7 insertions(+), 11 deletions(-)

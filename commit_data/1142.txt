@@ -1,0 +1,12 @@
+commit b7f01f9f41c8aae377fc0592e9c6bed2e6fe577c
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Nov 17 12:55:22 2008 -0800
+
+    silence compiler warning
+    
+    R=r
+    OCL=19382
+    CL=19382
+
+ src/cmd/6g/gen.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

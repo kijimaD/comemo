@@ -1,0 +1,25 @@
+commit 039d455f9d3d5d5109424f15d86b7f9b63768b42
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Feb 24 19:00:10 2016 +0100
+
+    cmd/compile: don't use duffzero on Plan 9
+    
+    In CL 14408, the implementation of duffzero on amd64
+    was changed to replace the use of the MOVQ instructions
+    by MOVUPS.
+    
+    However, it broke the build on plan9/amd64, since
+    Plan 9 doesn't allow floating point in note handler.
+    
+    This change disables the use of duffzero on Plan 9.
+    We also take care to not use the MOVUPS instruction.
+    
+    Fixes #14471.
+    
+    Change-Id: I8277b485dfe65a68d7d8338e52a048c5d45069bf
+    Reviewed-on: https://go-review.googlesource.com/19890
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/amd64/ggen.go | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

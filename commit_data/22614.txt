@@ -1,0 +1,24 @@
+commit 2173a27903897c481b0a0daf3ca3e0a0685701db
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Apr 19 19:01:49 2015 +0900
+
+    net: fix inconsistent error values on setters
+    
+    This change fixes inconsistent error values on
+    Set{Deadline,ReadDeadline,WriteDeadline,ReadBuffer,WriteBuffer} for
+    Conn, Listener and PacketConn, and
+    Set{KeepAlive,KeepAlivePeriod,Linger,NoDelay} for TCPConn.
+    
+    Updates #4856.
+    
+    Change-Id: I34ca5e98f6de72863f85b2527478b20d8d5394dd
+    Reviewed-on: https://go-review.googlesource.com/9109
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial.go           |  4 ++--
+ src/net/net.go            | 25 ++++++++++++++++++++-----
+ src/net/tcpsock_plan9.go  | 19 ++++++++++++++-----
+ src/net/tcpsock_posix.go  | 27 +++++++++++++++++++++------
+ src/net/unixsock_plan9.go |  2 +-
+ src/net/unixsock_posix.go |  7 +++++--
+ 6 files changed, 63 insertions(+), 21 deletions(-)

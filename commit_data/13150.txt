@@ -1,0 +1,13 @@
+commit 34ad3995e06fb4a4e209adfbd11367cc3d22f8b8
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri May 25 00:08:52 2012 +0800
+
+    cmd/cc: fix uint right shift in constant evaluation
+            Fixes #3664.
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6249048
+
+ src/cmd/cc/scon.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

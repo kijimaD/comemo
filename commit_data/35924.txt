@@ -1,0 +1,14 @@
+commit fb59bccef32780d9f94e5bd22344d514087efd07
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 6 17:06:55 2018 -0700
+
+    runtime: clarify SetFinalizer docs
+    
+    Fixes #24480
+    
+    Change-Id: I7db721fb71a17f07472ec7f216478e7887435639
+    Reviewed-on: https://go-review.googlesource.com/122557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mfinal.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

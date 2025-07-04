@@ -1,0 +1,11 @@
+commit c5bb50c9dcbcfe6bc9ecb178ec8fc5e71e55e04b
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 17 18:07:40 2008 -0700
+
+    assign nil to interface
+    
+    SVN=123256
+
+ src/cmd/6g/gen.c  |  2 +-
+ src/cmd/gc/walk.c | 11 +++++------
+ 2 files changed, 6 insertions(+), 7 deletions(-)

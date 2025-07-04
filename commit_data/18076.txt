@@ -1,0 +1,15 @@
+commit 0594f8948904149a907e634d343bf6307903a10b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 18 18:24:55 2013 -0800
+
+    compress/flate: use io.ByteReader in docs
+    
+    We did this elsewhere when io.ByteReader was added
+    but forgot this one.
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/43480052
+
+ src/pkg/compress/flate/inflate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

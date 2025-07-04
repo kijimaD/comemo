@@ -1,0 +1,32 @@
+commit 254c497e5c5628be115b966808d6e76d335313a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 18 14:56:08 2021 -0700
+
+    cmd/compile, types2: better error message for invalid type assertion
+    
+    This CL addresses the 2nd part of the issue below.
+    
+    - For types2, now use the same error messages as the compiler in this case.
+    - Make the mechanism for reporting clarifying error messages handle the case
+      where we don't have additional position information.
+    - Provide context information (type assertion vs type switch).
+    
+    Fixes #49005.
+    
+    Change-Id: I4eeaf4f0c3f2f8735b63993778f58d713fef21ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356512
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/errors.go          |  5 +++-
+ src/cmd/compile/internal/types2/errors_test.go     |  2 +-
+ src/cmd/compile/internal/types2/expr.go            | 22 +++++++++-----
+ src/cmd/compile/internal/types2/stmt.go            |  4 +--
+ .../internal/types2/testdata/check/expr3.src       |  4 +--
+ .../internal/types2/testdata/check/issues.src      |  4 +--
+ .../internal/types2/testdata/check/stmt0.src       |  2 +-
+ .../types2/testdata/fixedbugs/issue49005.go        | 34 ++++++++++++++++++++++
+ test/fixedbugs/issue49005b.go                      | 15 ++++++++++
+ test/switch6.go                                    |  4 +--
+ 10 files changed, 77 insertions(+), 19 deletions(-)

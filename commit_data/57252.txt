@@ -1,0 +1,29 @@
+commit 2b0a157d68365dc9515bd643ab0f5d0cd537cd8f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Mar 27 16:03:11 2024 -0500
+
+    cmd/compile: intrinsify math.MulUintptr on PPC64
+    
+    This can be done efficiently with few instructions.
+    
+    This also adds MULHDUCC for further codegen improvement.
+    
+    Change-Id: I06320ba4383a679341b911a237a360ef07b19168
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Archana Ravindar <aravinda@redhat.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go              |  2 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules      |  2 ++
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |  9 +++---
+ .../compile/internal/ssa/_gen/PPC64latelower.rules |  4 +--
+ src/cmd/compile/internal/ssa/opGen.go              | 16 ++++++++++
+ src/cmd/compile/internal/ssa/rewrite.go            |  7 +++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 30 +++++++++++++++++++
+ .../compile/internal/ssa/rewritePPC64latelower.go  | 35 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics.go      |  2 +-
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  2 ++
+ test/codegen/bool.go                               |  6 ++++
+ 11 files changed, 104 insertions(+), 11 deletions(-)

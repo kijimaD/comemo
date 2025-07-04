@@ -1,0 +1,28 @@
+commit 5dc379e2de79dbfc207bb9d6d44ad5a8c546f14a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Feb 26 19:41:32 2023 +0700
+
+    net: skip test affected by local network config on non-builder
+    
+    CL 461275 uses testing.Short to skip this kind of tests. But it may lead
+    to false positive, because testing.Short may not always set. For
+    example, the normal workflow when testing changes in net package is
+    running:
+    
+            go test -v net
+    
+    in local machine, that will cause the test failed.
+    
+    Using testenv.Builder is better, since when it's the standard way to
+    check whether the test is running on builder or local machine.
+    
+    Change-Id: Ia5347eb76b4f0415dde8fa3d6c89bd0105f15aa7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471437
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/dnsclient_unix_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 82c6967adad6319ac08fca4f3e84066a43083963
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 4 16:29:15 2022 -0400
+
+    doc: add a release note for fewer pre-compiled GOROOT .a files
+    
+    For #47257
+    
+    Change-Id: I3837220d02741da92d723484c82d11e82c92151a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448017
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ doc/go1.20.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

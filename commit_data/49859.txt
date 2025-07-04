@@ -1,0 +1,18 @@
+commit b464708b463b104849a951af54352c8a894bfbc4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jul 19 13:34:29 2022 -0400
+
+    runtime: convert schedt.goidgen to atomic type
+    
+    For #53821.
+    
+    Change-Id: I84c96ade5982b8e68d1d1787bf1bfa16a17a4fb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419439
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/align_runtime_test.go | 1 -
+ src/runtime/proc.go               | 4 ++--
+ src/runtime/runtime2.go           | 2 +-
+ 3 files changed, 3 insertions(+), 4 deletions(-)

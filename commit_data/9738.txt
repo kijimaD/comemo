@@ -1,0 +1,15 @@
+commit ad7dea1e96fdebc682b10e02dd14456cdccf4dfa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 19 11:50:53 2011 -0400
+
+    gc: handle complex CONVNOP
+    
+    Fixes #2256.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5044047
+
+ src/cmd/gc/cplx.c |  3 +++
+ test/ken/cplx2.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+)

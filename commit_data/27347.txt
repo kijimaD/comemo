@@ -1,0 +1,20 @@
+commit 42b647bde669ffa1d6f056eac20a683b9d02a786
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue May 10 07:50:09 2016 +0200
+
+    go/internal/gccgoimporter: remove workaround on Plan 9
+    
+    We fixed the implementation of the pread syscall in
+    the Plan 9 kernel, so calling pread doesn't update the
+    channel offset when reading a file.
+    
+    Fixes #11194.
+    
+    Change-Id: Ie4019e445542a73479728af861a50bb54caea3f6
+    Reviewed-on: https://go-review.googlesource.com/22245
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/internal/gccgoimporter/importer.go | 6 ------
+ 1 file changed, 6 deletions(-)

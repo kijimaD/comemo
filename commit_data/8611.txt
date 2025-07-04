@@ -1,0 +1,17 @@
+commit 79b397b27ee618ed0f058bf466b49deb4abea728
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jun 3 13:50:44 2011 -0400
+
+    testing: check that tests and benchmarks do not affect GOMAXPROCS
+    
+    Plus fix spoiling of GOMAXPROCS in 2 existing rwmutex tests.
+    Plus fix benchmark output to stdout (now it outputs to stderr like all other output).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4529111
+
+ src/pkg/sync/rwmutex_test.go | 2 ++
+ src/pkg/testing/benchmark.go | 9 +++++++--
+ src/pkg/testing/testing.go   | 6 ++++++
+ 3 files changed, 15 insertions(+), 2 deletions(-)

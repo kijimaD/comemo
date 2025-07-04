@@ -1,0 +1,14 @@
+commit 94dc963b558b3d37906af53eca45c5ae807a9e84
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jun 15 16:07:06 2013 +0400
+
+    runtime: fix race condition between GC and setGCPercent
+    If first GC runs concurrently with setGCPercent,
+    it can overwrite gcpercent value with default.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/10242047
+
+ src/pkg/runtime/mgc0.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

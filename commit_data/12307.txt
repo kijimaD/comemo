@@ -1,0 +1,66 @@
+commit ebe1664d2789cd4ea0ded0eccb9067c729378cc5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 1 12:12:09 2012 -0500
+
+    go/build: replace FindTree, ScanDir, Tree, DirInfo with Import, Package
+    
+    This is an API change, but one I have been promising would
+    happen when it was clear what the go command needed.
+    
+    This is basically a complete replacement of what used to be here.
+    
+    build.Tree is gone.
+    
+    build.DirInfo is expanded and now called build.Package.
+    
+    build.FindTree is now build.Import(package, srcDir, build.FindOnly).
+    The returned *Package contains information that FindTree returned,
+    but applicable only to a single package.
+    
+    build.ScanDir is now build.ImportDir.
+    
+    build.FindTree+build.ScanDir is now build.Import.
+    
+    The new Import API allows specifying the source directory,
+    in order to resolve local imports (import "./foo") and also allows
+    scanning of packages outside of $GOPATH.  They will come back
+    with less information in the Package, but they will still work.
+    
+    The old go/build API exposed both too much and too little.
+    This API is much closer to what the go command needs,
+    and it works well enough in the other places where it is
+    used.  Path is gone, so it can no longer be misused.  (Fixes issue 2749.)
+    
+    This CL updates clients of go/build other than the go command.
+    The go command changes are in a separate CL, to be submitted
+    at the same time.
+    
+    R=golang-dev, r, alex.brainman, adg
+    CC=golang-dev
+    https://golang.org/cl/5713043
+
+ src/cmd/api/goapi.go                         |  23 +-
+ src/cmd/api/goapi_test.go                    |   3 +-
+ src/cmd/godoc/godoc.go                       |  28 +-
+ src/cmd/godoc/main.go                        |   6 +-
+ src/pkg/exp/types/gcimporter.go              |  12 +-
+ src/pkg/go/build/build.go                    | 541 ++++++++++++++++++++-------
+ src/pkg/go/build/build_test.go               | 110 ++----
+ src/pkg/go/build/cgotest/cgotest.c           |   9 -
+ src/pkg/go/build/cgotest/cgotest.go          |  19 -
+ src/pkg/go/build/cgotest/cgotest.h           |   5 -
+ src/pkg/go/build/cmdtest/main.go             |  12 -
+ src/pkg/go/build/path.go                     | 169 ---------
+ src/pkg/go/build/pkgtest/pkgtest.go          |  13 -
+ src/pkg/go/build/pkgtest/sqrt_386.s          |  10 -
+ src/pkg/go/build/pkgtest/sqrt_386_test.go    |   1 -
+ src/pkg/go/build/pkgtest/sqrt_amd64.s        |   9 -
+ src/pkg/go/build/pkgtest/sqrt_amd64_test.go  |   1 -
+ src/pkg/go/build/pkgtest/sqrt_arm.s          |  10 -
+ src/pkg/go/build/pkgtest/sqrt_arm_test.go    |   1 -
+ src/pkg/go/build/pkgtest/sqrt_test.go        |   9 -
+ src/pkg/go/build/pkgtest/xsqrt_test.go       |   9 -
+ src/pkg/go/build/syslist_test.go             |   2 +-
+ src/pkg/go/build/testdata/other/file/file.go |   5 +
+ src/pkg/go/build/testdata/other/main.go      |  11 +
+ 24 files changed, 503 insertions(+), 515 deletions(-)

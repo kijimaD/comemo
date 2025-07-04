@@ -1,0 +1,23 @@
+commit 0433845ad18a355413033bb3495ba3195f4c69ec
+Author: Quey-Liang Kao <s101062801@m101.nthu.edu.tw>
+Date:   Sat Nov 21 22:48:55 2020 +0800
+
+    cmd/asm, cmd/internal/obj/riscv: fix branch pseudo-instructions
+    
+    Pseudo branch instructions BGT, BGTU, BLE, and BLEU implemented In
+    CL 226397 were translated inconsistently compared to other ones due
+    to the inversion of registers. For instance, while "BLT a, b" generates
+    "jump if a < b", "BLE a, b" generates "jump if b <= a."
+    
+    This CL fixes the translation in the assembler and the tests.
+    
+    Change-Id: Ia757be73e848734ca5b3a790e081f7c4f98c30f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271911
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/cmd/asm/internal/asm/testdata/riscvenc.s       |  8 ++--
+ src/cmd/internal/obj/riscv/obj.go                  |  8 ++--
+ .../obj/riscv/testdata/testbranch/branch_test.go   | 49 ++++++++++------------
+ 3 files changed, 31 insertions(+), 34 deletions(-)

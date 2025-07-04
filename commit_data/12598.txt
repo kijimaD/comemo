@@ -1,0 +1,23 @@
+commit 6033a48b775365714be86462f7e2480e881e978b
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Tue Mar 13 14:46:08 2012 +1100
+
+    doc: add Go's declaration syntax article
+    
+    Originally published on The Go Programming Language Blog, July 7, 2010.
+    
+    I did not put any go file in doc/progs. Shoul I include Go files
+    with those declarations?
+    
+    http://blog.golang.org/2010/07/gos-declaration-syntax.html
+    
+    Update #2547.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5795068
+
+ doc/articles/gos_declaration_syntax.html | 348 +++++++++++++++++++++++++++++++
+ doc/docs.html                            |   2 +-
+ doc/go_faq.html                          |   2 +-
+ 3 files changed, 350 insertions(+), 2 deletions(-)

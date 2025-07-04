@@ -1,0 +1,18 @@
+commit 1eb0465fa596a2d6e9c1a632499989544f0d7e68
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 5 16:26:26 2022 -0800
+
+    cmd/compile: turn off jump tables when spectre retpolines are on
+    
+    Fixes #57097
+    
+    Change-Id: I6ab659abbca1ae0ac8710674d39aec116fab0baa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455336
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/walk/switch.go |  2 +-
+ test/codegen/retpoline.go               | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

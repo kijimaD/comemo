@@ -1,0 +1,16 @@
+commit 62b06fa506f3403ae173116b7d4cdbb62d65db2f
+Author: Rob Pike <r@golang.org>
+Date:   Sat Dec 20 16:07:43 2008 -0800
+
+    update map test.
+    convert to printf.
+    increase count to 1000 - maps are faster now.
+    add cases for structure values as key and maps.
+    
+    R=rsc
+    DELTA=197  (66 added, 18 deleted, 113 changed)
+    OCL=21683
+    CL=21686
+
+ test/map.go | 288 +++++++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 168 insertions(+), 120 deletions(-)

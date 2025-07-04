@@ -1,0 +1,20 @@
+commit f94d82b2c03c756f1d8893dc0282e9608e7d32a1
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Mar 15 13:47:53 2024 +0800
+
+    slices: add func Repeat
+    
+    Fixes #65238
+    
+    Change-Id: I32ae4d922788cc6fbbe80f5b558a075951e3c892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571895
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/65238.txt                         |  1 +
+ doc/next/6-stdlib/99-minor/slices/65238.md |  2 +
+ src/slices/slices.go                       | 24 ++++++++++
+ src/slices/slices_test.go                  | 74 ++++++++++++++++++++++++++++++
+ 4 files changed, 101 insertions(+)

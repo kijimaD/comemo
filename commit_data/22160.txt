@@ -1,0 +1,18 @@
+commit 9b69196958a1ba3eba7a1621894ea9aafaa91648
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Mar 16 15:46:22 2015 +1100
+
+    runtime: add TestCgoDLLImports
+    
+    The test is a simple reproduction of issue 9356.
+    
+    Update #8948.
+    Update #9356.
+    
+    Change-Id: Ia77bc36d12ed0c3c4a8b1214cade8be181c9ad55
+    Reviewed-on: https://go-review.googlesource.com/7618
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/crash_cgo_test.go | 52 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/crash_test.go     |  9 +++++++-
+ 2 files changed, 60 insertions(+), 1 deletion(-)

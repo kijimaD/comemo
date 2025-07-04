@@ -1,0 +1,20 @@
+commit f9a4cfd5109cc53b700aeefc18f0aa362b94214e
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Mar 21 08:23:20 2023 -0400
+
+    log/slog: use unsafe.StringData, SliceData
+    
+    Use the new functions in 1.20 (unsafe.StringData, etc.) instead
+    of StringHeader and StructHeader from the reflect package.
+    
+    Updates golang/go#56345.
+    
+    Change-Id: I84d0db7b203aeffe45ce8b06beb7b4ee17e19949
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478055
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/log/slog/value_unsafe.go | 24 ++++++------------------
+ 1 file changed, 6 insertions(+), 18 deletions(-)

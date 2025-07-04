@@ -1,0 +1,13 @@
+commit 3b9c9d2125eec9602269b18ea05a83cd2a7eb2ea
+Author: Sam Thorogood <thorogood@google.com>
+Date:   Mon Oct 11 13:14:07 2010 -0400
+
+    expvar: add (*Int).Set
+    
+    R=golang-dev, adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/2336044
+
+ src/pkg/expvar/expvar.go      | 8 ++++++++
+ src/pkg/expvar/expvar_test.go | 5 +++++
+ 2 files changed, 13 insertions(+)

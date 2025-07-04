@@ -1,0 +1,55 @@
+commit 2c5ec1ebc077c57c2e4490b9836eba9425946995
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 6 19:40:35 2009 -0700
+
+    apply gofmt to malloc math once os
+    
+    R=gri
+    DELTA=566  (4 added, 14 deleted, 548 changed)
+    OCL=35410
+    CL=35419
+
+ src/pkg/malloc/malloc.go        |   8 +-
+ src/pkg/math/all_test.go        | 274 ++++++++++++++++++++--------------------
+ src/pkg/math/atan.go            |   9 +-
+ src/pkg/math/atan2.go           |   6 +-
+ src/pkg/math/const.go           |  50 ++++----
+ src/pkg/math/exp.go             |  21 ++-
+ src/pkg/math/fabs.go            |   1 -
+ src/pkg/math/fmod.go            |   2 +-
+ src/pkg/math/hypot.go           |   2 +-
+ src/pkg/math/log.go             |  29 ++---
+ src/pkg/math/pow.go             |   8 +-
+ src/pkg/math/pow10.go           |   8 +-
+ src/pkg/math/sin.go             |  29 ++---
+ src/pkg/math/sinh.go            |  11 +-
+ src/pkg/math/sqrt.go            |  14 +-
+ src/pkg/math/sqrt_decl.go       |   1 -
+ src/pkg/math/tan.go             |  23 ++--
+ src/pkg/math/tanh.go            |   2 +-
+ src/pkg/once/once.go            |   6 +-
+ src/pkg/once/once_test.go       |   5 +-
+ src/pkg/os/dir_darwin_386.go    |  20 +--
+ src/pkg/os/dir_darwin_amd64.go  |  20 +--
+ src/pkg/os/dir_linux_386.go     |  20 +--
+ src/pkg/os/dir_linux_amd64.go   |  20 +--
+ src/pkg/os/dir_linux_arm.go     |  20 +--
+ src/pkg/os/dir_nacl_386.go      |  20 +--
+ src/pkg/os/env.go               |  12 +-
+ src/pkg/os/error.go             |  94 +++++++-------
+ src/pkg/os/exec.go              |  28 ++--
+ src/pkg/os/file.go              |  94 +++++++-------
+ src/pkg/os/getwd.go             |  16 +--
+ src/pkg/os/os_test.go           |  88 ++++++-------
+ src/pkg/os/path.go              |   4 +-
+ src/pkg/os/path_test.go         |  18 +--
+ src/pkg/os/proc.go              |   5 +-
+ src/pkg/os/stat_darwin_386.go   |   6 +-
+ src/pkg/os/stat_darwin_amd64.go |   6 +-
+ src/pkg/os/stat_linux_386.go    |   6 +-
+ src/pkg/os/stat_linux_amd64.go  |   6 +-
+ src/pkg/os/stat_linux_arm.go    |   6 +-
+ src/pkg/os/stat_nacl_386.go     |  12 +-
+ src/pkg/os/time.go              |   3 +-
+ src/pkg/os/types.go             |  45 ++++---
+ 43 files changed, 534 insertions(+), 544 deletions(-)

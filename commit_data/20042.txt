@@ -1,0 +1,18 @@
+commit 5d40742728cac9fa351c03d21598937b27b398a7
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 19 11:49:59 2014 +0400
+
+    runtime: convert Gosched to Go
+    
+    LGTM=rlh, khr
+    R=golang-codereviews, rlh, bradfitz, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/127490043
+
+ src/pkg/runtime/extern.go |  4 ----
+ src/pkg/runtime/proc.c    | 14 ++++----------
+ src/pkg/runtime/proc.go   | 11 +++++++++++
+ src/pkg/runtime/runtime.h |  2 +-
+ src/pkg/runtime/stack.c   |  2 +-
+ src/pkg/runtime/stubs.go  |  3 ++-
+ 6 files changed, 19 insertions(+), 17 deletions(-)

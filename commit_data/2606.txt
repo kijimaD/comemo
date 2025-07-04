@@ -1,0 +1,12 @@
+commit ef4ddd63f8d98300cf014a5d4a74dcff3f7e4dc3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 21:39:18 2009 -0700
+
+    another piece for cross-file forward struct declarations.
+    
+    R=ken
+    OCL=31233
+    CL=31233
+
+ src/cmd/gc/dcl.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

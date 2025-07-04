@@ -1,0 +1,20 @@
+commit 5f63f168daa9644bcc723077e9e2e1796639f6bb
+Author: Chaoqun Han <hanssccv@gmail.com>
+Date:   Thu Nov 25 21:16:28 2021 +0800
+
+    runtime: add invalidptr=0 for TestGcZombieReporting
+    
+    pointers in zombies slice may cross-span, add invalidptr=0 for avoiding the badPointer check
+    
+    Fixes #49613
+    
+    Change-Id: Ifb1931922170e87e799e2e6081dc85dab3890205
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367044
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/runtime/gc_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

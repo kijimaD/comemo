@@ -1,0 +1,19 @@
+commit bed6326a3c04811f394490b537c07c863b3df6de
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 22:42:16 2015 -0400
+
+    math: fix Log2 test failures on ppc64 (and s390)
+    
+    - Make Log2 exact for powers of two.
+    - Fix error tolerance function to make tolerance
+      a function of the correct (expected) value.
+    
+    Fixes #9066.
+    
+    Change-Id: I0320a93ce4130deed1c7b7685627d51acb7bc56d
+    Reviewed-on: https://go-review.googlesource.com/12230
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/all_test.go | 6 ++++--
+ src/math/log10.go    | 5 +++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)

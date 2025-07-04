@@ -1,0 +1,14 @@
+commit b96ad80949353eb49415462acf89a7cbc807288a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 1 15:27:10 2009 -0800
+
+    enable all (but one) test cases in test.sh that
+    were excluded before because of incorrect comment
+    formatting (comment formatting is mostly idempotent
+    at this point)
+    
+    R=rsc
+    http://go/go-review/1018014
+
+ src/cmd/gofmt/test.sh | 26 +++++++++++---------------
+ 1 file changed, 11 insertions(+), 15 deletions(-)

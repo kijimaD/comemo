@@ -1,0 +1,25 @@
+commit 6d1ebeb5271a06cd55f55a84e95709e2f4805bcc
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 24 09:25:09 2015 -0800
+
+    runtime: handle holes in the heap
+    
+    We need to distinguish pointers to free spans, which indicate bugs in
+    our pointer analysis, from pointers to never-in-the-heap spans, which
+    can legitimately arise from sysAlloc/mmap/etc.  This normally isn't a
+    problem because the heap is contiguous, but in some situations (32
+    bit, particularly) the heap must grow around an already allocated
+    region.
+    
+    The bad pointer test is disabled so this fix doesn't actually do
+    anything, but it removes one barrier from reenabling it.
+    
+    Fixes #9872.
+    
+    Change-Id: I0a92db4d43b642c58d2b40af69c906a8d9777f88
+    Reviewed-on: https://go-review.googlesource.com/5780
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/mbitmap.go |  5 ++++-
+ src/runtime/mheap.go   | 13 ++++++++++---
+ 2 files changed, 14 insertions(+), 4 deletions(-)

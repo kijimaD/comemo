@@ -1,0 +1,14 @@
+commit d70627e5d0725254baf8c3f133f96afec68518f0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 6 15:16:02 2012 +1100
+
+    doc: update install docs for Windows and Go 1, add golang-announce to /project
+    
+    R=golang-dev, bradfitz, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5758044
+
+ doc/contrib.html        |   9 ++
+ doc/install-source.html | 280 ++++++++++++++++++++++--------------------------
+ doc/install.html        |  18 +++-
+ 3 files changed, 151 insertions(+), 156 deletions(-)

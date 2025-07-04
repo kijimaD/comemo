@@ -1,0 +1,27 @@
+commit 68fab3e93f6fa5e194cf98889fc703ce896615d1
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 9 17:18:12 2020 -0500
+
+    cmd/go: convert some vet tests to the script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I1f49a84f91735f39d5922c1347e79298780149c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214218
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                         | 107 --------------------------
+ src/cmd/go/testdata/script/test_vet.txt       |  88 +++++++++++++++++++++
+ src/cmd/go/testdata/script/vet.txt            |  58 ++++++++++++++
+ src/cmd/go/testdata/src/vetcycle/p.go         |  13 ----
+ src/cmd/go/testdata/src/vetfail/p1/p1.go      |   9 ---
+ src/cmd/go/testdata/src/vetfail/p2/p2.go      |   6 --
+ src/cmd/go/testdata/src/vetfail/p2/p2_test.go |   7 --
+ src/cmd/go/testdata/src/vetpkg/a_test.go      |   1 -
+ src/cmd/go/testdata/src/vetpkg/b.go           |   7 --
+ src/cmd/go/testdata/src/vetpkg/c.go           |   9 ---
+ 10 files changed, 146 insertions(+), 159 deletions(-)

@@ -1,0 +1,13 @@
+commit 0238fd836faebf85408604f60c790f56681d7878
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 15 12:57:21 2009 -0800
+
+    cgo: arrange for English error messages
+    
+    Fixes #21.
+    
+    R=r
+    https://golang.org/cl/155048
+
+ src/cmd/cgo/main.go | 5 +++++
+ 1 file changed, 5 insertions(+)

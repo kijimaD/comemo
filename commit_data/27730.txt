@@ -1,0 +1,26 @@
+commit e96b1ef99bdd18a6f777892008f614a4401d6655
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Mon Jun 27 13:37:01 2016 +0800
+
+    cmd/vet: fix name check for examples in _test package
+    
+    This fixes the obvious bug and makes go vet look for identifiers in foo
+    package when checking example names in foo_test package.
+    
+    Note that for this check to work the foo package have to be
+    installed (using go install).
+    
+    This commit however doesn't fix TestDivergentPackagesExamples test that
+    is not implemented correctly and passes only by chance.
+    
+    Updates #16189
+    
+    Change-Id: I5c2f675cd07e5b66cf0432b2b3e422ab45c3dedd
+    Reviewed-on: https://go-review.googlesource.com/24487
+    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/tests.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

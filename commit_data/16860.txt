@@ -1,0 +1,26 @@
+commit 8f746af65d563ce442720aeb35a0f80efc62b7d6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jul 25 00:24:17 2013 +0900
+
+    runtime: drop EV_RECEIPT support from network pollster on kqueue
+    
+    Currently Darwin and FreeBSD support and NetBSD and OpenBSD do not
+    support EV_RECEIPT flag. We will drop use of EV_RECEIPT for now.
+    
+    Also enables to build runtime-integrated network pollster on
+    freebsd/amd64,386 and openbsd/amd64,386. It just does build but never
+    runs pollster stuff.
+    
+    This is in preparation for runtime-integrated network pollster for BSD
+    variants.
+    
+    Update #5199
+    
+    R=dvyukov, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/11759044
+
+ src/pkg/runtime/netpoll.goc      |  2 +-
+ src/pkg/runtime/netpoll_kqueue.c | 14 +++-----------
+ src/pkg/runtime/netpoll_stub.c   |  2 +-
+ 3 files changed, 5 insertions(+), 13 deletions(-)

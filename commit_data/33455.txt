@@ -1,0 +1,16 @@
+commit 0838c0f2f9fd45f527c4be8e27589eed22e0e559
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Nov 6 12:40:49 2017 -0500
+
+    cmd/dist: include "cmd/buildid" in toolchain in debug mode
+    
+    Fixes #22599.
+    
+    Change-Id: I2d59a8fae457881f681184fc6ed1f2aa597699b3
+    Reviewed-on: https://go-review.googlesource.com/76026
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 5 +++++
+ 1 file changed, 5 insertions(+)

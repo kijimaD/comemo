@@ -1,0 +1,15 @@
+commit aea348a3af088bc3bc05c5ee5cfc567215008f6f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 26 13:39:09 2015 +1000
+
+    cmd/asm: add tests for erroneous expressions
+    
+    Also add a couple more errors, such as modulo with a zero divisor.
+    
+    Change-Id: If24c95477f7ae86cf4aef5b3460e9ec249ea5ae2
+    Reviewed-on: https://go-review.googlesource.com/11535
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/asm/expr_test.go | 62 +++++++++++++++++++++++++++++++++--
+ src/cmd/asm/internal/asm/parse.go     | 24 ++++++++++++--
+ 2 files changed, 82 insertions(+), 4 deletions(-)

@@ -1,0 +1,26 @@
+commit 9f291d1fc38c25726c683becf8844fb8f81fb81b
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Fri Oct 26 10:52:59 2018 -0700
+
+    cmd/compile: fix rule for combining loads with compares
+    
+    Unlike normal load+op opcodes, the load+compare opcode does
+    not clobber its non-load argument. Allow the load+compare merge
+    to happen even if the non-load argument is used elsewhere.
+    
+    Noticed when investigating issue #28417.
+    
+    Change-Id: Ibc48d1f2e06ae76034c59f453815d263e8ec7288
+    Reviewed-on: https://go-review.googlesource.com/c/145097
+    Reviewed-by: Ainar Garipov <gugl.zadolbal@gmail.com>
+    Reviewed-by: Ben Shi <powerman1st@163.com>
+
+ src/cmd/compile/internal/ssa/gen/386.rules   |  12 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  12 +-
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  66 +++----
+ src/cmd/compile/internal/ssa/rewrite.go      |  34 ++--
+ src/cmd/compile/internal/ssa/rewrite386.go   | 160 ++++++++---------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 152 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 252 +++++++++++++--------------
+ test/codegen/memops.go                       |   9 +
+ 8 files changed, 355 insertions(+), 342 deletions(-)

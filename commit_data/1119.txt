@@ -1,0 +1,15 @@
+commit e4f4ab0b8d2e221909cbf15c6867d4990f09e5a8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 13 13:42:59 2008 -0800
+
+    more array methods
+    
+    R=r
+    OCL=19172
+    CL=19172
+
+ src/lib/reflect/cast_amd64.s |  10 ++++
+ src/lib/reflect/gencast.sh   |   1 +
+ src/lib/reflect/test.go      |  48 +++++++++------
+ src/lib/reflect/value.go     | 138 ++++++++++++++++++++++++++++++-------------
+ 4 files changed, 139 insertions(+), 58 deletions(-)

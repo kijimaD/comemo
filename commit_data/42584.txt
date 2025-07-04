@@ -1,0 +1,23 @@
+commit 96e83664378918980bd8f60822c4bc39befcb668
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Jun 30 19:09:38 2020 +0000
+
+    Revert "cmd/link: fix GC data reading from shared library"
+    
+    This reverts CL 240462.
+    
+    Reason for revert: test fails on PPC64LE.
+    
+    Updates #39927.
+    
+    Change-Id: I4f14fd0c36e604a80ae9f2f86d1e643e28945e93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240616
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ misc/cgo/testshared/shared_test.go               | 16 ----------
+ misc/cgo/testshared/testdata/gcdata/main/main.go | 37 ------------------------
+ misc/cgo/testshared/testdata/gcdata/p/p.go       |  7 -----
+ src/cmd/link/internal/ld/decodesym.go            | 27 +++++------------
+ src/cmd/link/internal/ld/lib.go                  |  4 +--
+ 5 files changed, 9 insertions(+), 82 deletions(-)

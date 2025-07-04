@@ -1,0 +1,14 @@
+commit 20cf2ff8798371bfc0dae21cc7d0da9a02abc1ac
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Feb 17 00:10:50 2018 +0100
+
+    cmd/compile: aggregate bit-test rules
+    
+    No functional changes.
+    
+    Change-Id: I4ea186b09a0309dfa1a80ff71208af2223997ffe
+    Reviewed-on: https://go-review.googlesource.com/94762
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 56 +++++++++++++---------------
+ 1 file changed, 26 insertions(+), 30 deletions(-)

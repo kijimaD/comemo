@@ -1,0 +1,20 @@
+commit 7dbbb53f3743aa1a654d75dd43ed4affc3ddc23d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 29 10:36:51 2013 -0400
+
+    debug/dwarf: add DWARF 4 form constants
+    
+    Some versions of clang generate DWARF 4-format attributes
+    even when using -gdwarf-2. We don't care much about the
+    values, but we do need to be able to parse past them.
+    
+    This fixes a bug in Go 1.2 rc2 reported via private mail using
+    a near-tip version of clang.
+    
+    R=golang-dev, iant, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/18460043
+
+ src/pkg/debug/dwarf/const.go |  3 +++
+ src/pkg/debug/dwarf/entry.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+)

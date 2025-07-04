@@ -1,0 +1,16 @@
+commit 60aa2cabbf027c57d3bde0797096116ae5f5e0f2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Oct 2 11:48:51 2017 +0200
+
+    cmd/objdump: fix and re-enable arm test
+    
+    Fixes #9021
+    
+    Change-Id: Id4465857c765342aa8c4b5bc2fdc06754a290025
+    Reviewed-on: https://go-review.googlesource.com/67530
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/objdump/objdump_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

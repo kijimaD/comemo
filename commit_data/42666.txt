@@ -1,0 +1,28 @@
+commit 5ae198087bd07e88009885ac96c864381f8d8272
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Jun 4 11:41:43 2020 -0400
+
+    cmd/go: don't initialize Builder in envcmd.MkEnv
+    
+    The Builder isn't needed by MkEnv, and Builder.Init doesn't have side
+    effects that change the environment. Builder.Init does currently call
+    CheckGOOSARCHPair, but that's being moved out in CL 234658.
+    
+    Builder.Init creates the temporary work directory used by the
+    builder. For the builder created in MkEnv, this directory is never
+    used. Creating this directory can cause unnecessary errors for
+    commands that don't use a builder like 'go clean' and 'go list'.
+    
+    Fixes #38395
+    Updates #24398
+    
+    Change-Id: Ib93ae55afdf958000470657f4c4ff5bd92700e46
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236563
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/envcmd/env.go             |  3 --
+ src/cmd/go/testdata/script/build_GOTMPDIR.txt | 49 +++++++++++++++++++++++----
+ 2 files changed, 42 insertions(+), 10 deletions(-)

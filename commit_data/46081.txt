@@ -1,0 +1,19 @@
+commit c85695a117f1ec3b800ba14570876cfcd2075c1f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 18 14:36:45 2021 -0700
+
+    cmd/compile: add support for //go:nointerface for -G=3
+    
+    This is used within Google's internal code repo, so getting it working
+    is a pre-req for enabling -G=3 by default.
+    
+    Change-Id: Icbc570948c852ca09cdb2a59f778140f620244b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343429
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/noder/decl.go | 11 +++++++++++
+ test/run.go                            |  2 --
+ 2 files changed, 11 insertions(+), 2 deletions(-)

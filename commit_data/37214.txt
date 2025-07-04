@@ -1,0 +1,23 @@
+commit a86f549703c107c8b4d83d8e7527521c9e215d9a
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Wed Oct 31 17:03:35 2018 +0100
+
+    runtime: add and use modtimer in netpoll
+    
+    Currently when netpoll deadline is incrementally prolonged,
+    we delete and re-add timer each time.
+    Add modtimer function that does both and use it when we need
+    to modify an existing netpoll timer to avoid unnecessary lock/unlock.
+    
+    TCP4OneShotTimeout-6  17.2µs ± 0%  17.0µs ± 0%  -0.82%  (p=0.008 n=5+5)
+    SetReadDeadline-6      274ns ± 2%   261ns ± 0%  -4.89%  (p=0.008 n=5+5)
+    
+    Update #25729
+    
+    Change-Id: I08b89dbbc1785dd180e967a37b0aa23b0c4613a8
+    Reviewed-on: https://go-review.googlesource.com/c/146339
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll.go | 46 ++++++++++++++++++++++++----------------------
+ src/runtime/time.go    | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 51 insertions(+), 26 deletions(-)

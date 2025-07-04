@@ -1,0 +1,15 @@
+commit 1ec427e7ee82c00619d850a4e975956cffae4575
+Author: Austin Clements <austin@google.com>
+Date:   Thu Sep 21 20:07:41 2023 -0400
+
+    cmd/go: use Builder.writeFile more extensively
+    
+    Change-Id: Id9dfbb788194e1de5d55daba40dc9f34fd36180c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534656
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/work/buildid.go | 11 +--------
+ src/cmd/go/internal/work/exec.go    | 45 ++++++++++++++++---------------------
+ 2 files changed, 20 insertions(+), 36 deletions(-)

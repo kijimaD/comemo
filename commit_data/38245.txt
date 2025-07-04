@@ -1,0 +1,19 @@
+commit 4b142806fa070bfbd26126c75b109f6aefc3b738
+Author: sergey <sngasuan@gmail.com>
+Date:   Sun Mar 3 16:38:04 2019 +0300
+
+    net/http: add corner cases for readCookiesTests
+    
+    The following corner cases for readCookiesTests are tested now:
+     - An extra cookie delimiter ";" at the end of a Cookie header
+     - An empty Cookie header
+    
+    Change-Id: Id8028b448e4182613fb261bf0903efc98cbf4997
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/164702
+    Reviewed-by: Volker Dobler <dr.volker.dobler@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/cookie_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

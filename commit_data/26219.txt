@@ -1,0 +1,146 @@
+commit 53984e5be200c40c4cf2ded9a1d002a5906c9e1f
+Author: Klaus Post <klauspost@gmail.com>
+Date:   Tue Mar 8 15:54:50 2016 +0100
+
+    compress/flate: optimize huffman bit encoder
+    
+    Part 1 of optimizing the deflater. This optimizes the bitwriter by:
+    
+    * Removing allocations.
+    * Storing compound values for bit codes instead of 2 separate tables.
+    * Accumulate 48 bits between writes instead of 24.
+    * Inline bit flushing.
+    
+    This also contains code that will be used in later CL's
+    (writeBlockDynamic, writeBlockHuff).
+    
+    Tests for Huffman bit writer encoding regressions has been added.
+    
+    name                       old speed      new speed      delta
+    EncodeDigitsSpeed1e4-4     19.3MB/s ± 1%  21.6MB/s ± 1%  +11.77%
+    EncodeDigitsSpeed1e5-4     25.0MB/s ± 6%  30.7MB/s ± 1%  +22.70%
+    EncodeDigitsSpeed1e6-4     28.2MB/s ± 1%  32.3MB/s ± 1%  +14.64%
+    EncodeDigitsDefault1e4-4   13.3MB/s ± 0%  14.2MB/s ± 1%   +7.07%
+    EncodeDigitsDefault1e5-4   6.43MB/s ± 1%  6.64MB/s ± 1%   +3.27%
+    EncodeDigitsDefault1e6-4   5.81MB/s ± 0%  5.85MB/s ± 1%   +0.69%
+    EncodeDigitsCompress1e4-4  13.2MB/s ± 0%  14.4MB/s ± 0%   +9.10%
+    EncodeDigitsCompress1e5-4  6.40MB/s ± 1%  6.61MB/s ± 0%   +3.20%
+    EncodeDigitsCompress1e6-4  5.80MB/s ± 1%  5.90MB/s ± 1%   +1.64%
+    EncodeTwainSpeed1e4-4      18.4MB/s ± 1%  20.7MB/s ± 1%  +12.72%
+    EncodeTwainSpeed1e5-4      27.7MB/s ± 1%  31.0MB/s ± 1%  +11.78%
+    EncodeTwainSpeed1e6-4      29.1MB/s ± 0%  32.9MB/s ± 2%  +13.25%
+    EncodeTwainDefault1e4-4    12.4MB/s ± 0%  13.1MB/s ± 1%   +5.88%
+    EncodeTwainDefault1e5-4    7.52MB/s ± 1%  7.83MB/s ± 0%   +4.19%
+    EncodeTwainDefault1e6-4    7.08MB/s ± 1%  7.26MB/s ± 0%   +2.54%
+    EncodeTwainCompress1e4-4   12.0MB/s ± 1%  12.8MB/s ± 1%   +6.70%
+    EncodeTwainCompress1e5-4   5.96MB/s ± 1%  6.16MB/s ± 0%   +3.27%
+    EncodeTwainCompress1e6-4   5.37MB/s ± 0%  5.39MB/s ± 1%   +0.47%
+    
+    >Allocations:
+    
+    benchmark                              old allocs     new allocs     delta
+    BenchmarkEncodeDigitsSpeed1e4-4        50             0              -100.00%
+    BenchmarkEncodeDigitsSpeed1e5-4        110            0              -100.00%
+    BenchmarkEncodeDigitsSpeed1e6-4        1032           0              -100.00%
+    BenchmarkEncodeDigitsDefault1e4-4      56             0              -100.00%
+    BenchmarkEncodeDigitsDefault1e5-4      120            0              -100.00%
+    BenchmarkEncodeDigitsDefault1e6-4      966            0              -100.00%
+    BenchmarkEncodeDigitsCompress1e4-4     56             0              -100.00%
+    BenchmarkEncodeDigitsCompress1e5-4     120            0              -100.00%
+    BenchmarkEncodeDigitsCompress1e6-4     966            0              -100.00%
+    BenchmarkEncodeTwainSpeed1e4-4         58             0              -100.00%
+    BenchmarkEncodeTwainSpeed1e5-4         132            0              -100.00%
+    BenchmarkEncodeTwainSpeed1e6-4         1082           0              -100.00%
+    BenchmarkEncodeTwainDefault1e4-4       52             0              -100.00%
+    BenchmarkEncodeTwainDefault1e5-4       126            0              -100.00%
+    BenchmarkEncodeTwainDefault1e6-4       886            0              -100.00%
+    BenchmarkEncodeTwainCompress1e4-4      52             0              -100.00%
+    BenchmarkEncodeTwainCompress1e5-4      120            0              -100.00%
+    BenchmarkEncodeTwainCompress1e6-4      880            0              -100.00%
+    
+    benchmark                              old bytes     new bytes     delta
+    BenchmarkEncodeDigitsSpeed1e4-4        4288          2             -99.95%
+    BenchmarkEncodeDigitsSpeed1e5-4        8896          15            -99.83%
+    BenchmarkEncodeDigitsSpeed1e6-4        84098         153           -99.82%
+    BenchmarkEncodeDigitsDefault1e4-4      4480          3             -99.93%
+    BenchmarkEncodeDigitsDefault1e5-4      9216          76            -99.18%
+    BenchmarkEncodeDigitsDefault1e6-4      73920         768           -98.96%
+    BenchmarkEncodeDigitsCompress1e4-4     4480          3             -99.93%
+    BenchmarkEncodeDigitsCompress1e5-4     9216          76            -99.18%
+    BenchmarkEncodeDigitsCompress1e6-4     73920         768           -98.96%
+    BenchmarkEncodeTwainSpeed1e4-4         4544          2             -99.96%
+    BenchmarkEncodeTwainSpeed1e5-4         9600          15            -99.84%
+    BenchmarkEncodeTwainSpeed1e6-4         77633         153           -99.80%
+    BenchmarkEncodeTwainDefault1e4-4       4352          3             -99.93%
+    BenchmarkEncodeTwainDefault1e5-4       9408          76            -99.19%
+    BenchmarkEncodeTwainDefault1e6-4       65984         768           -98.84%
+    BenchmarkEncodeTwainCompress1e4-4      4352          3             -99.93%
+    BenchmarkEncodeTwainCompress1e5-4      9216          76            -99.18%
+    BenchmarkEncodeTwainCompress1e6-4      65792         768           -98.83%
+    
+    Updates #14258
+    
+    Change-Id: Ibaa97b9619743ad623094727228eb2ada1ec7f1f
+    Reviewed-on: https://go-review.googlesource.com/19336
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/nacl/testzip.proto                            |   2 +
+ src/compress/flate/huffman_bit_writer.go           | 442 ++++++++++++++-------
+ src/compress/flate/huffman_bit_writer_test.go      | 366 +++++++++++++++++
+ src/compress/flate/huffman_code.go                 | 105 +++--
+ .../flate/testdata/huffman-null-max.dyn.expect     | Bin 0 -> 78 bytes
+ .../testdata/huffman-null-max.dyn.expect-noinput   | Bin 0 -> 78 bytes
+ .../flate/testdata/huffman-null-max.golden         | Bin 0 -> 8204 bytes
+ src/compress/flate/testdata/huffman-null-max.in    | Bin 0 -> 65535 bytes
+ .../flate/testdata/huffman-null-max.wb.expect      | Bin 0 -> 78 bytes
+ .../testdata/huffman-null-max.wb.expect-noinput    | Bin 0 -> 78 bytes
+ src/compress/flate/testdata/huffman-pi.dyn.expect  | Bin 0 -> 1696 bytes
+ .../flate/testdata/huffman-pi.dyn.expect-noinput   | Bin 0 -> 1696 bytes
+ src/compress/flate/testdata/huffman-pi.golden      | Bin 0 -> 1606 bytes
+ src/compress/flate/testdata/huffman-pi.in          |   1 +
+ src/compress/flate/testdata/huffman-pi.wb.expect   | Bin 0 -> 1696 bytes
+ .../flate/testdata/huffman-pi.wb.expect-noinput    | Bin 0 -> 1696 bytes
+ .../flate/testdata/huffman-rand-1k.dyn.expect      | Bin 0 -> 1054 bytes
+ .../testdata/huffman-rand-1k.dyn.expect-noinput    | Bin 0 -> 1054 bytes
+ src/compress/flate/testdata/huffman-rand-1k.golden | Bin 0 -> 1005 bytes
+ src/compress/flate/testdata/huffman-rand-1k.in     | Bin 0 -> 1000 bytes
+ .../flate/testdata/huffman-rand-1k.wb.expect       | Bin 0 -> 1005 bytes
+ .../testdata/huffman-rand-1k.wb.expect-noinput     | Bin 0 -> 1054 bytes
+ .../flate/testdata/huffman-rand-limit.dyn.expect   | Bin 0 -> 229 bytes
+ .../testdata/huffman-rand-limit.dyn.expect-noinput | Bin 0 -> 229 bytes
+ .../flate/testdata/huffman-rand-limit.golden       | Bin 0 -> 252 bytes
+ src/compress/flate/testdata/huffman-rand-limit.in  |   4 +
+ .../flate/testdata/huffman-rand-limit.wb.expect    | Bin 0 -> 186 bytes
+ .../testdata/huffman-rand-limit.wb.expect-noinput  | Bin 0 -> 186 bytes
+ .../flate/testdata/huffman-rand-max.golden         | Bin 0 -> 65540 bytes
+ src/compress/flate/testdata/huffman-rand-max.in    | Bin 0 -> 65535 bytes
+ .../flate/testdata/huffman-shifts.dyn.expect       | Bin 0 -> 32 bytes
+ .../testdata/huffman-shifts.dyn.expect-noinput     | Bin 0 -> 32 bytes
+ src/compress/flate/testdata/huffman-shifts.golden  | Bin 0 -> 1812 bytes
+ src/compress/flate/testdata/huffman-shifts.in      |   2 +
+ .../flate/testdata/huffman-shifts.wb.expect        | Bin 0 -> 32 bytes
+ .../testdata/huffman-shifts.wb.expect-noinput      | Bin 0 -> 32 bytes
+ .../flate/testdata/huffman-text-shift.dyn.expect   | Bin 0 -> 231 bytes
+ .../testdata/huffman-text-shift.dyn.expect-noinput | Bin 0 -> 231 bytes
+ .../flate/testdata/huffman-text-shift.golden       | Bin 0 -> 231 bytes
+ src/compress/flate/testdata/huffman-text-shift.in  |  14 +
+ .../flate/testdata/huffman-text-shift.wb.expect    | Bin 0 -> 231 bytes
+ .../testdata/huffman-text-shift.wb.expect-noinput  | Bin 0 -> 231 bytes
+ .../flate/testdata/huffman-text.dyn.expect         |   1 +
+ .../flate/testdata/huffman-text.dyn.expect-noinput |   1 +
+ src/compress/flate/testdata/huffman-text.golden    |   3 +
+ src/compress/flate/testdata/huffman-text.in        |  13 +
+ src/compress/flate/testdata/huffman-text.wb.expect |   1 +
+ .../flate/testdata/huffman-text.wb.expect-noinput  |   1 +
+ .../flate/testdata/huffman-zero.dyn.expect         | Bin 0 -> 17 bytes
+ .../flate/testdata/huffman-zero.dyn.expect-noinput | Bin 0 -> 17 bytes
+ src/compress/flate/testdata/huffman-zero.golden    | Bin 0 -> 51 bytes
+ src/compress/flate/testdata/huffman-zero.in        |   1 +
+ src/compress/flate/testdata/huffman-zero.wb.expect | Bin 0 -> 6 bytes
+ .../flate/testdata/huffman-zero.wb.expect-noinput  | Bin 0 -> 6 bytes
+ .../testdata/null-long-match.dyn.expect-noinput    | Bin 0 -> 206 bytes
+ .../testdata/null-long-match.wb.expect-noinput     | Bin 0 -> 206 bytes
+ 56 files changed, 777 insertions(+), 180 deletions(-)

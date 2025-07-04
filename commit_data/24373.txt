@@ -1,0 +1,19 @@
+commit 707b619c3a9d94ea61a471aeecfe1c914c3372e1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Sep 24 15:23:26 2015 +0900
+
+    syscall: fix alignment check for link-layer information on BSD variants
+    
+    When link-layer information is wrapped with sockaddr_dl, we need to
+    follow the len field of sockaddr_dl. When link-layer information is
+    naked, we need to use the length of whole link-layer information.
+    
+    Fixes #12641.
+    
+    Change-Id: I4d377f64cbab1760b993fc55c719288616042bbb
+    Reviewed-on: https://go-review.googlesource.com/14939
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/route_bsd.go      |  9 ++++++---
+ src/syscall/route_bsd_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 3 deletions(-)

@@ -1,0 +1,19 @@
+commit 2cdb2ecacc8aed6c420272c7861aee1331d6dbad
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jan 10 17:58:20 2020 -0500
+
+    cmd/go: convert TestDotDotDotOutsideGOPATH to script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I2170f427c238e9fe8c029b43b346621d82c5e8fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214388
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 23 -----------------
+ .../script/build_patterns_outside_gopath.txt       | 29 ++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 23 deletions(-)

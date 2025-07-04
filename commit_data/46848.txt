@@ -1,0 +1,24 @@
+commit c1b0ae4154b44ce0bc4929455ee468fddb5dca9d
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Oct 10 10:53:06 2021 -0400
+
+    go/types: mark implicit interfaces as such
+    
+    This is a straightforward port of CL 353396 to go/types.
+    
+    For #48424
+    
+    Change-Id: I3040c2ad3a8c9573026277de01deb9c47953cec8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354991
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/decl.go                        | 10 ++++++----
+ src/go/types/interface.go                   |  5 ++++-
+ src/go/types/testdata/examples/typesets.go2 | 10 ++++++++++
+ src/go/types/typeparam.go                   |  1 +
+ src/go/types/typestring.go                  |  9 +++++++++
+ src/go/types/universe.go                    |  4 ++--
+ 6 files changed, 32 insertions(+), 7 deletions(-)

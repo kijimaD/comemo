@@ -1,0 +1,18 @@
+commit 868de9a11179190f9830ece27de5a8eb63b2f3de
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 1 12:34:06 2019 -0700
+
+    go/types: remove objSet type in favor of explicit map type (cleanup)
+    
+    Avoid confusion between (now gone) objSet and objset types.
+    Also: rename visited -> seen in initorder.go.
+    
+    No functional changes.
+    
+    Change-Id: Ib0aa25e006eee55a79a739194d0d26190354a9f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198044
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/initorder.go | 12 ++++++------
+ src/go/types/resolver.go  |  7 ++-----
+ 2 files changed, 8 insertions(+), 11 deletions(-)

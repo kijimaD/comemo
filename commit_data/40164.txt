@@ -1,0 +1,25 @@
+commit 30521d5126c47c9db0dd4cafc3de5bcf3c6348dd
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun Oct 6 00:49:52 2019 +0200
+
+    cmd/link: produce valid binaries with large data section on wasm
+    
+    CL 170950 had a regression that makes the compiler produce
+    an invalid wasm binary if the data section is too large.
+    Loading such a binary gives the following error:
+    "LinkError: WebAssembly.instantiate(): data segment is out of bounds"
+    
+    This change fixes the issue by ensuring that the minimum size of the
+    linear memory is larger than the end of the data section.
+    
+    Fixes #34395.
+    
+    Change-Id: I0c8629de7ffd0d85895ad31bf8c9d45fef197a57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199358
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/wasm/asm.go |  9 +++++----
+ test/fixedbugs/issue34395.go      | 17 +++++++++++++++++
+ 2 files changed, 22 insertions(+), 4 deletions(-)

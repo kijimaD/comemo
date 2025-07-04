@@ -1,0 +1,27 @@
+commit 8af7fac5a1d2b3881f8f435d77adfcef6a07bedc
+Author: Austin Clements <austin@google.com>
+Date:   Mon Apr 18 13:39:52 2022 -0400
+
+    internal/sys: add LR and fixed frame size to sys.Arch
+    
+    Storing this information in the Arch eliminates some code duplication
+    between the compiler and linker. This information is entirely
+    determined by the Arch, so the current approach of attaching it to an
+    entire Ctxt is a little silly. This will also make it easier to use
+    this information from tests.
+    
+    The next CL will be a rote refactoring to eliminate the
+    Ctxt.FixedFrameSize methods.
+    
+    Change-Id: I315c524fa66a0ea99f63ae5a2a6fdc367d843bad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400818
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/internal/obj/link.go      |  11 +-
+ src/cmd/internal/sys/arch.go      | 252 ++++++++++++++++++++++----------------
+ src/cmd/link/internal/ld/dwarf.go |   2 +-
+ src/cmd/link/internal/ld/lib.go   |   8 +-
+ src/cmd/link/internal/ld/link.go  |  12 +-
+ 5 files changed, 152 insertions(+), 133 deletions(-)

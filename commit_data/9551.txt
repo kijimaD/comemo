@@ -1,0 +1,12 @@
+commit 2d489e67dc14942e62820cb6b521b4e40b831f0f
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Aug 30 08:00:07 2011 -0400
+
+    gc: fix for Plan 9 build
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/4975044
+
+ src/cmd/gc/esc.c | 1 -
+ 1 file changed, 1 deletion(-)

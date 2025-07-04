@@ -1,0 +1,37 @@
+commit 8cc98a04efb961ba82bfa0737e086590c98d5c48
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 10 16:58:51 2025 -0400
+
+    math/big: new mini-compiler for arith assembly
+    
+    The arith assembly is big enough, and the details that you have to keep
+    in mind are complex enough and varied enough, that it is worth using
+    a Go program to generate the assembly. That way, all the architectures
+    can use the same algorithms, and porting to new architectures will be
+    easier.
+    
+    This is the first of a sequence of CLs to introduce a new mini-compiler
+    for generating the arith assembly, in math/big/internal/asmgen.
+    This CL has the basics of the compiler as well as a couple simple
+    architectures and the generator for addVV/subVV. It does not check
+    in the generated assembly yet. That will happen in a followup CL after
+    the other architectures and generators have been added.
+    
+    Change-Id: Ib704c60fd972fc5690ac04d8fae3712ee2c1a80a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/go/build/deps_test.go                 |   3 +-
+ src/math/big/internal/asmgen/add.go       |  57 +++
+ src/math/big/internal/asmgen/arch.go      | 238 +++++++++
+ src/math/big/internal/asmgen/arm.go       |  87 ++++
+ src/math/big/internal/asmgen/asm.go       | 781 ++++++++++++++++++++++++++++++
+ src/math/big/internal/asmgen/func.go      | 138 ++++++
+ src/math/big/internal/asmgen/main.go      |  30 ++
+ src/math/big/internal/asmgen/main_test.go |  38 ++
+ src/math/big/internal/asmgen/mips.go      |  48 ++
+ src/math/big/internal/asmgen/mips64.go    |  48 ++
+ src/math/big/internal/asmgen/pipe.go      | 569 ++++++++++++++++++++++
+ 11 files changed, 2035 insertions(+), 2 deletions(-)

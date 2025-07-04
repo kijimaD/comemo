@@ -1,0 +1,13 @@
+commit 2117ad192d42ed7cb0f5325c9862a641f35efec1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 6 10:53:29 2009 -0700
+
+    minor fix
+    
+    R=rsc
+    DELTA=2  (1 added, 1 deleted, 0 changed)
+    OCL=32828
+    CL=32830
+
+ src/pkg/bufio/bufio.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

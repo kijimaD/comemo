@@ -1,0 +1,20 @@
+commit bacb1b70f77764a1e381645c90b44b5818fd9e28
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Jan 30 19:25:40 2012 -0800
+
+    runtime: fix mkasmh.h
+    
+    We weren't properly deleting the various header
+    files (that were temporarily renamed) if a $CC
+    for the current $GOARCH didn't exist.  And since
+    the compiler checks the current directory for
+    headers before any -I arguments, this had the
+    unfortunate side effect of including the last
+    generated headers instead of the correct ones.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5581055
+
+ src/pkg/runtime/mkasmh.sh | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

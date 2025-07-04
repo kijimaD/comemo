@@ -1,0 +1,13 @@
+commit 6094b88c4868727c855efbc66c423e228bf8b3d6
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Thu Jul 9 15:08:39 2015 +0200
+
+    net/url: add example to URL.ResolveReference
+    
+    Change-Id: I9db1997b8dc7e06e9d124753ead6221470a1edf9
+    Reviewed-on: https://go-review.googlesource.com/12254
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/example_test.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

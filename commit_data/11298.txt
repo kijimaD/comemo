@@ -1,0 +1,15 @@
+commit 0796c1c3ec8b6555ff03d617f8fcbc43aa564063
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 20 12:57:53 2012 -0800
+
+    encoding/varint: deleted WriteXvarint
+    
+    Fixes #2748.
+    
+    R=rsc, r, r
+    CC=golang-dev
+    https://golang.org/cl/5557072
+
+ src/pkg/encoding/binary/varint.go      | 17 -----------------
+ src/pkg/encoding/binary/varint_test.go | 32 ++++++++------------------------
+ 2 files changed, 8 insertions(+), 41 deletions(-)

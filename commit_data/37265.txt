@@ -1,0 +1,18 @@
+commit b251d7fbe6d69e1ce81baf7959062ae489858f31
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 17 18:11:01 2017 -0400
+
+    cmd/trace: display p99.9, p99 and p95 MUT
+    
+    This uses the mutator utilization distribution to compute the p99.9,
+    p99, and p95 mutator utilization topograph lines and display them
+    along with the MMU.
+    
+    Change-Id: I8c7e0ec326aa4bc00619ec7562854253f01cc802
+    Reviewed-on: https://go-review.googlesource.com/c/60800
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/mmu.go | 41 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 37 insertions(+), 4 deletions(-)

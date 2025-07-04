@@ -1,0 +1,16 @@
+commit 7a77645aa8f297b78ba0b297d6d50871d1d1ad05
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu May 3 09:22:45 2012 +1000
+
+    misc/dashboard/codereview: add copyright notices to Go files
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6177043
+
+ misc/dashboard/codereview/dashboard/cl.go     | 4 ++++
+ misc/dashboard/codereview/dashboard/front.go  | 4 ++++
+ misc/dashboard/codereview/dashboard/gc.go     | 4 ++++
+ misc/dashboard/codereview/dashboard/mail.go   | 4 ++++
+ misc/dashboard/codereview/dashboard/people.go | 4 ++++
+ 5 files changed, 20 insertions(+)

@@ -1,0 +1,27 @@
+commit 291eb0178f143b373a9bc4fbc4edaf3420175660
+Author: kumakichi <xyesan@gmail.com>
+Date:   Tue Apr 27 18:38:55 2021 +0000
+
+    go: various minor cleanups with the help of Goland
+    
+        • fix some typos
+        • remove superfluous conversions/parentheses
+        • remove superfluous nil checks
+    
+    Change-Id: I428bf6a7be551b79270567047878c3076dd6f2ff
+    GitHub-Last-Rev: 3b1c7573cfdf89ac184fd6ae44bca4be78b0cd64
+    GitHub-Pull-Request: golang/go#45799
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314069
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+
+ src/go/internal/srcimporter/srcimporter.go | 2 +-
+ src/go/parser/error_test.go                | 2 +-
+ src/go/parser/parser.go                    | 2 +-
+ src/go/printer/printer.go                  | 2 +-
+ src/go/scanner/errors.go                   | 2 +-
+ src/go/scanner/scanner.go                  | 2 +-
+ src/go/types/infer.go                      | 2 +-
+ 7 files changed, 7 insertions(+), 7 deletions(-)

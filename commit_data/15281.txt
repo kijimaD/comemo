@@ -1,0 +1,14 @@
+commit 0c3b17a55aebb2f9ea481269b67a2a0099674101
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 14:48:58 2013 -0500
+
+    runtime: allow mem profiles with GOGC=off
+    
+    Fixes #3586.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7304098
+
+ src/pkg/runtime/mprof.goc | 34 ++++++++++++++++++++++++++++------
+ 1 file changed, 28 insertions(+), 6 deletions(-)

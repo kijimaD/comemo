@@ -1,0 +1,16 @@
+commit c1e7e270f11feb9adb834f973ab07c0090dcef08
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 15 17:32:31 2009 -0800
+
+    don't crash on:
+    
+    package main
+    var x int
+    type x struct { a int }
+    
+    R=ken
+    OCL=22903
+    CL=22903
+
+ src/cmd/gc/dcl.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

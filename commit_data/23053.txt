@@ -1,0 +1,24 @@
+commit ddc4c146a46cd8ae3a4f1f9b7f0cd14f4bb2aca4
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 12 16:07:05 2015 +1200
+
+    cmd/internal/ld: prevent creation of .dynamic and .dynsym symbols when externally linking
+    
+    This allows the removal of a fudge in data.go.
+    
+    We have to defer the calls to adddynlib on non-Darwin until after we have
+    decided whether we are externally or internally linking.  The Macho/ELF
+    separation could do with some cleaning up, but: code freeze.
+    
+    Fixing this once rather than per-arch is what inspired the previous CLs.
+    
+    Change-Id: I0166f7078a045dc09827745479211247466c0c54
+    Reviewed-on: https://go-review.googlesource.com/10002
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/ld/data.go |  8 +-------
+ src/cmd/internal/ld/go.go   | 19 ++++++++++++-------
+ src/cmd/internal/ld/lib.go  |  1 +
+ 3 files changed, 14 insertions(+), 14 deletions(-)

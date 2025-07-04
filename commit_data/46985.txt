@@ -1,0 +1,21 @@
+commit f99e40aac023d818e8c2594e5b8c075786087132
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 8 22:01:13 2021 +0000
+
+    runtime: detangle gcPaceScavenger from the pacer
+    
+    Currently gcPaceScavenger is called by gcControllerState.commit, but it
+    manipulates global state which precludes testing. This change detangles
+    the two.
+    
+    Change-Id: I10d8ebdf426d99ba49d2f2cb4fb64891e9fd6091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309272
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/mgc.go         |  1 +
+ src/runtime/mgcpacer.go    |  5 +++--
+ src/runtime/mgcscavenge.go | 13 +++++++++----
+ 3 files changed, 13 insertions(+), 6 deletions(-)

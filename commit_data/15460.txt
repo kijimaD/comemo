@@ -1,0 +1,23 @@
+commit 3fc8cd054a4dd1bb4eb60da76a595cd509bb20ac
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Feb 27 10:26:24 2013 -0500
+
+    exp/ssa: perform all packages' BUILD phases in parallel.
+    
+    Details:
+    - move Builder.nTo1Vars into package => thread-safe.
+    - add BuildSerially builder mode flag to disable concurrency.
+    - add Builder.BuildAllPackages method.
+    
+    Benchmark: BuildAllPackages for $GOROOT/test/append.go drops
+    to 83ms from 190ms (GOMAXPROCS=8).
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/7371051
+
+ src/pkg/exp/ssa/builder.go            | 301 +++++++++++++++++-----------------
+ src/pkg/exp/ssa/interp/interp_test.go |   2 +-
+ src/pkg/exp/ssa/ssa.go                |   4 +-
+ src/pkg/exp/ssa/ssadump.go            |   5 +-
+ 4 files changed, 155 insertions(+), 157 deletions(-)

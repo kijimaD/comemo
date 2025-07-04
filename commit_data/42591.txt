@@ -1,0 +1,12 @@
+commit 87db6d90c91f257f8ad152ace61fce829b193362
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun Jul 5 14:25:03 2020 +0200
+
+    doc/go1.15: fix wording in a few places
+    
+    Change-Id: I1dc6871bdab7f3048eacd6738fdcfa64b8700c8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240998
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

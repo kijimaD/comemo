@@ -1,0 +1,24 @@
+commit 8b07ec20f7a971edce9eaf413b20e453c50858c6
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Oct 26 15:57:58 2016 +1300
+
+    cmd/compile, runtime: make the go.itab.* symbols module-local
+    
+    Otherwise, the way the ELF dynamic linker works means that you can end up with
+    the same itab being passed to additab twice, leading to the itab linked list
+    having a cycle in it. Add a test to additab in runtime to catch this when it
+    happens, not some arbitrary and surprsing time later.
+    
+    Fixes #17594
+    
+    Change-Id: I6c82edcc9ac88ac188d1185370242dc92f46b1ad
+    Reviewed-on: https://go-review.googlesource.com/32131
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testshared/src/depBase/dep.go | 9 +++++++++
+ misc/cgo/testshared/src/exe/exe.go     | 6 ++++++
+ src/cmd/compile/internal/gc/reflect.go | 4 ++--
+ src/runtime/iface.go                   | 4 ++++
+ 4 files changed, 21 insertions(+), 2 deletions(-)

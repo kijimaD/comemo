@@ -1,0 +1,17 @@
+commit 5a6c332451079a11cbd8457ccd30c4309564db82
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Mon Aug 28 15:28:12 2017 +0900
+
+    debug/macho: add missing file flags
+    
+    Fixes #21414
+    
+    Change-Id: I8b25d416e6ead087b4a9965e8fa1a7f59ff07291
+    Reviewed-on: https://go-review.googlesource.com/59290
+    Reviewed-by: Hiroshi Ioka <hirochachacha@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/macho/macho.go | 30 ++++++++++++++++++++++++++----
+ 1 file changed, 26 insertions(+), 4 deletions(-)

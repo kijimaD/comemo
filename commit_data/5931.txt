@@ -1,0 +1,18 @@
+commit a79a9098daba81b34e620eb63045571e7d545768
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Aug 3 12:04:41 2010 +1000
+
+    syscall: make sure go error numbers do not clash with windows system errors
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1857049
+
+ src/pkg/syscall/mkall.sh                |   2 +-
+ src/pkg/syscall/mkerrors_windows.sh     | 165 +++++++++++++
+ src/pkg/syscall/mksyscall_windows.sh    |   4 +-
+ src/pkg/syscall/syscall_windows.go      |   7 +-
+ src/pkg/syscall/zerrors_windows_386.go  | 402 +++++++++++++++++++++-----------
+ src/pkg/syscall/zsyscall_windows_386.go |   4 +-
+ src/pkg/syscall/ztypes_windows_386.go   |  16 ++
+ 7 files changed, 457 insertions(+), 143 deletions(-)

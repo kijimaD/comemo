@@ -1,0 +1,12 @@
+commit 31f79690f7c99b83ec0a385c426755dc2854ec07
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 14 15:45:53 2010 -0700
+
+    gofmt: exclude test w/ illegal syntax from test cases
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1228041
+
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

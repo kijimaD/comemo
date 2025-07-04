@@ -1,0 +1,25 @@
+commit 95e60acb97f26f56b459fc0ef75f63ccb502c9ed
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Nov 22 12:08:22 2011 +1100
+
+    html: copy attributes from extra <html> tags to root element
+    
+    Pass tests2.dat, test 50:
+    <!DOCTYPE html><html><body><html id=x>
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   id="x"
+    |   <head>
+    |   <body>
+    
+    Also pass tests through test 56:
+    <!DOCTYPE html>X<p/x/y/z>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5432045
+
+ src/pkg/html/parse.go      | 4 ++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit fc48dcb15ff55883381c06295a8478712849e214
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue May 1 03:25:15 2018 +0000
+
+    cmd/internal/obj/arm64: add more atomic instructions
+    
+    More atomic instructions were introduced in ARMv8.1. And this CL
+    adds support for them and corresponding test cases.
+    
+    LDADD Rs, (Rb), Rt: (Rb) -> Rt, Rs+(Rb) -> (Rb)
+    LDAND Rs, (Rb), Rt: (Rb) -> Rt, Rs&(Rb) -> (Rb)
+    LDEOR Rs, (Rb), Rt: (Rb) -> Rt, Rs^(Rb) -> (Rb)
+    LDOR  Rs, (Rb), Rt: (Rb) -> Rt, Rs|(Rb) -> (Rb)
+    
+    Change-Id: Ifb9df86583c4dc54fb96274852c3b93a197045e4
+    Reviewed-on: https://go-review.googlesource.com/110535
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/arch/arm64.go        | 18 ++++------
+ src/cmd/asm/internal/asm/asm.go           |  6 ----
+ src/cmd/asm/internal/asm/testdata/arm64.s | 50 ++++++++++++++++++++------
+ src/cmd/internal/obj/arm64/a.out.go       | 16 +++++++++
+ src/cmd/internal/obj/arm64/anames.go      | 16 +++++++++
+ src/cmd/internal/obj/arm64/asm7.go        | 60 +++++++++++++++++++++----------
+ 6 files changed, 119 insertions(+), 47 deletions(-)

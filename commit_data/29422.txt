@@ -1,0 +1,14 @@
+commit 1a279b34f674369c05694bd2d8e493ec2d3bba97
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 7 11:20:48 2016 -0800
+
+    go/constant: follow-up for https://go-review.googlesource.com/32870
+    
+    For #17812.
+    
+    Change-Id: I58411aaa0e8b2250a16ddb20c951e39da3d601e8
+    Reviewed-on: https://go-review.googlesource.com/32872
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/constant/value.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

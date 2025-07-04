@@ -1,0 +1,16 @@
+commit 67b292799051f7423cc15154d5fc8bb9c57e7057
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Dec 9 08:49:23 2016 +1300
+
+    cmd/link: do not mark go.plugin.tabs as reachable in non-plugins
+    
+    Fixes #18250
+    
+    Change-Id: I4f61591356ddb4a906c206ad8456d1839daf7b91
+    Reviewed-on: https://go-review.googlesource.com/34170
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testshared/src/exe/exe.go | 5 +++++
+ src/cmd/link/internal/ld/symtab.go | 3 +--
+ 2 files changed, 6 insertions(+), 2 deletions(-)

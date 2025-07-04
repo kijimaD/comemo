@@ -1,0 +1,21 @@
+commit 8f7d96f5bcb927a576a43b890f2643e521107665
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 27 12:53:13 2022 -0800
+
+    go/types, types2: remove Qualifier parameter from Checker.implements
+    
+    Where we provide it we take it from the Checker (which is already
+    passed in). Thus there's no need to pass it separately. Cleanup.
+    
+    Change-Id: I63ae445ccac5643235d85e1867462ef5c01ad5fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381297
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api.go         |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go | 17 ++++++-----------
+ src/cmd/compile/internal/types2/operand.go     |  8 ++------
+ src/go/types/api.go                            |  2 +-
+ src/go/types/instantiate.go                    | 17 ++++++-----------
+ src/go/types/operand.go                        |  8 ++------
+ 6 files changed, 18 insertions(+), 36 deletions(-)

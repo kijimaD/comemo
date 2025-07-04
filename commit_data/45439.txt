@@ -1,0 +1,23 @@
+commit 7b32830f58b7f33b51af0370cfd42ba561c3ca9e
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Apr 29 10:11:56 2021 -0700
+
+    crypto/elliptic: store P-256 precomputed basepoint table in source
+    
+    Store the precomputed P-256 basepoint table in source rather than
+    computing it at runtime, saving ~88kB from the heap. The flip side
+    is that this increases binary sizes by ~77kB.
+    
+    Fixes #44992
+    
+    Change-Id: Ia5421eae87b41522b0d8cecba051cba1d2ed73db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315189
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/elliptic/p256_asm.go            |   51 +-
+ src/crypto/elliptic/p256_asm_table.go      | 1473 ++++++++++++++++++++++++++++
+ src/crypto/elliptic/p256_asm_table_test.go |   59 ++
+ 3 files changed, 1533 insertions(+), 50 deletions(-)

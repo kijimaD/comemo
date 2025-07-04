@@ -1,0 +1,18 @@
+commit c14ecaca8182314efd2ef7280feffc2242644887
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 17 17:12:03 2021 +1100
+
+    runtime: skip TestCrashDumpsAllThreads on openbsd/arm
+    
+    This test is also now flakey on this platform.
+    
+    Updates #36435
+    Updates #42464
+    
+    Change-Id: Idedb81478178ffffe7a9c125a6e8bbd83458f9ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315794
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/crash_unix_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

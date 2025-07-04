@@ -1,0 +1,23 @@
+commit 3711ea0b5d1bc381bda02ec3fe16369ed997eda6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 16 17:29:38 2021 -0400
+
+    cmd/compile: do not clobber arguments for reflect.callReflect and callMethod's ABI wrappers
+    
+    reflect.callReflect and reflect.callMethod are called from special
+    functions makeFuncStub and methodValueCall. The runtime expects
+    that it can find the first argument (ctxt) at 0(SP) in
+    makeFuncStub and methodValueCall's frame. Normally callReflect and
+    callMethod already do not modify the argument, and keep it alive.
+    But the compiler-generated ABI wrappers don't do that. Special
+    case the wrappers to not clobber its arguments.
+    
+    Change-Id: I1769f49b81c38eabe452d561001c418352814d86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310889
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/liveness/plive.go | 23 +++++++++++++++++++----
+ 1 file changed, 19 insertions(+), 4 deletions(-)

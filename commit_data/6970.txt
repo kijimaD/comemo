@@ -1,0 +1,19 @@
+commit 976e45726caf41246549173f87c7f0ded148d31c
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Wed Dec 15 13:20:52 2010 -0500
+
+    math: change float64 bias constant from 1022 to 1023
+    
+    This makes some subtle code easier to understand.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3444043
+
+ src/pkg/math/bits.go      | 2 +-
+ src/pkg/math/exp_amd64.s  | 2 +-
+ src/pkg/math/frexp.go     | 4 ++--
+ src/pkg/math/logb.go      | 4 ++--
+ src/pkg/math/modf.go      | 6 +++---
+ src/pkg/math/sqrt_port.go | 4 ++--
+ 6 files changed, 11 insertions(+), 11 deletions(-)

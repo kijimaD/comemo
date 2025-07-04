@@ -1,0 +1,13 @@
+commit ca2cb5190bb9e13dbf7e13154480560f4d1d21a0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 20 08:32:06 2014 -0700
+
+    crypto/tls: clarify concurrent use of Config
+    
+    LGTM=r, agl
+    R=agl, r
+    CC=golang-codereviews
+    https://golang.org/cl/77530044
+
+ src/pkg/crypto/tls/common.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

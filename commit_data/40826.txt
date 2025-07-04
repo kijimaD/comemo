@@ -1,0 +1,18 @@
+commit a23f9afd9899160b525dbc10d01045d9a3f072a0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 18 13:20:39 2019 -0500
+
+    cmd/go: convert TestCoverageUses*Mode* to script tests
+    
+    Updates #28387
+    Updates #30316
+    
+    Change-Id: I5a1a7870928083a98a76225c428ad4d7263fd832
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207610
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go                      | 51 ------------------------------
+ src/cmd/go/testdata/script/cover_modes.txt | 25 +++++++++++++++
+ 2 files changed, 25 insertions(+), 51 deletions(-)

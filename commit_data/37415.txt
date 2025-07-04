@@ -1,0 +1,17 @@
+commit 9ffd5f31dcb95189eeb5c1754291df7b477d5dda
+Author: Vladimir Kovpak <cn007b@gmail.com>
+Date:   Fri Nov 16 14:23:17 2018 +0000
+
+    reflect: add comment for String method of Kind struct
+    
+    On reflect documentation page only this function
+    doesn't have description, this commit add simple description.
+    
+    Change-Id: Idcda89ddd1f6fdd1938c4030e89ebdc186255ce6
+    GitHub-Last-Rev: 1553b834bb4f7a49efc7ff81763a255bc51bbf17
+    GitHub-Pull-Request: golang/go#28818
+    Reviewed-on: https://go-review.googlesource.com/c/149721
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/type.go | 1 +
+ 1 file changed, 1 insertion(+)

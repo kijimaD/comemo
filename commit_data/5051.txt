@@ -1,0 +1,12 @@
+commit acfd7b8d128ceb4ed80be82ff37d1b58379ec734
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 15 20:29:17 2010 -0700
+
+    runtime: lock finalizer table accesses
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/462043
+
+ src/pkg/runtime/mfinal.c | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)

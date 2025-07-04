@@ -1,0 +1,22 @@
+commit d3a3b74aa1eec3417a754d798a4cad487949fa77
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Wed Aug 31 16:58:56 2016 +0200
+
+    runtime: 8-byte align the heap_live field for atomic access
+    
+    mheap_.heap_live is an atomically accessed uint64. It is currently not 8-byte
+    aligned on 32-bit platforms, which has been okay because it's only accessed via
+    Xadd64, which doesn't require alignment on 386 or ARM32. However, Xadd64 on
+    MIPS32 does require 8-byte alignment.
+    
+    Add a padding field to force 8-byte alignment of heap_live and prevent an
+    alignment check crash on MIPS32.
+    
+    Change-Id: I7eddf7883aec7a0a7e0525af5d58ed4338a401d0
+    Reviewed-on: https://go-review.googlesource.com/31635
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mstats.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

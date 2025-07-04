@@ -1,0 +1,15 @@
+commit fe3838489f5aece81c380c59d897462dd8eb2119
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 31 16:48:56 2009 -0700
+
+    submitter's regret. rename Props to Properties
+    
+    R=rsc
+    DELTA=9  (0 added, 0 deleted, 9 changed)
+    OCL=34148
+    CL=34151
+
+ src/pkg/unicode/maketables.go  | 6 +++---
+ src/pkg/unicode/script_test.go | 8 ++++----
+ src/pkg/unicode/tables.go      | 4 ++--
+ 3 files changed, 9 insertions(+), 9 deletions(-)

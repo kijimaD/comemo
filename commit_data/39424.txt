@@ -1,0 +1,19 @@
+commit c290cb6338fe9ce7d8ade3adbb4acd0f0e6172e4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Jun 22 12:56:49 2019 -0700
+
+    test: update blank1.go for changed gofrontend error messages
+    
+    Adjusting gofrontend error messages for GCC standards causes the
+    messages expected by this test to be adjusted slightly: the gofrontend
+    code now quotes the _ identifier.
+    
+    Change-Id: I55ee2ae70b4da3bf7a421ceea80b254dd17601a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183477
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ test/blank1.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

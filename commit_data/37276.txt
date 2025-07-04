@@ -1,0 +1,23 @@
+commit 9fc22d29092933460fe00bdaccea179f29e9960d
+Author: Michael Stapelberg <stapelberg@google.com>
+Date:   Fri Nov 2 11:23:54 2018 +0100
+
+    net: update zoneCache on cache misses to cover appearing interfaces
+    
+    performance differences are in measurement noise as per benchcmp:
+    
+    benchmark                            old ns/op     new ns/op     delta
+    BenchmarkUDP6LinkLocalUnicast-12     5012          5009          -0.06%
+    
+    Fixes #28535
+    
+    Change-Id: Id022e2ed089ce8388a2398e755848ec94e77e653
+    Reviewed-on: https://go-review.googlesource.com/c/146941
+    Run-TryBot: Mikio Hara <mikioh.public.networking@gmail.com>
+    Reviewed-by: Mikio Hara <mikioh.public.networking@gmail.com>
+
+ src/net/interface.go            | 40 ++++++++++++++++++++++++++++++----------
+ src/net/interface_bsd_test.go   |  5 +++++
+ src/net/interface_linux_test.go | 25 +++++++++++++++++++++++++
+ src/net/interface_unix_test.go  | 34 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 94 insertions(+), 10 deletions(-)

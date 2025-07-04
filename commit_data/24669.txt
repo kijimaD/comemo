@@ -1,0 +1,15 @@
+commit d821ae2a9e4e5dafef904d38f75be44656128742
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Aug 31 13:51:37 2015 +1200
+
+    cmd/internal/obj, cmd/link: simplify ppc64 archreloc now that the original value is passed to it
+    
+    And get rid of the stupid game of encoding the instruction in the addend.
+    
+    Change-Id: Ib4de7515196cbc1e63b4261b01931cf02a44c1e6
+    Reviewed-on: https://go-review.googlesource.com/14055
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 38 +++++++++++++-------------
+ src/cmd/link/internal/ppc64/asm.go | 55 +++++++++++++++++++++-----------------
+ 2 files changed, 49 insertions(+), 44 deletions(-)

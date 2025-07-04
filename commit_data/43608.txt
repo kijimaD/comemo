@@ -1,0 +1,22 @@
+commit 96bd0b1d4c34bf22d8fa6d4710cae334b842f37d
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Oct 28 22:43:59 2020 +0100
+
+    runtime: move ppc64/aix cpu feature detection to internal/cpu
+    
+    Additionally removed unused PPC64.IsPOWER8 CPU feature detection.
+    
+    Change-Id: I1411b03d396a72e08d6d51f8a1d1bad49eaa720e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266077
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/cpu/cpu.s               |  6 ++++++
+ src/internal/cpu/cpu_ppc64x.go       | 27 +--------------------------
+ src/internal/cpu/cpu_ppc64x_aix.go   | 21 +++++++++++++++++++++
+ src/internal/cpu/cpu_ppc64x_linux.go | 29 +++++++++++++++++++++++++++++
+ src/runtime/os2_aix.go               |  5 +++--
+ src/runtime/os_aix.go                | 21 ---------------------
+ 6 files changed, 60 insertions(+), 49 deletions(-)

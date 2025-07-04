@@ -1,0 +1,15 @@
+commit e0afb0c38b80675f347b2e840b5fd3b10cabcf91
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 27 13:09:58 2010 -0800
+
+    godashboard: fiddling
+      * some tweaks to dashboard html/css layout
+      * use hmac to generate per-builder subkeys
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/194092
+
+ misc/dashboard/godashboard/gobuild.py | 33 ++++++++++++++------
+ misc/dashboard/godashboard/main.html  | 57 ++++++++++++++++++++++-------------
+ 2 files changed, 59 insertions(+), 31 deletions(-)

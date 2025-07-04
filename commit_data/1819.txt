@@ -1,0 +1,22 @@
+commit e06a654ce17c3e03acadc220cfda908581bee00f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 12 17:24:03 2009 -0700
+
+    daily snapshot:
+    - correctly associate comments with declarations
+      (available through AST)
+    - very raw printing of interface
+    - much more functionality, now needs some formatting, sorting, etc.
+    
+    R=r
+    OCL=26213
+    CL=26213
+
+ usr/gri/pretty/ast.go         |  30 +++--
+ usr/gri/pretty/compilation.go |   2 +-
+ usr/gri/pretty/gds.go         |   2 +-
+ usr/gri/pretty/parser.go      | 239 ++++++++++++++++++++-----------------
+ usr/gri/pretty/pretty.go      |   2 +-
+ usr/gri/pretty/printer.go     | 266 ++++++++++++++++++++++++++++--------------
+ usr/gri/pretty/template.html  |  12 +-
+ 7 files changed, 345 insertions(+), 208 deletions(-)

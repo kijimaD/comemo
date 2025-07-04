@@ -1,0 +1,17 @@
+commit c6ddca2aec4218e1af7f51fad3b761afb33b4c20
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 15 20:45:07 2015 -0800
+
+    math/big: bug in AndNot(x,y) for x>0,y<0.
+    
+    The comment says to use (y-1), but then we did add(y.abs, natOne).  We meant sub.
+    
+    Fixes #9609
+    
+    Change-Id: I4fe4783326ca082c05588310a0af7895a48fc779
+    Reviewed-on: https://go-review.googlesource.com/2961
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go      | 2 +-
+ src/math/big/int_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

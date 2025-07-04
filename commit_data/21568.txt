@@ -1,0 +1,15 @@
+commit 7c3eeda66f46ed12a4f1472ef4878904fe5a8e33
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 10 22:22:33 2015 -0500
+
+    cmd/gc: use go.builtin as package prefix, not go%2ebuiltin
+    
+    This matches all the other pseudo-packages.
+    The line was simply forgotten.
+    
+    Change-Id: I278f6cbcfc883ea7efad07f99fc8c853b9b5d274
+    Reviewed-on: https://go-review.googlesource.com/4591
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/gc/lex.c | 1 +
+ 1 file changed, 1 insertion(+)

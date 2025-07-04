@@ -1,0 +1,20 @@
+commit c56434f6a616ae30cebac5d14d9fb6559a3fb157
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 29 11:10:20 2017 -0700
+
+    cmd/go: don't modify input slice in gccSupportsFlag
+    
+    Modifying the input slice broke the new test for whether gccgo
+    supports -fgo-importcfg, as the test passed a slice of the argument
+    slice it was in the process of building.
+    
+    Fixes #22089
+    
+    Change-Id: I45444a82673223c46be0c8579da3e31a74c32d73
+    Reviewed-on: https://go-review.googlesource.com/67191
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/work/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 5d9dbe19a7a13596b238748cf73a550a92d9af6a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 16 00:18:43 2011 -0400
+
+    gc: work around goto bug
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4629042
+
+ src/cmd/5g/gsubr.c       | 58 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6g/gsubr.c       | 35 +++++++++++++++++++++++++++++
+ src/cmd/8g/gsubr.c       | 35 +++++++++++++++++++++++++++++
+ src/cmd/gc/dcl.c         |  5 +++++
+ src/cmd/gc/gen.c         |  1 +
+ src/cmd/gc/go.h          |  3 +++
+ test/fixedbugs/bug344.go | 22 ++++++++++++++++++
+ 7 files changed, 159 insertions(+)

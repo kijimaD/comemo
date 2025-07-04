@@ -1,0 +1,13 @@
+commit 8e0b814a3a2bfe3017efb8c8c1b412bfe4c36df1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Nov 12 22:11:11 2017 -0800
+
+    runtime: fix minor doc typos in amd64 memmove
+    
+    Change-Id: Ic1ce2f93d6a225699e9ce5307d62cdda8f97630d
+    Reviewed-on: https://go-review.googlesource.com/94024
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/memmove_amd64.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

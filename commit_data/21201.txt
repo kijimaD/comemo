@@ -1,0 +1,17 @@
+commit 8c69ce0b90d15e35d6f03f6af530fd6af47e276c
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Jan 7 23:32:34 2015 +0100
+
+    build: increase timeout in run.rc
+    
+    Increasing the timeout prevents the runtime test
+    to time out on the Plan 9 instances running on GCE.
+    
+    Update golang/go#9491
+    
+    Change-Id: Id9c2b0c4e59b103608565168655799b353afcd77
+    Reviewed-on: https://go-review.googlesource.com/2462
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/run.rc | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

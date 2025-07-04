@@ -1,0 +1,14 @@
+commit af2070598fad4770ba972c537ea6357bca0ac737
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Oct 7 13:33:34 2011 +1100
+
+    image: delete obsolete color.go
+    
+    I accidentally left it off of https://golang.org/cl/5132048/.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5202042
+
+ src/pkg/image/color.go | 251 -------------------------------------------------
+ 1 file changed, 251 deletions(-)

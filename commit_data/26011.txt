@@ -1,0 +1,16 @@
+commit 3a880bae918b0f86989aaaecb4d51fdf9459f53e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 2 12:49:37 2016 -0800
+
+    cmd/compile: remove missed int(lineno) conversions
+    
+    Follow-up to https://go-review.googlesource.com/20131 .
+    
+    Change-Id: Id8351fa39f24e6ea488cdbfcb855b69a31ffff31
+    Reviewed-on: https://go-review.googlesource.com/20134
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

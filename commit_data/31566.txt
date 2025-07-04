@@ -1,0 +1,13 @@
+commit ee57e36dfa6879c05ac6717c29f2df5b546e1256
+Author: wuyunzhou <yunzhouwu@gmail.com>
+Date:   Sat May 13 15:41:15 2017 +0800
+
+    container/heap: avoid up() invoke if down() success at heap.Remove()
+    
+    Change-Id: I6c210e0c23ca533e1f303f88ef9dcb629a294a2a
+    Reviewed-on: https://go-review.googlesource.com/43472
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/container/heap/heap.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

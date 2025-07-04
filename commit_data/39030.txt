@@ -1,0 +1,32 @@
+commit 7fcba81549b7088e8f4cda3a2702d948de42839e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Apr 24 17:01:11 2019 +0000
+
+    runtime: remove sys.HugePageSize
+    
+    sys.HugePageSize was superceded in the last commit by physHugePageSize
+    which is determined dynamically by querying the operating system.
+    
+    For #30333.
+    
+    Change-Id: I827bfca8bdb347e989cead31564a8fffe56c66ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173757
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/internal/sys/arch_386.go      |  1 -
+ src/runtime/internal/sys/arch_amd64.go    |  1 -
+ src/runtime/internal/sys/arch_amd64p32.go |  1 -
+ src/runtime/internal/sys/arch_arm.go      |  1 -
+ src/runtime/internal/sys/arch_arm64.go    |  1 -
+ src/runtime/internal/sys/arch_mips.go     |  1 -
+ src/runtime/internal/sys/arch_mips64.go   |  1 -
+ src/runtime/internal/sys/arch_mips64le.go |  1 -
+ src/runtime/internal/sys/arch_mipsle.go   |  1 -
+ src/runtime/internal/sys/arch_ppc64.go    |  1 -
+ src/runtime/internal/sys/arch_ppc64le.go  |  1 -
+ src/runtime/internal/sys/arch_s390x.go    |  1 -
+ src/runtime/internal/sys/arch_wasm.go     |  1 -
+ src/runtime/mem_linux.go                  | 28 ++++++++++++----------------
+ 14 files changed, 12 insertions(+), 29 deletions(-)

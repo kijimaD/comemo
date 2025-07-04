@@ -1,0 +1,10 @@
+commit 2fdbf0d595ef701dc4c173aef11acfee967bd6ab
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 12 13:56:33 2008 -0700
+
+    fix a couple of minor errors
+    
+    SVN=126938
+
+ test/sieve.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

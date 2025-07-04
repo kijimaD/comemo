@@ -1,0 +1,21 @@
+commit 969bea8d59daa6bdd478b71f6e99d8b8f625a140
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Nov 3 15:39:41 2022 +0800
+
+    runtime: fix a few function names on comments
+    
+    Change-Id: I9ef4898d68dfd06618c0bd8e23f81a1d2c77a836
+    Signed-off-by: cui fliter <imcusg@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447460
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+
+ src/runtime/internal/sys/intrinsics_common.go | 2 +-
+ src/runtime/os_openbsd_syscall2.go            | 2 +-
+ src/runtime/stack.go                          | 2 +-
+ src/runtime/stubs2.go                         | 2 +-
+ src/runtime/traceback.go                      | 4 ++--
+ 5 files changed, 6 insertions(+), 6 deletions(-)

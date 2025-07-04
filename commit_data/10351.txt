@@ -1,0 +1,19 @@
+commit 2ba079868204837891e531eecb4215eecfee8ff7
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Nov 11 14:11:30 2011 -0800
+
+    gofmt: leave nil nodes of the AST unchanged.
+    
+    Without this check, gofmt panics when trying to apply
+    the identity transformation on "item.field" expressions.
+    Fixes #2410.
+    
+    R=rsc, gri
+    CC=golang-dev, remy
+    https://golang.org/cl/5376061
+
+ src/cmd/gofmt/gofmt_test.go            |  1 +
+ src/cmd/gofmt/rewrite.go               |  4 ++--
+ src/cmd/gofmt/testdata/rewrite3.golden | 12 ++++++++++++
+ src/cmd/gofmt/testdata/rewrite3.input  | 12 ++++++++++++
+ 4 files changed, 27 insertions(+), 2 deletions(-)

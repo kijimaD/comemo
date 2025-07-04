@@ -1,0 +1,15 @@
+commit 5d2c3a687c1bab80eff325fa544ee62f4c826479
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 19:11:05 2013 -0400
+
+    encoding/json: document actual behavior for Unmarshal into interface{}
+    
+    Fixes #4900.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13400044
+
+ src/pkg/encoding/json/decode.go      |  4 +---
+ src/pkg/encoding/json/decode_test.go | 41 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

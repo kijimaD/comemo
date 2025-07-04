@@ -1,0 +1,14 @@
+commit 6a3b29895f72b62fd7c49d1d808ed1a8ab49fdc5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 20 15:54:17 2010 -0400
+
+    runtime: don't let select split stack
+    
+    Fixes #1209.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2612041
+
+ src/pkg/runtime/chan.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

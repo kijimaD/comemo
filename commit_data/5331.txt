@@ -1,0 +1,22 @@
+commit dba9d62bc289228ea453f67fea3021e1f7d957b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 21 16:40:53 2010 -0700
+
+    json: Marshal, Unmarshal using new scanner
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/953041
+
+ src/pkg/expvar/expvar.go          |  11 +-
+ src/pkg/expvar/expvar_test.go     |   3 +-
+ src/pkg/json/Makefile             |   2 +-
+ src/pkg/json/decode.go            | 918 +++++++++++++++++++++++++++++++++++---
+ src/pkg/json/decode_test.go       | 488 ++++++++++++++++----
+ src/pkg/json/encode.go            | 282 ++++++++++++
+ src/pkg/json/scanner.go           |   6 +-
+ src/pkg/json/scanner_test.go      |   9 +-
+ src/pkg/json/struct.go            | 481 --------------------
+ src/pkg/json/struct_test.go       | 375 ----------------
+ src/pkg/template/template_test.go |   2 +-
+ 11 files changed, 1547 insertions(+), 1030 deletions(-)

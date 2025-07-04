@@ -1,0 +1,12 @@
+commit 794489ecf3cb573e7c23b0dec3ea2f3fe7ce27bf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Sep 8 13:31:40 2011 +1000
+
+    sync/atomic: do not run TestStoreLoadSeq for too long (fix windows builder)
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4962057
+
+ src/pkg/sync/atomic/atomic_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

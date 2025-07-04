@@ -1,0 +1,28 @@
+commit 41b9d8c75e45636a153c2a31d117196a22a7fc6c
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Tue May 10 12:30:43 2022 +0800
+
+    time: add Time.ZoneBounds
+    
+    The method Location.lookup returns the "start" and "end" times bracketing seconds when that zone is in effect.
+    
+    This CL does these things:
+    
+    1. Exported the "start" and "end" times as time.Time form
+    2. Keep the "Location" of the returned times be the same as underlying time
+    
+    Fixes #50062.
+    
+    Change-Id: I88888a100d0fc68f4984a85c75a85a83aa3e5d80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405374
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ api/next/50062.txt    |  1 +
+ src/time/time.go      | 18 +++++++++++++
+ src/time/time_test.go | 74 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 93 insertions(+)

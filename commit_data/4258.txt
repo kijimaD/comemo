@@ -1,0 +1,12 @@
+commit 5dd66f01cd2317b843ae8c737dead79fb26f55a9
+Author: Sven Almgren <sven@tras.se>
+Date:   Tue Dec 1 12:07:43 2009 -0800
+
+    Added Sven Almgren to AUTHORS and CONTRIBUTORS
+    
+    R=rsc
+    https://golang.org/cl/163053
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

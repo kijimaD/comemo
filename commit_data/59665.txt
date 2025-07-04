@@ -1,0 +1,69 @@
+commit 09f99c02ddd0c2687550b77cc885ed6b7b5476ed
+Author: HowJmay <yuanyanghau@gmail.com>
+Date:   Wed Apr 23 22:57:52 2025 +0200
+
+    crypto/sha3: add SIMD implementation with ARMv8.2 features
+    
+    On ARMv8 four SIMD instructions, EOR3, RAX1, XAR, BCAX are added
+    to accelerate sha3 operations. Here the SIMD version of sha3
+    on ARMv8 is added.
+    
+    fips140: off
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/sha3
+    cpu: Apple M2
+                    │ 9e72f5fe60  │          ab93158ba0-dirty          │
+                    │   sec/op    │   sec/op     vs base               │
+    Sha3_512_MTU-8    6.497µ ± 1%   2.988µ ± 0%  -54.01% (p=0.002 n=6)
+    Sha3_384_MTU-8    4.639µ ± 5%   2.142µ ± 1%  -53.83% (p=0.002 n=6)
+    Sha3_256_MTU-8    3.631µ ± 1%   1.698µ ± 6%  -53.24% (p=0.002 n=6)
+    Sha3_224_MTU-8    3.443µ ± 1%   1.602µ ± 1%  -53.47% (p=0.002 n=6)
+    Shake128_MTU-8    2.974µ ± 2%   1.392µ ± 1%  -53.19% (p=0.002 n=6)
+    Shake256_MTU-8    3.320µ ± 0%   1.537µ ± 2%  -53.70% (p=0.002 n=6)
+    Shake256_16x-8    47.26µ ± 1%   27.39µ ± 6%  -42.06% (p=0.002 n=6)
+    Shake256_1MiB-8   2.567m ± 1%   1.306m ± 1%  -49.12% (p=0.002 n=6)
+    Sha3_512_1MiB-8   4.785m ± 1%   2.397m ± 8%  -49.90% (p=0.002 n=6)
+    geomean           23.47µ        11.38µ       -51.52%
+    
+                    │  9e72f5fe60  │           ab93158ba0-dirty           │
+                    │     B/s      │     B/s       vs base                │
+    Sha3_512_MTU-8    198.2Mi ± 1%   430.9Mi ± 0%  +117.45% (p=0.002 n=6)
+    Sha3_384_MTU-8    277.5Mi ± 5%   601.1Mi ± 1%  +116.58% (p=0.002 n=6)
+    Sha3_256_MTU-8    354.6Mi ± 1%   758.2Mi ± 6%  +113.85% (p=0.002 n=6)
+    Sha3_224_MTU-8    373.9Mi ± 1%   803.6Mi ± 1%  +114.90% (p=0.002 n=6)
+    Shake128_MTU-8    432.9Mi ± 2%   925.2Mi ± 1%  +113.70% (p=0.002 n=6)
+    Shake256_MTU-8    387.8Mi ± 0%   837.6Mi ± 2%  +115.98% (p=0.002 n=6)
+    Shake256_16x-8    330.6Mi ± 1%   570.7Mi ± 6%   +72.61% (p=0.002 n=6)
+    Shake256_1MiB-8   389.5Mi ± 1%   765.5Mi ± 1%   +96.53% (p=0.002 n=6)
+    Sha3_512_1MiB-8   209.0Mi ± 1%   417.2Mi ± 8%   +99.61% (p=0.002 n=6)
+    geomean           317.7Mi        655.3Mi       +106.29%
+    
+    fips140: off
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/mlkem
+    cpu: Apple M2
+                      │  9e72f5fe60  │          257696ed2d-dirty          │
+                      │    sec/op    │   sec/op     vs base               │
+    KeyGen-8            36.97µ ±  1%   29.82µ ± 3%  -19.34% (p=0.002 n=6)
+    Encaps-8            51.54µ ±  5%   44.75µ ± 5%  -13.17% (p=0.002 n=6)
+    Decaps-8            47.72µ ± 10%   44.73µ ± 1%   -6.27% (p=0.002 n=6)
+    RoundTrip/Alice-8   90.47µ ±  2%   79.74µ ± 1%  -11.86% (p=0.002 n=6)
+    RoundTrip/Bob-8     52.15µ ±  1%   44.45µ ± 0%  -14.76% (p=0.002 n=6)
+    geomean             53.27µ         46.25µ       -13.18%
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-arm64_15
+    Co-authored-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I8c1f476a7d59498bb44d09d7a573beaa07b10f53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667675
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+
+ src/crypto/internal/fips140/sha3/sha3_arm64.go |  43 +++++++
+ src/crypto/internal/fips140/sha3/sha3_arm64.s  | 164 +++++++++++++++++++++++++
+ src/crypto/internal/fips140/sha3/sha3_noasm.go |   2 +-
+ src/crypto/internal/fips140deps/cpu/cpu.go     |   1 +
+ 4 files changed, 209 insertions(+), 1 deletion(-)

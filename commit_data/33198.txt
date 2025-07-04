@@ -1,0 +1,14 @@
+commit 0316d6618c7a986727c9e99fb7aab7c7a4e92d71
+Author: griesemer <gri@golang.org>
+Date:   Mon Oct 23 10:48:46 2017 -0700
+
+    go/types: improved documentation for WriteExpr and ExprString
+    
+    Fixes #22377.
+    
+    Change-Id: I0a0e1bde558df964f0961dc4cfc305e72d590e1a
+    Reviewed-on: https://go-review.googlesource.com/72690
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/exprstring.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

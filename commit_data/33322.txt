@@ -1,0 +1,38 @@
+commit 9aa6f80ed385f092259aa5b0623fdf826b6da75b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 30 11:13:27 2017 -0400
+
+    go/importer: support lookup in importer.For
+    
+    The support in this CL assumes that something at a higher level than
+    the toolchain-specific importers is taking care of converting imports
+    in source code into canonical import paths before invoking the
+    toolchain-specific importers. That kind of "what does an import mean"
+    as opposed to "find me the import data for this specific path"
+    should be provided by higher-level layers.
+    
+    That's a different layering than the default behavior but matches the
+    current layering in the compiler and linker and works with the metadata
+    planned for generation by the go command for package management.
+    It should also eventually allow the importer code to stop concerning
+    itself with source directories and vendor import translation and maybe
+    deprecate ImporterFrom in favor of Importer once again. But that's all
+    in the future. For now, just make non-nil lookups work, and test that.
+    
+    Fixes #13847.
+    Adds #22550.
+    
+    Change-Id: I048c6a384492e634988a7317942667689ae680ff
+    Reviewed-on: https://go-review.googlesource.com/74354
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/importer/importer.go                        | 38 +++++++-----
+ src/go/importer/importer_test.go                   | 68 ++++++++++++++++++++++
+ .../gccgoimporter/gccgoinstallation_test.go        |  4 +-
+ src/go/internal/gccgoimporter/importer.go          | 52 +++++++++++++----
+ src/go/internal/gccgoimporter/importer_test.go     |  2 +-
+ src/go/internal/gcimporter/gcimporter.go           | 65 ++++++++++++++-------
+ src/go/internal/gcimporter/gcimporter_test.go      | 16 ++---
+ 7 files changed, 186 insertions(+), 59 deletions(-)

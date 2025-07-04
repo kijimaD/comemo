@@ -1,0 +1,15 @@
+commit ef8af73ef53da61121b27c26d117f45e8c3e450d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 3 15:37:57 2010 -0400
+
+    build: implement NOINSTALL=1 for Make.ccmd
+    
+    The makefiles for prof and cov use it already.
+    (It's also in Make.clib.)
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2036045
+
+ src/Make.ccmd | 2 ++
+ 1 file changed, 2 insertions(+)

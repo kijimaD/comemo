@@ -1,0 +1,28 @@
+commit 8f1ec59bdb2d095b9caf31f6f3fd3e167b14ef0a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Jul 15 23:20:52 2024 +0700
+
+    strings: re-introduce noescape wrapper
+    
+    CL 573955 added internal/abi:NoEscape function, and use it in strings
+    builder copyCheck code.
+    
+    However, internal/abi is a runtime package, which can not be built with
+    -d=checkptr flag yet. This causes incorrect inlining decision, since
+    NoEscape must not be inlined when -d=checkptr is used.
+    
+    Fixing this by re-introducing noescape wrapper.
+    
+    Fixes #68415
+    
+    Change-Id: I776cab4c9e9e4b3e58162dcce6ec025cb366bdee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598295
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/strings/builder.go       | 14 +++++++++++++-
+ test/fixedbugs/issue68415.go | 15 +++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

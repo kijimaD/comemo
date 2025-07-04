@@ -1,0 +1,28 @@
+commit bacbc33439b124ffd7392c91a5f5d96eca8c0c0b
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Aug 18 11:49:29 2021 -0700
+
+    archive/zip: prevent preallocation check from overflowing
+    
+    If the indicated directory size in the archive header is so large that
+    subtracting it from the archive size overflows a uint64, the check that
+    the indicated number of files in the archive can be effectively
+    bypassed. Prevent this from happening by checking that the indicated
+    directory size is less than the size of the archive.
+    
+    Thanks to the OSS-Fuzz project for discovering this issue and to
+    Emmanuel Odeke for reporting it.
+    
+    Fixes #47801
+    Fixes CVE-2021-39293
+    
+    Change-Id: Ifade26b98a40f3b37398ca86bd5252d12394dd24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343434
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/archive/zip/reader.go      |  2 +-
+ src/archive/zip/reader_test.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

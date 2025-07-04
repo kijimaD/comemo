@@ -1,0 +1,17 @@
+commit 5bf0fbe7a8a3c3199956cf6f796b26074076ab1a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 15:29:04 2009 -0800
+
+    strconv: doc
+    
+    R=r
+    DELTA=110  (64 added, 19 deleted, 27 changed)
+    OCL=25761
+    CL=25782
+
+ src/lib/strconv/atof.go  | 32 ++++++++++++++++++-------------
+ src/lib/strconv/atoi.go  | 49 ++++++++++++++++++++++++++++--------------------
+ src/lib/strconv/ftoa.go  | 23 +++++++++++++++++++++++
+ src/lib/strconv/itoa.go  |  7 ++++---
+ src/lib/strconv/quote.go |  6 ++++++
+ 5 files changed, 81 insertions(+), 36 deletions(-)

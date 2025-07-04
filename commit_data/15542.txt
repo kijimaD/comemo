@@ -1,0 +1,12 @@
+commit 80d2eac14d973e672d8d60780c67283fcc58d933
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Mar 1 15:04:14 2013 -0500
+
+    cmd/cgo: don't reimplement os/exec in util.go.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7450049
+
+ src/cmd/cgo/util.go | 53 ++++++++++-------------------------------------------
+ 1 file changed, 10 insertions(+), 43 deletions(-)

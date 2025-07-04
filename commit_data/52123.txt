@@ -1,0 +1,32 @@
+commit 4d180f71dca041a39b50b9dec8a0ebec5cc02b90
+Author: ruinan <ruinan.sun@arm.com>
+Date:   Thu Aug 18 01:31:57 2022 +0000
+
+    cmd/compile: omit redundant sign/unsign extension on arm64
+    
+    On Arm64, all 32-bit instructions will ignore the upper 32 bits and
+    clear them to zero for the result. No need to do an unsign extend before
+    a 32 bit op.
+    
+    This CL removes the redundant unsign extension only for the existing
+    32-bit opcodes, and also omits the sign extension when the upper bit of
+    the result can be predicted.
+    
+    Fixes #42162
+    
+    Change-Id: I61e6670bfb8982572430e67a4fa61134a3ea240a
+    CustomizedGitHooks: yes
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/427454
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Eric Fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules | 10 +++
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go |  1 +
+ src/cmd/compile/internal/ssa/rewrite.go       |  4 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 68 +++++++++++++++++++
+ test/codegen/noextend.go                      | 94 +++++++++++++++++++++++++++
+ 5 files changed, 177 insertions(+)

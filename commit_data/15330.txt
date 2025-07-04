@@ -1,0 +1,12 @@
+commit f913830148bade4b4cf34ecb64fbcfaa13a04573
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 20 13:37:45 2013 -0800
+
+    regexp: use Scanner in exec_test
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7381046
+
+ src/pkg/regexp/exec_test.go | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)

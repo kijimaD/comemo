@@ -1,0 +1,15 @@
+commit f1550482fa382baf529f285897c2f0fb2ab39def
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 3 17:23:47 2010 -0800
+
+    gc: fix imported and not used message - show path
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/229046
+
+ src/cmd/gc/lex.c  |  4 ++--
+ src/cmd/gc/subr.c |  2 +-
+ src/cmd/gc/walk.c |  1 -
+ test/import4.go   | 24 ++++++++++++++++++++++++
+ 4 files changed, 27 insertions(+), 4 deletions(-)

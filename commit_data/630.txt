@@ -1,0 +1,15 @@
+commit ab9f27b2279f3bd28afb65050a9c4339d0b9961d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 12 12:35:06 2008 -0700
+
+    fix up linux trap handling - INTB 5 gives SEGV
+    
+    R=rsc
+    OCL=15244
+    CL=15244
+
+ src/runtime/rt1_amd64_darwin.c | 34 +++++++++++++++++++++++++++++++---
+ src/runtime/rt1_amd64_linux.c  | 33 +++++++++++++++++++++++++++++----
+ src/runtime/rt2_amd64.c        | 29 -----------------------------
+ src/runtime/runtime.h          |  2 --
+ 4 files changed, 60 insertions(+), 38 deletions(-)

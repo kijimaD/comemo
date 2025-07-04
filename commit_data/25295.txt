@@ -1,0 +1,18 @@
+commit 6bcec09ceba8698deb51ed10d13b66f3c12754c3
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 9 11:53:04 2015 -0500
+
+    math/big: additional Montgomery cleanup
+    
+    Also fix bug reported in CL 17510.
+    
+    Found during fix of #13515 in CL 17672, but separate from the fix.
+    
+    Change-Id: I4b1024569a98f5cfd2ebb442ec3d64356164d284
+    Reviewed-on: https://go-review.googlesource.com/17673
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int_test.go |  9 +++++++++
+ src/math/big/nat.go      | 41 ++++++++++++++++++-----------------------
+ src/math/big/nat_test.go |  6 ++++++
+ 3 files changed, 33 insertions(+), 23 deletions(-)

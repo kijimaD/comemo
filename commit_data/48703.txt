@@ -1,0 +1,20 @@
+commit 5bb2628c6f143be065776727cef03276c0e516f7
+Author: Philippe Antoine <contact@catenacyber.fr>
+Date:   Tue Apr 5 20:28:16 2022 +0000
+
+    bytes: limit allocation in SplitN
+    
+    So that bytes.SplitN("", "T", int(144115188075855872)) does not panic.
+    
+    Change-Id: I7c068852bd708416164fc2ed8b84cf6b2d593666
+    GitHub-Last-Rev: f8df09d65e2bc889fbd0c736bfb5e9a9078dfced
+    GitHub-Pull-Request: golang/go#52147
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398076
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: mzh <mzh@golangcn.org>
+
+ src/bytes/bytes.go      | 3 +++
+ src/bytes/bytes_test.go | 2 ++
+ 2 files changed, 5 insertions(+)

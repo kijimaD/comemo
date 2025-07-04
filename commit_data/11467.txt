@@ -1,0 +1,12 @@
+commit 2d6c0116744df631e3df629055bb54dcc9e8a3e9
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 30 10:15:43 2012 -0800
+
+    make.bash: don't remove hgpatch
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5598046
+
+ src/make.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 2f9728aacdf90d21a530f68c6887cfe545954935
+Author: Andrew <andybons@golang.org>
+Date:   Mon Feb 25 19:13:57 2019 +0000
+
+    doc/go1.12: change go install to go get
+    
+    Using go get prevents the failure case of when the
+    user doesn't have the repo on their machine.
+    
+    Change-Id: I9c1174087728b5b06b578b0d52df6eeb7e8c7a3c
+    Reviewed-on: https://go-review.googlesource.com/c/163718
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.12.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit c09649890fd48f9854120999a109ba968596a021
+Author: John Graham-Cumming <jgc@jgc.org>
+Date:   Fri Jan 4 10:21:43 2013 -0500
+
+    log/syslog: remove RFC5424 version number for greater compatibility
+    
+    RFC5424 specifies a version number (currently 1) after the facility and
+    severity in a syslog message (e.g. <7>1 TIMESTAMP ...).  This causes
+    rsyslog to fail to parse syslog message because the rest of the message
+    is not fully compliant with RFC5424.
+    
+    For the widest compatibility, drop the version (messages are in the
+    RFC3164 BSD syslog format (e.g. <7>TIMESTAMP ...). Have tested this with
+    syslog-ng, rsyslog and syslogd.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7036050
+
+ src/pkg/log/syslog/syslog.go      |  4 ++--
+ src/pkg/log/syslog/syslog_test.go | 16 ++++++++--------
+ 2 files changed, 10 insertions(+), 10 deletions(-)

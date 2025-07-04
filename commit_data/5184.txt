@@ -1,0 +1,17 @@
+commit 1231382b9e18f8b7e0b7cc35248e22236fa2116d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 30 13:15:16 2010 -0700
+
+    single argument panic on non-darwin and in comments
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/800042
+
+ src/pkg/debug/proc/proc_linux.go       | 2 +-
+ src/pkg/debug/proc/regs_linux_386.go   | 4 ++--
+ src/pkg/debug/proc/regs_linux_amd64.go | 4 ++--
+ src/pkg/syscall/syscall_mingw.go       | 6 +++---
+ src/pkg/websocket/client.go            | 6 +++---
+ src/pkg/websocket/server.go            | 2 +-
+ 6 files changed, 12 insertions(+), 12 deletions(-)

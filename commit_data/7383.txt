@@ -1,0 +1,15 @@
+commit b2b29814bfbe9c94517d0375cfd2ebe915578294
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Mon Feb 7 11:51:17 2011 -0800
+
+    Codelab/wiki: fix typo
+    
+    Missing closing bracket renders the next code snippet unreadable.
+    
+    R=adg, gri
+    CC=golang-dev
+    https://golang.org/cl/4119060
+
+ doc/codelab/wiki/index.html | 2 +-
+ doc/codelab/wiki/wiki.html  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit 523f2ea77b8845700d302fc69f6c34ac296af55d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Mar 14 13:36:31 2018 +0100
+
+    runtime: don't use floating point in findnull on Plan 9
+    
+    In CL 98015, findnull was rewritten so it uses bytes.IndexByte.
+    
+    This broke the build on plan9/amd64 because the implementation
+    of bytes.IndexByte on AMD64 relies on SSE instructions while
+    floating point instructions are not allowed in the note handler.
+    
+    This change fixes findnull by using the former implementation
+    on Plan 9, so it doesn't use bytes.IndexByte.
+    
+    Fixes #24387.
+    
+    Change-Id: I084d1a44d38d9f77a6c1ad492773f0a98226be16
+    Reviewed-on: https://go-review.googlesource.com/100577
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/runtime/string.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

@@ -1,0 +1,27 @@
+commit 2a8969cb365a5539b8652d5ac1588aaef78d3e16
+Author: Paul Jolly <paul@myitcv.io>
+Date:   Wed May 24 05:51:09 2023 +0100
+
+    fmt: correct documentation for Formatter
+    
+    Before this CL, the documentation for Formatter suggested that
+    implementers of Format(f State, verb rune) could use Fprint(f) or
+    Sprint(f) to generate output. The Sprint(f) suggestion however is
+    invalid.
+    
+    Fix that by simply suggesting Sprint() alongside Fprint(f).
+    
+    Fixes #60358
+    
+    Change-Id: I024e996f6360b812968ef2cd5073cb4c223459e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497379
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Paul Jolly <paul@myitcv.org.uk>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/fmt/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

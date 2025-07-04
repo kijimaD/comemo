@@ -1,0 +1,24 @@
+commit aba18d5b6785d501996b475d58a05cc26707d370
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 8 13:28:59 2024 -0800
+
+    math/big: fix uint64 overflow in nat.mulRange
+    
+    Compute median as a + (b-a)/2 instead of (a + b)/2.
+    Add additional test cases.
+    
+    Fixes #65025.
+    
+    Change-Id: Ib716a1036c17f8f33f51e33cedab13512eb7e0be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554617
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/math/big/int_test.go | 10 ++++++++++
+ src/math/big/nat.go      |  2 +-
+ src/math/big/nat_test.go |  5 +++++
+ 3 files changed, 16 insertions(+), 1 deletion(-)

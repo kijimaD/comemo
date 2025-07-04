@@ -1,0 +1,17 @@
+commit 8133cb3565603ec58e7eea3a39f8bdddc39a5c9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 28 13:14:35 2011 -0400
+
+    gc: preserve original expression for errors
+    
+    Fixes #1722.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4442099
+
+ src/cmd/gc/go.h          |  1 +
+ src/cmd/gc/subr.c        |  2 ++
+ src/cmd/gc/typecheck.c   | 21 ++++++++++++++++-----
+ test/fixedbugs/bug337.go | 19 +++++++++++++++++++
+ 4 files changed, 38 insertions(+), 5 deletions(-)

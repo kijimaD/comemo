@@ -1,0 +1,15 @@
+commit 169e6d40e3fc9eb724f5377eaca6415e0205b8c1
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Tue Mar 22 10:32:43 2011 -0700
+
+    test: enable tests using v, ok := <-ch syntax
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4290059
+
+ test/fixedbugs/bug069.go | 21 ++++++++++-----------
+ test/fixedbugs/bug196.go |  7 +++----
+ test/fixedbugs/bug234.go | 26 +++++++++++++-------------
+ test/fixedbugs/bug242.go |  8 +++-----
+ 4 files changed, 29 insertions(+), 33 deletions(-)

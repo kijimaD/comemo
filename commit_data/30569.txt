@@ -1,0 +1,24 @@
+commit 6491496d10c8e7e62f875c7781a2887564976b89
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Mar 4 19:47:19 2017 +0900
+
+    net/mail: ignore whitespace between adjacent 'encoded-word's
+    
+    rfc2047 says:
+      White space between adjacent 'encoded-word's is not displayed.
+    
+    Although, mime package already have that feature,
+    we cannot simply reuse that code,
+    because there is a subtle difference in quoted-string handling.
+    
+    Fixes #19363
+    
+    Change-Id: I754201aa3c6b701074ad78fe46818af5b96cbd00
+    Reviewed-on: https://go-review.googlesource.com/37811
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/mail/message.go      | 24 ++++++++++++++++--------
+ src/net/mail/message_test.go | 10 ++++++++++
+ 2 files changed, 26 insertions(+), 8 deletions(-)

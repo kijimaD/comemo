@@ -1,0 +1,15 @@
+commit 3745716bc3940f471137bf06fbe8c042257a43d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 18 09:04:48 2011 -0700
+
+    http: let FileServer work when path doesn't begin with a slash
+    
+    ... as when it's over-stripped with StripPrefix.
+    
+    R=golang-dev, andybalholm, rsc
+    CC=golang-dev
+    https://golang.org/cl/4759052
+
+ src/pkg/http/fs.go      |  7 ++++++-
+ src/pkg/http/fs_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 1 deletion(-)

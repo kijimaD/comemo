@@ -1,0 +1,13 @@
+commit 9d08068d216163d900843a53b12caac31890e9a1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 15 08:09:54 2012 +1100
+
+    godoc: style example headings like links
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5819048
+
+ doc/style.css          | 6 ++++--
+ lib/godoc/example.html | 4 ++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)

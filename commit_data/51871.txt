@@ -1,0 +1,19 @@
+commit 23c0121e4eb259cc1087d0f79a0803cbc71f500b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jan 31 17:21:14 2023 -0500
+
+    cmd/go/internal/script: retry ETXTBSY errors in scripts
+    
+    Fixes #58019.
+    
+    Change-Id: Ib25d668bfede6e87a3786f44bdc0db1027e3ebec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463748
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/script/cmds.go       | 46 +++++++++++++++++++++-----------
+ src/cmd/go/internal/script/cmds_other.go | 11 ++++++++
+ src/cmd/go/internal/script/cmds_posix.go | 16 +++++++++++
+ 3 files changed, 58 insertions(+), 15 deletions(-)

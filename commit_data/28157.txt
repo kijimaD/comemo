@@ -1,0 +1,36 @@
+commit ee161e859166b8b8b077998c0101f56c18b18329
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 30 16:31:53 2016 -0700
+
+    cmd/compile: handle pragmas immediately with -newparser=1
+    
+    Instead of saving all pragmas and processing them after parsing is
+    finished, process them immediately during scanning like the current
+    lexer does.
+    
+    This is a bit unfortunate because it means we can't use
+    syntax.ParseFile to concurrently parse files yet, but it fixes how we
+    report syntax errors in the presence of //line pragmas.
+    
+    While here, add a bunch more gcCompat entries to syntax/parser.go to
+    get "go build -toolexec='toolstash -cmp' std cmd" passing. There are
+    still a few remaining cases only triggered building unit tests, but
+    this seems like a nice checkpoint.
+    
+    Change-Id: Iaf3bbcf2849857a460496f31eea228e0c585ce13
+    Reviewed-on: https://go-review.googlesource.com/28226
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go              |   3 +-
+ src/cmd/compile/internal/gc/noder.go            | 177 +++++++++++-------------
+ src/cmd/compile/internal/syntax/dumper_test.go  |   2 +-
+ src/cmd/compile/internal/syntax/nodes.go        |  11 +-
+ src/cmd/compile/internal/syntax/parser.go       |  52 ++++++-
+ src/cmd/compile/internal/syntax/parser_test.go  |   6 +-
+ src/cmd/compile/internal/syntax/printer_test.go |   2 +-
+ src/cmd/compile/internal/syntax/scanner.go      |  15 +-
+ src/cmd/compile/internal/syntax/scanner_test.go |   6 +-
+ src/cmd/compile/internal/syntax/syntax.go       |  22 ++-
+ 10 files changed, 168 insertions(+), 128 deletions(-)

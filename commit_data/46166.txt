@@ -1,0 +1,18 @@
+commit 0ac64f6d700b56fa793d9304bec621cf4dde6fd6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 24 20:20:07 2021 -0700
+
+    cmd/compile/internal/types2: rename IsMethodSet to IsConstraint (cleanup)
+    
+    Invert the boolean result to match the new name.
+    
+    Change-Id: Ide6c649ed8ac3a5d263640309960e61a005c886e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344872
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/types2/interface.go | 2 +-
+ src/cmd/compile/internal/types2/typeset.go   | 6 ++----
+ src/cmd/compile/internal/types2/typexpr.go   | 2 +-
+ 3 files changed, 4 insertions(+), 6 deletions(-)

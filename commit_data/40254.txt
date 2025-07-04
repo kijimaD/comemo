@@ -1,0 +1,18 @@
+commit c2c2ba280c77e76115cf1918d91a509f6bf98390
+Author: Keith Randall <khr@google.com>
+Date:   Mon Oct 14 16:34:28 2019 -0700
+
+    cmd/compile: fix fmt test
+    
+    CL 196781 added map[int64]uint32 to the set of things printed with %v.
+    
+    Fixes #34907
+    
+    Change-Id: If4a13e86cfb4b691988f5fb70449ae23760f5789
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201079
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/fmtmap_test.go | 65 +++++++++++++++++++++---------------------
+ 1 file changed, 33 insertions(+), 32 deletions(-)

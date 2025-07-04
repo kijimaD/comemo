@@ -1,0 +1,17 @@
+commit 9cae3aaf47de8c79c31ef53c1ed4e2db46214aea
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Dec 16 10:04:03 2017 +1100
+
+    os: do not forget to set ModeDevice when using ModeCharDevice
+    
+    Fixes #23123
+    
+    Change-Id: Ia4ac947cc49ef3d150ef60a095b86552dcef397d
+    Reviewed-on: https://go-review.googlesource.com/84435
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+
+ src/os/os_test.go       | 2 +-
+ src/os/types_windows.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 907e998cba8a5313639d020040f24ac6b4bc1baa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 29 15:07:04 2010 -0700
+
+    go/scanner: added another test case, clarified some code
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2741042
+
+ src/pkg/go/scanner/scanner.go      | 12 ++++--------
+ src/pkg/go/scanner/scanner_test.go |  3 +++
+ 2 files changed, 7 insertions(+), 8 deletions(-)

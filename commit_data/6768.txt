@@ -1,0 +1,12 @@
+commit 6aeaa5d3fec5e8f61fd5b3237003f4810c7c2b17
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 17 17:00:25 2010 -0800
+
+    go/token position: code improvements per rsc's suggestion
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3183041
+
+ src/pkg/go/token/position.go | 35 +++++++----------------------------
+ 1 file changed, 7 insertions(+), 28 deletions(-)

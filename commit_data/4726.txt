@@ -1,0 +1,13 @@
+commit 6039a414aefe2168742b5ba694a309daa2bd76c6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 17:38:51 2010 -0800
+
+    io: fix nil Write bug in Pipe
+    
+    R=nigeltao_golang
+    CC=golang-dev
+    https://golang.org/cl/194132
+
+ src/pkg/io/pipe.go      |  2 +-
+ src/pkg/io/pipe_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

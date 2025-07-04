@@ -1,0 +1,15 @@
+commit f005fedfa94bb2da726024953996bde40fc1e0fd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 17 10:41:47 2012 -0700
+
+    misc/dashboard/builder: add timeout to all external command invocations
+    
+    Fixes #4083.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6498136
+
+ misc/dashboard/builder/exec.go | 28 ++++++++++++++++++++++++----
+ misc/dashboard/builder/main.go | 32 ++++++++++++++------------------
+ 2 files changed, 38 insertions(+), 22 deletions(-)

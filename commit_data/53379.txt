@@ -1,0 +1,18 @@
+commit 348fd6389b8a1245f8ec67d4cbd904c5b4ab2db5
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 30 14:59:55 2023 -0400
+
+    doc/go1.21: fix HTML tag
+    
+    Fix a broken HTML tag.
+    
+    Change-Id: I9e7c65c2cc12c7b14ca205f78b78ac1e9c92a3ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499355
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/go1.21.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

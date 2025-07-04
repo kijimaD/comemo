@@ -1,0 +1,15 @@
+commit 5636b60b705f462de0ee794fac6a0d071ed3a952
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 12 13:42:04 2013 -0400
+
+    cmd/5l: fix encoding of new MOVB, MOVH instructions
+    
+    They are just like MOVW and should be setting only
+    two register fields, not three.
+    
+    R=ken2
+    CC=golang-dev, remyoudompheng
+    https://golang.org/cl/12781043
+
+ src/cmd/5l/asm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 060ffabd18a6ab629aba4e2f4fb5d36b8a9ac61e
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Oct 9 00:56:13 2011 +1100
+
+    runtime: improve locking on openbsd
+    
+    Implement a locking model based on the current linux model - a
+    tri-state mutex with active spinning, passive spinning and sleeping.
+    
+    R=golang-dev, dvyukov, rsc
+    CC=golang-dev
+    https://golang.org/cl/4974043
+
+ src/pkg/runtime/openbsd/386/sys.s    | 10 ++++
+ src/pkg/runtime/openbsd/amd64/defs.h |  2 +
+ src/pkg/runtime/openbsd/amd64/sys.s  | 20 ++++----
+ src/pkg/runtime/openbsd/thread.c     | 99 ++++++++++++++++++++++++++++++------
+ 4 files changed, 106 insertions(+), 25 deletions(-)

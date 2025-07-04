@@ -1,0 +1,12 @@
+commit 705be76b6fde0f490d089338f06e27569b5abc28
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Fri Mar 18 14:27:29 2016 +0100
+
+    encoding/binary: improve error messages for benchmarks
+    
+    Change-Id: I0f4b6752ecc8b4945ecfde627cdec13fc4bb6a69
+    Reviewed-on: https://go-review.googlesource.com/20850
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/binary/binary_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

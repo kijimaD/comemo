@@ -1,0 +1,23 @@
+commit adc4d2cc2dbc20c14bae7bbdbca8d75421e1bef5
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 30 11:12:29 2019 -0400
+
+    cmd/compile: run deadcode before nilcheck for better statement relocation
+    
+    Nilcheck would move statements from NilCheck values to others that
+    turned out were already dead, which leads to lost statements.  Better
+    to eliminate the dead code first.
+    
+    One "error" is removed from test/prove.go because the code is
+    actually dead, and the additional deadcode pass removes it before
+    prove can run.
+    
+    Change-Id: If75926ca1acbb59c7ab9c8ef14d60a02a0a94f8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198479
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go | 1 +
+ test/prove.go                           | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

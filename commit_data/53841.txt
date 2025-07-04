@@ -1,0 +1,25 @@
+commit d4b46b0956a6581b62a0534d4eb1d5b5342c3b6f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 31 10:30:27 2023 -0700
+
+    encoding/gob: use reflect.TypeFor for known types
+    
+    This avoids several mildly confusing Elem calls.
+    
+    For #60088
+    
+    Change-Id: If7b83d2ab10537c7e886a035b43cb272130c1669
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514455
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/gob/decode.go         |  2 +-
+ src/encoding/gob/gobencdec_test.go |  2 +-
+ src/encoding/gob/type.go           | 28 ++++++++++++++--------------
+ src/encoding/gob/type_test.go      |  8 ++++----
+ 4 files changed, 20 insertions(+), 20 deletions(-)

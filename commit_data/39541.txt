@@ -1,0 +1,17 @@
+commit 80f9d32438b85d03ea0310b67411e41619d4066b
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Jul 27 11:55:54 2019 -0700
+
+    doc: mention that GOPATH/bin should be in PATH
+    
+    As noticed while mentoring at Gophercon, a common mistake for
+    beginners is that, after they install git-codereview, it's not
+    found by git because they haven't put GOPATH/bin in their
+    environment.
+    
+    Change-Id: I885cee0f532a4069d1a17ea27365d54965ecca22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187818
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/contribute.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

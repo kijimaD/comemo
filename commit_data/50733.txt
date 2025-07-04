@@ -1,0 +1,16 @@
+commit 574b5decf239f5dad1f25a71d2853a08e237821d
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:59:41 2022 +0800
+
+    cmd/internal/obj/x86: return comparison directly
+    
+    Change-Id: I4b596b252c1785b13c4a166e9ef5f4ae812cd1bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436704
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/internal/obj/x86/asm6.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)

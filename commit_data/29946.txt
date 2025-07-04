@@ -1,0 +1,16 @@
+commit 4601eae6baed9c4bc6e38f035d1b6a20bb7ebbf7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Jan 9 19:11:58 2017 +0100
+
+    doc/gdb: mention GOTRACEBACK=crash
+    
+    Also fix a couple of other errors.
+    
+    Fixes #6877
+    
+    Change-Id: I94c81c5847cc7b0adab19418e71687bc2ee7fe94
+    Reviewed-on: https://go-review.googlesource.com/34960
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/debugging_with_gdb.html | 17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)

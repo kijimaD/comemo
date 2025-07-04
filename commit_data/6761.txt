@@ -1,0 +1,13 @@
+commit 81cb189a06ae0ac7e2014e384896887fc3e2026b
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Fri Nov 12 15:25:25 2010 -0800
+
+            Remove unnecessary casts in Get() methods.
+        Cleaner, but also results in a 25%+ performance improvement for Get()/SetValue() on my machine.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/3072041
+
+ src/pkg/reflect/value.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)

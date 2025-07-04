@@ -1,0 +1,12 @@
+commit f1e1fd8b466118e8695564184284d2bc4db91eb1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Oct 19 09:26:11 2010 +1100
+
+    gc: update usage string in doc.go
+    
+    R=rsc, r2, r
+    CC=golang-dev
+    https://golang.org/cl/2550041
+
+ src/cmd/gc/doc.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,33 @@
+commit 3251006291c3e09c6ea40b6a65e5f05d9b9de573
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Sep 13 09:26:41 2023 -0400
+
+    cmd/link: fix malformed .shstrtab section
+    
+    For ELF targets, the code in the go linker that generates the
+    ".shstrtab" section was using a loader symbol to accumulate the
+    contents of the section, then setting the section type to
+    sym.SELFROSECT. This resulted in a section whose offset indicated that
+    it fell into a loadable ELF segment, which is not how the .shstrtab is
+    supposed to work (it should be outside of all loadable segments,
+    similar to .strtab and .symtab). The peculiar .shstrtab caused
+    confusion in third party tools that operate on ELF files, notably
+    llvm-strip.
+    
+    This patch rewrites the .shstrtab generation code to avoid using a
+    loader.Symbol and instead accumulate the contents of the section into
+    a regular byte slice, then emit the section's data in the same way
+    that .strtab is handled.
+    
+    Fixes #62600.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Ie54020d7b2d779d3ac9f5465fd505217d0681f79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528036
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/elf.go      | 40 +++++++++++++++++--------
+ src/cmd/link/internal/ld/elf_test.go | 58 ++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/symtab.go   |  8 ++---
+ 3 files changed, 90 insertions(+), 16 deletions(-)

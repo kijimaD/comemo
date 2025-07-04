@@ -1,0 +1,19 @@
+commit e718aee5f50b06d73ad4e679d0862267147347b0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 17 18:40:27 2024 -0700
+
+    go/types: track gotypesalias non-default behavior
+    
+    Fixes #66216.
+    
+    Change-Id: I04d7389e5712b35db078844ce424e10f5b96156c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579936
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/decl.go           | 7 +++++++
+ src/internal/godebugs/table.go | 2 +-
+ src/runtime/metrics/doc.go     | 4 ++++
+ 3 files changed, 12 insertions(+), 1 deletion(-)

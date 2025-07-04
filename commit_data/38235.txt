@@ -1,0 +1,16 @@
+commit b3fac018f15e653ed69f19f4c85c811ef2a62b9f
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Tue Mar 5 16:05:07 2019 +0100
+
+    net: fix fd leak with interfaces on aix/ppc64
+    
+    To retrieve MTU on aix/ppc64, a socket must be created. Previously, this
+    socket was recreated for each interface and not close at all, causing a
+    fd leak on software using interface API.
+    
+    Change-Id: Ib573e234bfce58964935831b68d007bfbd923476
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165397
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/interface_aix.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

@@ -1,0 +1,15 @@
+commit 8d04110ce16ecc5cc10e6d5da7678f9c39a222cb
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jan 17 11:03:15 2024 -0800
+
+    doc/go1.22: document net/http/cgi changes
+    
+    For #61422
+    
+    Change-Id: If9c3d3ccbfb2061f42ffc26461209c96d38020e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ doc/go1.22.html | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

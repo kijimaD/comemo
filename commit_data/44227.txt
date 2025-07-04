@@ -1,0 +1,19 @@
+commit cea4e21b525ad6b465f62741680eaa0a44e9cc3e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 8 16:32:39 2021 -0800
+
+    io/fs: backslash is always a glob meta character
+    
+    Fixes #44171
+    
+    Change-Id: I2d3437a2f5b9fa0358e4664e1a8eacebed975eed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290512
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/io/fs/glob.go      | 5 ++---
+ src/io/fs/glob_test.go | 3 ++-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

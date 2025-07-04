@@ -1,0 +1,19 @@
+commit ce884036d2199ebec22e4f9200789a532a1225d1
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jan 28 22:34:32 2014 +0400
+
+    runtime: adjust malloc race instrumentation for tiny allocs
+    Tiny alloc memory block is shared by different goroutines running on the same thread.
+    We call racemalloc after enabling preemption in mallocgc,
+    as the result another goroutine can act on not yet race-cleared tiny block.
+    Call racemalloc before enabling preemption.
+    Fixes #7224.
+    
+    LGTM=dave
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/57730043
+
+ src/pkg/runtime/malloc.goc                |  4 ++--
+ src/pkg/runtime/race/testdata/mop_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 2 deletions(-)

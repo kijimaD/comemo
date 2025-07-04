@@ -1,0 +1,16 @@
+commit f383062e014d44872e8bd450a538fc45b7bee5c8
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 7 14:41:46 2011 -0800
+
+    time.NewTicker: panic for intervals <= 0.
+    Not absolutely certain it's right to do this, but since there's
+    no error value coming back, it seems reasonable.
+    
+    Fixes #1392.
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/3896042
+
+ src/pkg/time/tick.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

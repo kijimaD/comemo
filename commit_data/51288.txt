@@ -1,0 +1,18 @@
+commit 8373bfe88e92a77a498caeab2ca729330b007483
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 15 11:08:03 2022 -0800
+
+    go/internal/gcimporter: backport flattenImports optimization
+    
+    Backport of go.dev/cl/450755 from the x/tools importer.
+    
+    Change-Id: Ia9a2cc038d589a4cde1b31f74484a5f88dabeef9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450795
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Florian Zenker <floriank@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/internal/gcimporter/ureader.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

@@ -1,0 +1,30 @@
+commit 299117eca0f28b6e379c4d5b7e43e2f13cf0cd36
+Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
+Date:   Wed Aug 27 20:18:56 2014 -0700
+
+    debug/elf: support arm64 relocations
+    
+    This adds the minimal support for AArch64/arm64 relocations
+    needed to get cgo to work (when an isomorphic patch is applied
+    to gccgo) and a test.
+    
+    This change uses the "AAarch64" name for the architecture rather
+    than the more widely accepted "arm64" because that's the name that
+    the relevant docs from ARM such as
+    
+       http://infocenter.arm.com/help/topic/com.arm.doc.ihi0056b/IHI0056B_aaelf64.pdf
+    
+    all use.
+    
+    Fixes #8533.
+    
+    LGTM=iant
+    R=golang-codereviews, aram, gobot, iant, minux
+    CC=golang-codereviews
+    https://golang.org/cl/132000043
+
+ src/pkg/debug/elf/elf.go                           | 338 ++++++++++++++++++---
+ src/pkg/debug/elf/file.go                          |  50 ++-
+ src/pkg/debug/elf/file_test.go                     |   6 +
+ .../testdata/go-relocation-test-gcc482-aarch64.obj | Bin 0 -> 3392 bytes
+ 4 files changed, 350 insertions(+), 44 deletions(-)

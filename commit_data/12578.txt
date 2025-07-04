@@ -1,0 +1,17 @@
+commit b70925d6999bbe455cfa012401561fa19969153f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 16:34:24 2012 -0400
+
+    cmd/go: make net/... match net too
+    
+    Otherwise there's no good way to get both, and it comes up often.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5794064
+
+ src/cmd/go/doc.go        |  5 ++---
+ src/cmd/go/help.go       |  5 ++---
+ src/cmd/go/main.go       | 56 +++++++++++++++++++++++++++++++++++-------------
+ src/cmd/go/match_test.go | 36 +++++++++++++++++++++++++++++++
+ 4 files changed, 81 insertions(+), 21 deletions(-)

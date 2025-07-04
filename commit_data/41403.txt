@@ -1,0 +1,20 @@
+commit e092fc352ad393a4d2f1f7fa641df2d23572ccff
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Feb 24 11:27:38 2020 -0500
+
+    cmd/go/internal/modload: record the replacement for the module containing package main in BuildInfo
+    
+    Fixes #37392
+    
+    Change-Id: I2cb051e6f556b0af95e059611dda3f62e7c1f21a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220645
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/build.go               | 30 ++++++-------
+ .../mod/example.com_printversion_v0.1.0.txt        |  6 +++
+ .../mod/example.com_printversion_v1.0.0.txt        |  6 +++
+ src/cmd/go/testdata/script/version_replace.txt     | 33 ++++++++++++++
+ src/runtime/debug/mod.go                           | 51 +++++++++++++---------
+ 5 files changed, 90 insertions(+), 36 deletions(-)

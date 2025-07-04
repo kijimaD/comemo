@@ -1,0 +1,14 @@
+commit 2b0837271056b9288cfcb8f57881325fa7f88da6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 29 11:29:47 2009 -0700
+
+    add []byte as a special case: it will have a special, efficient encoding.
+    
+    R=rsc
+    DELTA=16  (9 added, 1 deleted, 6 changed)
+    OCL=30846
+    CL=30846
+
+ src/pkg/gob/type.go      |  8 +++++++-
+ src/pkg/gob/type_test.go | 14 ++++++++------
+ 2 files changed, 15 insertions(+), 7 deletions(-)

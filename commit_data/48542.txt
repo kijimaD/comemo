@@ -1,0 +1,25 @@
+commit 0eea25159fe58ab956198f3009e6ded875d2796e
+Author: Patrick Gundlach <gundlach@speedata.de>
+Date:   Mon Apr 19 12:51:04 2021 +0200
+
+    encoding/xml: expose decoder line and column
+    
+    The existing implementation of the xml decoder uses the line number
+    only for reporting syntax errors. The line number of the last read
+    token and the column within the line is useful for the users even
+    in non-error conditions.
+    
+    Fixes #45628
+    
+    Change-Id: I37b5033ff5ff8411793d8f5180f96aa4537e83f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311270
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ api/next/45628.txt           |  1 +
+ src/encoding/xml/xml.go      |  9 +++++++++
+ src/encoding/xml/xml_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 49 insertions(+)

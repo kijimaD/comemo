@@ -1,0 +1,44 @@
+commit 2d9378c7f6dfbbe82d1bbd806093c2dfe57d7e17
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 27 13:30:16 2015 -0700
+
+    spec: document existing expression switch restrictions
+    
+    The spec didn't specify several aspects of expression switches:
+    
+    - The switch expression is evaluated exactly once.
+    
+    - Switch expressions evaluating to an untyped value are converted
+      to the respective default type before use.
+    
+    - An (untyped) nil value is not permitted as expression switch
+      value. (We could permit it relatively easily, but gc doesn't,
+      and disallowing it is in symmetry with the rules for var decls
+      without explicit type and untyped initializer expressions.)
+    
+    - The comparison x == t between each case expression x and
+      switch expression value t must be valid.
+    
+    - (Some) duplicate constant case expressions are not permitted.
+    
+    This change also clarifies the following issues:
+    
+     4524: mult. equal int const switch case values should be illegal
+                                             -> spec issue fixed
+     6398: switch w/ no value uses bool rather than untyped bool
+                                             -> spec issue fixed
+    11578: allows duplicate switch cases     -> go/types bug
+    11667: int overflow in switch expression -> go/types bug
+    11668: use of untyped nil in switch      -> not a gc bug
+    
+    Fixes #4524.
+    Fixes #6398.
+    Fixes #11668.
+    
+    Change-Id: Iae4ab3e714575a5d11c92c9b8fbf027aa706b370
+    Reviewed-on: https://go-review.googlesource.com/12711
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 39 ++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 34 insertions(+), 5 deletions(-)

@@ -1,0 +1,19 @@
+commit 6d51dd1e85bbed9f59023a468c4cbbeed598608f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 4 16:43:34 2018 -0700
+
+    go/types: remove work-around for issue #26124
+    
+    This work-around is not needed anymore now that method
+    signatures are type-checked separately from their receiver
+    base types: no artificial cycles are introduced anymore
+    and so there is no need to artificially cut them.
+    
+    Updates #26124.
+    
+    Change-Id: I9d50171f12dd8977116a5d3f63ac39a06b1cd492
+    Reviewed-on: https://go-review.googlesource.com/c/139899
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/decl.go | 26 ++------------------------
+ 1 file changed, 2 insertions(+), 24 deletions(-)

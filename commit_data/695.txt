@@ -1,0 +1,20 @@
+commit b676b0e125b44c53a757c327cf3c4459b9593d2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 22 10:56:54 2008 -0700
+
+    better yacc rule in Makefile
+    
+    if y.tab.c is older than y.tab.h, make
+    interprets doing nothing as a failure,
+    because y.tab.c hasn't been updated.
+    so update it.
+    
+    R=r
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=15615
+    CL=15622
+
+ src/cmd/6a/Makefile | 2 +-
+ src/cmd/cc/Makefile | 2 +-
+ src/cmd/gc/Makefile | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

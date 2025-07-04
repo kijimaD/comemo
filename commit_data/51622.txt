@@ -1,0 +1,21 @@
+commit 8e199294361de59b637f25a7d5eebdee1b131415
+Author: fangguizhen <1297394526@qq.com>
+Date:   Tue Jan 17 16:37:42 2023 +0000
+
+    strings: remove redundant symbols
+    
+    Change-Id: Ie3fe0274288d6cb6303acdcec1340c480e5c0b20
+    GitHub-Last-Rev: ce9d44619e970b1319fbccf3aace1ddf719bcec1
+    GitHub-Pull-Request: golang/go#57848
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462277
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/strings/clone_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

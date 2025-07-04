@@ -1,0 +1,29 @@
+commit 9a2d717fa9ca58263ec3840460f0023c78a0714d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jan 7 12:25:09 2016 -0800
+
+    A+C: manual updates
+    
+    Add Colin Cross (Google CLA)
+    Add Quentin Perez (Individual CLA)
+    Add Andy Balholm (Individual CLA)
+    Add Dirk Gadsden (Individual CLA)
+    Add Derek Che (Yahoo CLA)
+    
+    And:
+    
+    Add CL Sung (Individual CLA), but where gerrit is using personal email
+    address with CLA signed, but the git commit itself is using an
+    unverified htc.com address. The commit is:
+        https://github.com/golang/oauth2/commit/099e4f0
+    For github user https://github.com/clsung which says "Self-Employed"
+    and "clsung@gmail.com". Perhaps the self-employed part is new
+    since Sep 10, 2014.
+    
+    Change-Id: Ic1130fb79d167259a9bb76e3be56b9c8ad6b95ca
+    Reviewed-on: https://go-review.googlesource.com/18369
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 5 +++++
+ CONTRIBUTORS | 6 ++++++
+ 2 files changed, 11 insertions(+)

@@ -1,0 +1,19 @@
+commit 2f1e643229d19f40a5f80dc3784daaff83d5cc02
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri May 19 07:31:44 2023 -0400
+
+    log/slog: fix check for nil prefix
+    
+    Previously, handleState.prefix was nil if and only if the length of
+    the prefix was zero. Now, prefix is never nil.
+    
+    Fix the nil check in the code by also checking if the length is non-zero.
+    
+    Change-Id: I9f69c0029cb1c73fe6c2919c78fee7d4085bfd85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495977
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/log/slog/handler.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,26 @@
+commit 80f4ff226ff8fb36ba3c8b4808982c6664ce47c3
+Author: David Symonds <dsymonds@golang.org>
+Date:   Tue Nov 13 09:08:33 2012 +1100
+
+    exp/types: avoid init race in check_test.go.
+    
+    There was an init race between
+            check_test.go:init
+            universe.go:def
+            use of Universe
+    and
+            universe.go:init
+            creation of Universe
+    
+    The order in which init funcs are executed in a package is unspecified.
+    The test is not currently broken in the golang.org environment
+    because the go tool compiles the test with non-test sources before test sources,
+    but other environments may, say, sort the source files before compiling,
+    and thus trigger this race, causing a nil pointer panic.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/6827076
+
+ src/pkg/exp/types/check_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

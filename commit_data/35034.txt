@@ -1,0 +1,23 @@
+commit 3042463d61a4a9165531aaf45833f1dcefb1e5f9
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 17 16:28:13 2018 -0400
+
+    cmd/compile: in escape analysis, use element type for OIND of slice
+    
+    The escape analysis models the flow of "content" of X with a
+    level of "indirection" (OIND node) of X. This content can be
+    pointer dereference, or slice/string element. For the latter
+    case, the type of the OIND node should be the element type of
+    the slice/string. This CL fixes this. In particular, this
+    matters when the element type is pointerless, where the data
+    flow should not cause any escape.
+    
+    Fixes #15730.
+    
+    Change-Id: Iba9f92898681625e7e3ddef76ae65d7cd61c41e0
+    Reviewed-on: https://go-review.googlesource.com/107597
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go |  8 +++++---
+ test/escape5.go                    | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit a6136ded32878f9225e26b03ce9d9e84b0198af8
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 10 06:46:36 2017 -0700
+
+    runtime: remove indentation in evacuate
+    
+    Combine conditions into a single if statement.
+    This is more readable.
+    
+    It should generate identical machine code, but it doesn't.
+    The new code is shorter.
+    
+    Change-Id: I9bf52f8f288b0df97a2b9b4e4183f6ca74175e8a
+    Reviewed-on: https://go-review.googlesource.com/54651
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/runtime/hashmap.go | 42 ++++++++++++++++++++----------------------
+ 1 file changed, 20 insertions(+), 22 deletions(-)

@@ -1,0 +1,20 @@
+commit f715d28cea22de3a5752bdf019c1a00d4dcadf63
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 30 12:04:59 2022 -0500
+
+    doc/go1.20: add section on coverage
+    
+    Add some basic material on the changes to code coverage testing
+    to the release notes.
+    
+    For #54202.
+    
+    Change-Id: I28200d43b4952ce8e8ecf46c8fe8e97c81d245e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453857
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ doc/go1.20.html | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)

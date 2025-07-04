@@ -1,0 +1,32 @@
+commit b080abf656feea5946922b2782bfeaa73cc317d4
+Author: Vladimir Kuzmin <vkuzmin@uber.com>
+Date:   Wed Jun 20 22:19:56 2018 -0700
+
+    cmd/compile: map delete should clear value always
+    
+    Map delete must clear value every time because
+    newly added map optimizations of compound-assignment
+    operators (CL #91557) rely on this behavior of map delete.
+    
+    It slows down map delete operation for non-reference types:
+    
+    name                   old time/op    new time/op    delta
+    MapDelete/Int32/100      23.9ns ± 2%    27.8ns ± 4%  +16.04%  (p=0.000 n=20+20)
+    MapDelete/Int32/1000     21.5ns ± 2%    25.2ns ± 2%  +17.06%  (p=0.000 n=20+19)
+    MapDelete/Int32/10000    24.2ns ± 6%    27.2ns ± 5%  +12.39%  (p=0.000 n=19+19)
+    MapDelete/Int64/100      24.2ns ± 4%    27.7ns ± 2%  +14.55%  (p=0.000 n=20+20)
+    MapDelete/Int64/1000     22.1ns ± 2%    24.8ns ± 2%  +12.36%  (p=0.000 n=10+20)
+    
+    Fixes #25936
+    
+    Change-Id: I8499b790cb5bb019938161b3e50f3243d9bbb79c
+    Reviewed-on: https://go-review.googlesource.com/120255
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/map.go         | 15 ++++----
+ src/runtime/map_fast32.go  |  5 ++-
+ src/runtime/map_fast64.go  |  5 ++-
+ src/runtime/map_faststr.go |  5 ++-
+ src/runtime/map_test.go    | 96 +++++++++++++++++++++++++++++++++++++++++++---
+ 5 files changed, 107 insertions(+), 19 deletions(-)

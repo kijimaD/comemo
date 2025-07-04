@@ -1,0 +1,15 @@
+commit 41d860cf0e7cb63003d55839b59949752b7fdecc
+Author: mattyw <gh@mattyw.net>
+Date:   Thu Sep 28 11:12:16 2017 -0400
+
+    net/http: remove unused named return variables
+    
+    The existing implementation names a c net.Conn return which is
+    never user. Leaving the returns unamed is marginally clearer.
+    
+    Change-Id: If9a411c9235b78c116a8ffb21fef71f7a4a4ce8f
+    Reviewed-on: https://go-review.googlesource.com/66890
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

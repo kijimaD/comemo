@@ -1,0 +1,20 @@
+commit e28cc362a825b297fa8a10dc95d7c0d2e2b21dfc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 7 20:11:00 2022 +0000
+
+    runtime: remove alignment padding in mheap and pageAlloc
+    
+    All subfields use atomic types to ensure alignment, so there's no more
+    need for these fields.
+    
+    Change-Id: Iada4253f352a074073ce603f1f6b07cbd5b7c58a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429220
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mheap.go      | 6 ------
+ src/runtime/mpagealloc.go | 2 --
+ 2 files changed, 8 deletions(-)

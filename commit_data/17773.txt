@@ -1,0 +1,14 @@
+commit 649fc255a9c7b6e05249dbde1176aecd17135cc3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 9 13:52:29 2013 -0700
+
+    net: fix TestDialFailPDLeak to work when GOMAXPROCS is large
+    
+    Fixes #6553.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/14526048
+
+ src/pkg/net/dial_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

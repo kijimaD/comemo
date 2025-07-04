@@ -1,0 +1,24 @@
+commit 2172b229b95f483324825806f692303a0a132762
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 27 11:24:24 2020 -0800
+
+    runtime/pprof/internal/profile: make error message readable
+    
+    The error message for an unrecognized type in decodeField was using
+    string(i) for an int type i. It was recently changed (by  me) to
+    string(rune(i)), but that just avoided a vet warning without fixing
+    the problem. This CL fixes the problem by using fmt.Errorf.
+    
+    We also change the message to "unknown wire type" to match the master
+    copy of this code in github.com/google/pprof/profile/proto.go.
+    
+    Updates #32479
+    
+    Change-Id: Ia91ea6d5edbd7cd946225d1ee96bb7623b52bb44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221384
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/pprof/internal/profile/proto.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

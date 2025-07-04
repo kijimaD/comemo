@@ -1,0 +1,13 @@
+commit eb452f4b6ef68980e4f68e9c1a0c175334f659e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 7 12:36:39 2008 -0700
+
+    test that mutually recursive interfaces compile
+    
+    R=r
+    DELTA=18  (18 added, 0 deleted, 0 changed)
+    OCL=16639
+    CL=16647
+
+ test/interface.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

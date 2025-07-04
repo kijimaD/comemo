@@ -1,0 +1,23 @@
+commit 7202341de92927484a3eed101d3b77653b8b8bd1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 24 09:36:31 2017 -0700
+
+    cmd/compile: only SSA [0]T when T is SSA-able
+    
+    Almost never happens in practice.
+    The compiler will generate reasonable code anyway,
+    since assignments involving [0]T never do any work.
+    
+    Fixes #19696
+    Fixes #19671
+    
+    Change-Id: I350d2e0c5bb326c4789c74a046ab0486b2cee49c
+    Reviewed-on: https://go-review.googlesource.com/38599
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go |  5 +----
+ test/fixedbugs/issue19671.go       | 16 ++++++++++++++++
+ test/fixedbugs/issue19696.go       | 20 ++++++++++++++++++++
+ 3 files changed, 37 insertions(+), 4 deletions(-)

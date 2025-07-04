@@ -1,0 +1,12 @@
+commit e91639285f404543d4e2fc9bd6ea9015f4314250
+Author: Jaana Burcu Dogan <jbd@google.com>
+Date:   Sat Sep 9 01:36:25 2017 -0700
+
+    doc: fix typo in the diagnostics guide
+    
+    Change-Id: Ib1b93e55788168b574badeb84d0e6c4f3795055e
+    Reviewed-on: https://go-review.googlesource.com/62510
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/diagnostics.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

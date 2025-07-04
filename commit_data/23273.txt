@@ -1,0 +1,12 @@
+commit 48f2d30d4389d57b60afe69cab74a008a2f47047
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 09:58:47 2015 -0400
+
+    cmd/go: fix detection of ELF binaries
+    
+    Change-Id: I0e6f1a39b3d6b15d05891c8b25ab6644356bde5f
+    Reviewed-on: https://go-review.googlesource.com/10751
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/pkg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

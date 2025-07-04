@@ -1,0 +1,13 @@
+commit ba91dac3a9e01a68e13e3ea6f6798f2f3b4ea73f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jul 13 09:40:49 2011 +1000
+
+    doc: gofix io2010 demo programs
+    
+    R=golang-dev, gri, r, agl
+    CC=golang-dev
+    https://golang.org/cl/4696046
+
+ doc/talks/io2010/decrypt.go | 20 ++++++++++----------
+ doc/talks/io2010/encrypt.go | 10 +++++-----
+ 2 files changed, 15 insertions(+), 15 deletions(-)

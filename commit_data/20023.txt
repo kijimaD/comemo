@@ -1,0 +1,13 @@
+commit 159926236c922ad2f19464552068003db9208e62
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 18 22:21:55 2014 +0400
+
+    runtime: add more cases to GC info test
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews, khr, rlh, rsc
+    https://golang.org/cl/125420043
+
+ src/pkg/runtime/gcinfo_test.go | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit a8c6c4837c17ab4ec3ba78e40b9a72dc70d9cf5a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 8 21:09:09 2016 -0700
+
+    os: document that the runtime can write to standard error
+    
+    Fixes #15970.
+    
+    Change-Id: I3f7d8316069a69d0e3859aaa96bc1414487fead0
+    Reviewed-on: https://go-review.googlesource.com/23921
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/os/file.go | 4 ++++
+ 1 file changed, 4 insertions(+)

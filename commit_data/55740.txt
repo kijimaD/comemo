@@ -1,0 +1,21 @@
+commit e8b6d0c9cd86a44802322d56d13baeeb0e418d15
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 27 14:04:00 2024 -0800
+
+    go/types, types2: move Checker.langCompat from version.go to expr.go (cleanup)
+    
+    This makes version.go holding core version checking code only.
+    No functional changes.
+    
+    Change-Id: Ia88a48166cad2698765697dd7a8625b56ecc2226
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567536
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go    | 30 ++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/version.go | 30 ------------------------------
+ src/go/types/expr.go                       | 30 ++++++++++++++++++++++++++++++
+ src/go/types/version.go                    | 30 ------------------------------
+ 4 files changed, 60 insertions(+), 60 deletions(-)

@@ -1,0 +1,22 @@
+commit 24d8f3fa4b02784af2419eec8a28aee303aae0c5
+Author: Sina Siadat <siadat@gmail.com>
+Date:   Sun Sep 4 12:20:14 2016 +0430
+
+    net/http/httputil: copy header map if necessary in ReverseProxy
+    
+    We were already making a copy of the map before removing
+    hop-by-hop headers. This commit does the same for proxied
+    headers mentioned in the "Connection" header.
+    
+    A test is added to ensure request headers are not modified.
+    
+    Updates #16875
+    
+    Change-Id: I85329d212787958d5ad818915eb0538580a4653a
+    Reviewed-on: https://go-review.googlesource.com/28493
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 14 ++++++++++----
+ src/net/http/httputil/reverseproxy_test.go |  9 +++++++--
+ 2 files changed, 17 insertions(+), 6 deletions(-)

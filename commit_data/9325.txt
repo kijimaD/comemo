@@ -1,0 +1,14 @@
+commit c9cf04a9f6f52f6a887de8bb18349d0805272195
+Author: Rob Pike <r@golang.org>
+Date:   Wed Aug 10 23:24:45 2011 +1000
+
+    time: allow the input to have fractional seconds even if
+    the format string does not specify its presence.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4839059
+
+ src/pkg/time/format.go    | 83 +++++++++++++++++++++++++++++++++--------------
+ src/pkg/time/time_test.go |  7 ++++
+ 2 files changed, 65 insertions(+), 25 deletions(-)

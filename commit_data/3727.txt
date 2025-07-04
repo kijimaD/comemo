@@ -1,0 +1,16 @@
+commit 9339e0758b7610f7c37ede672dedfc1ab14800f8
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 2 15:28:41 2009 -0800
+
+    pdf cleanup: fix links, remove internal references.
+    fix link in spec.
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1017013
+
+ doc/GoCourseDay1.pdf     | Bin 801481 -> 801121 bytes
+ doc/GoCourseDay3.pdf     | Bin 530944 -> 530749 bytes
+ doc/go_spec.html         |   2 +-
+ doc/go_talk-20091030.pdf | Bin 1153663 -> 1152305 bytes
+ 4 files changed, 1 insertion(+), 1 deletion(-)

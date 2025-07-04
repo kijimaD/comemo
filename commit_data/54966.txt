@@ -1,0 +1,37 @@
+commit 773039ed5c7b3721f7b14d33d608184b2598c7f4
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Oct 24 16:04:42 2023 -0500
+
+    cmd/compile/internal/ssa: on PPC64, merge (CMPconst [0] (op ...)) more aggressively
+    
+    Generate the CC version of many opcodes whose result is compared against
+    signed 0. The approach taken here works even if the opcode result is used in
+    multiple places too.
+    
+    Add support for ADD, ADDconst, ANDN, SUB, NEG, CNTLZD, NOR conversions
+    to their CC opcode variant. These are the most commonly used variants.
+    
+    Also, do not set clobberFlags of CNTLZD and CNTLZW, they do not clobber
+    flags.
+    
+    This results in about 1% smaller text sections in kubernetes binaries,
+    and no regressions in the crypto benchmarks.
+    
+    Change-Id: I9e0381944869c3774106bf348dead5ecb96dffda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538636
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go              |  13 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go      |  83 ++---
+ .../compile/internal/ssa/_gen/PPC64latelower.rules |  17 +
+ src/cmd/compile/internal/ssa/opGen.go              | 156 +++++++--
+ src/cmd/compile/internal/ssa/rewrite.go            |  46 +++
+ .../compile/internal/ssa/rewritePPC64latelower.go  | 357 +++++++++++++++++++++
+ test/codegen/bool.go                               |  65 +++-
+ 7 files changed, 663 insertions(+), 74 deletions(-)

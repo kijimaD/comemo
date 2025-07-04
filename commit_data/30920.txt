@@ -1,0 +1,20 @@
+commit e86168430f0aab8f971763e4b00c2aae7bec55f0
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Fri Feb 10 11:30:22 2017 +0200
+
+    cmd/fix,cmd/gofmt: flush to disk before diffing
+    
+    Flush file content to disk before diffing files,
+    may cause unpredictable results on Windows.
+    
+    Convert from \r\n to \n when comparing diff result.
+    
+    Change-Id: Ibcd6154a2382dba1338ee5674333611aea16bb65
+    Reviewed-on: https://go-review.googlesource.com/36750
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+
+ src/cmd/fix/main.go         | 39 ++++++++++++++++++++++++++++-----------
+ src/cmd/gofmt/gofmt.go      | 35 ++++++++++++++++++++++-------------
+ src/cmd/gofmt/gofmt_test.go |  5 +++++
+ 3 files changed, 55 insertions(+), 24 deletions(-)

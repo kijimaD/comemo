@@ -1,0 +1,29 @@
+commit 881a16542e357fd85ac492424021ff380175675a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Oct 5 12:54:00 2022 -0400
+
+    cmd/go/internal/modindex: ignore non-source files for index
+    
+    We were saving non-go file information in the module index files,
+    leading in an unnecessary increase in memory usage in modules
+    containing many non-go files. This was a bug because this information
+    is never used. Don't save that information.
+    
+    For #54226
+    
+    Change-Id: I0644064f83f96e3a9f43b7e66ca94d69d9603376
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/439118
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modindex/build.go                   |  7 ++++++-
+ src/cmd/go/internal/modindex/index_test.go              | 17 +++++++++++++++++
+ src/cmd/go/internal/modindex/scan.go                    |  5 ++++-
+ .../internal/modindex/testdata/ignore_non_source/a.syso |  1 +
+ .../internal/modindex/testdata/ignore_non_source/b.go   |  0
+ .../modindex/testdata/ignore_non_source/bar.json        |  0
+ .../modindex/testdata/ignore_non_source/baz.log         |  0
+ .../go/internal/modindex/testdata/ignore_non_source/c.c |  0
+ 8 files changed, 28 insertions(+), 2 deletions(-)

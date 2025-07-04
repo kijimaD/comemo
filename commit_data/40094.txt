@@ -1,0 +1,19 @@
+commit a49067aab6eeff36d7219142ed52cc3db4d6c1d8
+Author: Nuno Cruces <ncruces@users.noreply.github.com>
+Date:   Tue Oct 1 09:31:50 2019 +0000
+
+    net/http: avoid sending unspecified time for directories
+    
+    Change applies to sendFile.
+    This is already done for sendContent.
+    
+    Change-Id: If43d9ab99e6e66a1363b08e0bdcceb57df1f855c
+    GitHub-Last-Rev: 1c47620a09a6f5e2b3d777fadaad6e0189de4af5
+    GitHub-Pull-Request: golang/go#34631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198139
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

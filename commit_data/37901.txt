@@ -1,0 +1,14 @@
+commit a15a01377226cfca48fb64f67fb535af1da4bf0e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jan 20 07:46:18 2019 -0800
+
+    cmd/cgo: print the right error if mangling detection gccgo fails
+    
+    Change-Id: I2324f6f51d2bf8a4ae1b139b3933bc78dfa75835
+    Reviewed-on: https://go-review.googlesource.com/c/158718
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/cgo/out.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

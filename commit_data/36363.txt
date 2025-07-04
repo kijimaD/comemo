@@ -1,0 +1,15 @@
+commit d58f3e6fea4e4540ad54caf9e141fe213c87d710
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 31 21:05:26 2018 +0000
+
+    net/http: add test showing that ReverseProxy HTTP/2 bidi streaming works
+    
+    Change-Id: I8361ae33c785e45e3ccc7e9bc2732c887eeb41c4
+    Reviewed-on: https://go-review.googlesource.com/127015
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/clientserver_test.go | 67 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 67 insertions(+)

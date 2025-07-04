@@ -1,0 +1,16 @@
+commit 5659964d67c9e0b74d8335ea7288fe6facb0d00b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 18:02:52 2015 -0400
+
+    cmd/link: write combined dwarf file to same directory as output file
+    
+    Fixes #11681.
+    
+    Change-Id: I679d71ed25ac585af7d43611be01c1a0c4807871
+    Reviewed-on: https://go-review.googlesource.com/12554
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

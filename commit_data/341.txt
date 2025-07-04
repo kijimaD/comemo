@@ -1,0 +1,18 @@
+commit 439b0c40bcb3652c302a3d1bc566463f2a6e7026
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 12 15:56:06 2008 -0700
+
+    tools to update math lib.
+    you need a hack to 6ar to do this, but it's not checked in yet
+    
+    SVN=126943
+
+ src/lib/math/asin.go  |  4 ++--
+ src/lib/math/atan2.go |  2 +-
+ src/lib/math/exp.go   |  2 +-
+ src/lib/math/main.go  | 20 +-------------------
+ src/lib/math/pow.go   |  8 ++++----
+ src/lib/math/sinh.go  |  2 +-
+ src/lib/math/sys.go   | 16 ----------------
+ src/lib/math/tanh.go  |  2 +-
+ 8 files changed, 11 insertions(+), 45 deletions(-)

@@ -1,0 +1,17 @@
+commit c7631f555f880409fb13143d0d8236ad9fb99c2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 17 12:23:41 2012 -0700
+
+    spec: unsafe.Alignof/Sizeof also accept non-variable arguments
+    
+    Both gc and gccgo permit calls such as unsafe.Sizeof(42). The
+    spec only permits variable arguments. This is a (backward-compatible)
+    spec change reflecting the status quo. Seems preferrable over
+    restricting the compilers.
+    
+    R=r, rsc, iant, ken
+    CC=golang-dev
+    https://golang.org/cl/6494140
+
+ doc/go_spec.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

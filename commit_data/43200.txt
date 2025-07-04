@@ -1,0 +1,24 @@
+commit 1fb149fd640f2e83f17206aa6eb530d664b0b5ed
+Author: witchard <witchard@hotmail.co.uk>
+Date:   Fri Sep 25 14:09:42 2020 +0000
+
+    cmd/go/internal/get: improve -insecure deprecation docs
+    
+    Updates #37519
+    
+    Change-Id: I212607f1839b729d7da24b1258e56997b13ad830
+    GitHub-Last-Rev: db6d3c835bdf867a0b18f115276210e3a05902ed
+    GitHub-Pull-Request: golang/go#41613
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257157
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.16.html                   | 13 +++++++------
+ src/cmd/go/alldocs.go             | 15 +++++++--------
+ src/cmd/go/internal/get/get.go    |  4 ++--
+ src/cmd/go/internal/modget/get.go | 11 +++++------
+ 4 files changed, 21 insertions(+), 22 deletions(-)

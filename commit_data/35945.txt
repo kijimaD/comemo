@@ -1,0 +1,24 @@
+commit 8d6fc84986cc0cb0bf77503828a2e7740f8ccac1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 10 16:44:56 2018 -0700
+
+    internal/poll: don't take read lock in SetBlocking
+    
+    Taking a read lock in SetBlocking could cause SetBlocking to block
+    waiting for a Read in another goroutine to complete. Since SetBlocking
+    is called by os.(*File).Fd, that could lead to deadlock if the
+    goroutine calling Fd is going to use it to unblock the Read.
+    Use an atomic store instead.
+    
+    Updates #24481
+    
+    Change-Id: I79413328e06ddf28b6d5b8af7a0e29d5b4e1e6ff
+    Reviewed-on: https://go-review.googlesource.com/123176
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go         |  2 +-
+ src/internal/poll/fd_unix.go | 25 +++++++++++++------------
+ src/os/pipe_test.go          | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 56 insertions(+), 13 deletions(-)

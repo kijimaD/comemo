@@ -1,0 +1,13 @@
+commit da38974c8851c06868c8d941db5aa6d44e023524
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 2 19:13:40 2009 -0800
+
+    address most of the editorial comments through "types"
+    
+    R=rsc
+    DELTA=41  (9 added, 4 deleted, 28 changed)
+    OCL=25611
+    CL=25611
+
+ doc/go_spec.html | 61 ++++++++++++++++++++++++++++++--------------------------
+ 1 file changed, 33 insertions(+), 28 deletions(-)

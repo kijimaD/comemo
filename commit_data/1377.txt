@@ -1,0 +1,18 @@
+commit ba882f9940361e7f9f969fcc1cc613e735d38191
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 19 03:06:19 2008 -0800
+
+    fmt and reflect updates for recent changes
+    
+    TBR=r
+    OCL=21580
+    CL=21583
+
+ src/lib/fmt/fmt_test.go     | 13 +++++++------
+ src/lib/fmt/format.go       |  2 +-
+ src/lib/fmt/print.go        | 10 ++++++----
+ src/lib/reflect/all_test.go | 46 +++++++++++++++++++++++----------------------
+ src/lib/reflect/tostring.go |  5 +++--
+ src/lib/reflect/type.go     | 26 ++++++++-----------------
+ src/lib/reflect/value.go    | 15 +++++++++------
+ 7 files changed, 58 insertions(+), 59 deletions(-)

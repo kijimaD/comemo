@@ -1,0 +1,15 @@
+commit eafa4fff5257ed286618d9027eeaf3cce7c6b8d0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 9 11:45:46 2014 -0700
+
+    fmt: fix allocation test
+    With new interface allocation rules, the old counts were wrong and
+    so was the commentary.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/142760044
+
+ src/fmt/fmt_test.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

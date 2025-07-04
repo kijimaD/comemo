@@ -1,0 +1,26 @@
+commit dbbc5ec7e87f1976188c57ce4fb0d41e324df687
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Feb 24 22:59:59 2021 +0100
+
+    syscall: restore broken GetQueuedCompletionStatus signature but make it not crash
+    
+    This reverts commit dc4698f52b5ad3f0251e0cc25bc7ffbd10e23f2c, and then
+    fixes the memory corruption issue. It also suggests users switch to
+    x/sys/windows for the proper function.
+    
+    This requires CL 295174 to be submitted first.
+    
+    Updates #44538.
+    
+    Change-Id: I0ee602f1c1d6a89cc585aff426833a4cb3f2be50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296149
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/except.txt                  |  6 ------
+ src/syscall/syscall_windows.go  | 31 ++++++++++++++++++++++++++++---
+ src/syscall/zsyscall_windows.go |  6 +++---
+ 3 files changed, 31 insertions(+), 12 deletions(-)

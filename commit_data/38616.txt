@@ -1,0 +1,33 @@
+commit a7fc71092dfb6c6d5fef09b8c85b7d9e78908717
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 15 14:58:40 2019 -0400
+
+    cmd/go/internal/modget: support the suffix '@patch' in 'go get'
+    
+    As of this change, an explicit '@patch' suffix is to '-u=patch' as
+    '@latest' is to '-u'.
+    
+    RELNOTE='go get' in module mode now supports the version suffix '@patch'.
+    
+    Fixes #26812
+    
+    Change-Id: Ib5eee40de640440f7470d37a574b311ef8a67f67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167747
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                              |  17 +-
+ src/cmd/go/internal/modget/get.go                  | 173 +++++++++++++++------
+ src/cmd/go/internal/modload/load.go                |  11 +-
+ .../patch.example.com_depofdirectpatch_v1.0.0.txt  |  11 ++
+ .../patch.example.com_depofdirectpatch_v1.0.1.txt  |  11 ++
+ .../mod/patch.example.com_direct_v1.0.0.txt        |  21 +++
+ .../mod/patch.example.com_direct_v1.0.1.txt        |  27 ++++
+ .../mod/patch.example.com_direct_v1.1.0.txt        |  21 +++
+ .../mod/patch.example.com_indirect_v1.0.0.txt      |  11 ++
+ .../mod/patch.example.com_indirect_v1.0.1.txt      |  11 ++
+ .../mod/patch.example.com_indirect_v1.1.0.txt      |  11 ++
+ src/cmd/go/testdata/script/mod_upgrade_patch.txt   |  29 ----
+ .../go/testdata/script/mod_upgrade_patch_mod.txt   |  85 ++++++++++
+ .../go/testdata/script/mod_upgrade_patch_pkg.txt   |  88 +++++++++++
+ 14 files changed, 444 insertions(+), 83 deletions(-)

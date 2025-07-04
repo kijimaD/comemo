@@ -1,0 +1,24 @@
+commit bccdd31252c9771ef2e8dae0402251163a081b56
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 19 18:32:15 2020 +0700
+
+    cmd/compile: use type position for error message in align.go
+    
+    This helps the compiler reports the right place where the type declared,
+    instead of relying on global lineno, which maybe set to wrong value at
+    the time the error is reported.
+    
+    Fixes #42058
+    
+    Change-Id: I06d34aa9b0236d122f4a0d72e66675ded022baac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263597
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/align.go | 10 +++++-----
+ src/go/types/stdlib_test.go          |  2 ++
+ test/fixedbugs/issue42058a.go        | 13 +++++++++++++
+ test/fixedbugs/issue42058b.go        | 13 +++++++++++++
+ 4 files changed, 33 insertions(+), 5 deletions(-)

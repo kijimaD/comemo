@@ -1,0 +1,21 @@
+commit 51c0a84175f2d24f12fc1986e9de73a957a01b21
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Jul 17 16:58:59 2009 -0700
+
+    Gather errors in a go.scanner.ErrorList instead of printing
+    them as we go.
+    
+    Lots of bug fixes.  Let the parser toss illegal character and
+    string literals.  Compile unary + correctly.  Allow float OP
+    ideal.  Compile unary * correctly.  Implement min and max float
+    values.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=64  (29 added, 7 deleted, 28 changed)
+    OCL=31811
+    CL=31814
+
+ usr/austin/eval/expr.go | 64 +++++++++++++++++++++++++------------------------
+ usr/austin/eval/type.go | 24 +++++++++++++++++--
+ 2 files changed, 55 insertions(+), 33 deletions(-)

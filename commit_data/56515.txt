@@ -1,0 +1,29 @@
+commit 18104621ce742af7be8d5049bb9aee588b562950
+Author: Yoann Congal <yoann.congal@smile.fr>
+Date:   Thu May 16 09:19:20 2024 +0000
+
+    crypto/x509: fix certificate request creation with RSA-PSS
+    
+    In case of a RSA-PSS algorithm, the hashFunc of CreateCertificateRequest
+    is embedded in a rsa.PSSOptions struct. Given to key.Sign(), this will
+    generate a proper RSA-PSS signature.
+    
+    Pasted from the RSA-PSS handling code in CreateCertificate().
+    
+    Fixes #45990
+    Fixes #65074
+    
+    Change-Id: I8475afa79d8add107f092cc2871d38300e7b3903
+    GitHub-Last-Rev: 63fb0214c3b03a18e184562a9510145ea817bc20
+    GitHub-Pull-Request: golang/go#55153
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431916
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alex Scheel <alex.scheel@hashicorp.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/crypto/x509/x509.go      | 10 +++++++++-
+ src/crypto/x509/x509_test.go |  1 +
+ 2 files changed, 10 insertions(+), 1 deletion(-)

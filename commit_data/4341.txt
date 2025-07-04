@@ -1,0 +1,54 @@
+commit 80e17d67976b29c4de6173d858efbe0955648404
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Dec 7 10:33:45 2009 -0800
+
+    the AST walker currently provides no way to find out how the
+    nodes in the tree are nested with respect to one another.
+    a simple change to the Visitor interface makes it possible
+    to do this (for example to maintain a current node-depth, or a
+    knowledge of the name of the current function).
+    
+    Visit(nil) is called at the end of a node's children;
+    this make possible the channel-based interface below,
+    amongst other possibilities.
+    
+    It is still just as simple to get the original behaviour - just
+    return the same Visitor from Visit.
+    
+    Here are a couple of possible Visitor types.
+    
+    // closure-based
+    type FVisitor func(n interface{}) FVisitor
+    func (f FVisitor) Visit(n interface{}) Visitor {
+            return f(n);
+    }
+    
+    // channel-based
+    type CVisitor chan Visit;
+    type Visit struct {
+            node interface{};
+            reply chan CVisitor;
+    };
+    func (v CVisitor) Visit(n interface{}) Visitor
+    {
+            if n == nil {
+                    close(v);
+            } else {
+                    reply := make(chan CVisitor);
+                    v <- Visit{n, reply};
+                    r := <-reply;
+                    if r == nil {
+                            return nil;
+                    }
+                    return r;
+            }
+            return nil;
+    }
+    
+    R=gri
+    CC=rsc
+    https://golang.org/cl/166047
+
+ src/cmd/godoc/index.go |   9 ++--
+ src/pkg/go/ast/walk.go | 109 +++++++++++++++++++++++++------------------------
+ 2 files changed, 61 insertions(+), 57 deletions(-)

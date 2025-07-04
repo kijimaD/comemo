@@ -1,0 +1,22 @@
+commit 6705191e02d7e5e849a7877928003b797e0bc4f6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 1 15:50:27 2021 +0200
+
+    syscall: drop fallback to accept in Accept on Linux
+    
+    The minimum required Linux kernel version for Go 1.18 will be changed to
+    2.6.32, see #45964. The current minimum required version is 2.6.23 and
+    accept4 was added in 2.6.28, so the fallback to accept in Accept on
+    Linux can be removed.
+    
+    For #45964
+    
+    Change-Id: I78fc4e5b58417bbc540912c9dbf1b1b3db888fea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346849
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_linux.go | 4 ----
+ 1 file changed, 4 deletions(-)

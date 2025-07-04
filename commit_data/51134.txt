@@ -1,0 +1,17 @@
+commit 601ad2e4570896d07df8ace7d2ab9100a57d301c
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu Nov 3 15:34:35 2022 +0800
+
+    math: fix function name in comment
+    
+    Change-Id: Iabf955cdb161d02cb4a3e06f466b331e1b6eb2c2
+    Signed-off-by: cui fliter <imcusg@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447456
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/math/logb.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

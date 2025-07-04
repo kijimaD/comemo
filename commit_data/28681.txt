@@ -1,0 +1,36 @@
+commit 92b3e3651dc44f54b458f171f641779f10fbaec0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 5 11:26:04 2016 -0400
+
+    encoding/json: use standard ES6 formatting for numbers during marshal
+    
+    Change float32/float64 formatting to use non-exponential form
+    for a slightly wider range, to more closely match ES6 JSON.stringify
+    and other JSON generators.
+    
+    Most notably:
+    
+            1e20 now formats as 100000000000000000000 (previously 1e+20)
+            1e-6 now formats as 0.000001 (previously 1e-06)
+            1e-7 now formats as 1e-7 (previously 1e-07)
+    
+    This also brings the int64 and float64 formatting in line with each other,
+    for all shared representable values. For example both int64(1234567)
+    and float64(1234567) now format as "1234567", where before the
+    float64 formatted as "1.234567e+06".
+    
+    The only variation now compared to ES6 JSON.stringify is that
+    Go continues to encode negative zero as "-0", not "0", so that
+    the value continues to be preserved during JSON round trips.
+    
+    Fixes #6384.
+    Fixes #14135.
+    
+    Change-Id: Ib0e0e009cd9181d75edc0424a28fe776bcc5bbf8
+    Reviewed-on: https://go-review.googlesource.com/30371
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/decode_test.go |  12 +++++
+ src/encoding/json/encode.go      |  26 +++++++++-
+ src/encoding/json/encode_test.go | 106 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 143 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 0575cd9de45215c069ffb15afe11599dcb409f62
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Jan 13 23:24:33 2012 +0100
+
+    strconv: faster FormatFloat(x, *, -1, 64) using Grisu3 algorithm.
+    
+    The implementation is similar to the one from the double-conversion
+    library used in the Chrome V8 engine.
+    
+                                old ns/op   new ns/op  speedup
+    BenchmarkAppendFloatDecimal      591         480      1.2x
+    BenchmarkAppendFloat            2956         486      6.1x
+    BenchmarkAppendFloatExp        10622         503     21.1x
+    BenchmarkAppendFloatNegExp     40343         483     83.5x
+    BenchmarkAppendFloatBig         2798         664      4.2x
+    
+    See F. Loitsch, ``Printing Floating-Point Numbers Quickly and
+    Accurately with Integers'', Proceedings of the ACM, 2010.
+    
+    R=rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5502079
+
+ src/pkg/strconv/extfloat.go  | 190 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strconv/ftoa.go      |  54 +++++++-----
+ src/pkg/strconv/ftoa_test.go |  33 ++++++++
+ 3 files changed, 257 insertions(+), 20 deletions(-)

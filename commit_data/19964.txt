@@ -1,0 +1,62 @@
+commit 44106a088077da9e32bf038beff4a42cd8b88a7a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Aug 8 20:52:11 2014 +0400
+
+    runtime: bump MaxGcprocs to 32
+    There was a number of improvements related to GC parallelization:
+    1. Parallel roots/stacks scanning.
+    2. Parallel stack shrinking.
+    3. Per-thread workbuf caches.
+    4. Workset reduction.
+    Currently 32 threads work well.
+    go.benchmarks:garbage benchmark on 2 x Intel Xeon E5-2690 (16 HT cores)
+    
+    1 thread/1 processor:
+    time=16405255
+    cputime=16386223
+    gc-pause-one=546793975
+    gc-pause-total=3280763
+    
+    2 threads/1 processor:
+    time=9043497
+    cputime=18075822
+    gc-pause-one=331116489
+    gc-pause-total=2152257
+    
+    4 threads/1 processor:
+    time=4882030
+    cputime=19421337
+    gc-pause-one=174543105
+    gc-pause-total=1134530
+    
+    8 threads/1 processor:
+    time=4134757
+    cputime=20097075
+    gc-pause-one=158680588
+    gc-pause-total=1015555
+    
+    16 threads/1 processor + HT:
+    time=2006706
+    cputime=31960509
+    gc-pause-one=75425744
+    gc-pause-total=460097
+    
+    16 threads/2 processors:
+    time=1513373
+    cputime=23805571
+    gc-pause-one=56630946
+    gc-pause-total=345448
+    
+    32 threads/2 processors + HT:
+    time=1199312
+    cputime=37592764
+    gc-pause-one=48945064
+    gc-pause-total=278986
+    
+    LGTM=rlh
+    R=golang-codereviews, tracey.brendan, rlh
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/123920043
+
+ src/pkg/runtime/malloc.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

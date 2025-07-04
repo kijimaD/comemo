@@ -1,0 +1,19 @@
+commit 5af8e53a148165bf1b57952d20969e859a39243d
+Author: William Chan <willchan@chromium.org>
+Date:   Tue Jun 14 11:31:18 2011 -0400
+
+    http/spdy: improve error handling.
+    
+    Create a new spdy.Error type that includes the enumerated error type and
+    the associated stream id (0 if not associated with a specific stream).
+    This will let users handle errors differently (RST_STREAM vs GOAWAY).
+    
+    R=bradfitz, rsc, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/4532131
+
+ src/pkg/http/spdy/read.go      | 90 +++++++++++++++++++++++++++---------------
+ src/pkg/http/spdy/spdy_test.go |  3 +-
+ src/pkg/http/spdy/types.go     | 57 ++++++++++++++------------
+ src/pkg/http/spdy/write.go     |  3 +-
+ 4 files changed, 93 insertions(+), 60 deletions(-)

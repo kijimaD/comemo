@@ -1,0 +1,21 @@
+commit 1ea4d3b91164fb08b7022958b6cd8e290f12e017
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Tue Mar 30 19:58:35 2021 +0800
+
+    cmd/link: merge note sections into one segment
+    
+    The ld from binutils merges note sections into one PT_NOTE
+    segment.
+    We should do that for consistency with binutils.
+    
+    Change-Id: I45703525c720972d49c36c4f10ac47d1628b5698
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265957
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/elf_test.go        | 55 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/elf.go | 39 ++++++++++++-----------------
+ 2 files changed, 71 insertions(+), 23 deletions(-)

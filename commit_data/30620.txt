@@ -1,0 +1,14 @@
+commit 7e036521d505708a3e0d0b3d9bbe1e4853111211
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 9 16:45:14 2017 -0500
+
+    expvar: add benchmark for (*Map).Set with per-goroutine keys
+    
+    Change-Id: I0fa68ca9812fe5e82ffb9d0b9598e95b47183eb8
+    Reviewed-on: https://go-review.googlesource.com/38011
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/expvar/expvar_test.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

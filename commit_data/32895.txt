@@ -1,0 +1,18 @@
+commit 046c65891952f1ee94c6580215eda7a4f21354e1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 29 15:40:40 2017 +0000
+
+    misc/cgo/testplugin: add test for issue 18584
+    
+    Fixes #18584
+    
+    Change-Id: I5f9428758999cacee49f3449e596e0a88bc06f91
+    Reviewed-on: https://go-review.googlesource.com/67150
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/issue18584/main.go   | 23 +++++++++++++++++++++++
+ misc/cgo/testplugin/src/issue18584/plugin.go | 19 +++++++++++++++++++
+ misc/cgo/testplugin/test.bash                |  9 +++++++--
+ 3 files changed, 49 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 95ae85fb821671c49847a2d1d41f972b905f171b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 30 09:39:20 2013 -0700
+
+    doc/go1.2.html: delete repeated word
+    TBR=rsc
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/19840043
+
+ doc/go1.2.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

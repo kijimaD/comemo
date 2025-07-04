@@ -1,0 +1,12 @@
+commit a785e8ac6d99b22a878599c4ae6988e179bee2a3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 24 21:02:51 2008 -0700
+
+    replaced baked-in address with @ so test passes on linux
+    
+    R=rsc
+    OCL=17841
+    CL=17841
+
+ src/lib/reflect/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

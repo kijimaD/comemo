@@ -1,0 +1,26 @@
+commit 64f3d75bc288679e9e18cb9513897e7139f3fc3b
+Author: David Carlier <devnexen@gmail.com>
+Date:   Tue Aug 21 07:54:04 2018 +0000
+
+    crypto/rand: use the new getrandom syscall on FreeBSD
+    
+    Since the 12.x branch, the getrandom syscall had been introduced
+    with similar interface as Linux's and consistent syscall id
+    across architectures.
+    
+    Change-Id: I63d6b45dbe9e29f07f1b5b6c2ec8be4fa624b9ee
+    GitHub-Last-Rev: 6fb76e6522ef5ccb96d02445ffa39796dae89016
+    GitHub-Pull-Request: golang/go#25976
+    Reviewed-on: https://go-review.googlesource.com/120055
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/rand/rand.go                            |  2 +-
+ src/crypto/rand/rand_batched.go                    | 42 ++++++++++++++++++
+ .../{rand_linux_test.go => rand_batched_test.go}   |  2 +
+ src/crypto/rand/rand_freebsd.go                    |  9 ++++
+ src/crypto/rand/rand_linux.go                      | 34 ---------------
+ src/internal/syscall/unix/getrandom_freebsd.go     | 51 ++++++++++++++++++++++
+ .../syscall/unix/getrandom_linux_generic.go        |  2 +-
+ 7 files changed, 106 insertions(+), 36 deletions(-)

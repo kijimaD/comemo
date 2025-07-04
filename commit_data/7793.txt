@@ -1,0 +1,12 @@
+commit e39dc76884644dc567c7f0032f7d3dc792502c84
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 16 21:05:40 2011 -0400
+
+    gc: fix crash when using -u
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4278056
+
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

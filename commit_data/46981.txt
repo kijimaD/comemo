@@ -1,0 +1,16 @@
+commit 24999c3a8a811807ce096c5a39c5e2f2f213d2e3
+Author: Amelia Downs <adowns@vmware.com>
+Date:   Mon Oct 18 13:06:58 2021 -0400
+
+    net/url: add testable examples for url pkg funcs
+    
+    Change-Id: I61011b75128478aa50308d84f4cba23b3e241b3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356536
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/url/example_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

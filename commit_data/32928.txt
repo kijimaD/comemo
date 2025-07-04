@@ -1,0 +1,19 @@
+commit b4f21d6e223af417aedd356885a340abd9dc1216
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Tue Oct 3 17:05:47 2017 +0200
+
+    cmd/dist: fix mkdeps again
+    
+    Actually execute topological sort to get those special dependencies right.
+    
+    Mistake introduced in CL 67650.
+    
+    Change-Id: I22fd6efb4f033deaf7f191431c0401b59b8a97d0
+    Reviewed-on: https://go-review.googlesource.com/67870
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/deps.go   | 74 ++++++++++++++++++++++++++++++++------------------
+ src/cmd/dist/mkdeps.go |  1 +
+ 2 files changed, 49 insertions(+), 26 deletions(-)

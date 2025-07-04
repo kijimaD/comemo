@@ -1,0 +1,14 @@
+commit 265674fa57ca17c81144c8742f6ba0232da4cf7c
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 2 18:02:42 2009 -0700
+
+    slices
+    
+    R=rsc
+    DELTA=59  (44 added, 13 deleted, 2 changed)
+    OCL=31105
+    CL=31105
+
+ src/pkg/gob/codec_test.go |  4 +++-
+ src/pkg/gob/decode.go     | 53 ++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 44 insertions(+), 13 deletions(-)

@@ -1,0 +1,20 @@
+commit b7c7949817e5bee801dfb333f483a080fa1f29e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 21 07:54:46 2016 -0700
+
+    cmd/cgo: preserve original call arguments when pointer checking
+    
+    With the old code rewriting refs would rewrite the inner arguments
+    rather than the outer ones, leaving a reference to C.val in the outer
+    arguments.
+    
+    Change-Id: I9b91cb4179eccd08500d14c6591bb15acf8673eb
+    Reviewed-on: https://go-review.googlesource.com/31672
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/checkconst.go | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 13 +++++--------
+ 3 files changed, 39 insertions(+), 8 deletions(-)

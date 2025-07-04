@@ -1,0 +1,18 @@
+commit 8c3fc088fbe1a25be73430a20a0c76af3c68d2f5
+Author: Austin Clements <austin@google.com>
+Date:   Thu Apr 2 19:53:02 2015 -0400
+
+    runtime: report marked heap size in gctrace
+    
+    When the gctrace GODEBUG option is enabled, it will now report three
+    heap sizes: the heap size at the beginning of the GC cycle, the heap
+    size at the end of the GC cycle before sweeping, and marked heap size,
+    which is the amount of heap that will be retained until the next GC
+    cycle.
+    
+    Change-Id: Ie13f8a6d5c609bc9cc47c7555960ab55b37b5f1c
+    Reviewed-on: https://go-review.googlesource.com/8430
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

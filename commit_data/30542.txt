@@ -1,0 +1,27 @@
+commit a5a1fd4bc9c45f817c15733f2576048546325b28
+Author: Aliaksandr Valialkin <valyala@gmail.com>
+Date:   Mon Mar 6 20:00:54 2017 +0200
+
+    cmd/compile/internal/gc: convert Sym.Flags to bitset8
+    
+    This makes Sym flags consistent with the rest of the code after
+    the CL 37445.
+    
+    No functional changes.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ica919f2ab98581371c717fff9a70aeb11058ca17
+    Reviewed-on: https://go-review.googlesource.com/37847
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 12 ++++++------
+ src/cmd/compile/internal/gc/closure.go |  8 ++++----
+ src/cmd/compile/internal/gc/dcl.go     |  6 +++---
+ src/cmd/compile/internal/gc/export.go  | 14 +++++++-------
+ src/cmd/compile/internal/gc/go.go      | 35 ++++++++++++++++++++++++----------
+ src/cmd/compile/internal/gc/reflect.go | 24 +++++++++++------------
+ src/cmd/compile/internal/gc/subr.go    | 14 +++++++-------
+ 7 files changed, 64 insertions(+), 49 deletions(-)

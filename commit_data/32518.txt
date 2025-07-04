@@ -1,0 +1,19 @@
+commit 88a1e85c706a7917f97be9c612334f0c85e96cf3
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Aug 27 19:09:18 2017 +0900
+
+    cmd/link: fix warning for buildmode=plugin on darwin/amd64
+    
+    Without this CL, the system linker complains about absolute addressing
+    in type..eqfunc.*.
+    
+    Updates #18190
+    
+    Change-Id: I68db37a7f4c96b16a9c13baffc0f043a3048df6d
+    Reviewed-on: https://go-review.googlesource.com/59373
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

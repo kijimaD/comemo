@@ -1,0 +1,18 @@
+commit 2b0ac284cf4b81badb1c29e4fa299ea25cb9318f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 10 14:58:02 2022 -0500
+
+    cmd/doc: use 'go env' to identify GOROOT if it isn't otherwise known
+    
+    Updates #51483.
+    
+    Change-Id: I13d8e58b30639d8a5ed3c9e8b72c8bbaa6a6f1cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391813
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/doc/dirs.go | 17 +++++++++++++++--
+ src/cmd/doc/pkg.go  |  8 +++++---
+ 2 files changed, 20 insertions(+), 5 deletions(-)

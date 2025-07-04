@@ -1,0 +1,72 @@
+commit 954879d6d19175a5f0066c0ac0df0edda7f731b3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 3 10:27:19 2021 -0500
+
+    cmd/go/internal/modload: replace the global buildList with structured requirements
+    
+    This is intended to be a pure-refactoring change, with very little
+    observable change in the behavior of the 'go' command. A few error
+    messages have prefixes changed (by virtue of being attached to
+    packages or modules instead of the build list overall), and
+    'go list -m' (without arguments) no longer loads the complete module
+    graph in order to provide the name of the (local) main module.
+    
+    The previous modload.buildList variable contained a flattened build
+    list, from which the go.mod file was reconstructed using various
+    heuristics and metadata cobbled together from the original go.mod
+    file, the package loader (which was occasionally constructed without
+    actually loading packages, for the sole purpose of populating
+    otherwise-unrelated metadata!), and the updated build list.
+    
+    This change replaces that variable with a new package-level variable,
+    named "requirements". The new variable is structured to match the
+    structure of the go.mod file: it explicitly specifies the roots of the
+    module graph, from which the complete module graph and complete build
+    list can be reconstructed (and cached) on demand. Similarly, the
+    "direct" markings on the go.mod requirements are now stored alongside
+    the requirements themselves, rather than side-channeled through the
+    loader.
+    
+    The requirements are now plumbed explicitly though the modload
+    package, with accesses to the package-level variable occurring only
+    within top-level exported functions. The structured requirements are
+    logically immutable, so a new copy of the requirements is constructed
+    whenever the requirements are changed, substantially reducing implicit
+    communication-by-sharing in the package.
+    
+    For #36460
+    Updates #40775
+    
+    Change-Id: I97bb0381708f9d3e42af385b5c88a7038e1f0556
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293689
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/list/list.go                   |  12 +-
+ src/cmd/go/internal/load/pkg.go                    |  30 +-
+ src/cmd/go/internal/load/test.go                   |   2 +-
+ src/cmd/go/internal/modcmd/download.go             |  12 +-
+ src/cmd/go/internal/modcmd/graph.go                |  50 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |  12 +-
+ src/cmd/go/internal/modcmd/verify.go               |   2 +-
+ src/cmd/go/internal/modcmd/why.go                  |   7 +-
+ src/cmd/go/internal/modget/get.go                  |  14 +-
+ src/cmd/go/internal/modload/build.go               |  67 +-
+ src/cmd/go/internal/modload/buildlist.go           | 685 ++++++++++++++++++---
+ src/cmd/go/internal/modload/import.go              | 104 +++-
+ src/cmd/go/internal/modload/import_test.go         |   3 +-
+ src/cmd/go/internal/modload/init.go                | 285 +++++----
+ src/cmd/go/internal/modload/list.go                | 129 ++--
+ src/cmd/go/internal/modload/load.go                | 226 ++++---
+ src/cmd/go/internal/modload/modfile.go             |  24 +-
+ src/cmd/go/internal/modload/search.go              |   2 +-
+ .../go/testdata/script/mod_install_pkg_version.txt |   2 +-
+ src/cmd/go/testdata/script/mod_invalid_version.txt |  30 +-
+ src/cmd/go/testdata/script/mod_load_badchain.txt   |   2 +-
+ .../testdata/script/mod_load_replace_mismatch.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_replace_gopkgin.txt |   2 +-
+ src/cmd/go/testdata/script/mod_require_exclude.txt |   4 +-
+ src/cmd/go/testdata/script/mod_sum_readonly.txt    |   6 +-
+ 25 files changed, 1191 insertions(+), 523 deletions(-)

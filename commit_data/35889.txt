@@ -1,0 +1,20 @@
+commit efea01788d5d8b14426e31698ca30f27365c0670
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Fri Jul 6 09:14:30 2018 +0930
+
+    testshared/src/depBase: conform build tag comment to convention
+    
+    Also add missing copyright headers with year determined from git log.
+    
+    Change-Id: Iafc9881e746543f0a582dad2b0874d8399baf618
+    Reviewed-on: https://go-review.googlesource.com/122415
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testshared/src/depBase/asm.s    | 2 +-
+ misc/cgo/testshared/src/depBase/dep.go   | 4 ++++
+ misc/cgo/testshared/src/depBase/gccgo.go | 6 +++++-
+ misc/cgo/testshared/src/depBase/stubs.go | 6 +++++-
+ 4 files changed, 15 insertions(+), 3 deletions(-)

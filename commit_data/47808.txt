@@ -1,0 +1,23 @@
+commit bc0aba971705722b6798746b2003908166ee007b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Dec 15 12:34:34 2021 -0500
+
+    cmd/compile: correct type identity comparison with "any"
+    
+    The builtin "any" type should only be identical to an unnamed empty
+    interface type, not a defined empty interface type.
+    
+    Fixes #50169.
+    
+    Change-Id: Ie5bb88868497cb795de1fd0276133ba9812edfe4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372217
+    Trust: Cherry Mui <cherryyz@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types/identity.go |  7 ++++---
+ test/fixedbugs/issue50169.go               | 24 ++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 3 deletions(-)

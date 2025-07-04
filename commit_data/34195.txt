@@ -1,0 +1,18 @@
+commit 530927e08a22badb201d65f44ef9c95b620e5ab6
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Jan 29 22:57:54 2018 +0100
+
+    runtime: improve test file naming
+    
+    The runtime builtin functions that are tested in append_test.go
+    are defined in slice.go. Renaming the test file to slice_test.go
+    makes this relation explicit with a common file name prefix.
+    
+    Change-Id: I2f89ec23a6077fe6b80d2161efc760df828c8cd4
+    Reviewed-on: https://go-review.googlesource.com/90655
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/{append_test.go => slice_test.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,26 @@
+commit db423dde85ad4923c2c4addb1cd96f119c7b6dc6
+Author: Wang Yaduo <wangyaduo@linux.alibaba.com>
+Date:   Wed Jan 31 10:37:35 2024 +0800
+
+    cmd/internal/obj: support Zba, Zbb, Zbs extensions in riscv64 assembler
+    
+    Add assembler support for Zba, Zbb, Zbs extensions, which are
+    mandatory in the rva22u64 profile. These can be used to accelerate
+    address computation and bit manipulation.
+    
+    Change-Id: Ie90fe6b76b1382cf69984a0e71a72d3cba0e750a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559655
+    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 96 +++++++++++++++++++++++------
+ src/cmd/internal/obj/riscv/anames.go        | 46 ++++++++++++--
+ src/cmd/internal/obj/riscv/cpu.go           | 58 +++++++++++++++--
+ src/cmd/internal/obj/riscv/inst.go          | 84 ++++++++++++++++++++++++-
+ src/cmd/internal/obj/riscv/obj.go           | 90 +++++++++++++++++++++++++--
+ 5 files changed, 336 insertions(+), 38 deletions(-)

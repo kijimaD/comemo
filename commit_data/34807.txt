@@ -1,0 +1,17 @@
+commit 071f0de4ec0d912b2908821466818ca2be04655c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 2 23:07:22 2018 +0000
+
+    strings: fix flaky TestBuilderGrow test
+    
+    Fixes #24647
+    
+    Change-Id: I79c2b45cf7fc9c0ed0c7a665472556bd248e7584
+    Reviewed-on: https://go-review.googlesource.com/104235
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/strings/builder_test.go | 39 ++++++++++++++++++---------------------
+ 1 file changed, 18 insertions(+), 21 deletions(-)

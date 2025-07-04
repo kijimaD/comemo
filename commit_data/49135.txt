@@ -1,0 +1,23 @@
+commit 6fd0520db3cffad4fd01c98319b9b1bf3c50f5e2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue May 10 09:07:34 2022 -0400
+
+    os/exec: eliminate some arbitrary short timeouts
+    
+    These tests appear to be using timeouts to check for deadlocks or to
+    cause the test to fail earlier. However, on slower machines these
+    short timeouts can cause spurious failures, and even on faster
+    machines if the test locks up we usually want a goroutine dump instead
+    of a short failure message anyway.
+    
+    Fixes #52818 (maybe).
+    
+    Change-Id: Ib8f18d679f9443721e8a924caef6dc8d214fca1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405434
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/exec_test.go | 77 ++++++++++++------------------------------------
+ 1 file changed, 19 insertions(+), 58 deletions(-)

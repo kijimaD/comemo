@@ -1,0 +1,16 @@
+commit 4bee9012b31a762799ea861cd5f55583f1f602f5
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Nov 12 22:12:22 2016 +0100
+
+    net/http/httptest: remove workaround on Plan 9
+    
+    This issue has been fixed in CL 31390.
+    
+    Change-Id: I0c2425fd33be878037d10d612a50116a7b693431
+    Reviewed-on: https://go-review.googlesource.com/33195
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httptest/server.go | 10 ----------
+ 1 file changed, 10 deletions(-)

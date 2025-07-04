@@ -1,0 +1,15 @@
+commit ce27b00f48bf3b90445bb4bcd28f6115c129d75b
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Thu Dec 1 12:47:57 2011 +1100
+
+    html: implement fragment parsing algorithm
+    
+    Pass the tests in tests4.dat.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5447055
+
+ src/pkg/html/parse.go      | 95 ++++++++++++++++++++++++++++++++++++++--------
+ src/pkg/html/parse_test.go | 62 ++++++++++++++++++++++--------
+ 2 files changed, 127 insertions(+), 30 deletions(-)

@@ -1,0 +1,28 @@
+commit 641918ee09cb44d282a30ee8b66f99a0b63eaef9
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Apr 17 13:01:38 2020 -0400
+
+    cmd/go: add positions for load errors in call to load
+    
+    This CL sets positions for errors from cals to load within the load
+    call itself, similar to how the rest of the code in pkg.go sets
+    positions right after the error is set on the package.
+    
+    This allows the code to ensure that we only add positions either for
+    ImportPathErrors, or if an error was passed into load, and was set
+    using setLoadPackageDataError. (Though I'm wondering if the call
+    to setLoadPackageDataError should be done before the call to load).
+    
+    Fixes #38034
+    
+    Change-Id: I0748866933b4c1a329954b4b96640bef702a4644
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228784
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/pkg.go                    | 83 ++++++++++++++--------
+ src/cmd/go/internal/load/test.go                   |  2 +-
+ src/cmd/go/internal/modload/load.go                | 17 +++--
+ src/cmd/go/testdata/script/list_case_collision.txt | 10 ++-
+ 4 files changed, 73 insertions(+), 39 deletions(-)

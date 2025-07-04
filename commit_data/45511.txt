@@ -1,0 +1,30 @@
+commit ddb648fdf6c21e7e56a2252df3e3913a212ca4ab
+Author: Eddie Scholtz <escholtz@google.com>
+Date:   Wed Apr 21 11:11:02 2021 -0600
+
+    archive/zip: add File.OpenRaw, Writer.CreateRaw, Writer.Copy
+    
+    These new methods provide support for cases where performance is a
+    primary concern. For example, copying files from an existing zip to a
+    new zip without incurring the decompression and compression overhead.
+    Using an optimized, external compression method and writing the output
+    to a zip archive. And compressing file contents in parallel and then
+    sequentially writing the compressed bytes to a zip archive.
+    
+    TestWriterCopy is copied verbatim from https://github.com/rsc/zipmerge
+    
+    Fixes #34974
+    
+    Change-Id: Iade5bc245ba34cdbb86364bf59f79f38bb9e2eb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312310
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
+
+ src/archive/zip/reader.go      | 115 +++++++++++++++++++--------
+ src/archive/zip/reader_test.go | 165 ++++++++++++++++++++++++++++++++++++++-
+ src/archive/zip/struct.go      |  14 +++-
+ src/archive/zip/writer.go      | 135 +++++++++++++++++++++++++++-----
+ src/archive/zip/writer_test.go | 173 ++++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 541 insertions(+), 61 deletions(-)

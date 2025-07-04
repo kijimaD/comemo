@@ -1,0 +1,37 @@
+commit d42750b17c17fb1c3241b74c7ba2af96dff10195
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Aug 5 23:49:01 2023 -0400
+
+    math/rand/v2: rename various functions
+    
+    Int31 -> Int32
+    Int31n -> Int32N
+    Int63 -> Int64
+    Int63n -> Int64N
+    Intn -> IntN
+    
+    The 31 and 63 are pedantic and confusing: the functions should
+    be named for the type they return, same as all the others.
+    
+    The lower-case n is inconsistent with Go's usual CamelCase
+    and especially problematic because we plan to add 'func N'.
+    Capitalize the n.
+    
+    For #61716.
+    
+    Change-Id: Idb1a005a82f353677450d47fb612ade7a41fde69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516857
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/61716.txt               |  28 +++---
+ src/math/rand/v2/auto_test.go    |   4 +-
+ src/math/rand/v2/example_test.go |  36 +++----
+ src/math/rand/v2/export_test.go  |   2 +-
+ src/math/rand/v2/race_test.go    |   6 +-
+ src/math/rand/v2/rand.go         |  96 +++++++++---------
+ src/math/rand/v2/rand_test.go    |  30 +++---
+ src/math/rand/v2/regress_test.go | 209 ++++++++++++++++++++-------------------
+ src/math/rand/v2/rng.go          |   4 +-
+ 9 files changed, 209 insertions(+), 206 deletions(-)

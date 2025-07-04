@@ -1,0 +1,17 @@
+commit f8050362e8a1c3e8480b18c91dec3d703c04dbfe
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Feb 24 00:07:19 2023 +0100
+
+    net: inline ios check in tests
+    
+    Change-Id: I0d796d5eb05d823a18c609b2e76cc4d35da9d2b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470955
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/net/lookup_test.go   | 10 +++++-----
+ src/net/platform_test.go | 10 +---------
+ 2 files changed, 6 insertions(+), 14 deletions(-)

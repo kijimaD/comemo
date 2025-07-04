@@ -1,0 +1,15 @@
+commit eaba458ee608466ed5ad471c481385c2acb4f3d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Apr 25 13:41:56 2009 -0700
+
+    cannot declare a variable in new scope with same name as type in outer scope
+    (same as bug144.go but for types instead of constants)
+    
+    TBR=ken
+    DELTA=17  (17 added, 0 deleted, 0 changed)
+    OCL=27855
+    CL=27855
+
+ test/bugs/bug145.go | 17 +++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 21 insertions(+)

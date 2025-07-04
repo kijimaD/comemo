@@ -1,0 +1,25 @@
+commit 494aeba5bbe73e75408a4b29f7d1c7b58279893e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 21 23:00:01 2023 +0000
+
+    Revert "internal/poll: drop redundant ENOSYS in CopyFileRange"
+    
+    This reverts CL 428555.
+    
+    Reason for revert: It appears that even a newer kernel can get
+    ENOSYS from copy_file_range.
+    
+    Fixes #58592
+    
+    Change-Id: Ib8dd1be61544f54bf652a99dc0b449109f8f50ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470016
+    Reviewed-by: Andy Pan <panjf2000@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/poll/copy_file_range_linux.go | 24 ++++++++++++++----------
+ 1 file changed, 14 insertions(+), 10 deletions(-)

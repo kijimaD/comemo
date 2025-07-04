@@ -1,0 +1,27 @@
+commit 87cf92e7d51aea29eae0266b6d65e1a5b6244131
+Author: Ilya Leoshkevich <iii@linux.ibm.com>
+Date:   Thu Jul 22 14:49:48 2021 +0200
+
+    cmd,runtime: enable race detector on s390x
+    
+    LLVM has SystemZ ThreadSanitizer support now [1], this patch integrates
+    it with golang. The biggest part is the glue code in race_s390x.s,
+    which is derived from race_arm64.s, and then the support needs to be
+    enabled in four places.
+    
+    [1] https://reviews.llvm.org/D105629
+    
+    Change-Id: I1d4e51beb4042603b681e4aca9af6072879d54d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336549
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/internal/sys/supported.go |   2 +-
+ src/race.bash                     |   3 +-
+ src/runtime/race/race.go          |   2 +-
+ src/runtime/race_s390x.s          | 391 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 395 insertions(+), 3 deletions(-)

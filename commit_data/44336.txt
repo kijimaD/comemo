@@ -1,0 +1,15 @@
+commit f113e9a14f08d23be78f75050185f9796a1d243f
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Feb 18 14:18:53 2021 -0500
+
+    cmd/dist: match goexperiment.regabi tag when GOEXPERIMENT is on
+    
+    Change-Id: I5e4347dde6dcb49cd96608e4f67e54c7b3050bc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293851
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/dist/build.go | 5 +++++
+ 1 file changed, 5 insertions(+)

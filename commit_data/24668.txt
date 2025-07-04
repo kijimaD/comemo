@@ -1,0 +1,18 @@
+commit 2dedb971e3432e530701a9e1d08c8c26658c1e49
+Author: Taru Karttunen <taruti@taruti.net>
+Date:   Fri Oct 16 13:26:20 2015 +0300
+
+    net/http: extra documentation for Redirect and RedirectHandler
+    
+    Errors with http.Redirect and http.StatusOk seem
+    to occur from time to time on the irc channel.
+    This change adds documentation suggesting
+    to use one of the 3xx codes and not StatusOk
+    with Redirect.
+    
+    Change-Id: I6b900a8eb868265fbbb846ee6a53e426d90a727d
+    Reviewed-on: https://go-review.googlesource.com/15980
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

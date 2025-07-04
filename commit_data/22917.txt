@@ -1,0 +1,12 @@
+commit 2bb6f76a0530f14b34f4dae9ffa00859e72ecb23
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 6 16:25:15 2015 -0700
+
+    cmd/cgo: add header guard for boilerplate in export header file
+    
+    Change-Id: If53563f3477222fe7409011b8780bb0926567251
+    Reviewed-on: https://go-review.googlesource.com/9767
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/cgo/out.go | 5 +++++
+ 1 file changed, 5 insertions(+)

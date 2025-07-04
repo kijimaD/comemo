@@ -1,0 +1,14 @@
+commit 2b598944257fade6af18216acc94940a706d66da
+Author: Anderson Queiroz <contato@andersonq.eti.br>
+Date:   Fri Aug 23 15:02:40 2019 +0100
+
+    net/http: enhance documentation for Server.Addr
+    
+    Fixes golang/go#31249
+    
+    Change-Id: I3280f8ab170ed31d4efb71106533e016d430d44c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191557
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

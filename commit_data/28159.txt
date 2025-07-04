@@ -1,0 +1,21 @@
+commit 33bb597d859e6d98b4abb27592cb925753764136
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 31 12:30:46 2016 -0700
+
+    cmd/compile: print SizeAndAlign AuxInt values correctly
+    
+    Makes the AuxInt arg to Move/Zero print in a readable format.
+    
+    Change-Id: I12295959b00ff7c1638d35836cc6d64d112c11ca
+    Reviewed-on: https://go-review.googlesource.com/28271
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/check.go          | 2 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 8 ++++----
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 2 +-
+ src/cmd/compile/internal/ssa/op.go             | 1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 4 ++--
+ src/cmd/compile/internal/ssa/value.go          | 2 ++
+ 6 files changed, 12 insertions(+), 7 deletions(-)

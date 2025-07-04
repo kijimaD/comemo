@@ -1,0 +1,13 @@
+commit 568eccd12d08cf5e6597e3c6c687dd48684790ef
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 15 11:55:51 2010 +1100
+
+    log: fix custom output bug
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2525041
+
+ src/pkg/log/log.go      |  2 +-
+ src/pkg/log/log_test.go | 10 ++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

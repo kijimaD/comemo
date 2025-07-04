@@ -1,0 +1,20 @@
+commit e5e386938f4ace00c00de86ead47ed5c02961e5b
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Jun 8 03:19:43 2020 +0000
+
+    cmd/asm: fix the encoding error of VCNT instruction for arm64
+    
+    When the arrangement specifier is "B16", the 30-bit should be 1 rather than 0.
+    This CL fixes this error.
+    
+    Fixes #39445
+    
+    Change-Id: Ib44881cdb8b3aab855cb30f2c52a085cd73a6a2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236638
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 1 +
+ src/cmd/internal/obj/arm64/asm7.go           | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)

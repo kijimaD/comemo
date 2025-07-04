@@ -1,0 +1,23 @@
+commit 1dfe994fe9e87e17b141a3f06c6a88632821020a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 11 18:22:51 2022 -0700
+
+    spec: use Unicode terminology consistently
+    
+    - refer to character "categories" rather than "classes" per the
+      definitions in the Unicode standard
+    - use "uppercase", "lowercase" (one word) instead of "upper case"
+      or "upper-case", matching the spelling in the Unicode standard
+    - clarify that that the blank character "_" is considered a lowercase
+      letter for Go's purposes (export of identifiers)
+    
+    Fixes #44715.
+    
+    Change-Id: I54ef177d26c6c56624662fcdd6d1da60b9bb8d02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405758
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ doc/go_spec.html | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

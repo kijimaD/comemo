@@ -1,0 +1,43 @@
+commit ee97216a1787a979911d43c0c5c582b5492a2205
+Author: David Lazar <lazard@golang.org>
+Date:   Mon Mar 6 14:48:36 2017 -0500
+
+    runtime: handle inlined calls in runtime.Callers
+    
+    The `skip` argument passed to runtime.Caller and runtime.Callers should
+    be interpreted as the number of logical calls to skip (rather than the
+    number of physical stack frames to skip). This changes runtime.Callers
+    to skip inlined calls in addition to physical stack frames.
+    
+    The result value of runtime.Callers is a slice of program counters
+    ([]uintptr) representing physical stack frames. If the `skip` parameter
+    to runtime.Callers skips part-way into a physical frame, there is no
+    convenient way to encode that in the resulting slice. To avoid changing
+    the API in an incompatible way, our solution is to store the number of
+    skipped logical calls of the first frame in the _second_ uintptr
+    returned by runtime.Callers. Since this number is a small integer, we
+    encode it as a valid PC value into a small symbol called:
+    
+        runtime.skipPleaseUseCallersFrames
+    
+    For example, if f() calls g(), g() calls `runtime.Callers(2, pcs)`, and
+    g() is inlined into f, then the frame for f will be partially skipped,
+    resulting in the following slice:
+    
+        pcs = []uintptr{pc_in_f, runtime.skipPleaseUseCallersFrames+1, ...}
+    
+    We store the skip PC in pcs[1] instead of pcs[0] so that `pcs[i:]` will
+    truncate the captured stack trace rather than grow it for all i.
+    
+    Updates #19348.
+    
+    Change-Id: I1c56f89ac48c29e6f52a5d085567c6d77d499cf1
+    Reviewed-on: https://go-review.googlesource.com/37854
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/asm.s        | 21 ++++++++++++++
+ src/runtime/traceback.go | 68 +++++++++++++++++++++++++++++++++++++++------
+ test/inline_callers.go   | 72 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 153 insertions(+), 8 deletions(-)

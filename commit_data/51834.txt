@@ -1,0 +1,19 @@
+commit 848d658c45b185efb6742e51ba261cbba801b6ee
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sun Jan 29 16:42:17 2023 +0800
+
+    encoding/binary: add String and GoString method to nativeEndian
+    
+    Updates #57237
+    
+    Change-Id: Ib626610130cae9c1d1aff5dd2a5035ffde0e127f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463985
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/encoding/binary/binary.go | 4 ++++
+ 1 file changed, 4 insertions(+)

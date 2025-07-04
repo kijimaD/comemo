@@ -1,0 +1,19 @@
+commit 41f74079a982dae05da1860a5f195ac08d067bdd
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Mar 17 14:52:27 2021 +0800
+
+    cmd/internal/obj/arm64: add a restriction on move constant instructions
+    
+    For MOVK/MOVN/MOVZ instructions, the assembler does not accept zero
+    shifts, and the CL 275812 added the error check. This CL adds this
+    restriction to the document.
+    
+    Change-Id: I8818d76ca2f11dade2307f3678ca521f4e64d164
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312210
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/doc.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

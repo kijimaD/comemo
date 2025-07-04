@@ -1,0 +1,20 @@
+commit 5bf35df491cb41b696979764be7dddaf128781ba
+Author: Robert Sesek <rsesek@google.com>
+Date:   Thu Feb 13 11:04:13 2014 +1100
+
+    debug/macho: Add support for opening fat/universal binaries.
+    
+    New testdata was created from existing using:
+    $ lipo gcc-386-darwin-exec gcc-amd64-darwin-exec -create -output fat-gcc-386-amd64-darwin-exec
+    
+    Fixes #7250.
+    
+    LGTM=dave
+    R=golang-codereviews, dave, josharian, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/60190043
+
+ src/pkg/debug/macho/fat.go       | 146 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/debug/macho/file_test.go |  43 ++++++++++++
+ src/pkg/debug/macho/macho.go     |  13 ++--
+ 3 files changed, 197 insertions(+), 5 deletions(-)

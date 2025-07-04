@@ -1,0 +1,16 @@
+commit d98507f1c4a4dfdd77400138ff38865813d4327f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Mar 27 16:07:46 2012 +1100
+
+    doc: update wiki tutorial templates, and template discussion
+    
+    Fixes #3384.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5915044
+
+ doc/articles/wiki/final.go   |  11 +-
+ doc/articles/wiki/index.html | 393 ++++------------------
+ doc/articles/wiki/wiki.html  | 779 -------------------------------------------
+ 3 files changed, 58 insertions(+), 1125 deletions(-)

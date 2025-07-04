@@ -1,0 +1,23 @@
+commit 2ba6ecb3e2bec6b30667c1969772d7e5063f384b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 3 07:41:26 2013 -0700
+
+    go/parser: ParseExpr must accept type expressions
+    
+    My old code was trying to be too smart.
+    Also: Slightly better error message format
+    for gofmt -r pattern errors.
+    
+    Fixes #4406.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/8267045
+
+ src/cmd/gofmt/gofmt_test.go            |  1 +
+ src/cmd/gofmt/rewrite.go               |  4 ++--
+ src/cmd/gofmt/testdata/rewrite8.golden | 10 ++++++++++
+ src/cmd/gofmt/testdata/rewrite8.input  | 10 ++++++++++
+ src/pkg/go/parser/interface.go         | 29 ++++++++++++++++++++---------
+ src/pkg/go/parser/parser_test.go       | 13 ++++++++++++-
+ 6 files changed, 55 insertions(+), 12 deletions(-)

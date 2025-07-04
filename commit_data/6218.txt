@@ -1,0 +1,19 @@
+commit 781462dc46db97fa2146844ab2e51e400aa3928d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 10 13:53:18 2010 +1000
+
+    doc/tutorial: update for slice changes.
+    Awaiting the lower-bound change before checkin.
+    
+    Fixes #1067.
+    
+    R=rsc, iant, gri
+    CC=golang-dev
+    https://golang.org/cl/2105043
+
+ doc/go_tutorial.html   | 67 ++++++++++++++++++++++++++++----------------------
+ doc/go_tutorial.txt    | 55 ++++++++++++++++++++++-------------------
+ doc/progs/cat.go       |  6 ++---
+ doc/progs/cat_rot13.go | 12 ++++-----
+ doc/progs/sum.go       |  4 +--
+ 5 files changed, 78 insertions(+), 66 deletions(-)

@@ -1,0 +1,10 @@
+commit 0cee30280200c1a7e8c59c8fec579e20182e3658
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 15 10:05:17 2008 -0700
+
+    - func reorg to reduce forward decls and improve structure
+    
+    SVN=127229
+
+ usr/gri/gosrc/parser.go | 736 ++++++++++++++++++++++++------------------------
+ 1 file changed, 372 insertions(+), 364 deletions(-)

@@ -1,0 +1,18 @@
+commit a5dc7793c0fba8d6c81098248a4fc2e8b0ddad34
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Apr 12 11:49:25 2012 +0400
+
+    runtime: add lock-free stack
+    This is factored out part of the:
+    https://golang.org/cl/5279048/
+    (parallel GC)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5993043
+
+ src/pkg/runtime/export_test.go  |  11 ++++
+ src/pkg/runtime/lfstack.c       |  64 ++++++++++++++++++++
+ src/pkg/runtime/lfstack_test.go | 130 ++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h       |  17 ++++++
+ 4 files changed, 222 insertions(+)

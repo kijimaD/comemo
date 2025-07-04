@@ -1,0 +1,16 @@
+commit 9eddc3a3561eed1f735491f89cf935cb5189a897
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 7 08:28:00 2017 -0700
+
+    cmd/vet/all: add countBytes exemption to amd64 whitelist
+    
+    Fixes vetall build broken by CL 38693.
+    
+    Change-Id: I5c98f2164e0c7bb43f022c363b3b7c0650c4bcbe
+    Reviewed-on: https://go-review.googlesource.com/39916
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/all/whitelist/amd64.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,30 @@
+commit 41893389a6fb6d4d8b181cd90ca58d9d65326f76
+Author: Chris O'Hara <cohara87@gmail.com>
+Date:   Mon May 8 17:06:08 2023 +1000
+
+    syscall: implement wasip1 SetNonblock and IsNonblock
+    
+    Allows for the NONBLOCK file descriptor flag to be set and queried
+    on wasip1.
+    
+    syscall.SetNonblock uses the fd_fdstat_set_flags WASI system call
+    and unix.IsNonblock uses the fd_fdstat_get system call.
+    
+    This is a prerequisite for non-blocking I/O support.
+    
+    Change-Id: I2bf79fd57142b2ec53eed3977d9aac8c6337eb80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493356
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Julien Fabre <ju.pryz@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+
+ src/internal/syscall/unix/nonblocking_wasip1.go | 18 +++++++++++++++++-
+ src/syscall/fs_wasip1.go                        | 24 ++++++++++++++++++++++++
+ src/syscall/net_wasip1.go                       |  4 ----
+ src/syscall/syscall_wasip1.go                   | 14 ++++++++++++++
+ 4 files changed, 55 insertions(+), 5 deletions(-)

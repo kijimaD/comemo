@@ -1,0 +1,18 @@
+commit b138e71e5b90c75e6e5239fb8f4536c6dcc31c36
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Nov 16 17:33:03 2022 -0800
+
+    path/filepath: remove IsLocal tests dependent on Windows version
+    
+    Don't test IsLocal("nul.txt"), since whether this name is reserved
+    or not is version-dependent.
+    
+    Change-Id: Ifff3edc77454e052080e325871c08bbba49e692c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451222
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/path/filepath/path_test.go | 2 --
+ 1 file changed, 2 deletions(-)

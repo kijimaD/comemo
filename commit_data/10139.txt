@@ -1,0 +1,14 @@
+commit 64f78c918aa690abf790f0fc20acef379ed858f6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 27 19:41:39 2011 -0700
+
+    test: error-related fixes
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5328051
+
+ test/fixedbugs/bug365.go | 4 ++--
+ test/import.go           | 7 +++----
+ test/zerodivide.go       | 7 ++-----
+ 3 files changed, 7 insertions(+), 11 deletions(-)

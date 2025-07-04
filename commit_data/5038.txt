@@ -1,0 +1,14 @@
+commit 698bc461bf28b7dd888ff874097141b55c935f41
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Thu Mar 11 09:46:16 2010 -0800
+
+    syslog: increase test timeout from 10ms to 100ms
+    
+    Problem pointed out by rsc.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/444041
+
+ src/pkg/syslog/syslog_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

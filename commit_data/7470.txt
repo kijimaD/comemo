@@ -1,0 +1,21 @@
+commit 074354c2eac9465a2aae010d719eb070c0845382
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 16 16:08:42 2011 +1100
+
+    8l,6l: allow for more os threads to be created on Windows
+    
+    Program listed http://code.google.com/p/go/issues/detail?id=1495
+    (with nRequester set to 10000) will crash with
+    
+    runtime: failed to create new OS thread (have 4526 already; errno=8)
+    
+    instead of
+    
+    runtime: failed to create new OS thread (have 618 already; errno=8).
+    
+    R=golang-dev, rsc, vcc
+    CC=golang-dev
+    https://golang.org/cl/4172046
+
+ src/cmd/ld/pe.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

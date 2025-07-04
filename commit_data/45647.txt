@@ -1,0 +1,22 @@
+commit a2c07a9a1a445c28fa4db9bd1472b28cad3ca818
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 17 12:18:12 2021 +0200
+
+    all: update golang.org/x/net to latest
+    
+    To pull in CL 318309.
+    
+    For #41184
+    
+    Change-Id: I99adb0478e71dbd72e13551a87ed09eae2a0ef2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/320312
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go.mod                                | 2 +-
+ src/go.sum                                | 4 ++--
+ src/vendor/golang.org/x/net/route/empty.s | 1 +
+ src/vendor/modules.txt                    | 2 +-
+ 4 files changed, 5 insertions(+), 4 deletions(-)

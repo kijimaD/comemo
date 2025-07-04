@@ -1,0 +1,25 @@
+commit 2bcc30891ca4f2c04daf4aa07d78cb8868a6fa40
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Jun 4 15:02:28 2013 -0700
+
+    codereview: don't warn about secret commits
+    
+    Normally the codereview plugin disables adding new commits
+    when not using the submit command. Unfortunately this makes
+    it impossible to use the Mercurial Queues extension at the
+    same time.
+    
+    A feature called "Phases" was introduced in Mercurial 2.1
+    that allows marking commits as being secret; this means
+    they will never be pushed to the upstream repository.
+    
+    We can take advantage of this feature to allow the use of
+    Mercurial Queues if the mq.secret option has been set in
+    hgrc(5) and a recent version of Mercurial is used.
+    
+    R=golang-dev, rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7398055
+
+ lib/codereview/codereview.py | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

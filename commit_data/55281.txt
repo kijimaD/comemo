@@ -1,0 +1,19 @@
+commit 400e24a8be852e7b20eb4af1999b28c20bb4ea21
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Dec 12 09:28:03 2023 -0800
+
+    crypto/x509: properly gate test on macos version
+    
+    Fixes the gating of TestIssue51759 by shelling out to sw_vers to check
+    what version of macOS we are on.
+    
+    Fixes #64677
+    
+    Change-Id: I5eef4fa39e5449e7b2aa73864625c3abf002aef8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549195
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/crypto/x509/verify_test.go | 35 ++++++++++++++++++++++++++++++-----
+ 1 file changed, 30 insertions(+), 5 deletions(-)

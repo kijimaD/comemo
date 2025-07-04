@@ -1,0 +1,12 @@
+commit 80c4eac6379bc43b339a67f47c2559aa71119eec
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Oct 22 11:15:17 2012 +1100
+
+    go/build: document the behavior of multiple build constraints.
+    
+    R=rsc, pkleiweg
+    CC=golang-dev
+    https://golang.org/cl/6725052
+
+ src/pkg/go/build/doc.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

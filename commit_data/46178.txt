@@ -1,0 +1,22 @@
+commit af80af22b507ae23ae04372f30b98f7720c85f8a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 26 12:27:06 2021 -0700
+
+    cmd/compile/internal/types2: do not declare new methods on instantiated types
+    
+    Report an error if an alias is used to declare a method on an
+    instantiated type.
+    
+    Also, when resolving the receiver type, don't use asNamed to
+    avoid premature expansion of the type.
+    
+    Fixes #47968.
+    
+    Change-Id: Ie5acc4cfb1944deaaeeaee98707f31e256f8ef5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345472
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types2/signature.go        |  8 +++++++-
+ .../types2/testdata/fixedbugs/issue47968.go2        | 21 +++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

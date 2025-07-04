@@ -1,0 +1,24 @@
+commit 2e7d864f43b957673f50e648b27c46074ed43404
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sun May 7 13:51:15 2023 +0000
+
+    net: use the lookupOrder for go resolver LookupAddr
+    
+    To mach the cgo version behaviour and the LookupHost (go resolver).
+    
+    Change-Id: I7dc3424d508a62e67f20c7810743399c35a9b60c
+    GitHub-Last-Rev: 29924c13a6c0598bf58b7fc3fae74b10bab0f0ee
+    GitHub-Pull-Request: golang/go#60024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493235
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/dnsclient_unix.go | 29 +++++++++++++++++++++--------
+ src/net/lookup_plan9.go   |  4 ++--
+ src/net/lookup_unix.go    |  2 +-
+ src/net/lookup_windows.go |  4 ++--
+ 4 files changed, 26 insertions(+), 13 deletions(-)

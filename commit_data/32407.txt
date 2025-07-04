@@ -1,0 +1,23 @@
+commit d05a1238d6811aa11abf117e668cd9c4f4c15e6a
+Author: Kashav Madan <kshvmdn@gmail.com>
+Date:   Tue Jun 27 19:29:59 2017 -0400
+
+    cmd/compile: avoid duplicate cast error
+    
+    If an error was already printed during LHS conversion step, we don't reprint
+    the "cannot convert" error.
+    
+    In particular, this prevents `_ = int("1")` (and all similar casts) from
+    resulting in multiple identical error messages being printed.
+    
+    Fixes #20812.
+    
+    Change-Id: If6e52c59eab438599d641ecf6f110ebafca740a9
+    Reviewed-on: https://go-review.googlesource.com/46912
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go     |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go |  2 +-
+ test/fixedbugs/issue20812.go             | 15 +++++++++++++++
+ test/rename1.go                          |  4 ++--
+ 4 files changed, 19 insertions(+), 4 deletions(-)

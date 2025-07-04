@@ -1,0 +1,31 @@
+commit 11b283092a29a9d402ce05706fd3a85683576218
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 21 15:22:52 2017 -0500
+
+    cmd/compile: add opcode flag hasSideEffects for do-not-remove
+    
+    Added a flag to generic and various architectures' atomic
+    operations that are judged to have observable side effects
+    and thus cannot be dead-code-eliminated.
+    
+    Test requires GOMAXPROCS > 1 without preemption in loop.
+    
+    Fixes #19182.
+    
+    Change-Id: Id2230031abd2cca0bbb32fd68fc8a58fb912070f
+    Reviewed-on: https://go-review.googlesource.com/37333
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/deadcode.go       |   2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  16 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go   |  20 ++---
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go    |  16 ++--
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   |  16 ++--
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  28 +++----
+ src/cmd/compile/internal/ssa/gen/main.go       |   4 +
+ src/cmd/compile/internal/ssa/op.go             |   1 +
+ src/cmd/compile/internal/ssa/opGen.go          | 111 +++++++++++++++++--------
+ test/fixedbugs/issue19182.go                   |  36 ++++++++
+ 10 files changed, 168 insertions(+), 82 deletions(-)

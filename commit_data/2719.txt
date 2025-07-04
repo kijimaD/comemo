@@ -1,0 +1,22 @@
+commit 9211a7d413a88125aef36afebeb6690ab0bcb05d
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Jul 15 11:59:13 2009 -0700
+
+    Beginnings of a Go interpreter.  This implements basic and
+    pointer types, supports literals, identifiers, type-checking
+    most unary and binary operators, "compiling" a few unary and
+    binary operators, and assignment and declaration statements.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1751  (1751 added, 0 deleted, 0 changed)
+    OCL=31309
+    CL=31691
+
+ usr/austin/eval/decls.go | 138 ++++++++++
+ usr/austin/eval/expr.go  | 695 +++++++++++++++++++++++++++++++++++++++++++++++
+ usr/austin/eval/scope.go |  54 ++++
+ usr/austin/eval/type.go  | 371 +++++++++++++++++++++++++
+ usr/austin/eval/util.go  |  50 ++++
+ usr/austin/eval/value.go | 467 +++++++++++++++++++++++++++++++
+ 6 files changed, 1775 insertions(+)

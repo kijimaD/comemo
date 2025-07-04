@@ -1,0 +1,16 @@
+commit 644b984027d11d43881507a938b28ed9df3b3320
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Mon Mar 10 06:44:38 2025 +0100
+
+    cmd/compile: compute bitsize from type size in prove to clean some switches
+    
+    Change-Id: I215adda9050d214576433700aed4c371a36aaaed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656335
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 96 +++++++----------------------------
+ 1 file changed, 19 insertions(+), 77 deletions(-)

@@ -1,0 +1,12 @@
+commit 1948aef6e3d1935cb4cfdf4a52f6c278cbbe2a8b
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Oct 21 17:04:49 2015 -0400
+
+    runtime: fix typos
+    
+    Change-Id: Iffc25fc80452baf090bf8ef15ab798cfaa120b8e
+    Reviewed-on: https://go-review.googlesource.com/16154
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/msan0.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

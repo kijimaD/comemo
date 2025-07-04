@@ -1,0 +1,50 @@
+commit 918d4d46cd17192a81a6aced57d09827560ad9f0
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Tue Mar 24 15:07:43 2020 +0800
+
+    runtime: improve MIPS64x memclr
+    
+    Using MIPS MSA VLD/VST to improve mips64x large memclr.
+    
+    name          old time/op    new time/op     delta
+    Memclr/5        23.2ns ± 0%     21.5ns ± 0%    -7.33%  (p=0.000 n=9+8)
+    Memclr/16       20.1ns ± 0%     17.1ns ± 0%   -14.93%  (p=0.000 n=10+10)
+    Memclr/64       27.2ns ± 0%     19.1ns ± 0%   -29.70%  (p=0.000 n=9+9)
+    Memclr/256      76.8ns ± 0%     24.1ns ± 0%   -68.66%  (p=0.000 n=10+10)
+    Memclr/4096     1.12µs ± 1%     0.18µs ± 0%   -84.32%  (p=0.000 n=10+8)
+    Memclr/65536    18.0µs ± 0%      2.8µs ± 0%   -84.29%  (p=0.000 n=10+10)
+    Memclr/1M        288µs ± 0%       45µs ± 0%   -84.20%  (p=0.000 n=10+10)
+    Memclr/4M       1.15ms ± 0%     0.18ms ± 0%   -84.21%  (p=0.000 n=9+10)
+    Memclr/8M       2.34ms ± 0%     1.39ms ± 0%   -40.55%  (p=0.000 n=10+8)
+    Memclr/16M      4.72ms ± 0%     4.74ms ± 0%    +0.52%  (p=0.000 n=9+10)
+    Memclr/64M      18.9ms ± 0%     18.9ms ± 0%      ~     (p=0.436 n=10+10)
+    GoMemclr/5      13.7ns ± 0%     16.9ns ± 0%   +23.36%  (p=0.000 n=10+10)
+    GoMemclr/16     14.3ns ± 0%      9.0ns ± 0%   -37.27%  (p=0.000 n=10+9)
+    GoMemclr/64     26.9ns ± 0%     13.7ns ± 0%   -49.07%  (p=0.000 n=10+10)
+    GoMemclr/256    77.8ns ± 0%     13.0ns ± 0%   -83.24%  (p=0.000 n=9+10)
+    
+    name          old speed      new speed       delta
+    Memclr/5       215MB/s ± 0%    232MB/s ± 0%    +7.74%  (p=0.000 n=9+9)
+    Memclr/16      795MB/s ± 0%    935MB/s ± 0%   +17.60%  (p=0.000 n=10+10)
+    Memclr/64     2.35GB/s ± 0%   3.35GB/s ± 0%   +42.33%  (p=0.000 n=10+9)
+    Memclr/256    3.34GB/s ± 0%  10.65GB/s ± 0%  +219.16%  (p=0.000 n=10+10)
+    Memclr/4096   3.65GB/s ± 1%  23.30GB/s ± 0%  +538.36%  (p=0.000 n=10+10)
+    Memclr/65536  3.65GB/s ± 0%  23.21GB/s ± 0%  +536.59%  (p=0.000 n=10+10)
+    Memclr/1M     3.64GB/s ± 0%  23.07GB/s ± 0%  +532.96%  (p=0.000 n=10+10)
+    Memclr/4M     3.64GB/s ± 0%  23.08GB/s ± 0%  +533.36%  (p=0.000 n=9+10)
+    Memclr/8M     3.58GB/s ± 0%   6.02GB/s ± 0%   +68.20%  (p=0.000 n=10+8)
+    Memclr/16M    3.56GB/s ± 0%   3.54GB/s ± 0%    -0.51%  (p=0.000 n=9+10)
+    Memclr/64M    3.55GB/s ± 0%   3.55GB/s ± 0%      ~     (p=0.436 n=10+10)
+    GoMemclr/5     364MB/s ± 0%    296MB/s ± 0%   -18.76%  (p=0.000 n=9+10)
+    GoMemclr/16   1.12GB/s ± 0%   1.78GB/s ± 0%   +58.86%  (p=0.000 n=10+10)
+    GoMemclr/64   2.38GB/s ± 0%   4.66GB/s ± 0%   +96.27%  (p=0.000 n=10+9)
+    GoMemclr/256  3.29GB/s ± 0%  19.62GB/s ± 0%  +496.45%  (p=0.000 n=10+9)
+    
+    Change-Id: I457858368f2875fd66818a41d2f0c190a850e8f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218177
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/cpuflags.go      |  2 ++
+ src/runtime/memclr_mips64x.s | 55 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)

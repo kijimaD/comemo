@@ -1,0 +1,15 @@
+commit 2253f671577c5302096f679d9dfe80218fdff99d
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 9 19:24:46 2012 -0700
+
+    text/template/parse: fix bug handling /*/
+    Incorrect syntax for comment was erroneously accepted.
+    Fixes #3919.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6453105
+
+ src/pkg/text/template/parse/lex.go      | 5 +++--
+ src/pkg/text/template/parse/lex_test.go | 4 ++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)

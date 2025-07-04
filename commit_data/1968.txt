@@ -1,0 +1,16 @@
+commit a888d4d233d98c009aabf0dacaca5f364fcbc56c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 7 00:15:49 2009 -0700
+
+    not a bug by current understanding, so delete this file.
+    6g says: bug138.go:8: constant -1 overflows uint
+    gccgo says: bug138.go:8:16: error: integer constant overflow
+    
+    R=rsc
+    DELTA=19  (0 added, 19 deleted, 0 changed)
+    OCL=27099
+    CL=27149
+
+ test/bugs/bug138.go | 19 -------------------
+ test/golden.out     |  4 ----
+ 2 files changed, 23 deletions(-)

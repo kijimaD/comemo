@@ -1,0 +1,23 @@
+commit 92c732e901a732855f4b813e6676264421eceae9
+Author: David Chase <drchase@google.com>
+Date:   Fri Nov 13 16:54:48 2020 -0500
+
+    cmd/compile: fix load of interface{}-typed OpIData in expand_calls
+    
+    In certain cases, the declkared type of an OpIData is interface{}.
+    This was not expected (since interface{} is a pair, right?) and
+    thus caused a crash.  What is intended is that these be treated as
+    a byteptr, so do that instead (this is what happens in 1.15).
+    
+    Fixes #42568.
+    
+    Change-Id: Id7c9e5dc2cbb5d7c71c6748832491ea62b0b339f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270057
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/amd64/ssa.go        |  4 ++--
+ src/cmd/compile/internal/ssa/expand_calls.go |  3 +++
+ test/fixedbugs/issue42568.go                 | 25 +++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 2 deletions(-)

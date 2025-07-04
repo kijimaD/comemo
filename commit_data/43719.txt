@@ -1,0 +1,22 @@
+commit 67bf1c9979180da6dba7dd523df7d7917fe04048
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 30 21:00:41 2020 -0400
+
+    cmd/go/internal/modload: fix (*mvsReqs).Max when the second argument is the empty string
+    
+    As far as I can tell, this bug had gone unnoticed because everything
+    that uses Max so far happened to only ever present the empty string as
+    the first argument.
+    
+    For #37438
+    
+    Change-Id: Ie8c42313157d2c2c17e4058c53b5bb026b95a1c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266860
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/mvs.go      |  2 +-
+ src/cmd/go/internal/modload/mvs_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 1 deletion(-)

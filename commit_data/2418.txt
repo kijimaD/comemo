@@ -1,0 +1,15 @@
+commit 6defc25c8383ab326e8c11af0c78de8a394dca84
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 21:51:05 2009 -0700
+
+    Publish types PipeReader and PipeWriter
+    to expose new CloseWithError methods.
+    
+    R=r
+    DELTA=161  (72 added, 15 deleted, 74 changed)
+    OCL=29980
+    CL=30003
+
+ src/lib/io/pipe.go      |  87 +++++++++++++++++++++----------
+ src/lib/io/pipe_test.go | 132 ++++++++++++++++++++++++++++--------------------
+ 2 files changed, 138 insertions(+), 81 deletions(-)

@@ -1,0 +1,76 @@
+commit bc2f5f1dce1687d0aff0d51ea1b56a5d52aa3891
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 11 22:07:49 2008 -0700
+
+    fix bug depot:
+            1) fix print statements, panic statements (parentheses required)
+            2) len is now allowed as a var name (bug053)
+    
+    R=gri
+    OCL=14106
+    CL=14106
+
+ test/args.go                       |  6 +--
+ test/bugs/bug027.go                |  6 +--
+ test/bugs/bug054.go                |  2 +-
+ test/bugs/bug060.go                |  2 +-
+ test/bugs/bug064.go                |  2 +-
+ test/bugs/bug070.go                | 12 ++---
+ test/bugs/bug074.go                |  2 +-
+ test/bugs/bug085.go                |  2 +-
+ test/bugs/bug086.go                |  2 +-
+ test/chan/fifo.go                  |  4 +-
+ test/chan/nonblock.go              | 42 +++++++++---------
+ test/chan/powser1.go               | 42 +++++++++---------
+ test/chan/sieve.go                 | 50 ++++++++++-----------
+ test/char_lit.go                   |  4 +-
+ test/fixedbugs/bug006.go           |  4 +-
+ test/fixedbugs/bug012.go           |  6 +--
+ test/fixedbugs/bug028.go           |  2 +-
+ test/{bugs => fixedbugs}/bug053.go |  0
+ test/fixedbugs/bug067.go           |  2 +-
+ test/fixedbugs/bug082.go           |  2 +-
+ test/fixedbugs/bug084.go           |  2 +-
+ test/float_lit.go                  | 90 +++++++++++++++++++-------------------
+ test/fmt.go                        |  8 ++--
+ test/for.go                        |  4 +-
+ test/func.go                       |  4 +-
+ test/golden.out                    |  4 --
+ test/helloworld.go                 |  2 +-
+ test/if.go                         |  4 +-
+ test/if1.go                        |  2 +-
+ test/int_lit.go                    |  2 +-
+ test/iota.go                       |  4 +-
+ test/ken/for.go                    |  2 +-
+ test/ken/interfun.go               | 14 +++---
+ test/ken/intervar.go               |  8 ++--
+ test/ken/label.go                  |  4 +-
+ test/ken/litfun.go                 |  2 +-
+ test/ken/mfunc.go                  |  2 +-
+ test/ken/ptrfun.go                 |  8 ++--
+ test/ken/ptrvar.go                 |  6 +--
+ test/ken/rob1.go                   |  4 +-
+ test/ken/rob2.go                   | 20 ++++-----
+ test/ken/robfor.go                 |  4 +-
+ test/ken/robfunc.go                |  4 +-
+ test/ken/robif.go                  |  4 +-
+ test/ken/robiota.go                |  4 +-
+ test/ken/simparray.go              |  6 +--
+ test/ken/simpbool.go               | 88 ++++++++++++++++++-------------------
+ test/ken/simpconv.go               |  4 +-
+ test/ken/simpfun.go                |  4 +-
+ test/ken/simpprint.go              |  2 +-
+ test/ken/simpswitch.go             | 10 ++---
+ test/ken/simpvar.go                |  2 +-
+ test/ken/string.go                 | 34 +++++++-------
+ test/ken/strvar.go                 | 14 +++---
+ test/literal.go                    |  4 +-
+ test/peano.go                      |  4 +-
+ test/readfile.go                   |  4 +-
+ test/sieve.go                      |  2 +-
+ test/simassign.go                  | 20 ++++-----
+ test/string_lit.go                 |  4 +-
+ test/switch.go                     |  4 +-
+ test/turing.go                     |  2 +-
+ test/utf.go                        | 10 ++---
+ 63 files changed, 310 insertions(+), 314 deletions(-)

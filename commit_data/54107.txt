@@ -1,0 +1,27 @@
+commit ba626ac327f45a6d9d211fddd5b48e321fa0702a
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Fri Aug 18 13:39:57 2023 +0800
+
+    encoding/gob: prevent panic from index out of range in Decoder.typeString
+    
+    I believe this bug is introduced by CL 460543 which optimizes the allocations
+    by changing the type of `idToType` from map to slice, but didn't update the
+    access code in `Decoder.typeString` that is safe for map but not for slice.
+    
+    Fixes #62117
+    
+    Change-Id: I0f2e4cc2f34c54dada1f83458ba512a6fde6dcbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520757
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/encoding/gob/codec_test.go | 12 ++++++++++++
+ src/encoding/gob/decode.go     |  2 +-
+ src/encoding/gob/type.go       | 29 +++++++++++++++++++----------
+ 3 files changed, 32 insertions(+), 11 deletions(-)

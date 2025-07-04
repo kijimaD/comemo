@@ -1,0 +1,16 @@
+commit e6bc5bf5af906868a62d19c4491aa45b319a04a4
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 5 21:31:50 2009 -0700
+
+    allow multiple -L options
+    
+    R=rsc
+    DELTA=31  (15 added, 3 deleted, 13 changed)
+    OCL=35364
+    CL=35364
+
+ src/cmd/6l/l.h   |  1 -
+ src/cmd/6l/obj.c | 24 ++++++++++++++++--------
+ src/cmd/8l/l.h   |  1 -
+ src/cmd/8l/obj.c | 18 ++++++++++++------
+ 4 files changed, 28 insertions(+), 16 deletions(-)

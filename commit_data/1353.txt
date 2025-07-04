@@ -1,0 +1,18 @@
+commit 6715358652252706120616172752bd1e1e46af6a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 16 14:45:09 2008 -0800
+
+    - Add introduction section (1 page), essentially a condensed form
+    of an earlier intro.
+    - Updated contents section.
+    - Removed left-over text from earlier documents.
+    
+    No spec changes.
+    
+    R=r
+    DELTA=379  (147 added, 227 deleted, 5 changed)
+    OCL=21312
+    CL=21331
+
+ doc/go_spec.txt | 384 ++++++++++++++++++++++----------------------------------
+ 1 file changed, 152 insertions(+), 232 deletions(-)

@@ -1,0 +1,22 @@
+commit 9a44b8e15a0444460358495e5ed2dc78a3470675
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Aug 26 20:00:10 2024 +0200
+
+    runtime: overwrite startupRand instead of clearing it
+    
+    AT_RANDOM is unfortunately used by libc before we run (so make sure it's
+    not cleared) but also is available to cgo programs after we did. It
+    would be unfortunate if a cgo program assumed it could use AT_RANDOM but
+    instead found all zeroes there.
+    
+    Change-Id: I82eff34d8cf5a499b439052b7827b8ef7cabc21d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608437
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/runtime/os_linux.go   | 12 ++++++++++--
+ src/runtime/os_openbsd.go |  3 +++
+ src/runtime/rand.go       | 37 +++++++++++++++++++++++++++++++++----
+ 3 files changed, 46 insertions(+), 6 deletions(-)

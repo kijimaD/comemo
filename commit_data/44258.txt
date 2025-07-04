@@ -1,0 +1,18 @@
+commit a5c8a15f649ffe29b3a80144e6d422046adb2cf0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 28 17:01:54 2021 -0500
+
+    cmd/go/internal/mvs: clarify and annotate test cases
+    
+    For #36460
+    
+    Change-Id: I5a8be8f36fb8825ffa08ed1427cb1e15b106b31a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/287732
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/mvs/mvs_test.go | 94 ++++++++++++++++++++++++++++---------
+ 1 file changed, 72 insertions(+), 22 deletions(-)

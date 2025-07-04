@@ -1,0 +1,31 @@
+commit 1596d71255f3c19a27600e751592079dae46bf40
+Author: Ananth Bhaskararaman <antsub@gmail.com>
+Date:   Wed Mar 22 05:37:43 2023 +0000
+
+    os/user: lookup Linux users and groups via systemd userdb
+    
+    Fetch usernames and groups via systemd userdb if available.
+    Otherwise fall back to parsing /etc/passwd, etc.
+    
+    Fixes #38810
+    
+    Co-authored-by: Michael Stapelberg <stapelberg@google.com>
+    
+    Change-Id: Iff6ffc54feec6b6cec241b89e362c2285c8c0454
+    GitHub-Last-Rev: 1a627cc9a18063f5d274bb96113947cd4d952e5a
+    GitHub-Pull-Request: golang/go#57458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/user/listgroups_unix.go         |   9 +
+ src/os/user/lookup_unix.go             |  30 ++
+ src/os/user/user.go                    |   4 +
+ src/os/user/userdbclient.go            |  22 +
+ src/os/user/userdbclient_linux.go      | 772 +++++++++++++++++++++++++++++++++
+ src/os/user/userdbclient_linux_test.go | 504 +++++++++++++++++++++
+ src/os/user/userdbclient_stub.go       |  29 ++
+ 7 files changed, 1370 insertions(+)

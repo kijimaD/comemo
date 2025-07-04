@@ -1,0 +1,22 @@
+commit cfbd2e7b40fac7809a404c49c46106e259078a61
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Sep 19 13:45:13 2024 +0000
+
+    text/template: support range-over-func
+    
+    For #66107
+    
+    Change-Id: I2fcd04bebe80346dbd244ab7ea09cbe6010b9d8e
+    GitHub-Last-Rev: 5ebf615db5889a04738c555c651e07c1fd287748
+    GitHub-Pull-Request: golang/go#68329
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596956
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/next/6-stdlib/99-minor/text/template/66107.md |  1 +
+ src/text/template/doc.go                          |  6 ++--
+ src/text/template/exec.go                         | 37 +++++++++++++++++++++++
+ src/text/template/exec_test.go                    | 32 ++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 2 deletions(-)

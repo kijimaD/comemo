@@ -1,0 +1,24 @@
+commit 7c22af830a72adf30b18ee3d1744aab8e3c009a8
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 16 14:42:24 2016 -0500
+
+    runtime: fix deadlock in TestCrashDumpsAllThreads
+    
+    TestCrashDumpsAllThreads carefully sets the number of Ps to one
+    greater than the number of non-preemptible loops it starts so that the
+    main goroutine can continue to run (necessary because of #10958).
+    However, if GC starts, it can take over that one spare P and lock up
+    the system while waiting for the non-preemptible loops, causing the
+    test to eventually time out. This deadlock is easily reproducible if
+    you run the runtime test with GOGC=1.
+    
+    Fix this by forcing GOGC=off when running this test.
+    
+    Change-Id: Ifb22da5ce33f9a61700a326ea92fcf4b049721d1
+    Reviewed-on: https://go-review.googlesource.com/19516
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/crash_unix_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,0 +1,14 @@
+commit dd806b8be4447f064e93ad9302bc8befde37f952
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 14:49:08 2018 -0500
+
+    cmd/go: adjust import config debugging flag
+    
+    Change-Id: I3afaefc154f9ccfac353cedac7aefcfb70afe265
+    Reviewed-on: https://go-review.googlesource.com/86996
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/load/icfg.go | 27 +++++++++++++++------------
+ 1 file changed, 15 insertions(+), 12 deletions(-)

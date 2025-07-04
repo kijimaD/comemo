@@ -1,0 +1,20 @@
+commit 6c242c52d355772f66466505dd7555d4601f1c5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 16:58:00 2016 -0400
+
+    net/rpc: fix method requirement docs
+    
+    The receiver itself is not transmitted and does not need to be
+    marshalable by encoding/gob.
+    
+    Fixes #16803.
+    
+    Change-Id: I42a3603fb7d3b36c97dcc2e51a398cd65ec3227d
+    Reviewed-on: https://go-review.googlesource.com/32094
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/net/rpc/server.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

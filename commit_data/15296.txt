@@ -1,0 +1,36 @@
+commit 86d509b463d92be4ea9f51d61760d8383b1f96e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 18 13:43:12 2013 -0500
+
+    runtime: preparation for non-Go threads running Go code
+    
+    * Handle p==nil in signalstack by setting SS_DISABLE flag.
+    * Make minit only allocate a signal g if there's not one already.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7323072
+
+ src/pkg/runtime/os_darwin.h            | 1 +
+ src/pkg/runtime/os_freebsd.h           | 1 +
+ src/pkg/runtime/os_linux.h             | 1 +
+ src/pkg/runtime/os_netbsd.h            | 1 +
+ src/pkg/runtime/os_openbsd.h           | 1 +
+ src/pkg/runtime/signal_darwin_386.c    | 2 ++
+ src/pkg/runtime/signal_darwin_amd64.c  | 2 ++
+ src/pkg/runtime/signal_freebsd_386.c   | 2 ++
+ src/pkg/runtime/signal_freebsd_amd64.c | 2 ++
+ src/pkg/runtime/signal_freebsd_arm.c   | 2 ++
+ src/pkg/runtime/signal_linux_386.c     | 2 ++
+ src/pkg/runtime/signal_linux_amd64.c   | 2 ++
+ src/pkg/runtime/signal_linux_arm.c     | 2 ++
+ src/pkg/runtime/signal_netbsd_386.c    | 2 ++
+ src/pkg/runtime/signal_netbsd_amd64.c  | 2 ++
+ src/pkg/runtime/signal_netbsd_arm.c    | 2 ++
+ src/pkg/runtime/signal_openbsd_386.c   | 2 ++
+ src/pkg/runtime/signal_openbsd_amd64.c | 2 ++
+ src/pkg/runtime/thread_darwin.c        | 6 ++++--
+ src/pkg/runtime/thread_linux.c         | 3 ++-
+ src/pkg/runtime/thread_netbsd.c        | 3 ++-
+ src/pkg/runtime/thread_openbsd.c       | 3 ++-
+ 22 files changed, 41 insertions(+), 5 deletions(-)

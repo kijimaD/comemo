@@ -1,0 +1,13 @@
+commit 6f682de3c041ff0f94c881a9f8e503753a1afdd9
+Author: Adam Langley <agl@golang.org>
+Date:   Fri May 18 11:04:32 2012 -0400
+
+    A+C: b@b3k.us
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6220050
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

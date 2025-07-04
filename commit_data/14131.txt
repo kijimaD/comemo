@@ -1,0 +1,12 @@
+commit bd6601f4a05df0aedff66b4846d507615f584c5b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Oct 12 10:22:13 2012 +1100
+
+    os/signal: add Notify example
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/6615078
+
+ src/pkg/os/signal/example_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

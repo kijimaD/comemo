@@ -1,0 +1,18 @@
+commit 3ee12d5702be8e2e13e256d6dec28c6464e0a7e5
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 26 15:30:04 2023 -0400
+
+    internal/reflectlite: common up types, remove code
+    
+    Change-Id: I4d3ef025b935e52c47896f69814ba2f1a504d749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489375
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/internal/reflectlite/export_test.go |  30 +--
+ src/internal/reflectlite/swapper.go     |   2 +-
+ src/internal/reflectlite/type.go        | 369 ++++++++++++--------------------
+ src/internal/reflectlite/value.go       |  20 +-
+ 4 files changed, 160 insertions(+), 261 deletions(-)

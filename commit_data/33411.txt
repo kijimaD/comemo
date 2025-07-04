@@ -1,0 +1,24 @@
+commit efb1a7524eda6c36efdb506d0f9e8d822808593e
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 1 13:31:44 2017 -0400
+
+    cmd/go: prefer $GOTMPDIR over operating system tmp dir for temp files
+    
+    We build and run executables in the work directory,
+    and some users have $TMPDIR set noexec.
+    
+    Fixes #8451.
+    
+    Change-Id: I76bf2ddec84e9cb37ad9a6feb53a1a84b47aa263
+    Reviewed-on: https://go-review.googlesource.com/75475
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/util.go                |  2 +-
+ src/cmd/go/alldocs.go               |  8 ++++++++
+ src/cmd/go/go_test.go               | 14 ++++++++++++++
+ src/cmd/go/internal/envcmd/env.go   |  5 ++++-
+ src/cmd/go/internal/help/helpdoc.go |  6 ++++++
+ src/cmd/go/internal/work/action.go  |  2 +-
+ 6 files changed, 34 insertions(+), 3 deletions(-)

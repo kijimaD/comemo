@@ -1,0 +1,104 @@
+commit 472e92609a7fa6a1983052d1d8e07bc9e4dcb396
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 16 11:38:57 2018 -0400
+
+    cmd/go/internal/module: add new +incompatible version build annotation
+    
+    Repos written before the introduction of semantic import versioning
+    introduced tags like v2.0.0, v3.0.0, and so on, expecting that
+    (1) the import path would remain unchanged, and perhaps also
+    (2) there would be at most one copy of the package in a build.
+    
+    We've always accommodated these by mapping them into the
+    v0/v1 version range, so that if you ran
+    
+        go get k8s.io/client-go@v8.0.0
+    
+    it would not complain about v8.x.x being a non-v1 version and
+    instead would map that version to a pseudo-version in go.mod:
+    
+        require k8s.io/client-go v0.0.0-20180628043050-7d04d0e2a0a1
+    
+    The pseudo-version fails to capture two important facts: first,
+    that this really is the v8.0.0 tag, and second, that it should be
+    preferred over any earlier v1 tags.
+    
+    A related problem is that running "go get k8s.io/client-go"
+    with no version will choose the latest v1 tag (v1.5.1), which
+    is obsolete.
+    
+    This CL introduces a new version suffix +incompatible that
+    indicates that the tag should be considered an (incompatible)
+    extension of the v1 version sequence instead of part of its
+    own major version with its own versioned module path.
+    The requirement above can now be written:
+    
+        require k8s.io/client-go v8.0.0+incompatible
+    
+    (The +metadata suffix is a standard part of semantic versioning,
+    and that suffix is ignored when comparing two versions for
+    precedence or equality. As part of canonicalizing versions
+    recorded in go.mod, the go command has always stripped all
+    such suffixes. It still strips nearly all: only +incompatible is
+    preserved now.)
+    
+    In addition to recognizing the +incompatible, the code that
+    maps a commit hash to a version will use that form when
+    appropriate, so that
+    
+        go get k8s.io/client-go@7d04d0
+    
+    will choose k8s.io/client-go@v8.0.0+incompatible.
+    
+    Also, the code that computes the list of available versions from
+    a given source code repository also maps old tags to +incompatible
+    versions, for any tagged commit in which a go.mod file does not exist.
+    Therefore
+    
+        go list -m -versions k8s.io/client-go@latest
+    
+    will show
+    
+        k8s.io/client-go v1.4.0 v1.5.0 v1.5.1 v2.0.0-alpha.0+incompatible ... v8.0.0+incompatible
+    
+    and similarly
+    
+        go get k8s.io/client-go
+    
+    will now choose v8.0.0+incompatible as the meaning of "latest tagged version".
+    
+    The extraction of +incompatible versions from source code repos
+    depends on a codehost.Repo method ReadFileRevs, to do a bulk read
+    of multiple revisions of a file. That method is only implemented for git in this CL.
+    Future CLs will need to add support for that method to the other repository
+    implementations.
+    
+    Documentation for this change is in CL 124515.
+    
+    Fixes #26238.
+    
+    Change-Id: I5bb1d7a46b5fffde34a3c0e6f8d19d9608188cea
+    Reviewed-on: https://go-review.googlesource.com/124384
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modconv/convert.go             |   5 +-
+ src/cmd/go/internal/modconv/convert_test.go        |   2 +-
+ src/cmd/go/internal/modfetch/cache.go              |   6 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  27 ++++
+ src/cmd/go/internal/modfetch/codehost/git.go       | 166 ++++++++++++++++++++-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       |   4 +
+ src/cmd/go/internal/modfetch/coderepo.go           |  68 +++++++--
+ src/cmd/go/internal/modfetch/coderepo_test.go      |  21 +--
+ src/cmd/go/internal/modfile/rule.go                |  52 +++----
+ src/cmd/go/internal/modload/init.go                |   3 +-
+ src/cmd/go/internal/modload/query.go               |   6 +-
+ src/cmd/go/internal/module/module.go               |  12 +-
+ src/cmd/go/internal/module/module_test.go          |   3 +
+ src/cmd/go/proxy_test.go                           |   3 +
+ src/cmd/go/testdata/mod/rsc.io_breaker_v1.0.0.txt  |  11 ++
+ .../mod/rsc.io_breaker_v2.0.0+incompatible.txt     |  11 ++
+ src/cmd/go/testdata/mod/rsc.io_breaker_v2.0.0.txt  |  11 ++
+ .../go/testdata/script/mod_get_incompatible.txt    |  26 ++++
+ 18 files changed, 375 insertions(+), 62 deletions(-)

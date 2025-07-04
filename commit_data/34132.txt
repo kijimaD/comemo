@@ -1,0 +1,41 @@
+commit ddb503be96dd9a10c6591a2e6806548f9ddbac62
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 31 12:05:24 2018 -0500
+
+    runtime: avoid bad unwinding from sigpanic in C code
+    
+    Currently, if a sigpanic call is injected into C code, it's possible
+    for preparePanic to leave the stack in a state where traceback can't
+    unwind correctly past the sigpanic.
+    
+    Specifically, shouldPushPanic sniffs the stack to decide where to put
+    the PC from the signal context. In the cgo case, it will find that
+    !findfunc(pc).valid() because pc is in C code, and then it will check
+    if the top of the stack looks like a Go PC. However, this stack slot
+    is just in a C frame, so it could be uninitialized and contain
+    anything, including what looks like a valid Go PC. For example, in
+    https://build.golang.org/log/c601a18e2af24794e6c0899e05dddbb08caefc17,
+    it sees 1c02c23a <runtime.newproc1+682>. When this condition is met,
+    it skips putting the signal PC on the stack at all. As a result, when
+    we later unwind from the sigpanic, we'll "successfully" but
+    incorrectly unwind to whatever PC was in this uninitialized slot and
+    go who knows where from there.
+    
+    Fix this by making shouldPushPanic assume that the signal PC is always
+    usable if we're running C code, so we always make it appear like
+    sigpanic's caller.
+    
+    This lets us be pickier again about unexpected return PCs in
+    gentraceback.
+    
+    Updates #23640.
+    
+    Change-Id: I1e8ade24b031bd905d48e92d5e60c982e8edf160
+    Reviewed-on: https://go-review.googlesource.com/91137
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/panic.go     | 7 ++++++-
+ src/runtime/traceback.go | 2 +-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

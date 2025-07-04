@@ -1,0 +1,21 @@
+commit f0c0e0f255c59c8ee6e463103d0b8491b8f9b1af
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Feb 3 09:57:25 2022 -0800
+
+    crypto/elliptic: inline marshaling into nistec pointFromAffine
+    
+    Marshal behavior for invalid points is undefined, so don't use it to
+    check if points are valid.
+    
+    For #52182
+    
+    Change-Id: If167893bc4b029f71bb2528564f2bd96bee7221c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382994
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/elliptic/nistec.go | 46 +++++++++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 21 deletions(-)

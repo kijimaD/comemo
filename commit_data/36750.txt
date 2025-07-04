@@ -1,0 +1,20 @@
+commit b50210f5719c15cd512857e2e29e1de152155b35
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 26 17:54:47 2018 +0000
+
+    Revert "net/url: escape URL.RawQuery on Parse if it contains invalid characters"
+    
+    This reverts commit CL 99135 (git rev 1040626c0ce4a1bc2b312aa0866ffeb2ff53c1ab).
+    
+    Reason for revert: breaks valid code; see #27302
+    
+    Fixes #27302
+    Updates #22907
+    
+    Change-Id: I82bb0c28ae1683140c71e7a2224c4ded3f4acea1
+    Reviewed-on: https://go-review.googlesource.com/137716
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/url/url.go      | 51 +------------------------------------------------
+ src/net/url/url_test.go | 11 -----------
+ 2 files changed, 1 insertion(+), 61 deletions(-)

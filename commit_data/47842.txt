@@ -1,0 +1,18 @@
+commit b5e06545b3c3b3b9c2ed8204e5ba3fd25a85db0f
+Author: Reilly Watson <reillywatson@gmail.com>
+Date:   Mon Dec 20 16:31:45 2021 -0500
+
+    net/http: fix link to ResponseWriter trailer example
+    
+    The links to this example were using an underscore separator
+    instead of a hyphen, and incorrect casing.
+    
+    Fixes #50279
+    
+    Change-Id: I35d76a8a78cd708b7505ff1a70f7dacddaf43efd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373514
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

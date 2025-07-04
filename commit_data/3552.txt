@@ -1,0 +1,18 @@
+commit 8c101739d9c68dc2feae3b63e482c245fda7a987
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 15 10:41:07 2009 -0700
+
+    - bug fix: must not insert indentation tabs into multi-line strings in RawFormat
+      (always write tabwriter.Escape chars so formatting is driven correctly; but strip
+      them again in the end if no tabwriter is used)
+    - added testcase for RawFormat printing
+    
+    R=rsc
+    DELTA=227  (198 added, 6 deleted, 23 changed)
+    OCL=35772
+    CL=35774
+
+ src/pkg/go/printer/printer.go               |  29 ++---
+ src/pkg/go/printer/printer_test.go          |  40 ++++--
+ src/pkg/go/printer/testdata/expressions.raw | 181 ++++++++++++++++++++++++++++
+ 3 files changed, 221 insertions(+), 29 deletions(-)

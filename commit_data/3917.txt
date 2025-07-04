@@ -1,0 +1,13 @@
+commit 6fff7b23991c9502a5b58577c356046ade01d44f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 22:12:51 2009 -0800
+
+    mention license in install.html.
+    tighter nav list.
+    
+    R=r
+    http://go/go-review/1024029
+
+ doc/install.html | 22 ++++++++++++++--------
+ doc/style.css    |  2 ++
+ 2 files changed, 16 insertions(+), 8 deletions(-)

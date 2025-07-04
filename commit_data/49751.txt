@@ -1,0 +1,28 @@
+commit fefac44a62fe0cfda73ab4abf15bf35b58faa6ac
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 4 16:44:29 2022 -0400
+
+    go/build: add GO$GOARCH-based ToolTags
+    
+    Implement proposal #45454, providing build tags based on the
+    sub-architecture information in the GO$GOARCH variable
+    (for example, GOARM for GOARCH=arm).
+    
+    For example, when GOAMD64=v2, the additional build tags
+    amd64.v1 and amd64.v2 are defined to be true.
+    
+    Fixes #45454.
+    
+    Change-Id: I7be56060d47fc61843b97fd8a78498e8202c1ee7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421434
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/go/internal/cfg/cfg.go          | 11 ++++--
+ src/cmd/go/testdata/script/tooltags.txt | 45 ++++++++++++++++++++++++
+ src/go/build/build.go                   |  9 +----
+ src/internal/buildcfg/cfg.go            | 61 ++++++++++++++++++++++++++++++++-
+ 4 files changed, 114 insertions(+), 12 deletions(-)

@@ -1,0 +1,31 @@
+commit f5690004c2f5a5e478b66c2390d7ddba96cd7291
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 8 13:56:43 2010 -0500
+
+    6l, 8l: support for linking ELF and Mach-O .o files
+    
+    More support for references to dynamic symbols,
+    including full GOT and PLT for ELF objects.
+    
+    For Mach-O everything ends up in the GOT: dealing
+    with the real lazy PLT is too hard for now so we punt.
+    
+    R=iant, iant2
+    CC=golang-dev
+    https://golang.org/cl/3491042
+
+ src/cmd/6l/Makefile |   2 +
+ src/cmd/6l/asm.c    | 510 +++++++++++++++++++++++++++++++++++++++++++---------
+ src/cmd/6l/l.h      |  14 +-
+ src/cmd/8l/8.out.h  |   2 +
+ src/cmd/8l/Makefile |   2 +
+ src/cmd/8l/asm.c    | 502 +++++++++++++++++++++++++++++++++++++++++++--------
+ src/cmd/8l/l.h      |  17 +-
+ src/cmd/ld/data.c   | 158 ++++++++++++++--
+ src/cmd/ld/elf.c    |  40 +++--
+ src/cmd/ld/go.c     |  23 ++-
+ src/cmd/ld/lib.c    |  92 ++++++++--
+ src/cmd/ld/lib.h    |  26 +++
+ src/cmd/ld/macho.c  | 355 +++++++++++-------------------------
+ src/cmd/ld/macho.h  |  16 ++
+ 14 files changed, 1309 insertions(+), 450 deletions(-)

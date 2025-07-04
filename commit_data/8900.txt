@@ -1,0 +1,65 @@
+commit 25733a94fde4f4af4b6ac5ba01b7212a3ef0f013
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 29 09:52:34 2011 -0400
+
+    reflect: support for struct tag use by multiple packages
+    
+    Each package using struct field tags assumes that
+    it is the only package storing data in the tag.
+    This CL adds support in package reflect for sharing
+    tags between multiple packages.  In this scheme, the
+    tags must be of the form
+    
+            key:"value" key2:"value2"
+    
+    (raw strings help when writing that tag in Go source).
+    
+    reflect.StructField's Tag field now has type StructTag
+    (a string type), which has method Get(key string) string
+    that returns the associated value.
+    
+    Clients of json and xml will need to be updated.
+    Code that says
+    
+            type T struct {
+                    X int "name"
+            }
+    
+    should become
+    
+            type T struct {
+                    X int `json:"name"`  // or `xml:"name"`
+            }
+    
+    Use govet to identify struct tags that need to be changed
+    to use the new syntax.
+    
+    R=r, r, dsymonds, bradfitz, kevlar, fvbommel, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/4645069
+
+ src/cmd/godoc/codewalk.go            |  8 ++--
+ src/cmd/govet/govet.go               | 37 ++++++++++++++---
+ src/pkg/asn1/asn1.go                 |  2 +-
+ src/pkg/asn1/asn1_test.go            |  6 +--
+ src/pkg/asn1/marshal.go              |  2 +-
+ src/pkg/asn1/marshal_test.go         | 10 ++---
+ src/pkg/crypto/ocsp/ocsp.go          | 20 ++++-----
+ src/pkg/crypto/x509/pkix/pkix.go     | 12 +++---
+ src/pkg/crypto/x509/x509.go          | 32 +++++++--------
+ src/pkg/go/types/testdata/exports.go |  2 +-
+ src/pkg/json/decode.go               |  2 +-
+ src/pkg/json/decode_test.go          |  9 ++--
+ src/pkg/json/encode.go               | 16 ++++----
+ src/pkg/net/dnsmsg.go                | 46 ++++++++++-----------
+ src/pkg/reflect/all_test.go          | 30 +++++++++++---
+ src/pkg/reflect/type.go              | 80 +++++++++++++++++++++++++++++++-----
+ src/pkg/rpc/jsonrpc/all_test.go      |  6 +--
+ src/pkg/rpc/jsonrpc/client.go        | 12 +++---
+ src/pkg/rpc/jsonrpc/server.go        | 12 +++---
+ src/pkg/xml/embed_test.go            | 10 ++---
+ src/pkg/xml/marshal.go               |  6 +--
+ src/pkg/xml/marshal_test.go          | 34 +++++++--------
+ src/pkg/xml/read.go                  | 41 +++++++++---------
+ src/pkg/xml/read_test.go             | 42 +++++++++----------
+ 24 files changed, 293 insertions(+), 184 deletions(-)

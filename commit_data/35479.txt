@@ -1,0 +1,19 @@
+commit 392ff18b8fdcb1f116f81887ddedfd43b19fdb9c
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun May 20 21:33:52 2018 +0200
+
+    syscall: partially revert "enable some nacl code to be shared with js/wasm"
+    
+    This partially reverts commit 3bdbb5df7692142c13cf93f6d80b2a907e3f396b.
+    The latest CL of js/wasm's file system support does not use
+    file descriptor mapping any more.
+    
+    Change-Id: Iaec9c84b392366282cddc69acc75c8a3eb556824
+    Reviewed-on: https://go-review.googlesource.com/114195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/fd_nacl.go   | 244 +++++++++++++++++++++++++++++++++++++++++++++
+ src/syscall/fd_nacljs.go | 254 -----------------------------------------------
+ 2 files changed, 244 insertions(+), 254 deletions(-)

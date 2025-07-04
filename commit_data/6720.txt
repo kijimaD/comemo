@@ -1,0 +1,12 @@
+commit 9ce0eb2d07e00491ca1638853828e8972eada68b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 5 14:00:46 2010 -0400
+
+    runtime: explain nacl closure failure
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2889042
+
+ src/pkg/runtime/nacl/386/closure.c | 2 ++
+ 1 file changed, 2 insertions(+)

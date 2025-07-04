@@ -1,0 +1,24 @@
+commit ada0eec8277449ecd6383c86bc2e5fe7e7058fc7
+Author: ioworker0 <ioworker0@gmail.com>
+Date:   Mon Apr 24 06:37:52 2023 +0000
+
+    runtime: add a alignment check
+    
+    The Linux implementation requires that the address addr be
+    page-aligned, and allows length to be zero.
+    
+    See Linux notes:
+    https://man7.org/linux/man-pages/man2/madvise.2.html
+    
+    Change-Id: Ic49960c32991ef12f23de2de76e9689567c82d03
+    GitHub-Last-Rev: 35e7f8e5cc0b045043a88d9f304ef5bb1e9c1ab2
+    GitHub-Pull-Request: golang/go#59793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/488015
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mem_linux.go | 5 +++++
+ 1 file changed, 5 insertions(+)

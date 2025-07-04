@@ -1,0 +1,15 @@
+commit b15a64e35de8bee777564a6553853238605d2556
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 23 17:28:15 2013 -0700
+
+    cmd/gc: Reset haspointers computation.  When converting from a
+    slice type to an array type, the haspointer-ness may change.
+    Before this change, we'd sometimes get types like [1]int marked
+    as having pointers.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13189044
+
+ src/cmd/gc/sinit.c | 1 +
+ 1 file changed, 1 insertion(+)

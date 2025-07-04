@@ -1,0 +1,14 @@
+commit 8eec3fe830814bdea3b54906bef0ce573cc2b26e
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Fri Jun 14 10:23:06 2019 +0200
+
+    misc/ios: add missing CGO_ENABLED=1 for running standalone tests
+    
+    Change-Id: Icfd5b9d1ca757081af7885189ae7094fa1b3d8f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182377
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/ios/README | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 15e6ce23519cd57d5177a31e1fe533d210126630
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 15 13:15:55 2013 +1000
+
+    go_spec.html: clarify that tags are part of struct type identity
+    One sentence says they're ignored, another says they take part.
+    Fix the first.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12741046
+
+ doc/go_spec.html | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

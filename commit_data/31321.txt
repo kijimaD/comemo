@@ -1,0 +1,18 @@
+commit 8fcd69d330d53d05ba50003de189e38db12b6227
+Author: Damien Lespiau <damien.lespiau@intel.com>
+Date:   Sat Apr 22 20:03:06 2017 +0100
+
+    cmd/go/internal/get: remove unused pkgImportPath
+    
+    We can also remove the internal/load import as a result.
+    
+    Found with honnef.co/go/tools/cmd/unused.
+    
+    Change-Id: Ie70c5713e7a6f238158804acec07807c14f8e092
+    Reviewed-on: https://go-review.googlesource.com/41473
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/get/pkg_test.go | 9 ---------
+ 1 file changed, 9 deletions(-)

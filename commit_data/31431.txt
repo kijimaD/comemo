@@ -1,0 +1,64 @@
+commit ce5263ff8dc246676d84e511fbe385e907097b76
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Feb 16 18:07:29 2017 -0500
+
+    net/rpc: use a sync.Map for serviceMap instead of RWMutex
+    
+    This has no measurable impact on performance, but somewhat simplifies
+    the code.
+    
+    updates #18177
+    
+    name                  old time/op    new time/op    delta
+    EndToEnd                54.3µs ±10%    55.7µs ±12%    ~     (p=0.505 n=8+8)
+    EndToEnd-6              31.4µs ± 9%    32.7µs ± 6%    ~     (p=0.130 n=8+8)
+    EndToEnd-48             25.5µs ±12%    26.4µs ± 6%    ~     (p=0.195 n=8+8)
+    EndToEndHTTP            53.7µs ± 8%    51.2µs ±15%    ~     (p=0.463 n=7+8)
+    EndToEndHTTP-6          30.9µs ±18%    31.2µs ±14%    ~     (p=0.959 n=8+8)
+    EndToEndHTTP-48         24.9µs ±11%    25.7µs ± 6%    ~     (p=0.382 n=8+8)
+    EndToEndAsync           23.6µs ± 7%    24.2µs ± 6%    ~     (p=0.383 n=7+7)
+    EndToEndAsync-6         21.0µs ±23%    22.0µs ±20%    ~     (p=0.574 n=8+8)
+    EndToEndAsync-48        22.8µs ±16%    23.3µs ±13%    ~     (p=0.721 n=8+8)
+    EndToEndAsyncHTTP       25.8µs ± 7%    24.7µs ±14%    ~     (p=0.161 n=8+8)
+    EndToEndAsyncHTTP-6     22.1µs ±19%    22.6µs ±12%    ~     (p=0.645 n=8+8)
+    EndToEndAsyncHTTP-48    22.9µs ±13%    22.1µs ±20%    ~     (p=0.574 n=8+8)
+    
+    name                  old alloc/op   new alloc/op   delta
+    EndToEnd                  320B ± 0%      321B ± 0%    ~     (p=1.000 n=8+8)
+    EndToEnd-6                320B ± 0%      321B ± 0%  +0.20%  (p=0.037 n=8+7)
+    EndToEnd-48               326B ± 0%      326B ± 0%    ~     (p=0.124 n=8+8)
+    EndToEndHTTP              320B ± 0%      320B ± 0%    ~     (all equal)
+    EndToEndHTTP-6            320B ± 0%      321B ± 0%    ~     (p=0.077 n=8+8)
+    EndToEndHTTP-48           324B ± 0%      324B ± 0%    ~     (p=1.000 n=8+8)
+    EndToEndAsync             227B ± 0%      227B ± 0%    ~     (p=0.154 n=8+7)
+    EndToEndAsync-6           226B ± 0%      226B ± 0%    ~     (all equal)
+    EndToEndAsync-48          230B ± 1%      229B ± 1%    ~     (p=0.072 n=8+8)
+    EndToEndAsyncHTTP         227B ± 0%      227B ± 0%    ~     (all equal)
+    EndToEndAsyncHTTP-6       226B ± 0%      226B ± 0%    ~     (p=0.400 n=8+7)
+    EndToEndAsyncHTTP-48      228B ± 0%      228B ± 0%    ~     (p=0.949 n=8+6)
+    
+    name                  old allocs/op  new allocs/op  delta
+    EndToEnd                  9.00 ± 0%      9.00 ± 0%    ~     (all equal)
+    EndToEnd-6                9.00 ± 0%      9.00 ± 0%    ~     (all equal)
+    EndToEnd-48               9.00 ± 0%      9.00 ± 0%    ~     (all equal)
+    EndToEndHTTP              9.00 ± 0%      9.00 ± 0%    ~     (all equal)
+    EndToEndHTTP-6            9.00 ± 0%      9.00 ± 0%    ~     (all equal)
+    EndToEndHTTP-48           9.00 ± 0%      9.00 ± 0%    ~     (all equal)
+    EndToEndAsync             8.00 ± 0%      8.00 ± 0%    ~     (all equal)
+    EndToEndAsync-6           8.00 ± 0%      8.00 ± 0%    ~     (all equal)
+    EndToEndAsync-48          8.00 ± 0%      8.00 ± 0%    ~     (all equal)
+    EndToEndAsyncHTTP         8.00 ± 0%      8.00 ± 0%    ~     (all equal)
+    EndToEndAsyncHTTP-6       8.00 ± 0%      8.00 ± 0%    ~     (all equal)
+    EndToEndAsyncHTTP-48      8.00 ± 0%      8.00 ± 0%    ~     (all equal)
+    
+    https://perf.golang.org/search?q=upload:20170428.2
+    
+    Change-Id: I8ef7f71a7602302aa78c144327270dfce9211539
+    Reviewed-on: https://go-review.googlesource.com/42112
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/rpc/debug.go  | 23 ++++++++++-------------
+ src/net/rpc/server.go | 29 +++++++++++------------------
+ 2 files changed, 21 insertions(+), 31 deletions(-)

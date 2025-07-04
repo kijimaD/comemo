@@ -1,0 +1,19 @@
+commit 986f8ea6b4fe5d479b9f3a05868bdf8266cf3467
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 14 17:33:16 2021 -0700
+
+    cmd/compile/internal/types2: minor cleanup of instantiation
+    
+    This is a clean port of CL 349429 from go/types to types2
+    with minor adjustments for types2 names.
+    
+    Change-Id: Ie6a39a01f074acb9e6565ffacb34c94666ae9a95
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349999
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/named.go | 38 ++++++++++++++++++--------------
+ src/cmd/compile/internal/types2/subst.go | 32 ++++++---------------------
+ 2 files changed, 29 insertions(+), 41 deletions(-)

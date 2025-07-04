@@ -1,0 +1,12 @@
+commit de847be6a4ca3e5d22c056e09aadc30a0a777a08
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Nov 7 19:16:17 2016 -0500
+
+    doc/go1.8.txt: mention os.Executable addition
+    
+    Change-Id: Id3d571666b9275e3fa5cb20762afbd391dbcdeba
+    Reviewed-on: https://go-review.googlesource.com/32883
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/go1.8.txt | 1 +
+ 1 file changed, 1 insertion(+)

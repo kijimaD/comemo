@@ -1,0 +1,12 @@
+commit f0fc16abd7bf346515d45ba2885bde45bafb8321
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 11 04:04:02 2013 +0800
+
+    cmd/ld: fix argument passing in doc.go
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/8622043
+
+ src/cmd/ld/doc.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

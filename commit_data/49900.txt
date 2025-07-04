@@ -1,0 +1,19 @@
+commit 8ec1aa889f4ee2b0569c573b23efd21fa2c4329b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 15 11:13:06 2022 +0200
+
+    net: use testenv.SkipIfOptimizationOff in TestAllocs
+    
+    Use the helper added by CL 422038 instead of manually detecting the
+    noopt builder.
+    
+    Change-Id: I353f1a9d5f0184d73869520eb1ae8d0bdbbe2006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423855
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/net/udpsock_test.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

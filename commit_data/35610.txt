@@ -1,0 +1,12 @@
+commit 235c5cf153a6d6f19d1377071ed3b56c62c74883
+Author: Suriyaa Sundararuban <isc.suriyaa@gmail.com>
+Date:   Wed Jun 6 18:33:36 2018 +0200
+
+    README: linkify some paths
+    
+    Change-Id: I77e31954f6d92f769934843bbba9f990f330f50a
+    Reviewed-on: https://go-review.googlesource.com/116675
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ README.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

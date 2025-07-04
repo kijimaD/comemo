@@ -1,0 +1,15 @@
+commit 326ae8d14e17227086239757ef2f131028997a72
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 8 00:31:52 2013 +0400
+
+    runtime: fix traceback in cgo programs
+    Fixes #6061.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12609043
+
+ src/pkg/runtime/crash_cgo_test.go | 27 +++++++++++++++++++++++++++
+ src/pkg/runtime/panic.c           |  2 ++
+ src/pkg/runtime/proc.c            | 10 +++++++---
+ 3 files changed, 36 insertions(+), 3 deletions(-)

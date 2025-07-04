@@ -1,0 +1,14 @@
+commit 0427c583a5877223447ec73b740b97fc39b12894
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 22 11:48:41 2012 -0800
+
+    builder: update for os.Wait changes.
+    
+    This compiles again.
+    
+    R=golang-dev, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/5687078
+
+ misc/dashboard/builder/exec.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

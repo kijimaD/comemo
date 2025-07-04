@@ -1,0 +1,19 @@
+commit 88e18032bd76656afcf246c1a252e04cf462b41e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 1 15:17:34 2016 -0800
+
+    cmd/compile: s/flag_race/instrumenting/ in OCONVNOP check
+    
+    This check seems to apply to all code instrumentation, not just -race.
+    
+    Fixes #14589.
+    
+    Change-Id: I16ae07749ede7c1e6ed06f472711638d195034ac
+    Reviewed-on: https://go-review.googlesource.com/20113
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

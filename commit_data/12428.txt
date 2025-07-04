@@ -1,0 +1,12 @@
+commit 2184137cf3569bd665f256d03aeee659244e2552
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 7 07:54:56 2012 +1100
+
+    path/filepath/path_test.go: repair and enable TestAbs
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5759051
+
+ src/pkg/path/filepath/path_test.go | 66 +++++++++++++++++++++++++++-----------
+ 1 file changed, 47 insertions(+), 19 deletions(-)

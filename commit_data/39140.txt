@@ -1,0 +1,24 @@
+commit 5d983303540c0ba12a323c89d05581c76baa2206
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 13 12:29:58 2019 -0700
+
+    cmd/compile: mark a few more tests as parallel
+    
+    Reduces the time on my machine for
+    
+    go clean -cache; go test -short -count=1 cmd/compile/internal/gc
+    
+    from 4.7s to 3.7s.
+    
+    Updates #26473
+    
+    Change-Id: I9f9573675ffd6519da63961f48f61260ae4717fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176937
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/builtin_test.go | 1 +
+ src/cmd/compile/internal/gc/global_test.go  | 2 ++
+ src/cmd/compile/internal/gc/scope_test.go   | 2 ++
+ 3 files changed, 5 insertions(+)

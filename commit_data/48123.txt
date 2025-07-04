@@ -1,0 +1,22 @@
+commit 5d3476c3dbc5e16b680e4b5ceab49c032b1b0a83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 8 10:41:27 2022 -0800
+
+    spec: use "core type" rather than "structural type"
+    
+    This change in terminology prevents potential confusion
+    that migth be caused by associating "structural type"
+    with "structural typing"; the two are not connected.
+    
+    Also, adjusted introductory paragraph of section on
+    constraint type inference: type inference goes in both
+    directions, from type parameter to core type and vice
+    versa. The previous description was not quite accurate.
+    
+    Change-Id: If4ca300f525eea660f68486302619aa6ad5dbc2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/384238
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 45 +++++++++++++++++++++++++--------------------
+ 1 file changed, 25 insertions(+), 20 deletions(-)

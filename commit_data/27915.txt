@@ -1,0 +1,18 @@
+commit 4e79c152b1625857f9b8cdcde59fcf44dc11e95a
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Aug 17 17:38:06 2016 -0700
+
+    crypto/tls: don't generate random ticket keys if already set.
+    
+    If SetSessionTicketKeys was called on a fresh tls.Config, the configured
+    keys would be overridden with a random key by serverInit.
+    
+    Fixes #15421.
+    
+    Change-Id: I5d6cc81fc3e5de4dfa15eb614d102fb886150d1b
+    Reviewed-on: https://go-review.googlesource.com/27317
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/common.go                |  2 +-
+ src/crypto/tls/handshake_client_test.go | 17 ++++++++++++++---
+ 2 files changed, 15 insertions(+), 4 deletions(-)

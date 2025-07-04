@@ -1,0 +1,15 @@
+commit 3b5add5d683572a81ed57007612bc2c712aa7789
+Author: lgbgbl <lgbgbl@qq.com>
+Date:   Fri Nov 5 04:57:59 2021 +0000
+
+    bufio: fix typo in comment
+    
+    Change-Id: I6074334bc73ee1773fc83d049142ad764e39e5a9
+    GitHub-Last-Rev: 6a8789318ab132a169a89be807394af55c855ce9
+    GitHub-Pull-Request: golang/go#49373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361413
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/bufio_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

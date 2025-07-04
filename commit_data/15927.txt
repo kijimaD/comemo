@@ -1,0 +1,17 @@
+commit bf1f46180ee348d2d59bebfeda0314450fbcd893
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Mon Mar 25 21:35:46 2013 +0100
+
+    runtime: optionally check all allocations in hashmap.c
+    
+    Adds the new debugging constant 'checkgc'. If its value is non-zero
+    all calls to mallocgc() from hashmap.c will start a garbage collection.
+    
+    Fixes #5074.
+    
+    R=golang-dev, khr
+    CC=golang-dev, rsc
+    https://golang.org/cl/7663051
+
+ src/pkg/runtime/hashmap.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

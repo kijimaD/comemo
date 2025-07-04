@@ -1,0 +1,16 @@
+commit eb15cf16aee1ec4387b7397b102bd2cc3ff33a64
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Oct 21 18:03:49 2016 -0700
+
+    net: clarify LookupAddr docs on libc's behavior, and alternatives
+    
+    Text from rsc.
+    
+    Fixes #17093
+    
+    Change-Id: I13c3018b1584f152b53f8576dd16ebef98aa5182
+    Reviewed-on: https://go-review.googlesource.com/31720
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup.go | 3 +++
+ 1 file changed, 3 insertions(+)

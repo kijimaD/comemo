@@ -1,0 +1,15 @@
+commit d593f85ebdcdb36938e5c3e56fedc7852d713d18
+Author: griesemer <gri@golang.org>
+Date:   Thu Nov 2 17:41:55 2017 -0700
+
+    go/types: add missing documentation to Object factory functions
+    
+    Fixes #22516.
+    
+    Change-Id: Ib6648cb224e7e85e894263ef79ea81a5850e9a19
+    Reviewed-on: https://go-review.googlesource.com/75595
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/object.go | 38 ++++++++++++++++++++++++++++++++------
+ src/go/types/type.go   |  1 +
+ 2 files changed, 33 insertions(+), 6 deletions(-)

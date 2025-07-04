@@ -1,0 +1,14 @@
+commit 2e51f7828017db23fa18fc883c5d6a76abcc3b88
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Thu Jan 24 13:32:46 2013 +1100
+
+    go/build: document blank line required after build constraints
+    
+    Fixes #3539.
+    
+    R=golang-dev, dave, adg
+    CC=golang-dev
+    https://golang.org/cl/7206049
+
+ src/pkg/go/build/doc.go | 3 +++
+ 1 file changed, 3 insertions(+)

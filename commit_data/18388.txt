@@ -1,0 +1,14 @@
+commit 52a73239bbf848ee65053a37e6382639bb3bf238
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 31 14:40:13 2014 -0800
+
+    time: correctly handle timezone before first transition time
+    
+    LGTM=r
+    R=golang-codereviews, r, arnehormann, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/58450043
+
+ src/pkg/time/zoneinfo.go      | 68 ++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/time/zoneinfo_test.go | 54 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 121 insertions(+), 1 deletion(-)

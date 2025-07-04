@@ -1,0 +1,32 @@
+commit d5df4d61ce87e6ba9ba0bad06b835e0b100660e7
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sun Jul 28 15:19:43 2019 +0200
+
+    cmd/gofmt: don't turn nil slices into empty slices during rewriting
+    
+    The go/ast package uses and guarantees nil slices for optional
+    elements that weren't present in the parsed source code, such as the
+    list of return values of a function. Packages using go/ast rely on
+    this attribute and check for nils explicitly.
+    
+    One such package is go/printer. In the presence of empty slices
+    instead of nil slices, it generates invalid code, such as "case :"
+    instead of "default:". The issues that this CL fixes are all
+    manifestations of that problem, each for a different syntactic
+    element.
+    
+    Fixes #33103
+    Fixes #33104
+    Fixes #33105
+    
+    Change-Id: I219f95a7da820eaf697a4ee227d458ab6e4a80bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/187917
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/gofmt/rewrite.go                |  6 ++++++
+ src/cmd/gofmt/testdata/rewrite10.golden | 19 +++++++++++++++++++
+ src/cmd/gofmt/testdata/rewrite10.input  | 19 +++++++++++++++++++
+ 3 files changed, 44 insertions(+)

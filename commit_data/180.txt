@@ -1,0 +1,13 @@
+commit 88a3371a91ac01fb8bcc8083c0f32300514846c3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 16 17:04:30 2008 -0700
+
+    print pc on faults
+    
+    SVN=123030
+
+ src/runtime/rt0_amd64_darwin.s |  5 +++++
+ src/runtime/rt0_amd64_linux.s  |  5 +++++
+ src/runtime/runtime.c          | 37 ++++++++++++++++++++++++++-----------
+ src/runtime/runtime.h          |  1 +
+ 4 files changed, 37 insertions(+), 11 deletions(-)

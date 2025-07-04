@@ -1,0 +1,14 @@
+commit 0ba0ea172d12901cba79314e26d5713b857c29c4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Oct 2 16:34:03 2019 +0000
+
+    net/http: document that Request.Host includes HTTP/2 :authority
+    
+    Fixes #34640
+    
+    Change-Id: I4a6c9414fe369cd5e9915472331c4bd8a21d8b0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198457
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/net/http/request.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

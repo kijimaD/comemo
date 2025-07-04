@@ -1,0 +1,18 @@
+commit 53d6a725f85b9b688a02bbf40cd8961c78bf0b91
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 1 19:32:08 2022 -0800
+
+    runtime: update _defer comment to not mention freedefer
+    
+    CL 339669 changed freedefer to not mention every field of _defer,
+    so no need to call it out in the _defer comment.
+    
+    Change-Id: Id8b67ba2298685f609bf901b5948fd30666bd6e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382251
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/runtime2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

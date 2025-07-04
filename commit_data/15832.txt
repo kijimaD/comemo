@@ -1,0 +1,14 @@
+commit 6e69df6102d167344a74d720b5ef080cdf04a8d7
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue Mar 19 19:51:03 2013 +0100
+
+    cmd/gc: support channel types in the garbage collector
+    
+    R=golang-dev, dvyukov, rsc
+    CC=golang-dev
+    https://golang.org/cl/7473044
+
+ src/cmd/gc/reflect.c   | 11 ++++++++++-
+ src/pkg/runtime/mgc0.c | 32 ++++++++++++++++++++++++++++----
+ src/pkg/runtime/mgc0.h |  1 +
+ 3 files changed, 39 insertions(+), 5 deletions(-)

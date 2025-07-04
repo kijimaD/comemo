@@ -1,0 +1,27 @@
+commit 91ceda5c18fdf7c7512b0a36725d9d5cf1c2b23f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 15 19:35:52 2009 -0800
+
+    add os.ForkExec, os.Exec, os.Wait, exec.OpenCmd.
+    as thread-safe as possible, given the surrounding system.
+    add stub RWLock implementation.
+    
+    R=r
+    DELTA=852  (834 added, 6 deleted, 12 changed)
+    OCL=25046
+    CL=25053
+
+ src/lib/Makefile                      |  10 +-
+ src/lib/exec.go                       | 160 +++++++++++++++++++
+ src/lib/exec_test.go                  |  51 ++++++
+ src/lib/net/fd.go                     |   9 ++
+ src/lib/net/net.go                    |   5 +
+ src/lib/os/Makefile                   |   7 +-
+ src/lib/os/exec.go                    |  70 ++++++++
+ src/lib/os/file.go                    |  26 ++-
+ src/lib/sync/mutex.go                 |  17 ++
+ src/lib/syscall/Makefile              |  30 +++-
+ src/lib/syscall/exec.go               | 291 ++++++++++++++++++++++++++++++++++
+ src/lib/syscall/types_amd64_darwin.go |  89 +++++++++++
+ src/lib/syscall/types_amd64_linux.go  |  99 ++++++++++++
+ 13 files changed, 848 insertions(+), 16 deletions(-)

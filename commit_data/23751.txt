@@ -1,0 +1,26 @@
+commit 1125cd4997597e4ca3acf3fa71ce1e3c3cd0605f
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed Jul 15 11:31:30 2015 +1200
+
+    cmd/compile: define func value symbols at declaration
+    
+    This is mostly Russ's https://golang.org/cl/12145 but with some extra fixes to
+    account for the fact that function declarations without implementations now
+    break shared libraries, and including my test case.
+    
+    Fixes #11480.
+    
+    Change-Id: Iabdc2934a0378e5025e4e7affadb535eaef2c8f1
+    Reviewed-on: https://go-review.googlesource.com/12340
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/src/dep/asm.s      | 10 ++++++++++
+ misc/cgo/testshared/src/dep/gccgo.go   |  5 +++++
+ misc/cgo/testshared/src/dep/stubs.go   |  5 +++++
+ misc/cgo/testshared/src/exe/exe.go     |  7 ++++++-
+ src/cmd/compile/internal/gc/closure.go |  1 +
+ src/cmd/compile/internal/gc/dcl.go     | 25 +++++++++++++++++++------
+ src/runtime/debug/stubs.go             |  1 -
+ src/runtime/stubs.go                   |  1 -
+ src/runtime/stubs32.go                 | 14 ++++++++++++++
+ 9 files changed, 60 insertions(+), 9 deletions(-)

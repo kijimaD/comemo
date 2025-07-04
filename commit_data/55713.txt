@@ -1,0 +1,28 @@
+commit d8311c86239eebe36e9882760297fd85197add3c
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Wed Feb 21 02:15:40 2024 +0000
+
+    database/sql: wrap errors with %w in driverArgsConnLocked
+    
+    Use fmt.Errorf %w verb to wrap errors in driverArgsConnLocked,
+    which allows for easier unwrapping and checking of error types.
+    
+    Add tests in sql_test.go to ensure that Stmt.Exec and Stmt.Query
+    correctly wrap underlying Valuer errors, adhering to the new change.
+    
+    Fixes #64707.
+    
+    Change-Id: Id9f80e265735d0849ee7abba63e58e4c26e658ad
+    GitHub-Last-Rev: 0df367e0fb5b213513d4e0ab7f5a87984798f96d
+    GitHub-Pull-Request: golang/go#64728
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/550116
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/database/sql/convert.go      |  2 +-
+ src/database/sql/driver/types.go |  4 ++++
+ src/database/sql/sql_test.go     | 43 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 48 insertions(+), 1 deletion(-)

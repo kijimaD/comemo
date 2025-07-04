@@ -1,0 +1,13 @@
+commit 27fb2abf76f53168862b5140df1cad95b5804fe6
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 6 12:57:00 2008 -0700
+
+    first cut at test suite
+    
+    SVN=121454
+
+ test/golden.out | 49 +++++++++++++++++++++++++++++++++++++++++++++++++
+ test/hashmap.go |  2 --
+ test/run        | 40 ++++++++++++++++++++++++++++++++++++++++
+ test/test0.go   | 16 +++++++---------
+ 4 files changed, 96 insertions(+), 11 deletions(-)

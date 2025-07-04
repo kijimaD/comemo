@@ -1,0 +1,15 @@
+commit ba1943cd230c4193e8f84695de5651276efe3607
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 29 10:48:12 2017 -0800
+
+    go/format: document use of Source better
+    
+    For #22695.
+    
+    Change-Id: Idcda3294070aeaeaf940aaf2014b573732fd60a4
+    Reviewed-on: https://go-review.googlesource.com/80696
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+
+ src/go/format/format.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

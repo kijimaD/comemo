@@ -1,0 +1,27 @@
+commit c519b156fcc5e53a2a91690303cc7502261dc57b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 3 10:03:22 2020 -0500
+
+    doc/go1.16: more release notes
+    
+    Fixes #42899 (flag).
+    Fixes #42900 (io).
+    Fixes #42901 (log).
+    Fixes #42902 (log/syslog).
+    Fixes #42903 (mime/multipart).
+    Fixes #42904 (net).
+    Fixes #42905 (net/http).
+    Fixes #42906 (net/http/httputil).
+    Fixes #42907 (net/smtp).
+    Fixes #42909 (os/signal).
+    Fixes #42913 (syscall).
+    
+    Change-Id: Id09f038751d61fe0f1ff57b525e49473dd75c95f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275113
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 56 ++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 44 insertions(+), 12 deletions(-)

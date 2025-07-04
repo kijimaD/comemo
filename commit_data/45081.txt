@@ -1,0 +1,49 @@
+commit a25a77aed2d76b0aebff8892477f27283398a932
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 2 15:54:24 2021 -0400
+
+    runtime: block sweep completion on all sweep paths
+    
+    The runtime currently has two different notions of sweep completion:
+    
+    1. All spans are either swept or have begun sweeping.
+    
+    2. The sweeper has *finished* sweeping all spans.
+    
+    Most things depend on condition 1. Notably, GC correctness depends on
+    condition 1, but since all sweep operations a non-preemptible, the STW
+    at the beginning of GC forces condition 1 to become condition 2.
+    
+    runtime.GC(), however, depends on condition 2, since the intent is to
+    complete a complete GC cycle, and also update the heap profile (which
+    can only be done after sweeping is complete).
+    
+    However, the way we compute condition 2 is racy right now and may in
+    fact only indicate condition 1. Specifically, sweepone blocks
+    condition 2 until all sweepone calls are done, but there are many
+    other ways to enter the sweeper that don't block this. Hence, sweepone
+    may see that there are no more spans in the sweep list and see that
+    it's the last sweepone and declare sweeping done, while there's some
+    other sweeper still working on a span.
+    
+    Fix this by making sure every entry to the sweeper participates in the
+    protocol that blocks condition 2. To make sure we get this right, this
+    CL introduces a type to track sweep blocking and (lightly) enforces
+    span sweep ownership via the type system. This has the nice
+    side-effect of abstracting the pattern of acquiring sweep ownership
+    that's currently repeated in many different places.
+    
+    Fixes #45315.
+    
+    Change-Id: I7fab30170c5ae14c8b2f10998628735b8be6d901
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307915
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mcentral.go |  21 +++++--
+ src/runtime/mgc.go      |  15 +++--
+ src/runtime/mgcsweep.go | 153 +++++++++++++++++++++++++++++++++++-------------
+ src/runtime/mheap.go    |   5 +-
+ 4 files changed, 140 insertions(+), 54 deletions(-)

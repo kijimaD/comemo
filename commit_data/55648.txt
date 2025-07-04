@@ -1,0 +1,24 @@
+commit 3f60da7944352d7f2d4a04830c0612457643016c
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Feb 20 16:13:33 2024 -0500
+
+    cmd/go/internal/modcmd: correctly filter out main modules in verify
+    
+    This change fixes a bug where we incorrectly filtered out the main
+    modules from the beginning of the build list before verifying them. We
+    made the assumption that the first MainModules.Len() entries of the
+    build list were the main modules, but now it can contain the go and
+    toolchain version entries, so removing the first MainModules.Len()
+    entries could leave main module names in the build list if any of
+    their names sorted after the string 'go'.
+    
+    Fixes #62663
+    
+    Change-Id: I35ab6857a556f58d306303322afe24c48fc8b38f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565378
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modcmd/verify.go           |  5 ++++-
+ src/cmd/go/testdata/script/mod_verify_work.txt | 24 ++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit f2c13d713d85650e4a850813d64681d6be5d2e29
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jun 22 10:40:30 2016 -0400
+
+    cmd/vet: fix a crash in lostcancel check
+    
+    Fixes issue 16143
+    
+    Change-Id: Id9d257aee54d31fbf0d478cb07339729cd9712c0
+    Reviewed-on: https://go-review.googlesource.com/24325
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/lostcancel.go          | 2 +-
+ src/cmd/vet/testdata/lostcancel.go | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

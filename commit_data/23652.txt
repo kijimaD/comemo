@@ -1,0 +1,15 @@
+commit 73ca459a56ef003ad0892ef46454bc98afd30a05
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 13 18:17:24 2015 -0600
+
+    os/exec: ignore pipe write errors when command completes successfully
+    
+    Fixes #9173
+    
+    Change-Id: I83530533db84b07cb88dbf6ec690be48a06a9d7d
+    Reviewed-on: https://go-review.googlesource.com/12152
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec.go      | 10 ++++++++++
+ src/os/exec/exec_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

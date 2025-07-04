@@ -1,0 +1,14 @@
+commit cdc65778a2c36a4dcfcdb412dfcd4008f966af35
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Dec 8 02:48:10 2015 -0700
+
+    net/http: testClientRedirectEatsBody test now in http2 mode
+    
+    Change-Id: I181346a8d2a8a96fd790cde087c8fd73af911298
+    Reviewed-on: https://go-review.googlesource.com/17529
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/client_test.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

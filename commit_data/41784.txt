@@ -1,0 +1,12 @@
+commit 534f56b4b2b7e368e27d87af2d7721c4ffde37ba
+Author: Michał Łowicki <mlowicki@gmail.com>
+Date:   Sun Mar 29 17:59:08 2020 +0100
+
+    doc: fix path to make.bash
+    
+    Change-Id: I78c7197b8b93590470a782b492bba177a14d80ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226340
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

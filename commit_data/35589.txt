@@ -1,0 +1,19 @@
+commit d6c3b0a56d8c81c221b0adf69ae351f7cd467854
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 1 10:16:08 2018 -0700
+
+    runtime: don't crash holding locks on racy timer access
+    
+    If we run into data corruption due to the program accessing timers in
+    a racy way, do a normal panic rather than a hard crash with "panic
+    holding locks". The hope is to make the problem less confusing for users.
+    
+    Fixes #25686
+    
+    Change-Id: I863417adf21f7f8c088675b67a3acf49a0cdef41
+    Reviewed-on: https://go-review.googlesource.com/115815
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/time.go   | 74 +++++++++++++++++++++++++++++++++++++++++++--------
+ src/time/time_test.go | 37 ++++++++++++++++++++++++++
+ 2 files changed, 100 insertions(+), 11 deletions(-)

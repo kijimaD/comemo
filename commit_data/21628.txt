@@ -1,0 +1,12 @@
+commit 61c9c3ddc4f972cef41aad8e78bdc1746d5c5a4a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Feb 14 21:29:37 2015 -0800
+
+    math/big: implement fast path in Float.SetRat if argument is integer
+    
+    Change-Id: Ib82500e198b86e9fade278c7eea7a4b0c6b0b2e1
+    Reviewed-on: https://go-review.googlesource.com/4921
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/math/big/float.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

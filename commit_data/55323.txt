@@ -1,0 +1,17 @@
+commit 22284c34f2936d996a182daae3118dcff18a4d25
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 11 12:29:32 2023 -0500
+
+    doc/go1.22: document removal of 'go get' support in GOPATH mode
+    
+    For #61422.
+    Updates #60915.
+    
+    Change-Id: Ia8ca12c163a02223b26c5e4cd4c1b6093978aba4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548875
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

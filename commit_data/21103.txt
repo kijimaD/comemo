@@ -1,0 +1,19 @@
+commit b1f29b2d443f5c8df15d6702937ae786660375be
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Dec 27 20:32:11 2014 -0800
+
+    runtime: get rid of goalg, no longer needed
+    
+    The goalg function was a holdover from when we had algorithm
+    tables in both C and Go.  It is no longer needed.
+    
+    Change-Id: Ia0c1af35bef3497a899f22084a1a7b42daae72a0
+    Reviewed-on: https://go-review.googlesource.com/2099
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/type.go         |  3 ++-
+ src/runtime/alg.go          | 13 ++++---------
+ src/runtime/hashmap.go      | 16 ++++++++--------
+ src/runtime/hashmap_fast.go | 12 ++++++------
+ src/runtime/type.go         |  2 +-
+ 5 files changed, 21 insertions(+), 25 deletions(-)

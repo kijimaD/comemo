@@ -1,0 +1,28 @@
+commit b29b123e079183a05abc1066007a51d4f565cd88
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 3 18:00:53 2021 -0700
+
+    cmd/compile: remove spurious ir.Dump
+    
+    This ir.Dump call is a debugging artifact introduced in
+    golang.org/cl/274103, which should never be printed for valid,
+    non-generic code, but evidently can now sometimes appear due to how
+    the parser handles invalid syntax.
+    
+    The parser should probably not recognize "x[2]" as a type expression
+    in non-generics mode, but also probably we shouldn't try noding after
+    reporting syntax errors. Either way, this diagnostic has outlived its
+    usefulness, and noder's days are numbered anyway, so we might as well
+    just remove it to save end users any confusion.
+    
+    Updates #46558.
+    
+    Change-Id: Ib68502ef834d610b883c2f2bb11d9b385bc66e37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/324991
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/noder/noder.go | 3 ---
+ 1 file changed, 3 deletions(-)

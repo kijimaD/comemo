@@ -1,0 +1,18 @@
+commit dec12d365495d82740176650e3ad3d587913cff8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 16 10:45:28 2009 -0800
+
+    re-export of bools was changing
+    format from hex to decimal, confusing
+    ar's strcmp-based value comparison.
+    
+    switched export format to "true" or "false"
+    to keep bools separate from ints.
+    
+    R=ken
+    OCL=22944
+    CL=22944
+
+ src/cmd/gc/export.c | 9 ++++++---
+ src/cmd/gc/go.y     | 8 ++++++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

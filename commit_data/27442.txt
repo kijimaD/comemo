@@ -1,0 +1,41 @@
+commit 3572c6418b5032fbd7e888e14fd9ad5afac85dfc
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 21 19:28:28 2016 -0700
+
+    cmd/compile: keep pointer input arguments live throughout function
+    
+    Introduce a KeepAlive op which makes sure that its argument is kept
+    live until the KeepAlive.  Use KeepAlive to mark pointer input
+    arguments as live after each function call and at each return.
+    
+    We do this change only for pointer arguments.  Those are the
+    critical ones to handle because they might have finalizers.
+    Doing compound arguments (slices, structs, ...) is more complicated
+    because we would need to track field liveness individually (we do
+    that for auto variables now, but inputs requires extra trickery).
+    
+    Turn off the automatic marking of args as live.  That way, when args
+    are explicitly nulled, plive will know that the original argument is
+    dead.
+    
+    The KeepAlive op will be the eventual implementation of
+    runtime.KeepAlive.
+    
+    Fixes #15277
+    
+    Change-Id: I5f223e65d99c9f8342c03fbb1512c4d363e903e5
+    Reviewed-on: https://go-review.googlesource.com/22365
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go          | 12 +++++++++
+ src/cmd/compile/internal/gc/plive.go           | 21 +++------------
+ src/cmd/compile/internal/gc/ssa.go             | 30 +++++++++++++++++++--
+ src/cmd/compile/internal/gc/syntax.go          | 36 +++++++++++++++++++++----
+ src/cmd/compile/internal/gc/typecheck.go       |  8 +++---
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  9 ++++---
+ src/cmd/compile/internal/ssa/lower.go          |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go          |  7 +++++
+ src/cmd/compile/internal/ssa/regalloc.go       | 17 ++++++++++++
+ test/fixedbugs/issue15277.go                   | 37 ++++++++++++++++++++++++++
+ 10 files changed, 145 insertions(+), 34 deletions(-)

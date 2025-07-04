@@ -1,0 +1,29 @@
+commit 5cbea577533dd15a7fcb7c8962f41e179931f14e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 29 12:49:05 2024 -0500
+
+    src/cmd: update golang.org/x/telemetry to 3d5706d and vendor it
+    
+    Ran commands:
+            go get golang.org/x/telemetry@3d5706d
+            go mod vendor
+    
+    Change-Id: Ia1749267e30222ff8d3186c6156c739df6be6f55
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568256
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../golang.org/x/telemetry/counter/counter.go      | 10 +++-
+ .../{counter_disabled.go => counter_118.go}        |  2 +-
+ .../vendor/golang.org/x/telemetry/counter/doc.go   | 61 +++++++++++++++-------
+ .../x/telemetry/internal/counter/counter.go        | 35 ++++++++++++-
+ .../x/telemetry/internal/counter/file.go           |  3 ++
+ .../x/telemetry/internal/counter/stackcounter.go   | 19 +++----
+ .../x/telemetry/internal/mmap/mmap_windows.go      | 14 +++--
+ .../x/telemetry/internal/telemetry/mode.go         |  7 ++-
+ .../x/telemetry/internal/telemetry/types.go        | 51 ++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 12 files changed, 160 insertions(+), 50 deletions(-)

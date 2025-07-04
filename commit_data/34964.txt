@@ -1,0 +1,37 @@
+commit 86181120bd664e195dee7f62b71771b302cc59bc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 12 12:15:58 2018 -0700
+
+    os: allocate buffer lazily in Expand
+    
+    As an example of why this might happen,
+    consider this code from cmd/internal/objfile:
+    
+    // Expand literal "$GOROOT" rewritten by obj.AbsFile()
+    filename = filepath.Clean(os.ExpandEnv(filename))
+    
+    In this case, filename might not contain "$GOROOT",
+    in which case we can skip the buffer entirely.
+    
+    name               old time/op    new time/op    delta
+    Expand/noop-8        46.7ns ± 1%    12.9ns ± 1%   -72.47%  (p=0.000 n=9+9)
+    Expand/multiple-8     139ns ± 1%     137ns ± 1%    -1.36%  (p=0.001 n=10+10)
+    
+    The Expand/multiple improvement is probably noise.
+    
+    This speeds up cmd/objdump detectably, if not much.
+    Using "benchcmd ObjdumpCompile go tool objdump `go tool -n compile`":
+    
+    name            old time/op       new time/op       delta
+    ObjdumpCompile        9.35s ± 2%        9.07s ± 3%  -3.00%  (p=0.000 n=18+18)
+    
+    Updates #24725
+    
+    Change-Id: Id31ec6a9b8dfb3c0f1db58fe1f958e11c39e656c
+    Reviewed-on: https://go-review.googlesource.com/106697
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/env.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

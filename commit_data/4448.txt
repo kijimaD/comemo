@@ -1,0 +1,16 @@
+commit 59a3cae402d648041d766051894c432d73ff89e3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 16 16:53:56 2009 -0800
+
+    - Parse expressions as opposed to statements for gofmt rewrite patterns.
+    Allows stand-alone types (e.g. []int as patterns) and doesn't require
+    a semicolon at the end (which are now mandatory terminators).
+    
+    - Fix a matcher bug.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179088
+
+ src/cmd/gofmt/rewrite.go | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

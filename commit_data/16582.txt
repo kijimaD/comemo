@@ -1,0 +1,12 @@
+commit 563d09cd14f976ff86e21e7d4cb92e5da580e125
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Mon Jun 17 07:32:28 2013 -0700
+
+    testing: use -bench flag and fix flags doc link
+    
+    R=golang-dev, r, kr
+    CC=golang-dev
+    https://golang.org/cl/10263043
+
+ src/pkg/testing/testing.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

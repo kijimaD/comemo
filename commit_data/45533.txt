@@ -1,0 +1,20 @@
+commit e15d1f4e641641363b8791c2caecc06a43c1c615
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 16 21:50:46 2021 -0400
+
+    internal/buildcfg: set Error instead of panicking
+    
+    All build environment validation sets Error except for the
+    GOEXPERIMENT parser, which panics. Change it to also set Error so that
+    a bad GOEXPERIMENT doesn't cause everything that imports
+    internal/buildcfg to panic on init.
+    
+    Change-Id: Ie9a506ef0978ecb410f2dcd784638f2167354175
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310970
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/internal/buildcfg/exp.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

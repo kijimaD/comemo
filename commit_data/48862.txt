@@ -1,0 +1,25 @@
+commit 430ae97a2599e840bdeb934d5be171efb4a41272
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Apr 21 14:06:20 2022 +0100
+
+    go/format: skip go/ast's object resolution
+    
+    Just like https://golang.org/cl/401454 removed the work from gofmt for a
+    nice ~5% speed-up in the default case, we can also use the option in the
+    equivalent go/format for programs which use it rather than gofmt,
+    as go/format makes no use of objects either.
+    
+    No benchmark numbers as we already measured the ~5% speed-up with gofmt
+    in the other CL linked above.
+    
+    See #46485.
+    
+    Change-Id: Icbf98e6d46a616081314e2faa13f1dfade3bbaef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401474
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/format/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

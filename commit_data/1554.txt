@@ -1,0 +1,20 @@
+commit 2a4f4dd84234fd12cf40641abc112df97e3c0bec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 26 09:59:59 2009 -0800
+
+    Add a test for a case where 6g thinks that a field is visible
+    when it should not be.  I couldn't get this any simpler; the
+    error seems to have to do with the order of the imports in
+    bug2.go.
+    
+    R=rsc
+    DELTA=26  (26 added, 0 deleted, 0 changed)
+    OCL=23450
+    CL=23482
+
+ test/bugs/bug133.dir/bug0.go |  7 +++++++
+ test/bugs/bug133.dir/bug1.go |  9 +++++++++
+ test/bugs/bug133.dir/bug2.go | 16 ++++++++++++++++
+ test/bugs/bug133.go          |  7 +++++++
+ test/golden.out              |  3 +++
+ 5 files changed, 42 insertions(+)

@@ -1,0 +1,39 @@
+commit 68327e1aa11457cd570bc7eaf03a0260950f27d9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri May 7 19:10:28 2021 +0200
+
+    cmd/vendor: upgrade pprof to latest
+    
+    This change upgrades the vendored pprof to pick up the fix for a
+    serious issue that made the source view in browser mode blank
+    (tracked upstream as google/pprof#621).
+    
+    I also had to patch pprof.go, since one of the upstream commit we
+    included introduced a breaking change in the file interface (the Base
+    method is now called ObjAddr and has a different signature).
+    
+    I've manually verified that the upgrade fixes the aforementioned
+    issues with the source view.
+    
+    Fixes #45786
+    
+    Change-Id: I00659ae539a2ad603758e1f06572374d483b9ddc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318049
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/pprof/pprof.go                             |   4 +-
+ .../github.com/google/pprof/driver/driver.go       |   4 +-
+ .../google/pprof/internal/binutils/binutils.go     | 188 +++++++++++++----
+ .../google/pprof/internal/elfexec/elfexec.go       |  96 ++++-----
+ .../google/pprof/internal/plugin/plugin.go         |   5 +-
+ .../google/pprof/internal/report/report.go         |  15 +-
+ .../google/pprof/internal/report/source.go         | 235 ++++++++++++++-------
+ .../google/pprof/internal/report/source_html.go    |   7 -
+ .../google/pprof/internal/report/synth.go          |  39 ++++
+ .../github.com/google/pprof/profile/encode.go      |   2 +-
+ .../github.com/google/pprof/profile/merge.go       |   1 -
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 14 files changed, 412 insertions(+), 192 deletions(-)

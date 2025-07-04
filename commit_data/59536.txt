@@ -1,0 +1,20 @@
+commit a74ae952826fd65006a8190c50bbbee4c4869cf9
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon May 19 13:05:24 2025 -0400
+
+    strings,bytes: add internal docs about perennial noCopy questions
+    
+    Updates #26462
+    Updates #25907
+    Updates #47276
+    Updates #48398
+    
+    Change-Id: Ic64fc8d0c284f6e5aa383a8d417fa5768dcd7925
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674096
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/bytes/buffer.go    | 6 ++++++
+ src/strings/builder.go | 6 ++++++
+ 2 files changed, 12 insertions(+)

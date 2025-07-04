@@ -1,0 +1,17 @@
+commit 9ae42ee87fd4d2d4166e6b9f42127efdc601fa3f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 4 13:04:37 2009 -0700
+
+    another benchmark: reverse-complement
+    
+    R=rsc
+    DELTA=682  (511 added, 171 deleted, 0 changed)
+    OCL=32725
+    CL=32727
+
+ test/bench/{fasta.out => fasta.txt} |   0
+ test/bench/reverse-complement.c     | 100 +++++++++++++++++++++
+ test/bench/reverse-complement.go    | 121 +++++++++++++++++++++++++
+ test/bench/reverse-complement.txt   | 171 ++++++++++++++++++++++++++++++++++++
+ test/bench/timing.log               |   5 ++
+ 5 files changed, 397 insertions(+)

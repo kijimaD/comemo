@@ -1,0 +1,22 @@
+commit 7565726875d96e4a2bd927ebabc5ea614e602ac4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 16 13:46:27 2012 -0700
+
+    math/big: fix big.Exp and document better
+    
+    - always return 1 for y <= 0
+    - document that the sign of m is ignored
+    - protect against div-0 panics by treating
+      m == 0 the same way as m == nil
+    - added extra tests
+    
+    Fixes #4239.
+    
+    R=agl, remyoudompheng, agl
+    CC=golang-dev
+    https://golang.org/cl/6724046
+
+ src/pkg/math/big/int.go      | 11 +++++------
+ src/pkg/math/big/int_test.go | 25 +++++++++++++++++++------
+ src/pkg/math/big/nat.go      | 16 ++++++++--------
+ 3 files changed, 32 insertions(+), 20 deletions(-)

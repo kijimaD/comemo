@@ -1,0 +1,13 @@
+commit c0168f8f909394ec2e25fc1d2e26329a780ad8f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 25 12:30:09 2011 -0400
+
+    A+C: Roger Pau Monné (individual CLA)
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4276077
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

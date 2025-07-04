@@ -1,0 +1,25 @@
+commit 950fa673a57ed2e55d1c992c7c34c6d251cb88fd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 20 12:50:41 2017 -0700
+
+    go/gcimporter: fix importing of anonymous interfaces
+    
+    Imported interfaces must be completed, whether they are named or not.
+    The original code was collecting all types (including anonymous ones)
+    in the importer's typList. That list was used in the end to complete
+    interface types. When we introduced tracking of named types only, we
+    lost anonymous interfaces. Use an independent list of interface types
+    so the completion code is independent of which types are tracked.
+    
+    Added test and factored some of the existing tests.
+    
+    Fixes #20046.
+    
+    Change-Id: Icd1329032aec33f96890380dd5042de3bef8cdc7
+    Reviewed-on: https://go-review.googlesource.com/41198
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/internal/gcimporter/bimport.go             | 20 +++----
+ src/go/internal/gcimporter/gcimporter_test.go     | 68 +++++++++++++++--------
+ src/go/internal/gcimporter/testdata/issue20046.go |  9 +++
+ 3 files changed, 61 insertions(+), 36 deletions(-)

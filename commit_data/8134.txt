@@ -1,0 +1,12 @@
+commit 0c6df25df123364a5f2e96c175a90ab46cb16970
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 17 14:15:51 2011 -0400
+
+    codereview: add 'hg undo' command
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/4423045
+
+ lib/codereview/codereview.py | 168 ++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 143 insertions(+), 25 deletions(-)

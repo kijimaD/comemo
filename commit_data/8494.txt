@@ -1,0 +1,13 @@
+commit a1c92c612f361bfea58fe3ec8b19d05b81841e48
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 25 11:16:17 2011 -0700
+
+    go/scanner: use strconv.QuoteRune now that it is available
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4538096
+
+ src/pkg/go/scanner/scanner.go      | 3 +--
+ src/pkg/go/scanner/scanner_test.go | 5 +++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

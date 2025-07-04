@@ -1,0 +1,14 @@
+commit e7191479ec57e89aa1967e75a87f9da4d1d8b734
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 20 21:52:11 2016 +0000
+
+    doc: add some missing HTML tags in the FAQ
+    
+    Fixes #17170
+    
+    Change-Id: I939f087df133710495fdf6f09040051cb9b176d7
+    Reviewed-on: https://go-review.googlesource.com/29442
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 3 +++
+ 1 file changed, 3 insertions(+)

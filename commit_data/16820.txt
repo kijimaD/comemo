@@ -1,0 +1,12 @@
+commit e2425625067c633bae000a6210b7fb21d6f76d74
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jul 19 17:48:19 2013 +0400
+
+    test: fix error output in the test
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/11432046
+
+ test/fixedbugs/issue5493.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

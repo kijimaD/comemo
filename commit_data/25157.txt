@@ -1,0 +1,12 @@
+commit c498a45b333695257099f4000ba9ca93803ee99e
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Fri Dec 4 14:49:45 2015 -0700
+
+    net/http: Connection:close test is h1 specific
+    
+    Change-Id: I77e4df7ab0bc20d2e251c1eda9ce9026484b8bbc
+    Reviewed-on: https://go-review.googlesource.com/17433
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport_test.go | 1 +
+ 1 file changed, 1 insertion(+)

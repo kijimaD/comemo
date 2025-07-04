@@ -1,0 +1,18 @@
+commit 94d6267060a619ef89ef296ed4691734e6be8de2
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Nov 23 09:17:56 2023 +0100
+
+    text/template: more godoc links
+    
+    Change-Id: I4f3684ea6cbdcc09985c93fef5107d3bd006699e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544735
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/text/template/doc.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

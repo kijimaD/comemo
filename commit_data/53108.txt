@@ -1,0 +1,26 @@
+commit 308ca75edbe152d515d8aeab439c995bfeed5534
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 19 15:59:19 2023 -0400
+
+    cmd/go: make TestScript/gotoolchain more realistic
+    
+    - Build the fake go1.999testpath binary from Go source instead of
+      special-casing a fake command on Windows.
+    
+    - Skip the part of the test that uses shell scripts served from the
+      test GOPROXY if /bin/sh is not present.
+    
+    This makes the test more expensive, but also more realistic: notably,
+    it does not require test hooks to determine whether to run a real or
+    fake binary.
+    
+    Change-Id: If14fec52186631d7833eba653c91ec5198dede58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486400
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/gotoolchain.go                  |  4 ---
+ src/cmd/go/testdata/script/gotoolchain.txt | 46 ++++++++++++------------------
+ 2 files changed, 18 insertions(+), 32 deletions(-)

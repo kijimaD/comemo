@@ -1,0 +1,19 @@
+commit b3251514531123d7fd007682389bce7428d159a0
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Jul 2 16:11:37 2025 +0200
+
+    cmd/cgo/internal/testsanitizers: skip asan tests when FIPS140 mode is on
+    
+    Executing "GODEBUG=fips140=on go test -run TestASAN
+    ./cmd/cgo/internal/testsanitizers" fails because FIPS 140 mode is
+    incompatible with ASAN.
+    
+    Change-Id: I1a489f3398bbabf597fe7ffc0982c86c3b86e07e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/685495
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/internal/testsanitizers/asan_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

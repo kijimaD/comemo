@@ -1,0 +1,29 @@
+commit cf12fef5c6fabaa2c5089ba31b4354514c67d8e5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 13 21:37:13 2017 -0800
+
+    go/types: don't associate methods with alias type names
+    
+    R=go1.11
+    
+    The existing code associated methods with receiver base type
+    names before knowing if a type name denoted a locally defined
+    type. Sometimes, methods would be incorrectly associated with
+    alias type names and consequently were lost down the road.
+    
+    This change first collects all methods with non-blank names
+    and in a follow-up pass resolves receiver base type names to
+    valid non-alias type names with which the methods are then
+    associated.
+    
+    Fixes #23042.
+    
+    Change-Id: I7699e577b70aadef6a2997e882beb0644da89fa3
+    Reviewed-on: https://go-review.googlesource.com/83996
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/check.go            | 11 +----
+ src/go/types/decl.go             | 44 +++++++++---------
+ src/go/types/resolver.go         | 97 ++++++++++++++++++++++++++++++++++------
+ src/go/types/testdata/decls4.src | 49 ++++++++++++++++++++
+ 4 files changed, 157 insertions(+), 44 deletions(-)

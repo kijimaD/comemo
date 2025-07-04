@@ -1,0 +1,14 @@
+commit 669676b7b318cc6239179980f5bfa140437dd5d5
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sun Feb 18 15:45:24 2018 +0200
+
+    text/template: fix the documentation of the block action
+    
+    Fixes #23520
+    
+    Change-Id: Ia834819f3260691a1a0181034ef4b4b945965688
+    Reviewed-on: https://go-review.googlesource.com/94761
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/text/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

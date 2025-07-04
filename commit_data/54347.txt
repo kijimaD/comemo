@@ -1,0 +1,23 @@
+commit 0bbd273e9714cce3813846802b4c8aeddbb65fe6
+Author: Pascal S. de Kloe <pascal@quies.net>
+Date:   Fri Jul 21 14:03:49 2023 +0200
+
+    cmd/doc: print bugs with -all flag
+    
+    Includes cleanup and deduplication.
+    
+    fixes: #33970
+    
+    Change-Id: I7e84b3e5c8fb9c560cf0a1f8b7cbb7a6977666aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/511935
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/doc/doc_test.go     |   1 +
+ src/cmd/doc/main.go         |  17 ++-----
+ src/cmd/doc/pkg.go          | 115 +++++++++++++++++++++++++-------------------
+ src/cmd/doc/testdata/pkg.go |   1 +
+ 4 files changed, 71 insertions(+), 63 deletions(-)

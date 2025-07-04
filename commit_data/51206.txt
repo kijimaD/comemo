@@ -1,0 +1,21 @@
+commit 1309f0c51d730c87337a167acb70c86da4bb04be
+Author: Richard Tweed <RichardoC@users.noreply.github.com>
+Date:   Thu Nov 10 00:04:07 2022 +0000
+
+    os: document that WriteFile is not atomic
+    
+    Fixes #56173
+    
+    Change-Id: I03a3ad769c99c0bdb78b1d757173d630879fd4dd
+    GitHub-Last-Rev: e3e31fa0b95aba363b13c45f562e3a4c8b31f2cc
+    GitHub-Pull-Request: golang/go#56282
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443495
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/os/file.go | 2 ++
+ 1 file changed, 2 insertions(+)

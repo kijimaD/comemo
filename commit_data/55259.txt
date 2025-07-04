@@ -1,0 +1,17 @@
+commit 100651b6f2b33d073b54da2ff07601ab3cc029b5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 11 11:29:36 2023 -0500
+
+    doc/go1.22: document workspace vendoring
+    
+    For #61422.
+    Updates #60056.
+    
+    Change-Id: Ie7c7e12acc173f1ff1644555016e51a52509bd6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548815
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/go1.22.html | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

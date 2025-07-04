@@ -1,0 +1,29 @@
+commit d49fecc474d04a04d1d22851c06099338abd4391
+Author: smasher164 <aindurti@gmail.com>
+Date:   Thu Feb 27 02:42:28 2020 -0500
+
+    std,cmd: update x/net and github.com/google/pprof
+    
+    Re-vendor x/net/dns/dnsmessage, x/net/route, and github.com/google/pprof
+    (commit 1ebb73c). The updated dependencies fix the string(int)
+    conversions, in preparation for the vet warning.
+    
+    Updates #32479.
+    
+    Change-Id: I023a4e30415d060f8b403b9943fe911f6d19f2e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221337
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  5 ++--
+ .../google/pprof/internal/report/report.go         | 28 ++++++++++++++++------
+ .../github.com/google/pprof/profile/proto.go       |  7 ++++--
+ src/cmd/vendor/modules.txt                         |  2 +-
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 ++--
+ .../golang.org/x/net/dns/dnsmessage/message.go     | 22 ++---------------
+ src/vendor/golang.org/x/net/route/address.go       |  4 ++--
+ src/vendor/modules.txt                             |  2 +-
+ 10 files changed, 39 insertions(+), 39 deletions(-)

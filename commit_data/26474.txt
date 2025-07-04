@@ -1,0 +1,30 @@
+commit 44d3f89e99b954d88ab802212182a7c123ac774a
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Mar 22 21:25:40 2016 -0400
+
+    cmd/link, reflect: remove some method type data
+    
+    Remove reflect type information for unexported methods that do not
+    satisfy any interface in the program.
+    
+    Ideally the unexported method would not appear in the method list at
+    all, but that is tricky because the slice is built by the compiler.
+    
+    Reduces binary size:
+    
+            cmd/go: 81KB (0.8%)
+            jujud: 258KB (0.4%)
+    
+    For #6853.
+    
+    Change-Id: I25ef8df6907e9ac03b18689d584ea46e7d773043
+    Reviewed-on: https://go-review.googlesource.com/21033
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go | 11 -----------
+ src/reflect/all_test.go              | 26 ++++++++++++++++++++++++++
+ src/reflect/type.go                  | 30 ++++++++++++++++--------------
+ 3 files changed, 42 insertions(+), 25 deletions(-)

@@ -1,0 +1,18 @@
+commit ec7c6c16e14a46d907c7dc95662093f0ed846143
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 16 11:48:09 2017 -0700
+
+    net: don't forget about ongoing DNS lookup if context canceled
+    
+    Only forget about it if the context timed out, as the comment says.
+    
+    Fixes #20703.
+    
+    Change-Id: Ie6234f1a32f85e6bfd052dc24a33aa63b8883c37
+    Reviewed-on: https://go-review.googlesource.com/45999
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/lookup.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

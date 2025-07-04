@@ -1,0 +1,23 @@
+commit 4f7c33cd5ad9181068be0ed0514f9fc9fc36c6ec
+Author: Ugorji Nwoke <ugorji@gmail.com>
+Date:   Tue May 22 15:21:35 2012 -0700
+
+    text/template: exec should accept interface value as valid.
+    
+    Currently, if you pass some data to a template as an interface (e.g. interface{})
+    and extract that value that value as a parameter for a function, it fails, saying
+    wrong type.
+    
+    This is because it is only looking at the interface type, not the interface content.
+    
+    This CL uses the underlying content as the parameter to the func.
+    
+    Fixes #3642.
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/6218052
+
+ src/pkg/text/template/exec.go      | 7 +++++++
+ src/pkg/text/template/exec_test.go | 6 ++++++
+ 2 files changed, 13 insertions(+)

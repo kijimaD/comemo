@@ -1,0 +1,26 @@
+commit f9c0423ec821e325d5a77e0f18dc1e44ee13503b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jan 25 15:51:22 2024 -0800
+
+    cmd/compile/internal/noder: preserve alias uses in export data
+    
+    This CL changes the export data format to preserve alias uses.
+    Previously they were stripped away with types2.Unalias. For backwards
+    compatibility, we use pkgbits.TypeNamed, which is already used for the
+    predeclared aliases byte, rune, and any.
+    
+    While here, remove unnecessary uses of types2.Unalias, and add a
+    missing one in recvBase to handle:
+    
+        type T int
+        type A = T
+        func (*A) m() {}
+    
+    Change-Id: I62ddb0426080a44436054964a90ab250bcd8df12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558577
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/writer.go | 52 ++++++++++++++++++++------------
+ 1 file changed, 32 insertions(+), 20 deletions(-)

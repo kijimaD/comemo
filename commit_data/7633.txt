@@ -1,0 +1,14 @@
+commit 99f17aa0b8af774e3639d00d4bc95a2c3a7d153a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Mar 4 14:12:39 2011 -0800
+
+    http/cgi: skip tests on Windows
+    
+    The tests require Perl, not commonly installed on Windows.
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/4239057
+
+ src/pkg/http/cgi/cgi_test.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

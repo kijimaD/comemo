@@ -1,0 +1,30 @@
+commit cc14fcac2bc1d452841336b9aeee3b1d47880f37
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 8 16:09:11 2021 -0800
+
+    cmd/compile/internal/types2: disallow type cycles through type parameter lists
+    
+    If we reach a generic type that is part of a cycle
+    and we are in a type parameter list, we have a cycle
+    through a type parameter list, which is invalid.
+    
+    Fixes #49439.
+    
+    Change-Id: Ia6cf97e1748ca0c0e61c02841202050091365b0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361922
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/check.go           |  1 +
+ src/cmd/compile/internal/types2/decl.go            | 57 ++++++++++++++++------
+ .../types2/testdata/fixedbugs/issue45550.go2       |  4 +-
+ .../types2/testdata/fixedbugs/issue46461.go2       |  6 +--
+ .../types2/testdata/fixedbugs/issue47796.go2       | 14 +++---
+ .../types2/testdata/fixedbugs/issue48529.go2       |  2 +-
+ .../types2/testdata/fixedbugs/issue49439.go2       | 26 ++++++++++
+ test/typeparam/issue46461.go                       |  4 +-
+ test/typeparam/issue46461b.dir/a.go                |  2 +-
+ test/typeparam/issue46461b.dir/b.go                |  4 +-
+ test/typeparam/issue48280.dir/a.go                 |  2 +-
+ test/typeparam/issue48306.dir/a.go                 |  2 +-
+ 12 files changed, 91 insertions(+), 33 deletions(-)

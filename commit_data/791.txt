@@ -1,0 +1,16 @@
+commit 8d0ed065dc9572fce405fd556f4d15b362f5cae1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 1 17:01:42 2008 -0700
+
+    With the cleanup of method types, this test case is now
+    invalid.  The receiver type is not permitted to be a pointer
+    type.  Since 6g currently accepts it, this moves the test case
+    back to the bugs directory.
+    
+    R=gri
+    DELTA=22  (11 added, 11 deleted, 0 changed)
+    OCL=16284
+    CL=16336
+
+ test/{fixedbugs => bugs}/bug046.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

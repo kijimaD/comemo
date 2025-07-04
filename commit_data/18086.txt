@@ -1,0 +1,15 @@
+commit cbf6ff3b90f5b70e9e7f6aafc1744efbb4761377
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 19 13:24:42 2013 -0800
+
+    net/http: add Hihack benchmark
+    
+    Notably, to show allocs. Currently: 11766 B/op, 21 allocs/op,
+    at least one alloc of which is in the benchmark loop itself.
+    
+    R=golang-dev, jnewlin
+    CC=golang-dev
+    https://golang.org/cl/40370057
+
+ src/pkg/net/http/serve_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

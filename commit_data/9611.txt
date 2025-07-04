@@ -1,0 +1,16 @@
+commit 1fc676332f471a568c0bb12c0d33f90cc59b26db
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Sep 7 21:50:51 2011 +0400
+
+    sync/atomic: add Store functions
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4950060
+
+ src/pkg/sync/atomic/asm_386.s       |  18 ++
+ src/pkg/sync/atomic/asm_amd64.s     |  21 +++
+ src/pkg/sync/atomic/asm_linux_arm.s |  21 +++
+ src/pkg/sync/atomic/atomic_test.go  | 349 ++++++++++++++++++++++++++++--------
+ src/pkg/sync/atomic/doc.go          |  15 ++
+ 5 files changed, 351 insertions(+), 73 deletions(-)

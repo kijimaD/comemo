@@ -1,0 +1,12 @@
+commit 0383bb473ddd394495c17f1ce7f5e555e311986d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 20 10:16:34 2015 -0800
+
+    cmd/compile: simplify tracing code (cleanup)
+    
+    Change-Id: I7c084542996226f3ed464314a5622fcfaac02d61
+    Reviewed-on: https://go-review.googlesource.com/17103
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 29 +++++++----------------------
+ 1 file changed, 7 insertions(+), 22 deletions(-)

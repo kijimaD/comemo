@@ -1,0 +1,17 @@
+commit 42f1b37b7b46714455a3a54e506bff982aa50fa2
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 26 09:58:18 2022 -0700
+
+    doc: fix up race detector release note
+    
+    It's already mentioned under runtime/race, we don't need it
+    also mentioned under runtime.
+    
+    Change-Id: I538322b32d75b9642f3ead03539fccb95988ef8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408875
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+
+ doc/go1.19.html | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

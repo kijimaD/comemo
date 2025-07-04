@@ -1,0 +1,17 @@
+commit 81957dd58ee3a4c31f949e49e03d8ff9151ccef5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 5 13:34:25 2018 +0000
+
+    net: don't block forever in splice test cleanup on failure
+    
+    The ppc64x builders are failing on the new splice test from CL 113997
+    but the actual failure is being obscured by a test deadlock.
+    
+    Change-Id: I7747f88bcdba9776a3c0d2f5066cfec572706108
+    Reviewed-on: https://go-review.googlesource.com/133417
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/net/splice_test.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

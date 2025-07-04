@@ -1,0 +1,14 @@
+commit e7b8f5faca9d515491893f614cb72728d5d6103f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 13 11:34:33 2009 -0800
+
+    path.TestWalk: disable error case if root
+    (chmod 0 doesn't cause errors for root)
+    
+    Fixes #22.
+    
+    R=gri
+    https://golang.org/cl/152120
+
+ src/pkg/path/path_test.go | 48 ++++++++++++++++++++++++-----------------------
+ 1 file changed, 25 insertions(+), 23 deletions(-)

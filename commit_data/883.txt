@@ -1,0 +1,13 @@
+commit bc641d1e9c5ddccc460d84939264165009b805a1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 16 15:28:36 2008 -0700
+
+    - more robust TokenString implementation
+    
+    R=r
+    OCL=17319
+    CL=17319
+
+ usr/gri/pretty/Makefile.iant | 29 +++++++++++++----------------
+ usr/gri/pretty/scanner.go    |  2 +-
+ 2 files changed, 14 insertions(+), 17 deletions(-)

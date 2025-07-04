@@ -1,0 +1,23 @@
+commit 4bfcfcf89f0aa756b3ad2a10130cda1a5ab62db3
+Author: Balazs Lecz <leczb@google.com>
+Date:   Mon Sep 27 11:44:26 2010 -0400
+
+    syscall: add inotify on Linux
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2241045
+
+ src/pkg/syscall/mkerrors.sh             |  2 ++
+ src/pkg/syscall/syscall_linux.go        |  7 ++++---
+ src/pkg/syscall/types_linux.c           |  9 ++++++++
+ src/pkg/syscall/zerrors_linux_386.go    | 37 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go  | 37 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_arm.go    | 37 +++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_386.go   | 36 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 36 ++++++++++++++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_arm.go   | 28 +++++++++++++++++++++++++
+ src/pkg/syscall/ztypes_linux_386.go     |  8 +++++++
+ src/pkg/syscall/ztypes_linux_amd64.go   |  8 +++++++
+ src/pkg/syscall/ztypes_linux_arm.go     |  8 +++++++
+ 12 files changed, 250 insertions(+), 3 deletions(-)

@@ -1,0 +1,41 @@
+commit ca1d2ead5d3fb2dccbc93f5c29a17da4bdf30ea3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 22 20:00:02 2024 +0000
+
+    runtime: skip tracing events that would cause reentrancy
+    
+    Some of the new experimental events added have a problem in that they
+    might be emitted during stack growth. This is, to my knowledge, the only
+    restriction on the tracer, because the tracer otherwise prevents
+    preemption, avoids allocation, and avoids write barriers. However, the
+    stack can grow from within the tracer. This leads to
+    tracing-during-tracing which can result in lost buffers and broken event
+    streams. (There's a debug mode to get a nice error message, but it's
+    disabled by default.)
+    
+    This change resolves the problem by skipping writing out these new
+    events. This results in the new events sometimes being broken (alloc
+    without a free, free without an alloc) but for now that's OK. Before the
+    freeze begins we just want to fix broken tests; tools interpreting these
+    events will be totally in-house to begin with, and if they have to be a
+    little bit smarter about missing information, that's OK. In the future
+    we'll have a more robust fix for this, but it appears that it's going to
+    require making the tracer fully reentrant. (This is not too hard; either
+    we force flushing all buffers when going reentrant (which is actually
+    somewhat subtle with respect to event ordering) or we isolate down just
+    the actual event writing to be atomic with respect to stack growth. Both
+    are just bigger changes on shared codepaths that are scary to land this
+    late in the release cycle.)
+    
+    Fixes #67379.
+    
+    Change-Id: I46bb7e470e61c64ff54ac5aec5554b828c1ca4be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587597
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/mheap.go        |  6 +++---
+ src/runtime/stack.go        |  4 ++--
+ src/runtime/traceruntime.go | 36 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+), 5 deletions(-)

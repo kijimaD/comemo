@@ -1,0 +1,43 @@
+commit e3c26b2b32e9d452dfd079ff7e7a0185843d47ce
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 3 11:51:21 2015 +0200
+
+    net/http: deflake TestZeroLengthPostAndResponse
+    
+    It was failing with multiple goroutines a few out of every thousand
+    runs (with errRequestCanceled) because it was using the same
+    *http.Request for all 5 RoundTrips, but the RoundTrips' goroutines
+    (notably the readLoop method) were all still running, sharing that
+    same pointer. Because the response has no body (which is what
+    TestZeroLengthPostAndResponse tests), the readLoop was marking the
+    connection as reusable early (before the caller read until the body's
+    EOF), but the Transport code was clearing the Request's cancelation
+    func *AFTER* the caller had already received it from RoundTrip. This
+    let the test continue looping and do the next request with the same
+    pointer, fetch a connection, and then between getConn and roundTrip
+    have an invariant violated: the Request's cancelation func was nil,
+    tripping this check:
+    
+            if !pc.t.replaceReqCanceler(req.Request, pc.cancelRequest) {
+                    pc.t.putIdleConn(pc)
+                    return nil, errRequestCanceled
+            }
+    
+    The solution is to clear the request cancelation func in the readLoop
+    goroutine in the no-body case before it's returned to the caller.
+    
+    This now passes reliably:
+    
+    $ go test -race -run=TestZeroLengthPostAndResponse -count=3000
+    
+    I think we've only seen this recently because we now randomize scheduling
+    of goroutines in race mode (https://golang.org/cl/11795). This race
+    has existed for a long time but the window was hard to hit.
+    
+    Change-Id: Idb91c582919f85aef5b9e5ef23706f1ba9126e9a
+    Reviewed-on: https://go-review.googlesource.com/13070
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 0aac9bb82d9cbc34fa723fc653c6659ed48da772
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 28 17:23:32 2015 -0500
+
+    build: give windows builders extra time for tests
+    
+    In the tests, the runtime test fails after 2 minutes.
+    On an unloaded VM it only takes 45 seconds.
+    I think the difference is all the other build work going on
+    simultaneously with the running of the runtime test.
+    
+    Change-Id: I41e95d2e4daea44ceaa8505f81aa7b5bcfa9ec77
+    Reviewed-on: https://go-review.googlesource.com/6364
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/run.bat | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

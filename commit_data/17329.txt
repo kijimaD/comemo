@@ -1,0 +1,13 @@
+commit 0d5bc0cff5bb327afc32d32f7bb33a14f17aeca1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 20 06:44:41 2013 +1000
+
+    doc/go_faq.html: link to the SPLASH talk near the top
+    It's a full answer to the first question; let's let readers know that.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12788048
+
+ doc/go_faq.html | 5 +++++
+ 1 file changed, 5 insertions(+)

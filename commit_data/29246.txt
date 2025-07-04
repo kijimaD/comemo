@@ -1,0 +1,19 @@
+commit 590fce48849cc7f81b890d6e9b6120fc6681e19a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 29 13:23:50 2016 +1100
+
+    compress/flate: tighten the BestSpeed max match offset bound.
+    
+    Previously, we were off by one.
+    
+    Also fix a comment typo.
+    
+    Change-Id: Ib94d23acc56d5fccd44144f71655481f98803ac8
+    Reviewed-on: https://go-review.googlesource.com/32149
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/flate/deflate_test.go | 59 ++++++++++++++++++++++++++++++++++++++
+ src/compress/flate/deflatefast.go  |  8 ++----
+ 2 files changed, 62 insertions(+), 5 deletions(-)

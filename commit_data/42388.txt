@@ -1,0 +1,26 @@
+commit 9f4aeb36e22f5c7eda76111b4c49c0434b4d2897
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 21 14:16:50 2020 -0400
+
+    all: use a hermetic "go" tool in standard-library tests
+    
+    The go/build package uses the "go" tool from the user's environment,
+    but its tests should not assume that that tool is in any particular
+    state, let alone appropriate for running the test.
+    
+    Instead, explicitly use testenv.GoTool, adding it to $PATH in a
+    TestMain when necessary.
+    
+    Fixes #39199
+    Fixes #39198
+    
+    Change-Id: I56618a55ced473e75dd96eeb3a8f7084e2e64d02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234880
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ src/go/build/build_test.go                      |  9 +++++++++
+ src/go/internal/srcimporter/srcimporter_test.go | 10 ++++++++++
+ src/text/template/link_test.go                  |  2 +-
+ 3 files changed, 20 insertions(+), 1 deletion(-)

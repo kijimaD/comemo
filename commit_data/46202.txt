@@ -1,0 +1,19 @@
+commit 044550ab0ee28fe85b98600503c9f33642697d76
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Aug 28 10:08:32 2021 +0700
+
+    runtime: add test case for checkptr alignment with nested expression
+    
+    Discover while working on moving checkptr instrumentation from walk to
+    SSA generation.
+    
+    Change-Id: I3f4a41fe4ad308b86c7c57d14b6ccc7c613e7f98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345432
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/checkptr_test.go              | 37 +++++++++++++++++++++++++++++++
+ src/runtime/testdata/testprog/checkptr.go |  8 +++++++
+ 2 files changed, 45 insertions(+)

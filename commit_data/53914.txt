@@ -1,0 +1,23 @@
+commit 8a6acecfab2879ba4e26487c99f204ede8b3d935
+Author: Inada Naoki <songofacandy@gmail.com>
+Date:   Sat Aug 5 16:22:48 2023 +0000
+
+    database/sql: add Null[T]
+    
+    Generic version of NullString, NullInt64, etc.
+    
+    Fixes #60370
+    
+    Change-Id: I166a05a6126e8b8571db5cbb026303bb6551d56b
+    GitHub-Last-Rev: 3c8d2d5141c36f034d2124e19ee090620363ba24
+    GitHub-Pull-Request: golang/go#60677
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501700
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/next/60370.txt           |  5 +++++
+ src/database/sql/sql.go      | 33 +++++++++++++++++++++++++++++++++
+ src/database/sql/sql_test.go | 17 +++++++++++++++--
+ 3 files changed, 53 insertions(+), 2 deletions(-)

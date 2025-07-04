@@ -1,0 +1,14 @@
+commit 99e8f40488b89f3e6c30ddcf94a2c5db61d7ab3d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 16 11:43:35 2014 -0400
+
+    runtime: fix 386 build
+    
+    mark finalizer1 as having no pointers
+    
+    TBR=iant
+    CC=golang-codereviews
+    https://golang.org/cl/141570045
+
+ src/runtime/mgc0.c | 1 +
+ 1 file changed, 1 insertion(+)

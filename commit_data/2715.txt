@@ -1,0 +1,13 @@
+commit 3d486d0d26124a1287d4921f6879cd899cfe0da4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 15 10:12:57 2009 -0700
+
+    - do not collect BUG comments w/o bug description
+    
+    R=rsc
+    DELTA=17  (8 added, 0 deleted, 9 changed)
+    OCL=31670
+    CL=31674
+
+ src/pkg/go/doc/doc.go | 26 +++++++++++++++++---------
+ 1 file changed, 17 insertions(+), 9 deletions(-)

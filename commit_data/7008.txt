@@ -1,0 +1,13 @@
+commit 04a231d40624412d16a4e120335b4bf77b7b9964
+Author: Eoghan Sherry <ejsherry@gmail.com>
+Date:   Thu Dec 23 11:40:10 2010 +1100
+
+    testing: fix error message on invalid regexp
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/3831041
+
+ src/pkg/testing/benchmark.go | 2 +-
+ src/pkg/testing/testing.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit c4689579c0bcd0ea028e3847e7d407141faa26e2
+Author: Joel Sing <jsing@google.com>
+Date:   Sun Sep 27 02:33:00 2015 +1000
+
+    cmd/go: Skip note reading test with linkmode external on openbsd/arm
+    
+    openbsd/arm does not support external linking - skip the note reading test that
+    uses linkmode external on this platform. While here, cleanup the code and
+    consistently use t.Skipf for all platforms that cannot run this test.
+    
+    Change-Id: I64f0d9e038bc4c993c3d843fc069a0b723a924d6
+    Reviewed-on: https://go-review.googlesource.com/15054
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/note_test.go | 34 +++++++++++++++-------------------
+ 1 file changed, 15 insertions(+), 19 deletions(-)

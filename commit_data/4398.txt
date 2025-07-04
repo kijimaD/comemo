@@ -1,0 +1,12 @@
+commit 687777710bb5c8120ccecbce6e70097c3736f094
+Author: Rob Pike <r@golang.org>
+Date:   Sun Dec 13 07:27:43 2009 +1100
+
+    fix bug for large counts: used a one-byte buffer.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/174082
+
+ src/pkg/gob/decoder.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

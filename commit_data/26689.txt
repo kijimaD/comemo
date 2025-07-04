@@ -1,0 +1,21 @@
+commit 2d5688952db33fc967a23011c22fa8fc71251fb1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Apr 1 10:55:21 2016 -0400
+
+    cmd/link: keep types together when dynamic linking
+    
+    To refer to types and names by offsets, we want to keep the symbols in
+    the same sections. Do this by making all types .relro for now.
+    
+    Once name offsets are further along, name data can move out of relro.
+    
+    Change-Id: I1cbd2e914bd180cdf25c4aeb13d9c1c734febe69
+    Reviewed-on: https://go-review.googlesource.com/21394
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go   | 2 +-
+ src/cmd/link/internal/ld/lib.go    | 2 +-
+ src/cmd/link/internal/ld/symtab.go | 6 ++++--
+ 3 files changed, 6 insertions(+), 4 deletions(-)

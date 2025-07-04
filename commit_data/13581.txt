@@ -1,0 +1,12 @@
+commit 8b5d4c3c0310c1669f8abd0b159985d80771e9f7
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Mon Aug 6 16:24:08 2012 -0400
+
+    syscall: fix plan9 build broken by CL 6458050
+    
+    R=golang-dev, rsc
+    CC=golang-dev, r, yarikos
+    https://golang.org/cl/6454104
+
+ src/pkg/syscall/exec_plan9.go | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit c34bc90ffca18af9e396bde2f16abbc1757d858e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 3 15:23:24 2015 -0800
+
+    crypto/x509: convert ErrInsecureAlgorithm into a type
+    
+    Change-Id: I411aeaf0cf75eb8b1c9005b622f664e9f25e4a68
+    Reviewed-on: https://go-review.googlesource.com/17400
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/x509.go      | 34 ++++++++++++++++++++++++++++++----
+ src/crypto/x509/x509_test.go | 26 ++++++++++++++++++++++----
+ 2 files changed, 52 insertions(+), 8 deletions(-)

@@ -1,0 +1,19 @@
+commit ee55f0856a3f1fed5d8c15af54c40e4799c2d32f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 29 23:21:40 2018 +0000
+
+    net/http/httputil: make ReverseProxy automatically proxy WebSocket requests
+    
+    Fixes #26937
+    
+    Change-Id: I6cdc1bad4cf476cd2ea1462b53444eccd8841e14
+    Reviewed-on: https://go-review.googlesource.com/c/146437
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go/build/deps_test.go                  |  2 +-
+ src/net/http/httputil/reverseproxy.go      | 81 +++++++++++++++++++++++++++
+ src/net/http/httputil/reverseproxy_test.go | 88 ++++++++++++++++++++++++++----
+ src/net/http/transport.go                  |  2 +-
+ 4 files changed, 161 insertions(+), 12 deletions(-)

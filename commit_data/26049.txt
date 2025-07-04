@@ -1,0 +1,17 @@
+commit 1765863e577634e5e0502f7a783979a5fd480618
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 4 01:30:31 2016 -0800
+
+    cmd/compile: replace TypeList with []*Type
+    
+    Good riddance to another one-off linked list type.
+    
+    Change-Id: Idf9926a701ab4da8a022be1d61f1257020d58fc5
+    Reviewed-on: https://go-review.googlesource.com/20212
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/align.go | 30 +++++++-----------------------
+ 1 file changed, 7 insertions(+), 23 deletions(-)

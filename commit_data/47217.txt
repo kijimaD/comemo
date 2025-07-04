@@ -1,0 +1,27 @@
+commit cfd016df1fba2a2a104f4cca705aa4357777986b
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Nov 3 18:19:04 2021 +0100
+
+    runtime: on windows, read nanotime with one instruction or issue barrier
+    
+    On 64-bit, this is more efficient, and on ARM64, this prevents the time
+    from moving backwards due to the weaker memory model. On ARM32 due to
+    the weaker memory model, we issue a memory barrier.
+    
+    Updates #48072.
+    
+    Change-Id: If4695716c3039d8af14e14808af217f5c99fc93a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361057
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/sys_windows_amd64.s  | 13 +++----------
+ src/runtime/sys_windows_arm.s    |  2 ++
+ src/runtime/sys_windows_arm64.s  | 10 +---------
+ src/runtime/time_windows.h       |  1 +
+ src/runtime/time_windows_amd64.s | 19 +++----------------
+ src/runtime/time_windows_arm.s   |  4 ++++
+ src/runtime/time_windows_arm64.s | 22 +++-------------------
+ 7 files changed, 17 insertions(+), 54 deletions(-)

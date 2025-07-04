@@ -1,0 +1,11 @@
+commit d1493d1edcaae2d6403b42d99b9d7b3ccb3698a5
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 6 15:01:50 2008 -0700
+
+    checked into both gc and runtime by mistake
+    
+    SVN=121498
+
+ src/cmd/6g/runtime.c | 595 ---------------------------------------------------
+ src/cmd/6g/runtime.h | 107 ---------
+ 2 files changed, 702 deletions(-)

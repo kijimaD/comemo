@@ -1,0 +1,15 @@
+commit 567a7bf66473b260ae3eb1c6e69be365c8200592
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon May 4 21:48:46 2009 -0700
+
+    more code optimization
+    1. dont clear external and heap objects
+    2. propagate constant assignment
+    
+    R=r
+    OCL=28254
+    CL=28254
+
+ src/cmd/6g/peep.c | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ src/cmd/gc/gen.c  |  6 ++++
+ 2 files changed, 85 insertions(+), 3 deletions(-)

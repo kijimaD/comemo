@@ -1,0 +1,29 @@
+commit 897e0807c30a7b1860c15d4c05d68907fbba9262
+Author: bill_ofarrell <billo@ca.ibm.com>
+Date:   Tue Oct 30 22:45:51 2018 -0400
+
+    crypto/elliptic: utilize faster z14 multiply/square instructions (when available)
+    
+    In the s390x assembly implementation of NIST P-256 curve, utilize faster multiply/square
+    instructions introduced in the z14. These new instructions are designed for crypto
+    and are constant time. The algorithm is unchanged except for faster
+    multiplication when run on a z14 or later. On z13, the original mutiplication
+    (also constant time) is used.
+    
+    P-256 performance is critical in many applications, such as Blockchain.
+    
+    name            old time      new time     delta
+    BaseMultP256    24396 ns/op   21564 ns/op  1.13x
+    ScalarMultP256  87546 ns/op   72813 ns/op. 1.20x
+    
+    Change-Id: I7e6d8b420fac56d5f9cc13c9423e2080df854bac
+    Reviewed-on: https://go-review.googlesource.com/c/146022
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+
+ src/crypto/elliptic/p256_asm_s390x.s | 550 ++++++++++++++++++++++++++++++++---
+ src/crypto/elliptic/p256_s390x.go    |  34 ++-
+ src/internal/cpu/cpu.go              |   1 +
+ src/internal/cpu/cpu_s390x.go        |   7 +
+ 4 files changed, 551 insertions(+), 41 deletions(-)

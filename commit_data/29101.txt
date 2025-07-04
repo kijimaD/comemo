@@ -1,0 +1,14 @@
+commit 6d9c8c926da3abd33e3ec229a8ccd028c7610dc3
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Oct 27 02:58:09 2016 +0900
+
+    net/http: gofmt -w -s
+    
+    Change-Id: I6815a8560dd9fe0a0ebd485a0693f7044ba09848
+    Reviewed-on: https://go-review.googlesource.com/32137
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client_test.go | 40 ++++++++++++++++++++--------------------
+ 1 file changed, 20 insertions(+), 20 deletions(-)

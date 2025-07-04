@@ -1,0 +1,20 @@
+commit 70321df02fcd3fac12ea650ffae7130fe7cd379f
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 3 21:14:47 2015 -0500
+
+    runtime: fix RuntimeGogoBytes on windows/amd64
+    
+    Before 3c0fee1, runtime.gogo was just long enough to align to 64 bytes
+    on OSs with short get_tls implementations and 80 bytes on OSs with
+    longer get_tls implementations (Windows, Solaris, and Plan 9).
+    3c0fee1 added a few instructions, which pushed it to 80 on most OSs,
+    including Windows and Plan 9, and 96 on Solaris.
+    
+    Fixes #9770.
+    
+    Change-Id: Ie84810657c14ab16dce9f0e0a932955251b0bf33
+    Reviewed-on: https://go-review.googlesource.com/3850
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/arch1_amd64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

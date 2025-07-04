@@ -1,0 +1,16 @@
+commit 5fea8c030b2877cdab6463e9f5466f877735e128
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 31 13:04:57 2013 +1000
+
+    text/template: fix type of ComplexZero in test
+    Was stupidly float64; should be complex128.
+    The tests still pass.
+    
+    Fixes #5649.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12107044
+
+ src/pkg/text/template/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

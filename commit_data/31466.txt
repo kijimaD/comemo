@@ -1,0 +1,27 @@
+commit 5a6c58099085a8156bc42b68a7cf51b5b9c72802
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Apr 27 08:30:27 2017 +0200
+
+    runtime: refactor cpu feature detection for 386 & amd64
+    
+    Changes all cpu features to be detected and stored in bools in rt0_go.
+    
+    Updates: #15403
+    
+    Change-Id: I5a9961cdec789b331d09c44d86beb53833d5dc3e
+    Reviewed-on: https://go-review.googlesource.com/41950
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/alg.go            |   6 +--
+ src/runtime/asm_386.s         |  79 ++++++++++++++++++++++++-----
+ src/runtime/asm_amd64.s       | 112 +++++++++++++++++++++++-------------------
+ src/runtime/asm_amd64p32.s    |  80 +++++++++++++++++++++++++++---
+ src/runtime/cpuflags_amd64.go |  10 ++--
+ src/runtime/memclr_386.s      |   4 +-
+ src/runtime/memmove_386.s     |   8 +--
+ src/runtime/memmove_amd64.s   |   4 +-
+ src/runtime/runtime2.go       |  34 ++++++++-----
+ 9 files changed, 243 insertions(+), 94 deletions(-)

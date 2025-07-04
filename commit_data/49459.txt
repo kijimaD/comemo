@@ -1,0 +1,23 @@
+commit 5ee939b8199266446d7ccc563751a9d3db26bf8b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 13 11:06:55 2022 -0700
+
+    spec: clarify behavior of map size hint for make built-in
+    
+    The spec already states that the precise behavior of the map size
+    hint provided to the make built-in is implementation-dependent.
+    
+    Exclude requiring specific run-time behavior for maps.
+    (The current Go compiler does not panic if the size hint is negative
+    at run-time.)
+    
+    Fixes #53219.
+    
+    Change-Id: I2f3618bf9ba4ed921e18dc4f2273eaa770805bd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411919
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

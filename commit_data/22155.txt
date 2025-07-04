@@ -1,0 +1,14 @@
+commit 484d9399dee5471e88c69f1ef84cabc45709cac8
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Mar 10 04:11:30 2015 -0400
+
+    cmd/dist: enable external linking test for windows/386
+    
+    Signed-off-by: Shenghou Ma <minux@golang.org>
+    Change-Id: I2d2ea233f976aab3f356f9b508cdd246d5013e2f
+    Reviewed-on: https://go-review.googlesource.com/7284
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/dist/test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

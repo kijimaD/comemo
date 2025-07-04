@@ -1,0 +1,25 @@
+commit 539b4d8d5bb91f74f580a1bc6e8e28b9de38aedd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 21 17:23:43 2023 +0000
+
+    internal/trace/v2: forward Event.Stack to StateTransition.Stack
+    
+    Currently StateTransition.Stack is only set for the GoCreate case,
+    because there are two stacks and we need to distinguish them. But the
+    docs for StateTransition.Stack say that that stack always references the
+    resource that is transitioning. There are quite a few cases where
+    Event.Stack is actually the appropriate stack to for
+    StateTransition.Stack, but in these cases it's left empty, and the
+    caller just needs to understand which one to look at. This isn't great.
+    Forward Event.Stack to StateTransition.Stack whenever Event.Stack also
+    refers to the resource experiencing the state transition.
+    
+    Change-Id: Ie43fc6036f2712c7982174d5739d95765312dfcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544316
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/trace/v2/event.go                | 6 ++++++
+ src/internal/trace/v2/testtrace/validation.go | 5 +++++
+ 2 files changed, 11 insertions(+)

@@ -1,0 +1,13 @@
+commit e2e8aa0ee1d56d77f1cb0f8ad0c4cf8a785b5abf
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Oct 14 16:10:44 2008 -0700
+
+    interface equality (strings specifically)
+    
+    R=r
+    OCL=17134
+    CL=17134
+
+ src/cmd/gc/walk.c   |  2 --
+ src/runtime/iface.c | 21 +++++++++++----------
+ 2 files changed, 11 insertions(+), 12 deletions(-)

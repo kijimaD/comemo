@@ -1,0 +1,42 @@
+commit 8db19a496640db4c7c318007c82eaa5d65c85b93
+Author: Leigh McCulloch <leighmcc@gmail.com>
+Date:   Fri Nov 3 05:48:43 2017 +0000
+
+    all: change github.com issue links to golang.org
+    
+    The go repository contains a mix of github.com/golang/go/issues/xxxxx
+    and golang.org/issues/xxxxx URLs for references to issues in the issue
+    tracker. We should use one for consistency, and golang.org is preferred
+    in case the project moves the issue tracker in the future.
+    
+    This reasoning is taken from a comment Sam Whited left on a CL I
+    recently opened: https://go-review.googlesource.com/c/go/+/73890.
+    
+    In that CL I referenced an issue using its github.com URL, because other
+    tests in the file I was changing contained references to issues using
+    their github.com URL. Sam Whited left a comment on the CL stating I
+    should change it to the golang.org URL.
+    
+    If new code is intended to reference issues via golang.org and not
+    github.com, existing code should be updated so that precedence exists
+    for contributors who are looking at the existing code as a guide for the
+    code they should write.
+    
+    Change-Id: I3b9053fe38a1c56fc101a8b7fd7b8f310ba29724
+    Reviewed-on: https://go-review.googlesource.com/75673
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testshared/src/depBase/dep.go | 2 +-
+ misc/cgo/testshared/src/exe/exe.go     | 2 +-
+ src/crypto/elliptic/elliptic_test.go   | 2 +-
+ src/crypto/x509/sec1_test.go           | 2 +-
+ src/database/sql/convert_test.go       | 2 +-
+ src/encoding/json/encode_test.go       | 2 +-
+ src/encoding/xml/read_test.go          | 2 +-
+ src/image/png/reader_test.go           | 4 ++--
+ src/net/hosts_test.go                  | 2 +-
+ src/net/port.go                        | 2 +-
+ src/os/stat_windows.go                 | 2 +-
+ src/sync/atomic/value.go               | 2 +-
+ src/sync/cond.go                       | 2 +-
+ 13 files changed, 14 insertions(+), 14 deletions(-)

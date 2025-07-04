@@ -1,0 +1,18 @@
+commit c1a068012c67dfc794c0ecfd7d77db451d2cadac
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Tue May 1 01:59:09 2018 +0200
+
+    runtime: remove darwin workaround for process-wide raise
+    
+    Now that raise on darwin targets the current thread, we can remove
+    the workaround in dieFromSignal.
+    
+    Change-Id: I1e468dc05e49403ee0bbe0a3a85e764c81fec4f2
+    Reviewed-on: https://go-review.googlesource.com/110476
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/signal_unix.go | 8 --------
+ 1 file changed, 8 deletions(-)

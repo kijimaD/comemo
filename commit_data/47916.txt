@@ -1,0 +1,22 @@
+commit 28f2869a0d8ae103e0a2aac7c68005d79099f1e1
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jan 11 10:22:40 2022 +0100
+
+    cmd/go: skip TestScript/test_fuzz_test_race on !race
+    
+    Skip the test on targets which don't support the race detector. This
+    fixes the linux-386-longtest builder after CL 376554.
+    
+    Updates #50488
+    
+    Change-Id: I08bf6f72cc0731761d49121eb7cfaa8b53906d37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/377634
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_test_race.txt | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

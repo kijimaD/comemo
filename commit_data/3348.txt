@@ -1,0 +1,24 @@
+commit 567673fc4264c616155802cfa0fb76401f449e6a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 22 16:56:28 2009 -0700
+
+    nacl - run tests under emulator.
+    special all-nacl.bash and test/run-nacl that
+    run just the tests known to work under nacl.
+    the rest requires closures.
+    
+    fix another bug or two in syscall.
+    
+    R=r
+    DELTA=420  (410 added, 8 deleted, 2 changed)
+    OCL=34882
+    CL=34907
+
+ src/all-nacl.bash               |  19 +++
+ src/cmd/gotest/gotest           |   8 +-
+ src/pkg/syscall/asm_nacl_386.s  |   3 +-
+ src/pkg/syscall/syscall_nacl.go |   2 +
+ test/nacl-pass.txt              | 287 ++++++++++++++++++++++++++++++++++++++++
+ test/run                        |  11 +-
+ test/run-nacl                   |  76 +++++++++++
+ 7 files changed, 402 insertions(+), 4 deletions(-)

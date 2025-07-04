@@ -1,0 +1,51 @@
+commit 717056da1a0086c5d1d1b27231a385f77ebc61d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 29 16:58:49 2022 -0700
+
+    cmd/compile/internal/syntax: use .go suffix for test files (cleanup)
+    
+    - Use .go suffix for test files as go fmt doesn't descend into testdata
+    directories.
+    - Move test files from testdata/go2 into testdata directory.
+    - Delete some test files that contained type-checker ERROR markers that
+      were ignored by the TestParseGo2 test but would be considered by the
+      TestSyntaxErrors test if the files were moved unchanged into the
+      testdata directory.
+    - Remove one (type checker) ERROR marker in testdata/slices.go to make
+      it pass the syntax error tests.
+    - Delete TestParseGo2 test. There's enough coverage with the existing
+      TestSyntaxErrors test.
+    - Add missing copyright notice to testdata/chans.go and gofmt the file.
+    
+    Change-Id: I449913fe1bd2119987ba33f7152e5e4ba5f3fe31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396518
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/syntax/error_test.go      |   2 +-
+ src/cmd/compile/internal/syntax/parser_test.go     |  14 -
+ .../syntax/testdata/{go2/chans.go2 => chans.go}    |   8 +-
+ .../internal/syntax/testdata/go2/typeinst.go2      |  60 ---
+ .../internal/syntax/testdata/go2/typeinst2.go2     | 232 -----------
+ .../internal/syntax/testdata/go2/typeparams.go2    | 451 ---------------------
+ .../testdata/{interface.go2 => interface.go}       |   0
+ .../testdata/{issue20789.src => issue20789.go}     |   0
+ .../testdata/{issue23385.src => issue23385.go}     |   0
+ .../testdata/{issue23434.src => issue23434.go}     |   0
+ .../testdata/{issue31092.src => issue31092.go}     |   0
+ .../testdata/{issue43527.go2 => issue43527.go}     |   0
+ .../testdata/{issue43674.src => issue43674.go}     |   0
+ .../testdata/{issue46558.src => issue46558.go}     |   0
+ .../testdata/{issue47704.go2 => issue47704.go}     |   0
+ .../testdata/{issue47704.src => issue47704.go117}  |   0
+ .../testdata/{issue48382.go2 => issue48382.go}     |   0
+ .../testdata/{issue49482.go2 => issue49482.go}     |   0
+ .../syntax/testdata/{go2/linalg.go2 => linalg.go}  |   0
+ .../syntax/testdata/{go2/map.go2 => map.go}        |   3 +-
+ .../syntax/testdata/{go2/map2.go2 => map2.go}      |   0
+ .../syntax/testdata/{sample.src => sample.go}      |   0
+ .../syntax/testdata/{go2/slices.go2 => slices.go}  |   2 +-
+ .../testdata/{go2/smoketest.go2 => smoketest.go}   |   6 -
+ .../syntax/testdata/{tparams.go2 => tparams.go}    |   0
+ .../syntax/testdata/{typeset.go2 => typeset.go}    |   0
+ 26 files changed, 9 insertions(+), 769 deletions(-)

@@ -1,0 +1,15 @@
+commit 0794dce07239fad5845b9c77b50d084f19f7278f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 17 21:08:48 2016 -0400
+
+    bufio: read from underlying reader at most once in Read
+    
+    Fixes #17059.
+    
+    Change-Id: I5c7ee46604399f7dc3c3c49f964cbb1aa6c0d621
+    Reviewed-on: https://go-review.googlesource.com/31320
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/bufio.go      | 12 ++++++++++--
+ src/bufio/bufio_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

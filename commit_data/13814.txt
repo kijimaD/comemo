@@ -1,0 +1,17 @@
+commit 37721cc1ce19269afb1a32bc14c51c4a4beb7b8b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 13 10:53:00 2012 -0400
+
+    html/template: fix URL doc
+    
+    This is the easy part of issue 3528.
+    (What to do about "noescape" is the hard part, left open.)
+    
+    Update #3528.
+    
+    R=mikesamuel, r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6493113
+
+ src/pkg/html/template/content.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

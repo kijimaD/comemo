@@ -1,0 +1,26 @@
+commit 40ac3690efe420ff7665c6fe1eec0933c41d1413
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Dec 15 19:07:47 2015 -0500
+
+    crypto/rsa: check CRT result.
+    
+    This change adds a check after computing an RSA signature that the
+    signature is correct. This prevents an error in the CRT computation from
+    leaking the private key. See references in the linked bug.
+    
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkRSA2048Sign-3     5713305       6225215       +8.96%
+    
+    Fixes #12453
+    
+    Change-Id: I1f24e0b542f7c9a3f7e7ad4e971db3dc440ed3c1
+    Reviewed-on: https://go-review.googlesource.com/17862
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/rsa/pkcs1v15.go |  2 +-
+ src/crypto/rsa/pss.go      |  2 +-
+ src/crypto/rsa/rsa.go      | 15 +++++++++++++++
+ src/crypto/rsa/rsa_test.go | 27 ++++++++++++++++++++++-----
+ 4 files changed, 39 insertions(+), 7 deletions(-)

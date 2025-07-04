@@ -1,0 +1,12 @@
+commit cb4e9f85086bb8e54cff8e8582a07f38d7475c5a
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sun May 23 11:21:47 2010 -0700
+
+    spec: Fix a code tag
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/1266042
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

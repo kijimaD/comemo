@@ -1,0 +1,12 @@
+commit 972f364550cd4f180ae5d0af727b36c5d579d239
+Author: Lloyd Dewolf <foolswisdom@gmail.com>
+Date:   Wed Feb 25 10:57:45 2015 -0800
+
+    doc/install-source.html: fix cd command, already in go dir.
+    
+    Change-Id: I42929abe5cefd84a1daf4f36ee1806c490ce16ec
+    Reviewed-on: https://go-review.googlesource.com/5960
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/install-source.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

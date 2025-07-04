@@ -1,0 +1,37 @@
+commit d8d445280a6a7e5f3535e8b49e9ae248f2627759
+Author: shaharko <skohanim@gmail.com>
+Date:   Wed Oct 19 07:33:16 2016 +0300
+
+    cmd/compile, cmd/link: more efficient typelink generation
+    
+    Instead of generating typelink symbols in the compiler
+    mark types that should have typelinks with a flag.
+    The linker detects this flag and adds the marked types
+    to the typelink table.
+    
+    name            old s/op    new s/op    delta
+    LinkCmdCompile   0.27 ± 6%   0.25 ± 6%  -6.93%    (p=0.000 n=97+98)
+    LinkCmdGo        0.30 ± 5%   0.29 ±10%  -4.22%    (p=0.000 n=97+99)
+    
+    name            old MaxRSS  new MaxRSS  delta
+    LinkCmdCompile   112k ± 3%   106k ± 2%  -4.85%  (p=0.000 n=100+100)
+    LinkCmdGo        107k ± 3%   103k ± 3%  -3.00%  (p=0.000 n=100+100)
+    
+    Change-Id: Ic95dd4b0101e90c1fa262c9c6c03a2028d6b3623
+    Reviewed-on: https://go-review.googlesource.com/31772
+    Run-TryBot: Shahar Kohanim <skohanim@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 13 +--------
+ src/cmd/internal/obj/link.go           |  3 +++
+ src/cmd/internal/obj/objfile.go        |  7 ++++-
+ src/cmd/internal/obj/sizeof_test.go    |  2 +-
+ src/cmd/link/internal/ld/data.go       | 20 +++-----------
+ src/cmd/link/internal/ld/deadcode.go   |  7 +++--
+ src/cmd/link/internal/ld/link.go       |  2 ++
+ src/cmd/link/internal/ld/main.go       |  1 +
+ src/cmd/link/internal/ld/objfile.go    |  6 ++++-
+ src/cmd/link/internal/ld/symtab.go     | 20 ++++----------
+ src/cmd/link/internal/ld/typelink.go   | 49 ++++++++++++++++++++++++++++++++++
+ 11 files changed, 80 insertions(+), 50 deletions(-)

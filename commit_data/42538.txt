@@ -1,0 +1,15 @@
+commit 84baf4162a96f360bd64e710a629d1f6753294bd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 12 15:40:56 2020 -0700
+
+    doc/go1.15: document new bufio.ErrBadReadCount
+    
+    For #37419
+    For #38053
+    
+    Change-Id: I206f360ff4957bc7edc3c35dfc814b7bd5ec440c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237739
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

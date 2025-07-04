@@ -1,0 +1,19 @@
+commit d24e62f2fbeded2b27684d508236be7e3e931355
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Fri Feb 27 20:42:18 2015 +0100
+
+    cmd/internal/gc: add missing verb to Yyerror
+    
+    When a function had no body, Yyerror was called with an extra
+    argument, leading to extraneous printouts.
+    Add the missing verb to the Yyerror call and display the name of the
+    bodiless function.
+    
+    Fixes #10030
+    
+    Change-Id: I76d76c4547fb9cad1782cb11f7a5c63065a6e0c5
+    Reviewed-on: https://go-review.googlesource.com/6263
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/gc/pgen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 4ae4e81c2c14d4b36768d8d44b440c95f76411db
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sat Apr 2 15:24:32 2016 -0700
+
+    compress/gzip: fix Reader.Reset
+    
+    Rather than specifying every field that should be cleared in Reset,
+    it is better to just zero the entire struct and only preserve or set the
+    fields that we actually care about. This ensures that the Header field
+    is reset for the next use.
+    
+    Fixes #15077
+    
+    Change-Id: I41832e506d2d64c62b700aa1986e7de24a577511
+    Reviewed-on: https://go-review.googlesource.com/21465
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/compress/gzip/gunzip.go      | 25 +++++++---------
+ src/compress/gzip/gunzip_test.go | 63 +++++++++++++++++++++-------------------
+ 2 files changed, 43 insertions(+), 45 deletions(-)

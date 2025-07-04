@@ -1,0 +1,12 @@
+commit 7ee3f3ddd14f7e74c0aa25d2b559c6d7a4a6371c
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 8 00:18:15 2009 -0800
+
+    make the visited color darker instead of lighter
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1025022
+
+ doc/style.css | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

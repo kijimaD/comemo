@@ -1,0 +1,12 @@
+commit 7d43d00bf56e82489a2ab9db4b64f6ac887feedc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 4 15:48:43 2011 -0400
+
+    CONTRIBUTORS: add Matt Jones (Google CLA)
+    
+    R=golang-dev, r2
+    CC=golang-dev, mrjones
+    https://golang.org/cl/4348048
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

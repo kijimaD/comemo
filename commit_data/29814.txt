@@ -1,0 +1,19 @@
+commit a3b670e3333ca0f677a82321d3ad173e01e973a5
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Dec 13 21:23:39 2016 +0100
+
+    cmd/link: add external linking support for GOARCH=mips{,le}
+    
+    Fixes #17792.
+    
+    Change-Id: If4f24455eec0edb3b221aef6777a681f6c768866
+    Reviewed-on: https://go-review.googlesource.com/34313
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/config.go |   2 +-
+ src/cmd/link/internal/ld/elf.go    |   2 +-
+ src/cmd/link/internal/ld/lib.go    |   2 +
+ src/cmd/link/internal/mips/asm.go  | 107 +++++++++++++++++++++++++++++++------
+ 4 files changed, 96 insertions(+), 17 deletions(-)

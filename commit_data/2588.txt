@@ -1,0 +1,12 @@
+commit db312fa8debc190878683b36aca5457e22ba909e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 3 13:34:05 2009 -0700
+
+    bug163
+    
+    R=ken
+    OCL=31149
+    CL=31149
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

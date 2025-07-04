@@ -1,0 +1,20 @@
+commit 7e88b866f9576d6f9ddfe0a054da7383bfff54fa
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Nov 3 20:56:21 2022 -0400
+
+    cmd/compile/internal/pgo: use slices for in/out edges
+    
+    Currently in the pprof Graph, a Node's in/out edges are
+    represented as maps, keyed by the source/destination Nodes. For a
+    Node it usually has a very small number of edges, so linear search
+    would be generally faster than map operations. Use slices and
+    linear search instead.
+    
+    Change-Id: I5ab06be0c019373cd3a845b9f3282731372e9c4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447802
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/pgo/graph.go | 43 ++++++++++++++++++++++++-----------
+ 1 file changed, 30 insertions(+), 13 deletions(-)

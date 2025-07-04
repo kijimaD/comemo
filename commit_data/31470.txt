@@ -1,0 +1,30 @@
+commit a93e9f0fad01c0be444d89d1e46d1d357128b4bc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 2 05:35:55 2017 -0700
+
+    cmd/dist: spin up fewer test dir runners
+    
+    5 shards, each of which spins up NumCPU processes,
+    each of which is running at GOMAXPROCS=NumCPU,
+    is too much for one machine. It makes my laptop unusable.
+    
+    It might also be in part responsible for test flakes
+    that require a moderately responsive system,
+    like #18589 (backedge scheduling) and #19276 (locklinear).
+    
+    It's possible that Go should be a better neighbor in general;
+    that's #17969. In the meantime, fix this corner of the world.
+    
+    Builders snapshot the world and run shards on different
+    machines, so keeping sharding high for them is good.
+    
+    This is a partial reversion of CL 18199.
+    
+    Fixes #20141.
+    
+    Change-Id: I123cf9436f4f4da3550372896265c38117b78071
+    Reviewed-on: https://go-review.googlesource.com/42431
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

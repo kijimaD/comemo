@@ -1,0 +1,24 @@
+commit af8aafd570bca4f78b434e7633bf33b6e186931c
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 1 15:03:53 2021 -0400
+
+    go/types: clarify is/underIs semantics and implementation
+    
+    This is a port of CL 358594 to go/types. Some code in conversions.go had
+    to be trivially reorganized to align with types2 -- I'm not sure how
+    go/types diverged from the base.
+    
+    Change-Id: I40ce247bbb3b9d0e87ce88c50e440c12774c0745
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360475
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/builtins.go    |  5 ++++-
+ src/go/types/conversions.go | 18 ++++++++++++------
+ src/go/types/expr.go        |  2 ++
+ src/go/types/infer.go       |  2 +-
+ src/go/types/operand.go     |  3 +++
+ src/go/types/typeparam.go   | 11 +++++++++++
+ src/go/types/typeset.go     | 46 +++++++++++++++++++++++----------------------
+ 7 files changed, 57 insertions(+), 30 deletions(-)

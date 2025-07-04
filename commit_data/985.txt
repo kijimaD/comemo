@@ -1,0 +1,12 @@
+commit 915e809f86dcfc0d4691b6985eee8f58ab5e80ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 14:05:00 2008 -0700
+
+    update golden.out with new type names
+    
+    R=r
+    OCL=18033
+    CL=18033
+
+ test/golden.out | 49 +++++++++++++++++++++++++++----------------------
+ 1 file changed, 27 insertions(+), 22 deletions(-)

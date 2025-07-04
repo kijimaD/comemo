@@ -1,0 +1,20 @@
+commit 7b3ac0ca5d168afda5d5c244eeb79aae021ecbe2
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 18 16:17:12 2024 -0400
+
+    internal/runtime/maps: avoid table lookup on most Iter.Next calls
+    
+    Speeds up iteration by about 3%.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I3406376fb8db87306d52e665fcee1f33cf610f24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/internal/runtime/maps/table.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

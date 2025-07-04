@@ -1,0 +1,16 @@
+commit 2ffdbd7ce495865145961a0c98dee963eb4bcc21
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Oct 12 12:32:03 2015 +1300
+
+    cmd/go, cmd/link: allow -buildmode=pie on linux/ppc64le
+    
+    Change-Id: I0d0abbb9503c3a3c35d846fc0379836b2c483dea
+    Reviewed-on: https://go-review.googlesource.com/15962
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go              |  2 +-
+ src/cmd/go/build.go                | 10 ++++++----
+ src/cmd/link/internal/ppc64/obj.go |  5 +++++
+ 3 files changed, 12 insertions(+), 5 deletions(-)

@@ -1,0 +1,20 @@
+commit 51c34e2f0b51e62ba195a90fa1c1a8d5be83e2dd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 7 20:33:06 2022 +0000
+
+    runtime: remove unused scanSize parameter to gcmarknewobject
+    
+    This was left over from the old pacer, and never removed when the old
+    pacer was removed in Go 1.19.
+    
+    Change-Id: I79e5f0420c6100c66bd06129a68f5bbab7c1ea8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429256
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/malloc.go  | 4 ++--
+ src/runtime/mgcmark.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

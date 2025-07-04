@@ -1,0 +1,12 @@
+commit a9fe3a0ce3ab60f35ee6c558c455df05e4696a04
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Aug 22 23:24:16 2011 -0400
+
+    os: disable Hostname test on OpenBSD
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4901054
+
+ src/pkg/os/os_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

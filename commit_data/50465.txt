@@ -1,0 +1,19 @@
+commit 5bbee7a095435e52322b3a7c1e028b19c22e86e5
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 9 10:49:50 2022 +0700
+
+    reflect: move benchmarks to its own file
+    
+    all_test.go is quite big, so let it contain tests only.
+    
+    Change-Id: I5003db4a8b1e2384ea8470f5e89e1c26d61d10ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429759
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/reflect/all_test.go       | 385 ----------------------------------------
+ src/reflect/benchmark_test.go | 397 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 397 insertions(+), 385 deletions(-)

@@ -1,0 +1,20 @@
+commit e65db59c1214eda0449acff677dc4d311aabed44
+Author: Rahul Chaudhry <rahulchaudhry@chromium.org>
+Date:   Wed Dec 2 13:27:44 2015 -0800
+
+    cmd/go: allow buildmode=c-shared for android/arm64.
+    
+    Also, enable test misc/cgo/testcshared for android/arm64.
+    c/17245 and c/17246 provide the missing pieces for making
+    this test work.
+    
+    "androidtest.bash" now passes on a Nexus 9 (volantis)
+    device running Android build "LMY48T".
+    
+    Change-Id: Icb9fd2d17d97e0f04cb18d0cd91640c80fbd3fb4
+    Reviewed-on: https://go-review.googlesource.com/17333
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 6 +++---
+ src/cmd/go/build.go  | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

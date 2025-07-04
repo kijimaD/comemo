@@ -1,0 +1,14 @@
+commit 81368d9bb9cc503df33d470785edc816a9086cd3
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Jun 6 20:19:16 2012 +0800
+
+    build: restore PATH before "dist banner"
+            Fixes #3699.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/6272048
+
+ src/all.bash | 2 ++
+ src/all.bat  | 2 ++
+ 2 files changed, 4 insertions(+)

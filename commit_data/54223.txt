@@ -1,0 +1,23 @@
+commit 079c0441d548494fd23ec0083b6f22fb128ea52d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Aug 25 15:08:05 2023 +0700
+
+    cmd/compile: un-hide closure func in init function
+    
+    Same as CL 492135, but for init function.
+    
+    Fixes #62277
+    
+    Change-Id: If5ff9bc2ce2a73193b1f7ee5f7f14045d1354f56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522956
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/cgo/internal/testshared/shared_test.go          |  6 ++++++
+ .../testshared/testdata/issue62277/issue62277_test.go   | 16 ++++++++++++++++
+ .../cgo/internal/testshared/testdata/issue62277/p/p.go  | 17 +++++++++++++++++
+ src/cmd/compile/internal/noder/reader.go                |  5 +++++
+ 4 files changed, 44 insertions(+)

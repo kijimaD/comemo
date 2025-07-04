@@ -1,0 +1,14 @@
+commit feb9a146f9d5970937262e011d940c940a531322
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 25 11:39:40 2011 +1000
+
+    doc: mention go/printer instead of container/vector in effective go
+    
+    Fixes #1876.
+    
+    R=golang-dev, bradfitz, gri, r
+    CC=golang-dev
+    https://golang.org/cl/4538093
+
+ doc/effective_go.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

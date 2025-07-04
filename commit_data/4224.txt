@@ -1,0 +1,19 @@
+commit f65427a8be2976c6d4e4e86bcd5fdd7be9d29ed0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Nov 25 18:31:34 2009 +1100
+
+    Initial exp/draw/x11 implementation.
+    
+    This provides an experimental X11 backend for the exp/draw interface.
+    It does not aim to provide a complete implementation of the X11 client protocol.
+    
+    This works for me (Ubuntu Hardy 8.04, GOARCH=386). Your mileage my vary.
+    
+    R=r, rsc, r1
+    CC=golang-dev
+    https://golang.org/cl/156109
+
+ src/pkg/exp/draw/x11/Makefile |  12 +
+ src/pkg/exp/draw/x11/auth.go  | 102 +++++++++
+ src/pkg/exp/draw/x11/conn.go  | 515 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 629 insertions(+)

@@ -1,0 +1,23 @@
+commit 14ade57ab8f2a6b9608fc3cab57957f39caead40
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 23 22:20:55 2021 +0000
+
+    runtime: fix scavenge min fraction constant floor division
+    
+    Currently there's a minor bug where the constant for the min fraction of
+    time spent scavenging is rounded down to zero. I don't think this
+    affects anything in practice because this case is exceedingly rare and
+    extreme, but currently it doesn't properly prevent the pacing parameters
+    from getting out of hand in these extreme cases.
+    
+    Fixes #44036.
+    
+    Change-Id: I7de644ab0ecac33765c337a736482a0966882780
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313249
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/mgcscavenge.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

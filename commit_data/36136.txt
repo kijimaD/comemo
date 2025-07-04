@@ -1,0 +1,14 @@
+commit 011b6ff8d7b121a0d9c6a7dc899591d89dc9712e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 24 14:41:44 2018 -0400
+
+    cmd/go: document go env GOMOD
+    
+    Fixes #26500.
+    
+    Change-Id: I0a00009ce10f7aab3e6e79f7218307c3008422d1
+    Reviewed-on: https://go-review.googlesource.com/125655
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/help/helpdoc.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

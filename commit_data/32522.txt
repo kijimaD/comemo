@@ -1,0 +1,12 @@
+commit 72967551e5a5f16f1afa1b8e5dda3bfa6edebe01
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:25:45 2017 +1000
+
+    cmd/link: move perelocsect into peFile.emitRelocations (no code changed)
+    
+    Change-Id: I807412bd743d544195aaf9d720f81b128b4636b3
+    Reviewed-on: https://go-review.googlesource.com/59421
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 111 +++++++++++++++++++----------------------
+ 1 file changed, 52 insertions(+), 59 deletions(-)

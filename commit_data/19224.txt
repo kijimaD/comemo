@@ -1,0 +1,14 @@
+commit 59d7aa32ca3dd83533f2078a27c17b7babd501b2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 22 21:12:15 2014 -0700
+
+    math/cmpx: change space to tab in the Pow docs for better formatting
+    Godoc makes it look better this way; before, it all ran together into nonsense.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/90400045
+
+ src/pkg/math/cmplx/pow.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

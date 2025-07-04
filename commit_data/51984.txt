@@ -1,0 +1,20 @@
+commit bd5de19b368536574682c45cca9f7864a4eca6d2
+Author: David Barshow <david@datalamb.com>
+Date:   Tue Feb 7 17:30:05 2023 +0000
+
+    cmd/go: mod vendor: fixed checking for vendor directory
+    
+    In our case I was using a "vendor-replace" directory which was incorrectly flagged as being in the vendor directory.
+    
+    Change-Id: I8208243ea8416ee7cb4de30e907bcfc25c2d3f27
+    GitHub-Last-Rev: d183a94d03225ee529c4906a64a289f02eaf7684
+    GitHub-Pull-Request: golang/go#58287
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465036
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/vendor.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

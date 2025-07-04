@@ -1,0 +1,32 @@
+commit ef3a9f2dd410ec1672988a72c72919eab2d58e6c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 13:12:17 2016 -0400
+
+    html/template, text/template: drop defined template list from errors
+    
+    The report in #17414 points out that if you have many many templates,
+    then this is an overwhelming list and just hurts the signal-to-noise ratio of the error.
+    
+    Even the test of the old behavior also supports the idea that this is noise:
+    
+            template: empty: "empty" is an incomplete or empty template; defined templates are: "secondary"
+    
+    The chance that someone mistyped "secondary" as "empty" is slim at best.
+    
+    Similarly, the compiler does not augment an error like 'unknown variable x'
+    by dumping the full list of all the known variables.
+    
+    For all these reasons, drop the list.
+    
+    Fixes #17414.
+    
+    Change-Id: I78f92d2c591df7218385fe723a4abc497913acf8
+    Reviewed-on: https://go-review.googlesource.com/32116
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/html/template/template.go  | 2 +-
+ src/text/template/exec.go      | 2 +-
+ src/text/template/exec_test.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

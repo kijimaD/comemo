@@ -1,0 +1,22 @@
+commit ea7e3e3c0f561d1115d647e3e24ca61d0382e1ac
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 11 14:56:11 2022 -0700
+
+    runtime: align m.procid to 8 bytes on 32-bit systems
+    
+    https://go-review.googlesource.com/c/go/+/383434 started using
+    atomic Load64 on this field, which breaks 32 bit platforms which
+    require 64-bit alignment of uint64s that are passed to atomic operations.
+    
+    Not sure why this doesn't break everywhere, but I saw it break on
+    my laptop during all.bash.
+    
+    Change-Id: Ida27b23068b3cc7208fce3c97b69a464ccf68209
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399754
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/runtime/runtime2.go | 1 +
+ 1 file changed, 1 insertion(+)

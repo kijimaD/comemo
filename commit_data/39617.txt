@@ -1,0 +1,15 @@
+commit 9e1c864afe00b3cfba3e09d7c67fc17526db464a
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri Aug 23 10:05:56 2019 -0600
+
+    doc/go1.13: document fmt's number syntax updates
+    
+    Fixes #32815
+    
+    Change-Id: Ia8ac9943a920a056ba7dbc69c1c70fa188f7aca8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191578
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go1.13.html | 18 ++++++++++++++++++
+ src/fmt/scan.go |  2 +-
+ 2 files changed, 19 insertions(+), 1 deletion(-)

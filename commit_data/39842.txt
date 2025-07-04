@@ -1,0 +1,18 @@
+commit a2cf16d42cd4feb1c25c58097ab05d786119f15e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Sep 9 15:58:46 2019 -0700
+
+    cmd/compile: remove vestigial TDDDFIELD
+    
+    Change-Id: I4a582f8efcf413665a7513c163334fa8d978a7e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194437
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/fmt.go             |  3 --
+ src/cmd/compile/internal/gc/types.go           |  3 --
+ src/cmd/compile/internal/types/etype_string.go | 47 ++++++++++++++++++++++++--
+ src/cmd/compile/internal/types/sizeof_test.go  |  1 -
+ src/cmd/compile/internal/types/type.go         | 24 -------------
+ 5 files changed, 45 insertions(+), 33 deletions(-)

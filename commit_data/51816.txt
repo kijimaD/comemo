@@ -1,0 +1,38 @@
+commit 932d0ae83ea8ce9adb2b23b28788b860447b1f61
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jan 27 21:53:06 2023 +0100
+
+    internal/poll: don't queue port completion entry for udp on windows
+    
+    This CL sets the FILE_SKIP_COMPLETION_PORT_ON_SUCCESS notification mode
+    for all udp and tcp networks.
+    
+    When SetFileCompletionNotificationModes was implemented, back in
+    go 1.2 [1], it was not possible to enable this mode on udp connections
+    because it is buggy on Windows 7 and earlier. The bug was fixed on
+    Windows 8. We can safely enable this mode now, since go 1.21
+    will require Windows 10 or higher.
+    
+    While here, I noticed that this mode is only enabled for tcp, but not
+    for tcp4 nor tcp6. I don't think this restriction makes sense, so I'm
+    lifting it.
+    
+    The performance gains are relevant:
+    
+    name                           old time/op    new time/op    delta
+    ReadWriteMsgUDPAddrPort-12       13.3µs ± 4%    11.2µs ± 8%  -15.90%  (p=0.000 n=10+9)
+    WriteToReadFromUDP-12            14.5µs ±18%    11.4µs ± 4%  -21.35%  (p=0.000 n=10+9)
+    WriteToReadFromUDPAddrPort-12    13.4µs ± 3%    11.0µs ± 2%  -18.00%  (p=0.000 n=10+9)
+    
+    [1] https://codereview.appspot.com/12409044
+    
+    Change-Id: Idf41c35898beceac39d21decb47910f7d8ac247b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463839
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/internal/poll/fd_windows.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

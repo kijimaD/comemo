@@ -1,0 +1,13 @@
+commit cb3754fd434057d402af3f44037fbd08666d42c0
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Nov 9 17:39:36 2010 -0800
+
+    fix error converting result of complex
+    division. resolves issue 1261.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2985043
+
+ src/cmd/gc/walk.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

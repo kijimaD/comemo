@@ -1,0 +1,15 @@
+commit 5f32c8b88bfe5f6e2ba32bb444dbda88ec741024
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 13 16:55:43 2012 -0700
+
+    html/template: fix panic on Clone
+    
+    Fixes #3281
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5819044
+
+ src/pkg/html/template/clone_test.go | 7 +++++++
+ src/pkg/html/template/template.go   | 8 +++++---
+ 2 files changed, 12 insertions(+), 3 deletions(-)

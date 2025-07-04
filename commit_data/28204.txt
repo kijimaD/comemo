@@ -1,0 +1,20 @@
+commit 29272b1e611bf20b706e26757e5d0d872e61adff
+Author: Caio Marcelo de Oliveira Filho <caio.oliveira@intel.com>
+Date:   Mon Sep 5 15:14:55 2016 -0300
+
+    cmd/go: use httpGET helper in bug command
+    
+    Use existing helper function instead of importing "net/http". This
+    allows the go_bootstrap build to not depend on "net/http" package.
+    See cmd/go/http.go for details.
+    
+    Fixes build bootstrap build with all.bash.
+    
+    Change-Id: I2fd0fb01af7774f1690a353af22137680ec78170
+    Reviewed-on: https://go-review.googlesource.com/28531
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/bug.go | 13 ++-----------
+ 1 file changed, 2 insertions(+), 11 deletions(-)

@@ -1,0 +1,15 @@
+commit 9933f6655589b1da9da7f61f04f74d921a2d67bf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 30 18:44:22 2020 -0400
+
+    runtime: remove residual !go115NewMCentralImpl fields
+    
+    Change-Id: I1685721c82be4ac3c854084592e5e0f182b367ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266858
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mcentral.go | 4 ----
+ 1 file changed, 4 deletions(-)

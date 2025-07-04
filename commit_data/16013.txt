@@ -1,0 +1,12 @@
+commit 5851b974a35b59ef46c6c7ba35a2cab095d3bb9d
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Mar 30 15:53:44 2013 +1100
+
+    misc/dashboard/codereview: add Rémy to the list of assignees
+    
+    R=dsymonds, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/8094047
+
+ misc/dashboard/codereview/dashboard/people.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

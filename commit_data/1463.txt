@@ -1,0 +1,14 @@
+commit ba556a881811ed6b619037783fe9f4b5dc3c142f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 12 17:44:10 2009 -0800
+
+    - removed an unnecessary field from AST.Expr nodes
+    
+    R=r
+    OCL=22601
+    CL=22601
+
+ usr/gri/pretty/ast.go     | 17 ++++++++---------
+ usr/gri/pretty/parser.go  | 43 ++++++++++++++++++++++---------------------
+ usr/gri/pretty/printer.go | 16 ++++++++--------
+ 3 files changed, 38 insertions(+), 38 deletions(-)

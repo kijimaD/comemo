@@ -1,0 +1,14 @@
+commit c7519f0daee3289e9877266af21fe69905fd0d9c
+Author: Hana Kim <hakim@google.com>
+Date:   Thu May 31 16:14:04 2018 -0400
+
+    runtime/trace: remove remaining NewContext reference
+    
+    This is a documentation error.
+    
+    Change-Id: I083021f151f7e80a0b9083b98452ae1f5920640d
+    Reviewed-on: https://go-review.googlesource.com/115598
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+
+ src/runtime/trace/trace.go | 43 ++++++++++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 21 deletions(-)

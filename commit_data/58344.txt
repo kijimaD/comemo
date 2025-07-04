@@ -1,0 +1,16 @@
+commit 32e19fc4397142b743646ff8a526d07c126bf89b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Dec 5 12:04:35 2024 -0500
+
+    cmd/compile: document wasmexport directive, update permitted types for wasmimport
+    
+    For #65199, #66984.
+    
+    Change-Id: I9b651a00265fa7d3438d8a73ff04ddca7c4bed99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633776
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/doc.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)

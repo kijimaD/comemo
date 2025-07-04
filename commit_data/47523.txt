@@ -1,0 +1,30 @@
+commit 17b7604ef62316c7ea69e6a07f90282edcf4c874
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 16 19:17:31 2021 -0500
+
+    go/types: match Go 1.17 compiler error messages more closely
+    
+    Introduce a new constant compilerErrorMessages, which is set to false
+    for now, so that we can port types2 error handling more precisely. Use
+    this to (partially) port CL 363436, excluding issue49005.go, which does
+    not exist in go/types (it was added in a previous CL related to compiler
+    error messages, that was not ported). I've also included the bugfix from
+    CL 364034, so that go/types is not broken at this commit.
+    
+    In subsequent CLs I'll catch up with error handling locations in types2
+    that use compiler error messages.
+    
+    Change-Id: I13fd6c43d61b28e0a7a3b0ae8ba785fb8506fbb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364379
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/assignments.go           | 14 +++++++--
+ src/go/types/check.go                 |  4 +++
+ src/go/types/conversions.go           | 15 +++++++--
+ src/go/types/lookup.go                | 58 +++++++++++++++++++++++++++++++++++
+ src/go/types/operand.go               | 40 +++++++++++++++++++-----
+ src/go/types/testdata/check/expr3.src |  2 +-
+ 6 files changed, 118 insertions(+), 15 deletions(-)

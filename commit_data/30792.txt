@@ -1,0 +1,21 @@
+commit c644a76e1f215d4ae2b210e7c9134b2291077ad3
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Wed Mar 22 12:25:44 2017 -0300
+
+    cmd/compile/internal/ppc64, cmd/compile/internal/ssa: Remove OldArch checks
+    
+    Starting in go1.9, the minimum processor requirement for ppc64 is POWER8.
+    Therefore, the checks for OldArch and the code enabled by it are not necessary
+    anymore.
+    
+    Updates #19074
+    
+    Change-Id: I33d6a78b2462c80d57c5dbcba2e13424630afab4
+    Reviewed-on: https://go-review.googlesource.com/38404
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ppc64/ssa.go  | 45 ----------------------------------
+ src/cmd/compile/internal/ssa/config.go |  2 --
+ 2 files changed, 47 deletions(-)

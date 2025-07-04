@@ -1,0 +1,24 @@
+commit 77cd6197d7561ab7ccbf5d892efb6f97d929546a
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Dec 31 20:30:57 2014 -0500
+
+    runtime/cgo: initialize our pthread_create wrapper earlier on openbsd
+    
+    This is a genuine bug exposed by our test for issue 9456: our wrapper
+    for pthread_create is not initialized until we initialize cgo itself,
+    but it is possible that a static constructor could call pthread_create,
+    and in that case, it will be calling a nil function pointer.
+    
+    Fix that by also initializing the sys_pthread_create function pointer
+    inside our pthread_create wrapper function, and use a pthread_once to
+    make sure it is only initialized once.
+    
+    Fix build for openbsd.
+    
+    Change-Id: Ica4da2c21fcaec186fdd3379128ef46f0e767ed7
+    Reviewed-on: https://go-review.googlesource.com/2232
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/cgo/gcc_openbsd_386.c   | 39 ++++++++++++++++++++++++++----------
+ src/runtime/cgo/gcc_openbsd_amd64.c | 40 +++++++++++++++++++++++++++----------
+ 2 files changed, 58 insertions(+), 21 deletions(-)

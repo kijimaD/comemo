@@ -1,0 +1,12 @@
+commit 80c5ef9f3159803990467bd93cb349a50ca0e12f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 4 23:57:08 2011 -0700
+
+    os: fix windows build
+    
+    R=brainman
+    CC=golang-dev
+    https://golang.org/cl/4308047
+
+ src/pkg/os/file_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

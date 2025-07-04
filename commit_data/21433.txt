@@ -1,0 +1,30 @@
+commit 20a6ff7261adecc1ba0dc3f3cd6a29054fdf90b7
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 27 18:29:02 2015 -0500
+
+    runtime: eliminate uses of BP on amd64
+    
+    Any place that clobbers BP in the runtime can potentially interfere
+    with frame pointer unwinding with GOEXPERIMENT=framepointer.  This
+    change eliminates uses of BP in the runtime to address this problem.
+    We have spare registers everywhere this occurs, so there's no downside
+    to eliminating BP.  Where possible, this uses the same new register as
+    the amd64p32 runtime, which doesn't use BP due to restrictions placed
+    on it by NaCL.
+    
+    One nice side effect of this is that it will let perf/VTune unwind the
+    call stack even through a call to systemstack, which will let us get
+    really good call graphs from the garbage collector.
+    
+    Change-Id: I0ffa14cb4dd2b613a7049b8ec59df37c52286212
+    Reviewed-on: https://go-review.googlesource.com/3390
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/asm_amd64.s           | 92 +++++++++++++++++++--------------------
+ src/runtime/sys_dragonfly_amd64.s |  6 +--
+ src/runtime/sys_freebsd_amd64.s   |  6 +--
+ src/runtime/sys_linux_amd64.s     |  6 +--
+ src/runtime/sys_netbsd_amd64.s    |  6 +--
+ src/runtime/sys_openbsd_amd64.s   |  6 +--
+ 6 files changed, 61 insertions(+), 61 deletions(-)

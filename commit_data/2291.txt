@@ -1,0 +1,14 @@
+commit da59dd41c2be2453f0ca9a0967e671adee43e638
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 22:40:08 2009 -0700
+
+    simple logging shim reader and writers
+    
+    R=r
+    DELTA=53  (52 added, 0 deleted, 1 changed)
+    OCL=29295
+    CL=29298
+
+ src/lib/testing/iotest/Makefile  |  3 ++-
+ src/lib/testing/iotest/logger.go | 55 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 1 deletion(-)

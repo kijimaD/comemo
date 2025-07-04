@@ -1,0 +1,20 @@
+commit 85e84a49e45df6523d10da485ac5dd0ef7b74926
+Author: Sebastiaan van Stijn <github@gone.nl>
+Date:   Mon Nov 14 20:29:26 2022 +0000
+
+    crypto/tls: remove unused nonAESGCMAEADCiphers variable
+    
+    It was no longer used since CL 314609
+    
+    Change-Id: Id103b7490a6088a589d76442d3740f8a1453c25d
+    GitHub-Last-Rev: 20a7fe0778fbfcfd789a194456e87dd4a60b655e
+    GitHub-Pull-Request: golang/go#56608
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448277
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/crypto/tls/cipher_suites.go | 8 --------
+ 1 file changed, 8 deletions(-)

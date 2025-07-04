@@ -1,0 +1,16 @@
+commit 93402383eac407108b045bdd70e67aaaaeb0a96c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 17 17:05:47 2015 -0700
+
+    cmd/cgo: more robust detection of clang
+    
+    Fixes #10453.
+    
+    Change-Id: I77470279865d4c954df615d6594c69edf68c28ca
+    Reviewed-on: https://go-review.googlesource.com/9090
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go  | 6 +++++-
+ src/cmd/cgo/main.go | 1 +
+ src/cmd/cgo/out.go  | 2 +-
+ 3 files changed, 7 insertions(+), 2 deletions(-)

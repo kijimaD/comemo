@@ -1,0 +1,14 @@
+commit 00d0f8e3201d1865b7cd1efa031c4dbe4a96dd7e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 9 14:12:18 2012 +1100
+
+    cmd/go: rearrange help for 'go test'
+    Put the 'go test' flags into 'go help test', so 'go help testflags'
+    is about the flags for the compiled test binary.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5641060
+
+ src/cmd/go/test.go | 36 ++++++++++++++++++------------------
+ 1 file changed, 18 insertions(+), 18 deletions(-)

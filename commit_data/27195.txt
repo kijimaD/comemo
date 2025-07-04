@@ -1,0 +1,18 @@
+commit 4618dd8704b868a095a98ee8beaf465578aaec30
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Apr 28 17:19:31 2016 +1000
+
+    image/gif: accept an out-of-bounds transparent color index.
+    
+    This is an error according to the spec, but Firefox and Google Chrome
+    seem OK with this.
+    
+    Fixes #15059.
+    
+    Change-Id: I841cf44e96655e91a2481555f38fbd7055a32202
+    Reviewed-on: https://go-review.googlesource.com/22546
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/gif/reader.go      | 17 ++++++++--
+ src/image/gif/reader_test.go | 78 +++++++++++++++++++++++++++-----------------
+ 2 files changed, 63 insertions(+), 32 deletions(-)

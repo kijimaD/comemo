@@ -1,0 +1,15 @@
+commit 46bff7558ac77a7585d5987fb40cdab39282bfb4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Feb 7 13:32:35 2015 -0800
+
+    net/smtp: document SendMail more
+    
+    Fixes #9776
+    
+    Change-Id: I53741fd970244bbfa6874adcb4f1e3d0e7de386b
+    Reviewed-on: https://go-review.googlesource.com/4162
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/smtp/example_test.go | 24 +++++++++++++++++++++++-
+ src/net/smtp/smtp.go         | 21 ++++++++++++++++++---
+ 2 files changed, 41 insertions(+), 4 deletions(-)

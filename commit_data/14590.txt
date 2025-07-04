@@ -1,0 +1,14 @@
+commit 76de81da507118c1cca4de914bb8d0cf42230d98
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Mon Dec 10 10:59:15 2012 -0500
+
+    encoding/xml: fix typo in Marshal documentation
+    
+    Fixes #4512.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6917043
+
+ src/pkg/encoding/xml/marshal.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

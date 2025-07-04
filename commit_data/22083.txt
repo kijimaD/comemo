@@ -1,0 +1,12 @@
+commit ecd630de6dd2e5285f18c650207b5c84649402db
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Wed Mar 18 08:14:07 2015 +1100
+
+    bufio: fix incorrect comment on Scanner.Scan
+    
+    Change-Id: I216511a4bce431de0a468f618a7a7c4da79e2979
+    Reviewed-on: https://go-review.googlesource.com/7710
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/bufio/scan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit f7e11723e527c1a12e76180e29d52e1fcefce57b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 12 16:38:24 2023 -0400
+
+    cmd/dist: do not use user build cache in versioned trees
+    
+    There is no guarantee that the user build cache will have
+    correct data if we are using a versioned build (with a VERSION file),
+    because that overrides the use of tool build IDs for staleness.
+    An earlier build might have run with a buggy compiler, and we don't
+    want those files lying around.
+    
+    Change-Id: I831956911162ccbd0b4d943c305b3537918fe119
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502699
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

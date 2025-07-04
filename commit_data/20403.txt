@@ -1,0 +1,22 @@
+commit a7c6d89166fd7bf6c9af6013cbfaa21971ba28f0
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 12 07:36:23 2014 -0400
+
+    runtime: tell the truth about BitVector type
+    
+    Dmitriy changed all the execution to interpret the BitVector
+    as an array of bytes. Update the declaration and generation
+    of the bitmaps to match, to avoid problems on big-endian
+    machines.
+    
+    LGTM=khr
+    R=khr
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/140570044
+
+ src/cmd/gc/plive.c     |  6 +++++-
+ src/runtime/heapdump.c | 10 +++++-----
+ src/runtime/malloc.h   |  4 ++--
+ src/runtime/mgc0.c     | 20 ++++++++++----------
+ src/runtime/stack.c    |  6 +++---
+ 5 files changed, 25 insertions(+), 21 deletions(-)

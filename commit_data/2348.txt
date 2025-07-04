@@ -1,0 +1,15 @@
+commit be63b6dc4428e0bba7ba4da56942d822a47ef746
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat May 30 17:06:51 2009 -0700
+
+    bug 158
+    
+    R=r
+    OCL=29646
+    CL=29646
+
+ src/cmd/gc/swt.c                   | 14 +++++++++++---
+ test/bugs/bug157.go                |  4 ++--
+ test/{bugs => fixedbugs}/bug158.go |  2 +-
+ test/golden.out                    |  4 ----
+ 4 files changed, 14 insertions(+), 10 deletions(-)

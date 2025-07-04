@@ -1,0 +1,52 @@
+commit f82956b85bf7087b79b006018829423166b12afc
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 24 11:53:34 2019 -0400
+
+    runtime: make m.libcallsp check in shrinkstack panic
+    
+    Currently, shrinkstack will not shrink a stack on Windows if
+    gp.m.libcallsp != 0. In general, we can't shrink stacks in syscalls
+    because the syscall may hold pointers into the stack, and in principle
+    this is supposed to be preventing that for libcall-based syscalls
+    (which are direct syscalls from the runtime). But this test is
+    actually broken and has been for a long time. That turns out to be
+    okay because it also appears it's not necessary.
+    
+    This test is racy. g.m points to whatever M the G was last running on,
+    even if the G is in a blocked state, and that M could be doing
+    anything, including making libcalls. Hence, observing that libcallsp
+    == 0 at one moment in shrinkstack is no guarantee that it won't become
+    non-zero while we're shrinking the stack, and vice-versa.
+    
+    It's also weird that this check is only performed on Windows, given
+    that we now use libcalls on macOS, Solaris, and AIX.
+    
+    This check was added when stack shrinking was first implemented in CL
+    69580044. The history of that CL (though not the final version)
+    suggests this was necessary for libcalls that happened on Go user
+    stacks, which we never do now because of the limited stack space.
+    
+    It could also be defending against user stack pointers passed to
+    libcall system calls from blocked Gs. But the runtime isn't allowed to
+    keep pointers into the user stack for blocked Gs on any OS, so it's
+    not clear this would be of any value.
+    
+    Hence, this checks seems to be simply unnecessary.
+    
+    Rather than simply remove it, this CL makes it defensive. We can't do
+    anything about blocked Gs, since it doesn't even make sense to look at
+    their M, but if a G tries to shrink its own stack while in a libcall,
+    that indicates a bug in the libcall code. This CL makes shrinkstack
+    panic in this case.
+    
+    For #10958, #24543, since those are going to rearrange how we decide
+    that it's safe to shrink a stack.
+    
+    Change-Id: Ia865e1f6340cff26637f8d513970f9ebb4735c6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/173724
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/stack.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

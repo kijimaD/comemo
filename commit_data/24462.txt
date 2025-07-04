@@ -1,0 +1,20 @@
+commit bf3bf092d1ae9b2b693b0326dcf36cf773853482
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 7 07:24:20 2015 -0700
+
+    debug/gosym: clean up and modernize pclntab_test
+    
+    The self tests do not need to build the binary; they won't read it.  The
+    self tests should work on any ELF system.
+    
+    Use t.Skip instead of panic.  Use internal/testenv.  Don't worry about a
+    space in the temporary directory name.
+    
+    Change-Id: I66ef0af90520d330820afa7b6c6b3a132ab27454
+    Reviewed-on: https://go-review.googlesource.com/15495
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/debug/gosym/pclntab_test.go | 48 ++++++++++++++++++-----------------------
+ 1 file changed, 21 insertions(+), 27 deletions(-)

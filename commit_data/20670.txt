@@ -1,0 +1,14 @@
+commit 94bdf13497f8a72673d71cc4d4c1a6e05a35b2dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 8 00:03:50 2014 -0400
+
+    runtime: clear Defer.fn before removing from the G.defer list
+    
+    Should fix the remaining 'invalid heap pointer' build failures.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/152360043
+
+ src/runtime/panic.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

@@ -1,0 +1,18 @@
+commit 82cbcb0dd5437db1fd2f51d1ff81a38670f7a684
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jul 11 09:41:08 2012 -0700
+
+    website: various html fixes
+    
+    Fixes #3424.
+    
+    R=fullung, adg
+    CC=golang-dev
+    https://golang.org/cl/6343088
+
+ doc/docs.html          | 4 ++--
+ doc/go_faq.html        | 2 +-
+ doc/reference.html     | 4 ++--
+ lib/godoc/godoc.html   | 2 +-
+ lib/godoc/package.html | 4 ++--
+ 5 files changed, 8 insertions(+), 8 deletions(-)

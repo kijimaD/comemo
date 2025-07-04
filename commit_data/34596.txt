@@ -1,0 +1,18 @@
+commit b8d26225c1984286a0c677993047748698ef301b
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Mar 14 10:18:40 2018 +0000
+
+    cmd/asm: move manual tests out of generated file
+    
+    Thanks to Iskander Sharipov for spotting this in an earlier CL of mine.
+    
+    Change-Id: Idf45ad266205ff83985367cb38f585badfbed151
+    Reviewed-on: https://go-review.googlesource.com/100535
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/amd64enc.s       | 2 --
+ src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 3 +++
+ 2 files changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit b9b29ce2ba9e45de8372d81292b52f8623237220
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 3 14:25:35 2012 +1000
+
+    os: test that IsExist and IsNotExist handle PathError and LinkError
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6442080
+
+ src/pkg/os/error_plan9.go   | 24 +++++++++++++++---------
+ src/pkg/os/error_posix.go   | 21 ++++++++++++++++++---
+ src/pkg/os/error_test.go    | 27 +++++++++++++++++++++++++++
+ src/pkg/os/error_windows.go | 22 +++++++++++++++++-----
+ 4 files changed, 77 insertions(+), 17 deletions(-)

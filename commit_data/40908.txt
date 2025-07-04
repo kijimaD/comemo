@@ -1,0 +1,21 @@
+commit 4e3d58009a1ba08e41dd1ec33691120a76a06af9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 26 21:16:43 2019 +0000
+
+    runtime: reset scavenge address in scavengeAll
+    
+    Currently scavengeAll (which is called by debug.FreeOSMemory) doesn't
+    reset the scavenge address before scavenging, meaning it could miss
+    large portions of the heap. Fix this by reseting the address before
+    scavenging, which will ensure it is able to walk over the entire heap.
+    
+    Fixes #35858.
+    
+    Change-Id: I4a7408050b8e134318ff94428f98cb96a1795aa9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208960
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mheap.go | 2 ++
+ 1 file changed, 2 insertions(+)

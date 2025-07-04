@@ -1,0 +1,16 @@
+commit 65ece708120b9a4a95c236cc69f061c7bf5c51b4
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 16 10:46:29 2011 -0800
+
+    test/bench: update timings for new GC
+    Some significant improvements; e.g. pidigits goes from 8.33 to 6.37
+    
+    Also add gccgo for regex-dna.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4160056
+
+ test/bench/timing.log | 82 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/timing.sh  |  3 +-
+ 2 files changed, 84 insertions(+), 1 deletion(-)

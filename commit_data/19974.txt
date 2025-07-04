@@ -1,0 +1,15 @@
+commit b5674a2b728d174bbd30be8e655b003528056d9f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Mon Aug 11 17:11:31 2014 -0400
+
+    cmd/8g: fix build
+    
+    Fixes #8510.
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/129720043
+
+ src/cmd/8g/peep.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,31 @@
+commit a09e1de0ea7fdc30f3761d12fe52248946c08205
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Sep 16 16:46:19 2016 -0700
+
+    net/http: document how Request.Cookie deals with duplicate cookies
+    
+    RFC 6265, section 4.2.2 says:
+    <<<
+    Although cookies are serialized linearly in the Cookie header,
+    servers SHOULD NOT rely upon the serialization order.  In particular,
+    if the Cookie header contains two cookies with the same name (e.g.,
+    that were set with different Path or Domain attributes), servers
+    SHOULD NOT rely upon the order in which these cookies appear in the
+    header.
+    >>>
+    
+    This statement seems to indicate that cookies should conceptually
+    be thought of as a map of keys to sets of values (map[key][]value).
+    However, in practice, everyone pretty much treats cookies as a
+    map[key]value and the API for Request.Cookie seems to indicate that.
+    
+    We should update the documentation for Request.Cookie to warn the
+    user what happens when there is are multiple cookies with the same
+    key. I deliberately did not want to say *which* cookie is returned.
+    
+    Change-Id: Id3e0e24b2b14ca2d9ea8b13f82ba739edaa71cf0
+    Reviewed-on: https://go-review.googlesource.com/29364
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go | 2 ++
+ 1 file changed, 2 insertions(+)

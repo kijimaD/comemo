@@ -1,0 +1,20 @@
+commit 2d5d4a1b41743ce84a8cc08562d36d27a0a42e19
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 20 15:42:14 2009 -0700
+
+    reflect bug: NewZeroValue was refusing to create slices.
+    as far as I can tell there's no reason not to.
+    
+    the Nillable test was succeeding because NewZeroValue
+    returned the nil interface value and the type guard
+    was letting it through.  the only change in the test is
+    more detail in the print.
+    
+    R=r
+    DELTA=8  (0 added, 7 deleted, 1 changed)
+    OCL=29124
+    CL=29126
+
+ src/lib/reflect/all_test.go | 2 +-
+ src/lib/reflect/value.go    | 7 -------
+ 2 files changed, 1 insertion(+), 8 deletions(-)

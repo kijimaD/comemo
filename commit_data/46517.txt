@@ -1,0 +1,19 @@
+commit 9cbdc1d48f75188f6816259e5f6cbd9ae8458bf9
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 17 13:38:41 2021 -0500
+
+    internal/abi: define PPC64 register ABI constants
+    
+    Add the PPC64 register ABI constants, and allow
+    GOEXPERIMENT regabi values to be set for PPC64.
+    
+    Change-Id: I1c9562ae6669c604db69a7b8ad935d1bc117c899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343870
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/internal/abi/abi_ppc64x.go | 21 +++++++++++++++++++++
+ src/internal/buildcfg/exp.go   |  4 ++--
+ 2 files changed, 23 insertions(+), 2 deletions(-)

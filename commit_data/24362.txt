@@ -1,0 +1,20 @@
+commit 8560ead38a78ba9d8e3c482014654023881753e3
+Author: Francisco Claude <fclaude@recoded.cl>
+Date:   Wed Sep 16 12:56:06 2015 -0300
+
+    multipart: fixes problem parsing mime/multipart of certain lengths
+    
+    When parsing the multipart data, if the delimiter appears but doesn't
+    finish with -- or \n or \r\n, it assumes the data can be consumed. This
+    is incorrect when the peeking buffer finishes with --delimiter-
+    
+    Fixes #12662
+    
+    Change-Id: I329556a9a206407c0958289bf7a9009229120bb9
+    Reviewed-on: https://go-review.googlesource.com/14652
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/multipart/multipart.go      | 16 +++++++++---
+ src/mime/multipart/multipart_test.go | 48 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 3 deletions(-)

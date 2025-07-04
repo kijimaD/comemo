@@ -1,0 +1,13 @@
+commit 2e688e1ba0af4c1830414807bce0788155985b64
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 13:15:53 2010 -0800
+
+    A+C: add Icarus Sparry (individual CLA)
+    
+    R=gri
+    CC=golang-dev, icarus
+    https://golang.org/cl/194090
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,13 @@
+commit 05348ab0c84a7e2c76864a156993ac7f4ed092cd
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 7 12:19:36 2011 +0000
+
+    image/gif: fix buglet in graphics extension.
+    need to ReadFull, not Read, to get extension data.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4576043
+
+ src/pkg/image/gif/reader.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

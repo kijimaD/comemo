@@ -1,0 +1,28 @@
+commit 193d5141318d65cea310d995258288bd000d734c
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Thu May 27 10:44:57 2021 +0200
+
+    net/http: correct Client.Do doc about context cancelation
+    
+    The documentation of the Client.Do method and Get function incorrectly
+    stated that, in case of context cancelation, the returned url.Error
+    Timeout method returns true.
+    
+    Update the documentation to correctly match the implementation.
+    See also CL 200798 that, due to an oversight, corrected only the
+    documentation of the Client.Get method.
+    
+    Remove a TODO note added in CL 125575 (net/http: document that Client
+    methods always return *url.Error), since it is no longer applicable
+    after CL 200798 (net/http: fix and lock-in Client.Do docs on request
+    cancelation).
+    
+    Fixes #46402
+    
+    Change-Id: Ied2ee971ba22b61777762dbb19f16e08686634ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323089
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+
+ src/net/http/client.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

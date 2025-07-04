@@ -1,0 +1,20 @@
+commit 3dd509d23d2118c3b4eb093707e184c1a1d330d6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Nov 27 10:47:02 2018 +0100
+
+    lib/time: update tzdata to 2018g
+    
+    Now that the tree has been frozen for some time, update the tzdata
+    database to version 2018g (released 2018-10-26) for Go 1.12.
+    
+    Updates #22487
+    
+    Change-Id: I9e82bcdaef28d308643c08c9fd3472e4c14a196e
+    Reviewed-on: https://go-review.googlesource.com/c/151299
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 365101 -> 363811 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

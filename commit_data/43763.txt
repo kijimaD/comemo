@@ -1,0 +1,16 @@
+commit 8badef4cf64b5ace52b3e76b40f4702363a93b8a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sun Nov 8 21:03:18 2020 -0500
+
+    doc/articles/race_detector.html: add darwin/arm64
+    
+    Updates #38485.
+    
+    Change-Id: I46f515973c0a31d7c3e0e05ce006121c60c4041e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268497
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/articles/race_detector.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

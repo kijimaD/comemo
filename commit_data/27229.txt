@@ -1,0 +1,19 @@
+commit 3b0b30727ca6caeddcc6b49bc97960826b9f15d1
+Author: Cherry Zhang <lunaria21@gmail.com>
+Date:   Wed Apr 27 22:18:14 2016 -0400
+
+    cmd/internal/obj/mips, cmd/link: add support TLS relocation for mips64x
+    
+    a new relocation R_ADDRMIPSTLS is added, which resolves to 16-bit offset
+    of a TLS address on mips64x.
+    
+    Change-Id: Ic60d0e1ba49ff1c433cead242f5884677ab227a5
+    Reviewed-on: https://go-review.googlesource.com/19804
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/obj/link.go         |  3 +++
+ src/cmd/internal/obj/mips/a.out.go   |  2 ++
+ src/cmd/internal/obj/mips/anames0.go |  2 ++
+ src/cmd/internal/obj/mips/asm0.go    | 52 ++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/mips64/asm.go  | 16 ++++++++++-
+ 5 files changed, 74 insertions(+), 1 deletion(-)

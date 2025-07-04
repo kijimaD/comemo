@@ -1,0 +1,19 @@
+commit f6f27bfb97b8dcaa2350829dd043d7c5a5f341ab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 31 11:38:37 2018 -0700
+
+    cmd/compile/internal/gc: more direct noder.nod implementation (cleanup)
+    
+    Also, renamed
+    
+    - noder.lineno -> noder.setlineno (because that's what it does)
+    - noder.setlineno -> noder.pos    (and return the src.XPos)
+    
+    Change-Id: I5d3442cf2af97028afcab028290152ce8d062927
+    Reviewed-on: https://go-review.googlesource.com/c/146317
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/dcl.go     |  8 +---
+ src/cmd/compile/internal/gc/noder.go   | 68 +++++++++++++++++-----------------
+ 3 files changed, 35 insertions(+), 43 deletions(-)

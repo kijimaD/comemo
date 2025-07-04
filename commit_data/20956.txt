@@ -1,0 +1,15 @@
+commit 69f24cfa14ba982e0118e240021f0e91f8efe937
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 11 09:44:54 2014 +1100
+
+    doc: update README.md and CONTRIBUTING.md in response to review comments
+    
+    I didn't 'add' these files before my final mail.
+    
+    Change-Id: Id6f25629638e58421a3dee7632aec38aad9b1970
+    Reviewed-on: https://go-review.googlesource.com/1340
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ CONTRIBUTING.md |  2 +-
+ README.md       | 13 ++++++++-----
+ 2 files changed, 9 insertions(+), 6 deletions(-)

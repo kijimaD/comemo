@@ -1,0 +1,14 @@
+commit 1092257f7e88e623da5528aef8dfbf51efc2835b
+Author: Emmanuel Odeke <emm.odeke@gmail.com>
+Date:   Tue Dec 8 03:10:45 2015 -0700
+
+    net/http: zeroLengthPostAndResponse test now in http2 mode
+    
+    Change-Id: I282a399657c71f7b6406fcdde8afc82a13bdfe5f
+    Reviewed-on: https://go-review.googlesource.com/17530
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)

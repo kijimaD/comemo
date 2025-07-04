@@ -1,0 +1,24 @@
+commit b323709a5cbac882bf945b0f9c08aee351e1ce4b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 13 09:57:17 2018 -0700
+
+    cmd/go: make TestNewReleaseRebuildsStalePackagesInGOPATH pass again
+    
+    The test TestNewReleaseRebuildsStalePackagesInGOPATH is not run in
+    short mode, so people tend to not notice when it fails. It was failing
+    due to the build cache. Make it pass again by 1) changing it to modify
+    the package in a way visible to the compiler, so that the change is
+    not hidden by caching; 2) accepting "not installed but available in
+    build cache" as always being a valid reason for a stale package, as go
+    list does not try to figure out an underlying reason for why a package
+    is stale when it finds it in the build cache but not installed.
+    
+    Updates #24436
+    
+    Change-Id: Iaeaa298f153451ec913a653dd4e6da79a33055bb
+    Reviewed-on: https://go-review.googlesource.com/123815
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)

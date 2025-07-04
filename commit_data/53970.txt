@@ -1,0 +1,24 @@
+commit bf2a6d1957915530c73bbc8c863bb29da6c2714e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 9 15:49:48 2023 -0700
+
+    cmd/compile: ensure write barrier branches get marked uninterruptible
+    
+    The branch itself can't be marked, so we ensure we mark the last
+    ssa.Value in the block as uninterruptible, because that's where the
+    branch ends up getting its uninterruptibility from.
+    
+    This is somewhat conservative, as we're marking an instruction as
+    uninterruptible that doesn't need to be. But it is an easy fix.
+    
+    TODO: figure out a test
+    
+    Change-Id: Icd314f0bbdce8f80019bafb9e861baca4e7ecbb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518055
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/liveness/plive.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

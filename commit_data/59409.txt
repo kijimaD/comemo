@@ -1,0 +1,15 @@
+commit f0d736ded081b33b92524050b451a820f67c2a16
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon Apr 28 12:55:44 2025 -0400
+
+    pkgbits: improve documentation in reloc.go
+    
+    Change-Id: I71cc0db153c559d4c5b48d1d744daf16deffe6d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668536
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/pkgbits/reloc.go | 43 ++++++++++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 21 deletions(-)

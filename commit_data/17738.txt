@@ -1,0 +1,15 @@
+commit c4579635cf6aafdb5db231058dd0aedee14fe0ee
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 3 10:40:42 2013 -0700
+
+    sync/atomic: explain how to subtract an unsigned constant
+    Explain for those unfamiliar with twos-complement arithmetic how to
+    implement negation of signed positive constant.
+    Fixes #6408.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/14267044
+
+ src/pkg/sync/atomic/doc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

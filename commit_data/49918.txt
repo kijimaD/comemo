@@ -1,0 +1,21 @@
+commit 68005592b38027490a08972f13269406b2556a07
+Author: Changkun Ou <hi@changkun.de>
+Date:   Thu May 19 11:57:50 2022 +0200
+
+    strings, bytes: add CutPrefix and CutSuffix
+    
+    Fixes #42537
+    
+    Change-Id: Ie03c2614ffee30ebe707acad6b9f6c28fb134a45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407176
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Changkun Ou <mail@changkun.de>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/next/42537.txt          |  4 ++++
+ src/bytes/bytes.go          | 26 ++++++++++++++++++++++++++
+ src/bytes/bytes_test.go     | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings.go      | 22 ++++++++++++++++++++++
+ src/strings/strings_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 136 insertions(+)

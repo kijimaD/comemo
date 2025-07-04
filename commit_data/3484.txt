@@ -1,0 +1,14 @@
+commit d8b461dfcac1878c2aff4ff78e0209dd5ccdff75
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 9 00:39:32 2009 -0700
+
+    rewrite errchk in perl for speed (compared to bash)
+    
+    R=iant
+    DELTA=125  (51 added, 53 deleted, 21 changed)
+    OCL=35508
+    CL=35511
+
+ test/assign.go |   8 ++--
+ test/errchk    | 126 ++++++++++++++++++++++++++++-----------------------------
+ 2 files changed, 66 insertions(+), 68 deletions(-)

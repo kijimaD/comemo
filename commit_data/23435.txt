@@ -1,0 +1,16 @@
+commit 1a040c923035fbab613ef9f37422e91ac01ff911
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 17 18:03:16 2015 -0700
+
+    cmd/cgo: static variables in the preamble may not be referenced
+    
+    This is a documentation fix that reflects the current reality.
+    
+    Fixes #9673.
+    
+    Change-Id: Ie436b277dfd1b68b13c67813d29c238d2c23b820
+    Reviewed-on: https://go-review.googlesource.com/11221
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/cgo/doc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

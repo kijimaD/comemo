@@ -1,0 +1,58 @@
+commit ef805fe3a06c251903b3d634d1e6dd3d15d3245f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 29 11:50:40 2013 -0400
+
+    os: do not return Lstat errors from Readdir
+    
+    This CL restores the Go 1.1.2 semantics for os.File's Readdir method.
+    
+    The code in Go 1.1.2 was rewritten mainly because it looked buggy.
+    This new version attempts to be clearer but still provide the 1.1.2 results.
+    
+    The important diff is not this CL's version against tip but this CL's version
+    against Go 1.1.2.
+    
+    Go 1.1.2:
+    
+            names, err := f.Readdirnames(n)
+            fi = make([]FileInfo, len(names))
+            for i, filename := range names {
+                    fip, err := Lstat(dirname + filename)
+                    if err == nil {
+                            fi[i] = fip
+                    } else {
+                            fi[i] = &fileStat{name: filename}
+                    }
+            }
+            return fi, err
+    
+    This CL:
+    
+            names, err := f.Readdirnames(n)
+            fi = make([]FileInfo, len(names))
+            for i, filename := range names {
+                    fip, lerr := lstat(dirname + filename)
+                    if lerr != nil {
+                            fi[i] = &fileStat{name: filename}
+                            continue
+                    }
+                    fi[i] = fip
+            }
+            return fi, err
+    
+    The changes from Go 1.1.2 are stylistic, not semantic:
+    1. Use lstat instead of Lstat, for testing (done before this CL).
+    2. Make error handling in loop body look more like an error case.
+    3. Use separate error variable name in loop body, to be clear
+       we are not trying to influence the final return result.
+    
+    Fixes #6656.
+    Fixes #6680.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/18870043
+
+ src/pkg/os/file_unix.go    | 9 +++------
+ src/pkg/os/os_unix_test.go | 4 ++--
+ 2 files changed, 5 insertions(+), 8 deletions(-)

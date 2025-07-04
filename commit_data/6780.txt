@@ -1,0 +1,15 @@
+commit b1fd0860df0683ebe94267a78020864b26b44d7a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 19 14:05:12 2010 -0800
+
+    godoc: use correct time stamp to indicate accuracy of search result
+    
+    - compare against fsModified to check if index is out of date
+    - don't change fsModified if there are no user-mapped file systems
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/3213041
+
+ src/cmd/godoc/godoc.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

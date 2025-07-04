@@ -1,0 +1,12 @@
+commit 4f8a000e1735bac3db06d61fe9e78a649d381378
+Author: Timo Savola <timo.savola@gmail.com>
+Date:   Fri Feb 19 18:40:09 2010 -0800
+
+    websocket: fix binary frame size decoding
+    
+    R=ukai, rsc
+    CC=golang-dev
+    https://golang.org/cl/166074
+
+ src/pkg/websocket/websocket.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

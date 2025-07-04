@@ -1,0 +1,39 @@
+commit 5a20b4a6a9dcf26a402edfe352aa1e8564f2fb01
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 13 14:45:36 2013 +0400
+
+    sync: faster Cond
+    The new version does not require any memory allocations and is 30-50% faster.
+    Also detect and painc if Cond is copied after first.
+    
+    benchmark            old ns/op    new ns/op    delta
+    BenchmarkCond1             317          195  -38.49%
+    BenchmarkCond1-2           875          607  -30.63%
+    BenchmarkCond1-4          1116          548  -50.90%
+    BenchmarkCond1-8          1013          613  -39.49%
+    BenchmarkCond1-16          983          450  -54.22%
+    BenchmarkCond2             559          352  -37.03%
+    BenchmarkCond2-2          1916         1378  -28.08%
+    BenchmarkCond2-4          1518         1322  -12.91%
+    BenchmarkCond2-8          2313         1291  -44.19%
+    BenchmarkCond2-16         1885         1078  -42.81%
+    BenchmarkCond4            1070          614  -42.62%
+    BenchmarkCond4-2          4899         3047  -37.80%
+    BenchmarkCond4-4          3813         3006  -21.16%
+    BenchmarkCond4-8          3605         3045  -15.53%
+    BenchmarkCond4-16         4148         2637  -36.43%
+    BenchmarkCond8            2086         1264  -39.41%
+    BenchmarkCond8-2          9961         6736  -32.38%
+    BenchmarkCond8-4          8135         7689   -5.48%
+    BenchmarkCond8-8          9623         7517  -21.89%
+    BenchmarkCond8-16        11661         8093  -30.60%
+    
+    R=sougou, rsc, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/11573043
+
+ src/pkg/runtime/sema.goc  | 111 +++++++++++++++++++++++++++++++++++----
+ src/pkg/sync/cond.go      | 113 ++++++++++++++++++----------------------
+ src/pkg/sync/cond_test.go | 129 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/sync/runtime.go   |  18 +++++++
+ 4 files changed, 297 insertions(+), 74 deletions(-)

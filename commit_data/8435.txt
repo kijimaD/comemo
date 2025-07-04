@@ -1,0 +1,13 @@
+commit bda36cf3abbba9ce5163404b00cf55f192f59c21
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 18 11:34:19 2011 -0700
+
+    fmt: fix minor documentation nits
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4556041
+
+ src/pkg/fmt/doc.go   | 2 +-
+ src/pkg/fmt/print.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

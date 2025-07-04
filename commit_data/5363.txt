@@ -1,0 +1,14 @@
+commit 0e8384af653e40f47dcfdb79c65f81586c9d7ee9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 27 10:46:37 2010 -0700
+
+    json: streaming
+    
+    R=r, cw
+    CC=golang-dev
+    https://golang.org/cl/952041
+
+ src/pkg/json/Makefile       |   1 +
+ src/pkg/json/stream.go      | 185 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/json/stream_test.go | 122 +++++++++++++++++++++++++++++
+ 3 files changed, 308 insertions(+)

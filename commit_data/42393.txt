@@ -1,0 +1,14 @@
+commit 828bb0c123af11d21c82eb87b64dfa9af24858c7
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sun May 24 19:16:03 2020 +0200
+
+    syscall/js: improve documentation of Func.Release
+    
+    Fixes #38152
+    
+    Change-Id: I807f49e23cc33e1c9b64029c7504b5a1f81a6bab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235138
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/syscall/js/func.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

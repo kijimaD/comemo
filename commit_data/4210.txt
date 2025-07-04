@@ -1,0 +1,12 @@
+commit 7c9acae2f16891a1a210400a0b7b4b76783ebebd
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 24 13:21:14 2009 -0800
+
+    godoc: plug file descriptor leak
+    
+    R=gri
+    CC=r
+    https://golang.org/cl/157149
+
+ src/cmd/godoc/godoc.go | 1 +
+ 1 file changed, 1 insertion(+)

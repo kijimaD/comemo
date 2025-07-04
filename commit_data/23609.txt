@@ -1,0 +1,23 @@
+commit 143822585e32449860e624cace9d2e521deee62e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jul 7 13:19:44 2015 -0600
+
+    net/http: revert overly-strict part of earlier smuggling defense
+    
+    The recent https://golang.org/cl/11810 is reportedly a bit too
+    aggressive.
+    
+    Apparently some HTTP requests in the wild do contain both a
+    Transfer-Encoding along with a bogus Content-Length. Instead of
+    returning a 400 Bad Request error, we should just ignore the
+    Content-Length like we did before.
+    
+    Change-Id: I0001be90d09f8293a34f04691f608342875ff5c4
+    Reviewed-on: https://go-review.googlesource.com/11962
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/readrequest_test.go | 35 ++++++++++++++++++++++++++++++-----
+ src/net/http/transfer.go         | 21 ++++++++++++++-------
+ 2 files changed, 44 insertions(+), 12 deletions(-)

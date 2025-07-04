@@ -1,0 +1,19 @@
+commit 8d68b388d4d1debec8d349adac58dd9f1cb03d25
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 28 19:53:20 2022 +0000
+
+    runtime: flush each idle P's page cache at the end of each GC cycle
+    
+    Currently pages may linger in an idle P's page cache, hiding the memory
+    from the scavenger precisely when it's useful to return memory to the OS
+    and reduce the application's footprint.
+    
+    Change-Id: I49fbcd806b6c66991d1ca87949f76a9f06708e70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453622
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgc.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

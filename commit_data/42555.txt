@@ -1,0 +1,22 @@
+commit 3e95c5b0a100595105972a70dfcfa0856c91cb38
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Jun 23 15:04:46 2020 -0400
+
+    crypto/x509: update bundled iOS roots and rewrite generator
+    
+    Switched the generator to using the open source releases of the root
+    store rather than HTML parsing, while trying to emulate the sorting
+    algorithm of the table to reduce churn.
+    
+    Updates #38843
+    
+    Change-Id: I78608d245eabc2a35c2f98635ed5f1a531ad2ba8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239557
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/crypto/x509/root.go                  |    2 +
+ src/crypto/x509/root_darwin_arm64.go     | 2137 +++++++++++++++++++++---------
+ src/crypto/x509/root_darwin_arm64_gen.go |  216 ++-
+ 3 files changed, 1646 insertions(+), 709 deletions(-)

@@ -1,0 +1,36 @@
+commit 3b040b7e8088ad2c02e413a4abf7effcd62373d0
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Jun 26 20:07:14 2019 -0400
+
+    cmd/doc: provide working directory to build.Import calls
+    
+    The current cmd/doc implementation uses go/build.Import in a few
+    places to check whether a package is findable and importable.
+    go/build has limited support for finding packages in modules,
+    but to do so, build.Import requires knowing the source directory
+    to use when performing the lookup (so it can find the go.mod file).
+    Otherwise, it only looks inside the GOPATH workspace.
+    
+    Start passing the current working directory to build.Import calls,
+    so that it can correctly look for packages in modules when in cmd/doc
+    is executed in module mode.
+    
+    Before this change, cmd/doc in module mode could mistakenly find and
+    use a package in the GOPATH workspace, instead of the current module.
+    
+    Since the result of os.Getwd is needed in even more places, assign it
+    to a local variable in parseArgs now.
+    
+    Fixes #28992
+    Updates #26504
+    
+    Change-Id: I7571618e18420d2d3b3890cc69ade2d97b1962bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183991
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/doc/doc_test.go                |  7 +++++--
+ src/cmd/doc/main.go                    | 25 ++++++++++---------------
+ src/cmd/go/testdata/script/mod_doc.txt | 27 +++++++++++++++++++++++++--
+ 3 files changed, 40 insertions(+), 19 deletions(-)

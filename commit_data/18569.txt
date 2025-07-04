@@ -1,0 +1,20 @@
+commit 8efb5e7d638684bcfc5e1aed1b352886b48f421b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 19 14:33:11 2014 -0500
+
+    cmd/addr2line: reimplement in Go
+    
+    We never updated libmach for the new object file format,
+    so it the existing 'go tool addr2line' is broken.
+    Reimplement in Go to fix.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/66020043
+
+ src/cmd/addr2line/main.c  |  90 ----------------------------
+ src/cmd/addr2line/main.go | 147 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/dist/build.c      |   2 -
+ src/cmd/go/pkg.go         |  15 ++---
+ 4 files changed, 155 insertions(+), 99 deletions(-)

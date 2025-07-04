@@ -1,0 +1,23 @@
+commit 77f0bdce07c1abc8b9bea9102cd49de20864cab1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 28 23:29:34 2011 -0400
+
+    gc: fix arm build
+    
+    Escape analysis was incorrectly assuming that
+    functions without bodies don't leak their
+    parameters.  This meant that sync/atomic's
+    TestAddInt64 was allocating x on its stack,
+    and then x was not properly aligned for use
+    with the atomic 64-bit instructions.  Obviously
+    we should figure out the alignment story on 5g
+    too, but this fix is correct and should restore the
+    build to 'ok'.
+    
+    TBR=lvd
+    CC=golang-dev
+    https://golang.org/cl/4964047
+
+ src/cmd/gc/esc.c | 6 +++++-
+ test/escape2.go  | 6 ++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

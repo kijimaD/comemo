@@ -1,0 +1,22 @@
+commit 178089056ea9dae2c2807f0b5b475c2caf09fde3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 3 09:53:00 2009 -0700
+
+    printer.go:
+    - emit line tag id's in html mode
+    - support for general html tags
+    - better names for a few identifiers
+    
+    godoc.go:
+    - emit links from exported names to source code
+      (actual placement needs fine-tuning)
+    
+    R=rsc
+    DELTA=108  (68 added, 4 deleted, 36 changed)
+    OCL=32639
+    CL=32654
+
+ lib/godoc/package.html        |  8 ++--
+ src/cmd/godoc/godoc.go        | 33 ++++++++++++---
+ src/pkg/go/printer/printer.go | 99 +++++++++++++++++++++++++++++++------------
+ 3 files changed, 102 insertions(+), 38 deletions(-)

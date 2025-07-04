@@ -1,0 +1,22 @@
+commit 70a684cf44cc3398c44afcd69387d7938d90f063
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Nov 28 10:50:54 2018 -0500
+
+    go/internal/gccgoimporter: additional V3 export data changes
+    
+    This patch merges in support for reading the most recent
+    incarnation of V3 export data (initial inline function bodies),
+    from the importer portions of https://golang.org/cl/150061 and
+    https://golang.org/cl/150067.
+    
+    Updates #28961.
+    
+    Change-Id: I34e837acbf48b8fd1a4896a1a977d2241adfb28d
+    Reviewed-on: https://go-review.googlesource.com/c/151557
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/go/internal/gccgoimporter/parser.go | 72 ++++++++++++++++++++++++++++++---
+ 1 file changed, 66 insertions(+), 6 deletions(-)

@@ -1,0 +1,30 @@
+commit 857cda4625b31d6725fb96148da2a5fca58df2cb
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 29 13:16:35 2022 -0400
+
+    cmd/compile: convert merge to use appl. bal. trees for sharing
+    
+    This CL replaces a not-very-shared linear-sized set
+    representation with a much more shared representation.
+    For the annoying test program in question, it reduces
+    the heap size by 95%, and the time slightly.
+    
+    However, for some programs build time is longer.
+    
+    This also includes at least one bug fix for problems
+    uncovered while ensuring compatibility with what it
+    replaces.
+    
+    Fixes #51543.
+    
+    Change-Id: Ie7a4c6ea460775faeed2b0378ab21ddffd15badc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397318
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/abt/avlint32.go      | 849 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/abt/avlint32_test.go | 700 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/debug.go         | 642 +++++++++++--------
+ src/cmd/compile/internal/ssagen/ssa.go        |   2 +-
+ 4 files changed, 1945 insertions(+), 248 deletions(-)

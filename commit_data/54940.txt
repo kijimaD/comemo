@@ -1,0 +1,25 @@
+commit 25867485a748bbefc938e66330912cd88c2f4acb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Oct 28 16:17:02 2023 +0000
+
+    runtime: add the allocation headers GOEXPERIMENT and fork files
+    
+    This change adds the allocation headers GOEXPERIMENT which is a no-op.
+    It forks two runtime files temporarily to make the GOEXPERIMENT easier
+    to maintain. The forked files are mbitmap.go and msize.go.
+    
+    Change-Id: I60202c00e614e4517de7dd000029cf80dd0121ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537980
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/goexperiment/exp_allocheaders_off.go |   8 +
+ src/internal/goexperiment/exp_allocheaders_on.go  |   8 +
+ src/internal/goexperiment/flags.go                |   7 +
+ src/runtime/mbitmap.go                            | 842 ---------------------
+ src/runtime/mbitmap_allocheaders.go               | 857 ++++++++++++++++++++++
+ src/runtime/mbitmap_noallocheaders.go             | 857 ++++++++++++++++++++++
+ src/runtime/{msize.go => msize_allocheaders.go}   |   2 +
+ src/runtime/msize_noallocheaders.go               |  27 +
+ 8 files changed, 1766 insertions(+), 842 deletions(-)

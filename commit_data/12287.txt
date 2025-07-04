@@ -1,0 +1,18 @@
+commit 564a1f3358c2d4f6d1f04ef5acef4057d4421360
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Feb 29 13:55:50 2012 -0800
+
+    gc: fix string comparisons for new bool rules
+    
+    The two string comparison optimizations were
+    missing the implicit cast from ideal bool.
+    
+    Fixes #3119.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5696071
+
+ src/cmd/gc/walk.c        |  2 ++
+ test/fixedbugs/bug425.go | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+)

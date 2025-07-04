@@ -1,0 +1,26 @@
+commit dee9adc0f73d361d00a4d9230bb3517f2448b3b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jun 24 17:00:24 2022 -0700
+
+    encoding/gob: use saferio to read large buffer
+    
+    Avoid allocating large amounts of memory for corrupt input.
+    
+    No test case because the problem can only happen for invalid data.
+    Let the fuzzer find cases like this.
+    
+    Fixes #53369
+    
+    Change-Id: I67c5e75bf181ad84988d6d6da12507df0e6df8e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413979
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/gob/decode.go  | 17 ++++++-----------
+ src/encoding/gob/decoder.go |  6 ++++--
+ src/go/build/deps_test.go   |  8 ++++----
+ 3 files changed, 14 insertions(+), 17 deletions(-)

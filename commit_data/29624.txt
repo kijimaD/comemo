@@ -1,0 +1,17 @@
+commit ac1dbe6392f2d392f9554127f96597a9aaa721fd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 22 08:24:13 2016 -0700
+
+    doc: more go1.8.html content
+    
+    TBR=See https://golang.org/cl/33244 and review there.
+    
+    Updates #17929
+    
+    Change-Id: I37b49318a9203b16c0c788926039288b99a36ce5
+    Reviewed-on: https://go-review.googlesource.com/33450
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 353 +++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ doc/go1.8.txt  | 218 +++++++++++++++++++----------------
+ 2 files changed, 453 insertions(+), 118 deletions(-)

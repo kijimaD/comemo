@@ -1,0 +1,27 @@
+commit ba7c4e47b32fa99db8aa05331426b328bb39517a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Dec 9 14:32:10 2023 -0500
+
+    os: limit temp file randomness to uint32
+    
+    CL 516860 accidentally changed the randomness
+    used in TempFile from 32 to 64 bits on 64-bit platforms,
+    meaning from 10 to 20 decimal bytes.
+    This is enough to cause problems in a few tests
+    because it makes temporary directory names just
+    a little bit longer.
+    
+    Limit back down to 32 bits of randomness, which is fine,
+    and add a test to avoid repeating the mistake.
+    
+    Fixes #64605.
+    
+    Change-Id: I17b8c063d11d5c0a96a68b5e5f83c889a13bca77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548635
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/os/os_test.go  | 24 ++++++++++++++++++++++++
+ src/os/tempfile.go |  2 +-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

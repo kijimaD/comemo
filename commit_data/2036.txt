@@ -1,0 +1,20 @@
+commit 7847056dfb9f182f492c2f9ebc05e690ceb1c093
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 16 00:18:11 2009 -0700
+
+    rewrite gobuild in go.
+    
+    R=r
+    DELTA=1305  (704 added, 590 deleted, 11 changed)
+    OCL=27546
+    CL=27548
+
+ src/cmd/gobuild/Makefile    |  59 ++++-
+ src/cmd/gobuild/gobuild.c   | 590 --------------------------------------------
+ src/cmd/gobuild/gobuild.go  | 288 +++++++++++++++++++++
+ src/cmd/gobuild/main.go     |  14 ++
+ src/cmd/gobuild/makefile.go | 122 +++++++++
+ src/cmd/gobuild/util.go     | 244 ++++++++++++++++++
+ src/cmd/make.bash           |   2 +-
+ src/make.bash               |   2 +-
+ 8 files changed, 719 insertions(+), 602 deletions(-)

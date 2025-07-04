@@ -1,0 +1,14 @@
+commit 5f4f5647efbea27b90ffc034e931082f843e6333
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 11 17:57:29 2009 -0800
+
+    require type assertions when narrowing.
+    
+    R=ken
+    OCL=24350
+    CL=24914
+
+ src/cmd/gc/go.h   |  6 ++---
+ src/cmd/gc/subr.c | 73 ++++++++++++++++++++++++++++++++++++++++++++-----------
+ src/cmd/gc/walk.c | 20 +++++++--------
+ 3 files changed, 72 insertions(+), 27 deletions(-)

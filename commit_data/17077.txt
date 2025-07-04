@@ -1,0 +1,16 @@
+commit 1590abef0371ffa5b37a760b7cde74e2d5f18d2f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Aug 8 00:04:28 2013 +0400
+
+    runtime: do not run TestCgoSignalDeadlock on windows in short mode
+    The test takes up to 64 seconds on windows builders.
+    I've tried to reduce number of iterations in the test,
+    but it does not affect run time.
+    Fixes #6054.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/12531043
+
+ src/pkg/runtime/crash_cgo_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

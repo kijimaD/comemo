@@ -1,0 +1,16 @@
+commit 3cee55057f57a38003d8ff5f8495dbf82f91d5ef
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 30 18:08:08 2019 -0400
+
+    os: deflake TestNewFileNonBlock
+    
+    Fixes #32325
+    
+    Change-Id: Ic06938c36a25ef1a6623e35e128b73729d02d955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179698
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/os_unix_test.go | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)

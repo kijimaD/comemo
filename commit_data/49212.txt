@@ -1,0 +1,24 @@
+commit 19156a54741d4f353c9e8e0860197ca95a6ee6ca
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat May 14 16:15:26 2022 +0700
+
+    cmd/compile: fix inlining function has shape in type
+    
+    CL 395854 made inline pass to not inlining function with shape params,
+    but pass no shape arguments. But it does not consider the case where
+    function has shape params, but passing zero arguments. In this case, the
+    un-safe interface conversion that may be applied to a shape argument can
+    not happen, so it's safe to inline the function.
+    
+    Fixes #52907
+    
+    Change-Id: Ifa7b23709bb47b97e27dc1bf32343d92683ef783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406176
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/inline/inl.go |  4 ++--
+ test/fixedbugs/issue52907.go           | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)

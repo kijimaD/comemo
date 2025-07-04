@@ -1,0 +1,15 @@
+commit 57bd0da37529dfe56fe27b90dbb9304ddfeea940
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Dec 9 18:31:31 2008 -0800
+
+    bug126
+    
+    R=r
+    OCL=20879
+    CL=20879
+
+ src/cmd/gc/dcl.c                        | 39 +++++++++++++++++----------------
+ src/cmd/gc/go.h                         |  4 ++--
+ src/lib/syscall/syscall_amd64_darwin.go |  2 +-
+ src/lib/syscall/types_amd64_darwin.go   |  2 +-
+ 4 files changed, 24 insertions(+), 23 deletions(-)

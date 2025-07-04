@@ -1,0 +1,15 @@
+commit 7242052bc71f02734b1902f13c490f1791df1c76
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 18 09:45:36 2011 -0400
+
+    gofix: add mapdelete
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5286043
+
+ src/cmd/gofix/Makefile          |  1 +
+ src/cmd/gofix/fix.go            |  1 +
+ src/cmd/gofix/mapdelete.go      | 84 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/mapdelete_test.go | 43 +++++++++++++++++++++
+ 4 files changed, 129 insertions(+)

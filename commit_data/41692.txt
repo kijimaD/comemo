@@ -1,0 +1,23 @@
+commit d55e0c10ad5e2fde97697e01c46c12a2b2406a10
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Mar 19 14:29:23 2020 -0700
+
+    net: merge common Unix/Windows methods
+    
+    When we added the internal/poll package, the Unix and Windows implementations
+    of several netFD methods became exactly the same, except for using a
+    different name for the string passed to wrapSyscallError.
+    
+    One case is not an exact duplicate: we slightly tweak the implementation
+    of (*netFD).shutdown on Windows to wrap the error.
+    
+    Change-Id: I3d87a317d5468ff8f1958d86f6189ea1ba697e9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224140
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/fd_posix.go   | 100 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/fd_unix.go    |  94 ++++-------------------------------------------
+ src/net/fd_windows.go |  96 +++++-------------------------------------------
+ 3 files changed, 117 insertions(+), 173 deletions(-)

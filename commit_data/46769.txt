@@ -1,0 +1,21 @@
+commit 7109323af5a8c7e076fa2af7185caa6185df97cd
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Oct 4 10:50:02 2021 -0700
+
+    all: update golang.org/x/net to pull in CL 353390
+    
+    Fixes #48564.
+    Fixes #23559.
+    
+    Change-Id: I8e0b646c4791d3a6fb17df1af0a7175b68ce8983
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353870
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go.mod                |    2 +-
+ src/go.sum                |    6 +
+ src/net/http/h2_bundle.go | 1397 ++++++++++++++++++++++++++-------------------
+ src/vendor/modules.txt    |    2 +-
+ 4 files changed, 807 insertions(+), 600 deletions(-)

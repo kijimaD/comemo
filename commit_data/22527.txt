@@ -1,0 +1,12 @@
+commit f22911f35e2d5bc4736c2869493e83f23c64d62e
+Author: Dave Day <djd@golang.org>
+Date:   Thu Apr 16 15:37:51 2015 +1000
+
+    Add reflect.FuncOf to docs/go1.5.text
+    
+    Change-Id: I6089cebf7de73ce9c4e53ad3e8ef2673d970bda2
+    Reviewed-on: https://go-review.googlesource.com/8908
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

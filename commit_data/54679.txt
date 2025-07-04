@@ -1,0 +1,16 @@
+commit 53d000d75b32bed4b7ee18afe169cb93217cb257
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Mon Oct 9 23:56:48 2023 +0200
+
+    testing/fstest: add godoc links
+    
+    Change-Id: I611f04f12bb93197fea5ae40a08e5f60426f1c00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534076
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/testing/fstest/mapfs.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

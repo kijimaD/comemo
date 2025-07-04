@@ -1,0 +1,23 @@
+commit e39af550f8ea57504510dc5d5fa70ba934f16fa0
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Mar 20 05:33:46 2024 +0000
+
+    database/sql: fix memory leaks in Stmt.removeClosedStmtLocked
+    
+    Zero out elements before shrinking the slice to avoid memory leaks.
+    
+    Fixes #66410
+    
+    Change-Id: I8f64c21455761f7f7c8b6fee0b6450b98f691d91
+    GitHub-Last-Rev: b15586e801199b9674f5bfcb12a848a55f15a80b
+    GitHub-Pull-Request: golang/go#66419
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572956
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/database/sql/sql.go | 2 ++
+ 1 file changed, 2 insertions(+)

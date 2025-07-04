@@ -1,0 +1,13 @@
+commit 692c31d60a1bba484bca6efb59619243bb93d483
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Dec 9 11:00:49 2011 +1100
+
+    misc/cgo/testso: do not leave out file behind
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/5461044
+
+ misc/cgo/testso/test.bash | 9 +++++++++
+ src/run.bash              | 3 +--
+ 2 files changed, 10 insertions(+), 2 deletions(-)

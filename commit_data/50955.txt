@@ -1,0 +1,23 @@
+commit 4c61e079c087052355c137ab8fcd9abf8728e50a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 18 13:29:10 2022 -0700
+
+    encoding/gob: support large slices in slice decode helpers
+    
+    The slice decode helpers weren't aware of partially allocated slices.
+    
+    Also add large slice support for []byte.
+    
+    Change-Id: I5044587e917508887c7721f8059d364189831693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443777
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/gob/codec_test.go  | 66 ++++++++++++++++++++++++++++++++++++
+ src/encoding/gob/dec_helpers.go | 75 +++++++++++++++++++++++++++++++++++++++++
+ src/encoding/gob/decode.go      | 38 ++++++++++++++++++---
+ 3 files changed, 174 insertions(+), 5 deletions(-)

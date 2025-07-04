@@ -1,0 +1,15 @@
+commit 35d71d6727a6605aa7ee33ef1a5d986a140287d2
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Oct 30 11:48:43 2015 +1300
+
+    cmd/go, runtime: define GOBUILDMODE_shared rather than shared when dynamically linking
+    
+    To avoid collisions with what existing code may already be doing.
+    
+    Change-Id: Ice639440aafc0724714c25333d90a49954372230
+    Reviewed-on: https://go-review.googlesource.com/16503
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go         | 4 ++--
+ src/runtime/sys_linux_386.s | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

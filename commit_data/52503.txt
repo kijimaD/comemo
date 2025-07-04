@@ -1,0 +1,22 @@
+commit ca26c9835109f8f3e72bbc069a6361bdf24e271d
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Thu Mar 30 12:14:55 2023 -0700
+
+    cmd/go: add wasip1 to modindex syslist
+    
+    This was intended to be merged together with changes in CL 479616.
+    
+    For #58141
+    
+    Change-Id: I76c38d3d4dfee93a1a170e28af28f0c9d6382830
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480656
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/go/internal/modindex/syslist.go | 1 +
+ 1 file changed, 1 insertion(+)

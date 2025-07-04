@@ -1,0 +1,54 @@
+commit 0c2a727477908dc0adbfcb05baac34b4ba4fa309
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 20 12:10:19 2014 -0400
+
+    build: make nacl pass
+    
+    Add nacl.bash, the NaCl version of all.bash.
+    It's a separate script because it builds a variant of package syscall
+    with a large zip file embedded in it, containing all the input files
+    needed for tests.
+    
+    Disable various tests new since the last round, mostly the ones using os/exec.
+    
+    Fixes #7945.
+    
+    LGTM=dave
+    R=golang-codereviews, remyoudompheng, dave, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/100590044
+
+ misc/nacl/mkzip.go                      |  220 +++++
+ misc/nacl/testdata/bin/placeholder      |    0
+ misc/nacl/testdata/empty                |    0
+ misc/nacl/testdata/group                |    8 +
+ misc/nacl/testdata/hosts                |    1 +
+ misc/nacl/testdata/mime.types           | 1596 +++++++++++++++++++++++++++++++
+ misc/nacl/testzip.proto                 |  116 +++
+ src/all.bash                            |    2 +-
+ src/cmd/addr2line/addr2line_test.go     |    4 +
+ src/cmd/nm/nm_test.go                   |    4 +
+ src/cmd/objdump/objdump_test.go         |   24 +-
+ src/cmd/pack/pack_test.go               |    9 +
+ src/make.bash                           |    1 +
+ src/nacltest.bash                       |   50 +
+ src/pkg/crypto/x509/x509_test.go        |    5 +
+ src/pkg/net/http/cgi/matryoshka_test.go |   13 +
+ src/pkg/net/packetconn_test.go          |    2 +-
+ src/pkg/net/protoconn_test.go           |    4 +-
+ src/pkg/net/server_test.go              |    2 +-
+ src/pkg/net/timeout_test.go             |    5 +-
+ src/pkg/net/unix_test.go                |    2 +-
+ src/pkg/os/exec/exec_test.go            |   25 +-
+ src/pkg/os/os_test.go                   |   43 +-
+ src/pkg/os/path_test.go                 |    5 +-
+ src/pkg/path/filepath/match_test.go     |    7 +-
+ src/pkg/path/filepath/path_test.go      |    5 +-
+ src/pkg/runtime/asm_amd64p32.s          |    6 +-
+ src/pkg/runtime/crash_test.go           |    5 +
+ src/pkg/runtime/pprof/pprof_test.go     |    2 +
+ src/pkg/runtime/runtime_test.go         |    8 +
+ src/run.bash                            |   15 +-
+ test/gc2.go                             |    4 +-
+ test/nosplit.go                         |    3 +-
+ 33 files changed, 2143 insertions(+), 53 deletions(-)

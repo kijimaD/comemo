@@ -1,0 +1,13 @@
+commit cc56fc38602897d76bbea550e0ec99ddacf7db26
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Nov 18 16:08:24 2009 -0800
+
+    crypto/x509: add certificate support.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/156054
+
+ src/pkg/crypto/x509/x509.go      | 534 ++++++++++++++++++++++++++++++++++++++-
+ src/pkg/crypto/x509/x509_test.go |  92 +++++++
+ 2 files changed, 623 insertions(+), 3 deletions(-)

@@ -1,0 +1,32 @@
+commit 753ad5e1d59db9073abba07627723fa3267a52fd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 21 16:02:20 2022 -0800
+
+    spec: document that trailing comma is valid after index in index expressions
+    
+    At parse time we don't know if a[i] is an index expression or a
+    type (or function) instantiation. Because instantiations accept
+    a list of type arguments, and argument lists permit a trailing
+    comma, a[i,] is either an instantiation or index expression.
+    
+    Document that a trailing comma is permitted in the syntax for
+    index expressions.
+    
+    For comparison, the same problem arises with conversions which
+    cannot be distinguished from function calls at parse time. The
+    spec also permits a trailing comma for conversions T(x,). The
+    grammar adjustment is the same (see line 5239).
+    
+    Fixes #55007.
+    
+    Change-Id: Ib9101efe52031589eb95a428cc6dff940d939f9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452618
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

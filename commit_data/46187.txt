@@ -1,0 +1,23 @@
+commit 67f7e16bcce0a3e68bf92e233ea16c8a9d2ac07a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 26 20:26:32 2021 -0700
+
+    encoding/gob: optimize decoding of []byte
+    
+    The reflect.Value.Slice method unfortunately allocates every time
+    since it needs to place the slice header on the heap.
+    This is silly since gob immediately stores the result back into slice.
+    Instead, use the reflect.Value.SetLen method.
+    
+    DecodeBytesSlice  75.0µs ± 2%  35.2µs ± 6%  -53.02%
+    
+    Change-Id: I3ca0529d01bf978f2b76e215f52d369f458951ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345572
+    Trust: Joe Tsai <joetsai@digital-static.net>
+    Run-TryBot: Joe Tsai <joetsai@digital-static.net>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/gob/decode.go      | 2 +-
+ src/encoding/gob/timing_test.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

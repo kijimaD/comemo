@@ -1,0 +1,44 @@
+commit ca7c6ef33d9eca2dbc7eb46601a051dc7dc4e411
+Author: champly <champly1993@gmail.com>
+Date:   Tue Apr 12 01:54:45 2022 +0000
+
+    runtime/chan.go: improve closed channel receive performance
+    
+    Use this benchmark ut:
+    
+    ```go
+    func BenchmarkReceiveDataFromClosedChan(b *testing.B) {
+            count := b.N
+            ch := make(chan struct{}, count)
+            for i := 0; i < count; i++ {
+                    ch <- struct{}{}
+            }
+    
+            b.ResetTimer()
+            for range ch {
+            }
+    }
+    ```
+    
+    Benchmark 10 times(`go test -bench=.`), and then use `benchstat` got the result:
+    
+    ```shell
+    name                         old time/op  new time/op  delta
+    ReceiveDataFromClosedChan-5  12.0ns ± 1%  11.4ns ± 0%  -5.54%  (p=0.000 n=10+8)
+    ```
+    
+    Fixes:  #52067
+    
+    Change-Id: I8db398cc8c04a46cb66ffb6768ab72a87903812f
+    GitHub-Last-Rev: 1e0142416f223c1ebfc4a7c136bb8fca242d7934
+    GitHub-Pull-Request: golang/go#52068
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396884
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+
+ src/runtime/chan.go      | 36 ++++++++++++++++++++----------------
+ src/runtime/chan_test.go | 13 +++++++++++++
+ 2 files changed, 33 insertions(+), 16 deletions(-)

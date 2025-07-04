@@ -1,0 +1,14 @@
+commit f813702f6de54b2cde8df73e5a06bfb5de20b930
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 26 00:16:12 2011 -0400
+
+    all-qemu.bash: remove DISABLE_NET_TESTS
+    
+    It's no longer used.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4426061
+
+ src/all-qemu.bash | 1 -
+ 1 file changed, 1 deletion(-)

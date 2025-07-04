@@ -1,0 +1,13 @@
+commit e2b4f1fea5b0367fd6d687f677f9a8cb9dc252ea
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jan 21 14:24:14 2021 -0500
+
+    doc/go1.16: minor formatting fix
+    
+    Change-Id: Ie924a15da0d9a35089d1d4b3d6c4a07b93bdf270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285393
+    Trust: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.16.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

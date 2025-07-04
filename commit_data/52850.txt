@@ -1,0 +1,19 @@
+commit 5e349aca4e3990500c960f7cc24334b54bd0d49a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 1 17:05:05 2023 -0400
+
+    runtime: add test skips for ios
+    
+    For #59912.
+    For #59913.
+    Updates #49182.
+    
+    Change-Id: I3fcdfaca3a4f7120404e7a36b4fb5f0e57dd8114
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/491095
+    TryBot-Bypass: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/crash_cgo_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

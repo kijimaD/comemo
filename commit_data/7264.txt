@@ -1,0 +1,14 @@
+commit 19d9a408451662d09b49fe3b0f1971728e28213f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 27 15:34:28 2011 -0500
+
+    spec: remove non-blocking channel operators
+    
+    Add intended changes for close + closed, commented out.
+    
+    R=golang-dev, niemeyer, r, gri1
+    CC=golang-dev
+    https://golang.org/cl/4013045
+
+ doc/go_spec.html | 59 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 29 insertions(+), 30 deletions(-)

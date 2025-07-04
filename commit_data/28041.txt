@@ -1,0 +1,19 @@
+commit 1472221a774c2a763dbe545b1686f4e8dc23613f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 17 10:16:55 2016 -0700
+
+    cmd/go: refactor cgo logic
+    
+    Extract "cgo -dynimport" and "ld -r" logic into separate helper
+    methods to make (*builder).cgo somewhat more manageable.
+    
+    Fixes #16650.
+    
+    Change-Id: I3e4d77ff3791528b1233467060d3ea83cb854acb
+    Reviewed-on: https://go-review.googlesource.com/27270
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/build.go | 213 +++++++++++++++++++++++++---------------------------
+ 1 file changed, 104 insertions(+), 109 deletions(-)

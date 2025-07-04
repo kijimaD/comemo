@@ -1,0 +1,22 @@
+commit bd1efd50991deb1e11e10d8232f609f8b8d13aef
+Author: MathiasB <git@denbeke.be>
+Date:   Fri Jul 31 12:25:06 2015 +0200
+
+    net/mail: fixed quoted-local
+    
+    Fixes some minor issues regarding quoted-string when parsing
+    the local-part.
+    
+    Those strings should return an error:
+    - quoted-string without any content: `""@test.com`
+    - quoted-string containing tab: "\"\t\"@test.com"
+    
+    Fixes #11293
+    
+    Change-Id: Ied93eb6831915c9b1f8e727cea14168af21f8d3b
+    Reviewed-on: https://go-review.googlesource.com/12905
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/mail/message.go      | 5 ++++-
+ src/net/mail/message_test.go | 3 +++
+ 2 files changed, 7 insertions(+), 1 deletion(-)

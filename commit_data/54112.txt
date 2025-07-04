@@ -1,0 +1,18 @@
+commit b581e447394b4ba7a08ea64b214781cae0f4ef6c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Aug 19 09:08:38 2023 -0700
+
+    slices: simplify Clone a bit
+    
+    No need for an explicit nil check. Slicing the input slice
+    down to zero capacity also preserves nil.
+    
+    Change-Id: I1f53cc485373d0e65971cd87b6243650ac72612c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521037
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/slices/slices.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

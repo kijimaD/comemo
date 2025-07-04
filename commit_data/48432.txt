@@ -1,0 +1,52 @@
+commit 2c92b2349a0b735a447b07e6209f311ece8de91c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 16 16:25:47 2022 -0400
+
+    internal/buildcfg: extract logic specific to cmd/go
+    
+    cmd/go/internal/cfg duplicates many of the fields of
+    internal/buildcfg, but initializes them from a Go environment file in
+    addition to the usual process environment.
+    
+    internal/buildcfg doesn't (and shouldn't) know or care about that
+    environment file, but prior to this CL it exposed hooks for
+    cmd/go/internal/cfg to write data back to internal/buildcfg to
+    incorporate information from the file. It also produced quirky
+    GOEXPERIMENT strings when a non-trivial default was overridden,
+    seemingly so that 'go env' would produce those same quirky strings in
+    edge-cases where they are needed.
+    
+    This change reverses that information flow: internal/buildcfg now
+    exports a structured type with methods — instead of top-level
+    functions communicating through global state — so that cmd/go can
+    utilize its marshaling and unmarshaling functionality without also
+    needing to write results back into buildcfg package state.
+    
+    The quirks specific to 'go env' have been eliminated by distinguishing
+    between the raw GOEXPERIMENT value set by the user (which is what we
+    should report from 'go env') and the cleaned, canonical equivalent
+    (which is what we should use in the build cache key).
+    
+    For #51461.
+    
+    Change-Id: I4ef5b7c58b1fb3468497649a6d2fb6c19aa06c70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393574
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/lex/input.go |  2 +-
+ src/cmd/go/internal/cfg/cfg.go    | 84 ++++++++++++++++++++++++---------------
+ src/cmd/go/internal/envcmd/env.go | 16 ++++++--
+ src/cmd/go/internal/load/pkg.go   |  4 +-
+ src/cmd/go/internal/work/exec.go  |  9 ++---
+ src/cmd/go/internal/work/gc.go    |  3 +-
+ src/cmd/go/main.go                |  3 ++
+ src/cmd/internal/objabi/flag.go   |  6 +--
+ src/cmd/internal/objabi/util.go   |  2 +-
+ src/cmd/link/internal/ld/main.go  |  2 +-
+ src/go/build/build.go             |  2 +-
+ src/internal/buildcfg/exp.go      | 77 +++++++++++++++++------------------
+ 12 files changed, 118 insertions(+), 92 deletions(-)

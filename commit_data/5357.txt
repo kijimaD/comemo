@@ -1,0 +1,12 @@
+commit a83c5f5cad02d959904258ed099a1bf5c57e70c3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 26 23:47:53 2010 -0700
+
+    syscall: fix mingw build
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/988042
+
+ src/pkg/syscall/zerrors_mingw_386.go | 1 +
+ 1 file changed, 1 insertion(+)

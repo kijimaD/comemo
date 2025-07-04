@@ -1,0 +1,13 @@
+commit f187675041c097256527804136188ae29a6b7b21
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Apr 20 20:29:17 2014 +0200
+
+    doc/go1.3.html: fix Goexit link
+    
+    LGTM=minux.ma
+    R=r, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/89710043
+
+ doc/go1.3.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

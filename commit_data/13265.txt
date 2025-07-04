@@ -1,0 +1,18 @@
+commit 6e3d87f315f80ff6b5c0275c98a04f635679ef6b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 4 07:18:06 2012 -0700
+
+    net/textproto: add benchmark, cleanup, update comment
+    
+    The cleanup also makes it ~5% faster, but that's
+    not the point of this CL.
+    
+    Optimizations can come in future CLs.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6286043
+
+ src/pkg/net/textproto/reader.go      | 31 ++++++++++++++++++-------------
+ src/pkg/net/textproto/reader_test.go | 17 +++++++++++++++++
+ 2 files changed, 35 insertions(+), 13 deletions(-)

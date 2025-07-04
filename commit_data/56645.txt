@@ -1,0 +1,22 @@
+commit 726fd5bc2b4dd94371f21598936e645379eca31f
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 15 10:51:44 2024 -0700
+
+    crypto/tls: allow 256KiB certificate messages
+    
+    During handshake, lift the message length limit, but only for
+    certificate messages.
+    
+    Fixes #50773
+    
+    Change-Id: Ida9d83f4219c4386ca71ed3ef72b22259665a187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585402
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/crypto/tls/common.go   | 13 ++++++-----
+ src/crypto/tls/conn.go     | 16 +++++++++++--
+ src/crypto/tls/tls_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 77 insertions(+), 8 deletions(-)

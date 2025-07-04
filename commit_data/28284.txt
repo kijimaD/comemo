@@ -1,0 +1,19 @@
+commit 1161a19c1ef536f8db2ca7eddf0e424e138e37db
+Author: Carlos C <uldericofilho@gmail.com>
+Date:   Fri Aug 12 12:45:14 2016 +0200
+
+    context: add examples
+    
+    Add function level examples to the package.
+    
+    Partially addresses #16360
+    
+    Change-Id: I7162aed4e4a969743c19b79c9ffaf9217d2c1c08
+    Reviewed-on: https://go-review.googlesource.com/26930
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/example_test.go     | 109 ++++++++++++++++++++++++++++++++++++++++
+ src/context/withtimeout_test.go |  33 ------------
+ 2 files changed, 109 insertions(+), 33 deletions(-)

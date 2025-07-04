@@ -1,0 +1,17 @@
+commit 82fcf749bde1aae839ce520edfff04d2daf70987
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 13 19:40:11 2020 +0200
+
+    cmd/cgo: fix parameter name in godoc comment for badPointerTypedef
+    
+    The parameter name is dt, not t. Also, line-wrap the godoc comment.
+    
+    Change-Id: Ie012d2a5680525b88e244a3380d72bc4f61da8e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228058
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matt Layher <mdlayher@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

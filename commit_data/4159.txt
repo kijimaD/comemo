@@ -1,0 +1,16 @@
+commit a6e1ad27335968e468046786d1aebb0972280975
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 19 16:45:50 2009 -0800
+
+    two easy optimizations for regexp:
+            1) if char class contains a single character, make it a single character.
+                    (this is used to quote, e.g. [.] rather than \.
+            2) if regexp begins with ordinary text substring, use plain string match to start engine
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/157095
+
+ src/pkg/regexp/all_test.go |  5 +++
+ src/pkg/regexp/regexp.go   | 91 +++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 83 insertions(+), 13 deletions(-)

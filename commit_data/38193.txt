@@ -1,0 +1,16 @@
+commit acf8f2c1545b4ce2459a48fac32340bad7e8c692
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Wed Jan 30 17:35:01 2019 +0000
+
+    cmd/go/internal/modload: correctly report devel versions
+    
+    Change-Id: Ie26b86c7502e41796732caad4d7e254246f70b7f
+    GitHub-Last-Rev: 3b80c0e4b17ec2b2a5b95e40d5880df2b856c6dd
+    GitHub-Pull-Request: golang/go#30002
+    Reviewed-on: https://go-review.googlesource.com/c/160426
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

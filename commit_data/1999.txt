@@ -1,0 +1,20 @@
+commit e97121a187992db5db900c412e2b0c47864f0837
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 13 13:28:53 2009 -0700
+
+    working checkpoint.
+    
+    add comment describing new web server tree.
+    make room for command line interface.
+    use new path package to get rid of doubled slashes.
+    use new Chdir function to avoid goroot + everything.
+    
+    implement new /pkg/ tree instead of using regexps.
+    
+    R=gri
+    DELTA=267  (103 added, 72 deleted, 92 changed)
+    OCL=27150
+    CL=27367
+
+ usr/gri/pretty/godoc.go | 337 ++++++++++++++++++++++++++----------------------
+ 1 file changed, 184 insertions(+), 153 deletions(-)

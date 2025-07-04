@@ -1,0 +1,25 @@
+commit e45eb6065706c65828bdc97e7522b468cb73312c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Oct 18 16:42:25 2008 -0700
+
+    Added mechanism for very precise self-testing:
+    - in selftest mode (-t) interpret comments of the form /* ERROR */ and /* SYNC */
+      and validate reported errors with the error markings in a file
+    - added initial selftest.go file
+    
+    Also:
+    - fixed an issue with empty blocks
+    - generally report better error messages
+    - added many more tests to the test script (essentially all .go programs which
+      have no syntax errors)
+    
+    R=r
+    OCL=17426
+    CL=17426
+
+ usr/gri/pretty/parser.go   | 74 ++++++++++++++++++++++++++++++++--------------
+ usr/gri/pretty/pretty.go   | 15 +++++-----
+ usr/gri/pretty/scanner.go  | 72 ++++++++++++++++++++++++++++++++++++--------
+ usr/gri/pretty/selftest.go | 32 ++++++++++++++++++++
+ usr/gri/pretty/test.sh     | 55 ++++++++++++++++++++++------------
+ 5 files changed, 187 insertions(+), 61 deletions(-)

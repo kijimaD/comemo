@@ -1,0 +1,26 @@
+commit fd2154f9064ef89c446fa4973d7fba4694dec52c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 07:31:56 2015 -0400
+
+    cmd/compile: move Node.Curfn into both Node.Func and Node.Name
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 168
+    $
+    
+    Change-Id: If624a2d72ec04ef30a1bc7ce76c0d61a526d8a37
+    Reviewed-on: https://go-review.googlesource.com/10532
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go |  8 ++--
+ src/cmd/compile/internal/gc/dcl.go     |  4 +-
+ src/cmd/compile/internal/gc/esc.go     | 86 +++++++++++++++-------------------
+ src/cmd/compile/internal/gc/gen.go     |  4 +-
+ src/cmd/compile/internal/gc/inl.go     |  6 +--
+ src/cmd/compile/internal/gc/plive.go   |  6 +--
+ src/cmd/compile/internal/gc/sinit.go   |  2 +-
+ src/cmd/compile/internal/gc/subr.go    |  5 +-
+ src/cmd/compile/internal/gc/syntax.go  |  5 +-
+ test/escape2.go                        | 12 ++---
+ test/escape2n.go                       | 12 ++---
+ 11 files changed, 72 insertions(+), 78 deletions(-)

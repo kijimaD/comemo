@@ -1,0 +1,11 @@
+commit f86c6f673e6de1fd57c8b0d79a833e0880a92aa3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 7 17:52:44 2008 -0700
+
+    k,l,m := 0,0,0 doesn't compile
+    
+    SVN=126247
+
+ test/bugs/bug065.go | 11 +++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 16 insertions(+)

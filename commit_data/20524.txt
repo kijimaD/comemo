@@ -1,0 +1,14 @@
+commit 39cd39b0238b079227460448f298bdd097562e7e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Sep 25 01:49:04 2014 +0400
+
+    cmd/go: strip -fsanitize= flags when building cgo object
+    Fixes #8788.
+    
+    LGTM=iant
+    R=iant
+    CC=golang-codereviews
+    https://golang.org/cl/142470043
+
+ src/cmd/go/build.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

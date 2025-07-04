@@ -1,0 +1,17 @@
+commit 4c1622082e493dea24a936930be8b324aae54505
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 4 15:29:31 2017 -0700
+
+    cmd/compile: don't catch panics during rewrite
+    
+    This is a holdover from the days when we did not
+    have full SSA coverage and compiled things optimistically,
+    and catching the panic obscures useful information.
+    
+    Change-Id: I196790cb6b97419d92b318a2dfa7f1e1097cefb7
+    Reviewed-on: https://go-review.googlesource.com/39534
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 15 ---------------
+ 1 file changed, 15 deletions(-)

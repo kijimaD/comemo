@@ -1,0 +1,21 @@
+commit 6c61a57cfc24d344529685977855341ae9f17239
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Mon Oct 29 09:09:21 2018 -0700
+
+    database/sql: add SetConnMaxIdleTime
+    
+    Allow removing a connection from the connection pool after
+    it has been idle for a period of time, without regard to the
+    total lifespan of the connection.
+    
+    Fixes #25232
+    
+    Change-Id: Icff157b906769a2d2d45c67525e04a72feb8d832
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/145758
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go      | 125 ++++++++++++++++++++++++++++++++-----------
+ src/database/sql/sql_test.go |  55 +++++++++++++++++++
+ 2 files changed, 149 insertions(+), 31 deletions(-)

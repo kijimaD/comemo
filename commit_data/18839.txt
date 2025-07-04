@@ -1,0 +1,14 @@
+commit 78992439f4f909ff21b9283b7a307840783afb15
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 12 22:00:48 2014 +1100
+
+    fmt: improve documentation for width and precision
+    Fixes #7048.
+    
+    LGTM=dominik.honnef
+    R=golang-codereviews, dominik.honnef
+    CC=golang-codereviews
+    https://golang.org/cl/74280044
+
+ src/pkg/fmt/doc.go | 30 +++++++++++++++++++++++-------
+ 1 file changed, 23 insertions(+), 7 deletions(-)

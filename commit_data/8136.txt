@@ -1,0 +1,12 @@
+commit 8e8edff7852ef84157503358b747d14fcaf21f20
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon Apr 18 18:40:01 2011 +1000
+
+    CONTRIBUTORS: Raph Levien (Google CLA)
+    
+    R=adg
+    CC=golang-dev, raph
+    https://golang.org/cl/4443046
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

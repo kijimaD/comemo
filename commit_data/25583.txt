@@ -1,0 +1,23 @@
+commit 8534429181ea99c86a5ccefee508f573ae6d4ba2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 13 21:34:13 2016 -0500
+
+    cmd/go, go/build: ignore vendor directories with no Go source files
+    
+    Otherwise it is impossible to vendor a/b/c without hiding the real a/b.
+    I also updated golang.org/s/go15vendor.
+    
+    Fixes #13832.
+    
+    Change-Id: Iee3d53c11ea870721803f6e8e67845b405686e79
+    Reviewed-on: https://go-review.googlesource.com/18644
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/cmd/go/pkg.go                                      | 16 +++++++++++++++-
+ src/cmd/go/testdata/src/vend/dir1/dir1.go              |  1 +
+ .../go/testdata/src/vend/vendor/vend/dir1/dir2/dir2.go |  1 +
+ src/cmd/go/testdata/src/vend/x/x.go                    |  2 ++
+ src/cmd/go/vendor_test.go                              | 12 +++++++++++-
+ src/go/build/build.go                                  | 16 +++++++++++++++-
+ src/go/build/build_test.go                             | 18 ++++++++++++++++++
+ 7 files changed, 63 insertions(+), 3 deletions(-)

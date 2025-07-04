@@ -1,0 +1,12 @@
+commit 0a00926481faaf40189d1d78e738584cb1735f40
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Apr 22 17:42:41 2020 +0200
+
+    runtime: fix bad link to issue tracker in test
+    
+    Change-Id: Ie88ff3f0493f4119be25476a20038877e879c485
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229397
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/panic_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

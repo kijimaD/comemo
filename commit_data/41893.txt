@@ -1,0 +1,24 @@
+commit 346d7d273c864411022f809945627866f6bc4cc6
+Author: Tamás Gulácsi <tgulacsi78@gmail.com>
+Date:   Fri Oct 25 13:48:02 2019 +0200
+
+    encoding/xml: fix reserved namespace check to be case-insensitive
+    
+    Fixes the check for the reserved namespace prefix
+    "xml" to be case insensitive, so as to match all variants of:
+    
+        (('X'|'x')('M'|'m')('L'|'l'))
+    
+    as mandated by Section 2.3 of https://www.w3.org/TR/REC-xml/
+    
+    Fixes #35151.
+    
+    Change-Id: Id5a98e5f9d69d3741dc16f567c4320f1ad0b3c70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203417
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/xml/marshal.go      |  7 +++++--
+ src/encoding/xml/marshal_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

@@ -1,0 +1,27 @@
+commit 5440bfc2ea8c0a4c78d5161605659c07ea10e37a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Sep 25 16:13:17 2018 +0000
+
+    net/http/httputil: rewrite flushing code, disable on Server-Sent Events
+    
+    * Rewrite the flushing code to not use a persistent goroutine, which
+      also simplifies testing.
+    * Define the meaning of a negative flush interval. Its meaning doesn't
+      change, but now it's locked in, and then we can use it to optimize
+      the performance of the non-buffered case to avoid use of an AfterFunc.
+    * Support (internal-only) special casing of FlushInterval values per
+      request/response.
+    * For now, treat Server-Sent Event responses as unbuffered. (or rather,
+      immediately flushed from the buffer per-write)
+    
+    Fixes #27816
+    
+    Change-Id: Ie0f975c997daa3db539504137c741a96d7022665
+    Reviewed-on: https://go-review.googlesource.com/c/137335
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 89 +++++++++++++++++++-----------
+ src/net/http/httputil/reverseproxy_test.go | 56 +++++++++++++++----
+ 2 files changed, 102 insertions(+), 43 deletions(-)

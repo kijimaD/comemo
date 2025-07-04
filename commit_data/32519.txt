@@ -1,0 +1,12 @@
+commit 04d410d6cda732a4ff9c31551a6a700c0e42137c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Aug 28 13:04:27 2017 +1000
+
+    cmd/link: introduce and use peSection.emitRelocations
+    
+    Change-Id: I2bebee5566ee07786695f147c27661e69337a0f7
+    Reviewed-on: https://go-review.googlesource.com/59418
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 62 +++++++++++++++++++++---------------------
+ 1 file changed, 31 insertions(+), 31 deletions(-)

@@ -1,0 +1,18 @@
+commit ad9e6edfddf7c68b7a549ab7b491919f0980889d
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Oct 9 22:39:50 2023 +0700
+
+    cmd/compile: fix wrong argument of OpSelectN during expand_calls
+    
+    Fixes #63462
+    
+    Change-Id: I5ddf831eab630e23156f8f27a079b4ca4bb3a261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/533795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/ssa/expand_calls.go |  4 ++++
+ test/fixedbugs/issue63462.go                 | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+)

@@ -1,0 +1,12 @@
+commit ca5e9bfabc3747b7c199cee5b9644c90178ecf6c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Sep 23 15:05:44 2012 +0800
+
+    cmd/5g: fix build
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6552061
+
+ src/cmd/5g/cgen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

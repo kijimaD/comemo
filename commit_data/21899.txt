@@ -1,0 +1,13 @@
+commit 258752079766607682e07834e81e0b69208cece8
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 4 12:55:04 2015 -0500
+
+    log/syslog: avoid unix sockets on darwin/arm
+    
+    Change-Id: Ice4f78e74ec3025a974ffd9ca5e3d28bb3164f40
+    Reviewed-on: https://go-review.googlesource.com/6794
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+
+ src/log/syslog/syslog_test.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

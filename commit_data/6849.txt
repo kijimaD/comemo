@@ -1,0 +1,24 @@
+commit cf6c2121979dacdb712c5ec9124043a8e6acf89e
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Tue Dec 7 13:40:14 2010 -0500
+
+    syscall, net: Add Recvmsg and Sendmsg on Linux.
+    
+    Working on issue 1101.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2331044
+
+ src/pkg/net/fd.go                       | 71 +++++++++++++++++++++++++++++++++
+ src/pkg/net/fd_windows.go               |  8 ++++
+ src/pkg/net/unixsock.go                 | 26 ++++++++++++
+ src/pkg/syscall/mkerrors.sh             |  6 ++-
+ src/pkg/syscall/syscall_bsd.go          |  9 ++++-
+ src/pkg/syscall/syscall_linux.go        | 68 ++++++++++++++++++++++++++++++-
+ src/pkg/syscall/syscall_linux_386.go    | 22 ++++++++++
+ src/pkg/syscall/syscall_linux_amd64.go  | 14 +++++++
+ src/pkg/syscall/zerrors_linux_386.go    | 45 +++++++++++++++++++++
+ src/pkg/syscall/zerrors_linux_amd64.go  | 45 +++++++++++++++++++++
+ src/pkg/syscall/zsyscall_linux_amd64.go | 17 ++++++++
+ 11 files changed, 326 insertions(+), 5 deletions(-)

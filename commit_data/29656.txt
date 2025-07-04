@@ -1,0 +1,28 @@
+commit 6f287fa2bb5b0b74506ecc586d036dcd11a761e2
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 28 18:03:16 2016 -0500
+
+    runtime: fall back to /proc/self/auxv in Android libs
+    
+    Android's libc doesn't provide access to auxv, so currently the Go
+    runtime synthesizes a fake, minimal auxv when loaded as a library on
+    Android. This used to be sufficient, but now we depend on auxv to
+    retrieve the system physical page size and panic if we can't retrieve
+    it.
+    
+    Fix this by falling back to reading auxv from /proc/self/auxv if the
+    loader-provided auxv is empty and removing the synthetic auxv vectors.
+    
+    Fixes #18041.
+    
+    Change-Id: Ia2ec2c764a6609331494a5d359032c56cbb83482
+    Reviewed-on: https://go-review.googlesource.com/33652
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/os_linux.go         | 28 +++++++++++++++++++++++++---
+ src/runtime/rt0_android_amd64.s | 15 ++++-----------
+ src/runtime/rt0_android_arm.s   | 15 ++++-----------
+ src/runtime/rt0_android_arm64.s |  7 ++++---
+ 4 files changed, 37 insertions(+), 28 deletions(-)

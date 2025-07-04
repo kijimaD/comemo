@@ -1,0 +1,20 @@
+commit 34c58fe184fa73ecff0e7142fcf567b1a9abc01b
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Mon May 28 13:20:45 2018 +0300
+
+    cmd/compile: use embedlineno instead of lineno in copytype
+    
+    Also remove lineno from typecheckdeftype since copytype was
+    the only user of it and typecheck uses lineno independently.
+    
+    toolstach-check passed.
+    
+    Updates #19683.
+    
+    Change-Id: I1663fdb8cf519d505cc087c8657dcbff3c8b1a0a
+    Reviewed-on: https://go-review.googlesource.com/114875
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 11 +----------
+ 1 file changed, 1 insertion(+), 10 deletions(-)

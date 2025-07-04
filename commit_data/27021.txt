@@ -1,0 +1,21 @@
+commit d697a9d5d7d75cecd8d49b95ed9a0d1f2f3e8ed4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Apr 18 16:12:48 2016 +1000
+
+    debug/pe: introduce StringTable type
+    
+    PE specification requires that long section and symbol names
+    are stored in PE string table. Introduce StringTable that
+    implements this functionality. Only string table reading is
+    implemented.
+    
+    Updates #15345
+    
+    Change-Id: Ib9638617f2ab1881ad707111d96fc68b0e47340e
+    Reviewed-on: https://go-review.googlesource.com/22181
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/debug/pe/file.go   | 16 +++++++------
+ src/debug/pe/string.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 73 insertions(+), 7 deletions(-)

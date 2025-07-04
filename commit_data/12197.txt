@@ -1,0 +1,13 @@
+commit 832dcecc994ca00c0777e9d51c4ebfb2ea564a88
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 24 16:59:09 2012 +1100
+
+    test/bench/shootout: update post-Makefile
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5696054
+
+ test/bench/shootout/Makefile  | 14 --------------
+ test/bench/shootout/timing.sh |  6 +++++-
+ 2 files changed, 5 insertions(+), 15 deletions(-)

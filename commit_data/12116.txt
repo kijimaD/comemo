@@ -1,0 +1,13 @@
+commit 5f2ecbff71a69d51e9e40d915433e372d07344e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 21 14:48:17 2012 -0800
+
+    text/tabwriter: fix documentation by adding an example.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5685069
+
+ src/pkg/text/tabwriter/example_test.go | 38 ++++++++++++++++++++++++++++++++++
+ src/pkg/text/tabwriter/tabwriter.go    |  6 ------
+ 2 files changed, 38 insertions(+), 6 deletions(-)

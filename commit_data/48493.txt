@@ -1,0 +1,20 @@
+commit ac3efc83e6747c3e7e56250774332cec5d2862f4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Mar 22 16:38:13 2022 -0400
+
+    cmd/link: write output in temp dir in TestUnlinkableObj
+    
+    For unlinkable object the link will fail, but it opens the output
+    file in writable mode first then delete it on failure. This fails
+    if the current directory is not writable. Write to the temporary
+    directory instead.
+    
+    Change-Id: Iefd73b5cc8efdc0f11b12edc0920169a8ad3f37c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/394755
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/link_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 1b19134c4f8f6d303f640948164dc6e7c691f756
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Jan 27 13:59:32 2012 +1100
+
+    gc: remove extra paranoia from inlining unsafe.Pointer fix.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5569075
+
+ src/cmd/gc/subr.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

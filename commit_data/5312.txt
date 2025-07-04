@@ -1,0 +1,20 @@
+commit 47c4416b7e21dc134dcd5fd83a4acadf4bb86f09
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Apr 20 09:06:57 2010 +1000
+
+    godashboard: bz2 compress logs in data store
+    
+    This results in a 10-20x size reduction per record.
+    (from ~150kb to ~10kb)
+    
+    This revision has been pushed live, as I'm in the process of
+    converting Log records to bz2-compresed CompressedLog records.
+    I would have waited but we're running seriously low on space
+    and it seemed like a sane (and reversible) move.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/872048
+
+ misc/dashboard/godashboard/gobuild.py | 17 ++++++++++-------
+ 1 file changed, 10 insertions(+), 7 deletions(-)

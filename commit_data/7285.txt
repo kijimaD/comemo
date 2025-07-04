@@ -1,0 +1,20 @@
+commit ad00644434d5be7df0994f4f8a10c1be732d0c98
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 31 11:50:04 2011 -0500
+
+    unicode: build maketables during build, take 2
+    
+    The "all:" target is the default for running gomake
+    by hand, but it is not used during the build.
+    The build runs make install and make test.
+    
+    Save the build of maketables for the test phase
+    so that the packages it needs will have been
+    installed already.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4121043
+
+ src/pkg/unicode/Makefile | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

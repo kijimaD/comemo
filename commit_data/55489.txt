@@ -1,0 +1,34 @@
+commit 1bb947b2eb62f54dd7ff621f7e1c768c00edd1a7
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Dec 7 18:02:40 2023 -0500
+
+    runtime/debug: SetCrashOutput sets the FD for fatal panics
+    
+    This feature makes it possible to record unhandled panics
+    in any goroutine through a watchdog process (e.g. the same
+    application forked+exec'd as a child in a special mode)
+    that can process the panic report, for example by sending
+    it to a crash-reporting system such as Go telemetry
+    or Sentry.
+    
+    Fixes #42888
+    
+    Change-Id: I5aa7be8f726bbc70fc650540bd1a14ab60c62ecb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547978
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ api/next/42888.txt                                |  1 +
+ doc/next/6-stdlib/99-minor/runtime/debug/42888.md |  8 +++
+ src/cmd/relnote/relnote_test.go                   |  1 +
+ src/internal/poll/fd_plan9.go                     | 12 ++++
+ src/internal/poll/fd_windows.go                   | 14 ++++
+ src/net/fd_windows.go                             |  2 +-
+ src/runtime/debug/stack.go                        | 53 +++++++++++++++
+ src/runtime/debug/stack_test.go                   | 80 ++++++++++++++++++++++-
+ src/runtime/runtime.go                            | 30 ++++++++-
+ src/runtime/write_err.go                          |  7 +-
+ src/runtime/write_err_android.go                  |  9 ++-
+ 11 files changed, 208 insertions(+), 9 deletions(-)

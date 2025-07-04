@@ -1,0 +1,21 @@
+commit a3e7544ea843dd5a17cfeb02bc7774ca8a6eae42
+Author: David Benjamin <davidben@google.com>
+Date:   Sat Oct 31 21:30:00 2015 -0400
+
+    encoding/asn1: enforce use of short form lengths.
+    
+    BER allows the sender to choose either short form or long form where
+    both are legal, but DER requires the minimal one be used. Enforce this
+    and add a test. Fix one test which was not minimally-encoded and another
+    which would not distinguish rejecting the input because the long form
+    length wasn't minimally-encoded from rejecting it because long form was
+    chosen when short form was allowed.
+    
+    Change-Id: I1b56fcca594dcdeddea9378b4fab427cbe7cd26d
+    Reviewed-on: https://go-review.googlesource.com/16517
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+
+ src/encoding/asn1/asn1.go      | 5 +++++
+ src/encoding/asn1/asn1_test.go | 6 ++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)

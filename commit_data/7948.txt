@@ -1,0 +1,12 @@
+commit 6c651728d8d0871afb3cf0fb846d4bc2f888b310
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Apr 1 10:10:15 2011 +1100
+
+    gotest: execute gomake properly on Windows
+    
+    R=peterGo, rsc, Joe Poirier
+    CC=golang-dev
+    https://golang.org/cl/4280087
+
+ src/cmd/gotest/gotest.go | 4 ++++
+ 1 file changed, 4 insertions(+)

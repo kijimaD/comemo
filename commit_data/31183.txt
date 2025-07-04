@@ -1,0 +1,21 @@
+commit bdf746caaa23ccf2bc7b7e2e123349133ce001a6
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 18 12:32:05 2017 +0100
+
+    all: remove unnecessary ", _" from map reads
+    
+    If the bool value isn't used, there is no need to assign to underscore -
+    there is a shorter form that only returns the value and behaves in the
+    exact same way.
+    
+    Change-Id: Iaf801b8e966da6c2f565bc39e3bb028175c92d60
+    Reviewed-on: https://go-review.googlesource.com/40920
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/api.go                      |  2 +-
+ src/net/http/transport.go                |  2 +-
+ src/net/internal/socktest/sys_cloexec.go |  2 +-
+ src/net/internal/socktest/sys_unix.go    | 12 ++++++------
+ 4 files changed, 9 insertions(+), 9 deletions(-)

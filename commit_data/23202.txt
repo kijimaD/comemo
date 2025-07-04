@@ -1,0 +1,26 @@
+commit f9ed2f75c43cb8745a1593ec3e4208c46419216a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 2 11:49:24 2015 -0700
+
+    text/template: clarify the documentation around template definitions
+    
+    Due to the requirements of parsing template definitions that mention
+    other templates that are not yet defined, a Template can be in two states:
+    defined and undefined. Thus, although one calls New, the resulting
+    template has no definition even though it exists as a data structure.
+    
+    Thus, for example, will return nil for a template that is named but not
+    yet defined.
+    
+    Fixes #10910
+    Fixes #10926
+    
+    Clarify the documentation a little to explain this,
+    Also tidy up the code a little and remove a spurious call to init.
+    
+    Change-Id: I22cc083291500bca424e83dc12807e0de7b00b7a
+    Reviewed-on: https://go-review.googlesource.com/10641
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/text/template/template.go | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)

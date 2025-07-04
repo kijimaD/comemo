@@ -1,0 +1,14 @@
+commit ff9e657fb33bb7fe6f8b5e8922925d2ac5026372
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 8 14:48:09 2009 -0700
+
+    WriteFile util function
+    
+    R=rsc
+    DELTA=41  (41 added, 0 deleted, 0 changed)
+    OCL=31349
+    CL=31358
+
+ src/pkg/io/utils.go      | 16 ++++++++++++++++
+ src/pkg/io/utils_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

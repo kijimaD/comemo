@@ -1,0 +1,15 @@
+commit 749b391c55b0139910d86ac0f8a0c42957e01d1c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 21:32:47 2015 -0400
+
+    encoding/json: document and test overwrite of slice, map during Unmarshal
+    
+    Fixes #8837.
+    
+    Change-Id: Iaaecbb0b324004cb74b16b764126b01315e6a16e
+    Reviewed-on: https://go-review.googlesource.com/12209
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/encoding/json/decode.go      | 7 +++++++
+ src/encoding/json/decode_test.go | 9 +++++++++
+ 2 files changed, 16 insertions(+)

@@ -1,0 +1,19 @@
+commit 87beecd6dfd3b12ed30785ec502f7380dc79ec29
+Author: Jordan Liggitt <liggitt@google.com>
+Date:   Sat Feb 27 23:06:23 2021 -0500
+
+    cmd/go: add missing newline to retraction warning message
+    
+    Fixes #44674
+    
+    Change-Id: Icbdb79084bf7bd2f52cc0a53abcc1ec6f0c4a1bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297350
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go              | 2 +-
+ src/cmd/go/testdata/script/mod_get_retract.txt | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

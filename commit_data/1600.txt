@@ -1,0 +1,13 @@
+commit 2538cf747bb5731702b801cc924daff2d12a43da
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 31 16:42:10 2009 -0800
+
+    Complain about control characters that are not white space.
+    Bitten by invisible chars too many times.
+    
+    R=ken
+    OCL=24024
+    CL=24024
+
+ src/cmd/gc/lex.c | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

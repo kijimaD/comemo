@@ -1,0 +1,15 @@
+commit 5a52c6ad292b0843db993c3d44f386515e96f29c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 27 21:26:16 2011 -0700
+
+    rpc and exp/template: simplify tests for exported items
+    Fix code to count mallocs - needed to call UpdateMemStats.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4823055
+
+ src/pkg/exp/template/exec.go | 15 ++++-----------
+ src/pkg/rpc/server.go        | 16 +++++++++-------
+ src/pkg/rpc/server_test.go   |  2 ++
+ 3 files changed, 15 insertions(+), 18 deletions(-)

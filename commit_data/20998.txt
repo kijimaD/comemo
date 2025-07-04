@@ -1,0 +1,18 @@
+commit 60ea2c594bdfb8d0ae4e13c8a028e59ed07bf9a9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 16 15:53:41 2014 -0800
+
+    test: add test that gccgo failed to compile
+    
+    Gccgo failed to create the type descriptor for the type used to
+    allocate the nil value passed to append as the second argument when
+    append is called with only one argument.  Calling append with only one
+    argument is unusual but obviously should not cause a compiler crash.
+    
+    Change-Id: I530821847dfd68f0302de6ca6a84dfbc79653935
+    Reviewed-on: https://go-review.googlesource.com/1692
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/bug493.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

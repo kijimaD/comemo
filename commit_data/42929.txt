@@ -1,0 +1,16 @@
+commit 9ef3ee339634d1a349e7b9bb4cae32aacc326f61
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 9 23:47:41 2020 +0700
+
+    cmd/link: remove unnecessary type conversion for nitablinks
+    
+    It's already an uint64.
+    
+    Change-Id: Ic4cdb957aa4f9245c1ea3f946bcb740f116dd04b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253679
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/symtab.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

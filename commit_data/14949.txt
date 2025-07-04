@@ -1,0 +1,16 @@
+commit 85f86399f417b0bf494a62bcbb90b91928a067e4
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Tue Jan 22 14:03:30 2013 -0500
+
+    syscall: fix arithmetic errors in assembly for seek function for 64-bit Plan 9
+    
+    Offsets for return values from seek were miscalculated
+    and a translation from 32-bit code for error handling
+    was incorrect.
+    
+    R=rsc, rminnich, npe
+    CC=golang-dev
+    https://golang.org/cl/7181045
+
+ src/pkg/syscall/asm_plan9_amd64.s | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

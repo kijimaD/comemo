@@ -1,0 +1,18 @@
+commit 917f201f952019988fd477565223c19352b4bb6a
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu May 12 10:28:51 2022 +0900
+
+    make.bat: call env.bat with .\env.bat
+    
+    When set NoDefaultCurrentDirectoryInExePath=1, call env.bat does not work.
+    
+    Change-Id: If63b02e236079681bdadadbdebc0b39abce01219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405774
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/make.bat | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

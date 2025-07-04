@@ -1,0 +1,30 @@
+commit 42f9ee904caf6681ee32e7b048f15ab7cddf3eb3
+Author: Ville Vesilehto <ville@vesilehto.fi>
+Date:   Wed May 14 18:16:54 2025 +0000
+
+    text/template: limit expression parenthesis nesting
+    
+    Deeply nested parenthesized expressions could cause a stack
+    overflow during parsing. This change introduces a depth limit
+    (maxStackDepth) tracked in Tree.stackDepth to prevent this.
+    
+    Additionally, this commit clarifies the security model in
+    the package documentation, noting that template authors
+    are trusted as text/template does not auto-escape.
+    
+    Fixes #71201
+    
+    Change-Id: Iab2c2ea6c193ceb44bb2bc7554f3fccf99a9542f
+    GitHub-Last-Rev: f4ebd1719ff966ae3c6516e3fb935dfea2f5362e
+    GitHub-Pull-Request: golang/go#73670
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671755
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/template/doc.go              |  5 +++++
+ src/text/template/parse/parse.go      | 18 ++++++++++++++++++
+ src/text/template/parse/parse_test.go | 14 ++++++++++++++
+ 3 files changed, 37 insertions(+)

@@ -1,0 +1,27 @@
+commit 1bd1880906e6394e88ff07552a1f1e871325d2e7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 13 13:44:01 2015 +1000
+
+    cmd/internal/obj: rename *.out.go to a.out.go
+    
+    The old numerical names like 6.out.go are a relic from the old tools.
+    Easier to rename than explain.
+    
+    The anames.go files were modified by go generate; no changes
+    beyond the explanatory comment at the top.
+    
+    Change-Id: I84742c75c60e47724baa9d49a91fef1f8581f021
+    Reviewed-on: https://go-review.googlesource.com/12069
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/arm/{5.out.go => a.out.go}   | 0
+ src/cmd/internal/obj/arm/anames.go                | 2 +-
+ src/cmd/internal/obj/arm64/{7.out.go => a.out.go} | 0
+ src/cmd/internal/obj/arm64/anames.go              | 2 +-
+ src/cmd/internal/obj/ppc64/{9.out.go => a.out.go} | 0
+ src/cmd/internal/obj/ppc64/anames.go              | 2 +-
+ src/cmd/internal/obj/x86/{6.out.go => a.out.go}   | 0
+ src/cmd/internal/obj/x86/anames.go                | 2 +-
+ 8 files changed, 4 insertions(+), 4 deletions(-)

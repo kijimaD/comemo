@@ -1,0 +1,32 @@
+commit 3a28cee8fb901a9ebd55ccf70f16b56cc14ebf5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 16 19:40:42 2024 -0500
+
+    cmd/go/internal/fsys: add Bind to add bind mounts
+    
+    fsys.Bind(repl, dir) makes the virtual file system
+    redirect any references to dir to use repl instead.
+    In Plan 9 terms, it binds repl onto dir.
+    In Linux terms, it does a mount --bind of repl onto dir.
+    Or think of it as being like a symlink dir -> repl being
+    added to the virtual file system.
+    
+    This is a separate layer from the overlay so that editors
+    working in the replacement directory can still apply
+    their own replacements within that tree, and also so
+    that editors working in the original dir do not have any
+    effect at all.
+    
+    (If the binds and the overlay were in the same sorted list,
+    we'd have problems with keeping the relative priorities
+    of individual entries correct.)
+    
+    Change-Id: Ibc88021cc95a3b8574efd5f37772ccb723aa8f7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628702
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/fsys/fsys.go      | 85 ++++++++++++++++++++++++++++++++---
+ src/cmd/go/internal/fsys/fsys_test.go | 69 ++++++++++++++++++++++++++--
+ 2 files changed, 144 insertions(+), 10 deletions(-)

@@ -1,0 +1,15 @@
+commit 64096dbb6911c4b33c5a613748a3a03b74b28078
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jan 2 19:16:43 2019 +0000
+
+    api: add os.(*File).SyscallConn to go1.12.txt
+    
+    Fixes #29507
+    
+    Change-Id: I8cf52e4b89fd28126f252757260d07a31d9dad61
+    Reviewed-on: https://go-review.googlesource.com/c/155933
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ api/go1.12.txt | 1 +
+ 1 file changed, 1 insertion(+)

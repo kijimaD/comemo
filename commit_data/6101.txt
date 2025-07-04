@@ -1,0 +1,18 @@
+commit ba5b09f78647fe9d27ffd9700c521681c328915e
+Author: Jukka-Pekka Kekkonen <karatepekka@gmail.com>
+Date:   Thu Aug 26 13:32:29 2010 -0400
+
+    crypto/hmac: make Sum idempotent
+    
+    Fixes #978.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1967045
+
+ src/pkg/crypto/hmac/hmac.go            | 40 ++++++++++++++++------------------
+ src/pkg/crypto/hmac/hmac_test.go       | 10 ++++++---
+ src/pkg/crypto/tls/handshake_client.go |  5 ++---
+ src/pkg/crypto/tls/handshake_server.go |  5 ++---
+ src/pkg/crypto/tls/prf.go              |  6 ++---
+ 5 files changed, 33 insertions(+), 33 deletions(-)

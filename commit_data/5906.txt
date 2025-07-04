@@ -1,0 +1,17 @@
+commit adc13b1e48b60578ae4b04876b5766f6d41e2304
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Jul 29 14:58:28 2010 +1000
+
+    net: implement windows version of LookupHost/Port/SRV
+    
+    R=brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/1748042
+
+ src/pkg/net/Makefile                    |  22 +++++--
+ src/pkg/net/resolv_windows.go           |  78 ++++++++++++++++++++++
+ src/pkg/syscall/mksyscall_windows.sh    |   5 +-
+ src/pkg/syscall/syscall_windows.go      |   6 ++
+ src/pkg/syscall/zsyscall_windows_386.go |  53 +++++++++++++++
+ src/pkg/syscall/ztypes_windows_386.go   | 110 ++++++++++++++++++++++++++++++--
+ 6 files changed, 261 insertions(+), 13 deletions(-)

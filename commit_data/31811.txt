@@ -1,0 +1,28 @@
+commit b067ad939d9ba242c5c3bdd8a24220632311c6be
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 14 11:07:24 2017 -0400
+
+    runtime: record mutex event before readying
+    
+    Currently, semrelease1 readies the next waiter before recording a
+    mutex event. However, if the next waiter is expecting to look at the
+    mutex profile, as is the case in TestMutexProfile, this may delay
+    recording the event too much.
+    
+    Swap the order of these operations so semrelease1 records the mutex
+    event before readying the next waiter. This also means readying the
+    next waiter is the very last thing semrelease1 does, which seems
+    appropriate.
+    
+    Fixes #19139.
+    
+    Change-Id: I1a62063599fdb5d49bd86061a180c0a2d659474b
+    Reviewed-on: https://go-review.googlesource.com/45751
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Peter Weinberger <pjw@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 5 ++++-
+ src/runtime/sema.go             | 6 +++---
+ 2 files changed, 7 insertions(+), 4 deletions(-)

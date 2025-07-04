@@ -1,0 +1,17 @@
+commit 9e2d1850406374b27da65e24dea9a93a80e05f98
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jul 17 15:03:39 2008 -0700
+
+    div bug
+    []ptr bug
+    proc reuses old g* structures
+    differnt assignment of offsets to parameters
+    
+    SVN=127888
+
+ src/cmd/6g/gen.c   | 167 ++++++++++++++++++++++-------------------------------
+ src/cmd/gc/dcl.c   |   8 ++-
+ src/cmd/gc/go.h    |   3 +-
+ src/cmd/gc/subr.c  |   1 +
+ src/runtime/proc.c |   8 +--
+ 5 files changed, 78 insertions(+), 109 deletions(-)

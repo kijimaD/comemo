@@ -1,0 +1,23 @@
+commit 1eebb91a5828c26532125b9464c92f721cd79d0f
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri May 1 22:09:54 2015 -0400
+
+    go/build: reserve GOARCH values for all common architectures
+    
+    Whenever we introduce a new GOARCH, older Go releases won't
+    recognize them and this causes trouble for both our users and
+    us (we need to add unnecessary build tags).
+    
+    Go 1.5 has introduced three new GOARCHes so far: arm64 ppc64
+    ppc64le, we can take the time to introduce GOARCHes for all
+    common architectures that Go might support in the future to
+    avoid the problem.
+    
+    Fixes #10165.
+    
+    Change-Id: Ida4f9112897cfb1e85b06538db79125955ad0f4c
+    Reviewed-on: https://go-review.googlesource.com/9644
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/syslist.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,21 @@
+commit 02d8ebda8398342516a24a3e8435d527ed156cab
+Author: Maksim Meshkov <subtle.byte.dev@gmail.com>
+Date:   Sun Feb 5 13:01:19 2023 +0000
+
+    runtime: fix cpu sample comment
+    
+    Fixes #58327
+    
+    Change-Id: I15593e6ee42e04f2de13804ef26e0e66a2307db0
+    GitHub-Last-Rev: 7e0d04b503d2ba217b76b1ac668a67cd72ec6d7c
+    GitHub-Pull-Request: golang/go#58338
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465335
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/trace/parser.go | 2 +-
+ src/runtime/trace.go         | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

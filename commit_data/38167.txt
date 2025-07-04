@@ -1,0 +1,44 @@
+commit 192b675f1778039563296cac253aa281d4b13d12
+Author: erifan01 <eric.fang@arm.com>
+Date:   Mon Feb 11 06:37:49 2019 +0000
+
+    cmd/compile: add an optimaztion rule for math/bits.ReverseBytes16 on arm64
+    
+    On amd64 ReverseBytes16 is lowered to a rotate instruction. However arm64 doesn't
+    have 16-bit rotate instruction, but has a REV16W instruction which can be used
+    for ReverseBytes16. This CL adds a rule to turn the patterns like (x<<8) | (x>>8)
+    (the type of x is uint16, and "|" can also be "^" or "+") to a REV16W instruction.
+    
+    Code:
+    func reverseBytes16(i uint16) uint16 { return bits.ReverseBytes16(i) }
+    
+    Before:
+            0x0004 00004 (test.go:6)        MOVHU   "".i(FP), R0
+            0x0008 00008 ($GOROOT/src/math/bits/bits.go:262)        UBFX    $8, R0, $8, R1
+            0x000c 00012 ($GOROOT/src/math/bits/bits.go:262)        ORR     R0<<8, R1, R0
+            0x0010 00016 (test.go:6)        MOVH    R0, "".~r1+8(FP)
+            0x0014 00020 (test.go:6)        RET     (R30)
+    
+    After:
+            0x0000 00000 (test.go:6)        MOVHU   "".i(FP), R0
+            0x0004 00004 (test.go:6)        REV16W  R0, R0
+            0x0008 00008 (test.go:6)        MOVH    R0, "".~r1+8(FP)
+            0x000c 00012 (test.go:6)        RET     (R30)
+    
+    Benchmarks:
+    name                old time/op       new time/op       delta
+    ReverseBytes-224    1.000000ns +- 0%  1.000000ns +- 0%     ~     (all equal)
+    ReverseBytes16-224  1.500000ns +- 0%  1.000000ns +- 0%  -33.33%  (p=0.000 n=9+10)
+    ReverseBytes32-224  1.000000ns +- 0%  1.000000ns +- 0%     ~     (all equal)
+    ReverseBytes64-224  1.000000ns +- 0%  1.000000ns +- 0%     ~     (all equal)
+    
+    Change-Id: I87cd41b2d8e549bf39c601f185d5775bd42d739c
+    Reviewed-on: https://go-review.googlesource.com/c/157757
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |   3 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 113 ++++++++++++++++++++++++---
+ test/codegen/mathbits.go                     |   1 +
+ 3 files changed, 107 insertions(+), 10 deletions(-)

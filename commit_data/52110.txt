@@ -1,0 +1,28 @@
+commit 140000dd55d9c4e3058f2b1a2488233a0671dbff
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 23 14:15:28 2023 +0100
+
+    runtime: set procid on Windows
+    
+    The runtime-gdb.py script needs procid to be set in order to
+    map a goroutine ID with an OS thread. The Go runtime is not currently
+    setting that variable on Windows, so TestGdbPython (and friends) can't
+    succeed.
+    
+    This CL initializes procid and unskips gdb tests on Windows.
+    
+    Fixes #22687
+    Updates #21380
+    Updates #22021
+    
+    Change-Id: Icd1d9fc1764669ed1bf04f53d17fadfd24ac3f30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470596
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+
+ src/runtime/os_windows.go       | 3 +++
+ src/runtime/runtime-gdb_test.go | 2 --
+ 2 files changed, 3 insertions(+), 2 deletions(-)

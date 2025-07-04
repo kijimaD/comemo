@@ -1,0 +1,39 @@
+commit 232c9793092115870a430ef3c9ef9ae04f9e25c9
+Author: Keith Randall <khr@google.com>
+Date:   Mon Jan 7 12:24:01 2019 -0800
+
+    runtime: store incremented PC in result of runtime.Callers
+    
+    In 1.11 we stored "return addresses" in the result of runtime.Callers.
+    I changed that behavior in CL 152537 to store an address in the call
+    instruction itself. This CL reverts that part of 152537.
+    
+    The change in 152537 was made because we now store pcs of inline marks
+    in the result of runtime.Callers as well. This CL will now store the
+    address of the inline mark + 1 in the results of runtime.Callers, so
+    that the subsequent -1 done in CallersFrames will pick out the correct
+    inline mark instruction.
+    
+    This CL means that the results of runtime.Callers can be passed to
+    runtime.FuncForPC as they were before. There are a bunch of packages
+    in the wild that take the results of runtime.Callers, subtract 1, and
+    then call FuncForPC. This CL keeps that pattern working as it did in
+    1.11.
+    
+    The changes to runtime/pprof in this CL are exactly a revert of the
+    changes to that package in 152537 (except the locForPC comment).
+    
+    Update #29582
+    
+    Change-Id: I04d232000fb482f0f0ff6277f8d7b9c72e97eb48
+    Reviewed-on: https://go-review.googlesource.com/c/156657
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/proto.go         | 15 ++++++++++++---
+ src/runtime/pprof/proto_test.go    |  4 ++--
+ src/runtime/pprof/protomem_test.go |  6 +++++-
+ src/runtime/symtab.go              |  7 +++++++
+ src/runtime/traceback.go           |  8 +++++---
+ 5 files changed, 31 insertions(+), 9 deletions(-)

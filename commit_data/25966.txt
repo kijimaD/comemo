@@ -1,0 +1,74 @@
+commit 351c15f1cee364a91ef606ef9114d55247a6a0c2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Feb 28 15:52:49 2016 -0800
+
+    all: remove public named return values when useless
+    
+    Named returned values should only be used on public funcs and methods
+    when it contributes to the documentation.
+    
+    Named return values should not be used if they're only saving the
+    programmer a few lines of code inside the body of the function,
+    especially if that means there's stutter in the documentation or it
+    was only there so the programmer could use a naked return
+    statement. (Naked returns should not be used except in very small
+    functions)
+    
+    This change is a manual audit & cleanup of public func signatures.
+    
+    Signatures were not changed if:
+    
+    * the func was private (wouldn't be in public godoc)
+    * the documentation referenced it
+    * the named return value was an interesting name. (i.e. it wasn't
+      simply stutter, repeating the name of the type)
+    
+    There should be no changes in behavior. (At least: none intended)
+    
+    Change-Id: I3472ef49619678fe786e5e0994bdf2d9de76d109
+    Reviewed-on: https://go-review.googlesource.com/20024
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/effective_go.html            |  6 ++--
+ src/archive/zip/reader.go        | 11 +++---
+ src/bufio/bufio.go               | 13 ++++---
+ src/bytes/buffer.go              |  4 +--
+ src/bytes/reader.go              |  6 ++--
+ src/crypto/dsa/dsa.go            | 14 ++++----
+ src/crypto/ecdsa/ecdsa.go        |  8 ++---
+ src/crypto/rsa/pkcs1v15.go       | 73 ++++++++++++++++++++--------------------
+ src/crypto/rsa/pss.go            |  6 ++--
+ src/crypto/rsa/rsa.go            | 35 +++++++++----------
+ src/crypto/tls/tls.go            | 11 +++---
+ src/crypto/x509/pkcs1.go         | 11 +++---
+ src/crypto/x509/sec1.go          | 10 +++---
+ src/crypto/x509/x509.go          | 16 ++++-----
+ src/debug/macho/fat.go           |  6 ++--
+ src/encoding/csv/writer.go       | 28 ++++++++-------
+ src/encoding/xml/xml.go          | 11 +++---
+ src/fmt/print.go                 |  2 +-
+ src/go/ast/print.go              |  7 ++--
+ src/go/build/build.go            |  4 +--
+ src/go/types/check.go            |  4 ++-
+ src/go/types/eval.go             |  2 +-
+ src/io/io.go                     |  2 +-
+ src/log/syslog/syslog.go         | 34 +++++++++----------
+ src/mime/multipart/formdata.go   |  6 +++-
+ src/net/http/request.go          |  4 ++-
+ src/net/unixsock_posix.go        | 10 +++---
+ src/net/url/url.go               | 15 +++++----
+ src/os/doc.go                    |  2 +-
+ src/os/exec/lp_windows.go        | 27 ++++++++-------
+ src/strconv/atob.go              |  2 +-
+ src/strconv/atof.go              |  9 +++--
+ src/strconv/atoi.go              |  6 ++--
+ src/strconv/quote.go             |  2 +-
+ src/strings/reader.go            |  6 ++--
+ src/testing/quick/quick.go       | 40 +++++++++-------------
+ src/text/tabwriter/tabwriter.go  | 10 +++---
+ src/text/template/exec.go        |  6 +++-
+ src/text/template/parse/parse.go |  8 ++---
+ src/time/time.go                 | 10 +++---
+ 40 files changed, 247 insertions(+), 240 deletions(-)

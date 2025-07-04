@@ -1,0 +1,12 @@
+commit 0ab8dbef76f13f97c735ebcbdd39e2ebe67cc571
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 7 14:18:30 2009 -0700
+
+    annotations
+    
+    TBR=r
+    OCL=32896
+    CL=32896
+
+ test/bench/timing.log | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

@@ -1,0 +1,14 @@
+commit e1e7619f019cd01386172536ba7caab9de7a51a3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 25 14:11:03 2009 -0700
+
+    - fixed sieve.go example (channel directions were wrong)
+    - cosmetic adjustments
+    
+    R=r
+    DELTA=30  (0 added, 0 deleted, 30 changed)
+    OCL=35010
+    CL=35012
+
+ doc/go_spec.html | 60 ++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 30 insertions(+), 30 deletions(-)

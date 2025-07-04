@@ -1,0 +1,18 @@
+commit e88ea87e7b886815cfdadc4cd3d70bf5ef833bd7
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Jul 7 14:17:30 2020 -0400
+
+    cmd/go: include GOMODCACHE in 'go help environment'
+    
+    Updates #34527
+    Fixes #40089
+    
+    Change-Id: Ie9c8573536e5c31e874d755f4d888ffc805b796f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241275
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/alldocs.go               | 2 ++
+ src/cmd/go/internal/help/helpdoc.go | 2 ++
+ 2 files changed, 4 insertions(+)

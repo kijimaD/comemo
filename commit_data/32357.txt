@@ -1,0 +1,18 @@
+commit dca29095beb91b77f8dd41bf51e3771fdd814db0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 17 10:30:40 2017 -0400
+
+    cmd/go: add t.Helper calls to test helpers
+    
+    Now that we have t.Helper, might as well use it to make the
+    reported failure lines more helpful.
+    
+    Change-Id: I2a0c64e9ca7bdc0eaf2b62f9f855c41467767084
+    Reviewed-on: https://go-review.googlesource.com/56274
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/go/go_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 45 insertions(+)

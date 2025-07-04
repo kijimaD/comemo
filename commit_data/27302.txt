@@ -1,0 +1,32 @@
+commit 30bfafc319288e8cfe54111664e3f2f259998a0a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Sep 17 00:22:56 2015 -0700
+
+    archive/tar: centralize all information about tar header format
+    
+    The Reader and Writer have hard-coded constants regarding the
+    offsets and lengths of certain fields in the tar format sprinkled
+    all over. This makes it harder to verify that the offsets are
+    correct since a reviewer would need to search for them throughout
+    the code. Instead, all information about the layout of header
+    fields should be centralized in one single file. This has the
+    advantage of being both centralized, and also acting as a form
+    of documentation about the header struct format.
+    
+    This method was chosen over using "encoding/binary" since that
+    method would cause an allocation of a header struct every time
+    binary.Read was called. This method causes zero allocations and
+    its logic is no longer than if structs were declared.
+    
+    Updates #12594
+    
+    Change-Id: Ic7a0565d2a2cd95d955547ace3b6dea2b57fab34
+    Reviewed-on: https://go-review.googlesource.com/14669
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/common.go      |  37 +-------
+ src/archive/tar/format.go      | 197 +++++++++++++++++++++++++++++++++++++++++
+ src/archive/tar/reader.go      | 167 +++++++++++++---------------------
+ src/archive/tar/writer.go      | 100 +++++++++------------
+ src/archive/tar/writer_test.go |  22 ++---
+ 5 files changed, 314 insertions(+), 209 deletions(-)

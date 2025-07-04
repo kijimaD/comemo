@@ -1,0 +1,10 @@
+commit e42d6a5fe28aec6b7e2fda63d9b000a71e6f37fa
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 26 14:58:23 2008 -0700
+
+    add pointer to val type of maps
+    
+    SVN=124971
+
+ src/runtime/runtime.c | 35 +++++++++++++++++++++++++++++++++--
+ 1 file changed, 33 insertions(+), 2 deletions(-)

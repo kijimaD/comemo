@@ -1,0 +1,17 @@
+commit 863ca99415915b19218a36e7c4bf836c135ca00c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 21 11:59:40 2016 -0700
+
+    cmd/vet: fix mips64le arch name in asmdecl check
+    
+    Updates #11041
+    
+    Change-Id: Ic6df8ef25b7cf280db523950cd3640b060ad1a9b
+    Reviewed-on: https://go-review.googlesource.com/27157
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/asmdecl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

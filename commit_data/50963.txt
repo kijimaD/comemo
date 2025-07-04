@@ -1,0 +1,27 @@
+commit 67403a30f61ac6af584796cdfd45c0d86820690c
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Oct 21 09:18:44 2022 -0400
+
+    cmd/cover: fix problem with race mode and inlining
+    
+    This patch fixes a problem in which we can get a data race on a
+    coverage counter function registration sequence. The scenario is that
+    package P contains a function F that is built with coverage, then F is
+    inlined into some other package that isn't being instrumented. Within
+    F's exported function body counter updates were being done with
+    atomics, but the initial registration sequence was not, which had the
+    potential to trigger a race. Fix: if race mode is enabled and we're
+    using atomics for counter increments, also use atomics in the
+    registration sequence.
+    
+    Fixes #56370.
+    
+    Change-Id: If274b61714b90275ff95fc6529239e9264b0ab0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/444617
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/cover/cover.go                             | 27 +++++++++--
+ .../testdata/script/cover_test_race_issue56370.txt | 54 ++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 5 deletions(-)

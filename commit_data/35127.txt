@@ -1,0 +1,26 @@
+commit 9e0e6981fc536c9e51ce24c425141a3d09b39e3a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 18 16:34:45 2018 -0400
+
+    cmd/go: fix go list .Stale computation
+    
+    If X depends on Y and X was installed but Y is only present in the cache
+    (as happens when you "go install X") then we should report X as up-to-date,
+    not as stale.
+    
+    This applies whether X is a package or a main binary.
+    
+    Fixes #24558.
+    Fixes #23818.
+    
+    Change-Id: I26a0b375b1f7f7ac909cc0db68e92f4e04529208
+    Reviewed-on: https://go-review.googlesource.com/107957
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ misc/cgo/testshared/shared_test.go  |  1 +
+ src/cmd/go/go_test.go               | 22 ++++++++++++++++++++++
+ src/cmd/go/internal/work/buildid.go | 23 +++++++++++++----------
+ src/cmd/go/internal/work/exec.go    |  2 +-
+ 4 files changed, 37 insertions(+), 11 deletions(-)

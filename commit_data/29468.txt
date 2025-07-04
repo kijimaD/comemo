@@ -1,0 +1,17 @@
+commit 63224cab54055eaf1b3af62f3acaf64ff304316c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 10 22:12:50 2016 +0000
+
+    net/http: document and deprecate type and errors of type ProtocolError
+    
+    Clean up & document the ProtocolError gunk.
+    
+    Fixes #17558
+    
+    Change-Id: I5e54c25257907c9cac7433f7a5bdfb176e8c3eee
+    Reviewed-on: https://go-review.googlesource.com/33096
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/httputil/persist.go |  9 +++++++--
+ src/net/http/request.go          | 35 +++++++++++++++++++++++++++--------
+ 2 files changed, 34 insertions(+), 10 deletions(-)

@@ -1,0 +1,22 @@
+commit f46239b85c97ef32ef4f5c9476d77c812125b441
+Author: Dhananjay Nakrani <dhananjaynakrani@gmail.com>
+Date:   Sun Oct 30 12:47:53 2016 -0700
+
+    cmd/compile: initialize Decldepth in all cases
+    
+    Previously, on encountering Func.Nname.Type == nil, typecheckfunc()
+    returned without initializing Decldepth for that func. This causes
+    typecheckclosure() to fatal. This change ensures that we initialize
+    Decldepth in all cases.
+    
+    Fixes #17588.
+    
+    Change-Id: I2e3c81ad52e8383395025388989e8dbf03438b68
+    Reviewed-on: https://go-review.googlesource.com/32415
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 12 ++++++------
+ test/fixedbugs/issue17588.go             | 20 ++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 6 deletions(-)

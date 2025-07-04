@@ -1,0 +1,17 @@
+commit 334a591a3f4d868368913328b3e81ddf5b0f46fa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Feb 6 19:34:32 2022 -0800
+
+    os: don't repeat dir argument in CreateTemp error
+    
+    The dir argument is already in prefix, we shouldn't add it again.
+    
+    Change-Id: I42a158bec3a43950fce24f57b808da3ad8c5ef5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383636
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/tempfile.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

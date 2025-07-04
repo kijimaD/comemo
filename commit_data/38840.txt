@@ -1,0 +1,37 @@
+commit d23cba683e59f6092c1e3f676c8e83e7973f27dd
+Author: Maya Rashish <maya@netbsd.org>
+Date:   Sat Apr 20 14:39:33 2019 +0000
+
+    all: add start of netbsd/arm64 support
+    
+    This works well enough to run some code natively on arm64, but not well enough for more complicated code. I've been suggested to start a pull request anyway.
+    
+    Updates #30824
+    
+    Change-Id: Ib4f63e0e8a9edfc862cf65b5f1b0fbf9a8a1628e
+    GitHub-Last-Rev: b01b105e0446e349c8d9895d3ac6918fa0cdc48c
+    GitHub-Pull-Request: golang/go#29398
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/155739
+    Run-TryBot: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+
+ src/cmd/api/goapi.go                 |    2 +
+ src/cmd/dist/build.go                |    1 +
+ src/cmd/link/internal/arm64/asm.go   |    2 +-
+ src/cmd/link/internal/arm64/obj.go   |    5 +-
+ src/runtime/cgo/gcc_netbsd_arm64.c   |   78 ++
+ src/runtime/defs1_netbsd_arm64.go    |  195 ++++
+ src/runtime/os_netbsd_arm64.go       |   24 +
+ src/runtime/rt0_netbsd_arm64.s       |  103 ++
+ src/runtime/signal_arm64.go          |    2 +-
+ src/runtime/signal_netbsd_arm64.go   |   73 ++
+ src/runtime/sys_netbsd_arm64.s       |  391 ++++++++
+ src/runtime/tls_arm64.h              |    5 +
+ src/syscall/asm_netbsd_arm64.s       |  129 +++
+ src/syscall/syscall_netbsd_arm64.go  |   31 +
+ src/syscall/zerrors_netbsd_arm64.go  | 1700 ++++++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_netbsd_arm64.go | 1260 +++++++++++++++++++++++++
+ src/syscall/zsysnum_netbsd_arm64.go  |  273 ++++++
+ src/syscall/ztypes_netbsd_arm64.go   |  415 +++++++++
+ 18 files changed, 4685 insertions(+), 4 deletions(-)

@@ -1,0 +1,26 @@
+commit e48c0fb562e95f0011b45c8ab9c5f01d088c8e20
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 26 21:11:17 2010 -0700
+
+    5g, 6g, 8g: generate code for string index
+    instead of calling function.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2762041
+
+ src/cmd/5g/cgen.c          | 40 +++++++++++++++++++++++++---------------
+ src/cmd/5g/gsubr.c         |  2 ++
+ src/cmd/6g/cgen.c          | 39 ++++++++++++++++++++++++++++-----------
+ src/cmd/6g/gsubr.c         |  2 ++
+ src/cmd/8g/cgen.c          | 46 +++++++++++++++++++++++++++++++++++-----------
+ src/cmd/8g/reg.c           |  4 +++-
+ src/cmd/gc/builtin.c.boot  |  1 -
+ src/cmd/gc/gen.c           |  1 -
+ src/cmd/gc/go.h            |  2 +-
+ src/cmd/gc/print.c         |  6 +++++-
+ src/cmd/gc/runtime.go      |  1 -
+ src/cmd/gc/typecheck.c     |  3 ++-
+ src/cmd/gc/walk.c          | 23 ++++++++++++++---------
+ src/pkg/runtime/string.goc | 16 ----------------
+ 14 files changed, 117 insertions(+), 69 deletions(-)

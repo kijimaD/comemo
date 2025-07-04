@@ -1,0 +1,17 @@
+commit ed91661745790f673f4adf212d0ca499f0bd5ee4
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 2 04:26:21 2020 +1100
+
+    cmd/compile/internal/riscv64: correct ssa.BlockRetJmp
+    
+    The obj.Prog needs to be an obj.ARET rather than an obj.AJMP, otherwise the
+    epilogue does not get correctly produced.
+    
+    Change-Id: Ie1262f2028d3b51720eeb0364a627fbde8b14df9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221683
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/riscv64/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

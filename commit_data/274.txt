@@ -1,0 +1,13 @@
+commit 27b4b2e4d345d3d0828fa07f359370127afaec10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 1 16:48:31 2008 -0700
+
+    - fixed .x file permissions
+    - implemented -strict mode if statement
+    - added readfile() to sys pkg
+    - removed outdated sys.go
+    
+    SVN=125572
+
+ src/lib/sys.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

@@ -1,0 +1,12 @@
+commit 5b30306fa81d2f95c152f6b8cd5e4b22a3befcbf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 14:54:10 2012 -0800
+
+    godoc: bring back highlighting, selections, and alerts
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/5695054
+
+ doc/style.css | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

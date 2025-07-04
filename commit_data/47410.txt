@@ -1,0 +1,24 @@
+commit 8c73f80400d04a320165f4c1e535524cc50e20b4
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Nov 9 19:50:47 2021 -0500
+
+    runtime: bypass scheduler when doing traceback for goroutine profile
+    
+    When acquire a goroutine profile, we stop the world then acquire a
+    stack trace for each goroutine. When cgo traceback is used, the
+    traceback code may call the cgo traceback function using cgocall.
+    As the world is stopped, cgocall will be blocked at exitsyscall,
+    causing a deadlock. Bypass the scheduler (using asmcgocall) to fix
+    this.
+    
+    Change-Id: Ic4e596adc3711310b6a983d73786d697ef15dd72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362757
+    Trust: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/crash_cgo_test.go              |  8 ++++++
+ src/runtime/mprof.go                       |  6 +++-
+ src/runtime/testdata/testprogcgo/gprof.go  | 46 ++++++++++++++++++++++++++++++
+ src/runtime/testdata/testprogcgo/gprof_c.c | 29 +++++++++++++++++++
+ 4 files changed, 88 insertions(+), 1 deletion(-)

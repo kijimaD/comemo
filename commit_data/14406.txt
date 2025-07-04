@@ -1,0 +1,18 @@
+commit 63315c0af1df2bb3fc443860c2cb70a4a60380b5
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Nov 15 03:39:00 2012 +1100
+
+    crypto/x509: add support for SEC1/EC private keys.
+    
+    Add support for parsing SEC1 EC private keys and PKCS8 encapsulated
+    EC private key structures.
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/6767045
+
+ src/pkg/crypto/x509/pkcs8.go      | 18 ++++++++--
+ src/pkg/crypto/x509/pkcs8_test.go | 18 +++++++---
+ src/pkg/crypto/x509/sec1.go       | 69 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/crypto/x509/sec1_test.go  | 22 +++++++++++++
+ 4 files changed, 120 insertions(+), 7 deletions(-)

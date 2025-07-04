@@ -1,0 +1,28 @@
+commit 1e5fcefcd188f3fba85156523bf57deb454b9cd4
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue May 3 17:51:14 2022 -0400
+
+    cmd/go: copy files from go/build into new modindex package
+    
+    These files are all copied as is from the go/build package, to files
+    with the same name in modindex (with the exception of build_read, which
+    was copied from go/build/read.go).
+    
+    This is being done so that the next CL can show exactly the changes that
+    were made against the go/build versions.
+    
+    Unfortunately, git doesn't recognize these as copies, which is annoying.
+    
+    Change-Id: I27b05b23dc5ccefe5252956bf75025bd57b36c66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403777
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modindex/build.go        | 2007 ++++++++++++++++++++++++++
+ src/cmd/go/internal/modindex/build_read.go   |  578 ++++++++
+ src/cmd/go/internal/modindex/stubs.go        |   10 +
+ src/cmd/go/internal/modindex/syslist.go      |   75 +
+ src/cmd/go/internal/modindex/syslist_test.go |   62 +
+ 5 files changed, 2732 insertions(+)

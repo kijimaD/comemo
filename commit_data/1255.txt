@@ -1,0 +1,16 @@
+commit 8bbd873c340e9b495262cdd5eacc46daba960e53
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 1 14:03:20 2008 -0800
+
+    - better comment formatting, starting to look good
+    - comment printing still disabled by default because idempotency test fails
+    - whitespace control better but not perfect yet
+    - snapshot before making some heuristics changes
+    
+    R=r
+    OCL=20151
+    CL=20151
+
+ usr/gri/pretty/parser.go  |   1 +
+ usr/gri/pretty/printer.go | 146 ++++++++++++++++++++++------------------------
+ 2 files changed, 70 insertions(+), 77 deletions(-)

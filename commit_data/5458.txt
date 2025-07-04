@@ -1,0 +1,32 @@
+commit f023e859cf5a74e2d0b0e4fadb0ae7fd9732d9f9
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 7 14:32:34 2010 -0700
+
+    compress: renamings.
+    NewDeflater -> NewWriter
+    NewInflater -> NewReader
+    Deflater -> Compressor
+    Inflater -> Decompressor
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1166041
+
+ src/pkg/compress/flate/deflate.go            | 32 ++++++++---------
+ src/pkg/compress/flate/deflate_test.go       | 12 +++----
+ src/pkg/compress/flate/flate_test.go         |  4 +--
+ src/pkg/compress/flate/huffman_bit_writer.go |  2 +-
+ src/pkg/compress/flate/inflate.go            | 32 ++++++++---------
+ src/pkg/compress/gzip/gunzip.go              | 50 +++++++++++++-------------
+ src/pkg/compress/gzip/gunzip_test.go         |  6 ++--
+ src/pkg/compress/gzip/gzip.go                | 54 ++++++++++++++--------------
+ src/pkg/compress/gzip/gzip_test.go           | 52 +++++++++++++--------------
+ src/pkg/compress/zlib/reader.go              | 26 +++++++-------
+ src/pkg/compress/zlib/reader_test.go         |  6 ++--
+ src/pkg/compress/zlib/writer.go              | 28 +++++++--------
+ src/pkg/compress/zlib/writer_test.go         |  4 +--
+ src/pkg/crypto/rand/rand_test.go             |  2 +-
+ src/pkg/image/png/reader.go                  |  2 +-
+ src/pkg/image/png/writer.go                  |  4 +--
+ src/pkg/patch/git.go                         |  2 +-
+ 17 files changed, 159 insertions(+), 159 deletions(-)

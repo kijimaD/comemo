@@ -1,0 +1,20 @@
+commit 1400b268529f1bbacde83b3dc022fec0b196846b
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Mon Feb 5 20:49:16 2024 +0800
+
+    test/codegen: add float max/min codegen test
+    
+    As CL 514596 and CL 514775 adds hardware implement of float
+    max/min, we should add codegen test for these two CL.
+    
+    Change-Id: I347331032fe9f67a2e6fdb5d3cfe20203296b81c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561295
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: M Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/codegen/floats.go | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

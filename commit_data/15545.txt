@@ -1,0 +1,20 @@
+commit 8cfed59941655f6a77af065f0196dff6450f52a7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 1 14:31:26 2013 -0800
+
+    runtime: special-case small byte appends.
+    Update #3679.
+    
+    BenchmarkAppend1Byte            484          199  -58.88%
+    BenchmarkAppend4Bytes           829          286  -65.50%
+    BenchmarkAppend8Bytes           484          365  -24.59%
+    BenchmarkAppend16Bytes          484          498   +2.89%
+    BenchmarkAppend32Bytes          486          484   -0.41%
+    
+    R=iant, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7443047
+
+ src/pkg/runtime/append_test.go | 43 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/slice.c        | 23 ++++++++++++++++++++--
+ 2 files changed, 64 insertions(+), 2 deletions(-)

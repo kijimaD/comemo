@@ -1,0 +1,19 @@
+commit 3eb0b2e80d39f62ac7561e85215e3e7222dba2db
+Author: Kevin Burke <kev@inburke.com>
+Date:   Thu Aug 30 15:39:45 2018 -0600
+
+    fmt: remove spelling mistake in example
+    
+    "someting" is misspelled and the error handling both clobbers the
+    error that occurs and distracts from the point of the example, which
+    is to demonstrate how Printf works. It's better to just panic with the
+    error.
+    
+    Change-Id: I5fb0a4a1a8b4772cbe0302582fa878d95e3a4060
+    Reviewed-on: https://go-review.googlesource.com/132376
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/fmt/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,99 @@
+commit 886e9e6065588d6c40567f3323883ded7ad3d946
+Author: David Chase <drchase@google.com>
+Date:   Tue Mar 7 14:45:46 2017 -0500
+
+    cmd/compile: put spills in better places
+    
+    Previously we always issued a spill right after the op
+    that was being spilled.  This CL pushes spills father away
+    from the generator, hopefully pushing them into unlikely branches.
+    For example:
+    
+      x = ...
+      if unlikely {
+        call ...
+      }
+      ... use x ...
+    
+    Used to compile to
+    
+      x = ...
+      spill x
+      if unlikely {
+        call ...
+        restore x
+      }
+    
+    It now compiles to
+    
+      x = ...
+      if unlikely {
+        spill x
+        call ...
+        restore x
+      }
+    
+    This is particularly useful for code which appends, as the only
+    call is an unlikely call to growslice.  It also helps for the
+    spills needed around write barrier calls.
+    
+    The basic algorithm is walk down the dominator tree following a
+    path where the block still dominates all of the restores.  We're
+    looking for a block that:
+     1) dominates all restores
+     2) has the value being spilled in a register
+     3) has a loop depth no deeper than the value being spilled
+    
+    The walking-down code is iterative.  I was forced to limit it to
+    searching 100 blocks so it doesn't become O(n^2).  Maybe one day
+    we'll find a better way.
+    
+    I had to delete most of David's code which pushed spills out of loops.
+    I suspect this CL subsumes most of the cases that his code handled.
+    
+    Generally positive performance improvements, but hard to tell for sure
+    with all the noise.  (compilebench times are unchanged.)
+    
+    name                      old time/op    new time/op    delta
+    BinaryTree17-12              2.91s ±15%     2.80s ±12%    ~     (p=0.063 n=10+10)
+    Fannkuch11-12                3.47s ± 0%     3.30s ± 4%  -4.91%   (p=0.000 n=9+10)
+    FmtFprintfEmpty-12          48.0ns ± 1%    47.4ns ± 1%  -1.32%    (p=0.002 n=9+9)
+    FmtFprintfString-12         85.6ns ±11%    79.4ns ± 3%  -7.27%  (p=0.005 n=10+10)
+    FmtFprintfInt-12            91.8ns ±10%    85.9ns ± 4%    ~      (p=0.203 n=10+9)
+    FmtFprintfIntInt-12          135ns ±13%     127ns ± 1%  -5.72%   (p=0.025 n=10+9)
+    FmtFprintfPrefixedInt-12     167ns ± 1%     168ns ± 2%    ~      (p=0.580 n=9+10)
+    FmtFprintfFloat-12           249ns ±11%     230ns ± 1%  -7.32%  (p=0.000 n=10+10)
+    FmtManyArgs-12               504ns ± 7%     506ns ± 1%    ~       (p=0.198 n=9+9)
+    GobDecode-12                6.95ms ± 1%    7.04ms ± 1%  +1.37%  (p=0.001 n=10+10)
+    GobEncode-12                6.32ms ±13%    6.04ms ± 1%    ~     (p=0.063 n=10+10)
+    Gzip-12                      233ms ± 1%     235ms ± 0%  +1.01%   (p=0.000 n=10+9)
+    Gunzip-12                   40.1ms ± 1%    39.6ms ± 0%  -1.12%   (p=0.000 n=10+8)
+    HTTPClientServer-12          227µs ± 9%     221µs ± 5%    ~       (p=0.114 n=9+8)
+    JSONEncode-12               16.1ms ± 2%    15.8ms ± 1%  -2.09%    (p=0.002 n=9+8)
+    JSONDecode-12               61.8ms ±11%    57.9ms ± 1%  -6.30%   (p=0.000 n=10+9)
+    Mandelbrot200-12            4.30ms ± 3%    4.28ms ± 1%    ~      (p=0.203 n=10+8)
+    GoParse-12                  3.18ms ± 2%    3.18ms ± 2%    ~     (p=0.579 n=10+10)
+    RegexpMatchEasy0_32-12      76.7ns ± 1%    77.5ns ± 1%  +0.92%    (p=0.002 n=9+8)
+    RegexpMatchEasy0_1K-12       239ns ± 3%     239ns ± 1%    ~     (p=0.204 n=10+10)
+    RegexpMatchEasy1_32-12      71.4ns ± 1%    70.6ns ± 0%  -1.15%   (p=0.000 n=10+9)
+    RegexpMatchEasy1_1K-12       383ns ± 2%     390ns ±10%    ~       (p=0.181 n=8+9)
+    RegexpMatchMedium_32-12      114ns ± 0%     113ns ± 1%  -0.88%    (p=0.000 n=9+8)
+    RegexpMatchMedium_1K-12     36.3µs ± 1%    36.8µs ± 1%  +1.59%   (p=0.000 n=10+8)
+    RegexpMatchHard_32-12       1.90µs ± 1%    1.90µs ± 1%    ~     (p=0.341 n=10+10)
+    RegexpMatchHard_1K-12       59.4µs ±11%    57.8µs ± 1%    ~      (p=0.968 n=10+9)
+    Revcomp-12                   461ms ± 1%     462ms ± 1%    ~       (p=1.000 n=9+9)
+    Template-12                 67.5ms ± 1%    66.3ms ± 1%  -1.77%   (p=0.000 n=10+8)
+    TimeParse-12                 314ns ± 3%     309ns ± 0%  -1.56%    (p=0.000 n=9+8)
+    TimeFormat-12                340ns ± 2%     331ns ± 1%  -2.79%  (p=0.000 n=10+10)
+    
+    The go binary is 0.2% larger.  Not really sure why the size
+    would change.
+    
+    Change-Id: Ia5116e53a3aeb025ef350ffc51c14ae5cc17871c
+    Reviewed-on: https://go-review.googlesource.com/34822
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/dom.go      |   3 +-
+ src/cmd/compile/internal/ssa/func.go     |  25 ++
+ src/cmd/compile/internal/ssa/regalloc.go | 641 ++++++++++++-------------------
+ 3 files changed, 273 insertions(+), 396 deletions(-)

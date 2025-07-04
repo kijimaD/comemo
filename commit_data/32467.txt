@@ -1,0 +1,40 @@
+commit 9c99512d188b01557f5271b2c65d814487817920
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Fri Aug 18 14:03:33 2017 -0500
+
+    cmd/compile/internal/ssa: combine consecutive loads and stores on amd64
+    
+    Sometimes (often for calls) we generate code like this:
+    
+    MOVQ  (addr),AX
+    MOVQ  8(addr),BX
+    MOVQ  AX,(otheraddr)
+    MOVQ  BX,8(otheraddr)
+    
+    Replace it with
+    
+    MOVUPS (addr),X0
+    MOVUPS X0,(otheraddr)
+    
+    For completeness do the same for 8,16,32-bit loads/stores too.
+    Shaves 1% from code sections of go tool.
+    
+    /localdisk/itocar/golang/bin/go 10293917
+    go_old 10334877 [40960 bytes]
+    
+    read-only data = 682 bytes (0.040769%)
+    global text (code) = 38961 bytes (1.036503%)
+    Total difference 39643 bytes (0.674628%)
+    
+    Updates #6853
+    
+    Change-Id: I1f0d2f60273a63a079b58927cd1c4e3429d2e7ae
+    Reviewed-on: https://go-review.googlesource.com/57130
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go      | 268 ++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  52 +++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 289 ++++++++++++++++++++++++++-
+ 3 files changed, 600 insertions(+), 9 deletions(-)

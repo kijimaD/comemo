@@ -1,0 +1,52 @@
+commit 4a1a783ddafd1ac2349d07292f7a00816e50a4e5
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sat Dec 1 13:21:04 2018 -0800
+
+    cmd/compile: fix static initializer
+    
+    staticcopy of a struct or array should recursively call itself, not
+    staticassign.
+    
+    This fixes an issue where a struct with a slice in it is copied during
+    static initialization. In this case, the backing array for the slice
+    is duplicated, and each copy of the slice refers to a different
+    backing array, which is incorrect.  That issue has existed since at
+    least Go 1.2.
+    
+    I'm not sure why this was never noticed. It seems like a pretty
+    obvious bug if anyone modifies the resulting slice.
+    
+    In any case, we started to notice when the optimization in CL 140301
+    landed.  Here is basically what happens in issue29013b.go:
+    1) The error above happens, so we get two backing stores for what
+       should be the same slice.
+    2) The code for initializing those backing stores is reused.
+       But not duplicated: they are the same Node structure.
+    3) The order pass allocates temporaries for the map operations.
+       For the first instance, things work fine and two temporaries are
+       allocated and stored in the OKEY nodes. For the second instance,
+       the order pass decides new temporaries aren't needed, because
+       the OKEY nodes already have temporaries in them.
+       But the order pass also puts a VARKILL of the temporaries between
+       the two instance initializations.
+    4) In this state, the code is technically incorrect. But before
+       CL 140301 it happens to work because the temporaries are still
+       correctly initialized when they are used for the second time. But then...
+    5) The new CL 140301 sees the VARKILLs and decides to reuse the
+       temporary for instance 1 map 2 to initialize the instance 2 map 1
+       map. Because the keys aren't re-initialized, instance 2 map 1
+       gets the wrong key inserted into it.
+    
+    Fixes #29013
+    
+    Change-Id: I840ce1b297d119caa706acd90e1517a5e47e9848
+    Reviewed-on: https://go-review.googlesource.com/c/152081
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/sinit.go |  2 +-
+ test/fixedbugs/issue29013a.go        | 24 ++++++++++++++++++++
+ test/fixedbugs/issue29013b.go        | 43 ++++++++++++++++++++++++++++++++++++
+ test/sinit.go                        |  6 -----
+ 4 files changed, 68 insertions(+), 7 deletions(-)

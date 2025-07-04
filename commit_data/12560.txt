@@ -1,0 +1,22 @@
+commit 2ae860585920e17c1d43098c476ffb11c21b35f8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Mar 11 21:02:40 2012 -0700
+
+    misc/dist: use archive/zip, seek out windows deps, add --upload flag
+    
+    Use archive/zip instead of 7z on Windows.
+    
+    Look for all Windows deps before starting build, and include looking
+    for them in their common locations instead of making users update
+    their PATHs.
+    
+    Add an --upload flag that, if set to false, doesn't require credential
+    files.
+    
+    R=golang-dev, alex.brainman, adg
+    CC=golang-dev
+    https://golang.org/cl/5794046
+
+ misc/dist/bindist.go         | 164 ++++++++++++++++++++++++++++++++++++++++---
+ misc/dist/windows/README.txt |   1 -
+ 2 files changed, 154 insertions(+), 11 deletions(-)

@@ -1,0 +1,14 @@
+commit e64280ecfae776972bfb23103e6adb41b6607b4a
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Tue Oct 19 11:29:31 2010 +1100
+
+    goplay: fix to run under windows.
+    
+    Fixes #1204.
+    
+    R=golang-dev, brainman, Joe Poirier, alex.brainman, adg
+    CC=golang-dev, math-nuts
+    https://golang.org/cl/2532041
+
+ misc/goplay/goplay.go | 25 +++++++++++++++++--------
+ 1 file changed, 17 insertions(+), 8 deletions(-)

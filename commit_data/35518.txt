@@ -1,0 +1,12 @@
+commit 53209467dbb94a37ac5550945a59f5d0721976d8
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Tue May 29 08:56:42 2018 +0000
+
+    index/suffixarray: fix a typo mistake in comments
+    
+    Change-Id: Ibdd1ca7bfc6fb2419621338f1f8e37c876ba89c0
+    Reviewed-on: https://go-review.googlesource.com/114976
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/index/suffixarray/suffixarray.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

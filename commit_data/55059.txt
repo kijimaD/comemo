@@ -1,0 +1,53 @@
+commit ee6b34797b66b957fdf9b7211ee3f0b80ac57758
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Sat Jul 29 18:25:42 2023 -0700
+
+    all: add floating point option for ARM targets
+    
+    This change introduces new options to set the floating point
+    mode on ARM targets. The GOARM version number can optionally be
+    followed by ',hardfloat' or ',softfloat' to select whether to
+    use hardware instructions or software emulation for floating
+    point computations, respectively. For example,
+    GOARM=7,softfloat.
+    
+    Previously, software floating point support was limited to
+    GOARM=5. With these options, software floating point is now
+    extended to all ARM versions, including GOARM=6 and 7. This
+    change also extends hardware floating point to GOARM=5.
+    
+    GOARM=5 defaults to softfloat and GOARM=6 and 7 default to
+    hardfloat.
+    
+    For #61588
+    
+    Change-Id: I23dc86fbd0733b262004a2ed001e1032cf371e94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514907
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/asm/internal/asm/endtoend_test.go   |   4 +-
+ src/cmd/compile/internal/arm/galign.go      |   2 +-
+ src/cmd/compile/internal/arm/ssa.go         |   4 +-
+ src/cmd/compile/internal/ssa/_gen/ARM.rules |  58 ++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM.go  | 124 ++++++++++++++--------------
+ src/cmd/go/alldocs.go                       |   2 +
+ src/cmd/go/internal/help/helpdoc.go         |   2 +
+ src/cmd/internal/obj/arm/asm5.go            |  10 +--
+ src/cmd/internal/obj/arm/obj5.go            |   2 +-
+ src/cmd/internal/testdir/testdir_test.go    |   2 +-
+ src/cmd/link/internal/ld/lib.go             |  12 ++-
+ src/internal/buildcfg/cfg.go                |  57 +++++++++++--
+ src/math/rand/rand_test.go                  |   3 +-
+ src/runtime/asm_arm.s                       |  22 ++---
+ src/runtime/cgo/asm_arm.s                   |  14 ++--
+ src/runtime/mkpreempt.go                    |   4 +-
+ src/runtime/os_freebsd_arm.go               |  10 ++-
+ src/runtime/os_linux_arm.go                 |  10 ++-
+ src/runtime/preempt_arm.s                   |  12 +--
+ src/runtime/runtime2.go                     |   4 +-
+ 20 files changed, 209 insertions(+), 149 deletions(-)

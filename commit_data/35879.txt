@@ -1,0 +1,16 @@
+commit 5d4f0474ecb322135612813eadf22db78309b33f
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sat Jun 23 11:25:31 2018 +0530
+
+    cmd/dist: skip building tools for js/wasm
+    
+    Fixes #25911
+    
+    Change-Id: Id3b5ea5494544e9e7f889831cefaf080cae8865d
+    Reviewed-on: https://go-review.googlesource.com/120655
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

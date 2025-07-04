@@ -1,0 +1,22 @@
+commit 257b01f8f47ace2ddd75efe37d8a0353888bce14
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Apr 6 09:36:23 2017 -0400
+
+    cmd/compile: use ANDconst to mask out leading/trailing bits on ARM64
+    
+    For an AND that masks out leading or trailing bits, generic rules
+    rewrite it to a pair of shifts. On ARM64, the mask actually can
+    fit into an AND instruction. So we rewrite it back to AND.
+    
+    Fixes #19857.
+    
+    Change-Id: I479d7320ae4f29bb3f0056d5979bde4478063a8f
+    Reviewed-on: https://go-review.googlesource.com/39651
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/asm_test.go      | 16 +++++++++++
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  7 +++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 42 +++++++++++++++++++++-------
+ 3 files changed, 53 insertions(+), 12 deletions(-)

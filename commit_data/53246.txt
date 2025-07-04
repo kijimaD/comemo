@@ -1,0 +1,29 @@
+commit 527d0e8a9196087a7744e7f698a6d4995711f841
+Author: Robert Griesemer <gri@google.com>
+Date:   Tue May 23 21:03:28 2023 +0000
+
+    Revert "go/types, types2: consider shared methods when unifying against interfaces"
+    
+    This reverts commit c4afec232cec72ce030139ae2772450fad89f188.
+    
+    Reason for revert: submitted accidentally via auto-commit
+    
+    Change-Id: Idbfd90a4f1c2d582d86fc8aa45e037c406adbd40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497655
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api.go             |   5 -
+ src/cmd/compile/internal/types2/check_test.go      |   1 -
+ src/cmd/compile/internal/types2/infer.go           |   2 +-
+ src/cmd/compile/internal/types2/unify.go           | 154 +--------------------
+ src/go/types/api.go                                |   5 -
+ src/go/types/check_test.go                         |   1 -
+ src/go/types/generate_test.go                      |  11 +-
+ src/go/types/infer.go                              |   2 +-
+ src/go/types/unify.go                              | 154 +--------------------
+ .../types/testdata/fixedbugs/issue41176.go         |  23 ---
+ .../types/testdata/fixedbugs/issue57192.go         |  24 ----
+ 11 files changed, 18 insertions(+), 364 deletions(-)

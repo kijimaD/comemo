@@ -1,0 +1,20 @@
+commit b805e18fbf6dee945236159d89cf3d29fcd541c4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 16 15:16:19 2023 -0700
+
+    cmd/compile/internal/escape: cleanup go/defer normalization cruft
+    
+    This CL removes the extra complexity from escape analysis that was
+    only needed to support go/defer normalization. It does not affect
+    analysis results at all.
+    
+    Change-Id: I75785e0cb4c4ce19bea3b8df0bf95821bd885291
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520261
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/escape/call.go | 242 ++++++++++----------------------
+ 1 file changed, 71 insertions(+), 171 deletions(-)

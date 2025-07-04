@@ -1,0 +1,16 @@
+commit a3e3b8e9db553fb6870c9488e9817f4bd0bb9593
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Feb 13 07:28:22 2014 +0100
+
+    cmd/gc: fix warnings on Plan 9
+    
+    warning: src/cmd/gc/popt.c:700 format mismatch d VLONG, arg 4
+    warning: src/cmd/gc/popt.c:700 format mismatch d VLONG, arg 5
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/62910043
+
+ src/cmd/gc/popt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit afb5fca25a6f59e9045317727f6899a58471d5f0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Sep 13 13:22:42 2020 +0700
+
+    test: fix flaky test for issue24491
+    
+    runtime.GC() doesn't guarantee the finalizer has run, so use a channel
+    instead to make sure finalizer was run in call to "after()".
+    
+    Fixes #41361
+    
+    Change-Id: I69c801e29aea49757ea72c52e8db13239de19ddc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254401
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ test/fixedbugs/issue24491b.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

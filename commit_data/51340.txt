@@ -1,0 +1,18 @@
+commit 1daa8e2d5226e0645d9748c32e031d93f485e740
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Nov 16 23:11:07 2022 +0700
+
+    test: remove optimizationOff
+    
+    Cl 426334 removed its only usage, and now we have gcflags_noopt.
+    
+    Change-Id: I3b33a8c868669deea00bf6dfcf8d81981504e293
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451255
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/run.go | 4 ----
+ 1 file changed, 4 deletions(-)

@@ -1,0 +1,19 @@
+commit cf51702bba18cf15e4f4aca1db6bf33bfa349d64
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Dec 12 10:12:06 2013 +0400
+
+    net: don't leave hostsPath unrestored on error in TestLookupStaticHost
+    
+    If the return was reached, then hostsPath would not be properly restored
+    to its original value. See the (lengthy) discussion at
+    https://golang.org/cl/15960047/
+    
+    I assume that this is not for Go 1.2; mailing now since I promised to do so.
+    I will plan to ping once Go 1.2 is out.
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/16200043
+
+ src/pkg/net/hosts_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

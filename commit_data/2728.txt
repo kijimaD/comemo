@@ -1,0 +1,14 @@
+commit 04ae91cf71bbbc0bf50fbdbef899a059dcfbb948
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 16 13:05:46 2009 -0700
+
+    clean up the decode loop and fix a couple of bad prints
+    
+    R=rsc
+    DELTA=15  (8 added, 2 deleted, 5 changed)
+    OCL=31738
+    CL=31738
+
+ src/pkg/gob/decoder.go      | 14 ++++++++++----
+ src/pkg/gob/encoder_test.go |  6 +++---
+ 2 files changed, 13 insertions(+), 7 deletions(-)

@@ -1,0 +1,18 @@
+commit 02f6719d44a0a70f0fddfa3228ca9225f06d766c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 13 10:42:05 2011 -0800
+
+    strconv: include package and function name in error strings
+    Fixes #2548.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5484062
+
+ src/pkg/exp/sql/convert_test.go |  4 ++--
+ src/pkg/strconv/atob.go         |  2 +-
+ src/pkg/strconv/atof.go         | 10 ++++++----
+ src/pkg/strconv/atof_test.go    |  2 +-
+ src/pkg/strconv/atoi.go         | 28 +++++++++++++++++++++-------
+ src/pkg/strconv/atoi_test.go    | 12 ++++++------
+ 6 files changed, 37 insertions(+), 21 deletions(-)

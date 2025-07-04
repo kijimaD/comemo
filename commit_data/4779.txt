@@ -1,0 +1,16 @@
+commit 2f1a321d4faa1a229c0790c8328ab3d304347695
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Feb 3 22:31:38 2010 -0800
+
+    search for runtime.a in the package path instead of hardcoding
+    the location. remove last remnants of broken -l flag.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/201042
+
+ src/cmd/5l/obj.c |  9 ++++-----
+ src/cmd/6l/obj.c |  9 ++++-----
+ src/cmd/8l/obj.c |  9 ++++-----
+ src/cmd/ld/lib.c | 28 +++++++++++++++++++++-------
+ 4 files changed, 33 insertions(+), 22 deletions(-)

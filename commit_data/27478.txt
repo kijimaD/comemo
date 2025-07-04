@@ -1,0 +1,14 @@
+commit 7ab698b0221fd4a5b2842fb50a34ba8a5f49c6d5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 22:43:14 2016 +0000
+
+    time: document that After uses memory until duration times out
+    
+    Fixes #15698
+    
+    Change-Id: I616fc06dcf04092bafdaf56fb1afba2a998a6d83
+    Reviewed-on: https://go-review.googlesource.com/23304
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/sleep.go | 3 +++
+ 1 file changed, 3 insertions(+)

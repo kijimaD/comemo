@@ -1,0 +1,12 @@
+commit 92c6061b5cc214fb7863c1af11cb8581ecb97769
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 18 12:30:10 2011 -0400
+
+    5l: assume Linux binary, not Plan 9
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4767042
+
+ src/cmd/5l/obj.c | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

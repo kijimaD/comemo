@@ -1,0 +1,29 @@
+commit 3a3b8164fdcb071955284c13cda6ee0f29fc8bd3
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Mar 1 10:34:08 2021 +0800
+
+    cmd/dist: refactor test constraints for misc/cgo/testsantizers
+    
+    Currently, the cmd/dist runs test cases in misc/cgo/testsantizers only
+    when memeory sanitizer is supported, but the tsan tests in
+    misc/cgo/testsanitizers do not require support for -msan option, which
+    makes tsan tests can not be run on some unsupported -msan option platforms.
+    
+    Therefore, this patch moves the test constraints from cmd/dist to
+    msan_test.go, so that the tsan tests in misc/cgo/testsanitizers
+    can be run on any system where the C compiler supports -fsanitize=thread
+    option.
+    
+    Change-Id: I779c92eedd0270050f1a0b1a69ecce50c3712bc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297774
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Run-TryBot: fannie zhang <Fannie.Zhang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/cc_test.go      | 11 +++++++++++
+ misc/cgo/testsanitizers/cshared_test.go | 11 +++++++++++
+ misc/cgo/testsanitizers/msan_test.go    | 13 +++++++++++++
+ src/cmd/dist/test.go                    | 16 +++-------------
+ src/cmd/internal/sys/supported.go       |  3 ++-
+ 5 files changed, 40 insertions(+), 14 deletions(-)

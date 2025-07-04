@@ -1,0 +1,18 @@
+commit c77809e9032f83fdf6ddfda5b5a19f6771962488
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon Jun 29 16:13:09 2015 -0400
+
+    go/types: go/types: add an API test of the Scope type
+    
+    Also: make (*Scope).Innermost work for Package scopes.
+    
+    This change is identical to http://go-review.googlesource.com/#/c/11691/,
+    except for minor changes required by the use of testImporter.
+    
+    Change-Id: Id07e66f78987f7242c2e642dfd6ee613676e10e5
+    Reviewed-on: https://go-review.googlesource.com/11714
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/api_test.go | 102 ++++++++++++++++++++++++++++++++++++++++++++++-
+ src/go/types/scope.go    |  11 +++++
+ 2 files changed, 112 insertions(+), 1 deletion(-)

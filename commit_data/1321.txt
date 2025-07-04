@@ -1,0 +1,14 @@
+commit b927ad8835a163939f91f86fb0b732c505f94f29
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 10 17:17:59 2008 -0800
+
+    DNS messages
+    
+    R=r
+    DELTA=685  (683 added, 0 deleted, 2 changed)
+    OCL=20926
+    CL=20951
+
+ src/lib/net/Makefile  |   5 +-
+ src/lib/net/dnsmsg.go | 683 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 686 insertions(+), 2 deletions(-)

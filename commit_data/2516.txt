@@ -1,0 +1,18 @@
+commit 190b5c9ad22a8f55ff8595cbf93d37509ceba69c
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Jun 25 11:01:17 2009 -0700
+
+    fixes to 5g object file generation. arm specific regalloc.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=976  (164 added, 237 deleted, 575 changed)
+    OCL=30705
+    CL=30743
+
+ src/cmd/5g/gg.h    |   14 +-
+ src/cmd/5g/ggen.c  |   44 +-
+ src/cmd/5g/gobj.c  |   83 ++--
+ src/cmd/5g/gsubr.c | 1363 +++++++++++++++++++++++++---------------------------
+ src/cmd/5g/list.c  |   15 +-
+ 5 files changed, 723 insertions(+), 796 deletions(-)

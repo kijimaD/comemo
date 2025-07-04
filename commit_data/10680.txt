@@ -1,0 +1,12 @@
+commit d7f050a73e2cf7d890c3711c78f60627da01ea9d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 9 00:11:43 2011 -0500
+
+    spec: rune is now an alias for int32
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5467048
+
+ doc/go_spec.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

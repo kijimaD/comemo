@@ -1,0 +1,18 @@
+commit 68e250516c472fb7bc16e896fe9ea0c49c0dc4a2
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 11 13:54:47 2009 -0700
+
+    make a simpler regexp implementation with fewer dependencies and put it inside testing.
+    remove "regexp." from regexp tests.
+    
+    R=rsc
+    DELTA=1173  (1152 added, 1 deleted, 20 changed)
+    OCL=33028
+    CL=33037
+
+ src/pkg/regexp/all_test.go     |  28 +-
+ src/pkg/testing/Makefile       |  15 +-
+ src/pkg/testing/regexp.go      | 863 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/testing/regexp_test.go | 281 ++++++++++++++
+ src/pkg/testing/testing.go     |   8 +-
+ 5 files changed, 1174 insertions(+), 21 deletions(-)

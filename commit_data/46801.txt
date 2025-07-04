@@ -1,0 +1,25 @@
+commit 2043b3b47b3ca76d8ce44f05a77e48d2291b6fc6
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 6 14:53:32 2021 -0700
+
+    cmd/compile,runtime: implement uint64->float32 correctly on 32-bit archs
+    
+    The old way of implementing it, float32(float64(x)), involves 2 roundings
+    which can cause accuracy errors in some strange cases. Implement a runtime
+    version of [u]int64tofloat32 which only does one rounding.
+    
+    Fixes #48807
+    
+    Change-Id: Ie580be480bee4f3a479e58ef8dce23032f231704
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354429
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/typecheck/builtin.go      | 73 ++++++++++++----------
+ .../compile/internal/typecheck/builtin/runtime.go  |  2 +
+ src/cmd/compile/internal/walk/convert.go           |  4 +-
+ src/runtime/float_test.go                          | 25 ++++++++
+ src/runtime/vlrt.go                                | 30 +++++++++
+ 5 files changed, 98 insertions(+), 36 deletions(-)

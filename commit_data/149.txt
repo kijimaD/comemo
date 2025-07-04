@@ -1,0 +1,11 @@
+commit df28e14e5bff98775e98f3de5f464607a36f2e2f
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 11 13:34:08 2008 -0700
+
+    add a setup document, and tweak the scripts that it mentions
+    
+    SVN=122175
+
+ src/cmd/clean.bash |  1 -
+ src/make.bash      | 11 +++++++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)

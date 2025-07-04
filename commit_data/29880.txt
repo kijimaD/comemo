@@ -1,0 +1,12 @@
+commit a3f4cc06694c8b0bcf14ad36ebc10e66321e3d0f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 22 18:17:32 2016 -0700
+
+    runtime: document MemStats.BySize fields
+    
+    Change-Id: Iae8cdcd84e9b5f5d7c698abc6da3fc2af0ef839a
+    Reviewed-on: https://go-review.googlesource.com/34710
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/mstats.go | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

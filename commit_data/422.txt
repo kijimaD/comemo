@@ -1,0 +1,16 @@
+commit 5fc7919147ab47e93abfacb50ba258f4999953ac
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 25 11:27:13 2008 -0700
+
+    Experiments with "export":
+    Allow "export" keyword in front of a declaration. Semantics:
+    export *top-level* identifiers declared (but not the fields
+    of a struct type for instance).
+    
+    R=r
+    OCL=13464
+    CL=13464
+
+ usr/gri/gosrc/parser.go  | 64 ++++++++++++++++++++++++++++++------------------
+ usr/gri/gosrc/scanner.go |  4 +--
+ 2 files changed, 42 insertions(+), 26 deletions(-)

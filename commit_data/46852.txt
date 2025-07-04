@@ -1,0 +1,24 @@
+commit 9c1dbdf60edbffeff10f58af21fa055eb0fdd29f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sat Oct 9 16:52:19 2021 +1100
+
+    compress/lzw: output a Clear code first, per GIF spec
+    
+    The TestStartsWithClearCode test is new, but if it existed beforehand,
+    the want strings would be "\x81" and "Hi\x81" without a starting "\x80".
+    
+    Fixes #26108
+    Fixes #33748
+    Updates makeworld-the-better-one/didder#7
+    Updates nothings/stb#1222
+    
+    Change-Id: I35ac0ed862ba6ee921ba9aee257bc19828abaa82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354710
+    Trust: Nigel Tao <nigeltao@golang.org>
+    Run-TryBot: Nigel Tao <nigeltao@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/compress/lzw/writer.go      | 20 +++++++++++++++++++-
+ src/compress/lzw/writer_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 47 insertions(+), 1 deletion(-)

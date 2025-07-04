@@ -1,0 +1,23 @@
+commit af0fc83985860776551d15be3a8fefde35514bcb
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Jun 14 10:20:11 2016 -0400
+
+    cmd/compile, etc: handle many struct fields
+    
+    This adds 8 bytes of binary size to every type that has methods. It is
+    the smallest change I could come up with for 1.7.
+    
+    Fixes #16037
+    
+    Change-Id: Ibe15c3165854a21768596967757864b880dbfeed
+    Reviewed-on: https://go-review.googlesource.com/24070
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 10 +++--
+ src/cmd/link/internal/ld/decodesym.go  |  4 +-
+ src/reflect/type.go                    |  6 ++-
+ src/runtime/type.go                    |  4 +-
+ test/fixedbugs/issue16037_run.go       | 70 ++++++++++++++++++++++++++++++++++
+ 5 files changed, 85 insertions(+), 9 deletions(-)

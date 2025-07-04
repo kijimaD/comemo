@@ -1,0 +1,20 @@
+commit a1a688fa0012f7ce3a37e9ac0070461fe8e3f28e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 4 16:11:48 2016 -0700
+
+    Revert "go/scanner, go/token: recognize => (ALIAS) token"
+    
+    This reverts commit 776a90100f1f65fcf54dfd3d082d657341bdc323.
+    
+    Reason: Decision to back out current alias implementation.
+    
+    For #16339.
+    
+    Change-Id: Icb451a122c661ded05d9293356b466fa72b965f3
+    Reviewed-on: https://go-review.googlesource.com/32824
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/scanner/scanner.go      | 2 +-
+ src/go/scanner/scanner_test.go | 1 -
+ src/go/token/token.go          | 8 +-------
+ 3 files changed, 2 insertions(+), 9 deletions(-)

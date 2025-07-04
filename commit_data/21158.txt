@@ -1,0 +1,17 @@
+commit a73c1cef070a33527c869d36a763ea265f689fe3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 22 22:42:05 2014 -0500
+
+    runtime: add missing write barriers in append's copy of slice data
+    
+    Found with GODEBUG=wbshadow=1 mode.
+    Eventually that will run automatically, but right now
+    it still detects other missing write barriers.
+    
+    Change-Id: Ic8624401d7c8225a935f719f96f2675c6f5c0d7c
+    Reviewed-on: https://go-review.googlesource.com/2064
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/slice.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

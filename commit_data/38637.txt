@@ -1,0 +1,18 @@
+commit b0bcd7aeb0060361fc8ff04cc4b6764aa146b086
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Wed Apr 3 14:58:05 2019 +0200
+
+    cmd/go: add a note in help buildmode for c-archive on AIX
+    
+    As ld on AIX doesn't keep the same layout in .text section,
+    -Wl,-bnoobjreoder must be passed to gcc when building a C program with a
+    Go archive.
+    
+    Change-Id: I89b584cce43ab5792f315192b073923c10d5690e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170538
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go               | 3 +++
+ src/cmd/go/internal/help/helpdoc.go | 3 +++
+ 2 files changed, 6 insertions(+)

@@ -1,0 +1,14 @@
+commit ab3d40b271806cd3b322a841b71eaa7e6e3fd363
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 2 23:26:02 2009 -0700
+
+    trivial cut and paste: move 64-bit simulation into cgen64.c
+    
+    R=ken
+    OCL=29812
+    CL=29812
+
+ src/cmd/8g/Makefile |   1 +
+ src/cmd/8g/cgen.c   | 506 ---------------------------------------------------
+ src/cmd/8g/cgen64.c | 512 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 513 insertions(+), 506 deletions(-)

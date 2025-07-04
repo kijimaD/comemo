@@ -1,0 +1,16 @@
+commit e0e1cee8e96176b7c3ee9804e326469edd22c33f
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Dec 18 09:36:07 2014 +0100
+
+    cmd/gc: remove outdated warning from pre-go1.
+    
+    People are probably not making this mistake anymore.
+    
+    Fixes #9164
+    
+    Change-Id: I86b440ed63d09b4ca676bba7034838860f1a5d8b
+    Reviewed-on: https://go-review.googlesource.com/1782
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/gc/typecheck.c | 8 --------
+ 1 file changed, 8 deletions(-)

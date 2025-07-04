@@ -1,0 +1,15 @@
+commit 2ff431189e4be35d3121cce7cc7d3df21dcfd71c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Feb 24 08:36:56 2014 -0800
+
+    syscall: regenerate Flock_t to make it compliant with EABI
+    
+    Note that current z-files for linux/amd64,386,arm are based on 3.2 kernel.
+    
+    LGTM=iant
+    R=golang-codereviews, dave, bradfitz, gobot, iant
+    CC=golang-codereviews
+    https://golang.org/cl/59160044
+
+ src/pkg/syscall/ztypes_linux_arm.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

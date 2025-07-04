@@ -1,0 +1,16 @@
+commit 9490fbf7557f3d1d12051f79d033e2a4fd8fcbcb
+Author: Giulio Iotti <dullgiulio@gmail.com>
+Date:   Wed Apr 15 16:59:49 2015 +0300
+
+    xml: add check of version in document declaration
+    
+    Check that if a version is declared, for example
+    in '<?xml version="XX" ?>', version must be '1.0'.
+    
+    Change-Id: I16ba9f78873a5f31977dcf75ac8e671fe6c08280
+    Reviewed-on: https://go-review.googlesource.com/8961
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/xml/xml.go      | 18 ++++++++++++------
+ src/encoding/xml/xml_test.go | 21 ++++++++++++---------
+ 2 files changed, 24 insertions(+), 15 deletions(-)

@@ -1,0 +1,24 @@
+commit 5f54f06a359f2973521ff3f42899c12d3a6a7fed
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Oct 28 22:44:59 2014 +0100
+
+    os: fix write on Plan 9
+    
+    In CL 160670043 the write function was changed
+    so a zero-length write is now allowed. This leads
+    the ExampleWriter_Init test to fail.
+    
+    The reason is that Plan 9 preserves message
+    boundaries, while the os library expects systems
+    that don't preserve them. We have to ignore
+    zero-length writes so they will never turn into EOF.
+    
+    This issue was previously discussed in CL 7406046.
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/163510043
+
+ src/os/file_plan9.go | 3 +++
+ 1 file changed, 3 insertions(+)

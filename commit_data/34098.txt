@@ -1,0 +1,23 @@
+commit 1e0ef6601da8ee0a14def5c82eb298fcdab97cf6
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Nov 21 09:25:29 2017 -0500
+
+    cmd/internal/obj/mips: use LR as temporary register in RET
+    
+    On mips/mips64, for non-leaf function, RET is assembled as
+            MOV (SP), R4       // load saved LR
+            ADD $framesize, SP
+            JMP (R4)
+    
+    This clobbers R4 unnecessarily. Use the link register as
+    temporary instead.
+    
+    Probably for Go 1.11.
+    
+    Change-Id: I2209db7be11074ed2e0e0829cace95ebfb709e9f
+    Reviewed-on: https://go-review.googlesource.com/79016
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/mips/obj0.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

@@ -1,0 +1,24 @@
+commit e2e05af6e189131162b533184eb04de5d597d544
+Author: eric fang <eric.fang@arm.com>
+Date:   Mon Jun 21 02:11:25 2021 +0000
+
+    cmd/internal/obj/arm64: fix an encoding error of CMPW instruction
+    
+    For arm64 CMP, ADD and other similar extended register instructions,
+    if there is no extension, the default extion is LSL<<0, but the default
+    encoding value (the value of 'option' field) of 32-bit instruction and
+    64-bit instruction is different, 32-bit is 2 and 64-bit is 3. But the
+    current assembler incorrectly encodes the value of 32-bit instruction
+    to 3. This CL fixes this error.
+    
+    Change-Id: I0e09af2c9c5047a4ed2db7d1183290283db9c31c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329749
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s | 3 ++-
+ src/cmd/internal/obj/arm64/asm7.go        | 4 +++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

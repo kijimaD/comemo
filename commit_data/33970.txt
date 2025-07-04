@@ -1,0 +1,25 @@
+commit b6c871a2af7c916f3c862e38816713aa8bf824a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 9 15:26:21 2018 -0500
+
+    doc: s/tool chain/toolchain/
+    
+    We were not being consistent.
+    Standardize on toolchain.
+    
+    Change-Id: Id0e756b5214ce4a1341f733634ed95263f03a61c
+    Reviewed-on: https://go-review.googlesource.com/87017
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/articles/go_command.html |  2 +-
+ doc/asm.html                 |  4 ++--
+ doc/debugging_with_gdb.html  |  4 ++--
+ doc/go1.1.html               |  8 ++++----
+ doc/go1.2.html               |  2 +-
+ doc/go1.3.html               |  4 ++--
+ doc/go1compat.html           |  4 ++--
+ doc/go_faq.html              |  2 +-
+ doc/install-source.html      | 16 ++++++++--------
+ 9 files changed, 23 insertions(+), 23 deletions(-)

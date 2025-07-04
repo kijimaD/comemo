@@ -1,0 +1,59 @@
+commit 193088b246f4bbe9a7d3a84ec7f4cc6786dac043
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 16 20:28:29 2017 -0400
+
+    runtime: separate error result for mmap
+    
+    Currently mmap returns an unsafe.Pointer that encodes OS errors as
+    values less than 4096. In practice this is okay, but it borders on
+    being really unsafe: for example, the value has to be checked
+    immediately after return and if stack copying were ever to observe
+    such a value, it would panic. It's also not remotely idiomatic.
+    
+    Fix this by making mmap return a separate pointer value and error,
+    like a normal Go function.
+    
+    Updates #22218.
+    
+    Change-Id: Iefd965095ffc82cc91118872753a5d39d785c3a6
+    Reviewed-on: https://go-review.googlesource.com/71270
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_mmap.c        |  6 +++---
+ src/runtime/cgo_mmap.go           | 10 ++++++----
+ src/runtime/mem_bsd.go            | 22 ++++++++++----------
+ src/runtime/mem_darwin.go         | 14 ++++++-------
+ src/runtime/mem_linux.go          | 42 +++++++++++++++++++--------------------
+ src/runtime/mmap.go               |  3 ++-
+ src/runtime/os3_solaris.go        |  6 +++---
+ src/runtime/os_linux.go           |  4 ++--
+ src/runtime/os_nacl.go            |  2 +-
+ src/runtime/runtime_mmap_test.go  | 26 ++++++++++--------------
+ src/runtime/sys_darwin_386.s      |  8 +++++++-
+ src/runtime/sys_darwin_amd64.s    |  8 +++++++-
+ src/runtime/sys_darwin_arm.s      |  9 ++++++++-
+ src/runtime/sys_darwin_arm64.s    |  8 +++++++-
+ src/runtime/sys_dragonfly_amd64.s |  9 ++++++++-
+ src/runtime/sys_freebsd_386.s     |  8 +++++++-
+ src/runtime/sys_freebsd_amd64.s   |  8 +++++++-
+ src/runtime/sys_freebsd_arm.s     |  7 +++++--
+ src/runtime/sys_linux_386.s       |  9 +++++++--
+ src/runtime/sys_linux_amd64.s     |  9 +++++++--
+ src/runtime/sys_linux_arm.s       |  6 +++++-
+ src/runtime/sys_linux_arm64.s     |  9 +++++++--
+ src/runtime/sys_linux_mips64x.s   |  8 +++++++-
+ src/runtime/sys_linux_mipsx.s     | 10 ++++++++--
+ src/runtime/sys_linux_ppc64x.s    |  8 +++++++-
+ src/runtime/sys_linux_s390x.s     | 11 +++++++---
+ src/runtime/sys_nacl_386.s        |  9 +++++++--
+ src/runtime/sys_nacl_amd64p32.s   |  9 +++++++--
+ src/runtime/sys_nacl_arm.s        |  6 +++++-
+ src/runtime/sys_netbsd_386.s      |  8 +++++++-
+ src/runtime/sys_netbsd_amd64.s    |  9 ++++++++-
+ src/runtime/sys_netbsd_arm.s      |  6 +++++-
+ src/runtime/sys_openbsd_386.s     |  8 +++++++-
+ src/runtime/sys_openbsd_amd64.s   |  9 ++++++++-
+ src/runtime/sys_openbsd_arm.s     |  6 +++++-
+ 35 files changed, 237 insertions(+), 103 deletions(-)

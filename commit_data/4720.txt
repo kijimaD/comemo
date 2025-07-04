@@ -1,0 +1,19 @@
+commit a0e6f03add91af28cce2f2f5a8ec5d2e859de6f4
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Thu Jan 28 15:13:26 2010 -0800
+
+    Cosmetic bug or compliance fixes in http.Response.
+    
+    (1) http.Response must close resp.Body after writing.
+    (2) Case when resp.Body != nil and resp.ContentLength = 0 should not be
+    treated as an error in Response.Write, because this is what
+    ReadResponse often returns.
+    (3) Changed body.th to body.hdr for readability.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194084
+
+ src/pkg/http/request.go  |  2 +-
+ src/pkg/http/response.go | 30 ++++++++++++++++--------------
+ 2 files changed, 17 insertions(+), 15 deletions(-)

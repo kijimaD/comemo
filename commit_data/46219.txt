@@ -1,0 +1,28 @@
+commit 8f4c020660d4c8a7bab9a7363551d07176e638eb
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Aug 29 06:49:28 2021 -0700
+
+    cmd/compile: fix bug with Inferred targs
+    
+    We were using the type from the wrong Node (the partially filled-in
+    FUNCINST) rather than the original function node - which is pointed to
+    by the OFUNCINST)) to set the final fully-substituted type of the
+    OFUNCINST. So fixed the node reference. Also, added check so we don't do
+    any work at all if the OFUNCINST already has all type args filled in.
+    
+    Added few extra cases to the test file issue48030.go, to cover
+    fully-specified type args, partially inferred type args, and fully
+    inferred type args.
+    
+    Fixes #48030
+    
+    Change-Id: If9e4f2e0514d68b9d241f30c423259133932b25b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346229
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/expr.go | 16 +++++++++-------
+ test/typeparam/issue48030.go           | 26 ++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 7 deletions(-)

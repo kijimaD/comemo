@@ -1,0 +1,14 @@
+commit cb47edc0c404aa6944976b27406bd927f8836f07
+Author: Visweswara R <r.visweswara@gmail.com>
+Date:   Wed Nov 28 07:32:08 2018 +0530
+
+    net: improve IPMask docs
+    
+    Fixes #28957
+    
+    Change-Id: Ie8ba841bd4ee71766bcfbbfbdc9173b9be867ed1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/151479
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

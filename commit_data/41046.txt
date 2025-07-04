@@ -1,0 +1,17 @@
+commit 6bcddae1af34d251b88fe134c1d3a8f4b4c7b0b6
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Fri Jan 3 13:13:57 2020 -0500
+
+    cmd/go: clarify stderr behavior for 'go help mod download'
+    
+    Fixes #36297
+    
+    Change-Id: I2623e9ee386644eddfa9a348ba368c5f1a81f893
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213134
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/alldocs.go                  | 4 +++-
+ src/cmd/go/internal/modcmd/download.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

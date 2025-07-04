@@ -1,0 +1,21 @@
+commit e9f1bb96bd4d9ddb1e77054dfc9d7b8ea4ca7fd6
+Author: Austin Clements <austin@google.com>
+Date:   Mon May 8 11:52:48 2023 -0400
+
+    cmd/cgo: enable test with non-sensible build tag
+    
+    The build tag on this file is currently unsatisfiable. It was clearly
+    supposed to be "linux || freebsd || openbsd", but the test doesn't
+    actually compile on FreeBSD or OpenBSD because they don't define
+    SYS_gettid. Change the build tag to just "linux".
+    
+    Change-Id: Ifaffac5438e1b94a8588b5a00435461aa171a6fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493603
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cgo/internal/test/cgo_thread_lock.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

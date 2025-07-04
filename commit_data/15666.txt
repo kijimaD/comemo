@@ -1,0 +1,27 @@
+commit 53f034c7a87c2d802b992bb88814d943c30bf306
+Author: Jeff R. Allen <jra@nella.org>
+Date:   Mon Mar 11 11:31:14 2013 +1100
+
+    cmd/go: send output of build and install to stderr
+    
+    "go build" and "go install" were mixing stdout and stderr
+    from the toolchain, then putting it all on stdout. With this
+    change, it stays mixed, and is sent to stderr. Because
+    the toolchain does not create output in a clean compile/install,
+    sending all output to stderr makese more sense.
+    
+    Also fix test.bash because of "mktemp: too few X's
+    in template `testgo'" on Linux.
+    
+    Fixes #4917.
+    
+    R=golang-dev, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/7393073
+
+ src/cmd/go/build.go                   |  6 ++++--
+ src/cmd/go/test.bash                  | 39 ++++++++++++++++++-----------------
+ src/cmd/go/testdata/errmsg/x.go       |  3 ---
+ src/cmd/go/testdata/errmsg/x1_test.go |  3 ---
+ src/cmd/go/testdata/errmsg/x_test.go  |  3 ---
+ 5 files changed, 24 insertions(+), 30 deletions(-)

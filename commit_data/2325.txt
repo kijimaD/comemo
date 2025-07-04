@@ -1,0 +1,14 @@
+commit 18890eebbf27fec3b004478fc23443bbd349ba6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 10:16:13 2009 -0700
+
+    fix bug154; tweak bug153 exit status
+    
+    R=ken
+    OCL=29448
+    CL=29448
+
+ src/cmd/gc/const.c                 | 17 +++++++++++------
+ test/{bugs => fixedbugs}/bug154.go |  0
+ test/golden.out                    |  7 -------
+ 3 files changed, 11 insertions(+), 13 deletions(-)

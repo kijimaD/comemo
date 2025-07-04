@@ -1,0 +1,39 @@
+commit a037582efff56082631508b15b287494df6e9b69
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Dec 2 22:56:40 2019 -0500
+
+    cmd/compile: mark empty block preemptible
+    
+    Currently, a block's control instruction gets the liveness info
+    of the last Value in the block. However, for an empty block, the
+    control instruction gets the invalid liveness info and therefore
+    not preemptible. One example is empty infinite loop, which has
+    only a control instruction. The control instruction being non-
+    preemptible makes the whole loop non-preemptible.
+    
+    Fix this by using a different, preemptible liveness info for
+    empty block's control. We can choose an arbitrary preemptible
+    liveness info, as at run time we don't really use the liveness
+    map at that instruction.
+    
+    As before, if the last Value in the block is non-preemptible, so
+    is the block control. For example, the conditional branch in the
+    write barrier test block is still non-preemptible.
+    
+    Also, only update liveness info if we are actually emitting
+    instructions. So zero-width Values' liveness info (which are
+    always invalid) won't affect the block control's liveness info.
+    For example, if the last Values in a block is a tuple-generating
+    operation and a Select, the block control instruction is still
+    preemptible.
+    
+    Fixes #35923.
+    
+    Change-Id: Ic5225f3254b07e4955f7905329b544515907642b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209659
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go       | 31 ++++++++++++++++++++-----------
+ src/runtime/testdata/testprog/preempt.go | 10 ++++++++--
+ 2 files changed, 28 insertions(+), 13 deletions(-)

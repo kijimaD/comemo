@@ -1,0 +1,17 @@
+commit 4896fc2fa4ed9445e38475a8b1abe9676062d664
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Sep 21 10:53:08 2017 +0900
+
+    debug/macho: parse relocations
+    
+    Fixes #21957
+    
+    Change-Id: I69ef9e257aa2b7b6c4fc4c115e99f8a7f93d8d9c
+    Reviewed-on: https://go-review.googlesource.com/65150
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/macho/file.go                         |  80 +++++++++++-
+ src/debug/macho/file_test.go                    | 165 ++++++++++++++++++------
+ src/debug/macho/testdata/clang-386-darwin.obj   | Bin 0 -> 464 bytes
+ src/debug/macho/testdata/clang-amd64-darwin.obj | Bin 0 -> 768 bytes
+ 4 files changed, 204 insertions(+), 41 deletions(-)

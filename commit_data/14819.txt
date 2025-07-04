@@ -1,0 +1,17 @@
+commit 60544b698ed1310dd3c5dbf67f73f29938d64e0d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 7 19:36:38 2013 +1100
+
+    go/doc: recursively inspect selector expressions
+    
+    Also adds a couple of simple tests for doc.Examples.
+    
+    Fixes #4561.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/7067048
+
+ src/pkg/go/doc/example.go      |  15 +++---
+ src/pkg/go/doc/example_test.go | 111 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 119 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit d6ef6eb65c6d93c5f4c94af4fc7e26f2ab63eafd
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 25 14:36:49 2015 +1000
+
+    doc: move go1.5.txt to go1.5.html
+    
+    Just a copy, other than adding a header, preparatory to preparing the release notes.
+    
+    Change-Id: Ia4dc27777b96b1e898d9873e7d38e6e795057698
+    Reviewed-on: https://go-review.googlesource.com/11474
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/{go1.5.txt => go1.5.html} | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,14 @@
+commit 4734464a140b997fd85b636a66bfa6cd1079e0a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Feb 28 19:17:27 2015 -0500
+
+    net: disable failing interface tests on dragonfly
+    
+    (Issue #10041.)
+    
+    Change-Id: Ia894ab60ac6b09926c684f99aacca79275cbced4
+    Reviewed-on: https://go-review.googlesource.com/6365
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/interface_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

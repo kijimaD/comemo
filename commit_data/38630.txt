@@ -1,0 +1,19 @@
+commit 2da9659158f87c1d3c0ccb7ff8aec7c1bafe570b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 2 15:05:33 2019 -0700
+
+    misc/cgo/testcarchive: skip TestSignalForwardingExternal on darwin/amd64
+    
+    On darwin/amd64 the runtime method sigctxt.fixsigcode changes SIGSEGV
+    signals so that they are never marked SI_USER. CL 169120 changed the
+    signal handler to call fixsigcode even when the signal is delivered to
+    a non-Go thread. This breaks TestSignalForwardingExternal, so skip it.
+    
+    Change-Id: I6740fb5a8f4f854ca69793537a983a696da3b495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170446
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

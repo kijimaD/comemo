@@ -1,0 +1,15 @@
+commit 900d49bf173b9007c2c8cd83baa99bb93f82a3ca
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 13 00:38:36 2014 +0900
+
+    net: make use of SO_LINGER_SEC on darwin
+    
+    Fixes #7971.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/92210044
+
+ src/pkg/net/sockopt_posix.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

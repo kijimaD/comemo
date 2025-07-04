@@ -1,0 +1,22 @@
+commit 3cfa2c3ddfb688c9db08ebb4547a8ba4665062d6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Apr 18 14:45:08 2010 -0700
+
+    json: scanner, Compact, Indent, and tests
+    
+    This is the first of probably four separate CLs
+    for the new implementation of the json package.
+    
+    The scanner is the core of the new implementation.
+    The other CLs would be the new decoder,
+    the new encoder, and support for JSON streams.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/802051
+
+ src/pkg/json/Makefile        |   2 +
+ src/pkg/json/indent.go       | 116 ++++++++
+ src/pkg/json/scanner.go      | 627 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/json/scanner_test.go | 257 ++++++++++++++++++
+ 4 files changed, 1002 insertions(+)

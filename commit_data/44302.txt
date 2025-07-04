@@ -1,0 +1,18 @@
+commit b110a43628526787f73db44e11829520d92e5b2b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 15 11:26:58 2021 -0500
+
+    runtime: delete gosave (dead code)
+    
+    Change-Id: Ie811526534df8622d89c5b1b81dbe19ece1c962b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292110
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/proc.go     | 2 +-
+ src/runtime/stack.go    | 2 +-
+ src/runtime/stubs.go    | 1 +
+ src/runtime/sys_wasm.go | 2 +-
+ src/runtime/sys_x86.go  | 2 +-
+ 5 files changed, 5 insertions(+), 4 deletions(-)

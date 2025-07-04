@@ -1,0 +1,18 @@
+commit cc224c004d0f389efcbb54251840bbb264ea4826
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Fri Nov 9 21:06:45 2012 +0100
+
+    cmd/6c, cmd/8c: use signed char explicitly in mul.c
+    
+    On ARM, char is unsigned, and the code generation for
+    multiplication gets totally broken.
+    
+    Fixes #4354.
+    
+    R=golang-dev, dave, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6826079
+
+ src/cmd/6c/mul.c | 8 ++++----
+ src/cmd/8c/mul.c | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)

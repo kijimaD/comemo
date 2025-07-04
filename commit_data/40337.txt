@@ -1,0 +1,24 @@
+commit 10e7bc994f47a71472c49f84ab782fdfe44bf22e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 17:18:22 2019 -0700
+
+    runtime: add wasm support for timers on P's
+    
+    When we put timers on P's, the wasm code will not be able to rely on
+    the timer goroutine. Use the beforeIdle hook to schedule a wakeup.
+    
+    Updates #6239
+    Updates #27707
+    
+    Change-Id: Idf6309944778b8c3d7178f5d09431940843ea233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171827
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/lock_futex.go |  2 +-
+ src/runtime/lock_js.go    | 29 ++++++++++++++++++++++++++++-
+ src/runtime/lock_sema.go  |  2 +-
+ src/runtime/proc.go       |  2 +-
+ 4 files changed, 31 insertions(+), 4 deletions(-)

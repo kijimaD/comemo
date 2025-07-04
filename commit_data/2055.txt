@@ -1,0 +1,12 @@
+commit f1820b50ff31435f237e706edb39166c6097ada5
+Author: Rob Pike <r@golang.org>
+Date:   Sun Apr 19 21:12:48 2009 -0700
+
+    typo in message
+    
+    R=ken
+    OCL=27621
+    CL=27621
+
+ test/decl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit a10267adcdd40093cb2c9d8a470194332b947b86
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 16 13:01:39 2008 -0800
+
+    If ByteBuffer has never been used, b.buf is nil but Data() should still work.
+    Fix the bug using a (safe) shared global empty array.
+    
+    R=rsc
+    DELTA=8  (8 added, 0 deleted, 0 changed)
+    OCL=21303
+    CL=21303
+
+ src/lib/io/bytebuffer.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

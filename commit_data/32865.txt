@@ -1,0 +1,24 @@
+commit 6f2e5f9c3720540ae5804b37222f6e82313ce13f
+Author: Mihail Minaev <minaev.mike@gmail.com>
+Date:   Tue Sep 26 11:47:49 2017 +0000
+
+    net/mail: parse group in email address
+    
+    This change adds the ability to parse
+    group into email address. The information about
+    group name and group members is lost for
+    backwards compatibility. According to this rule address
+    `Group: Test <text@example.com>;` would be parsed into
+    `Test <test@example.com>`.
+    
+    Fixes #22014
+    
+    Change-Id: I6e804a62f3ede04f555a1b82500b8ca030eeb431
+    Reviewed-on: https://go-review.googlesource.com/66250
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/mail/message.go      | 77 ++++++++++++++++++++++++++++++++++----------
+ src/net/mail/message_test.go | 53 ++++++++++++++++++++++++++++--
+ 2 files changed, 111 insertions(+), 19 deletions(-)

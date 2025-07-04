@@ -1,0 +1,12 @@
+commit 0aaf2c2d103101c66f60d3c02abd972a29b70b33
+Author: Maxim Pimenov <mpimenov@google.com>
+Date:   Mon Jan 16 18:42:18 2012 +0400
+
+    runtime: fix typo in comment
+    
+    R=golang-dev, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/5540059
+
+ src/pkg/runtime/extern.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

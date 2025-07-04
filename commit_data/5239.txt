@@ -1,0 +1,13 @@
+commit b57afc2f83a4bc151aebf4c6320bbd0408fdf055
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Apr 6 17:33:43 2010 -0700
+
+    another try at clearing
+    channel recv data.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/896041
+
+ src/pkg/runtime/chan.c | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)

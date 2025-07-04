@@ -1,0 +1,12 @@
+commit 03d1dd8c2afb42bc59185275abfedc4225496740
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Mar 28 21:11:05 2018 -0400
+
+    doc: update release notes for Go 1.9.5
+    
+    Change-Id: Idf88d289bac9603d852a9d19eb4b764f8589f8d9
+    Reviewed-on: https://go-review.googlesource.com/103159
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/devel/release.html | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

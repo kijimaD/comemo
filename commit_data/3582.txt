@@ -1,0 +1,15 @@
+commit 4adad657deeec93adabc39cc26584fc00fab3f2f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 19 11:48:04 2009 -0700
+
+    directory tree walk w/ visitor per rsc's suggestion
+    
+    R=rsc,r
+    DELTA=193  (191 added, 0 deleted, 2 changed)
+    OCL=35849
+    CL=35877
+
+ src/pkg/Make.deps         |   2 +-
+ src/pkg/path/path.go      |  54 +++++++++++++++++-
+ src/pkg/path/path_test.go | 139 ++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 193 insertions(+), 2 deletions(-)

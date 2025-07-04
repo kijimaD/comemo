@@ -1,0 +1,21 @@
+commit 246822703849bc830085b4f173526d7f908c41d8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat May 30 15:08:46 2015 -0700
+
+    cmd/compile/internal, cmd/internal/obj: used keyed ProgInfo literals
+    
+    Safer, more readable, shorter.
+    
+    Change-Id: I5cf1f438e20a3df45fc43cc5c870a533f7c524bf
+    Reviewed-on: https://go-review.googlesource.com/10517
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/prog.go | 432 ++++++++++++++++-----------------
+ src/cmd/compile/internal/arm/prog.go   | 172 ++++++-------
+ src/cmd/compile/internal/arm64/prog.go | 170 ++++++-------
+ src/cmd/compile/internal/ppc64/prog.go | 128 +++++-----
+ src/cmd/compile/internal/x86/prog.go   | 422 ++++++++++++++++----------------
+ src/cmd/internal/obj/link.go           |   9 +-
+ 6 files changed, 667 insertions(+), 666 deletions(-)

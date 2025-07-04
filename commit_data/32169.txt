@@ -1,0 +1,25 @@
+commit b8519cd73961a15bcacbb22873739b79b0dff85c
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Aug 29 16:28:42 2016 -0700
+
+    archive/tar: simplify Flush
+    
+    In Go1.0, Writer.Flush used to finish off the current file with zeros
+    (if it was not already finished) and then write the padding.
+    
+    Since Go1.1, a regression was made (https://golang.org/cl/5777064) where it was
+    an error to call Flush if the current file was incomplete. Thus, Flush now only
+    writes out the final padding bytes, which arguably isn't very useful to anyone.
+    Since this has been the behavior of Flush for 9 releases of Go (1.1 to 1.9),
+    we should keep this behavior and just simplify the logic.
+    
+    We also mark the method as deprecated since it serves no purpose.
+    
+    Change-Id: I94610d942cb75cad495efd8cf799c1a275a21751
+    Reviewed-on: https://go-review.googlesource.com/54434
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/writer.go | 29 +++++++++++++----------------
+ 1 file changed, 13 insertions(+), 16 deletions(-)

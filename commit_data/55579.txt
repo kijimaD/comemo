@@ -1,0 +1,18 @@
+commit e45c262fe55ada091a4ae53bf140ff22d9f74b35
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Feb 12 14:32:22 2024 -0500
+
+    runtime/cgo: add note about default stack bounds
+    
+    The default case in x_cgo_getstackbound does not actually get the stack bound of
+    the current thread, but estimates the bound based on the default stack size. Add
+    a comment noting this.
+    
+    Change-Id: I7d886461f0bbc795834bed37b554417cf3837a2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563376
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/cgo/gcc_stack_unix.c | 2 ++
+ 1 file changed, 2 insertions(+)

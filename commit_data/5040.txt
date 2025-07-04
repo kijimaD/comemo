@@ -1,0 +1,16 @@
+commit 3e24f2d6dfdfd43da3edbd208d9fb0fd1da8b6c9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 11 16:44:56 2010 -0800
+
+    godoc: fix formatting of -src output
+    - go/filter.go: make MergePackageFiles smarter
+    - go/printer.go: handle positions from multiple files
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/460042
+
+ src/cmd/godoc/godoc.go        |   2 +-
+ src/pkg/go/ast/filter.go      | 108 ++++++++++++++++++++++++++++++++++++++----
+ src/pkg/go/printer/printer.go |  26 ++++++++--
+ 3 files changed, 123 insertions(+), 13 deletions(-)

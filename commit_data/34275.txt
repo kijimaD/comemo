@@ -1,0 +1,15 @@
+commit d6856036bf2887de51f6408c7e283b66b57f7fa7
+Author: Hana Kim <hakim@google.com>
+Date:   Wed Jan 24 17:48:28 2018 -0500
+
+    cmd/trace: extend trace view (/trace) for task-oriented view
+    
+    R=go1.11
+    
+    Change-Id: I2d2db148fed96d0fcb228bee414b050fe4e46e2c
+    Reviewed-on: https://go-review.googlesource.com/90217
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/annotations.go |  51 ++++++++++++++++++
+ src/cmd/trace/trace.go       | 124 +++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 158 insertions(+), 17 deletions(-)

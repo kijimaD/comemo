@@ -1,0 +1,16 @@
+commit 143f3fd0ee71e6b015029b6792bc873b1013a8d4
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 1 17:51:39 2015 +1000
+
+    encoding/json: spell "marshaling" and "unmarshaling" consistently
+    
+    Fixes #12431
+    
+    Change-Id: I67c42bf2cd9285f471387248fd9c22a16b158349
+    Reviewed-on: https://go-review.googlesource.com/14150
+    Reviewed-by: Dmitri Shuralyov <shurcool@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/json/decode.go      | 2 +-
+ src/encoding/json/decode_test.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

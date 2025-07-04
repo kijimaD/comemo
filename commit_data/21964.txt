@@ -1,0 +1,13 @@
+commit 29ad1ae420c6f8942d885e85a51382437ba2dc65
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 4 11:04:26 2015 -0500
+
+    debug/elf: load .debug_line section and pass to dwarf.New
+    
+    Change-Id: Ia6f9bd77a3d4250339dcb054edc76942864dd358
+    Reviewed-on: https://go-review.googlesource.com/6781
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/debug/elf/file.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

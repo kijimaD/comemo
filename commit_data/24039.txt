@@ -1,0 +1,17 @@
+commit 39e77bff85ddc9e862eccf0408968301955db977
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 30 15:00:50 2015 -0700
+
+    go/types: fix complex(a, b) for untyped arguments a, b
+    
+    R=1.6
+    
+    Fixes #11669.
+    
+    Change-Id: Id39e5401e991e46f014eb16b747f5d9b7b55b46a
+    Reviewed-on: https://go-review.googlesource.com/12937
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/builtins.go           | 113 ++++++++++++++++++++-----------------
+ src/go/types/testdata/builtins.src |  19 ++++---
+ 2 files changed, 71 insertions(+), 61 deletions(-)

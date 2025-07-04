@@ -1,0 +1,20 @@
+commit f2c3957ed8b44f29aaf9a1a7ddc5208ae2168dc9
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 26 14:32:24 2015 -0400
+
+    runtime: disable GC around TestGoroutineParallelism
+    
+    TestGoroutineParallelism can deadlock if the GC runs during the
+    test. Currently it tries to prevent this by forcing a GC before the
+    test, but this is best effort and fails completely if GOGC is very low
+    for testing.
+    
+    This change replaces this best-effort fix with simply setting GOGC to
+    off for the duration of the test.
+    
+    Change-Id: I8229310833f241b149ebcd32845870c1cb14e9f8
+    Reviewed-on: https://go-review.googlesource.com/10454
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

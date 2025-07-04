@@ -1,0 +1,51 @@
+commit 291bda80e551289e0b8ed3209782ccb2a98a124b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jan 21 19:48:26 2022 +1100
+
+    internal/bytealg: optimise compare on riscv64
+    
+    Implement compare using loops that process 32 bytes, 16 bytes, 4 bytes
+    or 1 byte depending on size and alignment. For comparisons that are less
+    than 32 bytes the overhead of checking and adjusting alignment usually
+    exceeds the overhead of reading and processing 4 bytes at a time.
+    
+    Updates #50615
+    
+    name                           old time/op    new time/op     delta
+    BytesCompare/1-4                 68.4ns _ 1%     61.0ns _ 0%   -10.78%  (p=0.001 n=3+3)
+    BytesCompare/2-4                 82.9ns _ 0%     71.0ns _ 1%   -14.31%  (p=0.000 n=3+3)
+    BytesCompare/4-4                  107ns _ 0%       70ns _ 0%   -34.96%  (p=0.000 n=3+3)
+    BytesCompare/8-4                  156ns _ 0%       90ns _ 0%   -42.36%  (p=0.000 n=3+3)
+    BytesCompare/16-4                 267ns _11%      130ns _ 0%   -51.10%  (p=0.011 n=3+3)
+    BytesCompare/32-4                 446ns _ 0%       74ns _ 0%   -83.31%  (p=0.000 n=3+3)
+    BytesCompare/64-4                 840ns _ 2%       91ns _ 0%   -89.17%  (p=0.000 n=3+3)
+    BytesCompare/128-4               1.60_s _ 0%     0.13_s _ 0%   -92.18%  (p=0.000 n=3+3)
+    BytesCompare/256-4               3.15_s _ 0%     0.19_s _ 0%   -93.91%  (p=0.000 n=3+3)
+    BytesCompare/512-4               6.25_s _ 0%     0.33_s _ 0%   -94.80%  (p=0.000 n=3+3)
+    BytesCompare/1024-4              12.5_s _ 0%      0.6_s _ 0%   -95.23%  (p=0.000 n=3+3)
+    BytesCompare/2048-4              24.8_s _ 0%      1.1_s _ 0%   -95.46%  (p=0.000 n=3+3)
+    CompareBytesEqual-4               225ns _ 0%      131ns _ 0%   -41.69%  (p=0.000 n=3+3)
+    CompareBytesToNil-4              45.3ns _ 7%     46.7ns _ 0%      ~     (p=0.452 n=3+3)
+    CompareBytesEmpty-4              41.0ns _ 1%     40.6ns _ 0%      ~     (p=0.071 n=3+3)
+    CompareBytesIdentical-4          48.9ns _ 0%     41.3ns _ 1%   -15.58%  (p=0.000 n=3+3)
+    CompareBytesSameLength-4          127ns _ 0%       77ns _ 0%   -39.48%  (p=0.000 n=3+3)
+    CompareBytesDifferentLength-4     136ns _12%       78ns _ 0%   -42.65%  (p=0.018 n=3+3)
+    CompareBytesBigUnaligned-4       14.9ms _ 1%      7.3ms _ 1%   -50.95%  (p=0.000 n=3+3)
+    CompareBytesBig-4                14.9ms _ 1%      2.7ms _ 8%   -82.10%  (p=0.000 n=3+3)
+    CompareBytesBigIdentical-4       52.5ns _ 0%     44.9ns _ 0%   -14.53%  (p=0.000 n=3+3)
+    
+    name                           old speed      new speed       delta
+    CompareBytesBigUnaligned-4     70.5MB/s _ 1%  143.8MB/s _ 1%  +103.87%  (p=0.000 n=3+3)
+    CompareBytesBig-4              70.3MB/s _ 1%  393.8MB/s _ 8%  +460.43%  (p=0.003 n=3+3)
+    CompareBytesBigIdentical-4     20.0TB/s _ 0%   23.4TB/s _ 0%   +17.00%  (p=0.000 n=3+3)
+    
+    Change-Id: Ie18712a9009d425c75e1ab49d5a673d84e73a1eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380076
+    Trust: Joel Sing <joel@sing.id.au>
+    Trust: mzh <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/internal/bytealg/compare_generic.go |   2 +-
+ src/internal/bytealg/compare_native.go  |   2 +-
+ src/internal/bytealg/compare_riscv64.s  | 185 ++++++++++++++++++++++++++++++++
+ 3 files changed, 187 insertions(+), 2 deletions(-)

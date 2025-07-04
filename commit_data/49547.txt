@@ -1,0 +1,14 @@
+commit 751cae8855f34116b0596d15cd499bb07b4e6747
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 9 08:51:11 2022 -0400
+
+    cmd/go/internal/modload: fix doc comment
+    
+    Change-Id: Ib7f47c7fc2fa5db3adbe51612b1e7a9bb49647b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411105
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/query.go | 31 +++++++++++++++----------------
+ 1 file changed, 15 insertions(+), 16 deletions(-)

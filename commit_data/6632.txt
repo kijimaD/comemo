@@ -1,0 +1,12 @@
+commit e8bde0ec190a4e472b225d4060edfd6e060a7287
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 26 08:34:40 2010 -0700
+
+    install doc: arm is a little better
+    
+    R=adg, r, r2
+    CC=golang-dev
+    https://golang.org/cl/2749041
+
+ doc/install.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

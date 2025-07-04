@@ -1,0 +1,13 @@
+commit 3a8ff8237a65defbb4846cb15576bef4dee66b5f
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 16 22:43:34 2009 -0700
+
+    fix linux build
+    
+    R=rsc
+    OCL=27579
+    CL=27579
+
+ src/lib/net/fd_linux.go       | 4 ++--
+ src/lib/os/dir_amd64_linux.go | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,20 @@
+commit 4c08260c51c6ebe405a78a30f970014af763ca38
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 6 15:20:51 2022 -0400
+
+    doc/go_mem: update revision date
+    
+    CL 381315 added major revisions but neglected to update the date.
+    
+    For #50859.
+    
+    Change-Id: I086a55f0c80579c479bca5268109c9f3ae680adf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410675
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ doc/go_mem.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

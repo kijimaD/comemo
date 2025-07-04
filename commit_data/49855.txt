@@ -1,0 +1,42 @@
+commit a5cd894318677359f6d07ee74f9004d28b4d164c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 20 13:12:18 2022 -0400
+
+    crypto/ecdh,crypto/internal/nistec: enable pruning of unused curves
+    
+    If a program only uses ecdh.P256(), the implementation of the other
+    curves shouldn't end up in the binary. This mostly required moving some
+    operations from init() time. Small performance hit in uncompressed
+    Bytes/SetBytes, but not big enough to show up in higher-level
+    benchmarks. If it becomes a problem, we can fix it by pregenerating the
+    p-1 bytes representation in generate.go.
+    
+    For #52182
+    Updates #52221
+    
+    Change-Id: I64460973b59ee3df787d7e967a6c2bcbc114ba65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402555
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Fernando Lobato Meeser <felobato@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/ecdh/ecdh_test.go                      |  74 +++++++++
+ src/crypto/internal/nistec/fiat/generate.go       |  21 ++-
+ src/crypto/internal/nistec/fiat/p224.go           |  21 ++-
+ src/crypto/internal/nistec/fiat/p224_invert.go    |   2 +-
+ src/crypto/internal/nistec/fiat/p256.go           |  21 ++-
+ src/crypto/internal/nistec/fiat/p384.go           |  21 ++-
+ src/crypto/internal/nistec/fiat/p384_invert.go    |   2 +-
+ src/crypto/internal/nistec/fiat/p521.go           |  21 ++-
+ src/crypto/internal/nistec/fiat/p521_invert.go    |   2 +-
+ src/crypto/internal/nistec/generate.go            |  47 +++---
+ src/crypto/internal/nistec/nistec_test.go         |  37 ++---
+ src/crypto/internal/nistec/p224.go                | 187 +++++++++++-----------
+ src/crypto/internal/nistec/p224_sqrt.go           |   6 +-
+ src/crypto/internal/nistec/p256.go                | 187 +++++++++++-----------
+ src/crypto/internal/nistec/p256_asm.go            |  17 +-
+ src/crypto/internal/nistec/p256_asm_table_test.go |   2 +-
+ src/crypto/internal/nistec/p384.go                | 187 +++++++++++-----------
+ src/crypto/internal/nistec/p521.go                | 187 +++++++++++-----------
+ 18 files changed, 569 insertions(+), 473 deletions(-)

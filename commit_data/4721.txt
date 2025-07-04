@@ -1,0 +1,18 @@
+commit dd77c63d3db66381e8573acd154aebce9c368ccc
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Thu Jan 28 15:14:54 2010 -0800
+
+    http: add lexing functions
+    
+    In particular, add field-value tokenizer which respects quoting rules.
+    The code is intended for use in tokenizing the Transfer-Encoding and Trailer fields.
+    The lexing function is not connected to the main parsing code yet (in the next CL).
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/190085
+
+ src/pkg/http/Makefile    |   1 +
+ src/pkg/http/lex.go      | 152 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/lex_test.go |  70 ++++++++++++++++++++++
+ 3 files changed, 223 insertions(+)

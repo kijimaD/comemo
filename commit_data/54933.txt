@@ -1,0 +1,111 @@
+commit bea55136b2d50fc514ddfba4380311295975a660
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 22 14:53:57 2023 -0700
+
+    go/types, types2: introduce _Alias type node
+    
+    This change introduces a new (unexported for now) _Alias type node
+    which serves as an explicit representation for alias types in type
+    alias declarations:
+    
+            type A = T
+    
+    The _Alias node stands for the type A in this declaration, with
+    the _Alias' actual type pointing to (the type node for) T.
+    Without the _Alias node, (the object for) A points directly to T.
+    
+    Explicit _Alias nodes permit better error messages (they mention
+    A instead of T if the type in the source was named A) and can help
+    with certain type cycle problems. They are also needed to hold
+    type parameters for alias types, eventually.
+    
+    Because an _Alias node is simply an alternative representation for
+    an aliased type, code that makes type-specific choices must always
+    look at the actual (unaliased) type denoted by a type alias.
+    The new function
+    
+            func _Unalias(t Type) Type
+    
+    performs the necessary indirection. Type switches that consider
+    type nodes, must either switch on _Unalias(typ) or handle the
+    _Alias case.
+    
+    To avoid breaking clients, _Alias nodes must be enabled explicitly,
+    through the new Config flag _EnableAlias.
+    
+    To run tests with the _EnableAlias set, use the new -alias flag as
+    in "go test -run short -alias". The testing harness understands
+    the flag as well and it may be used to enable/disable _Alias nodes
+    on a per-file basis, with a comment ("// -alias" or // -alias=false)
+    on the first line in those files. The file-based flag overrides the
+    command-line flag.
+    
+    The use of _Alias nodes is disabled by default and must be enabled
+    by setting _EnableAlias.
+    
+    Passes type checker tests with and without -alias flag set.
+    
+    For #25838.
+    For #44410.
+    For #46477.
+    
+    Change-Id: I78e178a1aef4d7f325088c0c6cbae4cfb1e5fb5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/521956
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/alias.go           |  73 +++++++-
+ src/cmd/compile/internal/types2/api.go             |   5 +
+ src/cmd/compile/internal/types2/check.go           |   9 +-
+ src/cmd/compile/internal/types2/check_test.go      |   2 +
+ src/cmd/compile/internal/types2/decl.go            |  42 +++--
+ src/cmd/compile/internal/types2/infer.go           |   6 +
+ src/cmd/compile/internal/types2/interface.go       |   2 +-
+ src/cmd/compile/internal/types2/issues_test.go     |  24 +++
+ src/cmd/compile/internal/types2/lookup.go          |   2 +-
+ src/cmd/compile/internal/types2/mono.go            |   2 +-
+ src/cmd/compile/internal/types2/named.go           |   3 +-
+ src/cmd/compile/internal/types2/object.go          |   2 +
+ src/cmd/compile/internal/types2/predicates.go      |  23 ++-
+ src/cmd/compile/internal/types2/resolver.go        |  53 +++---
+ src/cmd/compile/internal/types2/signature.go       |   5 +-
+ src/cmd/compile/internal/types2/typestring.go      |  11 +-
+ src/cmd/compile/internal/types2/typexpr.go         |  10 +-
+ src/cmd/compile/internal/types2/unify.go           |   3 +
+ src/cmd/compile/internal/types2/validtype.go       |   2 +-
+ src/go/types/alias.go                              |  73 +++++++-
+ src/go/types/api.go                                |   5 +
+ src/go/types/check.go                              |   9 +-
+ src/go/types/check_test.go                         |   2 +
+ src/go/types/decl.go                               |  42 +++--
+ src/go/types/infer.go                              |   6 +
+ src/go/types/interface.go                          |   2 +-
+ src/go/types/issues_test.go                        |  24 +++
+ src/go/types/lookup.go                             |   2 +-
+ src/go/types/mono.go                               |   2 +-
+ src/go/types/named.go                              |   3 +-
+ src/go/types/object.go                             |   2 +
+ src/go/types/predicates.go                         |  23 ++-
+ src/go/types/resolver.go                           |  53 +++---
+ src/go/types/signature.go                          |   5 +-
+ src/go/types/typestring.go                         |   9 +
+ src/go/types/typexpr.go                            |  10 +-
+ src/go/types/unify.go                              |   3 +
+ src/go/types/validtype.go                          |   2 +-
+ src/internal/types/testdata/check/cycles5.go       |   2 +
+ src/internal/types/testdata/check/cycles5a.go      | 202 +++++++++++++++++++++
+ src/internal/types/testdata/check/decls4.go        |   6 +-
+ src/internal/types/testdata/check/issues0.go       |   2 +-
+ .../types/testdata/fixedbugs/issue25838.go         |  14 ++
+ .../types/testdata/fixedbugs/issue28251.go         |   2 +-
+ .../types/testdata/fixedbugs/issue46461.go         |   2 +
+ .../types/testdata/fixedbugs/issue46461a.go        |  23 +++
+ .../types/testdata/fixedbugs/issue47968.go         |   4 +-
+ .../types/testdata/fixedbugs/issue50779.go         |   2 +
+ .../types/testdata/fixedbugs/issue50779a.go        |  25 +++
+ src/internal/types/testdata/spec/assignability.go  |   6 +-
+ 50 files changed, 719 insertions(+), 127 deletions(-)

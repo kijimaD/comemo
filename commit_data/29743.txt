@@ -1,0 +1,12 @@
+commit 8016808562c514dbb1146739b56ca67be9028d91
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Dec 5 17:28:51 2016 -0800
+
+    net/http: fix typo in Request.GetBody's doc string
+    
+    Change-Id: I84043b6fe4b20a2514d47217e07e44f26bec52ab
+    Reviewed-on: https://go-review.googlesource.com/33973
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

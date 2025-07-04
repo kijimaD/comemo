@@ -1,0 +1,13 @@
+commit 79d94d504f8f3e82e994a4f63d37f56cebc6e7cc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 18 18:08:05 2008 -0800
+
+    Copyn
+    
+    R=rsc
+    DELTA=34  (34 added, 0 deleted, 0 changed)
+    OCL=19541
+    CL=19545
+
+ src/lib/io.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)

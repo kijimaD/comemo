@@ -1,0 +1,26 @@
+commit 3089ef6bd7ecc7af4b23eb68e3d7879d340aa673
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Mon Sep 28 18:58:51 2020 +0800
+
+    cmd/asm: add several arm64 SIMD instructions
+    
+    This patch enables VSLI, VUADDW(2), VUSRA and FMOVQ SIMD instructions
+    required by the issue #40725. And the GNU syntax of 'FMOVQ' is 128-bit
+    ldr/str(immediate, simd&fp).
+    
+    Add test cases.
+    
+    Fixes #40725
+    
+    Change-Id: Ide968ef4a9385ce4cd8f69bce854289014d30456
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258397
+    Trust: fannie zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s      |  11 +
+ src/cmd/asm/internal/asm/testdata/arm64error.s |  16 +-
+ src/cmd/internal/obj/arm64/a.out.go            |  59 +++--
+ src/cmd/internal/obj/arm64/anames.go           |   5 +
+ src/cmd/internal/obj/arm64/anames7.go          |  10 +
+ src/cmd/internal/obj/arm64/asm7.go             | 300 ++++++++++++++++++-------
+ 6 files changed, 290 insertions(+), 111 deletions(-)

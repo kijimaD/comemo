@@ -1,0 +1,14 @@
+commit e411bd706d5d1b2b679d18efacbddb238155edf5
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Sun Jun 10 10:26:40 2018 +0300
+
+    cmd/compile: add doc comment to the parseFiles function
+    
+    Change-Id: Ifa14557ba834865602c207297ccf0c63e93feb4c
+    Reviewed-on: https://go-review.googlesource.com/117695
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go | 4 ++++
+ 1 file changed, 4 insertions(+)

@@ -1,0 +1,12 @@
+commit c3f49ca9779c80cf2769745ec35939389a4982ee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 6 08:21:03 2013 -0800
+
+    CONTRIBUTORS: add Gaal Yahas (Google CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7311053
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

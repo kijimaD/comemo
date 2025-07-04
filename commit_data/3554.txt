@@ -1,0 +1,22 @@
+commit 98089b68a396c06e4e02961718263633b6117e36
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 11:04:33 2009 -0700
+
+    nacl demos
+    
+    R=r
+    DELTA=9147  (9147 added, 0 deleted, 0 changed)
+    OCL=35734
+    CL=35776
+
+ src/pkg/exp/4s/4s.go               |   79 +
+ src/pkg/exp/4s/4s.html             |   10 +
+ src/pkg/exp/4s/Makefile            |   14 +
+ src/pkg/exp/4s/data.go             |  142 +
+ src/pkg/exp/4s/xs.go               |  732 ++++
+ src/pkg/exp/spacewar/Makefile      |   18 +
+ src/pkg/exp/spacewar/code.go       | 7556 ++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/spacewar/pdp1.go       |  391 ++
+ src/pkg/exp/spacewar/spacewar.go   |  195 +
+ src/pkg/exp/spacewar/spacewar.html |   10 +
+ 10 files changed, 9147 insertions(+)

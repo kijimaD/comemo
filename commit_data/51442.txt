@@ -1,0 +1,38 @@
+commit f89b39c0af0c91d564266a0f7cb7bb9e52f28038
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 22 13:28:51 2022 -0500
+
+    cmd/compile: reenable inlstaticinit
+    
+    This was disabled in CL 452676 out of an abundance of caution,
+    but further analysis has shown that the failures were not being
+    caused by this optimization. Instead the sequence of commits was:
+    
+    CL 450136 cmd/compile: handle simple inlined calls in staticinit
+    ...
+    CL 449937 archive/tar, archive/zip: return ErrInsecurePath for unsafe paths
+    ...
+    CL 451555 cmd/compile: fix static init for inlined calls
+    
+    The failures in question became compile failures in the first CL
+    and started building again after the last CL.
+    But in the interim the code had been broken by the middle CL.
+    CL 451555 was just the first time that the tests could run and fail.
+    
+    For #30820.
+    
+    Change-Id: I65064032355b56fdb43d9731be2f9f32ef6ee600
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/452817
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/debug.go | 2 +-
+ src/cmd/compile/internal/base/flag.go  | 2 +-
+ test/fixedbugs/issue56778.go           | 2 +-
+ test/inline.go                         | 2 +-
+ test/noinit.go                         | 2 +-
+ 5 files changed, 5 insertions(+), 5 deletions(-)

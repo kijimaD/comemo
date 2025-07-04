@@ -1,0 +1,12 @@
+commit c8ee9c60d2d7ca379e13fe799989aead35eac4d3
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Aug 11 12:23:55 2011 +1000
+
+    runtime: better checks for syscall.NewCallback parameter
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4859042
+
+ src/pkg/runtime/windows/thread.c | 24 +++++++++++++++++-------
+ 1 file changed, 17 insertions(+), 7 deletions(-)

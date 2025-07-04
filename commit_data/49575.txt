@@ -1,0 +1,20 @@
+commit af725f42864c8fb56afcf3ba76d2df7d372534e4
+Author: AndreasHGK <andreaselbergs@outlook.com>
+Date:   Thu Jun 30 15:59:30 2022 +0000
+
+    os: fix a typo in path_windows.go
+    
+    I believe the path_windows.go file has a typo, which is fixed in this PR
+    
+    Change-Id: Ibf1a7189a6312dbb3b1e6b512beeb6d99da5b5bc
+    GitHub-Last-Rev: cedac7eaa07d26667e6800c5ac96239d5ccf6ba8
+    GitHub-Pull-Request: golang/go#53629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415434
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/os/path_windows.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

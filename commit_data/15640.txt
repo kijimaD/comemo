@@ -1,0 +1,31 @@
+commit 7663ffcae641dbf06b9d5321c9afbad4fc73e336
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 7 19:57:25 2013 -0800
+
+    cmd/ld: steps toward 386 host linking
+    
+    - Introduce MaxAlign constant and use in data layout
+    and ELF section header.
+    
+    - Allow up to 16-byte alignment for large objects
+    (will help Keith's hash changes).
+    
+    - Emit ELF symbol for .rathole (global /dev/null used by 8c).
+    
+    - Invoke gcc with -m32/-m64 as appropriate.
+    
+    - Don't invoke gcc if writing the .o file failed.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7563045
+
+ src/cmd/5l/l.h    |   1 +
+ src/cmd/6l/l.h    |   1 +
+ src/cmd/8l/l.h    |   1 +
+ src/cmd/8l/obj.c  |   4 ++
+ src/cmd/ld/data.c | 139 +++++++++++++++++++++++++++++-------------------------
+ src/cmd/ld/elf.c  |   2 +-
+ src/cmd/ld/lib.c  |  13 ++++-
+ src/cmd/ld/lib.h  |   1 +
+ 8 files changed, 95 insertions(+), 67 deletions(-)

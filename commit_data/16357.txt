@@ -1,0 +1,12 @@
+commit 09395daf2e3859487ec64d0fa68b7ccf22ddfef3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 09:02:30 2013 -0700
+
+    codereview: add khr as a person
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/9459046
+
+ misc/dashboard/codereview/dashboard/people.go | 1 +
+ 1 file changed, 1 insertion(+)

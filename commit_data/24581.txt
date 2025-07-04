@@ -1,0 +1,22 @@
+commit 76dcedc920c6712fc302b053f125e0d7d6db69f0
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Tue Oct 20 21:33:18 2015 -0700
+
+    cmd/go: dedup packages in packagesAndErrors
+    
+    packagesAndErrors function doesn't dedup packages.
+    As a result, `go list io ./io` prints io package twice.
+    Same applies to `go build` and `go test`.
+    
+    * dedup packages.
+    * add a test for go list
+    
+    Change-Id: I54d4063979b1c9359e5416e12327cb85c4823a0f
+    Reviewed-on: https://go-review.googlesource.com/16136
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/go_test.go | 12 ++++++++++++
+ src/cmd/go/pkg.go     | 21 +++++++++++++++------
+ 2 files changed, 27 insertions(+), 6 deletions(-)

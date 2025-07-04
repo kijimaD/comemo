@@ -1,0 +1,15 @@
+commit 47e6042f73b07c5eaf28b978711605025c3d0df6
+Author: Hector Chu <hectorchu@gmail.com>
+Date:   Mon Jul 18 16:15:01 2011 -0400
+
+    runtime: fix select pass 3
+    
+    Fixes #2075
+    
+    R=rsc, ken, r
+    CC=golang-dev
+    https://golang.org/cl/4748045
+
+ src/pkg/runtime/chan.c |  9 ++++++---
+ test/chan/select6.go   | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 3 deletions(-)

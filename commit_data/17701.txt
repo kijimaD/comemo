@@ -1,0 +1,14 @@
+commit 752960aa5c6ec12ca4d73b1d5b552466fdd77cce
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Sep 25 16:18:33 2013 -0400
+
+    cmd/go: "go test -c -test.bench=XX fmt" shouldn't hang
+    Fixes #6480.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/13925043
+
+ src/cmd/go/test.bash | 9 ++++++++-
+ src/cmd/go/test.go   | 2 +-
+ 2 files changed, 9 insertions(+), 2 deletions(-)

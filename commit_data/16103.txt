@@ -1,0 +1,17 @@
+commit 13d6f8f7f324a5dba5e5c3c1f72d7f09b07846e9
+Author: Kamil Kisiel <kamil@kamilkisiel.net>
+Date:   Fri Apr 5 08:04:02 2013 +1100
+
+    godoc: enable visibility of element linked from URL hash
+    
+    Expands the example when visiting a URL such as
+    http://golang.org/pkg/net/http/#example_Hijacker
+    
+    Fixes #5212.
+    
+    R=golang-dev, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/8378043
+
+ doc/godocs.js | 8 ++++++++
+ 1 file changed, 8 insertions(+)

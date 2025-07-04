@@ -1,0 +1,14 @@
+commit fd4b001a0f0bc0e1f441e1e0a57fab291a98b947
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 5 15:18:36 2014 -0500
+
+    syscall: add mmap constants for NetBSD/ARM.
+    Fixes the syscall test.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/71470043
+
+ src/pkg/syscall/zerrors_netbsd_arm.go | 36 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

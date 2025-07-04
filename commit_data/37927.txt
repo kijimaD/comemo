@@ -1,0 +1,25 @@
+commit eb72a30f8732037596f0a1ab75c6219a40d4cf7d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 29 16:34:27 2019 -0800
+
+    os: make openFdAt act like openFileNolog
+    
+    - add EINTR loop on Darwin
+    - return PathError on error
+    - call newFile rather than NewFile
+    
+    This tries to minimize the possibility of any future changes.
+    It would be nice to put openFdAt in the same file as openFileNolog,
+    but build tags forbid.
+    
+    Updates #29983
+    
+    Change-Id: I866002416d6473fbfd80ff6ef09b2bc4607f2934
+    Reviewed-on: https://go-review.googlesource.com/c/160181
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/os/file_unix.go    |  1 +
+ src/os/removeall_at.go | 31 ++++++++++++++++++++++++++-----
+ 2 files changed, 27 insertions(+), 5 deletions(-)

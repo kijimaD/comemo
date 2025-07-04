@@ -1,0 +1,14 @@
+commit 3e0adc9ffbcd5873e254b2940aadc94da1d63753
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 18 16:28:21 2011 -0500
+
+    cc: fix vlong condition
+    
+    Fixes #1032.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4025043
+
+ src/cmd/cc/pgen.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

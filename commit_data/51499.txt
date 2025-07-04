@@ -1,0 +1,24 @@
+commit 79559c1e7e426415ea8c7920c36b2fb4ebd7dbf0
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 29 20:07:02 2022 -0500
+
+    path/filepath: make Join("c:", "/a") return "c:/a" again
+    
+    Historically, on Windows filepath.Join("c:", elt) does not insert
+    a path separator between "c:" and elt, but preserves leading slashes
+    in elt. Restore this behavior, which was inadvertently changed by
+    CL 444280.
+    
+    Fixes #56988
+    
+    Change-Id: Id728bf311f4093264f8c067d8b801ea9ebef5b5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453497
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/path/filepath/path_test.go    |  3 ++-
+ src/path/filepath/path_windows.go | 50 ++++++++++++++++++++++-----------------
+ 2 files changed, 30 insertions(+), 23 deletions(-)

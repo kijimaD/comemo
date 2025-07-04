@@ -1,0 +1,18 @@
+commit bd519d0c8734c3e30cb1a8b8217dd9934cd61e25
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 25 14:50:10 2020 -0700
+
+    runtime: don't call setitimer for each thread
+    
+    Previously, on Unix systems, when the profiler was enabled or disabled,
+    we called setitimer once per thread. With this change we instead call
+    it once per process.
+    
+    Change-Id: I90f0189b562e11232816390dc7d55ed154bd836d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240003
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/signal_unix.go | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)

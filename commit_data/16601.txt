@@ -1,0 +1,18 @@
+commit 004dd3d742846f0c4c2fc94e483d407a5a3957a1
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jun 20 08:21:14 2013 +0200
+
+    test: match gccgo error messages
+    
+    R=iant, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/10365052
+
+ test/fixedbugs/bug205.go    | 6 +++---
+ test/fixedbugs/bug459.go    | 2 +-
+ test/fixedbugs/issue3783.go | 2 +-
+ test/fixedbugs/issue3925.go | 4 ++--
+ test/fixedbugs/issue4097.go | 2 +-
+ test/fixedbugs/issue4458.go | 2 +-
+ test/fixedbugs/issue4545.go | 4 ++--
+ 7 files changed, 11 insertions(+), 11 deletions(-)

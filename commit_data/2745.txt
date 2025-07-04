@@ -1,0 +1,19 @@
+commit 35e5906f91e7c3afb36a54c676a6f20c3c30716d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 17 14:42:14 2009 -0700
+
+    another baby step.
+    excluding import data,
+    no yacc node has type Type* anymore.
+    
+    0 reduce/reduce conflicts.
+    
+    R=ken
+    OCL=31793
+    CL=31795
+
+ src/cmd/gc/dcl.c  |  24 +++++++++---
+ src/cmd/gc/go.h   |   2 +-
+ src/cmd/gc/go.y   | 111 ++++++++++++++++++++++++------------------------------
+ src/cmd/gc/walk.c |   1 +
+ 4 files changed, 70 insertions(+), 68 deletions(-)

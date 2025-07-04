@@ -1,0 +1,29 @@
+commit 499dc1c5d583a2a0735d4e408078819b84697e2e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Dec 13 16:53:28 2019 -0500
+
+    go/doc: ignore example functions with arguments
+    
+    An Example function with arguments is not a valid example to be
+    run with go test. Don't return those functions from Examples. This
+    means that some functions that were previously showing up in
+    Examples will no longer show up. But those functions were not being
+    tested properly so the fact that they were showing up is misleading.
+    
+    This fixes an issue where a confusing compiler error was showing
+    up when running go test on a file with an invalid example. While
+    that issue could have been fixed by returning an error, this is
+    more consistent with the behavior of go/doc.Examples, and the tests
+    checker in vet will catch this issue.
+    
+    Fixes #35284
+    
+    Change-Id: I2101a7d19f38522ef9c2e50967f9cfb30d28c730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211357
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/test_bad_example.txt | 13 +++++++++++++
+ src/go/doc/example.go                           |  3 +++
+ 2 files changed, 16 insertions(+)

@@ -1,0 +1,16 @@
+commit 97f3a80d9319a644da91c8d49b3fd788bee185c0
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 19 21:25:28 2010 -0700
+
+    reflect: add InterfaceValue.Get to enable setting of an interface
+    value (through unsafe means) without having a reflect.Type
+    of type *interface{} (pointer to interface).  This is needed to make
+    gob able to handle interface values by a method analogous to
+    the way it handles maps.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2597041
+
+ src/pkg/reflect/value.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

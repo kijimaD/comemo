@@ -1,0 +1,20 @@
+commit 5a9638692298deb45e7b95f51d5dd5a1be724874
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 7 10:20:57 2022 +0700
+
+    test: add regression test for issue 54911
+    
+    It was fixed by CL 422196, and have been already worked in unified IR.
+    
+    Fixes #54911
+    
+    Change-Id: Ie69044a64b296f6961e667e7661d8c4d1a24d84e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428758
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue54911.go | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)

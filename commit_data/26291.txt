@@ -1,0 +1,24 @@
+commit 41f9f6f47118d8c2546a1534240e0eca6baa1829
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 15 11:08:03 2016 -0700
+
+    cmd/compile: fix load-combining
+    
+    Make sure symbol gets carried along by load-combining rule.
+    Add the new load into the right block where we know that
+    mem is live.
+    
+    Use auxInt field to carry i along instead of an explicit ADDQ.
+    
+    Incorporate LEA ops into MOVBQZX and friends.
+    
+    Change-Id: I587f7c6120b98fd2a0d48ddd6ddd13345d4421b4
+    Reviewed-on: https://go-review.googlesource.com/20732
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/gc/testdata/arith_ssa.go |  34 +++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules      |  20 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go      | 218 ++++++++++++++++++++--
+ 3 files changed, 250 insertions(+), 22 deletions(-)

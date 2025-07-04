@@ -1,0 +1,20 @@
+commit 9761a6d06985c772da653072710c1c11c17a20c7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 31 13:35:30 2008 -0700
+
+    - backward link from objs to containing scope
+      (first step towards cleaner package handling)
+    - check that map, function, and channel vars are pointers
+    
+    R=r
+    OCL=13690
+    CL=13690
+
+ usr/gri/gosrc/ast.go      |  24 +++++-----
+ usr/gri/gosrc/decls.go    |  22 ++++-----
+ usr/gri/gosrc/globals.go  |  51 ++++++++++++++++++---
+ usr/gri/gosrc/parser.go   | 112 ++++++++++++++++++++++++++++++++--------------
+ usr/gri/gosrc/printer.go  |   7 ++-
+ usr/gri/gosrc/universe.go |   1 +
+ usr/gri/gosrc/verifier.go |   4 --
+ 7 files changed, 150 insertions(+), 71 deletions(-)

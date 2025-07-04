@@ -1,0 +1,12 @@
+commit b9faf5ff7decaeb35e9ceddbfde44028e4388ab9
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 14 13:09:56 2011 -0400
+
+    CONTRIBUTORS: Chris Hundt (Google CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5284043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

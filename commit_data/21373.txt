@@ -1,0 +1,19 @@
+commit 1b87f01239de499654b390a41a7f8e2b453789dc
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Mon Jan 19 23:46:22 2015 +0300
+
+    cmd/gc: improve escape analysis for &T{...}
+    
+    Currently all PTRLIT element initializers escape. There is no reason for that.
+    This change links STRUCTLIT to PTRLIT; STRUCTLIT element initializers are
+    already linked to the STRUCTLIT. As the result, PTRLIT element initializers
+    escape when PTRLIT itself escapes.
+    
+    Change-Id: I89ecd8677cbf81addcfd469cd2fd461c0e9bf7dd
+    Reviewed-on: https://go-review.googlesource.com/3031
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/gc/esc.c |  9 +++++----
+ test/escape2.go  | 27 +++++++++++++++++++++++++++
+ test/escape2n.go | 27 +++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 4 deletions(-)

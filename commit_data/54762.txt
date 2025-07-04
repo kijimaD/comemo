@@ -1,0 +1,19 @@
+commit 2968f5623c71d0e8e7be6e117939c5f585bb0620
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 19 16:45:00 2023 -0700
+
+    test: add tests that gofrontend failed
+    
+    I will shortly be sending CLs to let the gofrontend code pass
+    these tests.
+    
+    Change-Id: I53ccbdac3ac224a4fdc9577270f48136ca73a62c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536537
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ test/fixedbugs/bug517.go | 37 +++++++++++++++++++++++++++++++++++++
+ test/fixedbugs/bug518.go | 15 +++++++++++++++
+ 2 files changed, 52 insertions(+)

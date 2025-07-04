@@ -1,0 +1,14 @@
+commit 798f74b9e6c714c7868a4e20870786bc7821bc32
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jul 18 16:09:06 2018 -0400
+
+    doc/go1.11: shorten, tidy, and promote user annotation API
+    
+    Text based on CL 124655.
+    
+    Change-Id: I7c4866ce829cb28a4c60cd8ced3ef99047a38c54
+    Reviewed-on: https://go-review.googlesource.com/124711
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ doc/go1.11.html | 71 ++++++++++-----------------------------------------------
+ 1 file changed, 12 insertions(+), 59 deletions(-)

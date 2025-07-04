@@ -1,0 +1,15 @@
+commit 20e05303febf53d959926a05c6f019db352bb963
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Apr 8 08:59:33 2013 +0200
+
+    cmd/gc: properly set variadic flag on method values.
+    
+    Fixes #5231.
+    
+    R=golang-dev, daniel.morsing, adg
+    CC=golang-dev
+    https://golang.org/cl/8275044
+
+ src/cmd/gc/closure.c        | 17 ++++++++++++-----
+ test/fixedbugs/issue5231.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 5 deletions(-)

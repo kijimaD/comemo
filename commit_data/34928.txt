@@ -1,0 +1,21 @@
+commit e0ac5f540bf0d5fff39ce05d60e82d97a011e935
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Apr 11 09:57:18 2018 +0200
+
+    runtime: use internal/cpu instead of support_avx
+    
+    After CL 104636 cpu.X86.HasAVX is set early enough that it can be used
+    to determine useAVXmemmove. Use it and remove support_avx.
+    
+    Change-Id: Ib7a627bede2bf96c92362507e742bd833cb42a74
+    Reviewed-on: https://go-review.googlesource.com/106235
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/asm_386.s         | 6 ------
+ src/runtime/asm_amd64.s       | 6 ------
+ src/runtime/asm_amd64p32.s    | 6 ------
+ src/runtime/cpuflags_amd64.go | 4 +++-
+ src/runtime/runtime2.go       | 1 -
+ 5 files changed, 3 insertions(+), 20 deletions(-)

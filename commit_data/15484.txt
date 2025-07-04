@@ -1,0 +1,12 @@
+commit 062a239046974229a03d13d7e1a7bdedbb247292
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 27 20:55:01 2013 -0800
+
+    cmd/cgo: add implementation comment
+    
+    R=golang-dev, r, bradfitz, iant
+    CC=golang-dev
+    https://golang.org/cl/7407050
+
+ src/cmd/cgo/doc.go | 263 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 263 insertions(+)

@@ -1,0 +1,14 @@
+commit 237b8b8b66113c081c1407251c0c605d1acdc730
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 26 10:54:55 2013 -0700
+
+    doc/go1.1.html: describe Zone and other net changes
+    Mild adaptation of rsc's 8021043, which I was unable to clpatch.
+    (rsc is offline)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7741049
+
+ doc/go1.1.html | 72 ++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 65 insertions(+), 7 deletions(-)

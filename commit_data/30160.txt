@@ -1,0 +1,20 @@
+commit a146dd3a2fdf87bab90ee1f636c38cd3444e55fa
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Feb 8 15:31:24 2017 -0500
+
+    cmd/compile: handle DOT STRUCTLIT for zero-valued struct in SSA
+    
+    CL 35261 makes SSA handle zero-valued STRUCTLIT, but DOT operation
+    was not handled.
+    
+    Fixes #18994.
+    
+    Change-Id: Ic7976036acca1523b0b14afac4d170797e8aee20
+    Reviewed-on: https://go-review.googlesource.com/36565
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go |  9 +++++++++
+ test/fixedbugs/issue18994.go       | 22 ++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)

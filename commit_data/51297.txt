@@ -1,0 +1,18 @@
+commit d03e442e2dace16ce125aa073a3c6ac8484d4457
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Nov 15 11:57:10 2022 -0800
+
+    crypto/rsa: return err when key too small to compute salt for RSA PSS
+    
+    When PSSSaltLengthAuto is passed to SignPSS, and the key size is too
+    small to create a valid salt, return ErrMessageTooLong
+    
+    Change-Id: I4e0d70bdd54fcd667eae10e0a70b4f540a4ebe93
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450796
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+
+ src/crypto/rsa/pss.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,22 @@
+commit 2551324cd01b295915c10c6d3d06625676401610
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Sep 22 16:54:19 2022 -0700
+
+    path/filepath: optimize isReservedName
+    
+    A linear search through a list of 22 strings takes ~80ns.
+    A quick check for 3-4 byte strings reduces this check to 2ns
+    for a vast majority of inputs.
+    In the event of a name match, the new logic is either just
+    as fast (for "CON") or 10x faster (for "LPT9").
+    
+    Change-Id: I412fa73beebd7c81dc95f9ed12c35ca1d5d6baf0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433175
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/path/filepath/path_windows.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)

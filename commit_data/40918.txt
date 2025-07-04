@@ -1,0 +1,24 @@
+commit 94f4686a77d1d708f240eac388fb5c5b83e2c15f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 2 12:07:22 2019 -0800
+
+    runtime: use current P's race context in timer code
+    
+    We were using the race context of the P that held the timer,
+    but since we unlock the P's timers while executing a timer
+    that could lead to a race on the race context itself.
+    
+    Updates #6239
+    Updates #27707
+    Fixes #35906
+    
+    Change-Id: I5f9d5f52d8e28dffb88c3327301071b16ed1a913
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209580
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/race/timer_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/runtime/time.go            | 11 ++++++-----
+ 2 files changed, 39 insertions(+), 5 deletions(-)

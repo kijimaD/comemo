@@ -1,0 +1,14 @@
+commit f3aa54e30de2c2c71a8735c5f61c9c1d93f7cd9f
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Nov 21 09:56:07 2011 -0500
+
+    math: faster Cbrt
+    
+    For amd64, from 127 to 105 ns/op; for 386, from 208 to 169 ns/op.
+    
+    R=rsc, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5412056
+
+ src/pkg/math/cbrt.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

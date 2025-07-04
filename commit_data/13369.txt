@@ -1,0 +1,12 @@
+commit 75344d3d5b85acb4db74eb98cdffdef1d490508c
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Fri Jun 22 14:43:41 2012 -0700
+
+    encoding/json: fix minor typo in documentation for Marshal
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6325053
+
+ src/pkg/encoding/json/encode.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

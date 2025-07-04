@@ -1,0 +1,20 @@
+commit f811663f0483b05bb9986ce648bb653564217c6e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Sep 29 10:23:07 2020 -0400
+
+    cmd/go: test more commands in mod_build_info_error
+    
+    For #26909
+    For #41688
+    
+    Change-Id: I22f28d426ce499fce6f0f1295dbde425998042aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258219
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/testdata/script/mod_build_info_err.txt | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)

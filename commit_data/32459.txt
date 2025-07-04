@@ -1,0 +1,16 @@
+commit 1708122b48aa4af57ed1ce6163b642a58172f9cc
+Author: Wei Xiao <Wei.Xiao@arm.com>
+Date:   Thu Aug 17 13:56:44 2017 +0800
+
+    cmd/vendor/golang.org/x/arch: pull latest updates from x repo (commit edaf650)
+    
+    Updates #21486
+    
+    Change-Id: I78ca76490d8e9b52e055c1f0b8d10bdb227e3a80
+    Reviewed-on: https://go-review.googlesource.com/56331
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../x/arch/arm64/arm64asm/objdump_test.go          | 23 +++++++++++++++++++++-
+ 1 file changed, 22 insertions(+), 1 deletion(-)

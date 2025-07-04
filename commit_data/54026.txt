@@ -1,0 +1,22 @@
+commit 850b6ce33ced3d20d036cb41317f783469f3ea86
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Aug 16 02:04:19 2023 +0000
+
+    bufio: clarify the maximum token size
+    
+    Fixes #43183.
+    
+    Change-Id: I50d99ef8ed513bba47166a25ea5c7c80cd8bd799
+    GitHub-Last-Rev: 684d70e9a3dbc0ce280e1112105d666cd5754e9f
+    GitHub-Pull-Request: golang/go#61979
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/518860
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bufio/scan.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

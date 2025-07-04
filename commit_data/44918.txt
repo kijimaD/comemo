@@ -1,0 +1,23 @@
+commit 6454b2720ff4854ce92567d22fc7c6c7d497e6a2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 29 12:22:01 2021 -0700
+
+    cmd/compile/internal/types2: review of resolver.go
+    
+    The changes between (equivalent, and reviewed) go/types/resolver.go
+    and resolver.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker.
+    
+    The primary differences compared to go/types are:
+    - use of syntax rather than go/ast package
+    - not using a walkDecl abstraction for const/var/type declarations
+    
+    Change-Id: Id8d7b069813149ca4eadbb61d1124b22c56a91b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/305572
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/resolver.go | 1 -
+ 1 file changed, 1 deletion(-)

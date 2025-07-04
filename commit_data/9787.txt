@@ -1,0 +1,24 @@
+commit 8a06936ea18d9df793622460968590f654d76b2b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 23 21:23:40 2011 -0700
+
+    test: match gccgo error messages
+    
+    bug340.go:14:7: error: expected type
+    bug340.go:15:4: error: reference to undefined field or method ‘x’
+    
+    bug350.go:12:1: error: redefinition of ‘m’
+    bug350.go:11:1: note: previous definition of ‘m’ was here
+    bug350.go:15:1: error: redefinition of ‘p’
+    bug350.go:14:1: note: previous definition of ‘p’ was here
+    
+    bug351.go:12:6: error: non-name on left side of ‘:=’
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5127041
+
+ test/fixedbugs/bug340.go | 6 +++---
+ test/fixedbugs/bug350.go | 8 ++++----
+ test/fixedbugs/bug351.go | 2 +-
+ 3 files changed, 8 insertions(+), 8 deletions(-)

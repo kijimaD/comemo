@@ -1,0 +1,12 @@
+commit 5497787d35846bbfc44719b4477d57829bc53b31
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Oct 7 23:14:20 2012 +0200
+
+    test/testlib: don't forget stderr for rundircmpout.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6620071
+
+ test/testlib | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

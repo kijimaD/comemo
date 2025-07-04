@@ -1,0 +1,24 @@
+commit c70df74aab1b0be661003f525ba6021a5523a84e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 17 20:53:41 2015 +0000
+
+    net/http: document ResponseWriter and Handler more; add test
+    
+    Update docs on ResponseWriter and Handler around concurrency.
+    
+    Also add a test.
+    
+    The Handler docs were old and used "object" a lot. It was also too
+    ServeMux-centric.
+    
+    Fixes #13050
+    Updates #13659 (new issue found in http2 while writing the test)
+    
+    Change-Id: I25f53d5fa54f1c9d579d3d0f191bf3d94b1a251b
+    Reviewed-on: https://go-review.googlesource.com/17982
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/clientserver_test.go | 56 +++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go            | 23 ++++++++++------
+ 2 files changed, 71 insertions(+), 8 deletions(-)

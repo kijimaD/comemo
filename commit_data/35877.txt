@@ -1,0 +1,24 @@
+commit 2ee6bfbd7ef0d8183035f8d8a47af7fcb7554a05
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jul 3 09:36:35 2018 +0200
+
+    cmd/internal/obj: follow convention for generated code comment
+    
+    Follow the convertion (https://golang.org/s/generatedcode) for generated
+    code in stringer.go.
+    
+    Change-Id: I7b5fbb04ba03e8ac77a9a0a402088669469de858
+    Reviewed-on: https://go-review.googlesource.com/122015
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/obj/arm/anames.go   | 3 +--
+ src/cmd/internal/obj/arm64/anames.go | 3 +--
+ src/cmd/internal/obj/mips/anames.go  | 3 +--
+ src/cmd/internal/obj/ppc64/anames.go | 3 +--
+ src/cmd/internal/obj/s390x/anames.go | 3 +--
+ src/cmd/internal/obj/stringer.go     | 3 +--
+ src/cmd/internal/obj/wasm/anames.go  | 3 +--
+ src/cmd/internal/obj/x86/anames.go   | 3 +--
+ 8 files changed, 8 insertions(+), 16 deletions(-)

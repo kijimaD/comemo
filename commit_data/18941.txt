@@ -1,0 +1,21 @@
+commit fff63c2448109cb5a889f99dc2ab330f31d53213
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 25 15:09:49 2014 -0700
+
+    runtime: WriteHeapDump dumps the heap to a file.
+    
+    See http://golang.org/s/go13heapdump for the file format.
+    
+    LGTM=rsc
+    R=rsc, bradfitz, dvyukov, khr
+    CC=golang-codereviews
+    https://golang.org/cl/37540043
+
+ src/pkg/runtime/debug/garbage.go |   5 +
+ src/pkg/runtime/heapdump.c       | 890 +++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/iface.goc        |  14 +
+ src/pkg/runtime/malloc.h         |   1 +
+ src/pkg/runtime/mgc0.c           |  62 +--
+ src/pkg/runtime/mgc0.h           |  41 ++
+ src/pkg/runtime/runtime.h        |   2 +
+ 7 files changed, 973 insertions(+), 42 deletions(-)

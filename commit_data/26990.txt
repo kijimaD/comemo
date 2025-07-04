@@ -1,0 +1,27 @@
+commit b024ed0d944c0f839e699fb10af633d295abb311
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 18 11:17:55 2016 -0700
+
+    cmd/compile: eliminate copy for static literals
+    
+    *p = [5]byte{1,2,3,4,5}
+    
+    First we allocate a global containing the RHS.  Then we copy
+    that global to a local stack variable, and then copy that local
+    stack variable to *p.  The intermediate copy is unnecessary.
+    
+    Note that this only works if the RHS is completely constant.
+    If the code was:
+    *p = [5]byte{1,2,x,4,5}
+    this optimization doesn't apply as we have to construct the
+    RHS on the stack before copying it to *p.
+    
+    Fixes #12841
+    
+    Change-Id: I7cd0404ecc7a2d1750cbd8fe1222dba0fa44611f
+    Reviewed-on: https://go-review.googlesource.com/22192
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/sinit.go | 26 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/walk.go  | 13 +++++++++++++
+ 2 files changed, 39 insertions(+)

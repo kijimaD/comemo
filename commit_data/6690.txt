@@ -1,0 +1,24 @@
+commit 8f8f625cb13589944999c50144169f45b0d3db74
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Nov 2 10:56:56 2010 +1100
+
+    8l: pe generation fixes
+    
+    Restore ability to have different file and
+    section alignment in generated pe file.
+    
+    Stop generating .bss pe section, it is
+    part of .data now.
+    
+    Some code refactoring.
+    
+    R=rsc, vcc
+    CC=golang-dev
+    https://golang.org/cl/2731041
+
+ src/cmd/8l/asm.c  |   6 +++-
+ src/cmd/8l/obj.c  |   8 ++---
+ src/cmd/ld/data.c |   3 ++
+ src/cmd/ld/pe.c   | 100 +++++++++++++++++++++++++++---------------------------
+ src/cmd/ld/pe.h   |  12 +++++--
+ 5 files changed, 70 insertions(+), 59 deletions(-)

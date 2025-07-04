@@ -1,0 +1,28 @@
+commit 54bd44e5738e3a6499b8b9f9fedc7b399d333cc0
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jun 2 21:26:49 2022 +0000
+
+    runtime: track total idle time for GC CPU limiter
+    
+    Currently the GC CPU limiter only tracks idle GC work time. However, in
+    very undersubscribed situations, it's possible that all this extra idle
+    time prevents the enabling of the limiter, since it all gets account for
+    as mutator time. Fix this by tracking all idle time via pidleget and
+    pidleput. To support this, pidleget and pidleput also accept and return
+    "now" parameters like the timer code.
+    
+    While we're here, let's clean up some incorrect assumptions that some of
+    the scheduling code makes about "now."
+    
+    Fixes #52890.
+    
+    Change-Id: I4a97893d2e5ad1e8c821f8773c2a1d449267c951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410122
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mgclimit.go | 55 +++++++++++++++++++++++++++-------------------
+ src/runtime/mgcpacer.go | 15 ++++++++-----
+ src/runtime/proc.go     | 58 +++++++++++++++++++++++++++++--------------------
+ 3 files changed, 77 insertions(+), 51 deletions(-)

@@ -1,0 +1,17 @@
+commit e9e4f6c433116038765eb88022122bb2558d0585
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed Oct 23 13:50:15 2019 -0400
+
+    misc: delete benchcmp forwarding script
+    
+    benchcmp was moved out of misc into x/tools in CL 60100043 in 2014,
+    and then replaced by a forwarding script in CL 82710043.
+    Five years have since passed, and the forwarding script has outlived
+    its usefulness. It's now more confusing than helpful. Delete it.
+    
+    Change-Id: I8c7d65b97e0b3fe367df69a86ae10c7960c05be3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/202762
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/benchcmp | 5 -----
+ 1 file changed, 5 deletions(-)

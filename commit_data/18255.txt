@@ -1,0 +1,13 @@
+commit 0db71338ed23324015d5d0600d2670fb3ed440b4
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jan 14 19:23:36 2014 -0500
+
+    runtime/debug: force GC after setting of GCPercent to make it effective.
+    See also discussion in CL 51010045.
+    
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/52230043
+
+ src/pkg/runtime/debug/garbage.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 6f3ffd4d799492612cd8283d5103f6db433cfca8
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 30 12:31:28 2012 -0700
+
+    test/bench/shootout: more speedups
+    Most significant in mandelbrot, from avoiding MOVSD between registers,
+    but there are others.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6258063
+
+ test/bench/shootout/timing.log | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)

@@ -1,0 +1,19 @@
+commit 470c6f6418efb9d720d5a86423c396b58c4b8f07
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon May 15 14:11:30 2023 -0500
+
+    runtime: improve ppc64x memclr for tail bytes
+    
+    This improves memclr for the last few bytes when
+    compiling for power9 or earlier.
+    
+    Change-Id: I46940ebc7e98e27a2e48d4b319acb7d2106a6f29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495035
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/runtime/memclr_ppc64x.s | 20 +++++++++++++++-----
+ 1 file changed, 15 insertions(+), 5 deletions(-)

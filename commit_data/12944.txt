@@ -1,0 +1,27 @@
+commit b885633d62e5001b11e65f92db85ee9ed74b383c
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Apr 24 15:27:48 2012 +1000
+
+    exp/html: make inBodyIM match spec
+    
+    This CL corrects the remaining differences that I could find between the
+    implementation of inBodyIM and the spec:
+    
+    Handle <rp> and <rt>.
+    
+    Adjust SVG and MathML attributes.
+    
+    Reconstruct active formatting elements in the "any other start tag" case.
+    
+    Pass 7 additional tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6101055
+
+ src/pkg/exp/html/foreign.go               | 78 ++++++++++++++++++++++++++++++-
+ src/pkg/exp/html/parse.go                 | 39 +++++++++-------
+ src/pkg/exp/html/testlogs/tests11.dat.log |  6 +--
+ src/pkg/exp/html/testlogs/tests16.dat.log |  2 +-
+ src/pkg/exp/html/testlogs/tests19.dat.log |  6 +--
+ 5 files changed, 106 insertions(+), 25 deletions(-)

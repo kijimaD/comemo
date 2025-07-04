@@ -1,0 +1,15 @@
+commit e82286075674df84b9435445d48c5b8a4eeeeaa2
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Feb 23 08:42:04 2013 +0900
+
+    syscall: add netlink constants for linux
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7403049
+
+ src/pkg/syscall/types_linux.go        | 166 +++++++++++++++++++---------------
+ src/pkg/syscall/ztypes_linux_386.go   | 166 +++++++++++++++++++---------------
+ src/pkg/syscall/ztypes_linux_amd64.go | 166 +++++++++++++++++++---------------
+ src/pkg/syscall/ztypes_linux_arm.go   | 166 +++++++++++++++++++---------------
+ 4 files changed, 364 insertions(+), 300 deletions(-)

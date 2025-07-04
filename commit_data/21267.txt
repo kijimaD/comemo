@@ -1,0 +1,18 @@
+commit 3b63b69d2f16be676d4fdc4f4ac697ed92abf523
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 15 10:43:04 2015 +1100
+
+    test: comment the behavior and use of cmplxdivide*
+    
+    The various files are confusingly named and their operation
+    not easy to see. Add a comment to cmplxdivide.c, one of the few
+    C files that will endure in the repository, to explain how to build
+    and run the test.
+    
+    Change-Id: I1fd5c564a14217e1b9815b09bc24cc43c54c096f
+    Reviewed-on: https://go-review.googlesource.com/2850
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ test/cmplxdivide.c  | 13 ++++++++++++-
+ test/cmplxdivide.go |  1 +
+ 2 files changed, 13 insertions(+), 1 deletion(-)

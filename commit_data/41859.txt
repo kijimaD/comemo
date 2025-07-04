@@ -1,0 +1,19 @@
+commit 64f19d70805a6da347a55dab5ab4f4c57ddb3278
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Tue Apr 7 15:52:05 2020 +0300
+
+    cmd/compile/internal/logopt: preserve env while running command
+    
+    The test was not preserving temporary directory flags leading to a
+    failure on windows with:
+    
+        mkdir C:\WINDOWS\go-build315158903: Access is denied.
+    
+    Fixes #38251
+    
+    Change-Id: I6ee31b31e84b7f6e75ea6ee0f3b8c094835bf5d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227497
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 9058b9ae49dc3fb0ddbb169a520dc2d09777bd03
+Author: Kevin Burke <kev@inburke.com>
+Date:   Sun May 7 11:04:24 2017 -0700
+
+    os, cmd/link: fix typos
+    
+    Also switch "stating" to "statting" to describe applying os.Stat to
+    a resource; the former is more confusable than the latter.
+    
+    Change-Id: I9d8e3506bd383f8f1479c05948c03b8c633dc4af
+    Reviewed-on: https://go-review.googlesource.com/42855
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/dwarf.go | 4 ++--
+ src/os/stat_windows.go            | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

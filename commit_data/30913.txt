@@ -1,0 +1,28 @@
+commit 5272a2cdc551c041a9f744ede72506be5f622196
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 30 06:45:36 2017 -0700
+
+    cmd/compile: avoid infinite loops in dead blocks during phi insertion
+    
+    Now that we no longer generate dead code,
+    it is possible to follow block predecessors
+    into infinite loops with no variable definitions,
+    causing an infinite loop during phi insertion.
+    
+    To fix that, check explicitly whether the predecessor
+    is dead in lookupVarOutgoing, and if so, bail.
+    
+    The loop in lookupVarOutgoing is very hot code,
+    so I am wary of adding anything to it.
+    However, a long, CPU-only benchmarking run shows no
+    performance impact at all.
+    
+    Fixes #19783
+    
+    Change-Id: I8ef8d267e0b20a29b5cb0fecd7084f76c6f98e47
+    Reviewed-on: https://go-review.googlesource.com/38913
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/phi.go | 18 ++++++++++++------
+ test/fixedbugs/issue19783.go       | 18 ++++++++++++++++++
+ 2 files changed, 30 insertions(+), 6 deletions(-)

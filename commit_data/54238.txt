@@ -1,0 +1,25 @@
+commit 19e2e3c291e28d337f155f5f01afa21910431752
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Aug 2 20:29:52 2023 +1000
+
+    cmd/internal/obj/arm64: avoid unnecessary pool literal usage for load/store pairs
+    
+    Implement better classification for load and store pair operations. This in
+    turn allows us to avoid using pool literals when the offset fits in a 24 bit
+    unsigned immediate. In this case, the offset can be calculated using two
+    add immediate instructions, rather than loading the offset from the pool
+    literal and then adding the offset to the base register. This requires the
+    same number of instructions, however avoids a load from memory and does
+    not require the offset to be stored in the literal pool.
+    
+    Updates #59615
+    
+    Change-Id: I316ec3d54f1d06ae9d930e98d0c32471775fcb26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515615
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 145 +++++++++++++++++++++++++++++++++----
+ 1 file changed, 130 insertions(+), 15 deletions(-)

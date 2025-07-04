@@ -1,0 +1,34 @@
+commit ffb5646fe0134af80273df57ef251d705d004425
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Nov 7 21:14:37 2019 +0000
+
+    runtime: define maximum supported physical page and huge page sizes
+    
+    This change defines a maximum supported physical and huge page size in
+    the runtime based on the new page allocator's implementation, and uses
+    them where appropriate.
+    
+    Furthemore, if the system exceeds the maximum supported huge page
+    size, we simply ignore it silently.
+    
+    It also fixes a huge-page-related test which is only triggered by a
+    condition which is definitely wrong.
+    
+    Finally, it adds a few TODOs related to code clean-up and supporting
+    larger huge page sizes.
+    
+    Updates #35112.
+    Fixes #35431.
+    
+    Change-Id: Ie4348afb6bf047cce2c1433576d1514720d8230f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205937
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/malloc.go           | 11 +++++++++++
+ src/runtime/mgcscavenge.go      | 27 +++++++++++++++++++--------
+ src/runtime/mgcscavenge_test.go |  4 ++--
+ src/runtime/mheap.go            | 17 +++++++++++++----
+ 4 files changed, 45 insertions(+), 14 deletions(-)

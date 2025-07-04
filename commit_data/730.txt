@@ -1,0 +1,19 @@
+commit 84152806992bbe9e00468a66abf39a7b990b2cec
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 25 15:14:26 2008 -0700
+
+    - more missing constructs added
+    - removed excessive ";"'s
+    - no ()'s around expressions where not needed
+    - parser.go now reproduced and parseable again
+    
+    R=r
+    OCL=15881
+    CL=15881
+
+ usr/gri/pretty/ast.go     |  39 ++++++++++++-
+ usr/gri/pretty/parser.go  | 141 +++++++++++++++++++++++-----------------------
+ usr/gri/pretty/pretty.go  |  16 ++++--
+ usr/gri/pretty/printer.go |  97 +++++++++++++++++++++++--------
+ usr/gri/pretty/scanner.go |  27 +++++++--
+ 5 files changed, 217 insertions(+), 103 deletions(-)

@@ -1,0 +1,21 @@
+commit 9e6cd3985dbcdcfe0ed2075be6dbe8c5d6de59cb
+Author: hopehook <hopehook.com@gmail.com>
+Date:   Wed Aug 10 06:52:22 2022 +0800
+
+    all: clean up unreachable Continue after Fatal
+    
+    As CL 422214 did, this CL intends to clean up the rest
+    unreachable "Continue" after Fatal.
+    
+    Change-Id: I3b7e1b59bdfccb185e20525ce113e241d277dad3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422514
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
+
+ src/cmd/go/internal/get/get.go | 1 -
+ src/reflect/all_test.go        | 2 --
+ 2 files changed, 3 deletions(-)

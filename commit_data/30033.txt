@@ -1,0 +1,20 @@
+commit b443babad49f90e9507d91819736c97a7495e308
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jan 21 16:58:01 2017 -0800
+
+    test: add extra test for issue18661
+    
+    Make sure that the lack of an lvalue doesn't
+    cause extra side-effects.
+    
+    Updates #18661
+    Updates #18739
+    
+    Change-Id: I52eb4b4a5c6f8ff5cddd2115455f853c18112c19
+    Reviewed-on: https://go-review.googlesource.com/36126
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ test/fixedbugs/issue18661.go | 25 +++++++++++++++++++++++--
+ 1 file changed, 23 insertions(+), 2 deletions(-)

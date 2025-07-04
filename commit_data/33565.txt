@@ -1,0 +1,16 @@
+commit 22671e734473d3cd088958a00826c1adf936032c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 13 21:20:23 2017 -0500
+
+    bytes: change ExampleReader_Len to use a non-ASCII string
+    
+    This should help make clear that Len is not counting runes.
+    Also delete empty string, which doesn't add much.
+    
+    Change-Id: I1602352df1897fef6e855e9db0bababb8ab788ca
+    Reviewed-on: https://go-review.googlesource.com/78110
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/bytes/example_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

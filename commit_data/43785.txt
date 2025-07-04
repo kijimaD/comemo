@@ -1,0 +1,15 @@
+commit 141fa337ad2f118e4e99dc554e95c336810a07cf
+Author: Federico Guerinoni <guerinoni.federico@gmail.com>
+Date:   Sun Nov 8 15:35:35 2020 +0100
+
+    bytes: add example for (*Buffer).Bytes
+    
+    Change-Id: I49ac604530fff7928fa15de07563418b104da5e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268260
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+
+ src/bytes/example_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,16 @@
+commit e1c347ca59dbcbac447989ee0065c6ff99a00d0a
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Tue Dec 1 15:53:50 2009 -0800
+
+    8g: fix 386 floating point stack bug
+    
+    Also fixes issue 310 comment 5 error.
+    Fixes #310.
+    
+    R=rsc
+    https://golang.org/cl/163042
+
+ src/cmd/8c/reg.c   |  2 ++
+ src/cmd/8g/gsubr.c | 10 ++++++----
+ src/cmd/8g/reg.c   |  3 ++-
+ 3 files changed, 10 insertions(+), 5 deletions(-)

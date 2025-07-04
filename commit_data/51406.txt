@@ -1,0 +1,32 @@
+commit 840b346c5d24a4a8ab5182b6f0711e3c5e65bafc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 26 17:01:24 2022 -0700
+
+    cmd/compile: reject anonymous interface cycles
+    
+    This CL changes cmd/compile to reject anonymous interface cycles like:
+    
+            type I interface { m() interface { I } }
+    
+    We don't anticipate any users to be affected by this change in
+    practice. Nonetheless, this CL also adds a `-d=interfacecycles`
+    compiler flag to suppress the error. And assuming no issue reports
+    from users, we'll move the check into go/types and types2 instead.
+    
+    Updates #56103.
+    
+    Change-Id: I1f1dce2d7aa19fb388312cc020e99cc354afddcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445598
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/base/debug.go         |   1 +
+ src/cmd/compile/internal/noder/irgen.go        | 108 +++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/stdlib_test.go |   1 +
+ src/go/types/stdlib_test.go                    |   1 +
+ test/fixedbugs/bug398.go                       |   2 +-
+ test/fixedbugs/issue16369.go                   |   2 +-
+ test/fixedbugs/issue56103.go                   |  46 +++++++++++
+ 7 files changed, 159 insertions(+), 2 deletions(-)

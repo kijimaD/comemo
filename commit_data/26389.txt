@@ -1,0 +1,22 @@
+commit 982322769c1ca0e038d21a7028359c363acb7b8e
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 18 13:35:34 2016 -0400
+
+    cmd/dist: redo flag-passing for bootstrap
+    
+    This ought to revert the bad effects of
+    https://go-review.googlesource.com/#/c/20775/
+    If you don't pass BOOT_GO_GCFLAGS, you get the
+    old behavior.
+    
+    Tweaked to allow multiple space-separated flags in
+    BOOT_GO_GCFLAGS.
+    
+    Change-Id: I2a22a04211b4535d1c5a8ec7a8a78cb051161c31
+    Reviewed-on: https://go-review.googlesource.com/20871
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/build.go | 4 ++--
+ src/make.bash         | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,30 @@
+commit b7428b7c6de6c7498425fe5374f22b7d3da054f4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 12 14:45:44 2023 +0000
+
+    net/http: only report the first leak of each test run
+    
+    We don't have a way to terminate the leaked goroutines, and we can't
+    wait forever for them to exit (or else we would risk timing out the
+    test and losing the log line describing what exactly leaked).
+    So we have reason to believe that they will remain leaked while we run
+    the next test, and we don't want the goroutines from the first leak to
+    generate a spurious error when the second test completes.
+    
+    This also removes a racy Parallel call I added in CL 476036, which was
+    flagged by the race detector in the duplicate-suppression check.
+    (I hadn't considered the potential interaction with the leak checker.)
+    
+    For #59526.
+    Updates #56421.
+    
+    Change-Id: Ib1f759f102fb41ece114401680cd728343e58545
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483896
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/net/http/main_test.go  | 20 ++++++++++++++++++++
+ src/net/http/serve_test.go |  3 ---
+ 2 files changed, 20 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit d817c4ec6d458777537aae3a04201b7182a5f78a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 9 11:29:33 2016 -0700
+
+    cmd/compile: use regular rather than indexed format string
+    
+    This enables the format test to process this file (the format
+    test doesn't handle indexed formats, and this is the only place
+    in the compiler where they occur).
+    
+    Change-Id: I99743f20c463f181a589b210365f70162227d4e0
+    Reviewed-on: https://go-review.googlesource.com/28932
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/html.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

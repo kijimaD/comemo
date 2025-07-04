@@ -1,0 +1,19 @@
+commit bd0fc0b9c32e3697380a6484154accacdb928f97
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Mar 10 14:41:38 2021 -0600
+
+    cmd/link: preserve elf phdr flags when loading external objects
+    
+    Preserve program header flags when passing them through loadelf.Load.
+    They shouldn't be coerced to 0 on non-ARM platforms which set them
+    such as ppc64le.
+    
+    Change-Id: I022613356f910d812de2fc22eac949960eeb53b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300950
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/cmd/link/internal/loadelf/ldelf.go | 2 ++
+ 1 file changed, 2 insertions(+)

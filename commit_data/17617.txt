@@ -1,0 +1,12 @@
+commit a70cbf1329e4ca7f3aaa62ab825dd33933c80e9e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 16 14:22:24 2013 -0400
+
+    runtime: fix freebsd build
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/13720044
+
+ src/pkg/runtime/sys_freebsd_amd64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

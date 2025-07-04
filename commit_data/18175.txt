@@ -1,0 +1,26 @@
+commit 90e9669c50fc471e14b358382a60b6354182fb2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 6 12:38:04 2014 -0800
+
+    undo CL 44150043 / 198bdc0984dd
+    
+    See https://golang.org/cl/44150043/
+    
+    ««« original CL description
+    regexp: use sync.Pool
+    
+    For machines, not threads.
+    
+    Update #4720
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/44150043
+    »»»
+    
+    TBR=golang-dev
+    CC=golang-codereviews
+    https://golang.org/cl/48190043
+
+ src/pkg/regexp/regexp.go | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit 54375081fe3a81083be697a121f3311528786fb7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 24 11:09:13 2014 -0700
+
+    doc/go1.4.txt: text/scanner: IsIdentRune
+    
+    R=gri
+    CC=golang-codereviews
+    https://golang.org/cl/104340043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,30 @@
+commit 0b652e3ef6413b343d0e7ee38a58f1cc15c933f6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 14 15:05:07 2024 -0400
+
+    internal/runtime/maps: use uintptr instead of uint32 for index in group
+    
+    This avoids some zero-extension ops on 64-bit machines.
+    
+    Based on khr@'s CL 619479.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Ie9a56da26382dc9e515c613abc8cf6fec3767671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620216
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/internal/runtime/maps/export_test.go           |  2 +-
+ src/internal/runtime/maps/group.go                 | 16 ++++++++--------
+ src/internal/runtime/maps/map.go                   |  4 ++--
+ src/internal/runtime/maps/runtime_fast32_swiss.go  | 10 +++++-----
+ src/internal/runtime/maps/runtime_fast64_swiss.go  | 10 +++++-----
+ src/internal/runtime/maps/runtime_faststr_swiss.go |  6 +++---
+ src/internal/runtime/maps/runtime_swiss.go         |  4 ++--
+ src/internal/runtime/maps/table.go                 | 12 ++++++------
+ src/internal/runtime/maps/table_debug.go           |  4 ++--
+ 9 files changed, 34 insertions(+), 34 deletions(-)

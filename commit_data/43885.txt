@@ -1,0 +1,23 @@
+commit 4ce0a7cea6805277c3bfecbaab2170e5c2543cba
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sat Nov 28 14:38:29 2020 +0100
+
+    runtime/pprof: ignore test failures on windows/arm
+    
+    This is blocking forward progress of the de-bitrotting work, and I don't
+    know off hand how to fix this. Seeing as its disabled on other
+    platforms, I suspect pprof might not be a very reliable feature, so just
+    allow for the tests to fail for now, until somebody more motivated comes
+    along to fix it.
+    
+    Updates #42862.
+    
+    Change-Id: Ibc5cd1d82d97b9c2f887d7f3565f2fa70207c8b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/273826
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+
+ src/runtime/pprof/pprof_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

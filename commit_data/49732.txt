@@ -1,0 +1,20 @@
+commit 4fb7e22adece7e12f7e0b443e1b1a1272e1b84c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 5 14:37:34 2022 -0400
+
+    cmd/dist: do not run on ppc64le
+    
+    Also don't run on all the other tiny slow boxes we have.
+    Should fix the remaining ppc64le broken builders.
+    
+    For #44505 (or at least somehow provoked by it).
+    
+    Change-Id: I72e8086cb641f3f7da3a872140a752bf328eec1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421438
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/dist/test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

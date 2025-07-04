@@ -1,0 +1,12 @@
+commit 02cae293cc950edae42a0dff99ce64e7eb296e26
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 14 11:50:00 2011 -0700
+
+    gotest: generate gofmt-compliant code
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4400047
+
+ src/cmd/gotest/gotest.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

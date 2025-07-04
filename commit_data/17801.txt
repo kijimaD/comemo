@@ -1,0 +1,13 @@
+commit 244014e40212a3790ebdc2b18ee3875262cced51
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Oct 15 21:30:49 2013 -0400
+
+    doc/effective_go.html: fix code example
+    Fixes #6595.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/14425062
+
+ doc/effective_go.html | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,14 @@
+commit 8db677b0a7fb35ba475aa9e9787fd5a107101ef6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 14:41:02 2009 -0700
+
+    delete heuristic left over from incremental compilation
+    
+    R=r
+    DELTA=31  (2 added, 28 deleted, 1 changed)
+    OCL=33064
+    CL=33112
+
+ src/cmd/6l/obj.c | 15 +--------------
+ src/cmd/8l/obj.c | 17 ++---------------
+ 2 files changed, 3 insertions(+), 29 deletions(-)

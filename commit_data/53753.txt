@@ -1,0 +1,16 @@
+commit 5bf8f533f0d13091c93decadea3552b03c13c751
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 16 16:03:29 2023 -0400
+
+    cmd/link: print dsymutil and strip commands in -v mode
+    
+    If -v is specified, print dsymutil and strip commands.
+    
+    Change-Id: Icaff2b41ab582d8c58a4ec65438c2986d88def9f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506758
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)

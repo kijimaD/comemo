@@ -1,0 +1,14 @@
+commit ee706cfe83ec1bbb95e7ebe29c640544510c732b
+Author: Leon Klingele <git@leonklingele.de>
+Date:   Tue Nov 5 16:19:42 2019 +0000
+
+    net/smtp: add missing error check in test
+    
+    Change-Id: Ifcbd9d2961073a18a250f052180248d9bf223e97
+    GitHub-Last-Rev: 67f97d1ca07665979504264986e25522ed6799f8
+    GitHub-Pull-Request: golang/go#30018
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/160442
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/smtp/smtp_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

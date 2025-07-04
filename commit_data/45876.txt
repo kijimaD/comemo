@@ -1,0 +1,27 @@
+commit 956c81bfe60306e49e26f7edd4f48cbc24c8fe28
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Jun 16 15:10:57 2021 -0700
+
+    cmd/go: add GOEXPERIMENT to `go env` output
+    
+    This CL adds GOEXPERIMENT to `go env` output, and also makes it
+    configurable via `GOENV`. Thanks to Baokun Lee's CL 304350 for the
+    test and initial work on this.
+    
+    Fixes #45226.
+    
+    Change-Id: Ie7f92a8a503b6a2a4df3f6598f0b2bf2915e2e7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328751
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/go/alldocs.go                    |  6 ++++++
+ src/cmd/go/internal/envcmd/env.go        |  8 ++++++++
+ src/cmd/go/internal/help/helpdoc.go      |  6 ++++++
+ src/cmd/go/testdata/script/env_exp.txt   | 17 +++++++++++++++++
+ src/cmd/go/testdata/script/env_unset.txt |  7 +++++++
+ src/cmd/go/testdata/script/env_write.txt |  6 ++++++
+ 6 files changed, 50 insertions(+)

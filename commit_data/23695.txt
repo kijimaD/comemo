@@ -1,0 +1,14 @@
+commit 3d3a0169bfe4a1cc515ca7a781d4930c6015c57c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 15 00:04:27 2015 -0400
+
+    reflect: wait longer before declaring select test stuck
+    
+    Fixes #9427.
+    
+    Change-Id: If8094d4d4f6737c03d83e08e177c2a7f0ff9d89f
+    Reviewed-on: https://go-review.googlesource.com/12234
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/reflect/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

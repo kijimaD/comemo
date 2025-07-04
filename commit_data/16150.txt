@@ -1,0 +1,22 @@
+commit 357e37dc945885a141b48182c4606f1aac8320db
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 9 15:00:21 2013 -0700
+
+    encoding/json: fix handling of anonymous fields
+    The old code was incorrect and also broken. It passed the tests by accident.
+    The new algorithm is:
+            1) Sort the fields in order of names.
+            2) For all fields with the same name, sort in increasing depth.
+            3) Choose the single field with shortest depth.
+    If any of the fields of a given name has a tag, do the above using
+    tagged fields of that name only.
+    Fixes #5245.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/8583044
+
+ src/pkg/encoding/json/decode_test.go |  2 +-
+ src/pkg/encoding/json/encode.go      | 63 ++++++++++++++++++++++++++++++------
+ src/pkg/encoding/json/encode_test.go | 50 ++++++++++++++++++++++++++++
+ 3 files changed, 104 insertions(+), 11 deletions(-)

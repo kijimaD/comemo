@@ -1,0 +1,12 @@
+commit bea9ae2f13812238773f08156c4b9eac4a73c72d
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Thu Jun 25 13:11:25 2015 -0400
+
+    CONTRIBUTORS: add Arkadi Pyuro <arkadi@google.com>
+    
+    Change-Id: I88fea011e68a8f0d351d2a9dd81d6aa48bc7c7c7
+    Reviewed-on: https://go-review.googlesource.com/17731
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,23 @@
+commit e5f01aee04dc6313c85dab78305adf499e1f7bfa
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Feb 27 08:07:50 2014 +0100
+
+    cmd/gc: do not nop-convert equivalent but different interface types.
+    
+    The cached computed interface tables are indexed by the interface
+    types, not by the unnamed underlying interfaces
+    
+    To preserve the invariants expected by interface comparison, an
+    itab generated for an interface type must not be used for a value
+    of a different interface type even if the representation is identical.
+    
+    Fixes #7207.
+    
+    LGTM=rsc
+    R=rsc, iant, khr
+    CC=golang-codereviews
+    https://golang.org/cl/69210044
+
+ src/cmd/gc/subr.c |  6 ++++--
+ test/cmp.go       | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 2 deletions(-)

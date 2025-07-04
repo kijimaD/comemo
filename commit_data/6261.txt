@@ -1,0 +1,13 @@
+commit 25c8d4e932375fb1b34352c166223987c7f44117
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Mon Sep 13 12:59:59 2010 +1000
+
+    goinstall: warn when http:// is found at beginning of package name
+    Fixes #860.
+    
+    R=golang-dev, adg1, rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/2124046
+
+ src/cmd/goinstall/main.go | 5 +++++
+ 1 file changed, 5 insertions(+)

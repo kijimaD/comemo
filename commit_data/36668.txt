@@ -1,0 +1,22 @@
+commit 1bf5796cae9e8f7b55402f199a1eec82a092abb7
+Author: Ben Burkert <ben@benburkert.com>
+Date:   Wed Sep 5 10:20:26 2018 -0700
+
+    internal/poll: fall back on unsupported splice from unix socket
+    
+    Gracefully fallback to a userspace copy when the kernel does not support
+    splice(2) on a unix domain socket. EINVAL is returned by the splice
+    syscall if it does not support unix domain sockets. Keeping the handled
+    return value as false when the first splice call fails with EINVAL will
+    cause the caller to fall back to a userspace copy.
+    
+    Fixes #27513
+    
+    Change-Id: I4b10c1900ba3c096cb32edb7c8a6044f468efb52
+    Reviewed-on: https://go-review.googlesource.com/133575
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/internal/poll/splice_linux.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

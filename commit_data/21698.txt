@@ -1,0 +1,15 @@
+commit ec92af650c502abcb61508db6e218bda04b778ad
+Author: Charlie Dorian <cldorian@gmail.com>
+Date:   Sun Feb 22 16:12:51 2015 -0500
+
+    math: Dim, Max, Min - allow more bit patterns for NaN
+    
+    Fixes #9919
+    
+    Change-Id: Ib443c762f727d4986ca7f8a404362f92b0e91aff
+    Reviewed-on: https://go-review.googlesource.com/5553
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/math/all_test.go | 33 +++++++++++++++++++++++++++++++++
+ src/math/dim_amd64.s | 32 ++++++++++++--------------------
+ 2 files changed, 45 insertions(+), 20 deletions(-)

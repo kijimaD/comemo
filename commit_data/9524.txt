@@ -1,0 +1,13 @@
+commit 361c5ace0597d57480837f4c610c47e7bf20bd18
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 29 15:56:52 2011 +1000
+
+    template: range over channel
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4951046
+
+ src/pkg/template/exec.go      | 50 +++++++++++++++++++++++++------------------
+ src/pkg/template/exec_test.go | 24 ++++++++++++++++++++-
+ 2 files changed, 52 insertions(+), 22 deletions(-)

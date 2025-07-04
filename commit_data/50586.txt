@@ -1,0 +1,24 @@
+commit 336ce966e439a269fe5088cc7564181c5b866b61
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 22 12:11:49 2022 +0800
+
+    cmd/compile: use "missing method m" instead of "missing m method"
+    
+    For #55326
+    
+    Change-Id: I3d0ff7f820f7b2009d1b226abf701b2337fe8cbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432635
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: xie cui <523516579@qq.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/lookup.go |  7 +------
+ src/go/types/lookup.go                    |  7 +------
+ test/fixedbugs/issue48471.go              | 20 ++++++++++----------
+ test/fixedbugs/issue49005b.go             |  2 +-
+ test/interface/explicit.go                |  6 +++---
+ test/switch6.go                           |  4 ++--
+ 6 files changed, 18 insertions(+), 28 deletions(-)

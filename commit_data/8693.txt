@@ -1,0 +1,12 @@
+commit c8ee1b8ebccbe27432558d653f533b61be2e63e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 10 17:07:22 2011 -0700
+
+    io/ioutil: fix typo in comment
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/4592052
+
+ src/pkg/io/ioutil/ioutil.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

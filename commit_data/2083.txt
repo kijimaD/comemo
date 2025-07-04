@@ -1,0 +1,12 @@
+commit 155ec1d904cfe90e8a4c2380a71971518f4fcb87
+Author: Ben Eitzen <eitzenb@golang.org>
+Date:   Thu Apr 23 18:23:34 2009 -0700
+
+    Clear upper bits of 64-bit indexing register when using types smaller than 64 bits.
+    
+    APPROVED=ken
+    OCL=27811
+    CL=27823
+
+ src/cmd/6g/gsubr.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

@@ -1,0 +1,20 @@
+commit 6948b4df8c5ec9f249960ea60dba6349d1975c0e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jul 15 19:49:44 2024 +0000
+
+    Revert "runtime: avoid multiple records with identical stacks from MutexProfile"
+    
+    This reverts CL 595966.
+    
+    Reason for revert: This CL contains a bug. See the comment in https://go-review.googlesource.com/c/go/+/595966/8#message-57f4c1f9570b5fe912e06f4ae3b52817962533c0
+    
+    Change-Id: I48030907ded173ae20a8965bf1b41a713dd06059
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598219
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/runtime/mprof.go            | 105 +++++-----------------------------------
+ src/runtime/pprof/pprof.go      |  23 +--------
+ src/runtime/pprof/pprof_test.go |  78 -----------------------------
+ 3 files changed, 14 insertions(+), 192 deletions(-)

@@ -1,0 +1,17 @@
+commit 47d2a4dafa6e84f834f677790449c3c5998a5b98
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 4 21:20:23 2017 -0800
+
+    cmd/compile: remove walkmul
+    
+    Replace with generic rewrite rules.
+    
+    Change-Id: I3ee32076cfd9db5801f1a7bdbb73a994255884a9
+    Reviewed-on: https://go-review.googlesource.com/36323
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go            |  88 ++----------
+ src/cmd/compile/internal/ssa/gen/generic.rules |  10 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 180 +++++++++++++++++++++++++
+ 3 files changed, 198 insertions(+), 80 deletions(-)

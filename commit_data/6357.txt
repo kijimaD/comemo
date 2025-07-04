@@ -1,0 +1,16 @@
+commit 44b3b20524e5362d7316501e746df3cbd8ad4522
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 23 14:56:44 2010 -0700
+
+    gofmt: preserve syntactically relevant blanks between ints and tokens that start with a '.' (2nd attempt)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2270042
+
+ src/pkg/go/printer/nodes.go                    |  8 --------
+ src/pkg/go/printer/printer.go                  | 11 ++++++++++-
+ src/pkg/go/printer/testdata/expressions.golden | 10 ++++++++++
+ src/pkg/go/printer/testdata/expressions.input  | 10 ++++++++++
+ src/pkg/go/printer/testdata/expressions.raw    | 10 ++++++++++
+ 5 files changed, 40 insertions(+), 9 deletions(-)

@@ -1,0 +1,29 @@
+commit 1ba7341cb21d9edb2a04eb0b24b3af71899b35fc
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Dec 21 16:35:57 2022 -0500
+
+    cmd/link, runtime: use a different section for Go libfuzzer counters
+    
+    Currently in libfuzzer mode, we put our counters in section
+    __sancov_cntrs. When linking with C/C++ code that also has fuzzer
+    counters, apparently the C linker combines our counters and their
+    counters and registers them together. But in the Go runtime we
+    also have code to register our counters. So the Go counters ended
+    up registered twice, causing problems.
+    
+    Since we already have code to register our counters, put them in
+    a Go-specific section so it won't be combined with the C counters.
+    
+    Fixes #57449.
+    
+    Change-Id: If3d41735124e7e301572d4b7aecf7d057ac134c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/459055
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/data.go | 12 ++++++------
+ src/cmd/link/internal/ld/elf.go  |  2 +-
+ src/runtime/libfuzzer.go         |  9 ++-------
+ 3 files changed, 9 insertions(+), 14 deletions(-)

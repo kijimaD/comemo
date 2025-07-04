@@ -1,0 +1,16 @@
+commit 793295084480ab44ff9317a66d48ef1cc54961e6
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 12:00:41 2009 -0800
+
+    gc: increase maximum path size in getwd from 100 to 1000.
+    
+    Fixes #31.
+    
+    To try the fix before the next release:
+            hg pull -u
+    
+    R=r1, r
+    https://golang.org/cl/154058
+
+ src/cmd/gc/lex.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

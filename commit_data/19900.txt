@@ -1,0 +1,20 @@
+commit d69d0fe92b547d85e16485c68a0b5bf463d6ae91
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 6 00:31:22 2014 -0400
+
+    liblink, cmd/dist, cmd/5l: introduce %^ and move C_* constants.
+    
+    The helps certain diagnostics and also removed duplicated enums as a side effect.
+    
+    LGTM=dave, rsc
+    R=rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/115060044
+
+ include/link.h         |  7 +++++--
+ src/cmd/5l/5.out.h     | 51 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/5l/l.h         | 46 ---------------------------------------------
+ src/cmd/dist/buildgc.c | 22 +++++++++++++++++++++-
+ src/liblink/asm5.c     | 50 ++-----------------------------------------------
+ src/liblink/list5.c    | 17 +++++++++++++++++
+ 6 files changed, 96 insertions(+), 97 deletions(-)

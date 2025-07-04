@@ -1,0 +1,12 @@
+commit bc440f1bfe4ddda6247cef5cc8a9f14ecb3b1373
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Nov 3 10:26:33 2011 +0900
+
+    test: clear execute bit from source file
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5330068
+
+ test/dwarf/linedirectives.go | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

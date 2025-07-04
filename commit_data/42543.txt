@@ -1,0 +1,24 @@
+commit a07e28194a05800215efe192d2ff840f339924f0
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 15 22:52:56 2020 -0700
+
+    cmd/compile: redo flag constant ops for arm64
+    
+    Fixes the *noov opcodes so they handle a constant argument properly.
+    
+    Most of the infrastructure for this CL is in CL 238077 (the arm32 one).
+    
+    Fixes #39505
+    
+    Change-Id: Id424a4e18964b848f05aa42f4d78e5f2e2cdf43b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237999
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/arm64/ssa.go        |    8 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules   |    8 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  216 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   14 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   33 +-
+ src/cmd/compile/internal/ssa/rewrite.go      |   74 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 1482 +++++++-------------------
+ 7 files changed, 514 insertions(+), 1321 deletions(-)

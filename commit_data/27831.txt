@@ -1,0 +1,21 @@
+commit 856342d844a66cb15e13d73b60b2d2de3ea56090
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jul 21 08:37:45 2016 -0700
+
+    syscall: fix dragonfly/amd64 assembly argument sizes
+    
+    This is preliminary work to unifying the
+    unix amd64 assembly implementations,
+    which is preliminary work to making the
+    assembly vet-friendly.
+    
+    Updates #11041
+    
+    Change-Id: Ic64985124f8fb86cc08898be2ec7fca972ced4ca
+    Reviewed-on: https://go-review.googlesource.com/25113
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/asm_dragonfly_amd64.s | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)

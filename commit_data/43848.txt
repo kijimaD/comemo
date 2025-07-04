@@ -1,0 +1,24 @@
+commit 9264067a41d98d0500036c2279dea252d1f9adac
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Nov 19 10:56:35 2020 -0500
+
+    cmd/go: remove ListModules call in runGet
+    
+    ListModules was used to download .info files so that 'go list -m all'
+    would succeed later when offline. However, 'go list -m all' may
+    already fail when offline after 'go mod tidy', so it doesn't make
+    sense to add complexity to 'go get'.
+    
+    Instead, remove the ListModules call and fix the test that
+    accidentally depended on it.
+    
+    For #42723
+    
+    Change-Id: I692597cf5ca15c23fa6fc9d2bac4b6e044299482
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271577
+    Trust: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modget/get.go            | 15 ---------------
+ src/cmd/go/testdata/script/mod_gonoproxy.txt |  6 ++++++
+ 2 files changed, 6 insertions(+), 15 deletions(-)

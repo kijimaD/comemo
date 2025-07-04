@@ -1,0 +1,19 @@
+commit 32b6d2d9a849a0f0120e9139b403831669373b79
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Mon Sep 25 09:46:32 2023 -0400
+
+    net/http: add a test for an empty ServeMux
+    
+    Make sure a ServeMux with no patterns is well-behaved.
+    
+    Updates #61410.
+    
+    Change-Id: Ib3eb85b384e1309e785663902d2c45ae01e64807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/530479
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/server.go      |  2 --
+ src/net/http/server_test.go | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)

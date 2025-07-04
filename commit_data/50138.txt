@@ -1,0 +1,17 @@
+commit f50e47308d60d2a043aa3f806069d49e1b7ad0c1
+Author: Ludi Rehak <ludi317@gmail.com>
+Date:   Mon Aug 8 18:55:56 2022 -0700
+
+    cmd/go/internal/par: change cacheEntry.done type to atomic.Bool
+    
+    Change-Id: I95c941f83f74d57dfdd2d6803c9059691fb649b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422176
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: hopehook <hopehook@qq.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/par/work.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit fee0ab8b5ecab3c1170a80300c8c41f09486ca66
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Oct 18 08:25:51 2022 -0400
+
+    go/types: mention FakeImportC in Package.Import doc comment
+    
+    Change-Id: If4a82893f855d86de3311247424b1a3740c1f212
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/443615
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/package.go | 3 +++
+ src/go/types/package.go                    | 3 +++
+ 2 files changed, 6 insertions(+)

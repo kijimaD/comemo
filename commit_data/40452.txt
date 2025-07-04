@@ -1,0 +1,16 @@
+commit 152dddee7ec08e0bcf9acc41487a826f468ba8ab
+Author: Dmitri Goutnik <dgoutnik@gmail.com>
+Date:   Sun Oct 27 12:22:02 2019 -0500
+
+    cmd/link: switch to ld.bfd on freebsd/arm64
+    
+    Updates golang/go#35197
+    
+    Change-Id: I4fd85c84475761d71d2c17e62796e0a411cf91d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203519
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/link/internal/ld/lib.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

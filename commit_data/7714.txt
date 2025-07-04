@@ -1,0 +1,44 @@
+commit 2c420ece67e25c7692e28f641d374deb0bec9b7d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Mar 9 09:41:01 2011 -0800
+
+    http: change ResponseWriter.SetHeader(k,v) to Header() accessor
+    
+    Caller code needs to change:
+    
+    rw.SetHeader("Content-Type", "text/plain")
+    to:
+    rw.Header().Set("Content-Type", "text/plain")
+    
+    This now permits returning multiple headers
+    with the same name using Add:
+    
+    rw.Header().Add("Set-Cookie", "..")
+    rw.Header().Add("Set-Cookie", "..")
+    
+    This patch also fixes serialization of headers, removing newline characters.
+    
+    Fixes #488
+    Fixes #914
+    
+    R=rsc
+    CC=gburd, golang-dev
+    https://golang.org/cl/4239076
+
+ src/cmd/godoc/godoc.go              |  2 +-
+ src/cmd/godoc/main.go               |  2 +-
+ src/pkg/expvar/expvar.go            |  2 +-
+ src/pkg/http/cgi/child.go           |  8 +---
+ src/pkg/http/cgi/host.go            |  7 +--
+ src/pkg/http/cgi/host_test.go       |  4 +-
+ src/pkg/http/cgi/matryoshka_test.go |  6 +--
+ src/pkg/http/fs.go                  | 14 +++---
+ src/pkg/http/httptest/recorder.go   | 25 ++++------
+ src/pkg/http/pprof/pprof.go         |  6 +--
+ src/pkg/http/response.go            |  5 +-
+ src/pkg/http/responsewrite_test.go  | 25 +++++++++-
+ src/pkg/http/serve_test.go          | 10 ++--
+ src/pkg/http/server.go              | 95 ++++++++++++++++---------------------
+ src/pkg/http/triv.go                |  4 +-
+ src/pkg/rpc/server.go               |  2 +-
+ 16 files changed, 107 insertions(+), 110 deletions(-)

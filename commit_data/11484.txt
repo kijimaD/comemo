@@ -1,0 +1,14 @@
+commit 1f7128e17b3982e530675df17f39c7f24a120ec3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 30 15:34:34 2012 -0800
+
+    run.bash: s/make/gomake
+    attempt to fix freebsd build
+    TBR=rsc
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5576077
+
+ src/run.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit bbac652b31466463d66a4731365f8e0d7f0deb5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 2 23:02:39 2012 -0400
+
+    api: add net.UnixConn's CloseRead and CloseWrite methods
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6278045
+
+ api/next.txt | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,19 @@
+commit 87384801dce4ddb70a43aaf4b2f4eea549a7e047
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Aug 3 14:59:58 2022 -0400
+
+    cmd/asm: update package doc to describe "-p" option
+    
+    Include a description of the assembler's "-p" command line option
+    in the package doc.
+    
+    Fixes #54215.
+    
+    Change-Id: I641abad573c37aa9447af6e8b84716093c2a2b70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420900
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/asm/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

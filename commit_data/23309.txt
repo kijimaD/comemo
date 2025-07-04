@@ -1,0 +1,13 @@
+commit 032811e2ab7359819ddf9df40c06a1d5d673ba6d
+Author: Burcu Dogan <jbd@google.com>
+Date:   Mon May 4 12:41:41 2015 -0400
+
+    misc/ios: document the external binary and the required env variables
+    
+    Change-Id: I1ec2460758b19e5315be061033c1bb5ed9ead4a8
+    Reviewed-on: https://go-review.googlesource.com/9688
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ misc/ios/detect.go             | 3 +++
+ misc/ios/go_darwin_arm_exec.go | 7 +++++++
+ 2 files changed, 10 insertions(+)

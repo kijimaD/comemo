@@ -1,0 +1,22 @@
+commit 13cdd814ea0e8ef165ab54802f9f102b8b690df7
+Author: Sean Chittenden <seanc@joyent.com>
+Date:   Sun May 14 09:42:35 2017 -0700
+
+    runtime: mmap(2) on Solaris & Illumos can return EAGAIN.
+    
+    In low memory situations mmap(2) on Illumos[2] can return EAGAIN when it
+    is unable to reserve the necessary space for the requested mapping.  Go
+    was not previously handling this correctly for Illumos and would fail to
+    recognize it was in a low-memory situation, the result being the program
+    would terminate with a panic instead of running the GC.
+    
+    Fixes: #14930
+    
+    [1]: https://www.illumos.org/man/2/mmap
+    
+    Change-Id: I889cc0547e23f9d6c56e4fdd7bcbd0e15403873a
+    Reviewed-on: https://go-review.googlesource.com/43461
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/mem_bsd.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

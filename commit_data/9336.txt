@@ -1,0 +1,25 @@
+commit f3625e7087087a5d3332183be959a397d1625ff4
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Aug 10 23:28:48 2011 -0500
+
+    exp/template: rename Parse*File and Parse*Files for clarity
+    
+    IMPORTANT: Previous usage of *Files will continue to compile
+    fine but misbehave since the interface is compatible.
+    
+    The following functions have been renamed:
+    
+        ParseFiles => ParseGlob
+        ParseFile => ParseFiles
+        ParseSetFiles => ParseSetGlob
+        ParseSetFile => ParseSetFiles
+        ParseTemplateFiles => ParseTemplateGlob
+        ParseTemplateFile => ParseTemplateFiles
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4867041
+
+ src/pkg/exp/template/helper.go   | 62 ++++++++++++++++++++--------------------
+ src/pkg/exp/template/set_test.go | 56 ++++++++++++++++++------------------
+ 2 files changed, 59 insertions(+), 59 deletions(-)

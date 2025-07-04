@@ -1,0 +1,38 @@
+commit f4e76d83091b43e88bb2a832c3b6424c3cc17e1d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 31 18:36:28 2011 -0500
+
+    replace non-blocking send, receive syntax with select
+    
+    R=golang-dev, nigeltao, niemeyer, r
+    CC=golang-dev
+    https://golang.org/cl/4079053
+
+ src/pkg/compress/flate/deflate_test.go |  13 ++-
+ src/pkg/exp/draw/x11/conn.go           |  11 ++-
+ src/pkg/fmt/print.go                   |  43 +++++++--
+ src/pkg/fmt/scan.go                    |  12 +--
+ src/pkg/net/fd.go                      |  15 ++--
+ src/pkg/net/server_test.go             |   9 +-
+ src/pkg/netchan/common.go              |  12 ++-
+ src/pkg/netchan/import.go              |   6 +-
+ src/pkg/os/inotify/inotify_linux.go    |   6 +-
+ src/pkg/path/path_test.go              |  18 +++-
+ src/pkg/rpc/client.go                  |  20 +++--
+ src/pkg/rpc/server_test.go             |  12 ++-
+ src/pkg/time/sleep_test.go             |  10 ++-
+ src/pkg/time/tick.go                   |  12 ++-
+ src/pkg/time/tick_test.go              |   6 +-
+ test/chan/nonblock.go                  | 153 ++++++++++++++++++++++-----------
+ test/chan/perm.go                      |  65 +++++++-------
+ test/closedchan.go                     |  92 +++++++++++++++++---
+ test/errchk                            |   1 +
+ test/fixedbugs/bug016.go               |   6 +-
+ test/fixedbugs/bug069.go               |  23 ++---
+ test/fixedbugs/bug081.go               |   8 +-
+ test/fixedbugs/bug196.go               |   7 +-
+ test/fixedbugs/bug234.go               |  25 +++---
+ test/fixedbugs/bug242.go               |   7 +-
+ test/golden.out                        |   6 --
+ test/named1.go                         |   9 +-
+ 27 files changed, 402 insertions(+), 205 deletions(-)

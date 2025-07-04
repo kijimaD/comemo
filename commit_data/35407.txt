@@ -1,0 +1,12 @@
+commit 67894aa7e20cc57bfe0acb289efc1671263f439d
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Thu May 17 13:58:46 2018 +0000
+
+    cmd/asm/internal/asm/testdata: convert CRLF to LF line ending
+    
+    Change-Id: Icbff14b52e040826bc6de704942ff2f8e0164e3e
+    Reviewed-on: https://go-review.googlesource.com/113596
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/386enc.s | 74 +++++++++++++++---------------
+ 1 file changed, 37 insertions(+), 37 deletions(-)

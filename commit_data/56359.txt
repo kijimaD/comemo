@@ -1,0 +1,21 @@
+commit c3dff93a8c927c426770b27fee0457a544ef4be6
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat May 4 02:01:19 2024 +0000
+
+    strconv: use stringslite.Clone
+    
+    Change-Id: Ifa3c022ad5453301573593a3d05e7b1d42b931ff
+    GitHub-Last-Rev: a7468b068b5c7bcaa573042cf9d5c2732c0385f1
+    GitHub-Pull-Request: golang/go#67167
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583215
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+
+ src/strconv/atoc.go |  4 +++-
+ src/strconv/atoi.go | 23 +++++++++--------------
+ 2 files changed, 12 insertions(+), 15 deletions(-)

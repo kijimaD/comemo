@@ -1,0 +1,12 @@
+commit e181bf6e2ffe55014170621b01a09f2d2bbfcf97
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Sep 12 16:40:31 2010 +1000
+
+    libmach: fix whitespace.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/2149046
+
+ src/libmach/linux.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

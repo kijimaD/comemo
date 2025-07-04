@@ -1,0 +1,20 @@
+commit f19cf640d482480432e65a451477cd3bcf818288
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 19 10:18:16 2013 -0500
+
+    codereview: give up on http fetch after 30 seconds
+    
+    If Python blocks in the SSL handshake it seems to be
+    completely uninterruptible, and I've been seeing it
+    block for at least hours recently. I don't know if the
+    problem is on the client side or the server side or
+    somewhere in the network, but setting the timeout
+    at least means you're guaranteed a new shell prompt
+    (after printing some errors).
+    
+    R=golang-dev, bradfitz, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7337048
+
+ lib/codereview/codereview.py | 2 ++
+ 1 file changed, 2 insertions(+)

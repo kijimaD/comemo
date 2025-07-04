@@ -1,0 +1,16 @@
+commit 38cfaa5f0ac1e8b9c7528649f01e4b0edcd4a788
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 17:29:28 2016 -0500
+
+    net/http: expand documentation of Server.MaxHeaderBytes
+    
+    Clarify that it includes the RFC 7230 "request-line".
+    
+    Fixes #15494
+    
+    Change-Id: I9cc5dd5f2d85ebf903229539208cec4da5c38d04
+    Reviewed-on: https://go-review.googlesource.com/22656
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/net/http/server.go | 18 ++++++++++++------
+ 1 file changed, 12 insertions(+), 6 deletions(-)

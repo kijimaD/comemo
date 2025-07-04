@@ -1,0 +1,33 @@
+commit d32ec38f1cfe69ed2a553272f6c8f425c59577f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 5 19:59:58 2019 -0400
+
+    net: remove non-cgo macOS resolver code
+    
+    The built-in Go resolver works significantly better.
+    In particular, the use of res_search does not support
+    CNAME or PTR queries and may not even be thread-safe.
+    
+    This CL is essentially a revert of CL 166297 plus fixes,
+    including CL 180842.
+    
+    See CL 180842 for additional notes about problems
+    with this approach.
+    
+    Fixes #31705.
+    
+    Change-Id: I0a30a0de2fbd04f6c461520fd34378c84aadf66c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180843
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/net/cgo_darwin_stub.go        | 242 --------------------------------------
+ src/net/cgo_darwin_stub_test.go   |  80 -------------
+ src/net/cgo_stub.go               |   1 -
+ src/net/conf.go                   |   5 -
+ src/runtime/lookup_darwin.go      |  35 ------
+ src/runtime/lookup_darwin_386.s   |  50 --------
+ src/runtime/lookup_darwin_amd64.s |  40 -------
+ src/runtime/lookup_darwin_arm.s   |  25 ----
+ src/runtime/lookup_darwin_arm64.s |  21 ----
+ 9 files changed, 499 deletions(-)

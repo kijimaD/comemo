@@ -1,0 +1,17 @@
+commit 4e4c1f9c4d101d5578656c06a42784856fec9f0d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 27 16:33:03 2015 -0700
+
+    cmd/dist: don't run go list when running a specific test
+    
+    This speeds up sharded builds notably, by 1 second * the number of
+    tests.
+    
+    Change-Id: Ib0295c31e4974f3003f72cb16c48949812b6f22b
+    Reviewed-on: https://go-review.googlesource.com/10460
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 138 +++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 101 insertions(+), 37 deletions(-)

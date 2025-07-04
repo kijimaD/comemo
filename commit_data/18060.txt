@@ -1,0 +1,30 @@
+commit 9607255760975d4392c1f72b5377c6293ef53c80
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Dec 18 20:20:46 2013 +0100
+
+    cmd/6g, cmd/gc, cmd/ld: fix Plan 9 amd64 warnings
+    
+    warning: src/cmd/6g/reg.c:671 format mismatch d VLONG, arg 4
+    warning: src/cmd/gc/pgen.c:230 set and not used: oldstksize
+    warning: src/cmd/gc/plive.c:877 format mismatch lx UVLONG, arg 2
+    warning: src/cmd/gc/walk.c:2878 set and not used: cbv
+    warning: src/cmd/gc/walk.c:2885 set and not used: hbv
+    warning: src/cmd/ld/data.c:198 format mismatch s IND FUNC(IND CHAR) INT, arg 2
+    warning: src/cmd/ld/data.c:230 format mismatch s IND FUNC(IND CHAR) INT, arg 2
+    warning: src/cmd/ld/dwarf.c:1517 set and not used: pc
+    warning: src/cmd/ld/elf.c:1507 format mismatch d VLONG, arg 2
+    warning: src/cmd/ld/ldmacho.c:509 set and not used: dsymtab
+    
+    R=golang-dev, gobot, rsc
+    CC=golang-dev
+    https://golang.org/cl/36740045
+
+ src/cmd/6g/reg.c     | 2 +-
+ src/cmd/gc/pgen.c    | 1 +
+ src/cmd/gc/plive.c   | 2 +-
+ src/cmd/gc/walk.c    | 8 ++------
+ src/cmd/ld/data.c    | 4 ++--
+ src/cmd/ld/dwarf.c   | 1 -
+ src/cmd/ld/elf.c     | 2 +-
+ src/cmd/ld/ldmacho.c | 1 +
+ 8 files changed, 9 insertions(+), 12 deletions(-)

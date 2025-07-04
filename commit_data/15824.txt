@@ -1,0 +1,12 @@
+commit 7023a5d19768d1bcb9af737be1defc3bc12a50b8
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Tue Mar 19 09:40:57 2013 -0400
+
+    lib/godoc: convert indentation to tabs.
+    
+    R=golang-dev, dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/7497048
+
+ lib/godoc/package.html | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

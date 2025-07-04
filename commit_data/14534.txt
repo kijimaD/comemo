@@ -1,0 +1,12 @@
+commit 0304a4859526cdb5627559bb2cd8a7e075194345
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 30 14:14:51 2012 -0800
+
+    test: add a test that caused gccgo to crash
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6849129
+
+ test/fixedbugs/bug471.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

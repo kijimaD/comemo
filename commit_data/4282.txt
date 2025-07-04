@@ -1,0 +1,15 @@
+commit 114f73f82246cb8759dcfdade1fdb6973ce03937
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 2 10:41:28 2009 -0800
+
+    fix segfault printing errors. add test case and improve messages.
+    
+    Fixes #338.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/163083
+
+ src/pkg/rpc/server.go      | 12 ++++++------
+ src/pkg/rpc/server_test.go | 35 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 6 deletions(-)

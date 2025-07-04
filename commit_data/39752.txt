@@ -1,0 +1,26 @@
+commit d47526ed777958aa4a2542382e931eb7b3c4c6a9
+Author: Eli Bendersky <eliben@google.com>
+Date:   Wed Aug 28 12:34:48 2019 -0700
+
+    test2json: default to "pass" when the test doesn't report failures
+    
+    When a test has a TestMain that doesn't run any tests (doesn't invoke
+    m.Run), `go test` passes, but `go test -json` reports a "fail" event
+    though the exit code is still 0.
+    
+    This CL fixes test2json to behave similarly to `go test` in such cases -
+    no output from the test is taken as "pass" by default, not as "fail".
+    
+    Fixes #31969
+    
+    Change-Id: I1829d40fc30dc2879e73974fac416f6a34212ccd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192104
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/test2json/test2json.go             | 2 +-
+ src/cmd/internal/test2json/testdata/benchshort.json | 2 +-
+ src/cmd/internal/test2json/testdata/empty.json      | 1 +
+ src/cmd/internal/test2json/testdata/empty.test      | 0
+ 4 files changed, 3 insertions(+), 2 deletions(-)

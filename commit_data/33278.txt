@@ -1,0 +1,27 @@
+commit afbe646ab4480696d61462e9cab2ad048b5c1b6c
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 24 17:10:02 2017 -0400
+
+    cmd/compile: report typedslicecopy write barriers
+    
+    Most write barrier calls are inserted by SSA, but copy and append are
+    lowered to runtime.typedslicecopy during walk. Fix these to set
+    Func.WBPos and emit the "write barrier" warning, as done for the write
+    barriers inserted by SSA. As part of this, we refactor setting WBPos
+    and emitting this warning into the frontend so it can be shared by
+    both walk and SSA.
+    
+    Change-Id: I5fe9997d9bdb55e03e01dd58aee28908c35f606b
+    Reviewed-on: https://go-review.googlesource.com/73411
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go           | 13 ++++---------
+ src/cmd/compile/internal/gc/syntax.go        | 11 ++++++++++-
+ src/cmd/compile/internal/gc/walk.go          |  2 ++
+ src/cmd/compile/internal/ssa/config.go       |  5 ++++-
+ src/cmd/compile/internal/ssa/export_test.go  |  3 ++-
+ src/cmd/compile/internal/ssa/func.go         |  2 --
+ src/cmd/compile/internal/ssa/writebarrier.go |  7 +------
+ 7 files changed, 23 insertions(+), 20 deletions(-)

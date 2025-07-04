@@ -1,0 +1,12 @@
+commit 1b70b61411842a458a82b40d14624081c7836c19
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 22:51:48 2010 -0700
+
+    big: fix build - start with zero in scanN
+    
+    R=gri, eds
+    CC=golang-dev
+    https://golang.org/cl/947042
+
+ src/pkg/big/nat.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

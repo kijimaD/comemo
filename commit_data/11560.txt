@@ -1,0 +1,16 @@
+commit 16ce2f9369fd76334880a3883ca1def77d41c7e3
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Thu Feb 2 14:08:48 2012 -0500
+
+    os: Process.handle use syscall.Handle
+    
+    R=golang-dev, alex.brainman, rsc
+    CC=golang-dev
+    https://golang.org/cl/5605050
+
+ src/pkg/os/exec.go              | 4 ++--
+ src/pkg/os/exec_windows.go      | 6 +++---
+ src/pkg/syscall/exec_plan9.go   | 2 +-
+ src/pkg/syscall/exec_unix.go    | 2 +-
+ src/pkg/syscall/exec_windows.go | 4 ++--
+ 5 files changed, 9 insertions(+), 9 deletions(-)

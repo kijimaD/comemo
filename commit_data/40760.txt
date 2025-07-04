@@ -1,0 +1,21 @@
+commit c2edcf4b1253fdebc13df8a25979904c3ef01c66
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 4 02:14:18 2019 -0500
+
+    crypto/tls: take key size into account in signature algorithm selection
+    
+    Fixes #29793
+    
+    Change-Id: I6e389d166c2d9a2ba8664a41f4b9569f2481b27f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205177
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/auth.go                             |  41 ++++----
+ src/crypto/tls/auth_test.go                        |   2 +
+ src/crypto/tls/handshake_server_test.go            |  14 ++-
+ src/crypto/tls/testdata/Server-TLSv12-RSA-RSAPSS   |  39 ++------
+ src/crypto/tls/testdata/Server-TLSv13-RSA-RSAPSS   | 105 ++-------------------
+ .../tls/testdata/Server-TLSv13-RSA-RSAPSS-TooSmall |  16 ++++
+ 6 files changed, 71 insertions(+), 146 deletions(-)

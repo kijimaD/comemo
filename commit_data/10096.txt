@@ -1,0 +1,22 @@
+commit 3e52dadfd7b4c43c1d630d510eeb1b289d2ab422
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 22:20:57 2011 -0700
+
+    regexp: use rune
+    
+    Public API of syntax tree changes.
+    
+    R=golang-dev, r, gri
+    CC=golang-dev
+    https://golang.org/cl/5302046
+
+ src/pkg/regexp/exec.go                    | 28 +++++-----
+ src/pkg/regexp/regexp.go                  | 22 ++++----
+ src/pkg/regexp/syntax/compile.go          | 16 +++---
+ src/pkg/regexp/syntax/make_perl_groups.pl |  2 +-
+ src/pkg/regexp/syntax/parse.go            | 88 +++++++++++++++----------------
+ src/pkg/regexp/syntax/parse_test.go       | 22 ++++----
+ src/pkg/regexp/syntax/perl_groups.go      | 34 ++++++------
+ src/pkg/regexp/syntax/prog.go             | 20 +++----
+ src/pkg/regexp/syntax/regexp.go           | 10 ++--
+ 9 files changed, 121 insertions(+), 121 deletions(-)

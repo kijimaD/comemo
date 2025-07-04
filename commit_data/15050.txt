@@ -1,0 +1,15 @@
+commit 92bc89690988f30863fdafa4a2e353a99edf5ef1
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Wed Jan 30 17:53:53 2013 -0800
+
+    fmt: improve go syntax handling of byte-derived arrays and slices
+    
+    Fixes #4685.
+    
+    R=golang-dev, adg, remyoudompheng, rsc
+    CC=golang-dev
+    https://golang.org/cl/7205047
+
+ src/pkg/fmt/fmt_test.go | 12 ++++++++++++
+ src/pkg/fmt/print.go    | 38 +++++++++++++++++++++++---------------
+ 2 files changed, 35 insertions(+), 15 deletions(-)

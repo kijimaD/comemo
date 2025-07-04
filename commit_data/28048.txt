@@ -1,0 +1,27 @@
+commit e90ae90b7a7de4079413b956472044a021bee7c6
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Aug 25 16:40:50 2016 +1000
+
+    cmd/{asm,compile/internal}: delete dead code
+    
+    Delete unused fields, methods, vars, and funcs. Spotted by
+    honnef.co/go/unused.
+    
+    Change-Id: I0e65484bbd916e59369c4018be46f120b469d610
+    Reviewed-on: https://go-review.googlesource.com/27731
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/asm/internal/asm/parse.go      |  8 --------
+ src/cmd/compile/internal/gc/bimport.go |  2 +-
+ src/cmd/compile/internal/gc/dcl.go     | 10 +---------
+ src/cmd/compile/internal/gc/gen.go     | 17 -----------------
+ src/cmd/compile/internal/gc/noder.go   |  6 +-----
+ src/cmd/compile/internal/gc/obj.go     | 18 ------------------
+ src/cmd/compile/internal/gc/parser.go  |  2 +-
+ src/cmd/compile/internal/gc/ssa.go     | 28 ----------------------------
+ src/cmd/compile/internal/gc/type.go    |  6 ------
+ src/cmd/internal/gcprog/gcprog.go      |  1 -
+ src/cmd/internal/goobj/read.go         |  1 -
+ 11 files changed, 4 insertions(+), 95 deletions(-)

@@ -1,0 +1,17 @@
+commit 594b4a3bfef24ed207e058fb522ed51e65cb93bf
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Nov 4 00:29:39 2020 +1100
+
+    cmd/dist: enable additional cgo tests on openbsd architectures
+    
+    OpenBSD gained __thread support quite some time ago.
+    
+    Change-Id: I7de0a5c0c4de1a7ce59e48ac939fc2daf56be8f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267318
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

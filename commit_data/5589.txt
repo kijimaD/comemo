@@ -1,0 +1,13 @@
+commit 3b1e4b217eea862094e49dcea63b4a957eaed880
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 2 09:23:04 2010 -0700
+
+    bug284: test cases for new conversion rules
+    
+    R=rsc, r, iant
+    CC=golang-dev
+    https://golang.org/cl/1465041
+
+ test/bugs/bug284.go | 182 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/golden.out     |  36 +++++++++++
+ 2 files changed, 218 insertions(+)

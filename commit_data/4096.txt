@@ -1,0 +1,21 @@
+commit c51ee432d16ec7f0e67f2a62e457f58f86d5a708
+Author: Aron Nopanen <aron.nopanen@gmail.com>
+Date:   Tue Nov 17 11:29:02 2009 -0800
+
+    Make non-errored RPC calls return 'nil' error to caller.
+    
+    Error information is carried from RPC server to client in the string
+    'Error' field of rpc.Response. An empty string is sent in the success
+    case. This empty string was being returned to the caller (of Client.Call
+    or Client.Go), resulting in a non-nil error response.
+    
+    This change detects an empty-string Response.Error at the client, and
+    translates it into a nil value in Call.Error.
+    
+    Tests updated to check error return in success cases.
+    
+    R=r, rsc
+    https://golang.org/cl/154159
+
+ src/pkg/rpc/server_test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

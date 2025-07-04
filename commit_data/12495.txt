@@ -1,0 +1,13 @@
+commit a93047aa72ef696d0973a02fc3997344785c81cd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Mar 8 10:01:15 2012 +1100
+
+    doc/go1.tmpl: small change left behind from abf39116ffac
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5752072
+
+ doc/go1.html | 2 +-
+ doc/go1.tmpl | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

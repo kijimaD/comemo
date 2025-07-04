@@ -1,0 +1,12 @@
+commit 99435cac09e2f678bdfc256af70a6afb465f9831
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 16 17:37:07 2008 -0800
+
+    another "want type got name" error case
+    
+    R=ken
+    OCL=21377
+    CL=21377
+
+ src/cmd/gc/go.y | 1 +
+ 1 file changed, 1 insertion(+)

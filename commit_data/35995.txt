@@ -1,0 +1,19 @@
+commit f7b05a08b8e7fb79e7b4ca75d530deb198ac1f5c
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jul 14 14:52:31 2018 +1000
+
+    doc: update Values, Writing Code, and Pointers and Allocation sections of the FAQ
+    
+    Significant surgery done to the Versioning section, bringing it closer to
+    modern thinking.
+    
+    Also add a question about constants.
+    
+    Update #26107.
+    
+    Change-Id: Icf70b7228503c6baaeab0b95ee3e6bee921575aa
+    Reviewed-on: https://go-review.googlesource.com/123918
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 126 ++++++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 86 insertions(+), 40 deletions(-)

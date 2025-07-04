@@ -1,0 +1,12 @@
+commit f297d165c9b6518151f50eb59cec9bd95794986b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 12 16:41:14 2018 -0700
+
+    encoding/gob: correct issue number typo in comment
+    
+    Change-Id: I3ac25cf1770b5ac0d36690c37615b3badd27463d
+    Reviewed-on: https://go-review.googlesource.com/118455
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/gob/encoder_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

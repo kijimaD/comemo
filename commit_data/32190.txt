@@ -1,0 +1,30 @@
+commit adc28cb1e03d4fd3e4750cdcc6215976e3e250c9
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Aug 10 11:35:34 2017 +0200
+
+    cmd/dist: add doc file to fix go doc dist
+    
+    $ go tool -h says:
+    
+      For more about each tool command, see 'go tool command -h'.
+    
+    but it was suggested to change the suggestion to say:
+    
+      see 'go doc command'
+    
+    In #18313.
+    
+    That would work for every tool except dist, which has no doc.go.
+    
+    This change adds a doc.go file to cmd/dist.
+    
+    Updates #18313
+    
+    Change-Id: If67a21934b87647a69359d9c14d8de3775c587b7
+    Reviewed-on: https://go-review.googlesource.com/54351
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/doc.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

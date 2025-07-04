@@ -1,0 +1,18 @@
+commit c5a8d1d2f92678b3e17781dd1315f15e24da00f3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 21 10:48:05 2018 +1000
+
+    fmt: add a package-level example illustrating basic formats
+    
+    There is much left out here—the space of possibilities is very
+    large—but this example shows all that most programmers will need
+    to know for most printing problems.
+    
+    Update #27554.
+    
+    Change-Id: Ib6ae651d5c3720cf7fe1a05ffd0859a5b56a9157
+    Reviewed-on: https://go-review.googlesource.com/136616
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/example_test.go | 149 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 149 insertions(+)

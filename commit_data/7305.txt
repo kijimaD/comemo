@@ -1,0 +1,12 @@
+commit e71d8a2fe44f1e8e85186669922438407636af0c
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Tue Feb 1 11:49:33 2011 -0500
+
+    6l: add comment to CMOV* relocation
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4042045
+
+ src/cmd/6l/asm.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

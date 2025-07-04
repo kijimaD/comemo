@@ -1,0 +1,23 @@
+commit 4a2d3d06873559df2b6933f260dc8f75c54c9771
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 11 17:13:50 2018 -0500
+
+    cmd/go: in module mode, populate PackagePublic.Root with the module root
+    
+    'go test' uses the Root field to determine the set of files that
+    invalidate test results, and there is no other sensible meaning of
+    “root” for code within a module.
+    
+    Fixes #29111
+    
+    Change-Id: Icf1be90a26d22665613e42cb968087b63c36e74c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/154100
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/pkg.go                   |  7 ++-
+ src/cmd/go/internal/test/test.go                  | 17 +++--
+ src/cmd/go/testdata/script/build_cache_output.txt |  7 ++-
+ src/cmd/go/testdata/script/mod_test_cached.txt    | 77 +++++++++++++++++++++++
+ 4 files changed, 100 insertions(+), 8 deletions(-)

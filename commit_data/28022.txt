@@ -1,0 +1,19 @@
+commit ec75230b55281a84cd1a9aa52d33d5e552c82dd4
+Author: Ross Light <light@google.com>
+Date:   Tue Aug 16 11:10:36 2016 -0700
+
+    reflect: document equality guarantee for Type
+    
+    The only previous mention of this property was in the String() method.
+    Since this is the only way to uniquely identify a type and we can't
+    change this property without breaking the Go 1 guarantee, it seems
+    better to document this property than hiding it on a method.
+    
+    Fixes #16348
+    
+    Change-Id: I3d25f7d6e6007e3c15c2e13010869888d0181fc2
+    Reviewed-on: https://go-review.googlesource.com/27170
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/type.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

@@ -1,0 +1,15 @@
+commit e8018fbebe2e6e86f94111b21c5749ebeea15dbd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 31 08:35:43 2013 -0400
+
+    runtime: rewrite map size test
+    
+    I don't know why the memstats code is flaky.
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12160043
+
+ src/pkg/runtime/hashmap.c   |  3 +++
+ src/pkg/runtime/map_test.go | 41 -----------------------------------------
+ 2 files changed, 3 insertions(+), 41 deletions(-)

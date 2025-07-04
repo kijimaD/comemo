@@ -1,0 +1,27 @@
+commit f024e390bb0cb124487fd75f564ef8178ccba8f4
+Author: korzhao <korzhao95@gmail.com>
+Date:   Thu Jul 6 11:12:29 2023 +0800
+
+    reflect: optimize DeepEqual() for maps
+    
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkMapsDeepEqual-10     235           200           -15.05%
+    
+    benchmark                     old allocs     new allocs     delta
+    BenchmarkMapsDeepEqual-10     7              6              -14.29%
+    
+    benchmark                     old bytes     new bytes     delta
+    BenchmarkMapsDeepEqual-10     96            48            -50.00%
+    
+    Change-Id: Ifa625ad25524cc9ee438711917606626b33a9597
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512576
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/benchmark_test.go | 12 ++++++++++++
+ src/reflect/deepequal.go      |  7 ++++---
+ 2 files changed, 16 insertions(+), 3 deletions(-)

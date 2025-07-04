@@ -1,0 +1,18 @@
+commit db91ee36514e70512615b3e28d0260cfa9270206
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed May 9 15:18:59 2018 +0200
+
+    misc/wasm: pollute global JS namespace less
+    
+    This commit changes wasm_exec.js so it only puts the single
+    name "go" into the global namespace. Other names became private
+    or were turned into a property/method of "go".
+    
+    Change-Id: I633829dfd3c06936f092c0a14b9978bf855e41fe
+    Reviewed-on: https://go-review.googlesource.com/112980
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+
+ misc/wasm/wasm_exec.html |   4 +-
+ misc/wasm/wasm_exec.js   | 619 ++++++++++++++++++++++++-----------------------
+ 2 files changed, 315 insertions(+), 308 deletions(-)

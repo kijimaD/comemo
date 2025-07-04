@@ -1,0 +1,21 @@
+commit 8a7742e78c8f32fcfe4d7cbcfa2f423c8ac08f29
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 6 09:58:51 2025 -0800
+
+    go/types, types2: factor out shared for-range checking code into range.go
+    
+    For go/types, generate its range.go file from the corresponding types2 file.
+    
+    Change-Id: Iaff3ecbf1c536143c92f7b50e2461140469f9280
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655536
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/range.go | 247 ++++++++++++++++++++++++++++
+ src/cmd/compile/internal/types2/stmt.go  | 273 ++-----------------------------
+ src/go/types/generate_test.go            |   5 +
+ src/go/types/range.go                    | 250 ++++++++++++++++++++++++++++
+ src/go/types/stmt.go                     | 241 +--------------------------
+ 5 files changed, 520 insertions(+), 496 deletions(-)

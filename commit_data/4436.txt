@@ -1,0 +1,14 @@
+commit 69bed164a7260f8af4ab7f11e3db4fb8bc87b4b1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 15 17:37:47 2009 -0800
+
+    syscall: RawSyscall must not call exitsyscall
+    
+    Fixes #405.
+    
+    R=r
+    CC=golang-dev, hoisie
+    https://golang.org/cl/180056
+
+ src/pkg/syscall/asm_linux_386.s | 1 -
+ 1 file changed, 1 deletion(-)

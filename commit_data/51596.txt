@@ -1,0 +1,18 @@
+commit 660d4815ea4229f96cede86f396017ebf5ca4bb0
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 6 13:40:33 2022 -0800
+
+    cmd/compile: describe how Go maps to wasm implementation
+    
+    Change-Id: Ie4d8e1ae9c4c6046d27a27a61ef1147bc0ff373c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455715
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/wasm/ssa.go | 113 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 113 insertions(+)

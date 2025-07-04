@@ -1,0 +1,22 @@
+commit db4be8f510f0c4cddd45f51bcb24168414d9e2b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 28 11:02:52 2022 -0500
+
+    encoding/csv: use proper doc comment for Deprecated notes
+    
+    End-of-line comments are not doc comments,
+    so Deprecated notes in them are not recognized
+    as deprecation notices. Rewrite the comments.
+    
+    Change-Id: I275fa9aec403132fda45853e52daa22bc06fcd36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453617
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ api/go1.16.txt             |  2 ++
+ src/encoding/csv/reader.go | 13 ++++++++-----
+ 2 files changed, 10 insertions(+), 5 deletions(-)

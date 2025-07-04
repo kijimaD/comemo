@@ -1,0 +1,28 @@
+commit d4a8828eee13932883235ddd46ccb2ae3b9c5360
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 24 00:36:23 2017 +0000
+
+    vendor: update golang.org/x/net/http2/hpack
+    
+    Updates golang.org/x/net/http2/hpack to x/net git rev 4dbf598 for:
+    
+       http2/hpack: remove unused pair function from package
+       https://golang.org/cl/43851
+    
+       http2/hpack: remove pair function and initialize directly
+       https://golang.org/cl/43190
+    
+       http2/hpack: move initialization to a static table
+       https://golang.org/cl/43090
+    
+    Updates #6853
+    
+    Change-Id: I933a094623143c7333a0da7867d5d2e41da05234
+    Reviewed-on: https://go-review.googlesource.com/44007
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Tom Bergan <tombergan@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../golang_org/x/net/http2/hpack/hpack_test.go     |   4 +
+ src/vendor/golang_org/x/net/http2/hpack/tables.go  | 131 +++++++++++----------
+ 2 files changed, 70 insertions(+), 65 deletions(-)

@@ -1,0 +1,17 @@
+commit 61650b21d6a40970441b304c5f1d1cea4ff3ef59
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 6 16:04:55 2011 -0700
+
+    cleanup: gofmt -s -w src misc
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4984052
+
+ src/pkg/crypto/x509/verify_test.go | 10 +++++-----
+ src/pkg/http/cgi/host.go           | 14 +++++++-------
+ src/pkg/http/fcgi/fcgi_test.go     |  6 +++---
+ src/pkg/http/spdy/read.go          |  6 +++---
+ src/pkg/json/decode_test.go        |  2 +-
+ src/pkg/path/filepath/path_test.go |  2 +-
+ 6 files changed, 20 insertions(+), 20 deletions(-)

@@ -1,0 +1,10 @@
+commit a32063b00e44c874c80685c24d5550ecaa7e0dc9
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 9 13:33:33 2008 -0700
+
+    divide is now in; update golden
+    
+    SVN=121739
+
+ test/golden.out | 4 ----
+ 1 file changed, 4 deletions(-)

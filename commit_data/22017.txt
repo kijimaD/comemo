@@ -1,0 +1,27 @@
+commit 8c3cc58d0c829fdccec0fd858b95836e75baca40
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Sat Mar 7 16:28:07 2015 +1300
+
+    cmd/internal/ld: remove some dead code
+    
+    Just little bits and pieces I noticed were unused in passing, and
+    some more found with https://github.com/opennota/check.
+    
+    Change-Id: I199fecdbf8dc2ff9076cf4ea81395275c7f171c3
+    Reviewed-on: https://go-review.googlesource.com/7033
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/elf.go    |   6 --
+ src/cmd/internal/ld/ld.go     |  10 --
+ src/cmd/internal/ld/lib.go    | 217 +++++++++++++-----------------------------
+ src/cmd/internal/ld/link.go   |   2 -
+ src/cmd/internal/ld/macho.go  |   6 --
+ src/cmd/internal/ld/pobj.go   |   5 -
+ src/cmd/internal/ld/sym.go    |   1 -
+ src/cmd/internal/ld/symtab.go |   2 -
+ src/cmd/internal/obj/link.go  |   1 -
+ src/cmd/internal/obj/sym.go   |   1 -
+ 10 files changed, 65 insertions(+), 186 deletions(-)

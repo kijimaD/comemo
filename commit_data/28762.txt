@@ -1,0 +1,20 @@
+commit 87b1aaa37cefec8deacdf9c3c30d26015bdfb00b
+Author: Xuyang Kang <xuyangkang@gmail.com>
+Date:   Sun Jul 17 00:23:56 2016 -0700
+
+    encoding/base64: This change modifies Go to take strict option when decoding base64
+    
+    If strict option is enabled, when decoding, instead of skip the padding
+    bits, it will do strict check to enforce they are set to zero.
+    
+    Fixes #15656
+    
+    Change-Id: I869fb725a39cc9dde44dbc4ff0046446e7abc642
+    Reviewed-on: https://go-review.googlesource.com/24964
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/base64/base64.go      | 24 +++++++++++++++++++++---
+ src/encoding/base64/base64_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 3 deletions(-)

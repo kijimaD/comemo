@@ -1,0 +1,20 @@
+commit 65c4b55aba2ccbc26fcd143c29f6014b91616897
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 4 17:28:07 2016 -0800
+
+    cmd/compile: convert subr, swt, typecheck to nodeSeq
+    
+    Passes toolstash -cmp.
+    
+    Update #14473.
+    
+    Change-Id: I836197810405cde72cbb49fef7e163a517601f9c
+    Reviewed-on: https://go-review.googlesource.com/20242
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go       |  10 +-
+ src/cmd/compile/internal/gc/subr.go      |  56 +++---
+ src/cmd/compile/internal/gc/swt.go       | 128 ++++++------
+ src/cmd/compile/internal/gc/syntax.go    |   4 +-
+ src/cmd/compile/internal/gc/typecheck.go | 334 ++++++++++++++-----------------
+ 5 files changed, 254 insertions(+), 278 deletions(-)

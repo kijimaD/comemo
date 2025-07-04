@@ -1,0 +1,15 @@
+commit 3314f8c8e3de39cf9c6cbe26b778245ecb570cd2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 15:30:54 2009 -0700
+
+    another test error tweak
+    
+    5 known bugs; 0 unexpected bugs; test output differs
+    
+    R=r
+    DELTA=3  (2 added, 0 deleted, 1 changed)
+    OCL=32468
+    CL=32470
+
+ test/run | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

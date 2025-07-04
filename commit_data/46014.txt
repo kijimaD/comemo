@@ -1,0 +1,18 @@
+commit 11a43df461a7f3d2b72168fbe9f5b7dca09c2543
+Author: Robert Findley <rfindley@google.com>
+Date:   Sun Aug 15 21:22:38 2021 -0400
+
+    go/types: minor cleanup of writeTParamList
+    
+    This is a port of CL 339903 to go/types.
+    
+    Change-Id: Iaf5fe7321d907df4421128c66cf8c58129eaae8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/342435
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/infer.go      |  2 +-
+ src/go/types/typestring.go | 22 +++++++++++++---------
+ 2 files changed, 14 insertions(+), 10 deletions(-)

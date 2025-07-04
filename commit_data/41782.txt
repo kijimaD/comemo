@@ -1,0 +1,20 @@
+commit 5aef51a729f428bfd4b2c28fd2ba7950660608e0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Wed Mar 18 10:03:51 2020 -0700
+
+    database/sql: add test for Conn.Validator interface
+    
+    This addresses comments made by Russ after
+    https://golang.org/cl/174122 was merged. It addes a test
+    for the connection validator and renames the interface to just
+    "Validator".
+    
+    Change-Id: Iea53e9b250c9be2e86e9b75906e7353e26437c5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223963
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/database/sql/driver/driver.go |  8 ++++----
+ src/database/sql/fakedb_test.go   |  4 ++--
+ src/database/sql/sql.go           |  4 ++--
+ src/database/sql/sql_test.go      | 31 +++++++++++++++++++++++++++++++
+ 4 files changed, 39 insertions(+), 8 deletions(-)

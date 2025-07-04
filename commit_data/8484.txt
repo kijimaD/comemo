@@ -1,0 +1,15 @@
+commit ddcdbd447084da04aede72356dadd99a08a96cc9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 24 22:53:37 2011 -0700
+
+    os: Fix test to work on Solaris.
+    
+    On Solaris /bin is a symlink to /usr/bin, so running "pwd" in
+    the directory "/bin" prints out "/usr/bin".
+    
+    R=rsc, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4559043
+
+ src/pkg/os/os_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

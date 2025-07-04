@@ -1,0 +1,20 @@
+commit 1df2a03b17b4496bddfb482ec45b2a29c20e5249
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Aug 24 12:39:20 2022 +0200
+
+    crypto/tls: support ECDHE when ec_point_formats is missing
+    
+    Fixes #49126
+    
+    Change-Id: I9d6f6392b1a6748bdac1d2c6371b22d75829a2b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425295
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Alex Scheel <alex.scheel@hashicorp.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/crypto/tls/handshake_server.go      |  9 ++++++++-
+ src/crypto/tls/handshake_server_test.go | 21 +++++++--------------
+ 2 files changed, 15 insertions(+), 15 deletions(-)

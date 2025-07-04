@@ -1,0 +1,18 @@
+commit 5340510203c321545f20d5b456e3a8254ac8f077
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 10 22:32:02 2012 -0500
+
+    8g: fix opt bug
+    
+    Was trying to optimize a duplicate float64 move
+    by registerizing an int64.
+    
+    Fixes #2588.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5645086
+
+ src/cmd/8g/reg.c         |  5 ++++-
+ test/fixedbugs/bug411.go | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

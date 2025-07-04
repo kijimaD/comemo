@@ -1,0 +1,12 @@
+commit 1664e8158508e7879260e29ed03194ae1789680c
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Dec 1 21:42:35 2009 -0800
+
+    8g: Match sgen definition to declaration
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/164069
+
+ src/cmd/8g/cgen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

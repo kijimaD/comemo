@@ -1,0 +1,23 @@
+commit 82a9d90eda1e1aba06883727756c1e4a06abe772
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Sep 28 04:39:01 2015 +1000
+
+    tests/fixedbugs: make test for issue11656 run known instruction
+    
+    As detailed in #11910, the current implementation attempts to execute an area
+    of memory with unknown content. If the memory is executable, the result is
+    unpredictable - instead, make the test deterministic by attempting to execute
+    an instruction that is known to trigger a trap on the given architecture.
+    
+    The new implementation is written by iant@ and provided via #11910.
+    
+    Update issue #11910
+    
+    Change-Id: Ia698c36e0dd98a9d9d16a701f60f6748c6faf896
+    Reviewed-on: https://go-review.googlesource.com/15058
+    Run-TryBot: Joel Sing <jsing@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue11656.go | 35 ++++++++++++++++++++++-------------
+ 1 file changed, 22 insertions(+), 13 deletions(-)

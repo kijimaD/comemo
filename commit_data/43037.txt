@@ -1,0 +1,25 @@
+commit 789d77a87e5417c10377a9f9de07ec37c65048f2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Sep 17 21:34:52 2020 -0400
+
+    cmd/link: propagate UsedInIface through method descriptor
+    
+    The linker prunes methods that are not directly reachable if the
+    receiver type is never converted to interface. A type can be
+    converted to interface using reflection through other types.
+    The linker already takes this into consideration but it missed
+    the case that the intermediate is a method descriptor. Handle
+    this case.
+    
+    Change-Id: I590efc5da163c326db8d43583908a2ef67f65d9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255858
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/link/internal/ld/deadcode.go               | 19 ++++++++++++++
+ src/cmd/link/internal/ld/deadcode_test.go          |  1 +
+ .../internal/ld/testdata/deadcode/ifacemethod3.go  | 29 ++++++++++++++++++++++
+ 3 files changed, 49 insertions(+)

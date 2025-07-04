@@ -1,0 +1,15 @@
+commit 1f35bb6466ca0c8fc2e2070b9ed65b4198e6546d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 12 11:54:11 2015 +1100
+
+    archive/zip: remove WriterOptions and replace with SetOffset method
+    
+    Change-Id: I0a8b972c33e80c750ff1d63717177a5a3294a112
+    Reviewed-on: https://go-review.googlesource.com/7445
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Geert-Johan Riemer <gjr19912@gmail.com>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/archive/zip/writer.go      | 27 +++++++++------------------
+ src/archive/zip/writer_test.go |  5 +++--
+ 2 files changed, 12 insertions(+), 20 deletions(-)

@@ -1,0 +1,22 @@
+commit 38fea3a4ec97fbcfad1f2d329f3a12c53cc36301
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jun 22 18:39:10 2020 -0400
+
+    cmd/go: add tracing instrumentation to load.TestPackagesFor
+    
+    This change adds tracing instrumentation into load.TestPackagesFor,
+    propagating context through its callers.
+    
+    Updates #38714
+    
+    Change-Id: I80fefaf3116ccccffaa8bb7613a656bda867394c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248323
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go |  4 ++--
+ src/cmd/go/internal/load/test.go | 14 ++++++++++----
+ src/cmd/go/internal/test/test.go |  6 +++---
+ src/cmd/go/internal/vet/vet.go   |  2 +-
+ 4 files changed, 16 insertions(+), 10 deletions(-)

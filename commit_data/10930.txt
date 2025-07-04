@@ -1,0 +1,14 @@
+commit efa2246e423a2fdbd833e0103def8c6a4cbd5042
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 21 01:24:57 2011 -0500
+
+    build: rewrite to use bash time builtin
+    
+    Should help windows/amd64
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/5500058
+
+ src/run.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

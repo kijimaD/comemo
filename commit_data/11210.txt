@@ -1,0 +1,14 @@
+commit 3495f39fc49ff7608d52d05a6a15d6d7d183fc56
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 17 13:13:50 2012 -0800
+
+    cmd/go: remove mentions of 'gotest' from the documentation
+    go test runs the tests itself; it does not run the gotest command,
+    so these mentions are confusing.
+    
+    R=golang-dev, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5551043
+
+ src/cmd/go/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

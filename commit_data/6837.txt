@@ -1,0 +1,18 @@
+commit 4468e5b3761b8d38104cec857fc7ec20cdc211ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 6 16:31:59 2010 -0500
+
+    LICENSE: separate, change PATENTS text
+    
+    Split patent grant clause out of LICENSE file
+    and update text to be more like that used by WebM.
+    These changes should make Go more acceptable
+    to the Fedora project and they are acceptable to the FSF.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/3103042
+
+ LICENSE | 69 ++++++++++++++++++++++++++---------------------------------------
+ PATENTS | 22 +++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 42 deletions(-)

@@ -1,0 +1,14 @@
+commit e72595ee0f97746be3ce594834a7003d5e804795
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 25 15:03:44 2017 -0400
+
+    cmd/trace: notes on MMU view improvements
+    
+    Change-Id: Ib9dcdc76095f6718f1cdc83349503f52567c76d4
+    Reviewed-on: https://go-review.googlesource.com/c/60801
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/trace/mmu.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

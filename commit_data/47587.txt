@@ -1,0 +1,30 @@
+commit 83bfed916b97d51646b4bdc95e0e0fd7798b754f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 22 13:53:21 2021 -0800
+
+    cmd/compile/internal/types2: print "nil" rather than "untyped nil"
+    
+    When we have a typed nil, we already say so; thus it is sufficient
+    to use "nil" in all the other cases.
+    
+    This is closer to (1.17) compiler behavior. In cases where the
+    1.17 compiler prints "untyped nil" (e.g., wrong uses of "copy"),
+    we already print a different message. We can do better in those
+    cases as well; will be addressed in a separate CL (see #49735).
+    
+    Fixes #48852.
+    
+    Change-Id: I9a7a72e0f99185b00f80040c5510a693b1ea80f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366276
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go         |  3 ---
+ src/cmd/compile/internal/types2/operand.go             |  2 +-
+ .../compile/internal/types2/testdata/check/stmt0.src   |  6 +++---
+ .../internal/types2/testdata/fixedbugs/issue49296.go2  |  2 +-
+ .../internal/types2/testdata/spec/assignability.go2    | 18 +++++++++---------
+ test/fixedbugs/issue6004.go                            |  9 ++++-----
+ test/fixedbugs/issue6402.go                            |  2 +-
+ test/fixedbugs/issue7223.go                            | 11 ++++++-----
+ 8 files changed, 25 insertions(+), 28 deletions(-)

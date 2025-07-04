@@ -1,0 +1,29 @@
+commit ca33f33b1420cf333c59c6458bb9bc8910c91ecb
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Thu Oct 25 13:42:46 2018 +0100
+
+    cmd/go: make 'go test -h' print two lines
+    
+    Like every other command's -h flag. To achieve this, pass the command's
+    usage function to the cmdflag package, since that package is used by
+    multiple commands and cannot directly access *base.Command.
+    
+    This also lets us get rid of testFlag1 and testFlag2, and instead have
+    contiguous raw strings for the test and testflag help docs.
+    
+    Fixes #26999.
+    
+    Change-Id: I2ebd66835ee61fa83270816a01fa312425224bb3
+    Reviewed-on: https://go-review.googlesource.com/c/144558
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/go/internal/cmdflag/flag.go  |  6 +++---
+ src/cmd/go/internal/test/test.go     | 36 ++++++++++--------------------------
+ src/cmd/go/internal/test/testflag.go |  4 ++--
+ src/cmd/go/internal/vet/vet.go       |  2 +-
+ src/cmd/go/internal/vet/vetflag.go   |  4 ++--
+ src/cmd/go/main.go                   | 11 -----------
+ src/cmd/go/testdata/script/help.txt  |  8 +++++++-
+ 7 files changed, 25 insertions(+), 46 deletions(-)

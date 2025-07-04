@@ -1,0 +1,30 @@
+commit 33249f46aae9a7ed951cd5691639a139aac3a990
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 29 18:31:50 2020 -0400
+
+    crypto/tls: accept HelloRetryRequest messages with only a cookie
+    
+    Clients have to reject any HelloRetryRequest message that doesn't lead
+    to a change in the ClientHello. Instead, we were rejecting any HRR that
+    didn't select an alternative group, even if it sent a cookie, which
+    would change the CH.
+    
+    The good news is that I know of no TLS servers that use or need HRRs
+    exclusively for cookies (which are mostly useful in DTLS as a way to
+    verify the source address). The bad news is that we poisoned the
+    ecosystem as Go 1.12 to 1.14 will reject such HRRs. Oops, hopefully no
+    one needed this.
+    
+    No tests because neither Go nor s_server support cookies. This would
+    presumably get covered once we integrate BoGo.
+    
+    Fixes #30149
+    
+    Change-Id: I760fb1ded81148ac3096cf201cbc1e941374b83d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231039
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/handshake_client_tls13.go | 75 ++++++++++++++++++--------------
+ 1 file changed, 43 insertions(+), 32 deletions(-)

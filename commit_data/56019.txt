@@ -1,0 +1,16 @@
+commit b4f37e18b6fa53e63ee0da8ba72cb51d95bb58ae
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Nov 5 18:48:27 2023 +0800
+
+    unsafe: add available godoc link
+    
+    Change-Id: I1391ec36063dc609a61cc3b37827a56c7cf97c03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539839
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/unsafe/unsafe.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

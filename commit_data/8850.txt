@@ -1,0 +1,16 @@
+commit da19831c176e93e53f5037689066a4e7803ffb58
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sun Jun 26 11:24:28 2011 +1000
+
+    gofix: fixes for path/filepath changes
+    
+    Fixes #1970.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4650050
+
+ src/cmd/gofix/Makefile         |  1 +
+ src/cmd/gofix/filepath.go      | 53 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/filepath_test.go | 33 ++++++++++++++++++++++++++
+ 3 files changed, 87 insertions(+)

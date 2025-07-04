@@ -1,0 +1,15 @@
+commit 3e98a407933c4f53ac825e927d152644b690ef92
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 12 15:58:31 2009 -0700
+
+    bug188 - sort(x)
+    
+    R=ken
+    OCL=33123
+    CL=33123
+
+ src/cmd/gc/typecheck.c   |  6 +++++-
+ src/cmd/gc/walk.c        |  4 ++++
+ test/fixedbugs/bug186.go |  4 ++--
+ test/fixedbugs/bug188.go | 14 ++++++++++++++
+ 4 files changed, 25 insertions(+), 3 deletions(-)

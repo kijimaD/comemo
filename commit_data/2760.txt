@@ -1,0 +1,16 @@
+commit 6e1ad041f7556bc9f062d9cc59bf276bee90f581
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 20 14:16:25 2009 -0700
+
+    avoid strncat in formatters.
+    
+    the n argument to strncat is the maximum
+    number of bytes to read from the src,
+    not the total size of the destination.
+    
+    R=ken
+    OCL=31871
+    CL=31875
+
+ src/cmd/gc/subr.c | 149 ++++++++++++++++++++----------------------------------
+ 1 file changed, 55 insertions(+), 94 deletions(-)

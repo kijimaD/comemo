@@ -1,0 +1,32 @@
+commit 7fb075ddc00cf73810f0032734ad1ac5f09fbbe1
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 17 11:19:32 2023 +0700
+
+    cmd/compile: mark type eq/hash functions non-inlineable
+    
+    The compiler used to generate ONAME node with nil Func for them, so the
+    inliner can still analyze, but could not generate inline call for them
+    anyway.
+    
+    CL 436961 attempts to create ONAME node with non-nil Func, causing the
+    inliner complains about missing body reader.
+    
+    This CL makes inliner recognize type eq/hash functions, and mark them as
+    non-inlineable. Longer term, if we do want to inline these functions, we
+    need to integrate the code generation into Unified IR frontend.
+    
+    Updates #58572
+    
+    Change-Id: Icdd4dda03711929faa3d48fe2d9886568471f0bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469017
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/inline/inl.go | 7 +++++++
+ src/cmd/compile/internal/ir/func.go    | 8 ++++++++
+ src/cmd/compile/internal/types/type.go | 5 +++++
+ 3 files changed, 20 insertions(+)

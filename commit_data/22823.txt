@@ -1,0 +1,15 @@
+commit bc44b818a6c3ce69e2cb7a4b942d42c41e764af1
+Author: David Chase <drchase@google.com>
+Date:   Fri May 1 11:16:35 2015 -0400
+
+    cmd/internal/gc: Toughen escape analysis against some bugs.
+    
+    Ensures that parameter flow bits are not set for tags EscScope, EscHeap, EscNever;
+    crash the compiler earl to expose faulty logic, rather than flake out silently downstream.
+    
+    Change-Id: I1428129980ae047d02975f033d56cbbd04f49579
+    Reviewed-on: https://go-review.googlesource.com/9601
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/esc.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

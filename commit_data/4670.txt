@@ -1,0 +1,12 @@
+commit a17929090f9d3733e78eafcf6fe2939f1891bb6c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jan 25 15:39:32 2010 -0800
+
+    Add an explicit patent grant to the Go license.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/194066
+
+ LICENSE | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

@@ -1,0 +1,23 @@
+commit 712bae04ee992ce64615123e96243bcc3b7b2ff1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 16 17:52:12 2015 -0700
+
+    go/types: better error message when using multi-valued expressions in single-value context
+    
+    Also: Added initial set of (missing and/or spread out) tests for binary operations.
+    
+    Fixes #11896.
+    
+    Change-Id: I037436d8318c18f9758b435eca2d45b3bdd17ef8
+    Reviewed-on: https://go-review.googlesource.com/14660
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/assignments.go       |   6 +-
+ src/go/types/builtins.go          |   2 +-
+ src/go/types/call.go              |   2 +-
+ src/go/types/expr.go              |  35 ++++++++---
+ src/go/types/testdata/expr0.src   |   6 ++
+ src/go/types/testdata/expr1.src   | 120 ++++++++++++++++++++++++++++++++++++++
+ src/go/types/testdata/stmt0.src   |   6 +-
+ src/go/types/testdata/vardecl.src |   4 +-
+ 8 files changed, 164 insertions(+), 17 deletions(-)

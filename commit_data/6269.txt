@@ -1,0 +1,40 @@
+commit 23bd214aeeb660f26642cc81153edfa87683a289
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 13 15:42:47 2010 -0400
+
+    gc: implement new comparison rule
+    
+    The new comparison rule was added to the spec by
+    
+            changeset:   5605:33abb649cb63
+            user:        Robert Griesemer <gri@golang.org>
+            date:        Thu Jun 03 16:55:50 2010 -0700
+            files:       doc/go_spec.html
+            description:
+            go spec: Base comparison compatibility on assignment compatibility.
+    
+            Specifically:
+            - Simplified definition of comparison compatibility and folded into
+              section on comparison operators since it's only used there.
+    
+            This is a small language change/cleanup. As a consequence:
+            - An interface value may now be compared against a non-interface value.
+            - Channels with opposite directions cannot be compared directly anymore
+              (per discussion with rsc).
+    
+            R=rsc, r, iant, ken2
+            CC=golang-dev
+            https://golang.org/cl/1462041
+    
+    but never implemented.
+    
+    Fixes #1070.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2116047
+
+ src/cmd/gc/typecheck.c | 22 +++++++++++++++++++-
+ test/cmp1.go           | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/cmp6.go           | 42 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 117 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 1245e93b2ccee55cf716de03826d50bcf95373e4
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Fri Dec 25 08:24:00 2009 +1100
+
+    Update documentation around time.Sleep to specify its precision, and suggest
+    a possible interface for more granular sleep times.
+    
+    Fixes issue #260.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/181058
+
+ src/pkg/time/sleep.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

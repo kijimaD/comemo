@@ -1,0 +1,14 @@
+commit 583b72dea1a887e235b9bb7e6db6902b89c1d266
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 1 03:14:58 2016 +0000
+
+    doc: clarify zip behavior in go1.8.html
+    
+    Updates #17929
+    
+    Change-Id: I03b8847384c6cd8c43fe8bf2d75cd26db7063b8b
+    Reviewed-on: https://go-review.googlesource.com/33762
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ doc/go1.8.html | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

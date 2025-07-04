@@ -1,0 +1,16 @@
+commit f4cbaa38aeda16bc37fa991132073a273d16cd43
+Author: Evan Kroske <evankroske@google.com>
+Date:   Sat Aug 30 10:27:36 2014 -0700
+
+    go/doc/headscan: update script to count headings with an ID attribute
+    
+    Fixes script used to sanity-check the heading-detection heuristic of go/doc.
+    Fixes #8467.
+    
+    LGTM=gri
+    R=golang-codereviews, gobot, gri
+    CC=golang-codereviews
+    https://golang.org/cl/128720043
+
+ src/pkg/go/doc/headscan.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

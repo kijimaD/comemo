@@ -1,0 +1,16 @@
+commit 6a6d8fdcd30a65d6230891bc421be05db8c3a61f
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Wed Jul 21 09:40:08 2010 -0700
+
+    syscall: On Windows, Errstr FormatMessage has no values to insert.
+    
+    For the Windows version of syscall Errstr, set the
+    FORMAT_MESSAGE_IGNORE_INSERTS value of the FormatMessage
+    Flags argument when there are no values to insert.
+    
+    R=rsc, brainman
+    CC=golang-dev
+    https://golang.org/cl/1868043
+
+ src/pkg/syscall/syscall_windows.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

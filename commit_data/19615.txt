@@ -1,0 +1,17 @@
+commit ef639b0936161bfb2a024acc05ec7beffcb08d56
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 26 09:45:11 2014 -0700
+
+    go/parser: permit parentheses in receiver types
+    
+    Pending acceptance of CL 101500044
+    and adjustment of test/fixedbugs/bug299.go.
+    
+    LGTM=adonovan
+    R=golang-codereviews, adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/110160043
+
+ src/pkg/go/parser/parser.go     | 4 ++--
+ src/pkg/go/parser/short_test.go | 3 +++
+ 2 files changed, 5 insertions(+), 2 deletions(-)

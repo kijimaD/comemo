@@ -1,0 +1,26 @@
+commit f495b36ccdfe93629cb83f8be79dca662ef68a64
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 24 11:44:42 2022 -0500
+
+    crypto/aes: rewrite ppc64le block crypting
+    
+    This unrolls the counter loop and simplifies the load/storing
+    of text/ciphertext and keys by using unaligned VSX memory
+    operations.
+    
+    Performance delta on POWER9:
+    
+    name     old time/op   new time/op    delta
+    Encrypt   19.9ns ± 0%    14.9ns ± 0%  -24.95%
+    Decrypt   19.8ns ± 0%    14.6ns ± 0%  -26.12%
+    
+    Change-Id: Iba98d5c1d88c6bead45bc04c97ae64bcb6fc9f21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404354
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Filippo Valsorda <valsorda@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/crypto/aes/asm_ppc64le.s | 302 ++++++++++++++++++++++++++-----------------
+ 1 file changed, 180 insertions(+), 122 deletions(-)

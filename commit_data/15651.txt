@@ -1,0 +1,16 @@
+commit ef7705f6dd1dacdc3d3cf97893dd942b37b61744
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Sat Mar 9 05:39:15 2013 +0100
+
+    runtime: Plan 9: fix errstr
+    
+    The call to the C function runtime.findnull() requires
+    that we provide the argument at 0(SP).
+    
+    R=rsc, rminnich, ality
+    CC=golang-dev
+    https://golang.org/cl/7559047
+
+ src/pkg/runtime/sys_plan9_386.s   | 7 +++++++
+ src/pkg/runtime/sys_plan9_amd64.s | 7 +++++++
+ 2 files changed, 14 insertions(+)

@@ -1,0 +1,13 @@
+commit 0df58a4b50b923a220b9fda8ef94bebd5cdc0f9f
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Dec 14 02:19:33 2012 +0800
+
+    test/nil.go: delete on nil maps no longer panics
+    Fix the build.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6946044
+
+ test/nil.go | 3 ---
+ 1 file changed, 3 deletions(-)

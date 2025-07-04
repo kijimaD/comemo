@@ -1,0 +1,21 @@
+commit 9f0055a232384453c07aff702fcbe15820140d50
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 20:25:33 2015 +0000
+
+    Revert "cmd/go: allow omitted user name in git ssh repo syntax"
+    
+    This caused #13657.
+    Reverting fixes #13657.
+    
+    I was trying to be helpful by fixing #12313,
+    but I don't need the fix myself.
+    Will leave for someone with more motivation.
+    
+    This reverts commit 3e9f0636709de7cd86a08785f2e64487580bf5ea.
+    
+    Change-Id: Ifc78a6196f23e0f58e3b9ad7340e207a2d5de0a6
+    Reviewed-on: https://go-review.googlesource.com/17977
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/vcs.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

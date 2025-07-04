@@ -1,0 +1,65 @@
+commit d922c0a8f5035b0533eb6e912ffd7b85487e3942
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 27 13:10:48 2022 -0500
+
+    all: use os/exec instead of internal/execabs
+    
+    We added internal/execabs back in January 2021 in order to fix
+    a security problem caused by os/exec's handling of the current
+    directory. Now that os/exec has that code, internal/execabs is
+    superfluous and can be deleted.
+    
+    This commit rewrites all the imports back to os/exec and
+    deletes internal/execabs.
+    
+    For #43724.
+    
+    Change-Id: Ib9736baf978be2afd42a1225e2ab3fd5d33d19df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/381375
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/api/goapi.go                               |  2 +-
+ src/cmd/api/run.go                                 |  2 +-
+ src/cmd/cgo/out.go                                 |  2 +-
+ src/cmd/cgo/util.go                                |  2 +-
+ src/cmd/compile/internal/ssa/html.go               |  2 +-
+ src/cmd/cover/func.go                              |  2 +-
+ src/cmd/cover/testdata/toolexec.go                 |  2 +-
+ src/cmd/dist/buildtool.go                          |  2 --
+ src/cmd/doc/dirs.go                                |  2 +-
+ src/cmd/fix/typecheck.go                           |  2 +-
+ src/cmd/go/internal/base/base.go                   |  2 +-
+ src/cmd/go/internal/bug/bug.go                     |  2 +-
+ src/cmd/go/internal/generate/generate.go           |  2 +-
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  2 +-
+ src/cmd/go/internal/modfetch/codehost/git.go       |  2 +-
+ src/cmd/go/internal/test/genflags.go               |  2 +-
+ .../go/internal/test/internal/genflags/vetflag.go  |  2 +-
+ src/cmd/go/internal/test/test.go                   |  2 +-
+ src/cmd/go/internal/tool/tool.go                   |  2 +-
+ src/cmd/go/internal/vcs/vcs.go                     |  2 +-
+ src/cmd/go/internal/vet/vetflag.go                 |  2 +-
+ src/cmd/go/internal/work/build.go                  |  2 +-
+ src/cmd/go/internal/work/buildid.go                |  2 +-
+ src/cmd/go/internal/work/exec.go                   |  2 +-
+ src/cmd/go/internal/work/gccgo.go                  |  2 +-
+ src/cmd/go/testdata/addmod.go                      |  2 +-
+ src/cmd/internal/browser/browser.go                |  2 +-
+ src/cmd/internal/dwarf/dwarf.go                    |  2 +-
+ src/cmd/internal/pkgpath/pkgpath.go                |  2 +-
+ src/cmd/link/internal/ld/execarchive.go            |  2 +-
+ src/cmd/link/internal/ld/lib.go                    |  2 +-
+ src/cmd/test2json/main.go                          |  2 +-
+ src/cmd/trace/pprof.go                             |  2 +-
+ src/go/build/build.go                              |  2 +-
+ src/go/build/deps_test.go                          |  7 +----
+ src/go/internal/gccgoimporter/gccgoinstallation.go |  2 +-
+ src/go/internal/srcimporter/srcimporter.go         |  2 +-
+ src/internal/execabs/execabs.go                    | 36 ----------------------
+ src/internal/goroot/gc.go                          |  2 +-
+ 39 files changed, 37 insertions(+), 80 deletions(-)

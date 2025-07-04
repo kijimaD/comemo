@@ -1,0 +1,18 @@
+commit c4135dac630d093e01f95ea651d7d4330f616cfb
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 25 11:34:41 2015 -0500
+
+    encoding/json: streamline, unexport valid Number checking
+    
+    Followup to CL 12250.
+    
+    For #10281.
+    
+    Change-Id: If25d9cac92f10327bb355f2d11b00c625b464661
+    Reviewed-on: https://go-review.googlesource.com/17199
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/json/decode.go      | 120 ++++++++++-----------------------------
+ src/encoding/json/encode.go      |   5 +-
+ src/encoding/json/number_test.go |  20 +++----
+ 3 files changed, 44 insertions(+), 101 deletions(-)

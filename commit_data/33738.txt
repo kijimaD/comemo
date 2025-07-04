@@ -1,0 +1,26 @@
+commit 6be1c09e199a0f32f07e39c2629a5b12a3aec9e2
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Fri Nov 10 18:08:48 2017 +0100
+
+    cmd/compile: use soft-float routines for soft-float targets
+    
+    Updates #18162 (mostly fixes)
+    
+    Change-Id: I35bcb8a688bdaa432adb0ddbb73a2f7adda47b9e
+    Reviewed-on: https://go-review.googlesource.com/37958
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/go.go         |   7 +-
+ src/cmd/compile/internal/gc/main.go       |   6 +
+ src/cmd/compile/internal/gc/ssa.go        | 181 ++++++++++++++++++++++++------
+ src/cmd/compile/internal/gc/ssa_test.go   |  23 +++-
+ src/cmd/compile/internal/gc/subr.go       |  15 +++
+ src/cmd/compile/internal/gc/walk.go       |   5 +
+ src/cmd/compile/internal/mips/galign.go   |   1 +
+ src/cmd/compile/internal/ssa/check.go     |   4 +
+ src/cmd/compile/internal/ssa/compile.go   |   3 +
+ src/cmd/compile/internal/ssa/config.go    |   1 +
+ src/cmd/compile/internal/ssa/softfloat.go |  66 +++++++++++
+ 11 files changed, 271 insertions(+), 41 deletions(-)

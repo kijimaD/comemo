@@ -1,0 +1,17 @@
+commit 3cc24aa9ab06a57751c08e8bfeb9fc84e82e1ca5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 15 14:17:56 2015 -0800
+
+    go/constant: use Float.Rat method instead of doing it manually
+    
+    Also fixed conversion bug and added corresponding test case.
+    
+    Change-Id: I26f143fbc8d40a6d073ecb095e61b461495f3d68
+    Reviewed-on: https://go-review.googlesource.com/17872
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/constant/value.go      | 54 +++++++++++++++----------------------------
+ src/go/constant/value_test.go |  1 +
+ 2 files changed, 20 insertions(+), 35 deletions(-)

@@ -1,0 +1,13 @@
+commit d7eacee603c1e1d380cf1b1c3321f5f5a163ea09
+Author: Ross Light <rlight2@gmail.com>
+Date:   Tue Mar 8 15:42:23 2011 +1100
+
+    misc/vim: Add indent script for Vim
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4258041
+
+ misc/vim/indent/go.vim | 30 ++++++++++++++++++++++++++++++
+ misc/vim/readme.txt    | 13 +++++++++++++
+ 2 files changed, 43 insertions(+)

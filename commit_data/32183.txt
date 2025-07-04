@@ -1,0 +1,41 @@
+commit 3cb41be817cadd2dd19a390cf5e21740cb801967
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Fri Jul 14 17:06:34 2017 -0300
+
+    math/big: improve performance for AddMulVVW and mulAddVWW for ppc64x
+    
+    This change adds a better implementation in asm for AddMulVVW and
+    mulAddVWW for ppc64x, with speedups up to 1.54x.
+    
+    benchmark                       old ns/op     new ns/op     delta
+    BenchmarkAddMulVVW/1-8          6.58          6.29          -4.41%
+    BenchmarkAddMulVVW/2-8          7.43          7.25          -2.42%
+    BenchmarkAddMulVVW/3-8          8.95          8.15          -8.94%
+    BenchmarkAddMulVVW/4-8          10.1          9.37          -7.23%
+    BenchmarkAddMulVVW/5-8          12.0          10.7          -10.83%
+    BenchmarkAddMulVVW/10-8         22.1          20.1          -9.05%
+    BenchmarkAddMulVVW/100-8        211           154           -27.01%
+    BenchmarkAddMulVVW/1000-8       2046          1450          -29.13%
+    BenchmarkAddMulVVW/10000-8      20407         14793         -27.51%
+    BenchmarkAddMulVVW/100000-8     223857        145548        -34.98%
+    
+    benchmark                       old MB/s     new MB/s     speedup
+    BenchmarkAddMulVVW/1-8          9719.88      10175.79     1.05x
+    BenchmarkAddMulVVW/2-8          17233.97     17657.54     1.02x
+    BenchmarkAddMulVVW/3-8          21446.05     23550.49     1.10x
+    BenchmarkAddMulVVW/4-8          25375.70     27334.33     1.08x
+    BenchmarkAddMulVVW/5-8          26650.52     30029.34     1.13x
+    BenchmarkAddMulVVW/10-8         28984.29     31833.68     1.10x
+    BenchmarkAddMulVVW/100-8        30249.41     41531.69     1.37x
+    BenchmarkAddMulVVW/1000-8       31273.35     44108.54     1.41x
+    BenchmarkAddMulVVW/10000-8      31360.47     43263.54     1.38x
+    BenchmarkAddMulVVW/100000-8     28589.58     43971.66     1.54x
+    
+    Change-Id: I8a8105d4da3592afdef3125757a99f378a0254bb
+    Reviewed-on: https://go-review.googlesource.com/53931
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/math/big/arith_ppc64x.s | 128 +++++++++++++++-----------------------------
+ 1 file changed, 42 insertions(+), 86 deletions(-)

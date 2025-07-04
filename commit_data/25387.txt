@@ -1,0 +1,24 @@
+commit f70f277875a249dd5dace4ec5a320bc8811534e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Dec 20 14:29:20 2015 -0500
+
+    cmd/dist: make test default to --no-rebuild
+    
+    I'm tired of having to remember it on every command.
+    Rebuilding everything is the wrong default.
+    
+    This CL updates the build script, but the builders may
+    (or may not) need work, depending on whether they
+    rebuild using the test command (I doubt it).
+    
+    Change-Id: I21f202a2f13e73df3f6bd54ae6a317c467b68151
+    Reviewed-on: https://go-review.googlesource.com/18084
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/test.go | 11 ++++++++---
+ src/race.bash        |  2 +-
+ src/race.bat         |  2 +-
+ src/run.bash         |  2 +-
+ src/run.bat          |  2 +-
+ src/run.rc           |  2 +-
+ 6 files changed, 13 insertions(+), 8 deletions(-)

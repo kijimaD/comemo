@@ -1,0 +1,17 @@
+commit 0af302f50745b93e90a4507993a555d246acef45
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed May 15 17:23:40 2013 -0700
+
+    time: add Time.FormatAppend
+    
+    This is a version of Time.Format that doesn't require allocation.
+    
+    Fixes #5192
+    Update #5195
+    
+    R=r
+    CC=gobot, golang-dev
+    https://golang.org/cl/8478044
+
+ src/pkg/time/format.go | 27 +++++++++++++++++----------
+ 1 file changed, 17 insertions(+), 10 deletions(-)

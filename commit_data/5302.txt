@@ -1,0 +1,15 @@
+commit 9ca10b0a5cc7b99c5a9f8f8f26c8e1bd5e07d703
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Thu Apr 15 19:53:35 2010 -0700
+
+    exp/eval: Always read float literals as base 10
+    
+    We were letting bignum decide, which caused problems with float literals with a leading 0.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/816047
+
+ src/pkg/exp/eval/expr.go      | 2 +-
+ src/pkg/exp/eval/expr_test.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

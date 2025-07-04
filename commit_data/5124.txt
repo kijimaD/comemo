@@ -1,0 +1,21 @@
+commit acfd6d5f055ca5283dff5de16390c1d0cfc9f0ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 24 16:28:59 2010 -0700
+
+    godoc: show relative file names without leading '/' (per r's request)
+    
+    - change the various url-xxx formatters to return a relative URL path
+    - make the leading '/' for URLs explicit in the template
+    - on the way change some |html formatters to |html-esc
+      (html should only be used for formatting AST nodes)
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/740041
+
+ lib/godoc/dirlist.html |  4 ++--
+ lib/godoc/godoc.html   |  6 +++---
+ lib/godoc/package.html | 16 ++++++++--------
+ lib/godoc/search.html  | 12 ++++++------
+ src/cmd/godoc/godoc.go |  9 +++++----
+ 5 files changed, 24 insertions(+), 23 deletions(-)

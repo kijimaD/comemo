@@ -1,0 +1,27 @@
+commit 217c284995400bb761e5718782c8a90748c75aef
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 20 15:02:48 2016 -0700
+
+    cmd/compile: combine stores into larger widths
+    
+    Combine stores into larger widths when it is safe to do so.
+    
+    Add clobber() function so stray dead uses do not impede the
+    above rewrites.
+    
+    Fix bug in loads where all intermediate values depending on
+    a small load (not just the load itself) must have no other uses.
+    We really need the small load to be dead after the rewrite..
+    
+    Fixes #14267
+    
+    Change-Id: Ib25666cb19777f65082c76238fba51a76beb5d74
+    Reviewed-on: https://go-review.googlesource.com/22326
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/gc/testdata/dupLoad.go |   43 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |  354 +++++-
+ src/cmd/compile/internal/ssa/rewrite.go         |   12 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 1390 ++++++++++++++++++++---
+ 4 files changed, 1582 insertions(+), 217 deletions(-)

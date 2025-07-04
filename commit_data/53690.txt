@@ -1,0 +1,29 @@
+commit 229cde5149fb30b5207c03e7ad296d9dbe027e66
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jul 14 14:50:37 2023 -0400
+
+    cmd/go: fix tests when go.env sets GOPROXY=direct GOSUMDB=off
+    
+    Tested locally by changing GOROOT/go.env. At some point perhaps we
+    should also set up a builder that runs with some common expected
+    modifications to go.env
+    (such as GOTOOLCHAIN=local GOPROXY=direct GOSUMDB=off).
+    
+    Fixes #61358.
+    Updates #61359.
+    
+    Change-Id: I365ec536bec86370e302fb726fa897400ab42cf3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/509637
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/scriptconds_test.go                     |  1 +
+ src/cmd/go/testdata/script/README                  |  2 ++
+ src/cmd/go/testdata/script/gotoolchain_net.txt     |  4 +++-
+ src/cmd/go/testdata/script/gotoolchain_version.txt | 13 +++++++++++--
+ .../go/testdata/script/mod_prefer_compatible.txt   | 20 +++++++++++++++++---
+ src/cmd/go/testdata/script/mod_sumdb_file_path.txt |  4 +++-
+ src/cmd/go/testdata/script/mod_sumdb_golang.txt    | 22 +++++++++++-----------
+ 7 files changed, 48 insertions(+), 18 deletions(-)

@@ -1,0 +1,46 @@
+commit e25040d16288563c89cead5e8da8d3b9c74ab655
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 4 16:42:35 2021 -0500
+
+    cmd/compile: change StaticCall to return a "Results"
+    
+    StaticLECall (multiple value in +mem, multiple value result +mem) ->
+    StaticCall (multiple ergister value in +mem,
+       multiple register-sized-value result +mem) ->
+    ARCH CallStatic (multiple ergister value in +mem,
+       multiple register-sized-value result +mem)
+    
+    But the architecture-dependent stuff is indifferent to whether
+    it is mem->mem or (mem)->(mem) until Prog generation.
+    
+    Deal with OpSelectN -> Prog in ssagen/ssa.go, others, as they
+    appear.
+    
+    For #40724.
+    
+    Change-Id: I1d0436f6371054f1881862641d8e7e418e4a6a16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293391
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/abi/abiutils.go       |  83 ++++-
+ src/cmd/compile/internal/ssa/cse.go            |   2 +-
+ src/cmd/compile/internal/ssa/expand_calls.go   |  38 ++-
+ src/cmd/compile/internal/ssa/gen/generic.rules |  54 +---
+ src/cmd/compile/internal/ssa/gen/genericOps.go |   2 +-
+ src/cmd/compile/internal/ssa/location.go       |  14 +
+ src/cmd/compile/internal/ssa/lower.go          |   2 +-
+ src/cmd/compile/internal/ssa/op.go             |  10 +
+ src/cmd/compile/internal/ssa/opGen.go          |   2 +-
+ src/cmd/compile/internal/ssa/regalloc.go       |  20 +-
+ src/cmd/compile/internal/ssa/rewrite.go        |  14 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 411 ++++++++-----------------
+ src/cmd/compile/internal/ssa/schedule.go       |  16 +-
+ src/cmd/compile/internal/ssa/tighten.go        |   3 +-
+ src/cmd/compile/internal/ssa/tuple.go          |  40 ++-
+ src/cmd/compile/internal/ssa/writebarrier.go   |  17 +-
+ src/cmd/compile/internal/ssagen/ssa.go         |  18 +-
+ src/cmd/compile/internal/types/type.go         |  23 +-
+ 18 files changed, 387 insertions(+), 382 deletions(-)

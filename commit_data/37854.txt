@@ -1,0 +1,23 @@
+commit 956879dd0bf31b26d2425c2eadbeb19b90812187
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Sat Jan 5 14:31:23 2019 -0800
+
+    runtime: make FuncForPC return the innermost inlined frame
+    
+    Returning the innermost frame instead of the outermost
+    makes code that walks the results of runtime.Caller{,s}
+    still work correctly in the presence of mid-stack inlining.
+    
+    Fixes #29582
+    
+    Change-Id: I2392e3dd5636eb8c6f58620a61cef2194fe660a7
+    Reviewed-on: https://go-review.googlesource.com/c/156364
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/race.go     |  2 +-
+ src/runtime/runtime2.go | 11 +++++++++++
+ src/runtime/symtab.go   | 40 +++++++++++++++++++++++++++++++++++++---
+ test/inline_caller.go   |  6 +++---
+ test/inline_callers.go  | 10 +++++-----
+ 5 files changed, 57 insertions(+), 12 deletions(-)

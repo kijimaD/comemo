@@ -1,0 +1,29 @@
+commit c278f9302ea14148324941a5cf312ca7d90f6e30
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 14 00:24:43 2016 -0700
+
+    cmd/compile: stop storing TFIELD types in Node.Type
+    
+    Currently, the only use for this is on the Left side of OKEY nodes
+    within struct literals.  esc and fmt only care so they can recognize
+    that the ONAME nodes are actually field names, which need special
+    handling.
+    
+    sinit additionally needs to know the field's offset within the struct,
+    which we can provide via Xoffset.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: I362d965e161f4d80fcd9c9bae0dfacc657dc0b29
+    Reviewed-on: https://go-review.googlesource.com/20676
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/esc.go       |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       |  2 +-
+ src/cmd/compile/internal/gc/sinit.go     |  4 ++--
+ src/cmd/compile/internal/gc/syntax.go    |  7 +++++++
+ src/cmd/compile/internal/gc/typecheck.go | 14 ++++++++++++--
+ 5 files changed, 23 insertions(+), 6 deletions(-)

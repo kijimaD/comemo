@@ -1,0 +1,15 @@
+commit 0e3eefaf0f4341d559d11ed523a74e335d2b7cc3
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 3 06:57:30 2010 +0900
+
+    doc: add Practical Go Programming to front page and docs.html
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3391042
+
+ doc/docs.html     |   8 ++++++++
+ doc/frontpage.css |   3 +++
+ doc/root.html     |   2 +-
+ doc/video-004.png | Bin 0 -> 22713 bytes
+ 4 files changed, 12 insertions(+), 1 deletion(-)

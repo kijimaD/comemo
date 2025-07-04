@@ -1,0 +1,21 @@
+commit 80692a3f81f6367e9c61b652bf3dff30f4cc6624
+Author: Adam Langley <agl@golang.org>
+Date:   Wed Feb 19 11:17:09 2014 -0500
+
+    crypto/tls: improve documentation for ServerName.
+    
+    Users of the low-level, Client function are frequenctly missing the
+    fact that, unless they pass a ServerName to the TLS connection then it
+    cannot verify the certificates against any name.
+    
+    This change makes it clear that at least one of InsecureSkipVerify and
+    ServerName should always be set.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/65440043
+
+ src/pkg/crypto/tls/common.go | 5 +++--
+ src/pkg/crypto/tls/tls.go    | 5 ++---
+ 2 files changed, 5 insertions(+), 5 deletions(-)

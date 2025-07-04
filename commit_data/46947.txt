@@ -1,0 +1,20 @@
+commit 99fad12e4788fdf67e49dadd16571238f935b408
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 18 17:42:21 2021 -0700
+
+    cmd/compile/internal/types2: delay expansion of underlying in typeDecl
+    
+    This is a clean port of CL 356533 from go/types to types2.
+    
+    Fixes #49043.
+    
+    Change-Id: If389b94ece28042b0c8b436959dd21f26147a144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356517
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go            | 24 +++++++---------------
+ src/cmd/compile/internal/types2/named.go           | 17 ++++++++++++++-
+ .../internal/types2/testdata/check/typeinst.go2    |  2 +-
+ .../types2/testdata/fixedbugs/issue49043.go2       | 24 ++++++++++++++++++++++
+ 4 files changed, 48 insertions(+), 19 deletions(-)

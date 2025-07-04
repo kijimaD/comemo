@@ -1,0 +1,25 @@
+commit 734790716469c7dd887a1f31b8700d42e9cb3e29
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Sep 28 11:13:14 2020 -0400
+
+    go/types: turn TestBenchmark into a normal benchmark
+    
+    TestBenchmark doesn't use the -bench flag, so that it can format custom
+    output -- the number of checked lines per second. This is a barrier both
+    to discoverability, and to piping benchmark output into analysis tools
+    such as benchstat.
+    
+    Using testing.B.ReportMetric and a bit of manual timing, we can achieve
+    similar results while conforming to normal benchmark output. Do this,
+    and rename the test func to BenchmarkCheck (for symmetry with
+    TestCheck).
+    
+    Change-Id: Ie8f2259c1ca9e6986f0137287acf8eb2843f96b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257958
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/self_test.go | 80 ++++++++++++++++++++++++++---------------------
+ 1 file changed, 45 insertions(+), 35 deletions(-)

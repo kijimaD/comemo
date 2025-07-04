@@ -1,0 +1,14 @@
+commit 008e96c056109de404453adfa8962bf3da6347af
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Dec 3 17:00:31 2015 +0100
+
+    os: be more specific on what flags are used for
+    
+    The flags are used in OpenFile, not Open.
+    
+    Change-Id: I45c1639e36694529cb29c2b580c43a22e6fd10ac
+    Reviewed-on: https://go-review.googlesource.com/17352
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,73 @@
+commit 4b0d74f89d5b12509dba8427340aa98ce186e7b0
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 12 06:10:25 2017 -0700
+
+    cmd/compile: lay out exit blocks last
+    
+    In Go 1.8.x, panics are generally scheduled at the very end of functions.
+    That property was lost in Go 1.9; this CL restores it.
+    
+    This helps with the Fannkuch benchmark:
+    
+    name          old time/op  new time/op  delta
+    Fannkuch11-8   2.74s ± 2%   2.55s ± 2%  -7.03%  (p=0.000 n=20+20)
+    
+    This increases the fannkuch function size from 801 bytes to 831 bytes,
+    but that is still smaller than Go 1.8.1 at 844 bytes.
+    
+    It generally increases binary size a tiny amount.
+    Negligible compiler performance impact.
+    
+    For the code in #14758:
+    
+    name   old time/op    new time/op    delta
+    Foo-8     326ns ± 3%     312ns ± 3%  -4.32%  (p=0.000 n=28+30)
+    Bar-8     560ns ± 2%     565ns ± 2%  +0.96%  (p=0.002 n=30+27)
+    
+    Updates #18977
+    
+    name        old alloc/op      new alloc/op      delta
+    Template         38.8MB ± 0%       38.8MB ± 0%    ~     (p=0.690 n=5+5)
+    Unicode          28.7MB ± 0%       28.7MB ± 0%    ~     (p=0.841 n=5+5)
+    GoTypes           109MB ± 0%        109MB ± 0%    ~     (p=0.690 n=5+5)
+    Compiler          457MB ± 0%        457MB ± 0%    ~     (p=0.841 n=5+5)
+    SSA              1.10GB ± 0%       1.10GB ± 0%  +0.03%  (p=0.032 n=5+5)
+    Flate            24.4MB ± 0%       24.5MB ± 0%    ~     (p=0.690 n=5+5)
+    GoParser         30.9MB ± 0%       30.9MB ± 0%    ~     (p=0.421 n=5+5)
+    Reflect          73.3MB ± 0%       73.3MB ± 0%    ~     (p=1.000 n=5+5)
+    Tar              25.5MB ± 0%       25.5MB ± 0%    ~     (p=0.095 n=5+5)
+    XML              40.8MB ± 0%       40.9MB ± 0%    ~     (p=0.056 n=5+5)
+    [Geo mean]       71.6MB            71.6MB       +0.01%
+    
+    name        old allocs/op     new allocs/op     delta
+    Template           395k ± 0%         394k ± 1%    ~     (p=1.000 n=5+5)
+    Unicode            344k ± 0%         344k ± 0%    ~     (p=0.690 n=5+5)
+    GoTypes           1.16M ± 0%        1.16M ± 0%    ~     (p=0.421 n=5+5)
+    Compiler          4.41M ± 0%        4.41M ± 0%    ~     (p=0.841 n=5+5)
+    SSA               9.79M ± 0%        9.79M ± 0%    ~     (p=0.310 n=5+5)
+    Flate              237k ± 0%         237k ± 0%    ~     (p=0.841 n=5+5)
+    GoParser           321k ± 0%         321k ± 1%    ~     (p=0.421 n=5+5)
+    Reflect            956k ± 0%         956k ± 0%    ~     (p=1.000 n=5+5)
+    Tar                251k ± 1%         252k ± 0%    ~     (p=0.095 n=5+5)
+    XML                399k ± 0%         400k ± 0%    ~     (p=0.222 n=5+5)
+    [Geo mean]         741k              741k       +0.03%
+    
+    name        old object-bytes  new object-bytes  delta
+    Template           386k ± 0%         386k ± 0%  +0.05%  (p=0.008 n=5+5)
+    Unicode            202k ± 0%         202k ± 0%  +0.02%  (p=0.008 n=5+5)
+    GoTypes           1.16M ± 0%        1.16M ± 0%  +0.07%  (p=0.008 n=5+5)
+    Compiler          3.91M ± 0%        3.91M ± 0%  +0.05%  (p=0.008 n=5+5)
+    SSA               7.86M ± 0%        7.87M ± 0%  +0.07%  (p=0.008 n=5+5)
+    Flate              227k ± 0%         227k ± 0%  +0.10%  (p=0.008 n=5+5)
+    GoParser           283k ± 0%         283k ± 0%  +0.04%  (p=0.008 n=5+5)
+    Reflect            950k ± 0%         951k ± 0%  +0.04%  (p=0.008 n=5+5)
+    Tar                187k ± 0%         187k ± 0%  -0.03%  (p=0.008 n=5+5)
+    XML                406k ± 0%         406k ± 0%  +0.04%  (p=0.008 n=5+5)
+    [Geo mean]         647k              647k       +0.04%
+    
+    Change-Id: I2015aa26338b90cf41e47f89564e336dc02608df
+    Reviewed-on: https://go-review.googlesource.com/43293
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/layout.go | 23 ++++++++++++++++++++---
+ 1 file changed, 20 insertions(+), 3 deletions(-)

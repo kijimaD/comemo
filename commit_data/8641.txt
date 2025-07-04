@@ -1,0 +1,14 @@
+commit 687102ed4fdb54aef2944f58f667cc693888a0a9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 7 09:38:04 2011 -0700
+
+    gofmt: fix -d regression from exec change
+    
+    Fixes #1916
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4590041
+
+ src/cmd/gofmt/gofmt.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 00d6b28d4ed7b2e8be9fd2efe8f7b1908b1f3301
+Author: ZYunH <zyunhjob@163.com>
+Date:   Fri Oct 25 07:44:57 2019 +0000
+
+    internal/singleflight: format someErr
+    
+    Error string should not be capitalized.
+    
+    Change-Id: I8e1d148c6b999450bcd702f420c2a240f82aadc7
+    GitHub-Last-Rev: 6ca1b3edb4a61723fa6472a0f54cc6329898edbc
+    GitHub-Pull-Request: golang/go#35147
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203339
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/singleflight/singleflight_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

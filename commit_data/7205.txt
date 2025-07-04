@@ -1,0 +1,14 @@
+commit 32a8f5a8742daeb8c292f40d556c78f792207599
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 13:11:06 2011 -0500
+
+    gotest: new cgo does not require LD_LIBRARY_PATH
+    
+    Fixes #1410.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4072043
+
+ src/cmd/gotest/gotest | 6 ------
+ 1 file changed, 6 deletions(-)

@@ -1,0 +1,16 @@
+commit d151134851554aa0a3f05206019b9b8c1e1ad70f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 7 16:30:37 2022 -0400
+
+    doc/go1.19: document linker CL that switches DWARF compressed section format
+    
+    For #51400.
+    Updates #50796.
+    
+    Change-Id: Ica6c700a5b54e4712b09c43d1d7a9c3bba408b8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410823
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Fangrui Song <maskray@google.com>
+
+ doc/go1.19.html | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

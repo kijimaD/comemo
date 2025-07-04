@@ -1,0 +1,27 @@
+commit 2e9dcb508647dc473a37ecfa244d2bc4a1843ab4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 21 06:52:43 2022 +0000
+
+    runtime: simplify histogram buckets considerably
+    
+    There was an off-by-one error in the time histogram buckets calculation
+    that caused the linear sub-buckets distances to be off by 2x.
+    
+    The fix was trivial, but in writing tests I realized there was a much
+    simpler way to express the calculation for the histogram buckets, and
+    took the opportunity to do that here. The new bucket calculation also
+    fixes the bug.
+    
+    Fixes #50732.
+    
+    Change-Id: Idae89986de1c415ee4e148f778e0e101ca003ade
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380094
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/export_test.go    |  2 ++
+ src/runtime/histogram.go      | 52 +++++++++++++++++++------------------------
+ src/runtime/histogram_test.go | 40 +++++++++++++++++++++++++++++++++
+ 3 files changed, 65 insertions(+), 29 deletions(-)

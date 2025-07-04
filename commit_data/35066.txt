@@ -1,0 +1,16 @@
+commit c284171bbb658085d364127f0d20a92341643583
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Apr 20 18:56:42 2018 +0200
+
+    cmd/compile: use more ORs in lowering AMD64.rules
+    
+    No changes in the actual generated compiler code.
+    
+    Change-Id: Ibae71b6de35722792cc94fea0cdfa5e53cf3c83e
+    Reviewed-on: https://go-review.googlesource.com/108476
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 182 ++++++++-------------------
+ 1 file changed, 50 insertions(+), 132 deletions(-)

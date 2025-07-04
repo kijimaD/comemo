@@ -1,0 +1,40 @@
+commit 7f4b4c0c0092e63f28ab874f9f564ee0e0e7f4cc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 3 12:02:13 2012 +1000
+
+    text/template: better error messages during execution,
+    They now show the correct name, the byte offset on the line, and context for the failed evaluation.
+    Before:
+            template: three:7: error calling index: index out of range: 5
+    After:
+            template: top:7:20: executing "three" at <index "hi" $>: error calling index: index out of range: 5
+    Here top is the template that was parsed to create the set, and the error appears with the action
+    starting at byte 20 of line 7 of "top", inside the template called "three", evaluating the expression
+    <index "hi" $>.
+    
+    Also fix a bug in index: it didn't work on strings. Ouch.
+    
+    Also fix bug in error for index: was showing type of index not slice.
+    The real previous error was:
+            template: three:7: error calling index: can't index item of type int
+    The html/template package's errors can be improved by building on this;
+    I'll do that in a separate pass.
+    
+    Extends the API for text/template/parse but only by addition of a field and method. The
+    old API still works.
+    
+    Fixes #3188.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6576058
+
+ src/pkg/html/template/escape.go           |   9 +-
+ src/pkg/text/template/exec.go             | 117 ++++++++++++--------
+ src/pkg/text/template/exec_test.go        |  26 +++++
+ src/pkg/text/template/funcs.go            |   6 +-
+ src/pkg/text/template/parse/lex.go        |  29 ++---
+ src/pkg/text/template/parse/node.go       | 177 ++++++++++++++++++------------
+ src/pkg/text/template/parse/parse.go      |  89 +++++++++------
+ src/pkg/text/template/parse/parse_test.go |   2 +-
+ 8 files changed, 287 insertions(+), 168 deletions(-)

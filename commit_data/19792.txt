@@ -1,0 +1,19 @@
+commit 7bcbdbd904eeaf671c608b183ae363dfa1b53ad6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 22 01:56:19 2014 +0400
+
+    runtime: pass correct size to malloc
+    In both cases we lie to malloc about the actual size that we need.
+    In panic we ask for less memory than we are going to use.
+    In slice we ask for more memory than we are going to use
+    (potentially asking for a fractional number of elements).
+    This breaks the new GC.
+    
+    LGTM=khr
+    R=golang-codereviews, dave, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/116940043
+
+ src/pkg/runtime/panic.c   | 2 +-
+ src/pkg/runtime/slice.goc | 6 +++++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

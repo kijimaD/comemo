@@ -1,0 +1,12 @@
+commit 4c483aa159ced8a9403a9ba6ca9c278f2154a1b8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 27 17:19:17 2008 -0700
+
+    Explain goto constraints.
+    Add description of 'any'.
+    Simplify and complete syntax for literals.
+    
+    SVN=114122
+
+ doc/go_lang.txt | 104 ++++++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 75 insertions(+), 29 deletions(-)

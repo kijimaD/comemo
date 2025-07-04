@@ -1,0 +1,23 @@
+commit 4f132b7ef862d83390feb074be3e04109e43adaa
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 12 16:42:06 2022 -0400
+
+    runtime: don't track stack separately in gentraceback
+    
+    Currently, gentraceback keeps a copy of the stack bounds of the stack
+    it's walking in the "stack" variable. Now that "gp" always refers to
+    the G whose stack it's walking, we can simply use gp.stack instead of
+    keeping a separate copy.
+    
+    For #54466.
+    
+    Change-Id: I68256e5dff6212cfcf14eda615487e66a92d4914
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458215
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/traceback.go | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)

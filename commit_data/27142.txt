@@ -1,0 +1,34 @@
+commit 525ae3f897bf79fd78f3e693bd65056efc8f9109
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Apr 25 17:58:34 2016 -0400
+
+    crypto/sha256: add s390x assembly implementation
+    
+    Renames block to blockGeneric so that it can be called when the
+    assembly feature check fails. This means making block a var on
+    platforms without an assembly implementation (similar to the sha1
+    package).
+    
+    Also adds a test to check that the fallback path works correctly
+    when the feature check fails.
+    
+    name        old speed      new speed       delta
+    Hash8Bytes  6.42MB/s ± 1%  27.14MB/s ± 0%  +323.01%  (p=0.000 n=10+10)
+    Hash1K      53.9MB/s ± 0%  511.1MB/s ± 0%  +847.57%   (p=0.000 n=10+9)
+    Hash8K      57.1MB/s ± 1%  609.7MB/s ± 0%  +967.04%  (p=0.000 n=10+10)
+    
+    Change-Id: If962b2a5c9160b3a0b76ccee53b2fd809468ed3d
+    Reviewed-on: https://go-review.googlesource.com/22460
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bill O'Farrell <billotosyr@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/sha256/fallback_test.go       | 35 ++++++++++++++++++++++++++++++++
+ src/crypto/sha256/sha256_test.go         | 13 ++++++++++++
+ src/crypto/sha256/sha256block.go         |  4 +---
+ src/crypto/sha256/sha256block_decl.go    |  2 +-
+ src/crypto/sha256/sha256block_generic.go |  9 ++++++++
+ src/crypto/sha256/sha256block_s390x.go   | 12 +++++++++++
+ src/crypto/sha256/sha256block_s390x.s    | 34 +++++++++++++++++++++++++++++++
+ 7 files changed, 105 insertions(+), 4 deletions(-)

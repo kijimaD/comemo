@@ -1,0 +1,17 @@
+commit 62dc3c3f0dc340ad98f737542523c15ee32d671d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 21:14:21 2017 -0500
+
+    cmd/go: fix swig support and run swig tests during run.bash
+    
+    (The tests only run when swig is already installed on the local system.)
+    
+    Change-Id: I172d106a68cfc746a1058f5a4bcf6761bab88912
+    Reviewed-on: https://go-review.googlesource.com/78175
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/swig/stdio/file.go          | 15 +++++++++++++++
+ misc/swig/stdio/file_test.go     |  6 ++++++
+ src/cmd/dist/test.go             | 20 ++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go | 39 +++++++++++++++++++--------------------
+ 4 files changed, 60 insertions(+), 20 deletions(-)

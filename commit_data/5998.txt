@@ -1,0 +1,17 @@
+commit bca3151042ab7c81d2edda17749bc2613c84edd0
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Wed Aug 11 14:04:03 2010 +1000
+
+    template: added ParseFile method for template.Template
+    Fixes #971.
+    
+    Parse/ParseFile methods of Template now match template.Parse and .ParseFile methods.
+    Also made tests being run on Parse and ParseFile be run on Template.ParseFile as well.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1741059
+
+ src/pkg/template/template.go      | 10 ++++++++++
+ src/pkg/template/template_test.go | 16 +++++++++++++++-
+ 2 files changed, 25 insertions(+), 1 deletion(-)

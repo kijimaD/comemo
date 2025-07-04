@@ -1,0 +1,12 @@
+commit 6ce3cd18fa630fd5d0c97fa7903425dc4759f2a2
+Author: Guobiao Mei <meiguobiao@gmail.com>
+Date:   Thu Dec 18 10:53:00 2014 -0500
+
+    runtime: fix a minor typo in comments
+    
+    Change-Id: I13a8aacd1b8243c992b539ab6bf7b5dff2a1393a
+    Reviewed-on: https://go-review.googlesource.com/1757
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/malloc2.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

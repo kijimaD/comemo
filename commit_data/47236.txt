@@ -1,0 +1,23 @@
+commit ad2044a498cbbb211fe14fd4eeb0a63709363cfc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 3 08:39:41 2021 -0700
+
+    cmd/compile/internal/types2: rename is_X predicates back to isX (step 2 of 2)
+    
+    This is s/is_/is/ throughout. No other changes.
+    
+    Change-Id: I1be77a209133edc68a6dec0677a4991a7683f116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361134
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go    | 12 ++++-----
+ src/cmd/compile/internal/types2/check.go       |  2 +-
+ src/cmd/compile/internal/types2/conversions.go | 12 ++++-----
+ src/cmd/compile/internal/types2/expr.go        | 36 +++++++++++++-------------
+ src/cmd/compile/internal/types2/index.go       |  6 ++---
+ src/cmd/compile/internal/types2/predicates.go  | 24 ++++++++---------
+ src/cmd/compile/internal/types2/sizes.go       |  2 +-
+ src/cmd/compile/internal/types2/stmt.go        |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go     |  2 +-
+ 9 files changed, 49 insertions(+), 49 deletions(-)

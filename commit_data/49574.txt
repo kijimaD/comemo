@@ -1,0 +1,49 @@
+commit 993c387032fb569ca8fe1ff2b3c1822304c0ecca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 29 13:11:33 2022 -0700
+
+    os: simplify deadline fluctuation tests
+    
+    This applies the net package CL 365334, CL 366176, CL 372215 to the os
+    package.
+    
+    CL 365334:
+    
+        These tests were checking for fairly narrow timing windows, but were
+        running in parallel and heavily dependent on timer and goroutine
+        scheduling. This change eliminates unnecessary goroutines, runs the
+        tests sequentially (dramatically shortening the timeouts to reduce the
+        penalty of doing so), and uses timestamp comparison instead of
+        background timers to hopefully gain some robustness from monotonic
+        timestamps.
+    
+        Many of the other tests from this package would benefit from similar
+        simplifications, which we can apply if and when we notice flaky
+        failures or want to improve the latency of running the test.
+    
+    CL 366176:
+    
+        It appears that at least the OpenBSD kernel gets sloppier the longer
+        the timeout we give it, up to an observed overhead of around 25%.
+        Let's give it a little more than that (33%) in the comparison, and
+        also increase the growth curve to match the actual observed times
+        instead of exponential initial growth.
+    
+    CL 372215:
+    
+        Decrease the slop everywhere else, since NetBSD and OpenBSD seem to be
+        the only ones that miss by that much.
+    
+    For #36108
+    For #50189
+    Fixes #50725 (we hope)
+    
+    Change-Id: I0854d27af67ca9fcf0f9d9e4ff67acff4c2effc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415234
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/timeout_test.go |  10 +++
+ src/os/timeout_test.go  | 206 +++++++++++++++++++++++++++++++++---------------
+ 2 files changed, 154 insertions(+), 62 deletions(-)

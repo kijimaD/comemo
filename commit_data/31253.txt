@@ -1,0 +1,14 @@
+commit db8437eb58a5c2282a27c71b5cb14c639655edf1
+Author: xufei_Alex <badgangkiller@gmail.com>
+Date:   Fri Apr 21 01:43:57 2017 +0000
+
+    crypto/x509: use native compare in test instead of strings.Compare
+    
+    Change-Id: I24c824edd8af6311a4eff44ef4bb28d73a91c68e
+    Reviewed-on: https://go-review.googlesource.com/41295
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/verify_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

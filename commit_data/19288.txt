@@ -1,0 +1,18 @@
+commit 2e1ddeb136d3a74390f4e8ea28c6605cc6ab48b1
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed May 7 18:49:13 2014 +0400
+
+    doc: replace absolute links to golang.org with relative links
+    Currently tip.golang.org leads to golang.org and
+    local godoc also leads to golang.org (when you don't have internet connectivity).
+    
+    LGTM=crawshaw
+    R=golang-codereviews, crawshaw
+    CC=golang-codereviews
+    https://golang.org/cl/100200043
+
+ doc/effective_go.html | 4 ++--
+ doc/go1.3.html        | 2 +-
+ doc/go_faq.html       | 6 +++---
+ doc/go_spec.html      | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)

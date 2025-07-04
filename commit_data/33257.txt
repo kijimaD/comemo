@@ -1,0 +1,16 @@
+commit dc97f4103cbeac291ec6685d9f0d4e621fe4e133
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 26 10:10:25 2017 +0200
+
+    syscall: simplify return in Futimesat and Mount
+    
+    Directly return error instead of assigning to err and then returning.
+    
+    Change-Id: Ie5c466cac70cc6d52ee72ebba3e497e0da8a5797
+    Reviewed-on: https://go-review.googlesource.com/73531
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_linux.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

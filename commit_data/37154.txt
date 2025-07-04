@@ -1,0 +1,30 @@
+commit 8fc99d20f3377c7c5c1dba51b1be865ff61483b0
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri Oct 26 18:09:42 2018 +0200
+
+    internal/cpu: remove unused and not required ppc64(le) feature detection
+    
+    Minimum Go requirement for ppc64(le) architecture support is POWER8.
+    https://github.com/golang/go/wiki/MinimumRequirements#ppc64-big-endian
+    
+    Reduce CPU features supported in internal/cpu to those needed to
+    test minimum requirements and cpu feature kernel support for ppc64(le).
+    Currently no internal/cpu feature variables are used to guard code
+    from using unsupported instructions. The IsPower9 feature variable
+    and detection is kept as it will soon be used to guard code execution.
+    
+    Reducing the set of detected CPU features for ppc64(le) makes
+    implementing Go support for new operating systems easier as
+    CPU feature detection for ppc64(le) needs operating system support
+    (e.g. hwcap on Linux and getsystemcfg syscall on AIX).
+    
+    Change-Id: Ic4c17b31610970e481cd139c657da46507391d1d
+    Reviewed-on: https://go-review.googlesource.com/c/145117
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/cpu/cpu.go        | 25 ++++++++-----------------
+ src/internal/cpu/cpu_ppc64x.go | 28 +++-------------------------
+ 2 files changed, 11 insertions(+), 42 deletions(-)

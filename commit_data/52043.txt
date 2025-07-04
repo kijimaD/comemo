@@ -1,0 +1,26 @@
+commit 81316ff50a4a81cc2077f8a831b4e1896c56a564
+Author: Hossein Zolfi <hossein.zolfi@gmail.com>
+Date:   Fri Jan 27 18:20:09 2023 +0330
+
+    testing: add -fullpath to go test
+    
+    When -test.fullpath flag is provided to go test,
+    go test displays the full file names in error messages.
+    
+    Fixes #37708
+    
+    Change-Id: I6096e75ed816fd42205810f20624e495047a73a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463837
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                        |  3 +++
+ src/cmd/go/internal/test/flagdefs.go         |  1 +
+ src/cmd/go/internal/test/test.go             |  3 +++
+ src/cmd/go/internal/test/testflag.go         |  1 +
+ src/cmd/go/testdata/script/test_fullpath.txt | 21 +++++++++++++++++++++
+ src/testing/testing.go                       |  7 +++++--
+ 6 files changed, 34 insertions(+), 2 deletions(-)

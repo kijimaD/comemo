@@ -1,0 +1,29 @@
+commit eca55f5ac09221155de7b45e143ad863222ed976
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Feb 14 09:20:51 2014 +0400
+
+    runtime: fix windows cpu profiler
+    Currently it periodically fails with the following message.
+    The immediate cause is the wrong base register when obtaining g
+    in sys_windows_amd64/386.s.
+    But there are several secondary problems as well.
+    
+    runtime: unknown pc 0x0 after stack split
+    panic: invalid memory address or nil pointer dereference
+    fatal error: panic during malloc
+    [signal 0xc0000005 code=0x0 addr=0x60 pc=0x42267a]
+    
+    runtime stack:
+    runtime.panic(0x7914c0, 0xc862af)
+            c:/src/perfer/work/windows-amd64-a15f344a9efa/go/src/pkg/runtime/panic.c:217 +0x2c
+    runtime: unexpected return pc for runtime.externalthreadhandler called from 0x0
+    
+    R=rsc, alex.brainman
+    CC=golang-codereviews
+    https://golang.org/cl/63310043
+
+ src/pkg/runtime/os_windows.c        | 9 ++++++++-
+ src/pkg/runtime/proc.c              | 4 +++-
+ src/pkg/runtime/sys_windows_386.s   | 6 ++++--
+ src/pkg/runtime/sys_windows_amd64.s | 6 ++++--
+ 4 files changed, 19 insertions(+), 6 deletions(-)

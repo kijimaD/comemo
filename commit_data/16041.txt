@@ -1,0 +1,13 @@
+commit b91ae5c27c3b21e8364a7dec732d7885ce6a2073
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 1 15:52:15 2013 -0700
+
+    doc/codewalk/markov: fix slice error in description
+    Fixes #5176.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/8118046
+
+ doc/codewalk/markov.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

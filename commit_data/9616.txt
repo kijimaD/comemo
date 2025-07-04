@@ -1,0 +1,20 @@
+commit a2c2c874396f50301d48efa6e456573a53bea98c
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Sep 7 14:01:12 2011 -0400
+
+    net: ParseCIDR returns IPNet instead of IPMask
+    
+    Note that this CL will break your existing code which uses
+    ParseCIDR.
+    
+    This CL changes ParseCIDR("172.16.253.121/28") to return
+    the IP address "172.16.253.121", the network implied by the
+    network number "172.16.253.112" and mask "255.255.255.240".
+    
+    R=rsc, borman
+    CC=golang-dev
+    https://golang.org/cl/4749043
+
+ src/pkg/net/ip.go      | 136 ++++++++++++++++++++++++++++----------
+ src/pkg/net/ip_test.go | 175 +++++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 248 insertions(+), 63 deletions(-)

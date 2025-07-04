@@ -1,0 +1,30 @@
+commit 46f60d650616b192c74bf8960df6e0bb99be2a9b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon May 1 13:02:04 2023 -0400
+
+    cmd/cgo: reject attempts to declare methods on C types
+    
+    This change causes cgo to emit an error (with the same
+    message as the compiler) when it encounters a declaration
+    of a method whose receiver type is C.T or *C.T.
+    
+    Conceptually, C is another package, but unfortunately
+    the desugaring of C.T is a type within the same package,
+    causing the previous behavior to accept invalid input.
+    
+    It is likely that at least some users are intentionally
+    exploiting this behavior, so this may break their build.
+    We should mention it in the release notes.
+    
+    Fixes #57926
+    
+    Change-Id: I513cffb7e13bc93d08a07b7e61301ac1762fd42d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/490819
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cgo/ast.go                                 | 68 +++++++++++++++-------
+ .../testdata/script/cgo_badmethod_issue57926.txt   | 31 ++++++++++
+ 2 files changed, 79 insertions(+), 20 deletions(-)

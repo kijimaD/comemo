@@ -1,0 +1,16 @@
+commit f4f2cf16b0d7dd2f1841122c15e9e0388470fca7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 1 00:23:30 2013 -0400
+
+    runtime: mark arm _lsvh nosplit (may fix arm build)
+    
+    Mark the 386 one too for consistency,
+    although most of that code is no longer used.
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/12227043
+
+ src/pkg/runtime/vlrt_386.c | 1 +
+ src/pkg/runtime/vlrt_arm.c | 1 +
+ 2 files changed, 2 insertions(+)

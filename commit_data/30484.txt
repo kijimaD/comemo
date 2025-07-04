@@ -1,0 +1,14 @@
+commit 3d77bc081d16b02bb937fdd648f4e83ebc0b9b95
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 2 07:23:43 2017 -0800
+
+    cmd/vet/all: use SizesFor to calculate archbits
+    
+    Change-Id: I99706807782f11e8d24baf953424a9e292a2cbac
+    Reviewed-on: https://go-review.googlesource.com/37668
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/all/main.go | 26 +++++---------------------
+ 1 file changed, 5 insertions(+), 21 deletions(-)

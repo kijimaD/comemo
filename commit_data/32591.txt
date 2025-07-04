@@ -1,0 +1,18 @@
+commit e3f3adedcdbe3649e5de2980e85ab054e9d67acf
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 1 13:00:51 2017 +1000
+
+    cmd/go: document the build flags properly for vet
+    
+    The "build flags" mentioned in the documentation are only those
+    that apply to analyzing packages and executing the tool.
+    
+    Fixes #21711.
+    
+    Change-Id: Ie7b2a354f1e30c928b40888c51fc68e599a5444a
+    Reviewed-on: https://go-review.googlesource.com/60830
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go          | 4 +++-
+ src/cmd/go/internal/vet/vet.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

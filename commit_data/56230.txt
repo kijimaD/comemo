@@ -1,0 +1,55 @@
+commit 4084bc1aa2af3ad479632c597458c6d9d1b2dec8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 28 15:25:40 2024 -0500
+
+    cmd/go: inital plumbing for PGO profiles preprocessing
+    
+    The new go tool preprofile preprocesses a PGO pprof profile into an
+    intermediate representation that is more efficient for the compiler to
+    consume. Performing preprocessing avoids having every single compile
+    process from duplicating the same processing.
+    
+    This CL prepares the initial plumbing to support automatic preprocessing
+    by cmd/go.
+    
+    Each compile action takes a new dependency on a new "preprocess PGO
+    profile" action. The same action instance is shared by all compile
+    actions (assuming they have the same input profile), so the action only
+    executes once.
+    
+    Builder.build retrieves the file to pass to -pgofile from the output of
+    the preprocessing action, rather than directly from
+    p.Internal.PGOProfile.
+    
+    Builder.buildActionID also uses the preprocess output as the PGO
+    component of the cache key, rather than the original source. This
+    doesn't matter for normal toolchain releases, as the two files are
+    semantically equivalent, but it is useful for correct cache invalidation
+    in development. For example, if _only_ go tool preprofile changes
+    (potentially changing the output), then we must regenerate the output
+    and then rebuild all packages.
+    
+    This CL does not actually invoke go tool preprocess. That will come in
+    the next CL. For now, it just copies the input pprof profile.
+    
+    This CL shouldn't be submitted on its own, only with the children. Since
+    the new action doesn't yet use the build cache, every build (even fully
+    cached builds) unconditionally run the PGO action.
+    
+    For #58102.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I594417cfb0164cd39439a03977c904e4c0c83b8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569423
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/work/action.go                 | 42 ++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go                   | 26 ++++++++++----
+ src/cmd/go/internal/work/gc.go                     |  6 ++--
+ src/cmd/go/internal/work/gccgo.go                  |  2 +-
+ src/cmd/go/testdata/script/build_pgo.txt           |  9 +++--
+ src/cmd/go/testdata/script/build_pgo_auto.txt      | 19 +++++-----
+ .../go/testdata/script/build_pgo_auto_multi.txt    | 36 ++++++++-----------
+ 7 files changed, 96 insertions(+), 44 deletions(-)

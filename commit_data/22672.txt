@@ -1,0 +1,15 @@
+commit 1f65c9c1411220ad6abd200703906dfa27695b16
+Author: Srdjan Petrovic <spetrovic@google.com>
+Date:   Wed Apr 22 11:44:46 2015 -0700
+
+    runtime: deflake TestNewOSProc0, fix _rt0_amd64_linux_lib stack alignment
+    
+    This addresses iant's comments from CL 9164.
+    
+    Change-Id: I7b5b282f61b11aab587402c2d302697e76666376
+    Reviewed-on: https://go-review.googlesource.com/9222
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/norace_linux_test.go | 8 ++++++--
+ src/runtime/rt0_linux_amd64.s    | 2 +-
+ 2 files changed, 7 insertions(+), 3 deletions(-)

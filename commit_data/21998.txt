@@ -1,0 +1,14 @@
+commit 63269404a8d588fb0af679adc1f940294cedc2c0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 4 14:53:41 2015 -0800
+
+    math/big: introduce Bits abstraction instead of using "untyped" []int bit lists
+    
+    Change-Id: I6caa6bdcf6643ce3015244397a752bd133f3d00c
+    Reviewed-on: https://go-review.googlesource.com/6840
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/bits_test.go  | 114 +++++++++++++++++++++++++--------------------
+ src/math/big/float.go      |   2 +-
+ src/math/big/float_test.go |  32 ++++++-------
+ 3 files changed, 80 insertions(+), 68 deletions(-)

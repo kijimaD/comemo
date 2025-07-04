@@ -1,0 +1,17 @@
+commit 7e40627a0e595aa321efaf44f8507b678ee5eb1e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 11 13:17:52 2016 -0700
+
+    cmd/compile: zero all three argstorage slots
+    
+    These changes were missed when going from 2 to 3 argstorage slots.
+    https://go-review.googlesource.com/20296/
+    
+    Change-Id: I930a307bb0b695bf1ae088030c9bbb6d14ca31d2
+    Reviewed-on: https://go-review.googlesource.com/21841
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/func.go  | 10 ++++++++--
+ src/cmd/compile/internal/ssa/value.go |  1 +
+ 2 files changed, 9 insertions(+), 2 deletions(-)

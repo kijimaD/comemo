@@ -1,0 +1,15 @@
+commit ff866c4ca37287af82edf33d1e1d6f7c52931e19
+Author: Jaroslavas Počepko <jp@webmaster.ms>
+Date:   Fri Oct 14 20:37:07 2011 +0100
+
+    ld: Fixes issue 1899 ("cannot create 8.out.exe")
+    
+    http://code.google.com/p/go/issues/detail?id=1899
+    
+    R=rsc, alex.brainman, bsiegert, hectorchu, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4978047
+
+ doc/progs/run    | 11 ++++++++---
+ src/cmd/ld/lib.c |  5 +++++
+ 2 files changed, 13 insertions(+), 3 deletions(-)

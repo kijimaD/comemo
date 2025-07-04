@@ -1,0 +1,36 @@
+commit 8a816d5efcc842ae92f0193aa9c1d433bd66ef31
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Mar 30 09:56:13 2022 -0400
+
+    go/types: don't report errors for untyped int shifts on Go < 1.13
+    
+    CL 337529 introduced upfront type-checking of constant shift operands,
+    to avoid converting their type to uint (per the spec). However, it
+    had an oversight in that the checks intended for non-constant operands
+    still ran after the explicit checking of constant operands. As a
+    result, there are at least two bugs:
+     - When GoVersion is < 1.13, we report spurious errors for untyped
+       constant shift operands.
+     - When the operand is an untyped float constant, we still convert to
+       uint (this was a known bug reported in #47410).
+    
+    Looking at this now, it seems clear that we can avoid both of these bugs
+    by simply not running the additional checks in the case of a constant
+    operand. However, this should be considered with some care, as shifts
+    are notoriously tricky.
+    
+    Updates #47410
+    Fixes #52031
+    
+    Change-Id: Ia489cc5470b92a8187d3de0423d05b309daf47bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396775
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go/types/api_test.go                      |  2 +-
+ src/go/types/check_test.go                    |  5 ++++
+ src/go/types/expr.go                          | 38 +++++++++++++--------------
+ src/go/types/testdata/fixedbugs/issue52031.go | 33 +++++++++++++++++++++++
+ 4 files changed, 58 insertions(+), 20 deletions(-)

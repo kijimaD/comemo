@@ -1,0 +1,14 @@
+commit 707aed0363c31bfef761a86464a09ecf0817267e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Apr 26 19:11:53 2016 -0700
+
+    cmd/compile: fix opnames
+    
+    Change-Id: Ief4707747338912216a8509b1adbf655c8ffac56
+    Reviewed-on: https://go-review.googlesource.com/22495
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/opnames.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

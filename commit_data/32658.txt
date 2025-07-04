@@ -1,0 +1,25 @@
+commit 06f4d93699ebbf05a500313c6b6ae6f80105d838
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Sep 3 12:33:56 2017 -0400
+
+    cmd/go: put computed GOROOT in built binaries
+    
+    As of CL 42533, cmd/go will recompute its GOROOT based on the
+    location of its own executable. This CL plumbs that computed GOROOT
+    into every binary it builds using the linker -X flag. This
+    means binaries built with a moved cmd/go will report the GOROOT
+    they were built in from runtime.GOROOT().
+    
+    Fixes #21313
+    
+    Change-Id: I6c2c559f40f2a0c867ab60cf47c6dbc73ae5e28a
+    Reviewed-on: https://go-review.googlesource.com/61310
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildruntime.go        |  5 +++--
+ src/cmd/go/go_test.go               | 39 ++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/work/build.go   |  3 +++
+ src/cmd/go/testdata/print_goroot.go | 11 +++++++++++
+ 4 files changed, 55 insertions(+), 3 deletions(-)

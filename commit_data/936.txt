@@ -1,0 +1,22 @@
+commit 7dbee69b58d8f3e954a6482d09fa80147119e8ea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 22 16:09:24 2008 -0700
+
+    Match gccgo error messages.
+    
+    convlit.go:17: error: incompatible type in initialization
+    convlit.go:18: error: incompatible types in binary expression
+    convlit.go:19: error: incompatible types in binary expression
+    convlit.go:20: error: incompatible types in binary expression
+    convlit.go:21: error: incompatible types in binary expression
+    convlit.go:23: error: cannot convert non-integer constant
+    convlit.go:24: error: integer type overflow
+    convlit.go:25: error: floating point overflow
+    
+    R=rsc
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=17649
+    CL=17661
+
+ test/convlit.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

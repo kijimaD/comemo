@@ -1,0 +1,18 @@
+commit 478aff3d4d7eea7f9980f960957eb21ae77aa2c2
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Nov 27 18:20:44 2012 +1100
+
+    exp/cookiejar: new package.
+    
+    This CL defines the API. Implementation will come in follow-up CLs.
+    
+    Update #1960.
+    
+    R=bradfitz, dr.volker.dobler, rsc
+    CC=golang-dev
+    https://golang.org/cl/6849092
+
+ src/pkg/exp/cookiejar/jar.go          |  89 ++++++++++++++++++++++++++++++
+ src/pkg/exp/cookiejar/storage.go      | 101 ++++++++++++++++++++++++++++++++++
+ src/pkg/exp/cookiejar/storage_test.go |  48 ++++++++++++++++
+ 3 files changed, 238 insertions(+)

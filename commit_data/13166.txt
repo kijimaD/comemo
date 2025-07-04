@@ -1,0 +1,26 @@
+commit c23041efd99bc2cc7c6888ea6f6a83f5e13f8326
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri May 25 10:03:59 2012 +1000
+
+    exp/html: adjust parseForeignContent to match spec
+    
+    Remove redundant checks for integration points.
+    
+    Ignore null bytes in text.
+    
+    Don't break out of foreign content for a <font> tag unless it
+    has a color, face, or size attribute.
+    
+    Check for MathML text integration points when breaking out of
+    foreign content.
+    
+    Pass two new tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6256045
+
+ src/pkg/exp/html/foreign.go                        |  1 -
+ src/pkg/exp/html/parse.go                          | 31 +++++++++++++---------
+ .../exp/html/testlogs/plain-text-unsafe.dat.log    |  4 +--
+ 3 files changed, 20 insertions(+), 16 deletions(-)

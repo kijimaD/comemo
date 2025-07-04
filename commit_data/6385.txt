@@ -1,0 +1,18 @@
+commit b1f44a120f55ad163bb9516ede57277cddc8e50b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 24 17:09:31 2010 -0400
+
+    gc: improve error message for x \= 0
+    
+    was
+    x.go:2: syntax error: unexpected $undefined
+    
+    now
+    x.go:2: syntax error: unexpected \
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2267044
+
+ src/cmd/gc/lex.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

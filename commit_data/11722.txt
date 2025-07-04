@@ -1,0 +1,12 @@
+commit c59dc485cdbd6e70ab5e8ed1b8e2d9a7e316dbe5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 9 08:58:40 2012 +1100
+
+    bytes.Buffer: return error in WriteTo if buffer is not drained
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5642065
+
+ src/pkg/bytes/buffer.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

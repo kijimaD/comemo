@@ -1,0 +1,20 @@
+commit 7a567a631f48f19817a4c9a221e9951ffebfa8cb
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 21 19:02:00 2019 +0000
+
+    cmd/dist: support using cross-compiled std test binaries for slow builders
+    
+    We want the builders to be able to cross-compile test binaries for a
+    few of the super slow builders that require either slow hardware or
+    slow full CPU emulation.
+    
+    Updates golang/go#31217
+    
+    Change-Id: I8d33b18efaf788f6f131354b2917ac9738ca975e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178399
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/test.go | 71 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 70 insertions(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit e4ae30f5f55b6b6ba2cb9a0c0e3b11d42dc162ee
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 1 21:46:59 2011 -0400
+
+    errors: new package
+    
+    The only function is errors.New, at least for now.
+    
+    R=r, gustavo, adg, r
+    CC=golang-dev
+    https://golang.org/cl/5321061
+
+ src/pkg/Makefile              |  1 +
+ src/pkg/errors/Makefile       | 11 +++++++++++
+ src/pkg/errors/errors.go      | 20 ++++++++++++++++++++
+ src/pkg/errors/errors_test.go | 33 +++++++++++++++++++++++++++++++++
+ 4 files changed, 65 insertions(+)

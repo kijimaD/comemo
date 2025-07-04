@@ -1,0 +1,64 @@
+commit 41795528b0132170ec70a8e8ce0bcdb2e972e074
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jul 14 21:26:55 2022 +0000
+
+    runtime: smooth cons/mark with a moving average and use actual trigger
+    
+    This change modifies the pacer in two ways:
+    * It replaces the PI controller used as a smoothing function with a
+      simple two-cycle moving average.
+    * It makes the pacer use the actual GC trigger point for cons/mark (and
+      other) calculations instead of the precomputed one.
+    
+    The second part of this change was attempted in the Go 1.19 release
+    cycle, but could not be done because although it resulted in a
+    better-behaved pacer, it exploited the PI controller's sensitivity to
+    history in a way that was ultimately unfavorable for most applications.
+    
+    This sensitivity is complex to reason about, and forces us into choices
+    that don't really make sense (like using the precomputed trigger over
+    the actual one -- that's really a bug fix).
+    
+    The net effect of this change is intended to be:
+    * The pacer computes a more stable estimate of the actual cons/mark
+      ratio, making it easier to understand.
+    * The pacer is much more accurate at hitting the heap goal, so the GC
+      respects GOGC much more often and reliably.
+    * The pacer forces a more stable rate of GC assists in the
+      steady-state overall.
+    
+    See https://perf.golang.org/search?q=upload:20221106.10 for benchmark
+    results and #53892 for complete context. The benchmarks that regress
+    in memory use appear to be not worth worrying about. In all cases, it appears that the GC was triggering super early, resulting in a lack
+    of adherence to rule of GOGC.
+    
+    The fogleman benchmarks just have a single final GC that triggers
+    early and also happens to be the peak heap size. The tile38
+    WithinCircle benchmark only has 4 GC cycles in the benchmarked region,
+    so it's very sensitive to pacing. In this case, the old smoothing
+    function is getting lucky by starting way too early, avoiding assists. Meanwhile the 2-cycle moving average is more accurate on the heap
+    goal, but the 1st and 2nd cycle after the initialization phase are operating on a cons/mark from the initialization phase which is much
+    less active, resulting in a cons/mark that's too low, causing the GC
+    to start too late, increasing assists, and therefore latency (but
+    only transiently, at this phase change). I really do think the PI
+    controller is just getting lucky here with a particular history,
+    because I've definitely observed it oscillating wildly in response to
+    a phase change.
+    
+    This change also moves the PI controller out of mgcpacer.go, because
+    it's no longer used there. It now lives in mgcscavenge.go, where it's
+    actually used.
+    
+    Fixes #53892.
+    
+    Change-Id: I3f875a2e40f31f381920f91d8b090556b17a2b16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417558
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/mgcpacer.go         | 154 +++-------------------------------------
+ src/runtime/mgcpacer_test.go    |  45 ------------
+ src/runtime/mgcscavenge.go      |  68 ++++++++++++++++++
+ src/runtime/mgcscavenge_test.go |  46 ++++++++++++
+ 4 files changed, 125 insertions(+), 188 deletions(-)

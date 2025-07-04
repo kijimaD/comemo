@@ -1,0 +1,35 @@
+commit 0df681248862a34ff1233cdc4cf0b036e4761652
+Author: Eli Bendersky <eliben@golang.org>
+Date:   Fri May 19 10:10:21 2023 -0700
+
+    slices: add sorting and comparison functions
+    
+    Now that the `cmp` package exists, sorting and comparison functions from
+    `x/exp/slices` can be ported to the standard library, using the
+    `cmp.Ordered` type and the `cmp.Less` and `cmp.Compare` functions.
+    
+    This move also includes adjustments to the discussions in #60091 w.r.t.
+    NaN handling and cmp vs. less functions, and adds Min/Max functions.
+    The final API is taken from
+    https://github.com/golang/go/issues/60091#issuecomment-1553850782
+    
+    Updates #60091
+    
+    Change-Id: Id7e6c88035b60d4ddd0c48dd82add8e8bc4e22d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496078
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Run-TryBot: Eli Bendersky‎ <eliben@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/60091.txt                |  13 ++
+ src/go/build/deps_test.go         |   9 +-
+ src/slices/slices.go              |  45 ++++
+ src/slices/slices_test.go         | 208 +++++++++++++++++
+ src/slices/sort.go                | 190 +++++++++++++++
+ src/slices/sort_benchmark_test.go | 238 +++++++++++++++++++
+ src/slices/sort_test.go           | 414 ++++++++++++++++++++++++++++++++
+ src/slices/zsortanyfunc.go        | 479 +++++++++++++++++++++++++++++++++++++
+ src/slices/zsortordered.go        | 481 ++++++++++++++++++++++++++++++++++++++
+ src/sort/gen_sort_variants.go     |  14 +-
+ 10 files changed, 2080 insertions(+), 11 deletions(-)

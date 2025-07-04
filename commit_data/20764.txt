@@ -1,0 +1,22 @@
+commit 70f2f1b4705bfeaaeffa9fd7bf322473b27f2baf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 20 22:03:46 2014 -0400
+
+    compress/gzip: allow stopping at end of first stream
+    
+    Allows parsing some file formats that assign special
+    meaning to which stream data is found in.
+    
+    Will do the same for compress/bzip2 once this is
+    reviewed and submitted.
+    
+    Fixes #6486.
+    
+    LGTM=nigeltao
+    R=nigeltao, dan.kortschak
+    CC=adg, bradfitz, golang-codereviews, r
+    https://golang.org/cl/159120044
+
+ src/compress/gzip/gunzip.go      | 27 ++++++++++++++++++++++++++
+ src/compress/gzip/gunzip_test.go | 41 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

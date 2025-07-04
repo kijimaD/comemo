@@ -1,0 +1,18 @@
+commit e0e47e22ce6470eff2b8fa303560420c3698394d
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 24 11:43:40 2015 -0400
+
+    reflect: test repeats with large scalar tails
+    
+    This adds a GC bitmap test of a type with many pointer bits and a
+    large scalar tail, such as the one in issue #11286. This test would
+    have failed prior to the fix in a8ae93f. This test is a more direct
+    version of the test introduced in that commit (which was distilled
+    from the failing test in the issue).
+    
+    Change-Id: I2e716cd1000b49bde237f5da6d857e8983fe7e7a
+    Reviewed-on: https://go-review.googlesource.com/11423
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/reflect/all_test.go | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

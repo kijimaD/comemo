@@ -1,0 +1,21 @@
+commit 7c282ba12a9078eefab1d6e1a42ca8a1ae723737
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 14 14:26:20 2023 -0500
+
+    cmd/go/internal/modfetch: simplify a redundant condition
+    
+    In gitRepo.stat, we were checking ref != "" twice,
+    which confused me during casual reading because it made it seem like
+    the string could be empty when it actually never is.
+    
+    For #56881.
+    
+    Change-Id: Ib83303a149ea771399cb55fedd5dfa02ad411ff0
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549855
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modfetch/codehost/git.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,29 @@
+commit c5dea8f38726572ddc161e5d169a453639edb7b1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 3 19:27:59 2020 +0000
+
+    runtime: remove memstats.heap_idle
+    
+    This statistic is updated in many places but for MemStats may be
+    computed from existing statistics. Specifically by definition
+    heap_idle = heap_sys - heap_inuse since heap_sys is all memory allocated
+    from the OS for use in the heap minus memory used for non-heap purposes.
+    heap_idle is almost the same (since it explicitly includes memory that
+    *could* be used for non-heap purposes) but also doesn't include memory
+    that's actually used to hold heap objects.
+    
+    Although it has some utility as a sanity check, it complicates
+    accounting and we want fewer, orthogonal statistics for upcoming metrics
+    changes, so just drop it.
+    
+    Change-Id: I40af54a38e335f43249f6e218f35088bfd4380d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246974
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/heapdump.go |  2 +-
+ src/runtime/mheap.go    |  3 ---
+ src/runtime/mstats.go   | 19 +++++++++++++++++--
+ 3 files changed, 18 insertions(+), 6 deletions(-)

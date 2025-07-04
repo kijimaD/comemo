@@ -1,0 +1,24 @@
+commit d474b6c824249dcdd6cddfb6bf43366e092df022
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 8 13:09:21 2021 -0400
+
+    test/abi: clean up test to fix builders
+    
+    go.mod file was not tidy, made builders sad.
+    
+    Updates #40724.
+    
+    Change-Id: I28371a1093108f9ec473eb20bb4d185e35dee67d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308590
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ .../genCaller42/genCaller42.go                     |  71 ------
+ .../genChecker42/genChecker42.go                   | 135 ----------
+ test/abi/bad_select_crash.dir/genMain.go           |  17 --
+ test/abi/bad_select_crash.dir/genUtils/genUtils.go |  61 -----
+ test/abi/bad_select_crash.dir/go.mod               |   2 -
+ test/abi/bad_select_crash.go                       | 272 ++++++++++++++++++++-
+ 6 files changed, 271 insertions(+), 287 deletions(-)

@@ -1,0 +1,15 @@
+commit ccf2b8843e26731a2215d0d8b0ac04d7c2d42074
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 18 14:22:55 2012 -0400
+
+    encoding/json: do not read beyond array literal
+    
+    Fixes #3942.
+    
+    R=golang-dev, mike.rosset, r
+    CC=golang-dev
+    https://golang.org/cl/6524043
+
+ src/pkg/encoding/json/stream.go      |  2 +-
+ src/pkg/encoding/json/stream_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

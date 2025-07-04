@@ -1,0 +1,17 @@
+commit 3be166dc70bf3539539bc6762aff9660c3dbf229
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Nov 1 15:33:40 2016 -0700
+
+    cmd/compile: get rid of unused Name.Method field
+    
+    It's never set anywhere, and even if it was, it would just Fatalf.
+    
+    Change-Id: I84ade6d2068c623a8c85f84d8cdce38984996ddd
+    Reviewed-on: https://go-review.googlesource.com/32489
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/gsubr.go  | 3 ---
+ src/cmd/compile/internal/gc/syntax.go | 1 -
+ 2 files changed, 4 deletions(-)

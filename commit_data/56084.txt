@@ -1,0 +1,20 @@
+commit 2830d5457e4120ab9ee475b81205c9f84eed82f8
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Mar 28 12:50:04 2024 +0800
+
+    runtime: make use of builtin clear in tests
+    
+    This is a follow-up to CL 574675.
+    
+    Change-Id: I98c3ea968e9c7dc61472849c385a1e697568aa30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574975
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Jes Cok <xigua67damn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/hash_test.go    | 4 +---
+ src/runtime/memmove_test.go | 4 +---
+ 2 files changed, 2 insertions(+), 6 deletions(-)

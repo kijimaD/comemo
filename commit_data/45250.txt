@@ -1,0 +1,50 @@
+commit faa4fa1a6e94fce4f6fa22524a2bece5125213b6
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 14 14:24:47 2021 -0700
+
+    cmd/compile: allow conversion from slice to array ptr
+    
+    Panic if the slice is too short.
+    
+    Updates #395
+    
+    Change-Id: I90f4bff2da5d8f3148ba06d2482084f32b25c29a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/301650
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/escape/escape.go          |   5 +-
+ src/cmd/compile/internal/ir/expr.go                |   2 +-
+ src/cmd/compile/internal/ir/fmt.go                 |   4 +-
+ src/cmd/compile/internal/ir/node.go                |   1 +
+ src/cmd/compile/internal/ir/op_string.go           | 269 +++++++++++----------
+ src/cmd/compile/internal/ssa/expand_calls.go       |   4 +-
+ src/cmd/compile/internal/ssa/gen/dec.rules         |   1 +
+ src/cmd/compile/internal/ssa/gen/genericOps.go     |   4 +
+ src/cmd/compile/internal/ssa/op.go                 |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go              |   6 +
+ src/cmd/compile/internal/ssa/rewritedec.go         |  16 ++
+ src/cmd/compile/internal/ssagen/ssa.go             |  14 ++
+ src/cmd/compile/internal/typecheck/builtin.go      |   1 +
+ .../compile/internal/typecheck/builtin/runtime.go  |   1 +
+ src/cmd/compile/internal/typecheck/subr.go         |  12 +-
+ src/cmd/compile/internal/types2/api_test.go        |   3 +
+ src/cmd/compile/internal/types2/conversions.go     |  12 +
+ src/cmd/compile/internal/walk/expr.go              |   5 +
+ src/go/types/stdlib_test.go                        |   4 +
+ src/runtime/asm_386.s                              |   4 +
+ src/runtime/asm_amd64.s                            |   8 +
+ src/runtime/asm_arm.s                              |   4 +
+ src/runtime/asm_arm64.s                            |   4 +
+ src/runtime/asm_mips64x.s                          |   4 +
+ src/runtime/asm_mipsx.s                            |   4 +
+ src/runtime/asm_ppc64x.s                           |   4 +
+ src/runtime/asm_riscv64.s                          |   4 +
+ src/runtime/asm_s390x.s                            |   4 +
+ src/runtime/error.go                               |   2 +
+ src/runtime/panic.go                               |   7 +
+ test/convert2.go                                   |  14 ++
+ test/convert4.go                                   |  86 +++++++
+ test/escape_slice.go                               |   4 +
+ 33 files changed, 380 insertions(+), 141 deletions(-)

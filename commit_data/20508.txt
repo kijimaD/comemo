@@ -1,0 +1,17 @@
+commit c486d4130d01f1034901d65c764b8e8ae329a01b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Sep 23 15:34:38 2014 +1000
+
+    runtime: fix runtime.Breakpoint on ARMv5
+    
+    Fixes #8775.
+    
+    Use the illegal instruction suggested by Ian in https://golang.org/cl/144180043/#msg4 on all arm arches.
+    
+    LGTM=minux
+    R=golang-codereviews, gobot, rsc
+    CC=golang-codereviews, iant, minux
+    https://golang.org/cl/146130043
+
+ src/runtime/asm_arm.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

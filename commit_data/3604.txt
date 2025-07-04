@@ -1,0 +1,15 @@
+commit 430d462391dac674df888ec1f85eb03daad52cd5
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 20 12:30:39 2009 -0700
+
+    start the concurrency discussion. work from the outside in because this is a toughie.
+    also fix a pedantry in the language design faq.
+    
+    R=rsc
+    DELTA=113  (94 added, 16 deleted, 3 changed)
+    OCL=35922
+    CL=35928
+
+ doc/effective_go.html | 114 ++++++++++++++++++++++++++++++++++++++++++--------
+ doc/go_lang_faq.html  |   2 +-
+ 2 files changed, 97 insertions(+), 19 deletions(-)

@@ -1,0 +1,60 @@
+commit 7dedc237c528fa268934a8ed81c01fc65db5f800
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Apr 29 09:27:40 2021 -0400
+
+    cmd/go: smooth out upgrade paths for lazy loading
+    
+    This change adds two possible upgrade paths for lazy loading:
+    
+    1. Run 'go mod tidy -go=1.17'.
+    
+    2. Starting in a module with no existing 'go' directive,
+       run any 'go' command that updates the go.mod file.
+    
+    In the latter case, commands other than 'go mod tidy'
+    may leave the go.mod file *very* untidy if it had non-trivial
+    dependencies. (The 'go' invocation will promote all
+    implicit eager dependencies to explicit lazy ones,
+    which preserves the original module graph — most of which is
+    not actually relevant.)
+    
+    'go mod tidy -go=1.17' can be used to enable lazy loading without
+    accidentally downgrading existing transitive dependencies.
+    
+    'go mod tidy -go=1.16' can be used to disable lazy loading and clear
+    away redundant roots in a single step (if reducing the go version), or
+    to prune away dependencies of tests-of-external-tests (if increasing
+    the go version).
+    
+    'go mod tidy -go=1.15' can be used to add dependencies of
+    tests-of-external-tests, although there isn't much point to that.
+    
+    DO NOT MERGE
+    
+    This change still needs an explicit test and a release note.
+    
+    Fixes #45094
+    For #36460
+    
+    Change-Id: I68f057e39489dfd6a667cd11dc1e320c1ee1aec1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315210
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ doc/go1.17.html                                    |  11 +
+ src/cmd/go/alldocs.go                              |   8 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |  23 +-
+ src/cmd/go/internal/modload/build.go               |   4 +-
+ src/cmd/go/internal/modload/buildlist.go           |  44 +++-
+ src/cmd/go/internal/modload/edit.go                |   4 +-
+ src/cmd/go/internal/modload/init.go                |  65 +++---
+ src/cmd/go/internal/modload/list.go                |   2 +-
+ src/cmd/go/internal/modload/load.go                |  52 ++++-
+ src/cmd/go/internal/modload/modfile.go             |  81 ++++---
+ .../go/testdata/script/mod_go_version_missing.txt  |  36 ++-
+ .../testdata/script/mod_load_replace_mismatch.txt  |   2 +-
+ src/cmd/go/testdata/script/mod_retention.txt       |   4 +-
+ src/cmd/go/testdata/script/mod_tidy_version.txt    | 248 +++++++++++++++++++++
+ 14 files changed, 479 insertions(+), 105 deletions(-)

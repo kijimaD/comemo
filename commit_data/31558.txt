@@ -1,0 +1,14 @@
+commit 22538477a3cceb4f03b7c44cad6fe19e9e9e06b3
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Fri May 12 13:45:55 2017 +0900
+
+    cmd/go: use filepath.Base for getting $CC name in TestCgoContainsSpace
+    
+    Change-Id: If7329b81073d7c98fdcb8a2c0b35f8708000606e
+    Reviewed-on: https://go-review.googlesource.com/43332
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

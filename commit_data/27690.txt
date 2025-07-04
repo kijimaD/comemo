@@ -1,0 +1,18 @@
+commit ea2ac3fe5fb2011b077809e60bc018e0c6caa66c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 15 10:36:48 2016 -0700
+
+    runtime: remove useless loop from CgoCCodeSIGPROF test program
+    
+    I verified that the test fails if I undo the change that it tests for.
+    
+    Updates #14732.
+    
+    Change-Id: Ib30352580236adefae946450ddd6cd65a62b7cdf
+    Reviewed-on: https://go-review.googlesource.com/24151
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/runtime/testdata/testprogcgo/aprof.go | 18 ++++++++----------
+ 1 file changed, 8 insertions(+), 10 deletions(-)

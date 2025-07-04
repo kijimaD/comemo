@@ -1,0 +1,30 @@
+commit 1c2bdfb7d9a91d3e9072ab3379cbed5b3364f732
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 05:22:14 2016 -0800
+
+    cmd/compile: add Key, FieldSlice, and SetFields helpers
+    
+    Allows safely eliminating more direct uses of Type's Type and Down
+    fields.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I5c17fe541a0473c3cd2978d8314c4ab759079a61
+    Reviewed-on: https://go-review.googlesource.com/20541
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     |  2 +-
+ src/cmd/compile/internal/gc/bexport.go   |  4 +--
+ src/cmd/compile/internal/gc/dcl.go       | 26 +++++++----------
+ src/cmd/compile/internal/gc/fmt.go       |  8 ++---
+ src/cmd/compile/internal/gc/range.go     |  8 ++---
+ src/cmd/compile/internal/gc/reflect.go   | 39 ++++++++-----------------
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 50 ++++++++++++--------------------
+ src/cmd/compile/internal/gc/type.go      | 29 ++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go | 18 ++++++------
+ src/cmd/compile/internal/gc/unsafe.go    | 14 +++++----
+ src/cmd/compile/internal/gc/walk.go      | 12 ++++----
+ 12 files changed, 106 insertions(+), 106 deletions(-)

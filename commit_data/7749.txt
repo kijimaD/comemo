@@ -1,0 +1,20 @@
+commit c01238a571769f12a9c2bb971d26fe27c4158530
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 11 18:01:28 2011 -0800
+
+    net: don't loop to drain wakeup pipe.
+    
+    The loop always makes an extra system call.  It only makes a
+    difference if more than 100 goroutines started waiting for
+    something to happen on a network file descriptor since the
+    last time the pipe was drained, which is unlikely since we
+    will be woken up the first time a goroutine starts waiting.
+    If we don't drain the pipe this time, we'll be woken up again
+    right away and can drain again.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4275042
+
+ src/pkg/net/fd.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

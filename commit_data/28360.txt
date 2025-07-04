@@ -1,0 +1,20 @@
+commit 5940a007c14af11fe35f48d8f7daa3cd9036aaa3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Sep 13 08:24:07 2016 -0400
+
+    cmd/link: R_ADDR dynamic relocs for internal PIE
+    
+    This gets -buildmode=pie -ldflags=-linkmode=internal working on
+    Ubuntu 16.04.
+    
+    Fixes #17068
+    
+    Change-Id: Ice5036199005fb528cc58279a7f057170dc6b73d
+    Reviewed-on: https://go-review.googlesource.com/29118
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/asm.go | 47 ++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 45 insertions(+), 2 deletions(-)

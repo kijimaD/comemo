@@ -1,0 +1,24 @@
+commit e692977af3a83860f90927217fc7778c289460ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 16 16:16:17 2010 -0700
+
+    5l, 6l, 8l: reject invalid input files
+    
+    Fixes #925.
+    Fixes #926.
+    Fixes #927.
+    Fixes #928.
+    Fixes #929.
+    Fixes #930.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1752044
+
+ src/cmd/5l/obj.c |  4 ++++
+ src/cmd/6l/l.h   |  2 +-
+ src/cmd/6l/obj.c | 22 ++++++++++++++++------
+ src/cmd/8l/l.h   |  2 +-
+ src/cmd/8l/obj.c | 22 ++++++++++++++++------
+ src/cmd/ld/lib.c |  2 +-
+ 6 files changed, 39 insertions(+), 15 deletions(-)

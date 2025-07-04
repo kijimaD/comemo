@@ -1,0 +1,13 @@
+commit 4bc632cead0cd2a3c92a22e47c587ae8b76c400b
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Mar 10 07:57:58 2014 +0100
+
+    runtime: fix cgocallback stack size on amd64p32.
+    
+    LGTM=dave
+    R=rsc, dave, iant
+    CC=golang-codereviews
+    https://golang.org/cl/73160043
+
+ src/pkg/runtime/asm_amd64p32.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

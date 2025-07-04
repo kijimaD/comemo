@@ -1,0 +1,49 @@
+commit 15e705ea963b5008112793507365e24b743606bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 30 14:19:39 2022 -0800
+
+    go/types, types2: make the new comparable semantics the default
+    
+    Ordinary interface types now satisfy comparable constraints.
+    
+    This change makes the new comparable semantics the default behavior,
+    depending on the Go -lang version.
+    
+    It also renames the flag types2.Config.AltComparableSemantics to
+    types2.Config.OldComparableSemantics and inverts its meaning
+    (or types.Config.oldComparableSemantics respectively).
+    
+    Adjust some existing tests by setting -oldComparableSemantics
+    and add some new tests that verify version-dependent behavior.
+    
+    The compiler flag -oldcomparable may be used to temporarily
+    switch back to the Go 1.18/1.19 behavior should this change
+    cause problems, or to identify that a problem is unrelated
+    to this change. The flag will be removed for Go 1.21.
+    
+    For #52509.
+    For #56548.
+    
+    Change-Id: Ic2b22db9433a8dd81dc1ed9d30835f0395fb7205
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453978
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/base/flag.go              |  4 +--
+ src/cmd/compile/internal/noder/irgen.go            |  2 +-
+ src/cmd/compile/internal/types2/api.go             |  7 +++--
+ src/cmd/compile/internal/types2/check_test.go      |  2 +-
+ src/cmd/compile/internal/types2/instantiate.go     | 33 ++++++++++++++++++----
+ src/go/types/api.go                                |  7 +++--
+ src/go/types/check_test.go                         |  8 +++---
+ src/go/types/instantiate.go                        | 33 ++++++++++++++++++----
+ src/internal/types/testdata/check/issues1.go       |  2 ++
+ .../types/testdata/fixedbugs/issue50646.go         |  2 ++
+ .../types/testdata/fixedbugs/issue51257.go         |  2 ++
+ src/internal/types/testdata/spec/comparable.go     |  2 --
+ src/internal/types/testdata/spec/comparable1.19.go | 28 ++++++++++++++++++
+ src/internal/types/testdata/spec/oldcomparable.go  | 28 ++++++++++++++++++
+ 14 files changed, 132 insertions(+), 28 deletions(-)

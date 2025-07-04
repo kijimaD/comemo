@@ -1,0 +1,14 @@
+commit ce9b379c9069f4eec7986b5f9fd1da014bca9cd1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 14 13:07:53 2009 -0700
+
+    no debug symbols for internal-only method types.
+    now 15% overhead instead of 30% in binaries.
+    
+    R=ken
+    OCL=33235
+    CL=33288
+
+ src/cmd/6g/gsubr.c | 1 +
+ src/cmd/8g/gsubr.c | 1 +
+ 2 files changed, 2 insertions(+)

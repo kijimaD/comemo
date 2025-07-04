@@ -1,0 +1,20 @@
+commit b817e97961ce47b0bafde75c1038ba2074f84897
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 23 21:38:52 2009 -0700
+
+    change code font to "monospace", which will
+    let the browser use the font the user has set up
+    as the default fixed-width font, instead of forcing Courier.
+    
+    also set the size to 100%, which means 100% of the
+    font size in the surrounding text.  this looks a little
+    better in the main body but much better when the
+    code is in a heading (like Package unsafe).
+    
+    R=r
+    DELTA=4  (1 added, 0 deleted, 3 changed)
+    OCL=34947
+    CL=34947
+
+ doc/style.css | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,59 @@
+commit a44c72823ca4a0abd595a5ab15225811e979b353
+Author: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+Date:   Mon Mar 19 19:23:34 2018 -0300
+
+    math/big: improve performance of addVW/subVW for ppc64x
+    
+    This change adds a better implementation in asm for addVW/subVW for
+    ppc64x, with speedups up to 3.11x.
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkAddVW/1-16          6.87          5.71          -16.89%
+    BenchmarkAddVW/2-16          7.72          5.94          -23.06%
+    BenchmarkAddVW/3-16          8.74          6.56          -24.94%
+    BenchmarkAddVW/4-16          9.66          7.26          -24.84%
+    BenchmarkAddVW/5-16          10.8          7.26          -32.78%
+    BenchmarkAddVW/10-16         17.4          9.97          -42.70%
+    BenchmarkAddVW/100-16        164           56.0          -65.85%
+    BenchmarkAddVW/1000-16       1638          524           -68.01%
+    BenchmarkAddVW/10000-16      16421         5201          -68.33%
+    BenchmarkAddVW/100000-16     165762        53324         -67.83%
+    BenchmarkSubVW/1-16          6.76          5.62          -16.86%
+    BenchmarkSubVW/2-16          7.69          6.02          -21.72%
+    BenchmarkSubVW/3-16          8.85          6.61          -25.31%
+    BenchmarkSubVW/4-16          10.0          7.34          -26.60%
+    BenchmarkSubVW/5-16          11.3          7.33          -35.13%
+    BenchmarkSubVW/10-16         19.5          18.7          -4.10%
+    BenchmarkSubVW/100-16        153           55.9          -63.46%
+    BenchmarkSubVW/1000-16       1502          519           -65.45%
+    BenchmarkSubVW/10000-16      15005         5165          -65.58%
+    BenchmarkSubVW/100000-16     150620        53124         -64.73%
+    
+    benchmark                    old MB/s     new MB/s     speedup
+    BenchmarkAddVW/1-16          1165.12      1400.76      1.20x
+    BenchmarkAddVW/2-16          2071.39      2693.25      1.30x
+    BenchmarkAddVW/3-16          2744.72      3656.92      1.33x
+    BenchmarkAddVW/4-16          3311.63      4407.34      1.33x
+    BenchmarkAddVW/5-16          3700.52      5512.48      1.49x
+    BenchmarkAddVW/10-16         4605.63      8026.37      1.74x
+    BenchmarkAddVW/100-16        4856.15      14296.76     2.94x
+    BenchmarkAddVW/1000-16       4883.96      15264.21     3.13x
+    BenchmarkAddVW/10000-16      4871.52      15380.78     3.16x
+    BenchmarkAddVW/100000-16     4826.17      15002.48     3.11x
+    BenchmarkSubVW/1-16          1183.20      1423.03      1.20x
+    BenchmarkSubVW/2-16          2081.92      2657.44      1.28x
+    BenchmarkSubVW/3-16          2711.52      3632.30      1.34x
+    BenchmarkSubVW/4-16          3198.30      4360.30      1.36x
+    BenchmarkSubVW/5-16          3534.43      5460.40      1.54x
+    BenchmarkSubVW/10-16         4106.34      4273.51      1.04x
+    BenchmarkSubVW/100-16        5213.48      14306.32     2.74x
+    BenchmarkSubVW/1000-16       5324.27      15391.21     2.89x
+    BenchmarkSubVW/10000-16      5331.33      15486.57     2.90x
+    BenchmarkSubVW/100000-16     5311.35      15059.01     2.84x
+    
+    Change-Id: Ibaa5b9b38d63fba8e01a9c327eb8bef1e6e908c1
+    Reviewed-on: https://go-review.googlesource.com/101975
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/math/big/arith_ppc64x.s | 148 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 146 insertions(+), 2 deletions(-)

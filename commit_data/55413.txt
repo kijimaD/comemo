@@ -1,0 +1,20 @@
+commit adead1a93f472affa97c494ef19f2f492ee6f34a
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Jan 18 07:53:50 2024 +0100
+
+    cmd/cgo/internal/test: skip TestCallbackCallersSEH when internal linking
+    
+    TestCallbackCallersSEH is flaky when using the internal linker. Skip
+    it for now until the flakiness is resolved.
+    
+    Updates #65116
+    
+    Change-Id: I7628b07eaff8be00757d5604722f30aede25fce5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556635
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/internal/test/seh_internal_windows_test.go   | 16 ++++++++++++++++
+ .../test/{cgo_windows_test.go => seh_windows_test.go}    |  2 +-
+ 2 files changed, 17 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit fcb24e8c62b2c2e86465a5d5df5cb07030d7bf8f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 16 11:03:28 2010 -0700
+
+    gofmt: add another exception to test cases
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2233043
+
+ src/cmd/gofmt/test.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

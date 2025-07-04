@@ -1,0 +1,13 @@
+commit 7001fad55bdb27aed039ceead10fd54dc4b248aa
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Nov 17 11:20:53 2014 +1100
+
+    tag go1.4rc1
+    
+    LGTM=dsymonds
+    R=rsc, dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/175840043
+
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

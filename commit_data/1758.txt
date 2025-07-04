@@ -1,0 +1,27 @@
+commit c93da7c70acbf20c25d0f7192f7ff980691838c7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 15:48:12 2009 -0800
+
+    net: doc, doc-inspired cleanup
+    
+    R=r
+    DELTA=368  (87 added, 14 deleted, 267 changed)
+    OCL=25773
+    CL=25786
+
+ src/lib/net/dialgoogle_test.go |   7 +-
+ src/lib/net/dnsclient.go       |  45 +++++----
+ src/lib/net/dnsconfig.go       |  19 ++--
+ src/lib/net/dnsmsg.go          | 208 ++++++++++++++++++++---------------------
+ src/lib/net/fd.go              |   4 +-
+ src/lib/net/fd_darwin.go       |  12 +--
+ src/lib/net/fd_linux.go        |  14 +--
+ src/lib/net/ip.go              | 149 +++++++++++++++++------------
+ src/lib/net/net.go             |  72 +++++++++-----
+ src/lib/net/net_darwin.go      |  16 ++--
+ src/lib/net/net_linux.go       |  22 ++---
+ src/lib/net/parse.go           |   6 +-
+ src/lib/net/parse_test.go      |   3 +-
+ src/lib/net/port.go            |  32 ++++---
+ src/lib/net/port_test.go       |   6 +-
+ 15 files changed, 344 insertions(+), 271 deletions(-)

@@ -1,0 +1,16 @@
+commit 87ac7c77c0e7ca1da242982ef4bc92940e5d681a
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Wed Apr 27 12:34:34 2011 -0700
+
+    http/fcgi: New package
+    
+    R=golang-dev, bradfitzgo, bradfitzwork, nigeltao, rog
+    CC=golang-dev
+    https://golang.org/cl/4271078
+
+ src/pkg/Makefile               |   1 +
+ src/pkg/http/fcgi/Makefile     |  12 ++
+ src/pkg/http/fcgi/child.go     | 328 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/http/fcgi/fcgi.go      | 271 ++++++++++++++++++++++++++++++++++
+ src/pkg/http/fcgi/fcgi_test.go | 114 ++++++++++++++
+ 5 files changed, 726 insertions(+)

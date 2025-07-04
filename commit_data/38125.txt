@@ -1,0 +1,19 @@
+commit 1413e94178748d369391cb700d76ff4abdd5cf63
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 27 13:02:04 2019 -0500
+
+    cmd/dist: execute cgo_stdio and cgo_life as host tests
+    
+    Now that these tests are written in Go, they must be run in host mode
+    in order to be able to exec `go run` as a subprocess.
+    
+    Updates #30228
+    
+    Change-Id: Ibedf86a8e18ae1b6f583c1bbdcb99d19c8e01744
+    Reviewed-on: https://go-review.googlesource.com/c/164137
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 18 ++----------------
+ 1 file changed, 2 insertions(+), 16 deletions(-)

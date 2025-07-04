@@ -1,0 +1,15 @@
+commit f189308fb40456f036fe6eacbc38bec0ce8607d7
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 18 10:05:35 2011 +1000
+
+    fmt: Scan(&int) was mishandling a lone zero.
+    It took it as an octal base prefix but assumed more digits were coming.
+    Fixes #2077.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4764044
+
+ src/pkg/fmt/scan.go      | 8 +++++---
+ src/pkg/fmt/scan_test.go | 2 ++
+ 2 files changed, 7 insertions(+), 3 deletions(-)

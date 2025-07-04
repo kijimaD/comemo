@@ -1,0 +1,19 @@
+commit d254c61309845214084617eb5d3368bad91b609f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sun Sep 3 23:11:45 2017 +0900
+
+    cmd/go: check compiler flags per compilers in gccSupportsFlag
+    
+    Current code always uses a C compilers for checking compiler flags even
+    for non-C compilers. This CL solves the issue.
+    
+    Fixes #21736
+    
+    Change-Id: I5eaddd5fe7d5df699eb2384518b21e6064ca31cf
+    Reviewed-on: https://go-review.googlesource.com/61270
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/build.go | 48 +++++++++++++++++++++++----------------
+ 1 file changed, 28 insertions(+), 20 deletions(-)

@@ -1,0 +1,21 @@
+commit 9093b1def0b5e6f3ac30d5f9c18b375e8f5964e9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 21:23:55 2019 -0700
+
+    runtime: add new dodeltimer and dodeltimer0 functions
+    
+    The dodeltimer function removes a timer from a heap. The dodeltimer0
+    function removes the first timer from a heap; in the old timer code
+    this common special case was inlined in the timerproc function.
+    
+    Updates #27707
+    
+    Change-Id: I1b7c0af46866abb4bffa8aa4d8e7143f9ae8f402
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171834
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/time.go | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 53 insertions(+)

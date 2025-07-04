@@ -1,0 +1,11 @@
+commit 36f21e00f5d054741a070974b3e583087d13ca86
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Jun 10 12:42:37 2008 -0700
+
+    mode elf tossing
+    
+    SVN=121962
+
+ src/cmd/6g/gsubr.c |  24 +++++-----
+ src/cmd/6l/asm.c   | 126 +++++++++++++++++++++++++++++++----------------------
+ 2 files changed, 86 insertions(+), 64 deletions(-)

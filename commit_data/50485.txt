@@ -1,0 +1,24 @@
+commit 5760fde4df4f1e9303de122ae3b5ac80b7ef681d
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Wed Sep 7 17:40:11 2022 +0800
+
+    cmd/compile: avoid sign extension after word arithmetic on riscv64
+    
+    These instructions already do sign extension on output, so we can get rid of it.
+    
+    Note: (MOVWreg (MULW x y)) may araise from divisions by constant,
+    generic rules replace them with multiply and may produce (Rsh32x64 (Mul32 _ _) _).
+    
+    Change-Id: I41bc9b519e38bc6027311de604dadb962cd0bbf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429757
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 10 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 88 ++++++++++++++++++++++++++
+ 2 files changed, 98 insertions(+)

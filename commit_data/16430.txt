@@ -1,0 +1,18 @@
+commit d84132cce77c7826a9b5d55eb385e71e0ad22ade
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 29 11:29:29 2013 -0400
+
+    fmt: change evalutation of indexed arg to match docs
+    The old code put the index before the period in the precision;
+    it should be after so it's always before the star, as documented.
+    A little trickier to do in one pass but compensated for by more
+    tests and catching a couple of other error cases.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/9751044
+
+ src/pkg/fmt/doc.go      |  7 ++++---
+ src/pkg/fmt/fmt_test.go | 25 +++++++++++++++-------
+ src/pkg/fmt/print.go    | 56 +++++++++++++++++++++++++++++++------------------
+ 3 files changed, 58 insertions(+), 30 deletions(-)

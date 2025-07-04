@@ -1,0 +1,14 @@
+commit b7dd312c93e6306db00eca1cfee37937a6c68395
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 17:24:07 2009 -0700
+
+    bug170; fix test for bug175
+    
+    R=ken
+    OCL=32255
+    CL=32255
+
+ src/cmd/gc/const.c                 | 6 +++++-
+ test/{bugs => fixedbugs}/bug170.go | 0
+ test/golden.out                    | 9 ---------
+ 3 files changed, 5 insertions(+), 10 deletions(-)

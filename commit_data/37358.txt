@@ -1,0 +1,21 @@
+commit 97e4010fd4b8094aa0b4498ad751e4c07ea8a1aa
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 22 10:10:23 2018 -0400
+
+    cmd/compile: accept and parse symabis
+    
+    This doesn't yet do anything with this information.
+    
+    For #27539.
+    
+    Change-Id: Ia12c905812aa1ed425eedd6ab2f55ec75d81c0ce
+    Reviewed-on: https://go-review.googlesource.com/c/147099
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/main.go | 82 +++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/abi_string.go  | 16 ++++++++
+ src/cmd/internal/obj/link.go        | 22 ++++++++++
+ 3 files changed, 120 insertions(+)

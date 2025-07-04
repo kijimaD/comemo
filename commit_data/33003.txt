@@ -1,0 +1,15 @@
+commit e8a27daaef3ed931d4e8a78a7c784c7656dfbbf1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Oct 5 17:45:10 2017 +1100
+
+    misc/cgo/testcshared: use correct install directory on windows
+    
+    Updates #11058
+    
+    Change-Id: I2a8bf4403b680ab8bf06fff18291f3bf67261e27
+    Reviewed-on: https://go-review.googlesource.com/69090
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit b185de82a4e2b8982e5a6c211a436b749a9735c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 7 12:05:34 2012 -0400
+
+    cmd/gc: limit data disassembly to -SS
+    
+    This makes -S useful again.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6302054
+
+ src/cmd/5g/gobj.c | 3 ++-
+ src/cmd/6g/gobj.c | 3 ++-
+ src/cmd/8g/gobj.c | 3 ++-
+ src/cmd/gc/doc.go | 4 +++-
+ 4 files changed, 9 insertions(+), 4 deletions(-)

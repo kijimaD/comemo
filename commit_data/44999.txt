@@ -1,0 +1,23 @@
+commit aeaa4519b584747b57d780c31134be8f6bb36251
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 6 08:28:17 2021 -0400
+
+    runtime: drop haveexperiment, sys.GOEXPERIMENT
+    
+    We have ways to statically access experiments now, so we don't need a
+    relatively clunky string-parsing dynamic way to do it.
+    
+    Change-Id: I5d75480916eef4bde2c30d5fe30593180da77ff2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307815
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/internal/objabi/util.go  |  1 -
+ src/cmd/link/internal/ld/main.go |  2 --
+ src/runtime/heapdump.go          |  2 +-
+ src/runtime/internal/sys/arch.go |  2 --
+ src/runtime/proc.go              | 21 ---------------------
+ 5 files changed, 1 insertion(+), 27 deletions(-)

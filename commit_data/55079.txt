@@ -1,0 +1,27 @@
+commit 346e06c46dd1791e924ce4fffc879747bdabedf5
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Oct 10 20:16:36 2023 +0800
+
+    cmd/internal/obj,cmd/link: access global data via GOT in -dynlink mode on loong64
+    
+    Updates #58784
+    
+    Change-Id: Ic98d10a512fea0c3ca321ab52693d9f6775126a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480875
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  85 ++++-------
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 190 ++++++++++++++----------
+ src/cmd/internal/obj/loong64/a.out.go           |   1 +
+ src/cmd/internal/obj/loong64/asm.go             |  21 +++
+ src/cmd/internal/obj/loong64/cnames.go          |   1 +
+ src/cmd/internal/obj/loong64/obj.go             | 117 +++++++++++++++
+ src/cmd/internal/objabi/reloctype.go            |   5 +
+ src/cmd/internal/objabi/reloctype_string.go     |  22 +--
+ src/cmd/link/internal/loong64/asm.go            |  19 ++-
+ 9 files changed, 313 insertions(+), 148 deletions(-)

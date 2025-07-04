@@ -1,0 +1,22 @@
+commit 0844ff8eef81e124c1fecba82dd5843745427fa4
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Jul 7 22:18:17 2020 -0700
+
+    os: fix regression with handling of nil *File
+    
+    Use of a nil *File as an argument should not result in a panic,
+    but result in the ErrInvalid error being returned.
+    Fix the copy_file_range implementation to preserve this semantic.
+    
+    Fixes #40115
+    
+    Change-Id: Iad5ac39664a3efb7964cf55685be636940a8db13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/241417
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/readfrom_linux.go      |  5 +++++
+ src/os/readfrom_linux_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)

@@ -1,0 +1,12 @@
+commit 1127b229763811c5e90d4d96b2c9f150e816df1d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Feb 8 14:36:38 2012 -0500
+
+    cmd/dist: pass correct -DGOARCH_$GOARCH flag to gcc.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5643061
+
+ src/cmd/dist/build.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 99df54f19696e26bea8d6a052d8d91ddb1e4ea65
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Tue Sep 6 13:42:49 2016 +0200
+
+    bytes: encode size of rune read by ReadRune into lastRead to speed up UnreadRune
+    
+    In ReadRune store the size of the rune that was read into lastRead
+    to avoid the need to call DecodeRuneLast in UnreadRune.
+    
+    fmt:
+    name        old time/op  new time/op  delta
+    ScanInts-4   481µs ± 4%   458µs ± 3%  -4.64%  (p=0.000 n=20+20)
+    
+    Change-Id: I500848e663a975f426402a4b3d27a541e5cac06c
+    Reviewed-on: https://go-review.googlesource.com/28817
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Run-TryBot: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/buffer.go | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)

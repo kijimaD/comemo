@@ -1,0 +1,14 @@
+commit ce656af9b5d9acb817b4de5170a11a2c42ad2047
+Author: Hajime Hoshi <hajimehoshi@gmail.com>
+Date:   Mon Jun 3 01:52:50 2019 +0900
+
+    syscall/js: fix comments
+    
+    As js.TypedArray no longer exists, the comment should be updated.
+    
+    Change-Id: Idd1087c8007afc90307fdd965f28d3be8d8cd73e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180097
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/syscall/js/js.go | 1 -
+ 1 file changed, 1 deletion(-)

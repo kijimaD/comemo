@@ -1,0 +1,19 @@
+commit a85cfbd433646cba8227429854db59329414e223
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Tue Aug 27 21:18:32 2013 +0200
+
+    cmd/gc: tag builtin error, byte, rune to avoid exporting them.
+    
+    Fixes #5910.
+    Fixes #6260.
+    
+    R=golang-dev, daniel.morsing
+    CC=golang-dev
+    https://golang.org/cl/13257044
+
+ src/cmd/gc/lex.c                     | 12 ++++++------
+ test/fixedbugs/bug460.dir/a.go       |  4 ++++
+ test/fixedbugs/bug460.dir/b.go       |  7 +++++--
+ test/fixedbugs/issue5910.dir/a.go    |  9 +++++++--
+ test/fixedbugs/issue5910.dir/main.go |  4 ++++
+ 5 files changed, 26 insertions(+), 10 deletions(-)

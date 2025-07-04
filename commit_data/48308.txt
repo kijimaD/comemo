@@ -1,0 +1,18 @@
+commit 20dd9a42fb80ed4919d79bfb4644c16ab9e09e72
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Mar 4 14:39:43 2022 -0500
+
+    go/types: document that predicates are undefined on generic types
+    
+    Fixes #50887
+    
+    Change-Id: I451d66b067badcfb7cf2e2756ea2b062366ac9d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/390039
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/api.go | 22 ++++++++++++++++++----
+ src/go/types/api.go                    | 22 ++++++++++++++++++----
+ 2 files changed, 36 insertions(+), 8 deletions(-)

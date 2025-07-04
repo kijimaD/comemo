@@ -1,0 +1,10 @@
+commit 27d95f1372746b92c12ee44841f8c146318da367
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 8 17:02:01 2008 -0700
+
+    use /bin/ed to avoid compatibility issues with plan 9 ed
+    
+    SVN=121611
+
+ src/cmd/gc/mksys.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

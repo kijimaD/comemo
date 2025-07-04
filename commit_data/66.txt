@@ -1,0 +1,12 @@
+commit 76abea7c6d47b5ab1c1ab8fa903c2371f4e8882a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 1 18:48:52 2008 -0700
+
+    - fixed a test
+    - added extra basic type aliases
+    - added select statement
+    
+    SVN=117448
+
+ test/sieve.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

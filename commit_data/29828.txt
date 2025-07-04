@@ -1,0 +1,14 @@
+commit 92fb0a00c2c0bbc2efda09fb65918d108e3ed8cb
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Thu Dec 15 17:22:30 2016 +0100
+
+    misc/cgo/test: add mipsx test case for #9400
+    
+    Change-Id: I7d0bc5093943b0744d865e91517ff6292f3b2f89
+    Reviewed-on: https://go-review.googlesource.com/34510
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ misc/cgo/test/issue9400/asm_mipsx.s | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)

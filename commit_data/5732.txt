@@ -1,0 +1,14 @@
+commit 829896168c179e3637e3dcf4c29b4ea687806eb0
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 29 18:59:48 2010 -0700
+
+    ld: fix implementation of -u
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1678046
+
+ src/cmd/ld/go.c  | 31 +++++++++++++++++++++----------
+ src/cmd/ld/lib.c | 34 +++++++++++++++++++++++++++-------
+ src/cmd/ld/lib.h | 11 +++++++++--
+ 3 files changed, 57 insertions(+), 19 deletions(-)

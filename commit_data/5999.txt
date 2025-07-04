@@ -1,0 +1,13 @@
+commit 8fcdc6a1e2cd91390130f7122be427466db000e9
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Thu Aug 12 09:45:34 2010 +1000
+
+    Small performance improvements to the HTML tokenizer based on your 'TODO's.
+    
+    R=nigeltao_golang
+    CC=golang-dev
+    https://golang.org/cl/1941042
+
+ src/pkg/html/escape.go | 42 +++++++++++++++++++++++++++++++++++-------
+ src/pkg/html/token.go  | 16 ++++++++++++----
+ 2 files changed, 47 insertions(+), 11 deletions(-)

@@ -1,0 +1,23 @@
+commit 4843b130bbc67b5b33f20d612a992131735ec2b4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 19 21:33:31 2010 -0700
+
+    runtime: avoid allocation for fixed strings
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1083041
+
+ src/pkg/runtime/darwin/386/signal.c    |  2 +-
+ src/pkg/runtime/darwin/amd64/signal.c  |  2 +-
+ src/pkg/runtime/freebsd/386/signal.c   |  2 +-
+ src/pkg/runtime/freebsd/amd64/signal.c |  2 +-
+ src/pkg/runtime/iface.c                |  4 ++--
+ src/pkg/runtime/linux/386/signal.c     |  2 +-
+ src/pkg/runtime/linux/amd64/signal.c   |  2 +-
+ src/pkg/runtime/linux/arm/signal.c     |  2 +-
+ src/pkg/runtime/runtime.c              |  8 ++++----
+ src/pkg/runtime/runtime.h              |  1 +
+ src/pkg/runtime/string.goc             | 10 ++++++++++
+ src/pkg/runtime/symtab.c               |  2 +-
+ 12 files changed, 25 insertions(+), 14 deletions(-)

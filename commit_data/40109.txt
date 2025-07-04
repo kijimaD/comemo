@@ -1,0 +1,33 @@
+commit debbb1e78d08b201313c83f2d236de90d8444c8e
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Tue Oct 1 22:40:20 2019 +0300
+
+    text/template/parse: speed up nodes printing
+    
+    This CL is a follow up for 198080.
+    Added a private writeTo method to the Node interface,
+    in order to use the same builder for printing all nodes
+    in the tree. Benchmark output against master:
+    
+    benchmark                     old ns/op     new ns/op     delta
+    BenchmarkParseLarge-8         24594994      25292054      +2.83%
+    BenchmarkVariableString-8     117           118           +0.85%
+    BenchmarkListString-8         10475         3353          -67.99%
+    
+    benchmark                     old allocs     new allocs     delta
+    BenchmarkVariableString-8     3              3              +0.00%
+    BenchmarkListString-8         149            31             -79.19%
+    
+    benchmark                     old bytes     new bytes     delta
+    BenchmarkVariableString-8     72            72            +0.00%
+    BenchmarkListString-8         5698          1608          -71.78%
+    
+    Change-Id: I2b1cf07cda65c1b80083fb99671289423700feba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198278
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/text/template/parse/node.go       | 129 +++++++++++++++++++++++++++++-----
+ src/text/template/parse/parse_test.go |  22 +++++-
+ 2 files changed, 130 insertions(+), 21 deletions(-)

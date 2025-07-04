@@ -1,0 +1,13 @@
+commit 1d7faf91dfe6aaa5f43b74b19bc014937ea92337
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Feb 23 08:39:31 2013 +0400
+
+    runtime: minor changes
+    to minimize diffs of new scheduler
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7381048
+
+ src/pkg/runtime/proc.c | 72 ++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 49 insertions(+), 23 deletions(-)

@@ -1,0 +1,16 @@
+commit 10523c0efb908ab0ff4872a2e9e91b314d3d46ed
+Author: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+Date:   Fri Jul 31 03:02:55 2020 +0000
+
+    doc/go1.15: fix a few trivial inconsistencies
+    
+    For #37419
+    
+    Change-Id: I8ede539df5d5344aeb44ba1a7e2383363d92157f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245977
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.15.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

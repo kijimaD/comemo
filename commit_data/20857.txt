@@ -1,0 +1,20 @@
+commit 23ecad07cd8cf07a21af07a1e96803f32536ab05
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Nov 5 20:25:20 2014 -0800
+
+    os/exec: tell lsof not to block
+    
+    For some reason lsof is now hanging on my workstation
+    without the -b (avoid blocking in the kernel) option.
+    Adding -b makes the test pass and shouldn't hurt.
+    
+    I don't know how recent the -b option is.  If the builders
+    are ok with it, it's probably ok.
+    
+    LGTM=rsc
+    R=golang-codereviews, bradfitz, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/166220043
+
+ src/os/exec/exec_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

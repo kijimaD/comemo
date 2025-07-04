@@ -1,0 +1,22 @@
+commit 27e546be86fbe98e0c19ad8a59186582cbbdff53
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 30 13:51:35 2018 -0400
+
+    cmd/go: add list -find to find packages but not resolve imports
+    
+    This is needed by golang.org/x/tools/go/packages
+    and also gives a way to do a quicker scan for
+    packages with a given final path element:
+    
+            go list -find .../template
+    
+    Change-Id: I092f4ac5ba7af7d727eb8204379fa436667061b9
+    Reviewed-on: https://go-review.googlesource.com/126716
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/list/list.go         | 16 ++++++++++++++++
+ src/cmd/go/internal/load/pkg.go          |  1 +
+ src/cmd/go/testdata/script/list_find.txt | 10 ++++++++++
+ 3 files changed, 27 insertions(+)

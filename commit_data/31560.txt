@@ -1,0 +1,19 @@
+commit 29e88d513004749b6a84fc6ed32e026976ac1960
+Author: Austin Clements <austin@google.com>
+Date:   Thu May 11 15:22:10 2017 -0400
+
+    runtime: print debug info on "base out of range"
+    
+    This adds debugging information when we panic with "heapBitsForSpan:
+    base out of range".
+    
+    Updates #20259.
+    
+    Change-Id: I0dc1a106aa9e9531051c7d08867ace5ef230eb3f
+    Reviewed-on: https://go-review.googlesource.com/43310
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/mbitmap.go | 1 +
+ 1 file changed, 1 insertion(+)

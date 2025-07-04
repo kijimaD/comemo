@@ -1,0 +1,21 @@
+commit a7277e5494c696a4798b99e1e55d55acf61211de
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 17 21:23:36 2016 -0400
+
+    cmd/compile: compare size in dead store elimination
+    
+    Only remove stores that is shadowed by another store with same or
+    larger size. Normally we don't need this check because we did check
+    the types, but unsafe pointer casting can get around it.
+    
+    Fixes #16769.
+    
+    Change-Id: I3f7c6c57807b590a2f735007dec6c65a4fa01a34
+    Reviewed-on: https://go-review.googlesource.com/27320
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/deadstore.go      | 22 +++++++++++------
+ src/cmd/compile/internal/ssa/deadstore_test.go | 33 ++++++++++++++++++++++++--
+ 2 files changed, 46 insertions(+), 9 deletions(-)

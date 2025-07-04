@@ -1,0 +1,24 @@
+commit 9536480edc5f29368d2b7a05e30c199630b8074e
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Sep 20 13:20:33 2012 +1000
+
+    cgo: process DWARF info even when debug data is used for value
+    
+    Always process the DWARF info, even when the const value is determined
+    using the debug data block. This ensures that the injected enum is
+    removed and future loads of the same constant do not trigger
+    inconsistent definitions.
+    
+    Add tests for issues 2470 and 4054.
+    Fixes #4054.
+    
+    R=golang-dev, fullung, dave, rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6501101
+
+ misc/cgo/test/basic.go      | 10 ++++++++++
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue4054a.go | 23 +++++++++++++++++++++++
+ misc/cgo/test/issue4054b.go | 23 +++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          |  9 +++++----
+ 5 files changed, 62 insertions(+), 4 deletions(-)

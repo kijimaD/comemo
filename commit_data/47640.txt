@@ -1,0 +1,20 @@
+commit c402d64f37f819b0f2d9949c6895e342191d11d6
+Author: Robert Findley <rfindley@google.com>
+Date:   Mon Nov 29 12:21:46 2021 -0500
+
+    go/types: consider structural restrictions in Implements
+    
+    Fixes #49786
+    
+    Change-Id: I4559d013399deda48bcb97aef3427ecf87a3ef26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367515
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/api.go      |  12 +++-
+ src/cmd/compile/internal/types2/api_test.go | 103 +++++++++++++++++++++++++++
+ src/go/types/api.go                         |  12 +++-
+ src/go/types/api_test.go                    | 104 ++++++++++++++++++++++++++++
+ 4 files changed, 227 insertions(+), 4 deletions(-)

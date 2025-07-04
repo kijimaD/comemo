@@ -1,0 +1,23 @@
+commit 37805292550e7144200b09320ffb61f21d421f8d
+Author: David Benjamin <davidben@google.com>
+Date:   Fri Dec 25 12:02:55 2020 -0500
+
+    unicode: correctly handle negative runes
+    
+    Is and isExcludingLatin did not handle negative runes when dispatching
+    to is16. TestNegativeRune covers this along with the existing uint32
+    casts in IsGraphic, etc. (For tests, I picked the smallest non-Latin-1
+    code point in each range.)
+    
+    Updates #43254
+    
+    Change-Id: I17261b91f0d2b5b5125d19219411b45c480df74f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280493
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/unicode/letter.go      |  6 ++--
+ src/unicode/letter_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 46085c4b3620fb3be29ea6ecc6206ffdb963f8bf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 7 09:31:58 2017 -0800
+
+    cmd/compile: cmd/internal/obj: cull dead code
+    
+    This code is dead as a result of
+    
+    * removing the Follow pass
+    * moving rotation detection from walk to ssa
+    
+    Change-Id: I14599c85bedb4e3148347b547e724187920182c4
+    Reviewed-on: https://go-review.googlesource.com/36484
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go  |  9 ---------
+ src/cmd/compile/internal/gc/walk.go | 31 -------------------------------
+ src/cmd/internal/obj/pass.go        | 11 -----------
+ 3 files changed, 51 deletions(-)

@@ -1,0 +1,23 @@
+commit 32a6097fdea70f64e56a03709befe3adc3c70038
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 1 08:34:21 2013 -0800
+
+    cmd/go: clean cgo compiler errors
+    
+    Cut out temporary cgo file in error message.
+    Show C.foo instead of _Ctype_foo.
+    
+    Before:
+    x.go:20[/var/folders/00/05_b8000h01000cxqpysvccm000n9d/T/go-build242036121/command-line-arguments/_obj/x.cgo1.go:19]: cannot use tv.Usec (type int32) as type _Ctype___darwin_suseconds_t in assignment
+    
+    After:
+    x.go:20: cannot use tv.Usec (type int32) as type C.__darwin_suseconds_t in assignment
+    
+    Fixes #4255.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7231075
+
+ src/cmd/go/build.go | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

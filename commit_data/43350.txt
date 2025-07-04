@@ -1,0 +1,20 @@
+commit 9499a2e10840e3878bff06e7f9a3bdaa56c5ca45
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Aug 26 03:18:30 2020 +1000
+
+    cmd/dist: detect gohostarch for openbsd/mips64
+    
+    On OpenBSD/octeon `uname -m` returns 'octeon' and we need `uname -p` to determine
+    the processor type (mips64).
+    
+    Update #40995
+    
+    Change-Id: I37c53ca2c372ab958fff17917d82d41f4b0a0393
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250583
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/main.go | 4 ++++
+ 1 file changed, 4 insertions(+)

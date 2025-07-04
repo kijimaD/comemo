@@ -1,0 +1,13 @@
+commit 20bf1a94e16402ccd29fb981dc68643a31353042
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Aug 9 23:41:09 2012 +0800
+
+    testing: add Verbose() to expose whether -test.v is set
+        Fixes #3350.
+    
+    R=golang-dev, adg, r, fullung
+    CC=golang-dev
+    https://golang.org/cl/6445092
+
+ src/pkg/testing/testing.go | 5 +++++
+ 1 file changed, 5 insertions(+)

@@ -1,0 +1,12 @@
+commit 5de609641505ba6ae65bc65cfbb85deced274a4a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 24 11:45:08 2009 -0700
+
+    allow runes >= 0x80 in symbols in #pragmas
+    
+    R=ken
+    OCL=34975
+    CL=34975
+
+ src/cmd/cc/macbody | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

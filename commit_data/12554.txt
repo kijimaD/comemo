@@ -1,0 +1,21 @@
+commit cd7ae05d52e4434453be9a4af2888aedc75330aa
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 11 15:53:42 2012 -0400
+
+    cmd/go: local import fixes
+    
+    1) The -D argument should always be a pseudo-import path,
+    like _/Users/rsc/foo/bar, never a standard import path,
+    because we want local imports to always resolve to pseudo-paths.
+    
+    2) Disallow local imports in non-local packages.  Otherwise
+    everything works but you get two copies of a package
+    (the real one and the "local" one) in your binary.
+    
+    R=golang-dev, bradfitz, yiyu.jgl
+    CC=golang-dev
+    https://golang.org/cl/5787055
+
+ src/cmd/go/build.go |  8 ++++++--
+ src/cmd/go/pkg.go   | 13 +++++++++++--
+ 2 files changed, 17 insertions(+), 4 deletions(-)

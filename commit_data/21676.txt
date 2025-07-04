@@ -1,0 +1,15 @@
+commit 2b655c0b928128de154a130876cdff03d973dd90
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 19 15:48:40 2015 -0500
+
+    runtime: tidy GC driver
+    
+    Change-Id: I0da26e89ae73272e49e82c6549c774e5bc97f64c
+    Reviewed-on: https://go-review.googlesource.com/5331
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/malloc.go |   2 +-
+ src/runtime/mgc.go    | 210 ++++++++++++++++++++++----------------------------
+ src/runtime/mheap.go  |   6 +-
+ src/runtime/proc.go   |   2 +-
+ 4 files changed, 96 insertions(+), 124 deletions(-)

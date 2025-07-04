@@ -1,0 +1,14 @@
+commit 749f228cbd413da4f9ae0ea28c5271f3a45c3c1f
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 7 16:15:35 2012 +1100
+
+    encoding/xml: fix documentation for Decoder.Skip
+    
+    Fixes #2850.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5645043
+
+ src/pkg/encoding/xml/read.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

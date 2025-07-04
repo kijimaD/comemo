@@ -1,0 +1,20 @@
+commit 6e3cc5c56fa532df1f7690ee4955a1751b1ccbce
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Dec 11 16:24:26 2020 -0500
+
+    go/types: report invalid ... in conversions
+    
+    This is a port of CL 277072 from the dev.typeparams branch.
+    
+    Fixes #43124
+    
+    Change-Id: I1424c396dc1ea984ec85b8f31a4d43353bf7e4fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277352
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/call.go                  |  4 ++++
+ src/go/types/fixedbugs/issue43124.src | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+)

@@ -1,0 +1,37 @@
+commit a0690b69dad53ebeebc181749ede6d298272d120
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Mon Feb 1 22:21:40 2010 -0800
+
+    math: add functions; update tests and special cases
+    
+    Added special cases to comments for asin.go and fabs.go.
+    Added Trunc() to floor.go and floor_386.s.  Fixed formatting
+    error in hypot_386.s  Added new functions Acosh, Asinh,
+    Atanh, Copysign, Erf, Erfc, Expm1, and Log1p.  Added
+    386 FPU version of Fmod.  Added tests, benchmarks, and
+    precision to expected results in all_test.go.  Edited
+    makefile so it all compiles.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/195052
+
+ src/pkg/math/Makefile      |   8 +
+ src/pkg/math/acosh.go      |  59 ++++
+ src/pkg/math/all_test.go   | 785 +++++++++++++++++++++++++++++++++++++--------
+ src/pkg/math/asin.go       |   8 +-
+ src/pkg/math/asinh.go      |  72 +++++
+ src/pkg/math/atanh.go      |  79 +++++
+ src/pkg/math/copysign.go   |  15 +
+ src/pkg/math/erf.go        | 340 ++++++++++++++++++++
+ src/pkg/math/exp.go        |   2 +-
+ src/pkg/math/expm1.go      | 238 ++++++++++++++
+ src/pkg/math/fabs.go       |   5 +
+ src/pkg/math/floor.go      |  20 +-
+ src/pkg/math/floor_386.s   |  19 +-
+ src/pkg/math/floor_decl.go |   1 +
+ src/pkg/math/fmod_386.s    |  15 +
+ src/pkg/math/fmod_decl.go  |   7 +
+ src/pkg/math/hypot_386.s   |   2 +-
+ src/pkg/math/log1p.go      | 200 ++++++++++++
+ 18 files changed, 1727 insertions(+), 148 deletions(-)

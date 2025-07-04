@@ -1,0 +1,15 @@
+commit c833d2fd941c12a2f48fe10837584fe751353b1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 25 14:40:36 2011 -0500
+
+    sync/atomic: make BUG comment godoc-compatible
+    
+    go/doc wants to see text after BUG(uid): on the same line
+    in order to treat it as an official bug comment.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4250043
+
+ src/pkg/sync/atomic/doc.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

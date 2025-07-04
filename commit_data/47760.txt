@@ -1,0 +1,21 @@
+commit 8ff254e30ba9d9c13747fe42213c3f54b47c58e7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Dec 8 11:12:50 2021 -0800
+
+    cmd/compile: preserve 'any' type alias in unified IR
+    
+    When exporting the "any" empty interface type for unified IR, write it
+    out as a reference to the "any" alias, rather than to the underlying
+    empty interface. This matches how "byte" and "rune" are handled.
+    
+    Verified to fix the issue demonstrated in CL 369975.
+    
+    Change-Id: Ic2844b0acc3b17c20b3a40aaf262f62ec653eb5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/370374
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/noder/writer.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

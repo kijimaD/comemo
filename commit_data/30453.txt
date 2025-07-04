@@ -1,0 +1,14 @@
+commit d945b286758d034b3bb07cbf3a4055b90684c38b
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 1 08:41:34 2017 +1100
+
+    cmd/compile/internal/ssa: remove unused PrintFunc variable
+    
+    Change-Id: I8c581eec77beacaddc0aac29e7d380a4d5ca8acc
+    Reviewed-on: https://go-review.googlesource.com/37551
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/export_test.go | 1 -
+ 1 file changed, 1 deletion(-)

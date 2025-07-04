@@ -1,0 +1,19 @@
+commit e8ba0579e2913f96c65b96e0696d64ff5f1599c5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 12 13:35:15 2023 -0400
+
+    runtime: set _XOPEN_SOURCE_EXTENDED for netbsd
+    
+    If _XOPEN_SOURCE is defined, then netbsd also requires
+    _XOPEN_SOURCE_EXTENDED to define stack_t.
+    
+    For #62440.
+    
+    Change-Id: Ib05658c3ca7fae1f6b051566e713ce7bc7c037a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527775
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/testdata/testprogcgo/stackswitch.c | 2 ++
+ 1 file changed, 2 insertions(+)

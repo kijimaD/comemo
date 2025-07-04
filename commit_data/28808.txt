@@ -1,0 +1,15 @@
+commit 01bf5cc21912ff8642171d8255a7fff87f1da00b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Oct 12 17:39:28 2016 -0700
+
+    cmd/compile: cleanup toolstash hacks from previous CL
+    
+    Change-Id: I36cf3523e00b80e2d3a690f251edd5d6f665d156
+    Reviewed-on: https://go-review.googlesource.com/30975
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go    | 4 ----
+ src/cmd/compile/internal/gc/syntax.go | 4 +---
+ 2 files changed, 1 insertion(+), 7 deletions(-)

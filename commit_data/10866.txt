@@ -1,0 +1,13 @@
+commit 35755b9cdb14d81385be4377ee8666455aeba153
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Dec 19 16:57:25 2011 +1100
+
+    dashboard: improve formatting of build status page
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5493077
+
+ misc/dashboard/app/build/ui.go   | 23 ++++++++++++++++++++++-
+ misc/dashboard/app/build/ui.html | 10 +++++++---
+ 2 files changed, 29 insertions(+), 4 deletions(-)

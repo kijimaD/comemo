@@ -1,0 +1,35 @@
+commit 005c77dde89d6a062c021a3ed0e180a6848d82b4
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Feb 22 00:05:18 2017 -0800
+
+    cmd/compile: add -dolinkobj flag
+    
+    When set to false, the -dolinkobj flag instructs the compiler
+    not to generate or emit linker information.
+    
+    This is handy when you need the compiler's export data,
+    e.g. for use with go/importer,
+    but you want to avoid the cost of full compilation.
+    
+    This must be used with care, since the resulting
+    files are unusable for linking.
+    
+    This CL interacts with #18369,
+    where adding gcflags and ldflags to buildid has been mooted.
+    On the one hand, adding gcflags would make safe use of this
+    flag easier, since if the full object files were needed,
+    a simple 'go install' would fix it.
+    On the other hand, this would mean that
+    'go install -gcflags=-dolinkobj=false' would rebuild the object files,
+    although any existing object files would probably suffice.
+    
+    Change-Id: I8dc75ab5a40095c785c1a4d2260aeb63c4d10f73
+    Reviewed-on: https://go-review.googlesource.com/37384
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/go.go   |  1 +
+ src/cmd/compile/internal/gc/main.go | 55 +++++++++++++++++++------------------
+ src/cmd/compile/internal/gc/obj.go  | 10 +++++--
+ 3 files changed, 37 insertions(+), 29 deletions(-)

@@ -1,0 +1,12 @@
+commit e5aad819309e1cead607d22d8a3fca243f36f335
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Tue Aug 17 23:08:19 2010 +1000
+
+    Remove relic "once" import from time/zoneinfo.go
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/2005042
+
+ src/pkg/time/zoneinfo.go | 1 -
+ 1 file changed, 1 deletion(-)

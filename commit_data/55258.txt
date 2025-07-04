@@ -1,0 +1,16 @@
+commit c844970ffb4f8c72e23364c5563d429d3535a0ff
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 11 14:14:10 2023 -0500
+
+    doc/go1.22: fix stale id for math/rand/v2
+    
+    For #61422.
+    
+    Change-Id: If87f30229e5e5351e81d42c777259335af3533e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548878
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.22.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

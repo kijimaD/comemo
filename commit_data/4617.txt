@@ -1,0 +1,13 @@
+commit 67237c0f11530b348119ed2a52326e2ee23eadb9
+Author: Jan H. Hosang <jan.hosang@gmail.com>
+Date:   Fri Jan 15 13:26:13 2010 -0800
+
+    Implemented ExtendFront/Back functions to insert a list of elements into a list.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/181151
+
+ src/pkg/container/list/list.go      | 22 ++++++++++++++
+ src/pkg/container/list/list_test.go | 59 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+)

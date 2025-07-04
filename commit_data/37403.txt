@@ -1,0 +1,22 @@
+commit 82c260099d8178c55978e402385b8e19a6259011
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Wed Nov 7 21:25:42 2018 -0800
+
+    x/net/route: use libc calls on Darwin
+    
+    Starting with 1.12, we must use syscall versions
+    of sysctl instead of the raw syscall.
+    
+    An identical CL went into the source copy at golang.org/x/net/route.
+    This is just a cherry pick of that CL.
+    (CL: https://go-review.googlesource.com/c/net/+/148597)
+    
+    Change-Id: I6286ab3e49f82512491afb5bcf349e89ab5645ab
+    Reviewed-on: https://go-review.googlesource.com/c/149637
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/vendor/golang_org/x/net/route/empty.s          |  7 ++++++
+ src/vendor/golang_org/x/net/route/syscall.go       |  2 +-
+ .../x/net/route/syscall_go1_11_darwin.go           | 28 ++++++++++++++++++++++
+ .../x/net/route/syscall_go1_12_darwin.go           | 12 ++++++++++
+ 4 files changed, 48 insertions(+), 1 deletion(-)

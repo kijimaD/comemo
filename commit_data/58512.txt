@@ -1,0 +1,17 @@
+commit 6da16013ba4444e0d71540f68279f0283a92d05d
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Dec 28 11:19:23 2024 -0500
+
+    cmd/go: check go version when parsing go.mod fails
+    
+    Fixes #70979
+    
+    Change-Id: I6597fe178eed34702eea6cba4eec5174c9203458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/internal/modload/modfile.go           | 11 +++++++++++
+ src/cmd/go/testdata/script/mod_unknown_block.txt | 11 +++++++++++
+ 2 files changed, 22 insertions(+)

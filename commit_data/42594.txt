@@ -1,0 +1,18 @@
+commit 6a167c73977384f3646f4651901fe38347711b10
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 2 12:32:13 2020 -0700
+
+    cmd/go: display test binary output if invoked with -help
+    
+    Fixes #39997
+    
+    Change-Id: I87ea616bac809b96fcd40f3bbdbbf1c603b9d00e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240878
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/test/test.go          |  4 +++-
+ src/cmd/go/internal/test/testflag.go      | 17 +++++++++++++++++
+ src/cmd/go/testdata/script/test_flags.txt |  6 ++++++
+ 3 files changed, 26 insertions(+), 1 deletion(-)

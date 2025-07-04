@@ -1,0 +1,12 @@
+commit 89adf5dce4e47d4e2c9a53ec0f210b8397a49a09
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun May 1 12:37:20 2011 -0700
+
+    http: rename ErrBodyReadAferClose to ErrBodyReadAfterClose
+    
+    R=bradfitz, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4432085
+
+ src/pkg/http/transfer.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

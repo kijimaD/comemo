@@ -1,0 +1,19 @@
+commit b2a56b7053e72a7888c4f054289ea053b0e1ab36
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Aug 10 01:51:17 2023 +0700
+
+    cmd/compile: make backingArrayPtrLen to return typecheck-ed nodes
+    
+    Fixes #61908
+    
+    Change-Id: Ief8e3a6c42c0644c9f71ebef5f28a294cd7c153f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517936
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/walk/walk.go |  2 ++
+ test/fixedbugs/issue61908.go          | 16 ++++++++++++++++
+ 2 files changed, 18 insertions(+)

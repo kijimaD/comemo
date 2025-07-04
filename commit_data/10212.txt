@@ -1,0 +1,27 @@
+commit 4a9ebb18f1ff90cbc182648e65cc9071c8920e3c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 2 15:53:57 2011 -0400
+
+    gofmt, gofix: sort imports
+    
+    Add ast.SortImports(fset, file) to go/ast, for use by both programs.
+    
+    Fixes #346.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5330069
+
+ src/cmd/gofix/fix.go                         |  21 ++++-
+ src/cmd/gofix/import_test.go                 |  30 ++++++
+ src/cmd/gofix/main.go                        |  21 +++--
+ src/cmd/gofix/main_test.go                   |  13 +--
+ src/cmd/gofix/testdata/reflect.export.go.in  |   2 +-
+ src/cmd/gofix/testdata/reflect.export.go.out |   2 +-
+ src/cmd/gofmt/gofmt.go                       |   2 +
+ src/cmd/gofmt/gofmt_test.go                  |   1 +
+ src/cmd/gofmt/testdata/import.golden         | 108 ++++++++++++++++++++++
+ src/cmd/gofmt/testdata/import.input          | 108 ++++++++++++++++++++++
+ src/pkg/go/ast/Makefile                      |   1 +
+ src/pkg/go/ast/import.go                     | 131 +++++++++++++++++++++++++++
+ 12 files changed, 419 insertions(+), 21 deletions(-)

@@ -1,0 +1,28 @@
+commit a8f57f4adad2122b42ea05024b61e93442788289
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Wed Oct 2 19:15:53 2019 +0900
+
+    sync: yield to the waiter when unlocking a starving mutex
+    
+    When we have already assigned the semaphore ticket to a specific
+    waiter, we want to get the waiter running as fast as possible since
+    no other G waiting on the semaphore can acquire it optimistically.
+    
+    The net effect is that, when a sync.Mutex is contented, the code in
+    the critical section guarded by the Mutex gets a priority boost.
+    
+    Fixes #33747
+    
+    Change-Id: I9967f0f763c25504010651bdd7f944ee0189cd45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200577
+    Reviewed-by: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/export_test.go |  8 +++++
+ src/runtime/proc.go        | 15 +++++++++
+ src/runtime/sema.go        | 21 +++++++++++-
+ src/runtime/sema_test.go   | 80 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/sync/mutex.go          |  3 +-
+ 5 files changed, 125 insertions(+), 2 deletions(-)

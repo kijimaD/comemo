@@ -1,0 +1,16 @@
+commit bcc349aecf7bb26d4430e8f8ab60d9362181d1a0
+Author: Johnny Luo <johnnyluo1980@gmail.com>
+Date:   Sun Jul 16 03:58:00 2017 +1000
+
+    archive/zip: remove an out of date TODO
+    
+    It had been implemented. Refer to https://golang.org/pkg/archive/zip/#FileHeader.Comment
+    
+    Change-Id: I81572562c3111b58189baa3510b9ba688fe269c9
+    Reviewed-on: https://go-review.googlesource.com/48857
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/zip/writer.go | 2 --
+ 1 file changed, 2 deletions(-)

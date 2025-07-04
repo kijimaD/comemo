@@ -1,0 +1,16 @@
+commit 6a71f43f824325a5c00c790dc1266082d6723eb9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jun 29 12:52:08 2009 -0700
+
+    6g appears to permit semicolons to be omitted after qualified
+    identifiers.  This is not one of the exceptions permitted by
+    th spec.
+    
+    R=ken,rsc
+    DELTA=11  (11 added, 0 deleted, 0 changed)
+    OCL=30844
+    CL=30852
+
+ test/bugs/bug166.go | 13 +++++++++++++
+ test/golden.out     |  3 +++
+ 2 files changed, 16 insertions(+)

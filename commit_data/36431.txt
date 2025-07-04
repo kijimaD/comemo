@@ -1,0 +1,19 @@
+commit fd7d3259c93e8901f5645fd5de620cd75053c7ca
+Author: Iskander Sharipov <quasilyte@gmail.com>
+Date:   Tue Jul 10 08:32:56 2018 +0300
+
+    runtime: remove redundant explicit deref in trace.go
+    
+    Replaces legacy Go syntax for pointer struct member access
+    with more modern auto-deref alternative.
+    
+    Found using https://go-critic.github.io/overview#underef-ref
+    
+    Change-Id: I71a3c424126c4ff5d89f9e4bacb6cc01c6fa2ddf
+    Reviewed-on: https://go-review.googlesource.com/122895
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/trace.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

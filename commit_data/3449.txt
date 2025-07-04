@@ -1,0 +1,15 @@
+commit b691447207605e252d919687c527928931f5717b
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Oct 5 21:51:34 2009 -0700
+
+    fix arm test to actual return success/fail and expose runcgo
+    build breakage.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=10  (4 added, 2 deleted, 4 changed)
+    OCL=35362
+    CL=35365
+
+ test/run-arm | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

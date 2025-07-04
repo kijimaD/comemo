@@ -1,0 +1,25 @@
+commit 2ff9e01d72f718ef61c635a25db6d2084aef95eb
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 16 21:42:01 2020 -0400
+
+    cmd/link: fix TestDWARFiOS
+    
+    Use GOOS=ios.
+    
+    Run "xcodebuild -showsdks" correctly.
+    
+    Wrap testDWARF in subtests, as it calls t.Parallel, otherwise
+    the two calls of testDWARF will cause t.Parallel being called
+    twice, which panics.
+    
+    Updates #38485.
+    
+    Change-Id: I614c8daa99c83cbfd05a4cfa041968d49279f16a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263639
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/dwarf_test.go | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)

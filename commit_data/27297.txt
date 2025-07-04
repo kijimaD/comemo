@@ -1,0 +1,12 @@
+commit 5f83bf6053763801beb84a926cde7221874bc4f7
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu May 5 14:56:58 2016 -0700
+
+    go/token: document postcondition of SetLines
+    
+    Change-Id: Ie163deade396b3e298a93845b9ca4d52333ea82a
+    Reviewed-on: https://go-review.googlesource.com/22831
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/token/position.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,25 @@
+commit 1c3ab3d4312ec67d6450562bd750bb2c77621a66
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 12:41:15 2016 -0400
+
+    cmd/go: report missing vendor visibility error
+    
+    The logic for saving the list of packages was not always
+    preferring to keep error messages around correctly.
+    The missed error led to an internal consistency failure later.
+    
+    Fixes #17119.
+    
+    Change-Id: I9723b5d2518c25e2cac5249e6a7b907be95b521c
+    Reviewed-on: https://go-review.googlesource.com/31812
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/cmd/go/go_test.go                         | 11 +++++++++++
+ src/cmd/go/pkg.go                             | 19 ++++++++++++-------
+ src/cmd/go/testdata/src/dupload/dupload.go    |  8 ++++++++
+ src/cmd/go/testdata/src/dupload/p/p.go        |  1 +
+ src/cmd/go/testdata/src/dupload/p2/p2.go      |  2 ++
+ src/cmd/go/testdata/src/dupload/vendor/p/p.go |  1 +
+ 6 files changed, 35 insertions(+), 7 deletions(-)

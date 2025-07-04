@@ -1,0 +1,20 @@
+commit d5b75e40462c2b357df96de3083705d8ea4c8954
+Author: Artyom Litovets <artemltvc@gmail.com>
+Date:   Fri Feb 14 12:03:06 2025 +0000
+
+    runtime/maps: fix typo in group.go comment (H1 -> H2)
+    
+    Fixes a typo to correctly describe the hash bits of the control word.
+    
+    Change-Id: Id3c2ae0bd529e579a95258845f9d8028e23d10d2
+    GitHub-Last-Rev: 1baa81be5d292d5625d5d7788b8ea090453f962c
+    GitHub-Pull-Request: golang/go#71730
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649416
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/internal/runtime/maps/group.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

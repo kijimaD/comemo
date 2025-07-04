@@ -1,0 +1,12 @@
+commit 81672e79e4ce6efa60b4d97515d19f2f530c2c43
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 10:37:36 2009 -0800
+
+    - rename Context to exprContext to remove it from public interface
+      (and to match the style of declContext)
+    
+    R=rsc
+    http://go/go-review/1024033
+
+ src/pkg/go/printer/nodes.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

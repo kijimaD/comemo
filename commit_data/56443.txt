@@ -1,0 +1,18 @@
+commit f933f78d17dbfecacc2de97ccaef0e5815cfbb37
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Apr 28 04:57:20 2024 +0000
+
+    cmd/go: remove unused code
+    
+    Change-Id: I39e8533a646d171a84c1ef307915286213006543
+    GitHub-Last-Rev: 3c21684ad071ecf6c4e4bf93128131a9cd0e587d
+    GitHub-Pull-Request: golang/go#67090
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581938
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/internal/load/pkg.go | 45 -----------------------------------------
+ src/cmd/go/internal/par/work.go | 38 ----------------------------------
+ 2 files changed, 83 deletions(-)

@@ -1,0 +1,13 @@
+commit 6a4b2492b351231a41a97b5b1ad690bf517aad4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 15:08:55 2009 -0800
+
+    gc: fix compiler crash
+    
+    R=ken2
+    CC=dho
+    https://golang.org/cl/179097
+
+ src/cmd/gc/walk.c        |  2 ++
+ test/fixedbugs/bug235.go | 17 +++++++++++++++++
+ 2 files changed, 19 insertions(+)

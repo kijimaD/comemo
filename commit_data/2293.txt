@@ -1,0 +1,22 @@
+commit 2a4dcfffc9d0618dd63b04db50816d82e4db5dc7
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 22:42:12 2009 -0700
+
+    simplifying grammar: delete LBASETYPE and LACONST
+    
+    R=ken
+    OCL=29300
+    CL=29302
+
+ src/cmd/gc/align.c       |   2 +-
+ src/cmd/gc/dcl.c         |  16 +++++--
+ src/cmd/gc/export.c      |  11 ++---
+ src/cmd/gc/go.y          |  35 ++------------
+ src/cmd/gc/lex.c         |  41 +++++++---------
+ src/lib/Make.deps        |   4 +-
+ src/lib/bufio/bufio.go   |   8 ++--
+ src/lib/io/io.go         |  14 +++++-
+ src/lib/io/pipe.go       |  86 +++++++++++++++++++++++----------
+ src/lib/runtime/types.go | 121 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/sync/mutex.go    |  22 +++++----
+ 11 files changed, 251 insertions(+), 109 deletions(-)

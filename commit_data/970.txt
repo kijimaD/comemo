@@ -1,0 +1,12 @@
+commit e8278bcb297772d1e0551079618972a35bf8d24e
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Oct 26 14:04:09 2008 -0700
+
+    allow len := 0
+    
+    R=r
+    OCL=17869
+    CL=17869
+
+ src/cmd/gc/go.y | 53 +++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 39 insertions(+), 14 deletions(-)

@@ -1,0 +1,20 @@
+commit ec464edb22301764b6caf7592ac8dc9451c595c6
+Author: Xiaodong Liu <liuxiaodong@loongson.cn>
+Date:   Thu May 19 20:01:10 2022 +0800
+
+    cmd/dist: port to linux/loong64 completed
+    
+    For #46229
+    
+    Change-Id: I5c207482d0a2cfb3a66f7e293cf413a5b54daa26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397074
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 1 -
+ 1 file changed, 1 deletion(-)

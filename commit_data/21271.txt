@@ -1,0 +1,12 @@
+commit 7785be8f2227df881e7ab3a4e81a2fc69a165cf8
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jan 15 15:28:12 2015 +1100
+
+    doc: document Go 1.4.1
+    
+    Change-Id: I4e9737497f4995657c46e52e0722d921499f8d17
+    Reviewed-on: https://go-review.googlesource.com/2854
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,13 @@
+commit 1887907fee0b51502a3ef10a63a96543d5dd3e23
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Oct 16 20:50:11 2011 +1100
+
+    html: tokenize "a < b" as one whole text token.
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5284042
+
+ src/pkg/html/token.go      |  47 ++++++++++++++------
+ src/pkg/html/token_test.go | 104 ++++++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 128 insertions(+), 23 deletions(-)

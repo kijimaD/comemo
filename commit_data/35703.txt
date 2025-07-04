@@ -1,0 +1,14 @@
+commit a7d89572beebceec6d7ea3c1868fdb2fbc69c512
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Wed Jun 13 18:57:40 2018 -0300
+
+    doc: fix fmt usage in code.html
+    
+    Fixes #25876
+    
+    Change-Id: I149dbb2afef13cc13fb5722d930377ed918d7e3c
+    Reviewed-on: https://go-review.googlesource.com/118717
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/code.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

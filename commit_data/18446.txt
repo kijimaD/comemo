@@ -1,0 +1,17 @@
+commit d30949693c62bc81046d558681292a4254d4d7c0
+Author: Brendan Daniel Tracey <tracey.brendan@gmail.com>
+Date:   Mon Feb 10 20:27:31 2014 -0500
+
+    cmd/gc: change compile error to "use of package %S without selector"
+    
+    At present, when a package identifier is used outside of a selector expression, gc gives the error "use of package %S outside selector". However, in the selector expression x.f, the spec defines f as the selector. This change makes the error clearer.
+    
+    Fixes #7133.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/50060047
+
+ src/cmd/gc/typecheck.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

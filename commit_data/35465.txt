@@ -1,0 +1,24 @@
+commit 132900982c2b28470559afcdc43f517cdf285e9c
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 22 17:27:54 2018 -0400
+
+    cmd/compile: ignore g register in liveness analysis
+    
+    In rare circumstances that we don't yet fully understand, the g
+    register can be spilled to the stack and then reloaded. If this
+    happens, liveness analysis sees a pointer load into a
+    non-general-purpose register and panics.
+    
+    We should fix the root cause of this, but fix the build for now by
+    ignoring pointer loads into the g register.
+    
+    For #25504.
+    
+    Change-Id: I0dfee1af9750c8e9157c7637280cdf07118ef2ca
+    Reviewed-on: https://go-review.googlesource.com/114081
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/plive.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

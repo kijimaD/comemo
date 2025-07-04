@@ -1,0 +1,21 @@
+commit 3c6883ccbc6a59569222e8295784200b4e662d3e
+Author: Simon Kotwicz <simonkotwicz@gmail.com>
+Date:   Sun Feb 20 08:24:08 2022 +0000
+
+    net/http: add doc details regarding Transport retries
+    
+    Add doc details to Transport mentioning retries only occur if a connection
+    has been already been used successfully.
+    
+    Change-Id: I37afbad50b885248e0e6cd5e799ad848bf97c86b
+    GitHub-Last-Rev: 7c45c32aec2bd3266c525bf28ab1879acbecf193
+    GitHub-Pull-Request: golang/go#51273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/386994
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/transport.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

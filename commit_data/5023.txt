@@ -1,0 +1,12 @@
+commit 9280b746ee450e2ae769660eb2c95ea9c0e6c994
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 9 14:17:14 2010 -0800
+
+    fmt: enable the complex tests now that 8g supports complex
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/357043
+
+ src/pkg/fmt/fmt_test.go | 4 ----
+ 1 file changed, 4 deletions(-)

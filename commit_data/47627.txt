@@ -1,0 +1,14 @@
+commit 78af02e8b5c5c9d3c6d5026fd72f57026a14952a
+Author: Bharath Kumar Uppala <uppala.bharath@gmail.com>
+Date:   Thu Nov 25 10:09:47 2021 +0530
+
+    A+C: add Bharath Kumar Uppala (individual CLA)
+    
+    Change-Id: I4943e943892bd29bca2afafddb62f3060bc153e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367074
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

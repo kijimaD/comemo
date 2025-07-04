@@ -1,0 +1,12 @@
+commit 5d1828269540fa7ba1dee60ce6b4a938463a696f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 24 12:14:29 2015 -0500
+
+    cmd/internal/gc: factor bottom-up visiting out of escape analysis
+    
+    Change-Id: Id217fb6d8faf045a1a4fbda43b102ba989a02c17
+    Reviewed-on: https://go-review.googlesource.com/5951
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/gc/esc.go | 118 +++++++++++++++++++++++++++------------------
+ 1 file changed, 71 insertions(+), 47 deletions(-)

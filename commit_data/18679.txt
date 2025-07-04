@@ -1,0 +1,22 @@
+commit b00e4770d962289ef1a542f153408d55e3307167
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 27 10:48:36 2014 -0800
+
+    bufio: in Reader.WriteTo, try to use target's ReaderFrom
+    
+    This is the simple half of https://golang.org/cl/53560043/ with
+    a new benchmark. pongad is in the C+A files already.
+    
+    benchmark                         old ns/op     new ns/op     delta
+    BenchmarkReaderWriteToOptimal     2054          825           -59.83%
+    
+    Update #6373
+    
+    LGTM=iant, gri
+    R=golang-codereviews, iant, gri
+    CC=golang-codereviews
+    https://golang.org/cl/69220046
+
+ src/pkg/bufio/bufio.go      |  6 ++++++
+ src/pkg/bufio/bufio_test.go | 33 +++++++++++++++++++++++----------
+ 2 files changed, 29 insertions(+), 10 deletions(-)

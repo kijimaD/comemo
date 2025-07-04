@@ -1,0 +1,32 @@
+commit 102274a30e5d2df4d13d5fad50c484f78904236a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 24 15:28:51 2012 -0500
+
+    runtime: size arena to fit in virtual address space limit
+    
+    For Brad.
+    Now FreeBSD/386 binaries run on nearlyfreespeech.net.
+    
+    Fixes #2302.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5700060
+
+ src/pkg/runtime/malloc.goc          | 11 ++++++++++-
+ src/pkg/runtime/os_freebsd.h        |  8 ++++++++
+ src/pkg/runtime/os_linux.h          |  8 ++++++++
+ src/pkg/runtime/runtime.h           |  1 +
+ src/pkg/runtime/sys_freebsd_386.s   |  5 +++++
+ src/pkg/runtime/sys_freebsd_amd64.s |  7 +++++++
+ src/pkg/runtime/sys_linux_386.s     |  7 +++++++
+ src/pkg/runtime/sys_linux_amd64.s   |  7 +++++++
+ src/pkg/runtime/sys_linux_arm.s     |  8 ++++++++
+ src/pkg/runtime/thread_darwin.c     | 10 ++++++++++
+ src/pkg/runtime/thread_freebsd.c    | 28 ++++++++++++++++++++++++++++
+ src/pkg/runtime/thread_linux.c      | 28 ++++++++++++++++++++++++++++
+ src/pkg/runtime/thread_netbsd.c     |  6 ++++++
+ src/pkg/runtime/thread_openbsd.c    |  6 ++++++
+ src/pkg/runtime/thread_plan9.c      |  6 ++++++
+ src/pkg/runtime/thread_windows.c    |  6 ++++++
+ 16 files changed, 151 insertions(+), 1 deletion(-)

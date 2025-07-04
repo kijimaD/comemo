@@ -1,0 +1,13 @@
+commit 2785f9528e84f29429c083db4693faf536f361cc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 31 18:07:32 2012 -0400
+
+    A+C: Patrick Higgins, Shawn Smith (individual CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6492067
+
+ AUTHORS      | 2 ++
+ CONTRIBUTORS | 2 ++
+ 2 files changed, 4 insertions(+)

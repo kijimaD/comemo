@@ -1,0 +1,11 @@
+commit 9e8d136888f269a6ff8060e44e8a50e4f50474be
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 18 12:48:48 2009 -0800
+
+    On 32-bit x86, one should configure with --with-arch=.
+    
+    R=r
+    https://golang.org/cl/156080
+
+ doc/gccgo_install.html | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

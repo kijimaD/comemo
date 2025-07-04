@@ -1,0 +1,19 @@
+commit d9fb9e7cf5ee0e0e31007a8544a2730e20535494
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Nov 15 10:49:35 2017 -0800
+
+    archive/tar: change error prefix
+    
+    Change error message prefix from "tar:" to "archive/tar:" to maintain
+    backwards compatibility with Go1.9 and earlier in the unfortunate event
+    that someone is relying on string parsing of errors.
+    
+    Fixes #22740
+    
+    Change-Id: I59039c59818a0599e9d3b06bb5a531aa22a389b8
+    Reviewed-on: https://go-review.googlesource.com/77933
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+
+ src/archive/tar/common.go | 24 ++++++++++++------------
+ src/archive/tar/writer.go |  2 +-
+ 2 files changed, 13 insertions(+), 13 deletions(-)

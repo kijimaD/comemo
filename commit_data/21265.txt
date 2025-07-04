@@ -1,0 +1,12 @@
+commit 1a4c984baea846a06e95440b2192eec1bc29917a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 14 21:39:18 2015 +1100
+
+    misc/makerelease: check out core from git repo, use new oauth2 package
+    
+    Change-Id: I072cf2b9149a05901cc19e7aeb0e9d0936a8dbe3
+    Reviewed-on: https://go-review.googlesource.com/2793
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/makerelease/makerelease.go | 76 ++++++++++++++++++++---------------------
+ 1 file changed, 38 insertions(+), 38 deletions(-)

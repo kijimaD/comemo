@@ -1,0 +1,26 @@
+commit 14f3284ddb682ccf111716b50f43dc6ee072cf4c
+Author: Austin Clements <austin@google.com>
+Date:   Fri Oct 28 18:40:38 2016 +0000
+
+    Revert "runtime/pprof: write profiles in protobuf format."
+    
+    This reverts commit 7d14401bcbee4a8ff33ac869ef5ebb156a179ab6.
+    
+    Reason for revert: Doesn't build.
+    
+    Change-Id: I766179ab9225109d9232f783326e4d3843254980
+    Reviewed-on: https://go-review.googlesource.com/32256
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/build/deps_test.go                          |  14 +-
+ src/runtime/crash_cgo_test.go                      |   3 +-
+ src/runtime/pprof/decoder_for_test.go              | 807 ---------------------
+ src/runtime/pprof/internal/profile/encode.go       | 187 -----
+ src/runtime/pprof/internal/profile/profile.go      | 112 ---
+ .../pprof/internal/profile/profile_memmap.go       | 302 --------
+ src/runtime/pprof/internal/profile/proto.go        | 156 ----
+ .../pprof/internal/protopprof/protopprof.go        | 295 --------
+ src/runtime/pprof/mprof_test.go                    |  64 +-
+ src/runtime/pprof/pprof.go                         | 382 +++++-----
+ src/runtime/pprof/pprof_test.go                    | 227 ++++--
+ 11 files changed, 409 insertions(+), 2140 deletions(-)

@@ -1,0 +1,26 @@
+commit f2e51f00158c2dcdff37c573c24f798d1e63db31
+Author: Felix Bünemann <Felix.Buenemann@gmail.com>
+Date:   Mon Mar 25 23:12:21 2019 +0000
+
+    crypto/x509: look for CAs at /etc/ssl/cert.pem for Alpine Linux
+    
+    Alpine Linux uses /etc/ssl/cert.pem as default ca-bundle which
+    is preinstalled since 3.7 and was installed as part of the libressl
+    package in 3.5 and 3.6.
+    
+    The path /etc/ssl/certs/ca-certificates.crt is only valid if the full
+    ca-certificates package is installed by hand, which contains all
+    single CA certs and uses update-ca-certificates to bundle them.
+    
+    The priority for /etc/ssl/certs/ca-certificates.crt should be kept
+    higher than /etc/ssl/cert.pem in case the user installed custom
+    CA certs.
+    
+    Change-Id: I1c86a6ad84d8ee1163560655743a5ce9f2408af1
+    GitHub-Last-Rev: 0ba4d599e412640248d4e688537aaea4c43ecbcc
+    GitHub-Pull-Request: golang/go#31042
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169238
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/root_linux.go | 1 +
+ 1 file changed, 1 insertion(+)

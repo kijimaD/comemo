@@ -1,0 +1,16 @@
+commit 2f54de0df8cf362a4ffd374e2eb752b0c57115d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 14 15:08:10 2015 -0400
+
+    cmd/go: accept go get domain.root
+    
+    Fixes #9357.
+    
+    Change-Id: I11f0652758c4ea80debec29c3b99a72baca6d745
+    Reviewed-on: https://go-review.googlesource.com/12193
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go | 27 +++++++++++++++++++++++++++
+ src/cmd/go/vcs.go     |  4 ++--
+ 2 files changed, 29 insertions(+), 2 deletions(-)

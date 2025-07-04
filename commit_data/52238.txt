@@ -1,0 +1,23 @@
+commit 59d0de16e4f003e69403eeee969f0b4a96dd6dcb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Feb 6 14:13:54 2023 -0500
+
+    runtime: add tests of printing inlined frames in tracebacks
+    
+    We're about to rewrite this code and it has almost no test coverage
+    right now.
+    
+    This test is also more complete than the existing
+    TestTracebackInlineExcluded, so we delete that test.
+    
+    For #54466.
+    
+    Change-Id: I144154282dac5eb3798f7d332b806f44c4a0bdf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466098
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/stack_test.go     |  40 ---------
+ src/runtime/traceback_test.go | 201 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 201 insertions(+), 40 deletions(-)

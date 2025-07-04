@@ -1,0 +1,14 @@
+commit 76319222f271a3ed4695466c1bb46dbd0a7885b1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 13 20:24:43 2017 +0000
+
+    doc: add more Go 1.9 notes
+    
+    Updates #20587
+    
+    Change-Id: I7effe922242db45f3ce74882d07511aaaac2f634
+    Reviewed-on: https://go-review.googlesource.com/45613
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 80 +++++++++++++++++++++++++++++++++++-----------------------
+ 1 file changed, 48 insertions(+), 32 deletions(-)

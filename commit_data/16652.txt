@@ -1,0 +1,14 @@
+commit d9f5c64f6e49bff22fce355961cd828624430da1
+Author: Charles Lee <zombie.fml@gmail.com>
+Date:   Wed Jun 26 13:59:25 2013 -0700
+
+    misc/emacs: fix godef-jump on Windows.
+    
+    Fixes #5555.
+    
+    R=adonovan, dominik.honnef, iant
+    CC=gobot, golang-dev
+    https://golang.org/cl/9762045
+
+ misc/emacs/go-mode.el | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)

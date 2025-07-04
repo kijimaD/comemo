@@ -1,0 +1,30 @@
+commit 07ccc21295e45732e70bc0e81fe8739681c6c34b
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Feb 28 15:59:33 2016 -0900
+
+    cmd/link: skip allocation when reading symbol name
+    
+    The object file reader in cmd/link reads the symbol name into a scratch
+    []byte, converts it to a string, and then does a substring replacement.
+    Instead, this CL does the replacement on the []byte into the scratch
+    space and then creates the final string.
+    
+    Linking godoc without DWARF, best of ten, shows a ~10% improvement.
+    
+    tip:           real 0m1.099s user 0m1.541s
+    this:          real 0m0.990s user 0m1.280s
+    
+    This is part of an attempt to make suffixarray string deduping
+    come out as a wash, but it's not there yet:
+    
+    cl/19987:      real 0m1.335s user 0m1.794s
+    cl/19987+this: real 0m1.225s user 0m1.540s
+    
+    Change-Id: Idf061fdfbd7f08aa3a1f5933d3f111fdd1659210
+    Reviewed-on: https://go-review.googlesource.com/20025
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/objfile.go | 57 ++++++++++++++++++++++++++++---------
+ 1 file changed, 43 insertions(+), 14 deletions(-)

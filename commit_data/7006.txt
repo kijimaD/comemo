@@ -1,0 +1,12 @@
+commit 8cfd9e06762eb5ba3320b071f60710662cc25317
+Author: Stefan Nilsson <snilsson@nada.kth.se>
+Date:   Wed Dec 22 08:43:35 2010 +1100
+
+    bufio: removed dead code
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/3779043
+
+ src/pkg/bufio/bufio.go | 2 --
+ 1 file changed, 2 deletions(-)

@@ -1,0 +1,15 @@
+commit aa487e66f869785837275ee20441a53888a51bb2
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Mon Dec 7 13:45:06 2015 -0800
+
+    doc: add heading IDs to Code of Conduct
+    
+    Fixes #13514
+    
+    Change-Id: I3903d3926ed4f5d54cfb77209d93c950b832b933
+    Reviewed-on: https://go-review.googlesource.com/17511
+    Reviewed-by: Francesc Campoy Flores <campoy@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/conduct.html | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

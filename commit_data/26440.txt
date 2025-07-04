@@ -1,0 +1,24 @@
+commit a14537816eb960ae24ce13364390ded124f5ebc8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 18 11:16:35 2016 -0700
+
+    math/big: fix rounding to smallest denormal for Float.Float32/64
+    
+    Converting a big.Float value x to a float32/64 value did not correctly
+    round x up to the smallest denormal float32/64 if x was smaller than the
+    smallest denormal float32/64, but larger than 0.5 of a smallest denormal
+    float32/64.
+    
+    Handle this case explicitly and simplify some code in the turn.
+    
+    For #14651.
+    
+    Change-Id: I025e24bf8f0e671581a7de0abf7c1cd7e6403a6c
+    Reviewed-on: https://go-review.googlesource.com/20816
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 134 ++++++++++++++++++++++++++-------------------
+ src/math/big/float_test.go |  61 ++++++++++++++-------
+ 2 files changed, 120 insertions(+), 75 deletions(-)

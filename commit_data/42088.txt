@@ -1,0 +1,20 @@
+commit e0915dea09744c1704086048ed51bb8e9ddbcb6f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 12:00:14 2020 -0700
+
+    cmd/compile: splitload (CMPconst [0] x) into (TEST x x) on amd64
+    
+    Provides minor widespread benefit to generated code.
+    
+    Removes one source of random fluctuation when changing
+    other aspects of the compiler.
+    
+    Change-Id: I16db6f5e240a97d27f05dc1ba5b8b729af3adb12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229702
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ .../compile/internal/ssa/gen/AMD64splitload.rules  |  29 ++-
+ .../compile/internal/ssa/rewriteAMD64splitload.go  | 271 +++++++++++++++++++++
+ 2 files changed, 289 insertions(+), 11 deletions(-)

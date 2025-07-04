@@ -1,0 +1,20 @@
+commit e9407ae514df7d18e162ce03ebd530fe21aed16d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed May 11 10:23:37 2016 -0700
+
+    cmd/pprof: remove tempDir when no longer needed
+    
+    The pprof tools properly cleans up all files it creates, but forgets
+    to clean up the temporary directory itself. This CL fixes that.
+    
+    Fixes #13863
+    
+    Change-Id: I1151c36cdad5ace7cc97e7e04001cf0149ef0f63
+    Reviewed-on: https://go-review.googlesource.com/23019
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/pprof/commands/commands.go | 1 +
+ src/cmd/internal/pprof/tempfile/tempfile.go | 9 +++++----
+ 2 files changed, 6 insertions(+), 4 deletions(-)

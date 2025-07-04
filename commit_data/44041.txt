@@ -1,0 +1,23 @@
+commit 139cd0e12ff9d7628c321abbfb8d2f4ada461543
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 17 14:59:45 2020 -0800
+
+    go/build: make TestDependencies work again
+    
+    CL 243940 accidentally broke TestDependencies such that it always passed.
+    Make it work again, and add a test so that it won't break in the same way.
+    
+    This revealed that the new embed package was missing from TestDepencies,
+    so add it.
+    
+    Fixes #43249
+    
+    Change-Id: I02b3e38dd35ad88880c4344d46de13b7639aa4c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/279073
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/build/deps_test.go | 30 ++++++++++++++++++++++++++++--
+ 1 file changed, 28 insertions(+), 2 deletions(-)

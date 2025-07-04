@@ -1,0 +1,24 @@
+commit eabf59bc47484e3f09fe46cafe10221e6c345ccb
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat May 4 20:13:15 2024 +0800
+
+    all: make use of stringslite.{HasPrefix, HasSuffix}
+    
+    Just a code cleanup.
+    
+    Change-Id: Ie887ab2c71de11b4844c4e6fd4e5aca3265ac3aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583216
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/crypto/internal/boring/boring.go      |  7 ++-----
+ src/crypto/internal/boring/fipstls/tls.go | 11 +++++------
+ src/internal/poll/fd_plan9.go             |  5 +++--
+ src/internal/poll/strconv.go              | 13 -------------
+ src/net/conf.go                           |  5 +++--
+ src/net/interface_plan9.go                |  3 ++-
+ src/net/lookup_plan9.go                   | 13 +++++++------
+ src/net/parse.go                          | 11 -----------
+ 8 files changed, 22 insertions(+), 46 deletions(-)

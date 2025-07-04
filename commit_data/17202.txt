@@ -1,0 +1,25 @@
+commit 74e78df107f9e6642ecfc6808f542e2625f7cfb2
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 13 12:59:39 2013 -0700
+
+    undo CL 12840043 / 3b9f54db72a1
+    
+    Breaks the build.  Old bucket arrays kept by iterators
+    still need to be scanned.
+    
+    ««« original CL description
+    runtime: tell GC not to scan internal hashmap structures.
+    We'll do it ourselves via hash_gciter, thanks.
+    Fixes bug 6119.
+    
+    R=golang-dev, dvyukov, cookieo9, rsc
+    CC=golang-dev
+    https://golang.org/cl/12840043
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/12884043
+
+ src/pkg/runtime/hashmap.c | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)

@@ -1,0 +1,17 @@
+commit d259a50d15ad401167851d7092dc3291a3ae8752
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 6 06:07:07 2023 -0800
+
+    cmd/go/internal/cache: update docs on cache accessor func
+    
+    Its docs went stale in Go 1.12 when the build cache became required.
+    
+    Signed-off-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Change-Id: Icb7b06dc5147a858f00460e7cfe85b79b6b6f0eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465555
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/cache/default.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

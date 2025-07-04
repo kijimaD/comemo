@@ -1,0 +1,13 @@
+commit b6e52ecffa5e6c0673ecfc93837d23fbcf256752
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 6 18:10:42 2013 -0700
+
+    runtime: remove unused mid function
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10036047
+
+ src/pkg/runtime/extern.go | 3 ---
+ src/pkg/runtime/proc.c    | 8 --------
+ 2 files changed, 11 deletions(-)

@@ -1,0 +1,19 @@
+commit 8fb9565832e6dbacaaa057ffabc251a9341f8d23
+Author: Adin Scannell <ascannell@google.com>
+Date:   Wed Feb 8 19:15:23 2023 +0000
+
+    runtime: fix signature for linked functions
+    
+    These functions are linked using go:linkname, but do not match the
+    original declarations. This change brings these in sync.
+    
+    Change-Id: I16651304c3dba2f9897c2c42e30555d2f7805c2a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/466615
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/internal/poll/fd_poll_runtime.go | 2 +-
+ src/sync/atomic/value.go             | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

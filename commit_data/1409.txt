@@ -1,0 +1,16 @@
+commit d8c79805148871aeee4314093f693a9a5351c80c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 6 11:23:58 2009 -0800
+
+    comment sudoaddable;
+    remove unused second parameter.
+    
+    R=ken
+    OCL=22126
+    CL=22126
+
+ src/cmd/6g/cgen.c  |  6 +++---
+ src/cmd/6g/gen.c   |  6 +++---
+ src/cmd/6g/gg.h    |  2 +-
+ src/cmd/6g/gsubr.c | 16 ++++++++++++++--
+ 4 files changed, 21 insertions(+), 9 deletions(-)

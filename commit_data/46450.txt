@@ -1,0 +1,21 @@
+commit e4dfd788e66f4a44825598dd3cb6ca9626369228
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Sep 14 20:40:09 2021 -0400
+
+    go/internal/gcimporter,cmd/compile: minor clean-up in iimport.go
+    
+    Make two superficial fixes to iimport.go: rename instType to
+    instanceType (suggested in CL 349949), and fix a stale comment.
+    
+    Done in both go/internal/gcimporter and cmd/compile/internal/importer.
+    
+    Change-Id: Idfdda11a59b036a35824bbb1c101cba3652aeff4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350031
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/importer/iimport.go | 6 +++---
+ src/go/internal/gcimporter/iimport.go        | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

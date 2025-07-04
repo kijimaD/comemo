@@ -1,0 +1,24 @@
+commit 828129fdbc2d95ab8d8dfa637e0f7251924c8b8b
+Author: Alexandre Cesaro <alexandre.cesaro@gmail.com>
+Date:   Tue Dec 23 20:29:13 2014 +0100
+
+    net/mail: move RFC 2047 code to internal/mime
+    
+    The code concerning quoted-printable encoding (RFC 2045) and its
+    variant for MIME headers (RFC 2047) is currently spread in
+    mime/multipart and net/mail. It is also not exported.
+    
+    This commit is the second step to fix that issue. It moves the
+    RFC 2047 encoding and decoding functions from net/mail to
+    internal/mime. The exported API is unchanged.
+    
+    Updates #4943
+    
+    Change-Id: I5f58aa58e74bbe4ec91b2e9b8c81921338053b00
+    Reviewed-on: https://go-review.googlesource.com/2101
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go   |   2 +-
+ src/internal/mime/header.go | 122 ++++++++++++++++++++++++++++++++++++++++++++
+ src/net/mail/message.go     | 103 ++-----------------------------------
+ 3 files changed, 126 insertions(+), 101 deletions(-)

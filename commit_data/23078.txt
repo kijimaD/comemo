@@ -1,0 +1,15 @@
+commit b21ff39679486c03648b1abda7ce206fcf09bc36
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Tue May 19 10:47:24 2015 +1000
+
+    flag: Fix up a package comment a bit.
+    
+    I think "the flag" was a typo, and the word "after" was repetitive.
+    
+    Change-Id: I81c034ca11a3a778ff1eb4b3af5b96bc525ab985
+    Reviewed-on: https://go-review.googlesource.com/10195
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/flag/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 0ab78df9ea602d6bc9cf45dbd610c3d6f534cb58
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 21:27:04 2016 -0500
+
+    net/http: fix a few crashes with a ClientTrace with nil funcs
+    
+    And add a test.
+    
+    Updates #12580
+    
+    Change-Id: Ia7eaba09b8e7fd0eddbcaefb948d01ab10af876e
+    Reviewed-on: https://go-review.googlesource.com/22659
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/transport.go      |  6 +++---
+ src/net/http/transport_test.go | 23 ++++++++++++++++++++---
+ 2 files changed, 23 insertions(+), 6 deletions(-)

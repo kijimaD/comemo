@@ -1,0 +1,20 @@
+commit 8f66d7dc32b2a2082babfd9829acbfdb5996a6c7
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue May 22 15:30:13 2012 +1000
+
+    exp/html: adjust inSelectIM to match spec
+    
+    Simplify the flow of control.
+    
+    Handle EOF, null bytes, <html>, <input>, <keygen>, <textarea>, <script>.
+    
+    Pass 5 more tests.
+    
+    R=golang-dev, rsc, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6220062
+
+ src/pkg/exp/html/parse.go                 | 55 +++++++++++++++----------------
+ src/pkg/exp/html/testlogs/tests18.dat.log |  6 ++--
+ src/pkg/exp/html/testlogs/tests7.dat.log  |  4 +--
+ 3 files changed, 31 insertions(+), 34 deletions(-)

@@ -1,0 +1,24 @@
+commit 291a32aa4bd894eaad0517ce1ac3e04dd885cb8b
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Tue Aug 22 21:14:14 2023 +0000
+
+    net/http: fix request canceler leak on connection close
+    
+    Due to a race condition persistConn could be closed without removing request canceler.
+    
+    Note that without the fix test occasionally passes and to demonstrate the issue it has to be run multiple times, e.g. using -count=10.
+    
+    Fixes #61708
+    
+    Change-Id: I9029d7d65cf602dd29ee1b2a87a77a73e99d9c92
+    GitHub-Last-Rev: 6b31f9826da71dad4ee8c0491efba995a8f51440
+    GitHub-Pull-Request: golang/go#61745
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515796
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/transport.go      |  1 +
+ src/net/http/transport_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)

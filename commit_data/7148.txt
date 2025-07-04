@@ -1,0 +1,12 @@
+commit 43582bad33f18ea3f88252574810aee849380590
+Author: Corey Thomasson <cthom.lists@gmail.com>
+Date:   Wed Jan 19 09:55:46 2011 -0500
+
+    net: avoid nil dereference if /etc/services can't be opened
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4081041
+
+ src/pkg/net/port.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,31 @@
+commit a93a4c178025b52be85c9eb4b9f2815716a62d11
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 4 20:25:10 2020 -0400
+
+    runtime: make nanotime1 reentrant
+    
+    Currently, nanotime1 (and walltime1) is not reentrant, in that it
+    sets m.vdsoSP at entry and clears it at exit. If a signal lands
+    in between, and nanotime1 is called from the signal handler, it
+    will clear m.vdsoSP while we are still in nanotime1. If (in the
+    unlikely event) it is signaled again, m.vdsoSP will be wrong,
+    which may cause the stack unwinding code to crash.
+    
+    This CL makes it reentrant, by saving/restoring the previous
+    vdsoPC and vdsoSP, instead of setting it to 0 at exit.
+    
+    TODO: have some way to test?
+    
+    Change-Id: I9ee53b251f1d8a5a489c71d4b4c0df1dee70c3e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246763
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/sys_linux_386.s     | 38 +++++++++++++++++++++++++---
+ src/runtime/sys_linux_amd64.s   | 56 ++++++++++++++++++++++++++++-------------
+ src/runtime/sys_linux_arm.s     | 36 +++++++++++++++++++++++---
+ src/runtime/sys_linux_arm64.s   | 34 +++++++++++++++++++++++--
+ src/runtime/sys_linux_mips64x.s | 38 +++++++++++++++++++++++++---
+ src/runtime/sys_linux_ppc64x.s  | 40 ++++++++++++++++++++++++++---
+ 6 files changed, 206 insertions(+), 36 deletions(-)

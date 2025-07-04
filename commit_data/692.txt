@@ -1,0 +1,17 @@
+commit 39a4b1421fc9702e9d01fdcf2321bd2b2357ff6b
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Sep 20 14:59:15 2008 -0700
+
+    bug103 - but the fix caused other
+    things to break. hopefully all fixed
+    now.
+    
+    R=r
+    OCL=15597
+    CL=15597
+
+ src/cmd/6g/obj.c  |  4 ++--
+ src/cmd/gc/go.h   |  1 +
+ src/cmd/gc/subr.c | 14 ++++++++++++++
+ src/cmd/gc/walk.c | 34 ++++++++++++++++++++++------------
+ 4 files changed, 39 insertions(+), 14 deletions(-)

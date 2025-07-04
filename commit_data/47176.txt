@@ -1,0 +1,22 @@
+commit 8c8baad927b2fd0bca589bacab658fe0f7eb5dac
+Author: vpachkov <slava.pach@gmail.com>
+Date:   Sun Oct 31 11:06:27 2021 +0000
+
+    runtime: check amd64 microarchitecture level at startup
+    
+    Make Go runtime throw if it's been compiled to assume instruction
+    set extensions that aren't available on the CPU.
+    Updates #48506
+    
+    Change-Id: Ic4d6696e1cd6b28d389a86fe64e8175ea3ca135a
+    GitHub-Last-Rev: ba338377f549344b416fbd519576e95ce5d523be
+    GitHub-Pull-Request: golang/go#48514
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351191
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <martin@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Martin Möhrmann <martin@golang.org>
+
+ src/runtime/asm_amd64.s | 137 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 135 insertions(+), 2 deletions(-)

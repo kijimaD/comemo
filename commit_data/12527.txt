@@ -1,0 +1,14 @@
+commit b492bbe0d6e34b1b6a225ad98ba44eda9e23362f
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Thu Mar 8 12:49:23 2012 -0500
+
+    hgignore: ignoring misc/cgo/testso/main instead of /misc/cgo/testso/testso
+    
+    test.bash does not remove main if the test fails, so it is good to keep main in .hgignore.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5784057
+
+ .hgignore | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

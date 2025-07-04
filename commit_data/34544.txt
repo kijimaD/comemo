@@ -1,0 +1,16 @@
+commit 6b5a0b5c1674e82749664b124daf0e6b15af04dd
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Mar 6 18:06:50 2018 -0500
+
+    cmd/trace: set cname for span slices
+    
+    Define a set of color names available in trace viewer
+    
+    https://user-images.githubusercontent.com/4999471/37063995-5d0bad48-2169-11e8-92be-9cb363e21c38.png
+    
+    Change-Id: I312fcbc5430d7512b4c39ddc79a769259bad8c22
+    Reviewed-on: https://go-review.googlesource.com/99055
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/trace/trace.go | 48 ++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 44 insertions(+), 4 deletions(-)

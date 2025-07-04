@@ -1,0 +1,14 @@
+commit 8278627c1589fa881a25a2aa0c62e8a56e6f268a
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 3 19:26:31 2020 -0500
+
+    doc/go1.14: document encoding/asn1 support for BMPString
+    
+    Updates #36878
+    
+    Change-Id: Ib3ea1ef21c4b8ada3d354a0022a19914c1311399
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217637
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ doc/go1.14.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

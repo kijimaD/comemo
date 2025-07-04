@@ -1,0 +1,29 @@
+commit 04b5b4f740a34a95a10253a0e34779bb259ec9c4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 30 12:24:51 2020 -0400
+
+    cmd/go/internal/modload: return a module-only result from QueryPattern
+    
+    This allows a single QueryPattern call to resolve a path that could be
+    either a package or a module. It is important to be able to make a
+    single QueryPattern call — rather than a QueryPattern followed by a
+    Query for the specific module path — to provide appropriate fallback
+    behavior: if the proxy returns package results but does not contain a
+    module result, we don't want to fall back to the next proxy to look
+    for the (probably-nonexistent) module.
+    
+    For #37438
+    
+    Change-Id: I419b8bb3ab4565f443bb5cee9a8b206f453b9801
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266657
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modget/get.go                  | 19 ++---
+ src/cmd/go/internal/modload/import.go              |  2 +-
+ src/cmd/go/internal/modload/query.go               | 86 +++++++++++++++-------
+ src/cmd/go/internal/work/build.go                  |  2 +-
+ .../testdata/script/mod_get_downgrade_missing.txt  | 16 +++-
+ 5 files changed, 81 insertions(+), 44 deletions(-)

@@ -1,0 +1,18 @@
+commit 45bd2f8c4592a324b93045832cc1c498a48e1871
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Aug 6 00:25:52 2014 -0400
+
+    cmd/5l, cmd/6l, cmd/8l, cmd/ld: remove unused code, consolidate enums
+    
+    LGTM=rsc
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/120220043
+
+ src/cmd/5l/asm.c  |  74 +++++---------------------------------
+ src/cmd/5l/l.h    |  29 ---------------
+ src/cmd/6l/l.h    |  10 ------
+ src/cmd/8l/l.h    |   7 ----
+ src/cmd/ld/lib.h  |   4 +++
+ src/cmd/ld/pass.c | 104 ------------------------------------------------------
+ 6 files changed, 12 insertions(+), 216 deletions(-)

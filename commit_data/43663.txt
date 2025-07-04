@@ -1,0 +1,22 @@
+commit 12a2e72065105a7c167d7f41500b5a80547f14d0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Oct 26 18:35:40 2020 +1100
+
+    cmd/compile: avoid unnecessary sign/zero extension for consts on riscv64
+    
+    Sign extension for consts is unnecessary and zero extension for consts can be avoided
+    via casts. This removes over 16,000 instructions from the Go binary, in part because it
+    allows for better zero const absorbtion in blocks - for example,
+    `(BEQ (MOVBU (MOVBconst [0])) cond yes no)` now becomes `(BEQZ cond yes no)` when
+    this change is combined with existing rules.
+    
+    Change-Id: I27e791bfa84869639db653af6119f6e10369ba3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265041
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  16 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 132 +++++++++++++++++++++++++
+ 2 files changed, 148 insertions(+)

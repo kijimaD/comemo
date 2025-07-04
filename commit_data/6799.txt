@@ -1,0 +1,13 @@
+commit e1149aa08ddbbbf2cb761f96d6acd04304ed8008
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 30 10:23:07 2010 -0800
+
+    add Eoghan Sherry as author and contributor
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/3311043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

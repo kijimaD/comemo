@@ -1,0 +1,15 @@
+commit e29ea14100cd4eac22f8aa21ab629d767119707c
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Apr 28 08:11:21 2017 +1200
+
+    cmd/link/internal/ld: unexport ReadOnly and RelROMap
+    
+    Change-Id: I08e33b92dd8a22e28ec15aa5753904aa8e1c71f5
+    Reviewed-on: https://go-review.googlesource.com/42031
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/data.go    | 16 ++++++++--------
+ src/cmd/link/internal/ld/symkind.go | 10 +++++-----
+ 2 files changed, 13 insertions(+), 13 deletions(-)

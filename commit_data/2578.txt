@@ -1,0 +1,14 @@
+commit b5666a123a2a6d4de9fba22daa3832cc3ae08356
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 2 16:57:46 2009 -0700
+
+    add Uitoa etc.
+    
+    R=r
+    DELTA=113  (89 added, 9 deleted, 15 changed)
+    OCL=31087
+    CL=31096
+
+ src/pkg/strconv/itoa.go      | 41 +++++++++++++++------
+ src/pkg/strconv/itoa_test.go | 87 ++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 104 insertions(+), 24 deletions(-)

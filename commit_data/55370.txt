@@ -1,0 +1,16 @@
+commit 7abeefd2b1a03932891e581f1f90656ffebebce4
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Fri Jan 12 20:46:14 2024 +0100
+
+    internal/trace/v2: reject events for goroutines with unknown states
+    
+    Change-Id: Ifc472ed4cf0433d06f43559930ac80df23656a6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555496
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/trace/v2/order.go                     | 24 ++++++++++++++++++----
+ .../v2/testdata/fuzz/FuzzReader/4d9ddc909984e871   |  2 ++
+ .../v2/testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566   |  2 ++
+ 3 files changed, 24 insertions(+), 4 deletions(-)

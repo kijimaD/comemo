@@ -1,0 +1,21 @@
+commit 830813f01969487af6f2e3c8f1e3cf2fad4a119d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 21:08:27 2009 -0800
+
+    assorted cleanup
+    
+    R=r, iant
+    CC=go-dev
+    http://go/go-review/1025024
+
+ doc/contribute.html               | 36 +++++++++++++++++++++++++++---------
+ doc/go_mem.html                   |  9 ++++++---
+ lib/codereview/codereview.py      | 10 +++++++++-
+ src/cmd/gc/print.c                |  2 +-
+ src/pkg/bufio/bufio.go            |  6 ------
+ src/pkg/compress/flate/inflate.go |  1 -
+ src/pkg/crypto/hmac/hmac_test.go  |  2 --
+ src/pkg/go/doc/comment.go         | 30 ++++++++----------------------
+ src/pkg/go/parser/interface.go    | 12 ++++--------
+ src/pkg/os/os_test.go             |  2 +-
+ 10 files changed, 56 insertions(+), 54 deletions(-)

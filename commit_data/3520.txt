@@ -1,0 +1,19 @@
+commit 8acb8fb7809ccbd1d0fba4c4d6661282f4645cef
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 13 13:05:16 2009 -0700
+
+    reduce stutter: sort.SortInterface -> sort.Interface.
+    ditto for heap.HeapInterface
+    
+    R=gri,rsc
+    DELTA=31  (0 added, 1 deleted, 30 changed)
+    OCL=35665
+    CL=35673
+
+ src/pkg/container/heap/heap.go           | 20 ++++++++++----------
+ src/pkg/container/vector/intvector.go    |  2 +-
+ src/pkg/container/vector/stringvector.go |  2 +-
+ src/pkg/container/vector/vector.go       |  4 ++--
+ src/pkg/go/scanner/errors.go             |  2 +-
+ src/pkg/sort/sort.go                     | 29 ++++++++++++++---------------
+ 6 files changed, 29 insertions(+), 30 deletions(-)

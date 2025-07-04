@@ -1,0 +1,17 @@
+commit 94ff311d1b91d0bfe2dc53d20d06e81af5a3c46f
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jan 12 12:08:40 2012 +0100
+
+    gc: avoid false positives when using scalar struct fields.
+    
+    The escape analysis code does not make a distinction between
+    scalar and pointers fields in structs. Non-pointer fields
+    that escape should not make the whole struct escape.
+    
+    R=lvd, rsc
+    CC=golang-dev, remy
+    https://golang.org/cl/5489128
+
+ src/cmd/gc/esc.c |  6 +++++-
+ test/escape2.go  | 42 ++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 41 insertions(+), 7 deletions(-)

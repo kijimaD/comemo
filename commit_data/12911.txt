@@ -1,0 +1,14 @@
+commit e03dd509d48f854b90d3e0537d672f6786490195
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Thu Apr 19 11:04:42 2012 +1000
+
+    doc/articles/image_draw.html: Change ColorImage to Uniform
+    
+    Fixes #3474.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6048050
+
+ doc/articles/image_draw.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

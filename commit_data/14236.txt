@@ -1,0 +1,15 @@
+commit 9c775353b9f3fe2938afdc50ecd16277619f1119
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Oct 29 20:58:24 2012 +0100
+
+    encoding/json: tweak docs
+    
+    "JSON object" means something specific, which
+    isn't the case here.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6789044
+
+ src/pkg/encoding/json/decode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

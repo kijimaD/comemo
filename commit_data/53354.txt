@@ -1,0 +1,25 @@
+commit 7756f825905d047a93abfb30f6da57881b7b9669
+Author: Chris O'Hara <cohara87@gmail.com>
+Date:   Thu May 25 12:07:07 2023 +1000
+
+    syscall: implement wasip1 Fcntl
+    
+    CL 494915 broke non-blocking I/O on wasip1 for files
+    opened with os.NewFile. This is fixed by providing an
+    implementation of fcntl(F_GETFL) for wasip1.
+    
+    Change-Id: I78979076b95495fd4b94814552e5f5b043270cd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498195
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ .../syscall/unix/{fcntl_wasm.go => fcntl_js.go}    |   2 +
+ src/internal/syscall/unix/fcntl_wasip1.go          |  17 ++++
+ src/runtime/internal/wasitest/nonblock_test.go     | 108 +++++++++++----------
+ src/runtime/internal/wasitest/testdata/nonblock.go |  19 +++-
+ 4 files changed, 93 insertions(+), 53 deletions(-)

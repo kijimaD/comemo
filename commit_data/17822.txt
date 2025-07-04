@@ -1,0 +1,13 @@
+commit be1a94b401112cab46a60c8bb9c42e16e1b70647
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Oct 19 23:07:20 2013 -0400
+
+    cmd/yacc: fix stderr on Windows.
+    Fixes #6620.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/15330043
+
+ src/cmd/yacc/yacc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

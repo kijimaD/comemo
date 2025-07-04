@@ -1,0 +1,31 @@
+commit 00b779aeed9e0345e4bdbb38c85df63a6352b954
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Tue Aug 16 13:33:27 2016 -0300
+
+    net: simplify internal dtoi and xtoi funcs
+    
+    Callers pass strings sliced as necessary instead of giving
+    an offset.
+    
+    Fixes #16350
+    
+    Change-Id: I7ba896f6ff09e0fd0094ca6c5af5d9a81622f15e
+    Reviewed-on: https://go-review.googlesource.com/27206
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/conf.go                |  2 +-
+ src/net/dial.go                |  2 +-
+ src/net/dnsconfig_unix.go      |  6 +--
+ src/net/interface.go           |  2 +-
+ src/net/ip.go                  | 92 ++++++++++++++++++++----------------------
+ src/net/ipsock_plan9.go        |  2 +-
+ src/net/lookup_plan9.go        | 12 +++---
+ src/net/lookup_unix.go         |  2 +-
+ src/net/lookup_windows_test.go |  4 +-
+ src/net/parse.go               | 22 +++++-----
+ src/net/parse_test.go          |  2 +-
+ src/net/port_unix.go           |  2 +-
+ src/net/sock_linux.go          |  2 +-
+ 13 files changed, 74 insertions(+), 78 deletions(-)

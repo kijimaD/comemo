@@ -1,0 +1,35 @@
+commit 8174f7fb2b64c221f7f80c9f7fd4d7eb317ac8bb
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 2 17:36:25 2019 -0500
+
+    runtime: mlock top of signal stack on Linux 5.2–5.4.1
+    
+    Linux 5.2 introduced a bug that can corrupt vector registers on return
+    from a signal if the signal stack isn't faulted in:
+    https://bugzilla.kernel.org/show_bug.cgi?id=205663
+    
+    This CL works around this by mlocking the top page of all Go signal
+    stacks on the affected kernels.
+    
+    Fixes #35326, #35777
+    
+    Change-Id: I77c80a2baa4780827633f92f464486caa222295d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209899
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/defs_linux_amd64.go | 11 +++++++
+ src/runtime/os_linux.go         | 10 +++++++
+ src/runtime/os_linux_386.go     |  7 +++++
+ src/runtime/os_linux_amd64.go   | 63 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/os_linux_arm.go     |  2 ++
+ src/runtime/os_linux_arm64.go   |  2 ++
+ src/runtime/os_linux_mips64x.go |  2 ++
+ src/runtime/os_linux_mipsx.go   |  2 ++
+ src/runtime/os_linux_ppc64x.go  |  2 ++
+ src/runtime/os_linux_s390x.go   |  2 ++
+ src/runtime/sys_linux_amd64.s   | 19 +++++++++++++
+ 11 files changed, 122 insertions(+)

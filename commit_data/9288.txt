@@ -1,0 +1,12 @@
+commit 583f72434f5930bc40177bc9e3bca1a4ee027501
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 4 16:32:14 2011 +1000
+
+    fmt: call UpdateMemStats in malloc counter
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4830059
+
+ src/pkg/fmt/fmt_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

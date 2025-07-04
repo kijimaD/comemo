@@ -1,0 +1,18 @@
+commit 86a7c85f83895d54a00d79e3cd0356c11de3a589
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Mar 1 19:42:03 2015 -0500
+
+    cmd/dist: fix default GOOS/GOARCH for cross-compile
+    
+    Before this CL, if you are on a darwin/amd64 machine and
+    cross-compile 9g for a linux/ppc64 machine, when you copy
+    9g over to that kind of machine and run it, you'll find it thinks
+    the default object target is darwin/amd64. Not useful.
+    Make the default target linux/ppc64 in this case. More useful.
+    
+    Change-Id: I62f2e9cb5f60b3077a922b31cd023a9cb7a6cfda
+    Reviewed-on: https://go-review.googlesource.com/6407
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/dist/buildruntime.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

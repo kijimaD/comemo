@@ -1,0 +1,13 @@
+commit 24bf8f62be681f5c2d23b8faf2816bc48ea81ace
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 13 08:48:44 2014 -0800
+
+    cmd/go: gc never permits C files; gccgo always does
+    
+    Change-Id: I513665626ec0866f32036c26207dc234c17acea1
+    Reviewed-on: https://go-review.googlesource.com/1540
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/go/pkg.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

@@ -1,0 +1,22 @@
+commit ec6c00418c83aa4f68a5afc9803831f43f8d794f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Oct 25 13:37:29 2021 +0200
+
+    syscall: use fcntl F_DUP2FD_CLOEXEC in forkAndExecInChild on illumos
+    
+    Use fcntl(oldfd, F_DUP2FD_CLOEXEC, newfd) to duplicate the file
+    descriptor and mark is as close-on-exec instead of dup2 & fcntl.
+    
+    Illumos implements dup3 like this in libc.
+    
+    Change-Id: I9782bce553ffb832e9b1a12bbf3c0a40c821f56e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358374
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_libc.go       | 26 ++++++++++++++++++++------
+ src/syscall/syscall_aix.go     |  2 ++
+ src/syscall/syscall_solaris.go |  2 ++
+ 3 files changed, 24 insertions(+), 6 deletions(-)

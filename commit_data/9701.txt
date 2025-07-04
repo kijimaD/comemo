@@ -1,0 +1,16 @@
+commit 1505cae05de98bcd399698d6461d15d88dc33d71
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 15 17:04:51 2011 -0400
+
+    flag: make zero FlagSet useful
+    
+    This makes it possible to use a FlagSet as a
+    field in a larger struct.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5036041
+
+ src/pkg/flag/flag.go      | 22 +++++++++++++++++++---
+ src/pkg/flag/flag_test.go |  3 ++-
+ 2 files changed, 21 insertions(+), 4 deletions(-)

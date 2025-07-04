@@ -1,0 +1,15 @@
+commit a6c7a80b5bb2ee3f262a210c2e4df24aa8d20e1a
+Author: Steve Newman <devnull@localhost>
+Date:   Thu Jun 18 17:55:47 2009 -0700
+
+    Add a ReplaceAll method to Regexp.
+    
+    APPROVED=r,rsc
+    DELTA=189  (187 added, 0 deleted, 2 changed)
+    OCL=30205
+    CL=30517
+
+ src/pkg/Make.deps          |   2 +-
+ src/pkg/regexp/all_test.go | 122 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/regexp/regexp.go   |  67 ++++++++++++++++++++++++-
+ 3 files changed, 189 insertions(+), 2 deletions(-)

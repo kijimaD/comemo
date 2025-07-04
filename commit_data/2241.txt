@@ -1,0 +1,14 @@
+commit 89df071165a4cffc784b676d49c2e1b88dcdcbea
+Author: Brendan O'Dea <bod@golang.org>
+Date:   Mon May 18 15:42:09 2009 -0700
+
+    tweaks to exvar.Map
+    
+    R=dsymonds,rsc
+    APPROVED=rsc
+    DELTA=88  (53 added, 17 deleted, 18 changed)
+    OCL=28452
+    CL=29008
+
+ src/lib/exvar/exvar.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

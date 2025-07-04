@@ -1,0 +1,40 @@
+commit f75d0d224f1da1781f59bc9e836f8220130747a9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 1 22:31:27 2010 -0700
+
+    runtime: turn run time errors checks into panics
+    
+    R=ken2, r
+    CC=golang-dev
+    https://golang.org/cl/871042
+
+ src/cmd/5g/cgen.c          |  4 +--
+ src/cmd/5g/gg.h            |  4 +--
+ src/cmd/5g/ggen.c          | 80 +++++++++---------------------------------
+ src/cmd/5g/gsubr.c         |  4 +--
+ src/cmd/6g/cgen.c          |  4 +--
+ src/cmd/6g/gg.h            |  4 +--
+ src/cmd/6g/ggen.c          |  8 ++---
+ src/cmd/6g/gsubr.c         |  6 ++--
+ src/cmd/6g/reg.c           |  6 ++--
+ src/cmd/8g/cgen.c          |  4 +--
+ src/cmd/8g/gg.h            |  4 +--
+ src/cmd/8g/ggen.c          |  8 ++---
+ src/cmd/8g/reg.c           |  6 ++--
+ src/cmd/cov/main.c         |  4 +--
+ src/cmd/gc/builtin.c.boot  |  3 +-
+ src/cmd/gc/print.c         |  5 ++-
+ src/cmd/gc/runtime.go      |  3 +-
+ src/cmd/gc/walk.c          |  7 +---
+ src/pkg/runtime/complex.c  |  2 +-
+ src/pkg/runtime/error.go   | 27 ++++++++++++---
+ src/pkg/runtime/hashmap.c  |  4 ---
+ src/pkg/runtime/iface.c    | 18 +++++-----
+ src/pkg/runtime/runtime.c  | 45 ++++++++++--------------
+ src/pkg/runtime/runtime.h  |  8 +++--
+ src/pkg/runtime/slice.c    | 19 ++--------
+ src/pkg/runtime/string.cgo | 47 +++++++++----------------
+ test/golden.out            | 12 +++----
+ test/recover.go            | 34 +++++++++---------
+ test/recover2.go           | 86 ++++++++++++++++++++++++++++++++++++++++++++++
+ 29 files changed, 241 insertions(+), 225 deletions(-)

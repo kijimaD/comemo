@@ -1,0 +1,25 @@
+commit c846964df5eeab05c8620d34fcd3e56d5b6cbcfa
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Mon Jan 30 20:09:23 2023 -0800
+
+    crypto/rand: batch large random reads on js
+    
+    CL 463975 replaced the use of the NodeJS crypto.randomFillSync API
+    with a direct call to crypto.getRandomValues. This function rejects
+    any requests to fill a buffer larger than 65536 bytes, so we need to
+    batch reads larger than this size. This reuses the batching
+    functions used on other platforms to perform this batching.
+    
+    Fixes #58145
+    
+    Change-Id: Ic0acf3be7c9e994bc345d6614867c9b0c47bd26d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463993
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/crypto/rand/rand_js.go | 16 +++++++++++++++-
+ 1 file changed, 15 insertions(+), 1 deletion(-)

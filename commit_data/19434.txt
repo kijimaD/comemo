@@ -1,0 +1,19 @@
+commit cee8bcabfaecc064b033b8b19aa36f625760f33f
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 21 14:28:34 2014 -0700
+
+    runtime: provide gc maps for the reflect.callXX frames.
+    
+    Update #8030
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/100620045
+
+ src/cmd/5a/a.y              |  2 +-
+ src/cmd/5a/y.tab.c          |  2 +-
+ src/pkg/runtime/asm_386.s   | 15 +++++++++++++++
+ src/pkg/runtime/asm_amd64.s | 15 +++++++++++++++
+ src/pkg/runtime/asm_arm.s   | 15 +++++++++++++++
+ 5 files changed, 47 insertions(+), 2 deletions(-)

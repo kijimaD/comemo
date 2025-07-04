@@ -1,0 +1,14 @@
+commit 11f50f41ee59e0003cec43c08bdf3102cb0cd5d3
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Jul 2 20:33:30 2015 +0200
+
+    cmd/trace: log errors to console in AJAX handler
+    
+    Fixes #11508
+    
+    Change-Id: I72e83893b76f75685d6edfe65ca6691d97539226
+    Reviewed-on: https://go-review.googlesource.com/11864
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/trace/trace.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

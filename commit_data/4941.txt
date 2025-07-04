@@ -1,0 +1,16 @@
+commit 7c99dcbdf9ace5aa8a0ad76c362ce852045bbab9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 24 17:00:25 2010 -0800
+
+    Install runtime.h and cgocall.h.
+    
+    This permits cgo generated code to use these header files even
+    if the Go sources are not around.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/224045
+
+ src/Make.pkg             | 4 ++--
+ src/pkg/runtime/Makefile | 7 +++++++
+ 2 files changed, 9 insertions(+), 2 deletions(-)

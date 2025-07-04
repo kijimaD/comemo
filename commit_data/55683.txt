@@ -1,0 +1,18 @@
+commit ef84d62cfc358ff62c60da9ceec754e7a389b5d5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 23 12:18:20 2024 -0800
+
+    net: skip TestReadLine if /etc/services does not exist
+    
+    Fixes #65905
+    
+    Change-Id: I42326d3b743e80d5226ea374eca5c9edaef4dd4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/net/parse_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 5b779284783fffdc1f573811b2b792fd83dea347
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 26 10:01:52 2010 -0700
+
+    fmt: fix 386 build. error strings differ for overflow on 386.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1316042
+
+ src/pkg/fmt/scan_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 226aaf4267316cab7530b0dabe24e6c20787fab4
+Author: Seth Hoenig <seth.a.hoenig@gmail.com>
+Date:   Thu Sep 17 23:26:39 2015 -0500
+
+    regexp: add runnable example to regex.Split
+    
+    The existing comment for regex.Split contains a plain text example,
+    while many of the other regex functions have runnable examples. This
+    change provides a runnable example for Split.
+    
+    Change-Id: I5373f57f532fe843d7d0adcf4b513061ec797047
+    Reviewed-on: https://go-review.googlesource.com/14737
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Andrew Gerrand <adg@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/regexp/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

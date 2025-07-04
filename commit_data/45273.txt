@@ -1,0 +1,43 @@
+commit 54af9fd9e69d5cc33b16b9a32d9f7dc71eef0d18
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Apr 19 15:37:54 2021 -0500
+
+    internal/bytealg: add power9 version of bytes index
+    
+    This adds a power9 version of the bytes.Index function
+    for little endian.
+    
+    Here is the improvement on power9 for some of the Index
+    benchmarks:
+    
+    Index/10           -0.14%
+    Index/32           -3.19%
+    Index/4K          -12.66%
+    Index/4M          -13.34%
+    Index/64M         -13.17%
+    Count/10           -0.59%
+    Count/32           -2.88%
+    Count/4K          -12.63%
+    Count/4M          -13.35%
+    Count/64M         -13.17%
+    IndexHard1        -23.03%
+    IndexHard2        -13.01%
+    IndexHard3        -22.12%
+    IndexHard4         +0.16%
+    CountHard1        -23.02%
+    CountHard2        -13.01%
+    CountHard3        -22.12%
+    IndexPeriodic/IndexPeriodic2  -22.85%
+    IndexPeriodic/IndexPeriodic4  -23.15%
+    
+    Change-Id: Id72353e2771eba2efbb1544d5f0be65f8a9f0433
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311380
+    Run-TryBot: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
+    Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/internal/bytealg/bytealg.go      |   2 +
+ src/internal/bytealg/index_ppc64x.go |   4 +
+ src/internal/bytealg/index_ppc64x.s  | 349 ++++++++++++++++++++++++++++++++++-
+ 3 files changed, 353 insertions(+), 2 deletions(-)

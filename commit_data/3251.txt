@@ -1,0 +1,13 @@
+commit 8f2bf201d3e83da43ac0d651af6c211e4716de30
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 10 14:18:53 2009 -0700
+
+    fix indentation
+    
+    R=r
+    DELTA=166  (0 added, 0 deleted, 166 changed)
+    OCL=34521
+    CL=34527
+
+ src/pkg/fmt/print.go | 292 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 146 insertions(+), 146 deletions(-)

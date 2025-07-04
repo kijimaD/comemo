@@ -1,0 +1,14 @@
+commit ad36c392115bc179482ae81d5afdbd69a6a7c9b1
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Apr 28 12:28:31 2009 -0700
+
+    bug 145
+    
+    R=r
+    OCL=27979
+    CL=27979
+
+ src/cmd/gc/go.y                    | 4 ++++
+ test/{bugs => fixedbugs}/bug145.go | 0
+ test/golden.out                    | 4 ----
+ 3 files changed, 4 insertions(+), 4 deletions(-)

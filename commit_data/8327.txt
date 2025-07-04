@@ -1,0 +1,12 @@
+commit 0629354bd3a2eb8d9f2e1bafdd508120f94422ef
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Fri May 6 15:29:49 2011 -0400
+
+    runtime: handle out-of-threads on Linux gracefully
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4396050
+
+ src/pkg/runtime/linux/thread.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

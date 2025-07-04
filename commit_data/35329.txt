@@ -1,0 +1,19 @@
+commit 6b0941a1bf9040850dfdd9c637dfd475e550303e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 8 08:53:21 2018 -0700
+
+    cmd/compile: remove unnecessary convert ops on 32-bit archs
+    
+    Missing rule to fold out Convert ops on 32-bit architectures.
+    
+    This comes up with expressions like
+    unsafe.Pointer(uintptr(p) + x)
+    
+    Change-Id: I429e968e5d1a3e13a386ddd29a08ebb6d7dd938a
+    Reviewed-on: https://go-review.googlesource.com/112158
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 52 ++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 1 deletion(-)

@@ -1,0 +1,31 @@
+commit b9a59d9f2e78ce497b38a984f62094a53e7dfce7
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Apr 24 15:13:08 2018 +0200
+
+    cmd/compile: optimize len([]rune(string))
+    
+    Adds a new runtime function to count runes in a string.
+    Modifies the compiler to detect the pattern len([]rune(string))
+    and replaces it with the new rune counting runtime function.
+    
+    RuneCount/lenruneslice/ASCII                  27.8ns ± 2%  14.5ns ± 3%  -47.70%  (p=0.000 n=10+10)
+    RuneCount/lenruneslice/Japanese                126ns ± 2%    60ns ± 2%  -52.03%  (p=0.000 n=10+10)
+    RuneCount/lenruneslice/MixedLength             104ns ± 2%    50ns ± 1%  -51.71%  (p=0.000 n=10+9)
+    
+    Fixes #24923
+    
+    Change-Id: Ie9c7e7391a4e2cca675c5cdcc1e5ce7d523948b9
+    Reviewed-on: https://go-review.googlesource.com/108985
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/builtin.go         | 326 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   4 +-
+ src/cmd/compile/internal/gc/order.go           |   9 +-
+ src/cmd/compile/internal/gc/walk.go            |  12 +
+ src/runtime/string_test.go                     |  38 +++
+ src/runtime/utf8.go                            |   9 +
+ src/unicode/utf8/utf8_test.go                  |  21 +-
+ test/codegen/strings.go                        |  15 ++
+ 8 files changed, 265 insertions(+), 169 deletions(-)

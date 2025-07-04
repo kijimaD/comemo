@@ -1,0 +1,13 @@
+commit c2e9f0c5625d3f365620aa420771f1dcd56b6666
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 3 17:18:26 2010 -0700
+
+    Add Opaque method to the image types.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1533041
+
+ src/pkg/image/image.go | 96 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/image/names.go |  6 ++++
+ 2 files changed, 102 insertions(+)

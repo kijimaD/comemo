@@ -1,0 +1,24 @@
+commit 931700a95e2463c75b62e3c232ef47207921ed5d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 17 12:04:24 2024 +0100
+
+    crypto: centralize external test module fetches
+    
+    This has the important advantage of using the system GOMODCACHE when it
+    exists, avoiding the download on every "go test".
+    
+    While at it, also consistently use testenv.Command.
+    
+    Change-Id: Ic999ffa281f6da73fe601b0feba29e60982cce3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628755
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/ed25519/ed25519vectors_test.go     | 36 +++---------------
+ src/crypto/internal/cryptotest/fetchmodule.go | 54 +++++++++++++++++++++++++++
+ src/crypto/internal/fipstest/acvp_test.go     | 51 +++++--------------------
+ src/crypto/tls/bogo_shim_test.go              | 25 ++-----------
+ src/go/build/deps_test.go                     |  2 +-
+ 5 files changed, 73 insertions(+), 95 deletions(-)

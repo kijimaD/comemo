@@ -1,0 +1,18 @@
+commit 269bf7e855da04e664fe8d7ffb654c4d0b1439f5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 7 10:43:51 2022 -0700
+
+    go/types, types2: better error message if type is not in type set
+    
+    Fixes #40350.
+    
+    Change-Id: Ia654d6b854971700ca618692a864265557122b23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410876
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/instantiate.go           |  2 +-
+ .../internal/types2/testdata/fixedbugs/issue40350.go     | 16 ++++++++++++++++
+ src/go/types/instantiate.go                              |  2 +-
+ src/go/types/testdata/fixedbugs/issue40350.go            | 16 ++++++++++++++++
+ 4 files changed, 34 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit ebaf01f0526f349dd207798dc5771219e9d8a8ca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 8 15:47:21 2011 -0700
+
+    go/printer, gofmt: use blank to separate import rename from import path
+    
+    Note that declarations.golden is not using spaces for alignment (so
+    that the alignment tabs are visible) which is why this change affects
+    the test cases significantly. gofmt uses spaces for alignment (by default)
+    and only tabs for indentation.
+    
+    gofmt -w src misc (no changes)
+    
+    Fixes #1673.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/4388044
+
+ src/pkg/go/printer/nodes.go                     |  2 +-
+ src/pkg/go/printer/testdata/declarations.golden | 77 +++++++++++++++++--------
+ src/pkg/go/printer/testdata/declarations.input  | 29 ++++++++++
+ 3 files changed, 83 insertions(+), 25 deletions(-)

@@ -1,0 +1,15 @@
+commit 12be168b4b68d504b1b2e654eedc7e6550d7c315
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 28 08:44:25 2010 -0700
+
+    godoc: bug fix (bug introduced with revision 3ee58453e961)
+    (thanks to Chris Dollin for identifying the cause)
+    
+    Fixes #1237.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2753043
+
+ src/pkg/go/doc/comment.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

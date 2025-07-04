@@ -1,0 +1,18 @@
+commit a59e614aa147da1bba2616b972f26e4a0db61e4d
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 00:29:48 2022 +0800
+
+    internal: use bytes.Clone
+    
+    Change-Id: Ia96ddd520a7bd2fd53bff55315c6fac04ae96a2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435282
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/internal/coverage/encodemeta/encode.go | 4 ++--
+ src/internal/fuzz/fuzz.go                  | 4 ++--
+ src/internal/fuzz/mem.go                   | 5 ++---
+ 3 files changed, 6 insertions(+), 7 deletions(-)

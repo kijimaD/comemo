@@ -1,0 +1,16 @@
+commit 2e1bb4a4cfbc7ed7602297c4e536deed8d635d93
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Oct 4 02:51:03 2008 -0700
+
+    add method test & fix method name bugs
+    
+    R=ken,r
+    DELTA=86  (72 added, 9 deleted, 5 changed)
+    OCL=16488
+    CL=16488
+
+ src/cmd/gc/dcl.c  | 13 +++---------
+ src/cmd/gc/go.y   |  8 ++++++-
+ src/cmd/gc/walk.c | 17 +++++++++------
+ test/method.go    | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 84 insertions(+), 17 deletions(-)

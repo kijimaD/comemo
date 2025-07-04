@@ -1,0 +1,21 @@
+commit 919d5aee22d3a56952f936dab63854aa1f141473
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 18 20:50:04 2018 -0700
+
+    cmd/compiler/internal/gc: remove flag argument from fconv (cleanup)
+    
+    The fconv flag arguments were 0, FmtSharp, and FmtSharp|FmtSign.
+    The 0 value was used for binary representation only, which was
+    readily available via Mpflt.String. Otherwise, FmtSharp was always
+    passed. FmtSign was used to print the '+' sign in case of a positive
+    number and only needed for complex number formatting. Instead
+    implemented cconv and handled it there.
+    
+    Change-Id: I1f77282f995be9cfda05efb71a0e027836a9da26
+    Reviewed-on: https://go-review.googlesource.com/136195
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go   |  8 ++++----
+ src/cmd/compile/internal/gc/fmt.go     | 13 +++++--------
+ src/cmd/compile/internal/gc/mpfloat.go | 23 ++++++++++++-----------
+ 3 files changed, 21 insertions(+), 23 deletions(-)

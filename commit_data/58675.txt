@@ -1,0 +1,34 @@
+commit 3105e3dca7be281cb12ff5cc88349c26827edfd0
+Author: WANG Xuerui <wangxuerui@iscas.ac.cn>
+Date:   Sun Feb 9 18:57:49 2025 +0800
+
+    cmd/go/internal/work: allow a bunch of loong64-specific flags
+    
+    Recognize and allow all LoongArch-specific CFLAGS as standardized
+    in the LoongArch Toolchain Conventions v1.1, and implemented in current
+    versions of GCC and Clang, to enable advanced cgo use cases on loong64.
+    These flags are also allowed for linker invocations in case of possible
+    LTO.
+    
+    See: https://github.com/loongson/la-toolchain-conventions/blob/releases/v1.1/LoongArch-toolchain-conventions-EN.adoc#list
+    
+    While at it, also add support for -mtls-dialect as some C programs
+    may benefit performance-wise from the optional TLSDESC usage. This flag
+    is not specific to loong64 though; it is available for amd64, arm,
+    arm64, loong64, riscv64 and x86.
+    
+    Fixes #71597.
+    
+    Change-Id: I35d2507edb71fa324ae429a3ae3c739644a9cac1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647956
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+
+ src/cmd/go/internal/work/security.go      | 13 +++++++++++--
+ src/cmd/go/internal/work/security_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 2 deletions(-)

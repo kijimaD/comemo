@@ -1,0 +1,14 @@
+commit 14a74378f45298853ea1292321bcaa6788b163fb
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Wed Jan 13 10:25:28 2010 -0800
+
+    cgo: handle C99 bool type
+    
+    Fixes #307.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186073
+
+ src/cmd/cgo/gcc.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 3be088e35472332a0707479cac616199275e4656
+Author: David Symonds <dsymonds@golang.org>
+Date:   Thu Sep 15 08:09:43 2011 +1000
+
+    json: if a field's tag is "-", never encode it.
+    
+    R=adg, r, edsrzf, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4962052
+
+ src/pkg/json/decode.go      | 46 +++++++++++++++++++++++----------------------
+ src/pkg/json/decode_test.go |  4 ++++
+ src/pkg/json/encode.go      | 16 ++++++++++++----
+ src/pkg/json/encode_test.go |  2 ++
+ 4 files changed, 42 insertions(+), 26 deletions(-)

@@ -1,0 +1,14 @@
+commit 3aa892c4f9187c619091d309e7b3da6dfd14f854
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Apr 24 17:22:58 2009 -0700
+
+    daily snapshot:
+    - more work on template-driven ast printing
+    
+    R=r
+    OCL=27851
+    CL=27851
+
+ usr/gri/pretty/ast.txt   |  46 ++++--
+ usr/gri/pretty/format.go | 417 +++++++++++++++++++++++++++++++----------------
+ 2 files changed, 314 insertions(+), 149 deletions(-)

@@ -1,0 +1,22 @@
+commit a9cf0b1e1e2a66db547fcabb7188465e4ac54700
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 30 21:11:26 2016 -0700
+
+    net/http: provide access to the listener address an HTTP request arrived on
+    
+    This adds a context key named LocalAddrContextKey (for now, see #15229) to
+    let users access the net.Addr of the net.Listener that accepted the connection
+    that sent an HTTP request. This is similar to ServerContextKey which provides
+    access to the *Server. (A Server may have multiple Listeners)
+    
+    Fixes #6732
+    
+    Change-Id: I74296307b68aaaab8df7ad4a143e11b5227b5e62
+    Reviewed-on: https://go-review.googlesource.com/22672
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 7 ++++++-
+ src/net/http/server.go     | 7 +++++++
+ 2 files changed, 13 insertions(+), 1 deletion(-)

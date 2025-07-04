@@ -1,0 +1,23 @@
+commit b9f26c32c39156ab654457fecdb5f73fb69e4064
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 19 10:50:04 2010 -0800
+
+    hash: document that Sum does not change hash state
+    crypto/*: implement and test proper Sum
+    
+    Fixes #216.
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/186210
+
+ src/pkg/crypto/md4/md4.go            |  6 +++++-
+ src/pkg/crypto/md4/md4_test.go       | 13 +++++++++----
+ src/pkg/crypto/md5/md5.go            |  6 +++++-
+ src/pkg/crypto/md5/md5_test.go       | 13 +++++++++----
+ src/pkg/crypto/sha1/sha1.go          |  6 +++++-
+ src/pkg/crypto/sha1/sha1_test.go     | 13 +++++++++----
+ src/pkg/crypto/sha256/sha256.go      |  6 +++++-
+ src/pkg/crypto/sha256/sha256_test.go | 13 +++++++++----
+ src/pkg/hash/hash.go                 | 13 ++++++++++---
+ 9 files changed, 66 insertions(+), 23 deletions(-)

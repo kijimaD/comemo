@@ -1,0 +1,30 @@
+commit e6443f6255ab2850e32cc314e1db4a48fe6c9592
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 26 14:03:52 2010 -0800
+
+    Add -r option to 6l/8l/5l.
+    
+    This permits more flexibility with cgo and swig in cases where
+    the program is run on a machine other than the one on which it
+    is built.  Rather than storing the absolute path to the shared
+    library in the DT_NEEDED entry, we can store just the name,
+    and let the dynamic linker find it using DT_RUNPATH or the
+    LD_LIBRARY_PATH environment variable.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/223068
+
+ src/cmd/5l/asm.c  | 2 ++
+ src/cmd/5l/doc.go | 2 ++
+ src/cmd/5l/l.h    | 1 +
+ src/cmd/5l/obj.c  | 5 ++++-
+ src/cmd/6l/asm.c  | 2 ++
+ src/cmd/6l/doc.go | 2 ++
+ src/cmd/6l/l.h    | 1 +
+ src/cmd/6l/obj.c  | 5 ++++-
+ src/cmd/8l/asm.c  | 2 ++
+ src/cmd/8l/doc.go | 2 ++
+ src/cmd/8l/l.h    | 1 +
+ src/cmd/8l/obj.c  | 4 +++-
+ 12 files changed, 26 insertions(+), 3 deletions(-)

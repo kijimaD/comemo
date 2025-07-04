@@ -1,0 +1,19 @@
+commit 12cd55c062d6062a64076cb37f12ab7646df1be7
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Wed Dec 25 17:24:07 2019 +0100
+
+    io/ioutil: reject path separators in TempDir, TempFile pattern
+    
+    Fixes #33920
+    
+    Change-Id: I2351a1caa80c086ff5a8e02aad70d996be7aac35
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212597
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/io/ioutil/tempfile.go      | 19 ++++++++--
+ src/io/ioutil/tempfile_test.go | 79 ++++++++++++++++++++++++++++++++++++++++++
+ src/os/os_test.go              |  2 +-
+ 3 files changed, 96 insertions(+), 4 deletions(-)

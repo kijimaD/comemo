@@ -1,0 +1,26 @@
+commit be1da9cdeecba15d0f68b4dcc145bcc77c0c4ace
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat May 1 15:00:03 2021 -0400
+
+    cmd/link: unify text segment write
+    
+    Currently we have two code paths of writing the text segment. They
+    are semantically the same:
+    
+    - if we split text sections, we write all ".text" sections as
+      text and the the rest as data.
+    - if we do not split text sections, we write the first section
+      as text and the rest as data. The first section is named ".text"
+      and is the only one in this case.
+    
+    Unify the code.
+    
+    Change-Id: Ic639eed625615be3c8a8d41f5b47e901552f587a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316049
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/asmb.go   | 23 ++++++-----------------
+ src/cmd/link/internal/ld/lib.go    |  3 ---
+ src/cmd/link/internal/ppc64/obj.go | 13 ++++++-------
+ 3 files changed, 12 insertions(+), 27 deletions(-)

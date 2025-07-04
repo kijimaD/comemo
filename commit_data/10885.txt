@@ -1,0 +1,14 @@
+commit 796a2c19ea0f8be23022b234667b06abbab20030
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 20 11:52:20 2011 +1100
+
+    os: make sure Remove returns correct error on windows
+    
+    R=golang-dev, bsiegert, rsc
+    CC=golang-dev
+    https://golang.org/cl/5493078
+
+ src/pkg/os/file_posix.go   | 33 ---------------------------------
+ src/pkg/os/file_unix.go    | 30 ++++++++++++++++++++++++++++++
+ src/pkg/os/file_windows.go | 29 +++++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 33 deletions(-)

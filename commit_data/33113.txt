@@ -1,0 +1,19 @@
+commit e01eac371a3a5d62b5e75dbb4b7b6c89bae81569
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Oct 13 11:05:12 2017 -0400
+
+    cmd/compile: mark LoweredGetCallerPC rematerializeable
+    
+    The caller's PC is always available in the frame. We can just
+    load it when needed, no need to spill.
+    
+    Change-Id: I9c0a525903e574bb4eec9fe53cbeb8c64321166a
+    Reviewed-on: https://go-review.googlesource.com/70710
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/386Ops.go   |  2 +-
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 10 ++++++----
+ 3 files changed, 8 insertions(+), 6 deletions(-)

@@ -1,0 +1,22 @@
+commit c28f55c50219f0191e453ea02d57c1f20434b561
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 4 13:00:21 2016 -0700
+
+    cmd/compile/internal/ssa: add Op.UsesScratch method
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: I928a2ef39fb10091957f35bb3f1564498f6f1b83
+    Reviewed-on: https://go-review.googlesource.com/30312
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/pgen.go          | 10 +---
+ src/cmd/compile/internal/gc/ssa.go           |  3 ++
+ src/cmd/compile/internal/ssa/gen/386Ops.go   | 32 ++++++-------
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |  4 +-
+ src/cmd/compile/internal/ssa/gen/main.go     |  6 +++
+ src/cmd/compile/internal/ssa/op.go           |  1 +
+ src/cmd/compile/internal/ssa/opGen.go        | 68 +++++++++++++++++-----------
+ 7 files changed, 71 insertions(+), 53 deletions(-)

@@ -1,0 +1,18 @@
+commit 499c827516b3877497b1533f44912f037b388a90
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 27 15:40:46 2015 +1000
+
+    doc: add Go Security Policy document
+    
+    Bring in the text from the proposal (with minor edits):
+    https://github.com/golang/proposal/blob/master/design/11502-securitypolicy.md
+    
+    Fixes #11502
+    
+    Change-Id: I92a987be66a0df60c1fad6c6c79f89bd8e9c12a8
+    Reviewed-on: https://go-review.googlesource.com/13955
+    Reviewed-by: Jason Buberel <jbuberel@google.com>
+
+ doc/contrib.html  |   4 +-
+ doc/security.html | 174 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 177 insertions(+), 1 deletion(-)

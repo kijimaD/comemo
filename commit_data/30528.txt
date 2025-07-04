@@ -1,0 +1,31 @@
+commit 4a7cf960c38d72e9f0c6f00e46e013be2a35d56e
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jan 3 10:15:55 2017 -0700
+
+    runtime: make ReadMemStats STW for < 25µs
+    
+    Currently ReadMemStats stops the world for ~1.7 ms/GB of heap because
+    it collects statistics from every single span. For large heaps, this
+    can be quite costly. This is particularly unfortunate because many
+    production infrastructures call this function regularly to collect and
+    report statistics.
+    
+    Fix this by tracking the necessary cumulative statistics in the
+    mcaches. ReadMemStats still has to stop the world to stabilize these
+    statistics, but there are only O(GOMAXPROCS) mcaches to collect
+    statistics from, so this pause is only 25µs even at GOMAXPROCS=100.
+    
+    Fixes #13613.
+    
+    Change-Id: I3c0a4e14833f4760dab675efc1916e73b4c0032a
+    Reviewed-on: https://go-review.googlesource.com/34937
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/export_test.go | 65 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/gc_test.go     | 51 ++++++++++++++++++++++++++++++++++++
+ src/runtime/mcentral.go    | 12 +++++++++
+ src/runtime/mheap.go       | 12 ++++++---
+ src/runtime/mstats.go      | 46 ++++++++++++++++----------------
+ 5 files changed, 159 insertions(+), 27 deletions(-)

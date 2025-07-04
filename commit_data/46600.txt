@@ -1,0 +1,18 @@
+commit ff8a7e513bda9e89dfbde8ecefaa4514c11ec596
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Mon Sep 20 00:23:40 2021 +0800
+
+    cmd/compile: print expression for invalid operation errors
+    
+    For #48472
+    
+    Change-Id: I5072ebcf53e03fb5515c51a2ad01f02d72b30719
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350929
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Trust: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/types2/expr.go                       |  2 +-
+ .../compile/internal/types2/testdata/fixedbugs/issue48472.go2 | 11 +++++++++++
+ src/go/types/expr.go                                          |  2 +-
+ src/go/types/testdata/fixedbugs/issue48472.go2                | 11 +++++++++++
+ 4 files changed, 24 insertions(+), 2 deletions(-)

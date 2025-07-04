@@ -1,0 +1,12 @@
+commit 4133407061407816a66e209f88cff7407cf587e2
+Author: Shawn Smith <shawn.p.smith@gmail.com>
+Date:   Fri Dec 27 08:39:54 2013 -0800
+
+    crypto/cipher: remove unused shift1 function
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/38990045
+
+ src/pkg/crypto/cipher/cipher.go | 10 ----------
+ 1 file changed, 10 deletions(-)

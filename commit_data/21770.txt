@@ -1,0 +1,24 @@
+commit f9cc72ccfef0e1aa68f8c726c430bb7e59b734a8
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 26 20:29:58 2015 +1100
+
+    runtime: disable scavenger on 64k page size kernels
+    
+    Update #9993
+    
+    If the physical page size of the machine is larger than the logical
+    heap size, for example 8k logical, 64k physical, then madvise(2) will
+    round up the requested amount to a 64k boundary and may discard pages
+    close to the page being madvised.
+    
+    This patch disables the scavenger in these situations, which at the moment
+    is only ppc64 and ppc64le systems. NaCl also uses a 64k page size, but
+    it's not clear if it is affected by this problem.
+    
+    Change-Id: Ib897f8d3df5bd915ddc0b510f2fd90a30ef329ca
+    Reviewed-on: https://go-review.googlesource.com/6091
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/debug/garbage_test.go | 4 ++++
+ src/runtime/mheap.go              | 9 +++++++++
+ 2 files changed, 13 insertions(+)

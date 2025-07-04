@@ -1,0 +1,12 @@
+commit d6ac5b32d23b6d88342d55cd262f1b09e5a02f3e
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri May 25 09:18:12 2012 +1000
+
+    C: Bill Thiede (Google CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6257050
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

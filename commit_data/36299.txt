@@ -1,0 +1,23 @@
+commit bd483592a23c5c8964d1af5ca85792db031229ad
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Jun 19 03:44:28 2018 +0000
+
+    cmd/compile/internal/x86: simplify 387 with FLDZ and FLZ1
+    
+    FLD1 pushes +1.0 to the 387 register stack, and FLDZ pushes +0.0
+    to the 387 regiser stack.
+    
+    They can be used to simplify MOVSSconst/MOVSDconst when the
+    constant is +0.0, -0.0, +1.0, -1.0.
+    
+    The size of the go executable reduces about 62KB and the total size
+    of pkg/linux_386 reduces about 7KB with this optimization.
+    
+    Change-Id: Icc8213b58262e0024a277cf1103812a17dd4b05e
+    Reviewed-on: https://go-review.googlesource.com/119635
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/x86/387.go | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)

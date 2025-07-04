@@ -1,0 +1,16 @@
+commit 496cf215cf7f36c2b1b14c00aadccf3e16f67eae
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 27 14:25:16 2016 -0400
+
+    crypto/tls: gofmt
+    
+    Commit fa3543e introduced formatting errors.
+    
+    Change-Id: I4b921f391a9b463cefca4318ad63b70ae6ce6865
+    Reviewed-on: https://go-review.googlesource.com/23514
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+
+ src/crypto/tls/conn.go     | 10 +++++-----
+ src/crypto/tls/tls_test.go |  7 +++----
+ 2 files changed, 8 insertions(+), 9 deletions(-)

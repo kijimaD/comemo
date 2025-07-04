@@ -1,0 +1,21 @@
+commit 3e636ab9ad31040aff2d484237808907a776cec6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 14 13:29:07 2020 -0700
+
+    net/mail: return error on empty address list
+    
+    This restores the handling accidentally changed in CL 217377.
+    
+    Fixes #40803
+    For #36959
+    
+    Change-Id: If77fbc0c2a1dde4799f760affdfb8dde9bcaf458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248598
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Jeremy Fishman <jfishman@cloudflare.com>
+
+ src/net/mail/message.go      | 13 +++++++++----
+ src/net/mail/message_test.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 4 deletions(-)

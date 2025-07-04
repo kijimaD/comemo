@@ -1,0 +1,14 @@
+commit 2d6f8cc2cdd5993eb8dc80655735a38ef067af6e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 26 15:57:13 2019 -0800
+
+    doc/go1.14: mention increased number of EINTR errors
+    
+    Updates #36281
+    
+    Change-Id: I3c4487caaf47566212dc62322b2e884e695ea7f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212657
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

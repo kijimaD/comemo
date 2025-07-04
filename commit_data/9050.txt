@@ -1,0 +1,17 @@
+commit dcdaeebdfb233758f7c22c2cad9c0e41dac765a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 13 10:54:51 2011 -0700
+
+    docs: fix wrong it's -> its
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/4702046
+
+ src/cmd/godoc/godoc.go         | 2 +-
+ src/cmd/godoc/index.go         | 2 +-
+ src/cmd/ld/dwarf.c             | 4 ++--
+ src/pkg/encoding/pem/pem.go    | 2 +-
+ src/pkg/exp/datafmt/datafmt.go | 4 ++--
+ src/pkg/net/fd_windows.go      | 2 +-
+ 6 files changed, 8 insertions(+), 8 deletions(-)

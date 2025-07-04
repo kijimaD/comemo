@@ -1,0 +1,15 @@
+commit bd71072eee41cdf7966805a33e509831bfccc7d9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 14:39:44 2012 -0400
+
+    codereview: fix for Mercurial 2.1
+    
+    Mercurial: the Python of version control systems.
+    Python: the Mercurial of programming languages.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5777066
+
+ lib/codereview/codereview.py | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

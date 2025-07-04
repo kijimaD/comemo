@@ -1,0 +1,24 @@
+commit 4804d0daca1e4f275890d9a74f538796558b5efa
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jun 21 17:20:00 2024 +0000
+
+    internal/sync: move HashTrieMap from internal/concurrent
+    
+    This change moves internal/concurrent.HashTrieMap from
+    internal/concurrent into internal/sync just to clean up the packages a
+    bit. This is all in anticipation of using HashTrieMap from the sync
+    package.
+    
+    Change-Id: I18c007a301f83979d72f5d6bea600c42eaf2421e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594058
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/go/build/deps_test.go                          |  9 +--
+ src/internal/sync/export_test.go                   | 37 +++++++++++
+ src/internal/{concurrent => sync}/hashtriemap.go   |  5 +-
+ .../{concurrent => sync}/hashtriemap_bench_test.go | 11 ++--
+ .../{concurrent => sync}/hashtriemap_test.go       | 71 +++-------------------
+ src/unique/handle.go                               | 10 +--
+ 6 files changed, 64 insertions(+), 79 deletions(-)

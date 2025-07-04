@@ -1,0 +1,12 @@
+commit e434f1a7637ef2bff02663a2e9f21a8a35eda41e
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 7 17:31:22 2009 -0800
+
+    FAQ edits
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1024015
+
+ doc/go_faq.html | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

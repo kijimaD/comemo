@@ -1,0 +1,21 @@
+commit c624f8ff704cd682c0a66a8213c326510800bd8a
+Author: Ben Shi <powerman1st@163.com>
+Date:   Thu Aug 30 10:08:34 2018 +0000
+
+    syscall: skip  TestSyscallNoError on rooted android/arm
+    
+    The system call geteuid can not work properly on android, which
+    causes a test case failed on rooted android/arm.
+    
+    This CL disables the test case on android.
+    
+    Fixes #27364
+    
+    Change-Id: Ibfd33ef8cc1dfe8822c8be4280eae12ee30929c1
+    Reviewed-on: https://go-review.googlesource.com/132175
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/syscall_linux_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

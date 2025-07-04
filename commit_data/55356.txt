@@ -1,0 +1,18 @@
+commit 821f94103b2980758cdb21ac6ae834ef0a07235a
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Fri Jan 5 12:47:56 2024 +0000
+
+    io/fs,path/filepath: fix typo in SkipAll/SkipDir doc
+    
+    Also make the reference into a doc link.
+    
+    Change-Id: Ib112307a65b65c8f963abf60aa92cb1942de940c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554295
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/io/fs/walk.go         | 4 ++--
+ src/path/filepath/path.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,22 @@
+commit 531b6d3126bb810dcdfcce14983cea32236c322d
+Author: Tamir Duberstein <tamird@google.com>
+Date:   Fri Feb 7 20:27:55 2020 +0000
+
+    cmd/link: code cleanup in macho_combine_dwarf.go
+    
+    - remove global variables
+    - add missing error checks
+    - add missing (*os.File).Close calls
+    - null-check text section correctly
+    - reduce some variable scopes
+    - use bytes.Buffer instead of appended slice
+    - reduce integer casting
+    
+    Change-Id: Ib9ad41adefed4d61047f53e27046389182eef786
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/218501
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/macho_combine_dwarf.go | 135 +++++++++++-------------
+ 1 file changed, 62 insertions(+), 73 deletions(-)

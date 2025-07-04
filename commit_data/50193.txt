@@ -1,0 +1,20 @@
+commit bd56cb90a72e6725eddb9622e93a0806c1d1f105
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 30 13:08:45 2022 -0700
+
+    cmd/compile: regenerate node_gen.go
+    
+    Looks like CL 413361 which added CaseClause.RTypes missed the need
+    to regenerate this file.
+    
+    Also CL 413357 added DynamicTypeAssertExpr.SrcRType, same issue.
+    
+    Change-Id: I45e4d0685cc2f9bdcef1fad2cfc92e7005ef363e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426675
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/ir/node_gen.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

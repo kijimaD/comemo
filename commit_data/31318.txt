@@ -1,0 +1,16 @@
+commit 6a48019ea5d92a26a3e15330519a822460c41f75
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Apr 24 21:50:33 2017 +0000
+
+    runtime/debug: mark TestSetGCPercent as flaky
+    
+    Updates #20076
+    
+    Change-Id: I4eb98abbb49174cc6433e5da2c3660893ef88fd1
+    Reviewed-on: https://go-review.googlesource.com/41615
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/debug/garbage_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

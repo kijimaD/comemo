@@ -1,0 +1,13 @@
+commit 90b76c0f3e3356e17c03baae3e20a4a11c2a6f10
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Nov 2 09:42:25 2011 +1100
+
+    html: refactor the blacklist for the "render and re-parse" test.
+    
+    R=andybalholm
+    CC=golang-dev, mikesamuel
+    https://golang.org/cl/5331056
+
+ src/pkg/html/parse_test.go | 20 ++++++++++++++------
+ src/pkg/html/render.go     | 31 +++++++++++++++++++++----------
+ 2 files changed, 35 insertions(+), 16 deletions(-)

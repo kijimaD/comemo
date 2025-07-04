@@ -1,0 +1,26 @@
+commit 8c269479eddb8a620e4f4581a520fdf5a931d648
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Oct 1 22:19:23 2024 +0200
+
+    runtime: don't acquirem() in vgetrandom unless necessary
+    
+    I noticed in pprof that acquirem() was a bit of a hotspot. It turns out
+    that we can use the same trick that runtime.rand() does, and only
+    acquirem if we're doing something non-nosplit -- in this case, getting a
+    new state -- but otherwise just do getg().m, which is safe because we're
+    inside runtime and don't call split functions.
+    
+    cpu: 11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz
+                         │   sec/op    │   sec/op     vs base               │
+    ParallelGetRandom-16   2.651n ± 4%   2.416n ± 7%  -8.87% (p=0.001 n=10)
+                         │     B/s      │     B/s       vs base               │
+    ParallelGetRandom-16   1.406Gi ± 4%   1.542Gi ± 6%  +9.72% (p=0.001 n=10)
+    
+    Change-Id: Iae075f4e298b923e499cd01adfabacab725a8684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616738
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/vgetrandom_linux.go | 23 +++++++++++++++--------
+ 1 file changed, 15 insertions(+), 8 deletions(-)

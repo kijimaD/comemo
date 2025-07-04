@@ -1,0 +1,18 @@
+commit 3989bc8a80970c6790cf6d161984e870bdb952e4
+Author: Kioni <khndhkx123@gmail.com>
+Date:   Wed May 22 17:57:32 2024 +0000
+
+    cmd/go: add -cover flag to report by go version -m
+    
+    Fixes #67366
+    
+    Change-Id: Ie39a8ebe7fe2faf59a5f723c69d6d5c8e1a9cd8b
+    GitHub-Last-Rev: 021134582d8c20b5799514f34b27d8b603a52fef
+    GitHub-Pull-Request: golang/go#67572
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587375
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+
+ src/cmd/go/internal/load/pkg.go | 3 +++
+ 1 file changed, 3 insertions(+)

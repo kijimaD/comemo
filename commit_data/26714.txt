@@ -1,0 +1,18 @@
+commit 036d09d5bff8b9da789ba0c914e5966055d9d7fe
+Author: Ilya Tocar <ilya.tocar@intel.com>
+Date:   Tue Mar 29 13:53:34 2016 +0300
+
+    cmd/compile/internal/amd64: Use 32-bit operands for byte operations
+    
+    We already generate ADDL for byte operations, reflect this in code.
+    This also allows inc/dec for +-1 operation, which are 1-byte shorter,
+    and enables lea for 3-operand addition/subtraction.
+    
+    Change-Id: Ibfdfee50667ca4cd3c28f72e3dece0c6d114d3ae
+    Reviewed-on: https://go-review.googlesource.com/21251
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/ssa.go | 58 ++++++++++++-----------------------
+ 1 file changed, 20 insertions(+), 38 deletions(-)

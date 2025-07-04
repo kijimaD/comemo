@@ -1,0 +1,15 @@
+commit 09f4261841320f38a0f2f4ee7515a9f03dd4fb68
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 30 10:58:53 2009 -0700
+
+    split godoc/godoc.go into godoc/godoc.go
+    and godoc/main.go.
+    
+    R=gri
+    CC=r
+    http://go/go-review/1017005
+
+ src/cmd/godoc/Makefile |   1 +
+ src/cmd/godoc/godoc.go | 227 +++++--------------------------------------------
+ src/cmd/godoc/main.go  | 212 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 236 insertions(+), 204 deletions(-)

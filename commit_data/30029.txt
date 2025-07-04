@@ -1,0 +1,16 @@
+commit 08a3a7c08a04a0041db3ee6923d9dccb8aaf764d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 1 15:12:51 2017 -0800
+
+    cmd/compile: update maxPtrmaskBytes comment for larger value
+    
+    The comment for maxPtrmaskBytes implied that the value was still 16,
+    but that changed in CL 10815.
+    
+    Change-Id: I86e304bc7d9d1a0a6b22b600fefcc1325e4372d9
+    Reviewed-on: https://go-review.googlesource.com/36120
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/reflect.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

@@ -1,0 +1,13 @@
+commit 2b1dbe8a4f9f214d7164abd18d99e2451efc5cdb
+Author: Rob Pike <r@golang.org>
+Date:   Mon Oct 5 14:49:51 2009 -0700
+
+    addressing gri's comments.
+    
+    R=gri
+    DELTA=31  (7 added, 17 deleted, 7 changed)
+    OCL=35336
+    CL=35338
+
+ doc/go_lang_faq.html | 38 ++++++++++++++------------------------
+ 1 file changed, 14 insertions(+), 24 deletions(-)

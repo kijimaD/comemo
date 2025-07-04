@@ -1,0 +1,13 @@
+commit c3080418d6cb262d91c33fce481f70036dc5f21b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Mon May 31 17:35:59 2010 -0700
+
+    Fix typo in gob docs. They were introduced in revision 3199778baf
+    "change the encoding of uints...".
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1436041
+
+ src/pkg/gob/encode.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

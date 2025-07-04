@@ -1,0 +1,24 @@
+commit 140ef3c59a558293f2865541787fa9bb85dc850c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 26 23:08:39 2015 -0400
+
+    cmd/compile: move Node.Pack to Node.Name.Pack
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 232
+    $
+    
+    Change-Id: I4be025f4ec11f882f24ae7582821d36d3b122b77
+    Reviewed-on: https://go-review.googlesource.com/10526
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/align.go  |  2 ++
+ src/cmd/compile/internal/gc/dcl.go    |  4 ++++
+ src/cmd/compile/internal/gc/export.go |  1 +
+ src/cmd/compile/internal/gc/go.y      |  8 ++++----
+ src/cmd/compile/internal/gc/lex.go    | 20 +++++++++++++++++---
+ src/cmd/compile/internal/gc/subr.go   |  5 ++++-
+ src/cmd/compile/internal/gc/syntax.go |  2 +-
+ src/cmd/compile/internal/gc/y.go      |  8 ++++----
+ 8 files changed, 37 insertions(+), 13 deletions(-)

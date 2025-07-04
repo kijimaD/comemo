@@ -1,0 +1,12 @@
+commit e68ac45172e56e583280191ea7080f60aed7c9a2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Jul 20 10:41:25 2018 +0200
+
+    doc/go1.11: fix bad link to Int.ModInverse
+    
+    Change-Id: I659bc5b61dade9438b122e6994da022946f5e1d3
+    Reviewed-on: https://go-review.googlesource.com/125255
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.11.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 1c9e587b90172e7654db897d8c938ffc665e1673
+Author: 6543 <6543@obermui.de>
+Date:   Mon Mar 22 21:16:27 2021 +0000
+
+    net: add IP.IsPrivate
+    
+    Adds a new method IsPrivate to check if an IP is
+    private according to RFC 1918 & RFC 4193.
+    
+    Fixes #29146
+    
+    Change-Id: If77b9e1746d86029df66ae9f18437b1f65a18b59
+    GitHub-Last-Rev: 09f4ba75988c87b90550d071866ab1d6634ef681
+    GitHub-Pull-Request: golang/go#42793
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272668
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/ip.go      | 21 +++++++++++++++++++++
+ src/net/ip_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)

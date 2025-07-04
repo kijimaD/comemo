@@ -1,0 +1,14 @@
+commit 100a034120e7f68ba5ca687b98bb930f4f539b9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 27 12:41:46 2011 -0400
+
+    runtime: higher goroutine arg limit, clearer error
+    
+    Fixes #591.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4803054
+
+ src/pkg/runtime/proc.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

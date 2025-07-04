@@ -1,0 +1,15 @@
+commit 9a701017e60f5a2a46290538ed92f33816da80c2
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Fri Oct 25 21:16:24 2019 +0800
+
+    runtime: fix typo of MADV_NOHUGEPAGE
+    
+    Change-Id: I60a1ca606fe7492c05697c4d58afc7f19fcc63fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203340
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/defs2_linux.go | 2 +-
+ src/runtime/defs_linux.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit f22f40532ecfac5eaba9cebe0cbef4efeb9de146
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 19 15:30:54 2011 +1000
+
+    Make.ccmd: another build fix.
+    It's sad to think there are environments where compiling against a library
+    isn't enough information for the the linker to decide that you need that
+    library.
+    TBR=jdpoirier
+    
+    R=jdpoirier
+    CC=golang-dev
+    https://golang.org/cl/4646047
+
+ src/Make.ccmd | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

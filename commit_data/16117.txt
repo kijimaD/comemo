@@ -1,0 +1,16 @@
+commit 58030c541bd39b287aa66569e58094279b7cf642
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Apr 6 20:09:02 2013 -0700
+
+    runtime: change Note from union to struct
+    Unions can break precise GC.
+    Update #5193.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/8362046
+
+ src/pkg/runtime/lock_futex.c | 14 +++++++-------
+ src/pkg/runtime/lock_sema.c  | 18 +++++++++---------
+ src/pkg/runtime/runtime.h    | 10 ++++++----
+ 3 files changed, 22 insertions(+), 20 deletions(-)

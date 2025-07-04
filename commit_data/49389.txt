@@ -1,0 +1,68 @@
+commit 47e34ca533b118bd47061b15fc7918563f4837a7
+Author: Robert Findley <rfindley@google.com>
+Date:   Sat May 7 21:22:17 2022 -0400
+
+    go/types, types2: ensure that named types never expand infinitely
+    
+    During type-checking, newly created instances share a type checking
+    Context which de-duplicates identical instances. However, when
+    unexpanded types escape the type-checking pass or are created via calls
+    to Instantiate, they lack this shared context. As reported in #52728,
+    this may lead to infinitely many identical but distinct types that are
+    reachable via the API.
+    
+    This CL introduces a new invariant that ensures we don't create such
+    infinitely expanding chains: instances created during expansion share a
+    context with the type that led to their creation. During expansion, the
+    expanding type passes its Context to any newly created instances.
+    
+    This ensures that cycles will eventually terminate with a previously
+    seen instance. For example, if we have an instantiation chain
+    T1[P]->T2[P]->T3[P]->T1[P], by virtue of this Context passing the
+    expansion of T3[P] will find the instantiation T1[P].
+    
+    In general, storing a Context in a Named type could lead to pinning
+    types in memory unnecessarily, but in this case the Context pins only
+    those types that are reachable from the original instance. This seems
+    like a reasonable compromise between lazy and eager expansion.
+    
+    Our treatment of Context was a little haphazard: Checker.bestContext
+    made it easy to get a context at any point, but made it harder to reason
+    about which context is being used. To fix this, replace bestContext with
+    Checker.context, which returns the type-checking context and panics on a
+    nil receiver. Update all call-sites to verify that the Checker is
+    non-nil when context is called.
+    
+    Also make it a panic to call subst with a nil context. Instead, update
+    subst to explicitly accept a local (=instance) context along with a
+    global context, and require that one of them is non-nil. Thread this
+    through to the call to Checker.instance, and handle context updating
+    there.
+    
+    Fixes #52728
+    
+    Change-Id: Ib7f26eb8c406290325bc3212fda25421a37a1e8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404885
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go        |   6 +-
+ src/cmd/compile/internal/types2/infer.go       |  10 +--
+ src/cmd/compile/internal/types2/instantiate.go |  83 ++++++++++++++------
+ src/cmd/compile/internal/types2/named.go       | 102 +++++++++++++++----------
+ src/cmd/compile/internal/types2/named_test.go  |  45 +++++++++++
+ src/cmd/compile/internal/types2/predicates.go  |   9 ++-
+ src/cmd/compile/internal/types2/signature.go   |   2 +-
+ src/cmd/compile/internal/types2/subst.go       |  37 ++++-----
+ src/cmd/compile/internal/types2/typexpr.go     |   5 +-
+ src/go/types/call.go                           |   6 +-
+ src/go/types/infer.go                          |  10 +--
+ src/go/types/instantiate.go                    |  83 ++++++++++++++------
+ src/go/types/named.go                          | 102 +++++++++++++++----------
+ src/go/types/named_test.go                     |  48 ++++++++++++
+ src/go/types/predicates.go                     |   9 ++-
+ src/go/types/signature.go                      |   2 +-
+ src/go/types/subst.go                          |  37 ++++-----
+ src/go/types/typexpr.go                        |   5 +-
+ 18 files changed, 389 insertions(+), 212 deletions(-)

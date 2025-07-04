@@ -1,0 +1,10 @@
+commit 4633a8ffe78070bcdfd9c764fad54ce4b79e93b8
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 12 11:04:40 2008 -0700
+
+    This test now runs correctly, with no bugs commented out
+    
+    SVN=122460
+
+ test/literal.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit ee3c88482ba232a34e4b20c8474fdee64a37ca36
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Fri Mar 15 12:37:40 2013 -0400
+
+    runtime: remove struct BitTarget
+    
+    R=golang-dev
+    CC=dvyukov, golang-dev, rsc
+    https://golang.org/cl/7845043
+
+ src/pkg/runtime/mgc0.c | 38 ++++++++++++--------------------------
+ 1 file changed, 12 insertions(+), 26 deletions(-)

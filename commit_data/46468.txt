@@ -1,0 +1,14 @@
+commit af9da137a98f897c56d0bfb8e18b177b9ff5af4b
+Author: ian woolf <btw515wolf2@gmail.com>
+Date:   Fri Aug 20 10:16:20 2021 +0800
+
+    A+C: update name to real name and add to AUTHORS
+    
+    Change-Id: I857b0e9aa7d933879239ef7ebc0d1a2812a74c25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/343533
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

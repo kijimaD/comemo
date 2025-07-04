@@ -1,0 +1,12 @@
+commit b3fd434ae07db5cf6385fb6b97a467e6f312c253
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Thu Aug 29 17:14:57 2013 +1000
+
+    net: make channel-based semaphore depend on receive, not send
+    
+    R=r, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/13348045
+
+ src/pkg/net/net.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

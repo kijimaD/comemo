@@ -1,0 +1,12 @@
+commit 3a93626b49a762867ddedf1033c90747d479b7ec
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Aug 15 05:07:35 2013 +0900
+
+    net: fix TestTCPLookup
+    
+    R=golang-dev, dvyukov, dave
+    CC=golang-dev
+    https://golang.org/cl/12766044
+
+ src/pkg/net/dnsclient_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit 807cce479f38c84b0bca63db80f64e4700d8643c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 23 17:15:21 2023 +0000
+
+    runtime: add partial lock order between mspanSpecial and gcBitsArenas
+    
+    CL 493275 started using gcBits for pinner bits. This means gcBits can be
+    allocated while holding the mspanSpecial lock. This is safe because
+    these were just parallel in the partial order, but now they need an
+    explicit edge between them.
+    
+    For #58277.
+    
+    Change-Id: I37917730e12d59cf0580f198d732198413a56424
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497475
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/runtime/lockrank.go   | 26 +++++++++++++-------------
+ src/runtime/mklockrank.go |  5 ++++-
+ 2 files changed, 17 insertions(+), 14 deletions(-)

@@ -1,0 +1,20 @@
+commit 07c3f65d53df7bb9f84bdbd2ab64c0ae12337e3e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Aug 6 15:44:27 2020 +0000
+
+    runtime,runtime/metrics: add heap object count metric
+    
+    For #37112.
+    
+    Change-Id: Idd3dd5c84215ddd1ab05c2e76e848aa0a4d40fb0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/247043
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/metrics.go             | 18 ++++++++++++++++--
+ src/runtime/metrics/description.go |  5 +++++
+ src/runtime/metrics/doc.go         |  3 +++
+ src/runtime/metrics_test.go        |  2 ++
+ 4 files changed, 26 insertions(+), 2 deletions(-)

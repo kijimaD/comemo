@@ -1,0 +1,37 @@
+commit c0d82bb0eca81aa13c2e605b4a25655f61a159aa
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Dec 12 13:04:44 2018 +0100
+
+    all: rename WebAssembly instructions according to spec changes
+    
+    The names of some instructions have been updated in the WebAssembly
+    specification to be more consistent, see
+    https://github.com/WebAssembly/spec/commit/994591e51c9df9e7ef980b04d660709b79982f75.
+    This change to the spec is possible because it is still in a draft
+    state.
+    
+    Go's support for WebAssembly is still experimental and thus excempt from
+    the compatibility promise. Being consistent with the spec should
+    warrant this breaking change to the assembly instruction names.
+    
+    Change-Id: Iafb8b18ee7f55dd0e23c6c7824aa1fad43117ef1
+    Reviewed-on: https://go-review.googlesource.com/c/153797
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/Wasm.rules | 34 +++++++--------
+ src/cmd/compile/internal/ssa/gen/WasmOps.go |  8 ++--
+ src/cmd/compile/internal/ssa/opGen.go       | 24 +++++------
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 64 ++++++++++++++---------------
+ src/cmd/compile/internal/wasm/ssa.go        | 12 +++---
+ src/cmd/internal/obj/wasm/a.out.go          | 36 ++++++++--------
+ src/cmd/internal/obj/wasm/anames.go         | 36 ++++++++--------
+ src/cmd/internal/obj/wasm/wasmobj.go        | 26 ++++++------
+ src/internal/bytealg/compare_wasm.s         |  2 +-
+ src/internal/bytealg/indexbyte_wasm.s       |  4 +-
+ src/reflect/asm_wasm.s                      |  4 +-
+ src/runtime/asm_wasm.s                      |  2 +-
+ src/runtime/rt0_js_wasm.s                   |  4 +-
+ src/runtime/sys_wasm.s                      |  4 +-
+ 14 files changed, 130 insertions(+), 130 deletions(-)

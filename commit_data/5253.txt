@@ -1,0 +1,25 @@
+commit 3ddeef81532df116ce4e8fd02fec68a3c2063d65
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 9 11:36:40 2010 -0700
+
+    rename os.Dir to os.FileInfo
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/902042
+
+ src/cmd/godoc/godoc.go           | 22 +++++++++---------
+ src/cmd/godoc/index.go           |  8 +++----
+ src/cmd/gofmt/gofmt.go           | 10 ++++----
+ src/pkg/go/parser/interface.go   |  4 ++--
+ src/pkg/go/parser/parser_test.go |  2 +-
+ src/pkg/io/ioutil/ioutil.go      | 26 ++++++++++-----------
+ src/pkg/os/file.go               | 49 ++++++++++++++++++++--------------------
+ src/pkg/os/stat_darwin.go        | 34 ++++++++++++++--------------
+ src/pkg/os/stat_linux.go         | 34 ++++++++++++++--------------
+ src/pkg/os/stat_mingw.go         |  4 ++--
+ src/pkg/os/stat_nacl.go          | 34 ++++++++++++++--------------
+ src/pkg/os/types.go              | 34 ++++++++++++++--------------
+ src/pkg/path/path.go             | 16 ++++++-------
+ src/pkg/path/path_test.go        |  8 +++----
+ 14 files changed, 143 insertions(+), 142 deletions(-)

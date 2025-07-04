@@ -1,0 +1,18 @@
+commit 5214949d41dda9d02490526d4e92a6cfa91a2b4a
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Dec 4 10:00:41 2023 -0800
+
+    crypto/x509: revert Policies marshaling behavior
+    
+    Don't marshal Policies field.
+    
+    Updates #64248
+    
+    Change-Id: I7e6d8b9ff1b3698bb4f585fa82fc4050eff3ae4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/crypto/x509/x509.go      | 30 +++---------------------------
+ src/crypto/x509/x509_test.go | 27 ---------------------------
+ 2 files changed, 3 insertions(+), 54 deletions(-)

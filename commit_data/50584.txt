@@ -1,0 +1,32 @@
+commit 7c84234142149bd24a4096c6cab691d3593f3431
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Sep 22 13:32:00 2022 -0700
+
+    net/http/httputil: avoid query parameter smuggling
+    
+    Query parameter smuggling occurs when a proxy's interpretation
+    of query parameters differs from that of a downstream server.
+    Change ReverseProxy to avoid forwarding ignored query parameters.
+    
+    Remove unparsable query parameters from the outbound request
+    
+       * if req.Form != nil after calling ReverseProxy.Director; and
+       * before calling ReverseProxy.Rewrite.
+    
+    This change preserves the existing behavior of forwarding the
+    raw query untouched if a Director hook does not parse the query
+    by calling Request.ParseForm (possibly indirectly).
+    
+    Fixes #54663
+    Fixes CVE-2022-2880
+    
+    Change-Id: If1621f6b0e73a49d79059dae9e6b256e0ff18ca9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432976
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/httputil/reverseproxy.go      | 50 ++++++++++++++++
+ src/net/http/httputil/reverseproxy_test.go | 95 ++++++++++++++++++++++++++++++
+ 2 files changed, 145 insertions(+)

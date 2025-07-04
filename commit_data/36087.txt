@@ -1,0 +1,27 @@
+commit ca642bb326c9eccd880f242c76f1e494d98efbc0
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 19 00:56:10 2018 -0400
+
+    cmd/go: warn about non-use of go.mod in legacy go get
+    
+    It's important for a smooth transition for non-module users
+    not to change operation in GOPATH/src by default in Go 1.11,
+    even if go.mod exists in a downloaded dependency.
+    
+    Even so, users create go.mod and then are confused about
+    why 'go get' commands seem to behave oddly, when in fact
+    they are getting the old 'go get'.
+    
+    Try to split the difference by printing a warning in 'go get'
+    when run in a tree that would normally be considered a
+    module if only it were outside GOPATH/src.
+    
+    Change-Id: I55a1cbef127f3f36de54a8d7b93e1fc64bf0a708
+    Reviewed-on: https://go-review.googlesource.com/124859
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/cfg/cfg.go                 |  5 +++++
+ src/cmd/go/internal/get/get.go                 |  5 +++++
+ src/cmd/go/internal/modload/init.go            |  3 +++
+ src/cmd/go/testdata/script/mod_get_warning.txt | 10 ++++++++++
+ 4 files changed, 23 insertions(+)

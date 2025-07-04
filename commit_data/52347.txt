@@ -1,0 +1,20 @@
+commit 6a914ee26f5954a4c561c853cc7d3f24e545477a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 20 14:39:05 2023 -0700
+
+    cmd/go: use platform.MustLinkExternal in externalLinkingForced
+    
+    This is a roll-forward of CL 477395 which was rolled back in CL 477736.
+    The earlier CL failed because we didn't account for the fact that
+    on some targets PIE is the default. That is now fixed.
+    
+    Change-Id: I3e93faa9506033d27040cc9920836f010e05cd26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477919
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)

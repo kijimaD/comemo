@@ -1,0 +1,48 @@
+commit a33903b02c4e13f881676bd2619986b058a87897
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Mar 28 13:52:33 2017 -0700
+
+    cmd/compile: evaluate itabname during walk instead of SSA
+    
+    For backend concurrency safety. Follow-up to CL 38721.
+    
+    This does introduce a Nodes where there wasn't one before,
+    but these are so rare that the performance impact is negligible.
+    
+    Does not pass toolstash-check, but the only change is line numbers,
+    and the new line numbers appear preferable.
+    
+    Updates #15756
+    
+    name       old alloc/op    new alloc/op    delta
+    Template      39.9MB ± 0%     39.9MB ± 0%    ~     (p=0.841 n=5+5)
+    Unicode       29.8MB ± 0%     29.8MB ± 0%    ~     (p=0.690 n=5+5)
+    GoTypes        113MB ± 0%      113MB ± 0%  +0.09%  (p=0.008 n=5+5)
+    SSA            854MB ± 0%      855MB ± 0%    ~     (p=0.222 n=5+5)
+    Flate         25.3MB ± 0%     25.3MB ± 0%    ~     (p=0.690 n=5+5)
+    GoParser      31.8MB ± 0%     31.9MB ± 0%    ~     (p=0.421 n=5+5)
+    Reflect       78.2MB ± 0%     78.3MB ± 0%    ~     (p=0.548 n=5+5)
+    Tar           26.7MB ± 0%     26.7MB ± 0%    ~     (p=0.690 n=5+5)
+    XML           42.3MB ± 0%     42.3MB ± 0%    ~     (p=0.222 n=5+5)
+    
+    name       old allocs/op   new allocs/op   delta
+    Template        391k ± 1%       391k ± 0%    ~     (p=0.841 n=5+5)
+    Unicode         320k ± 0%       320k ± 0%    ~     (p=0.841 n=5+5)
+    GoTypes        1.14M ± 0%      1.14M ± 0%  +0.26%  (p=0.008 n=5+5)
+    SSA            7.60M ± 0%      7.60M ± 0%    ~     (p=0.548 n=5+5)
+    Flate           234k ± 0%       234k ± 1%    ~     (p=1.000 n=5+5)
+    GoParser        316k ± 1%       317k ± 0%    ~     (p=0.841 n=5+5)
+    Reflect         979k ± 0%       980k ± 0%    ~     (p=0.690 n=5+5)
+    Tar             251k ± 1%       251k ± 0%    ~     (p=0.595 n=5+5)
+    XML             394k ± 0%       393k ± 0%    ~     (p=0.222 n=5+5)
+    
+    
+    Change-Id: I237ae5502db4560f78ce021dc62f6d289797afd6
+    Reviewed-on: https://go-review.googlesource.com/39197
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go  | 2 +-
+ src/cmd/compile/internal/gc/walk.go | 3 +++
+ 2 files changed, 4 insertions(+), 1 deletion(-)

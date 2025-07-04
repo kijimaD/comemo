@@ -1,0 +1,21 @@
+commit 202b4359696bcd2945244b42299e35e338331019
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Nov 9 22:04:38 2023 +0100
+
+    runtime: more godoc links
+    
+    Change-Id: I8fe66326994894b17ce0eda991bba942844d26b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541475
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/cpuprof.go |  6 +++---
+ src/runtime/extern.go  | 17 +++++++++--------
+ src/runtime/mprof.go   |  4 ++--
+ src/runtime/pinner.go  |  4 ++--
+ src/runtime/proc.go    |  2 +-
+ src/runtime/symtab.go  | 10 +++++-----
+ src/runtime/trace.go   |  4 ++--
+ src/runtime/trace2.go  |  4 ++--
+ 8 files changed, 26 insertions(+), 25 deletions(-)

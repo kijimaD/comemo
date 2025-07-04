@@ -1,0 +1,29 @@
+commit 2ddcad96d78fc70bb6886d82af8de7c74707c991
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon May 16 17:03:06 2011 -0400
+
+    net: protocol family adaptive address family selection
+    
+    This CL will help to make an adaptive address family
+    selection possible when an any address family, vague
+    network string such as "ip", "tcp" or "udp" is passed
+    to Dial and Listen API.
+    
+    Fixes #1769.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4438066
+
+ src/pkg/net/dial.go            |   9 +--
+ src/pkg/net/dialgoogle_test.go |   8 +--
+ src/pkg/net/file_test.go       |   6 +-
+ src/pkg/net/ip.go              |   8 ++-
+ src/pkg/net/ip_test.go         |  33 +++++++++
+ src/pkg/net/ipraw_test.go      |   8 +--
+ src/pkg/net/iprawsock.go       |  31 +++++----
+ src/pkg/net/ipsock.go          | 151 ++++++++++++++++++++++++++---------------
+ src/pkg/net/server_test.go     |   6 +-
+ src/pkg/net/tcpsock.go         |   9 +--
+ src/pkg/net/udpsock.go         |   9 +--
+ 11 files changed, 183 insertions(+), 95 deletions(-)

@@ -1,0 +1,12 @@
+commit 3fd19fdc5172cffd77f095c04f5d522f9a4eb314
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 31 12:09:49 2015 -0800
+
+    runtime: treat SIGTSTP/SIGCANCEL on Solaris as we do on GNU/Linux
+    
+    Change-Id: I617abd53f5fc883b972a1ef090886b85607e00bb
+    Reviewed-on: https://go-review.googlesource.com/18155
+    Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
+
+ src/runtime/signal_solaris.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,26 @@
+commit da153354b2862c1f7e1a55ad98680386d1fe31ef
+Author: Austin Clements <austin@google.com>
+Date:   Tue Feb 16 12:23:33 2016 -0500
+
+    runtime: copy stack before adjusting
+    
+    Currently copystack adjusts pointers in the old stack and then copies
+    the adjusted stack to the new stack. In addition to being generally
+    confusing, this is going to make concurrent stack shrinking harder.
+    
+    Switch this around so that we first copy the stack and then adjust
+    pointers on the new stack (never writing to the old stack).
+    
+    This reprises CL 15996, but takes a different and simpler approach. CL
+    15996 still walked the old stack while adjusting pointers on the new
+    stack. In this CL, we adjust auxiliary structures before walking the
+    stack, so we can just walk the new stack.
+    
+    For #12967.
+    
+    Change-Id: I94fa86f823ba9ee478e73b2ba509eed3361c43df
+    Reviewed-on: https://go-review.googlesource.com/20033
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/stack.go | 27 ++++++++++++++-------------
+ 1 file changed, 14 insertions(+), 13 deletions(-)

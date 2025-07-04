@@ -1,0 +1,13 @@
+commit a75e347a21e104a070b6516bc5adae402d424e45
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 16:03:01 2009 -0700
+
+    do not migrate x to the heap because of *&x.
+    
+    R=ken
+    OCL=35799
+    CL=35799
+
+ src/cmd/gc/go.h        |  2 ++
+ src/cmd/gc/typecheck.c | 36 +++++++++++++++++++++---------------
+ 2 files changed, 23 insertions(+), 15 deletions(-)

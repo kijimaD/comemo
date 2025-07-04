@@ -1,0 +1,13 @@
+commit 8b212f67ffd6ec1811b7464f7c0b88bf79c31d80
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 10 16:23:01 2008 -0700
+
+    - attemp to correct statement syntax
+    - introduced FieldDeclList and MethodDeclList
+      in consistency with other lists
+    - made labels declarations
+    
+    SVN=111982
+
+ doc/go_lang.txt | 48 ++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 32 insertions(+), 16 deletions(-)

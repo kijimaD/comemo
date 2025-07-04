@@ -1,0 +1,14 @@
+commit 221eef6808654bd09de8d249b1dddb9c25f68347
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Fri Aug 23 16:53:32 2013 -0700
+
+    os/exec: remove flaky TestExtraFilesFDShuffle test
+    
+    Update #5780
+    
+    R=golang-dev, cshapiro, dave, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12869049
+
+ src/pkg/os/exec/exec_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,28 @@
+commit c7c7c7031d7876f6821dd1be6e8e2a24e5ff97b8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Dec 21 11:26:33 2015 -0800
+
+    runtime: fix, simplify, and improve scan state in goroutine header
+    
+    Currently goroutineheader goes through some convolutions to *almost*
+    print the scan state of a G. However, the code path that would print
+    the scan state of the G refers to gStatusStrings where it almost
+    certainly meant to refer to gScanStatusStrings (which is unused), so
+    it winds up printing the regular status string without the scan state
+    either way. Furthermore, if the G is in _Gwaiting, we override the
+    status string and lose where this would indicate the scan state if it
+    worked.
+    
+    This commit fixes this so the runtime prints the scan state. However,
+    rather than using a parallel list of status strings, this simply adds
+    a conditional print if the scan bit is set. This lets us remove the
+    string list, prints the scan state even in _Gwaiting, and lets us
+    strip off the scan bit at the beginning of the function, which
+    simplifies the rest of it.
+    
+    Change-Id: Ic0adbe5c05abf4adda93da59f93b578172b28e3d
+    Reviewed-on: https://go-review.googlesource.com/18092
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/traceback.go | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)

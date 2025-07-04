@@ -1,0 +1,12 @@
+commit 87d71a3815847d83329169a3f5737a3adea0caeb
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jul 11 22:58:40 2011 -0400
+
+    codereview: fix for Mercurial 1.9
+    
+    R=golang-dev, mirtchovski, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/4686049
+
+ lib/codereview/codereview.py | 26 ++++++++++++++++++--------
+ 1 file changed, 18 insertions(+), 8 deletions(-)

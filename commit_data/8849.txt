@@ -1,0 +1,16 @@
+commit 69905c62139546c178156cde13f379c9b6eac0cc
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sun Jun 26 08:48:53 2011 +1000
+
+    gofix: fixes for sort changes
+    
+    Fixes #1969.
+    
+    R=gri, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4634076
+
+ src/cmd/gofix/Makefile          |  9 ++++----
+ src/cmd/gofix/sortslice.go      | 50 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/gofix/sortslice_test.go | 35 +++++++++++++++++++++++++++++
+ 3 files changed, 90 insertions(+), 4 deletions(-)

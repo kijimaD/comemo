@@ -1,0 +1,50 @@
+commit e375ca2a25ba08806e2dbc060a79ef79849d688e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 7 11:03:17 2015 -0400
+
+    runtime: reorder bits in heap bitmap bytes
+    
+    The runtime deals with 1-bit pointer bitmaps and 2-bit heap bitmaps
+    that have entries for both pointers and mark bits.
+    
+    Each byte in a 1-bit pointer bitmap looks like pppppppp (all pointer bits).
+    Each byte in a 2-bit heap bitmap looks like mpmpmpmp (mark, pointer, ...).
+    This means that when converting from 1-bit to 2-bit, as we do
+    during malloc, we have to pick up 4 bits in pppp form and use
+    shifts to create the mpmpmpmp form.
+    
+    This CL changes the 2-bit heap bitmap form to mmmmpppp,
+    so that 4 bits picked up in 1-bit form can be used directly in
+    the low bits of the heap bitmap byte, without expansion.
+    This simplifies the code, and it also happens to be faster.
+    
+    name                    old mean              new mean              delta
+    SetTypePtr              14.0ns × (0.98,1.09)  14.0ns × (0.98,1.08)     ~    (p=0.966)
+    SetTypePtr8             16.5ns × (0.99,1.05)  15.3ns × (0.96,1.16)   -6.86% (p=0.012)
+    SetTypePtr16            21.3ns × (0.98,1.05)  18.8ns × (0.94,1.14)  -11.49% (p=0.000)
+    SetTypePtr32            34.6ns × (0.93,1.22)  27.7ns × (0.91,1.26)  -20.08% (p=0.001)
+    SetTypePtr64            55.7ns × (0.97,1.11)  41.6ns × (0.98,1.04)  -25.30% (p=0.000)
+    SetTypePtr126           98.0ns × (1.00,1.00)  67.7ns × (0.99,1.05)  -30.88% (p=0.000)
+    SetTypePtr128           98.6ns × (1.00,1.01)  68.6ns × (0.99,1.03)  -30.44% (p=0.000)
+    SetTypePtrSlice          781ns × (0.99,1.01)   571ns × (0.99,1.04)  -26.93% (p=0.000)
+    SetTypeNode1            13.1ns × (0.99,1.01)  12.1ns × (0.99,1.01)   -7.45% (p=0.000)
+    SetTypeNode1Slice        113ns × (0.99,1.01)    94ns × (1.00,1.00)  -16.35% (p=0.000)
+    SetTypeNode8            32.7ns × (1.00,1.00)  29.8ns × (0.99,1.01)   -8.97% (p=0.000)
+    SetTypeNode8Slice        266ns × (1.00,1.00)   204ns × (1.00,1.00)  -23.40% (p=0.000)
+    SetTypeNode64           58.0ns × (0.98,1.08)  42.8ns × (1.00,1.01)  -26.24% (p=0.000)
+    SetTypeNode64Slice      1.55µs × (0.99,1.02)  0.96µs × (1.00,1.00)  -37.84% (p=0.000)
+    SetTypeNode64Dead       13.1ns × (0.99,1.01)  12.1ns × (1.00,1.00)   -7.33% (p=0.000)
+    SetTypeNode64DeadSlice  1.52µs × (1.00,1.01)  1.08µs × (1.00,1.01)  -28.95% (p=0.000)
+    SetTypeNode124          97.9ns × (1.00,1.00)  67.1ns × (1.00,1.01)  -31.49% (p=0.000)
+    SetTypeNode124Slice     2.87µs × (0.99,1.02)  1.75µs × (1.00,1.01)  -39.15% (p=0.000)
+    SetTypeNode126          98.4ns × (1.00,1.01)  68.1ns × (1.00,1.01)  -30.79% (p=0.000)
+    SetTypeNode126Slice     2.91µs × (0.99,1.01)  1.77µs × (0.99,1.01)  -39.09% (p=0.000)
+    SetTypeNode1024          732ns × (1.00,1.00)   511ns × (0.87,1.42)  -30.14% (p=0.000)
+    SetTypeNode1024Slice    23.1µs × (1.00,1.00)  13.9µs × (0.99,1.02)  -39.83% (p=0.000)
+    
+    Change-Id: I12e3b850a4e6fa6c8146b8635ff728f3ef658819
+    Reviewed-on: https://go-review.googlesource.com/9828
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go | 110 +++++++++++++++++++++++++++----------------------
+ 1 file changed, 60 insertions(+), 50 deletions(-)

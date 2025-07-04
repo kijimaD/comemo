@@ -1,0 +1,13 @@
+commit 320406d15563233ea09a1717db074385924285af
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 28 14:37:14 2009 -0700
+
+    start of a language design FAQ.
+    
+    R=rsc
+    DELTA=224  (214 added, 10 deleted, 0 changed)
+    OCL=35041
+    CL=35050
+
+ doc/go_lang_faq.html | 213 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 213 insertions(+)

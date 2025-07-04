@@ -1,0 +1,28 @@
+commit 0b84a64da173d811d01a8a59545c22a7e1fd986a
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Sep 2 14:37:35 2016 -0700
+
+    archive/tar: reapply Header.Size to regFileReader after merging
+    
+    The use of PAX headers can modify the overall file size, thus the
+    formerly created regFileReader may be stale.
+    
+    The relevant PAX specification for this behavior is:
+    <<<
+    Any fields in the preceding optional extended header shall override
+    the associated fields in this header block for this file.
+    >>>
+    Where "optional extended header" refers to the preceding PAX header.
+    Where "this header block" refers to the subsequent USTAR header.
+    
+    Fixes #15573
+    Fixes #15564
+    
+    Change-Id: I83b1c3f05a9ca2d3be38647425ad21a9fe450ee2
+    Reviewed-on: https://go-review.googlesource.com/28418
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/reader.go                      |  11 +++++++----
+ src/archive/tar/reader_test.go                 |  17 +++++++++++++++++
+ src/archive/tar/testdata/pax-pos-size-file.tar | Bin 0 -> 2560 bytes
+ 3 files changed, 24 insertions(+), 4 deletions(-)

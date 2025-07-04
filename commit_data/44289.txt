@@ -1,0 +1,17 @@
+commit a1222b75350a098e70106bf95d4e6a962c37f373
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 22 11:13:32 2021 -0500
+
+    cmd/link: add debug print in deadcode
+    
+    This matches the prints that deadcode prints later
+    as the algorithm progresses under -v=2.
+    It helps to see the initial conditions with -v=2 as well.
+    
+    Change-Id: I06ae86fe9bd8314d003148f3d941832c9b10aef1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/288817
+    Trust: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/deadcode.go | 4 ++++
+ 1 file changed, 4 insertions(+)

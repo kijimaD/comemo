@@ -1,0 +1,17 @@
+commit 3935610e35bbbfba7771b7fd1be93b3328ded4e4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 9 16:16:07 2008 -0800
+
+    chans and maps of interfaces
+    
+    R=r
+    DELTA=746  (729 added, 1 deleted, 16 changed)
+    OCL=20858
+    CL=20858
+
+ src/runtime/chan.c    |  42 +--
+ src/runtime/hashmap.c |  11 +-
+ src/runtime/runtime.c |   3 +-
+ src/runtime/runtime.h |   2 +-
+ test/chan/powser2.go  | 720 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 755 insertions(+), 23 deletions(-)

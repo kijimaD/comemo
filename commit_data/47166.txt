@@ -1,0 +1,17 @@
+commit 088bb4bf4ad851a7f9a0d409e2f64c483cb7121a
+Author: Leonard Wang <wangdeyu0907@gmail.com>
+Date:   Sat Oct 30 22:26:56 2021 +0800
+
+    A+C: add Leonard Wang (individual CLA)
+    
+    Change-Id: I9fa687804c7f0f1d5a987b95ab1c3110468d1b65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360054
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

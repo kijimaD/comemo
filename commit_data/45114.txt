@@ -1,0 +1,21 @@
+commit 8c2a8b1771cd7ed2182f4d03b3c4bd09828315ce
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 13 18:01:59 2021 -0400
+
+    cmd/compile: always zero the temporary in mapKeyTemp
+    
+    As we are taking its address, always zero it. In many cases the
+    temporary will be optimized out. But in case it does not (e.g. -N,
+    -race), this ensures it has the right liveness information.
+    
+    May fix the noopt builder.
+    
+    Change-Id: I3d5d617c276d2a1a1aaebff813b4cd60bc691592
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309771
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/walk/order.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

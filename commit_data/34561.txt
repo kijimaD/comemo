@@ -1,0 +1,22 @@
+commit f69ad10377b1817e3db57851226a23973caa584e
+Author: Henry Clifford <h.a.clifford@gmail.com>
+Date:   Fri Mar 9 22:28:55 2018 +0000
+
+    mime/multipart: test for presence of filename instead of content-type
+    
+    Fixes #24041
+    
+    Preserving the intended fix in https://go.googlesource.com/go/+/81ec7256072ed5e20b8827c583193258769aebc0
+    
+    Change-Id: I600d3d7edc74ca072a066739e2ef3235877d808f
+    GitHub-Last-Rev: 14973d7c2bf4022c28ef4b4984ec3cd352c1d4d8
+    GitHub-Pull-Request: golang/go#24104
+    Reviewed-on: https://go-review.googlesource.com/96975
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/mime/multipart/formdata.go      |  3 +--
+ src/mime/multipart/formdata_test.go | 24 ++++++++++++++++++++++++
+ src/mime/multipart/multipart.go     | 10 ++++++++++
+ 3 files changed, 35 insertions(+), 2 deletions(-)

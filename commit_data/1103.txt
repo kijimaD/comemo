@@ -1,0 +1,19 @@
+commit 792145723e5e9921c336d23504b1110c2d0c9b7d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 11 13:46:55 2008 -0800
+
+    width fixes.
+    
+    * check for uncomputed struct offsets
+    * distinguish function structs from ordinary structs
+    * make sure function structs are not examined in isolation
+    
+    R=ken
+    OCL=19005
+    CL=19005
+
+ src/cmd/6g/align.c |  2 ++
+ src/cmd/6g/gsubr.c |  2 ++
+ src/cmd/gc/dcl.c   | 22 ++++++++++++++++++----
+ src/cmd/gc/go.h    |  3 +++
+ 4 files changed, 25 insertions(+), 4 deletions(-)

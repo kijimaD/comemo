@@ -1,0 +1,18 @@
+commit 333167ff356a929ba1b62f8958bd811a5753486b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 15 21:47:29 2011 -0700
+
+    go/printer, gofmt: print "select {}" on one line
+    
+    No impact on existing sources under src, misc.
+    
+    Fixes #1959.
+    
+    R=r, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4589056
+
+ src/pkg/go/printer/nodes.go                   | 10 ++++++++--
+ src/pkg/go/printer/testdata/statements.golden | 15 +++++++++++++++
+ src/pkg/go/printer/testdata/statements.input  | 13 +++++++++++++
+ 3 files changed, 36 insertions(+), 2 deletions(-)

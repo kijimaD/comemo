@@ -1,0 +1,14 @@
+commit 4e77e0f294c38c1cc10cd48053a1d8c462d9bb42
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 1 07:31:00 2012 -0800
+
+    test: test that x := <-c accepts a general expression
+    
+    The gccgo compiler used to fail to parse this.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5610051
+
+ test/chan/select3.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

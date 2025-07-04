@@ -1,0 +1,20 @@
+commit 9279a9af8b878a1d516539ac882833fe3e7cc202
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 20 14:20:22 2023 -0700
+
+    cmd/go: use DefaultPIE to see if external linking is forced
+    
+    Before this CL, the code checked whether external linking was
+    required for -buildmode=pie. This CL changes it to also consider
+    whether external linking is required if PIE is the default build mode.
+    
+    Change-Id: I5ac62fc027622576a152a8b7b5d97bc1d112adb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477917
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

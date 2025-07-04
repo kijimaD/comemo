@@ -1,0 +1,35 @@
+commit 3a765430c18f993e291de14cc8d7803d95493fb8
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 2 16:45:07 2015 -0500
+
+    cmd/compile: add go:nowritebarrierrec annotation
+    
+    This introduces a recursive variant of the go:nowritebarrier
+    annotation that prohibits write barriers not only in the annotated
+    function, but in all functions it calls, recursively. The error
+    message gives the shortest call stack from the annotated function to
+    the function containing the prohibited write barrier, including the
+    names of the functions and the line numbers of the calls.
+    
+    To demonstrate the annotation, we apply it to gcmarkwb_m, the write
+    barrier itself.
+    
+    This is a new annotation rather than a modification of the existing
+    go:nowritebarrier annotation because, for better or worse, there are
+    many go:nowritebarrier functions that do call functions with write
+    barriers. In most of these cases this is benign because the annotation
+    was conservative, but it prohibits simply coopting the existing
+    annotation.
+    
+    Change-Id: I225ca483c8f699e8436373ed96349e80ca2c2479
+    Reviewed-on: https://go-review.googlesource.com/16554
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go   |  18 ++++--
+ src/cmd/compile/internal/gc/dcl.go    | 113 ++++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/go.go     |  13 ++--
+ src/cmd/compile/internal/gc/lex.go    |  13 ++++
+ src/cmd/compile/internal/gc/syntax.go |  19 +++---
+ src/cmd/compile/internal/gc/y.go      |   2 +
+ src/runtime/mbarrier.go               |   2 +-
+ 7 files changed, 161 insertions(+), 19 deletions(-)

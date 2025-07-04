@@ -1,0 +1,17 @@
+commit 101c00a44f1ebb27b670f17bfb80ab315ef2a429
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Aug 18 16:42:24 2014 +0400
+
+    runtime: fix dump of data/bss
+    Fixes #8530.
+    
+    LGTM=khr
+    R=golang-codereviews, khr
+    CC=golang-codereviews, rsc
+    https://golang.org/cl/124440043
+
+ src/pkg/runtime/heapdump.c |  6 ++----
+ src/pkg/runtime/mgc0.c     | 45 +++++++++++++++++++--------------------------
+ src/pkg/runtime/proc.c     |  1 +
+ src/pkg/runtime/runtime.h  |  3 +++
+ 4 files changed, 25 insertions(+), 30 deletions(-)

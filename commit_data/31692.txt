@@ -1,0 +1,27 @@
+commit 1e0819101b476f807bf8ef3fd50f1ee26691f33e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed May 31 08:30:25 2017 -0400
+
+    cmd/compile: fix subword store/load elision for MIPS
+    
+    Apply the fix in CL 44355 to MIPS.
+    
+    ARM64 has these rules but commented out for performance reason.
+    Fix the commented rules, in case they are enabled in the future.
+    
+    Enhance the test so it triggers the failure on ARM and MIPS without
+    the fix.
+    
+    Updates #20530.
+    
+    Change-Id: I82d77448e3939a545fe519d0a29a164f8fa5417c
+    Reviewed-on: https://go-review.googlesource.com/44430
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules | 14 +++++------
+ src/cmd/compile/internal/ssa/gen/MIPS.rules  | 10 ++++----
+ src/cmd/compile/internal/ssa/rewriteMIPS.go  | 36 +++++++++++++---------------
+ test/fixedbugs/issue20530.go                 | 18 +++++++++++++-
+ 4 files changed, 45 insertions(+), 33 deletions(-)

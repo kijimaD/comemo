@@ -1,0 +1,12 @@
+commit 3fdeb8614df66396c8d746187f42ea19933ba73d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 15 15:55:31 2013 -0700
+
+    go/doc: fix TODO
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/7716049
+
+ src/pkg/go/doc/filter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

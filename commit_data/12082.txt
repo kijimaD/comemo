@@ -1,0 +1,12 @@
+commit b40000423b7987bba17c5c3a5780908d788995a4
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 20 13:57:14 2012 +0400
+
+    cmd/6c: add line feed after an error message
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5685051
+
+ src/cmd/cc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

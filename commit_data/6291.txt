@@ -1,0 +1,18 @@
+commit dd0dec62901a7d1cfa1c44d89e94e793a78db049
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Thu Sep 16 13:37:35 2010 -0400
+
+    net/dict: parse response correctly + typo
+    
+    * SHOW DB responds with a
+      "110 n databases present - text follows" -- parse it.
+    * Doing a Define() on a non-existing word gives error
+      "invalid definition count: no", when we really
+      want "552 no match".
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2211041
+
+ src/pkg/net/dict/dict.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

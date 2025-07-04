@@ -1,0 +1,62 @@
+commit d9a50a6531860b43e552656e2990b87e36c8e440
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Apr 25 11:52:06 2018 -0700
+
+    cmd/compile: use prove pass to detect Ctz of non-zero values
+    
+    On amd64, Ctz must include special handling of zeros.
+    But the prove pass has enough information to detect whether the input
+    is non-zero, allowing a more efficient lowering.
+    
+    Introduce new CtzNonZero ops to capture and use this information.
+    
+    Benchmark code:
+    
+    func BenchmarkVisitBits(b *testing.B) {
+            b.Run("8", func(b *testing.B) {
+                    for i := 0; i < b.N; i++ {
+                            x := uint8(0xff)
+                            for x != 0 {
+                                    sink = bits.TrailingZeros8(x)
+                                    x &= x - 1
+                            }
+                    }
+            })
+    
+        // and similarly so for 16, 32, 64
+    }
+    
+    name            old time/op  new time/op  delta
+    VisitBits/8-8   7.27ns ± 4%  5.58ns ± 4%  -23.35%  (p=0.000 n=28+26)
+    VisitBits/16-8  14.7ns ± 7%  10.5ns ± 4%  -28.43%  (p=0.000 n=30+28)
+    VisitBits/32-8  27.6ns ± 8%  19.3ns ± 3%  -30.14%  (p=0.000 n=30+26)
+    VisitBits/64-8  44.0ns ±11%  38.0ns ± 5%  -13.48%  (p=0.000 n=30+30)
+    
+    Fixes #25077
+    
+    Change-Id: Ie6e5bd86baf39ee8a4ca7cadcf56d934e047f957
+    Reviewed-on: https://go-review.googlesource.com/109358
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules   |  5 ++
+ src/cmd/compile/internal/ssa/gen/ARM.rules     |  3 +
+ src/cmd/compile/internal/ssa/gen/ARM64.rules   |  3 +
+ src/cmd/compile/internal/ssa/gen/MIPS.rules    |  3 +
+ src/cmd/compile/internal/ssa/gen/PPC64.rules   |  4 ++
+ src/cmd/compile/internal/ssa/gen/S390X.rules   |  4 ++
+ src/cmd/compile/internal/ssa/gen/dec64.rules   |  5 ++
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 20 ++++---
+ src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++
+ src/cmd/compile/internal/ssa/prove.go          | 62 +++++++++++++--------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go   | 76 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteARM.go     | 13 +++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go   | 26 +++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go    | 13 +++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go   | 26 +++++++++
+ src/cmd/compile/internal/ssa/rewriteS390X.go   | 26 +++++++++
+ src/cmd/compile/internal/ssa/rewritedec64.go   | 13 +++++
+ test/codegen/mathbits.go                       | 52 ++++++++++++++++++
+ test/run.go                                    |  1 +
+ 19 files changed, 347 insertions(+), 32 deletions(-)

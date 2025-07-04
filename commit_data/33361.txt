@@ -1,0 +1,19 @@
+commit 541bf9f8ea458560353acf78d940c69f5080750a
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri Oct 27 18:13:17 2017 +0900
+
+    net/smtp: don't call testing.T.Fatal{,f} from goroutines not running Test function
+    
+    Also replaces verbs for error message from %s to %v. In general, low
+    level IO APIs return an error value containing non-string types and
+    there's no guarantee that all the types implement fmt.Stringer
+    interface.
+    
+    Change-Id: I8a6e2a80d5c721c772a83b9556bac16556eaa771
+    Reviewed-on: https://go-review.googlesource.com/73931
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/smtp/smtp_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

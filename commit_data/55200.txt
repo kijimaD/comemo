@@ -1,0 +1,88 @@
+commit 6d7b3c8cd15794811949bb1ca12172eb35ace6ab
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 29 22:18:32 2023 +0000
+
+    internal/trace/v2: handle thread ID reuse correctly
+    
+    To begin with, CL 545515 made the trace parser tolerant of
+    GoCreateSyscall having a P, but that was wrong. Because dropm trashes
+    the M's syscalltick, that case should never be possible. So the first
+    thing this change does is it rewrites the test that CL introduced to
+    expect a failure instead of a success.
+    
+    What I'd misinterpreted as a case that should be allowed was actually
+    the same as the other issues causing #64060, which is that the parser
+    doesn't correctly implement what happens to Ps when a thread calls back
+    into Go on non-pthread platforms, and what happens when a thread dies
+    on pthread platorms (or more succinctly, what the runtime does when it
+    calls dropm).
+    
+    Specifically, the GoDestroySyscall event implies that if any P is still
+    running on that M when it's called, that the P stops running. This is
+    what is intended by the runtime trashing the M's syscalltick; when it
+    calls back into Go, the tracer models that thread as obtaining a new P
+    from scratch.
+    
+    Handling this incorrectly manifests in one of two ways.
+    
+    On pthread platforms, GoDestroySyscall is only emitted when a C thread
+    that previously called into Go is destroyed. However, that thread ID can
+    be reused. Because we have no thread events, whether it's the same
+    thread or not is totally ambiguous to the tracer. Therefore, the tracer
+    may observe a thread that previously died try to start running with a
+    new P under the same identity. The association to the old P is still
+    intact because the ID is the same, and the tracer gets confused -- it
+    appears as if two Ps are running on the same M!
+    
+    On non-pthread platforms, GoDestroySyscall is emitted on every return to
+    C from Go code. In this case, the same thread with the same identity is
+    naturally going to keep calling back into Go. But again, since the
+    runtime trashes syscalltick in dropm, it's always going to acquire a P
+    from the tracer's perspective. But if this is a different P than before,
+    just like the pthread case, the parser is going to get confused, since
+    it looks like two Ps are running on the same M!
+    
+    The case that CL 545515 actually handled was actually the non-pthread
+    case, specifically where the same P is reacquired by an M calling back
+    into Go. In this case, if we tolerate having a P, then what we'll
+    observe is the M stealing its own P from itself, then running with it.
+    
+    Now that we know what the problem is, how do we fix it? This change
+    addresses the problem by emitting an extra event when encountering a
+    GoDestroySyscall with an active P in its context. In this case, it emits
+    an additional ProcSteal event to steal from itself, indicating that the
+    P stopped running. This removes any association between that M and that
+    P, resolving any ambiguity in the tracer.
+    
+    There's one other minor detail that needs to be worked out, and that's
+    what happens to any *real* ProcSteal event that stole the P we're now
+    emitting an extra ProcSteal event for. Since, this event is going to
+    look for an M that may have moved on already and the P at this point is
+    already idle. Luckily, we have *exactly* the right fix for this. The
+    handler for GoDestroySyscall now moves any active P it has to the
+    ProcSyscallAbandoned state, indicating that we've lost information about
+    the P and that it should be treated as already idle. Conceptually this
+    all makes sense: this is a P in _Psyscall that has been abandoned by the
+    M it was previously bound to.
+    
+    It's unfortunate how complicated this has all ended up being, but we can
+    take a closer look at that in the future.
+    
+    Fixes #64060.
+    
+    Change-Id: Ie9e6eb9cf738607617446e3487392643656069a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546096
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/trace/v2/order.go                     | 68 +++++++++++++++++++++-
+ src/internal/trace/v2/reader.go                    |  5 ++
+ .../go122-create-syscall-reuse-thread-id.go        | 61 +++++++++++++++++++
+ .../generators/go122-create-syscall-with-p.go      | 10 ++--
+ .../go122-create-syscall-reuse-thread-id.test      | 23 ++++++++
+ .../tests/go122-create-syscall-with-p.test         | 24 ++++----
+ src/internal/trace/v2/testtrace/validation.go      |  2 +-
+ 7 files changed, 171 insertions(+), 22 deletions(-)

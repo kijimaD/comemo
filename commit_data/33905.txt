@@ -1,0 +1,22 @@
+commit 2de98eb8de2e97ec6a187c383435025a660f2502
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 15 17:06:43 2017 -0800
+
+    go/types: rename (historic) flag "-list" used for go/types testing
+    
+    Rename -list flag to -errlist to avoid confusion with the go
+    test flag -list (introduced later).
+    
+    This flag is only needed to get an error list when running the
+    go/types test harness manually on select files, e.g., as in:
+    
+            go test -run=Check -files=x.go -errlist
+    
+    Change-Id: I67febcf968d2d8f4ff00c81eea7b2df723560eac
+    Reviewed-on: https://go-review.googlesource.com/84378
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/types/check_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

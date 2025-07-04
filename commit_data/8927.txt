@@ -1,0 +1,19 @@
+commit 00f7cd4b36ae04237ffb062967e9dd36e62bf592
+Author: Paul Borman <borman@google.com>
+Date:   Fri Jul 1 12:16:56 2011 -0400
+
+    csv: new package
+    
+    csv reader/writer based on RFC 4180
+    
+    R=rsc, mattn.jp, r, dchest
+    CC=golang-dev
+    https://golang.org/cl/4629085
+
+ src/pkg/Makefile           |   1 +
+ src/pkg/csv/Makefile       |  12 ++
+ src/pkg/csv/reader.go      | 373 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/csv/reader_test.go | 265 ++++++++++++++++++++++++++++++++
+ src/pkg/csv/writer.go      | 123 +++++++++++++++
+ src/pkg/csv/writer_test.go |  44 ++++++
+ 6 files changed, 818 insertions(+)

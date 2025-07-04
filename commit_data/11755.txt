@@ -1,0 +1,14 @@
+commit 0a398c4057afeb13cd0c2bf61571dcf9c7ec2b1b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 10 10:29:57 2012 +1100
+
+    net/http/fcgi: don't mention threads in docs
+    
+    Fixes #2942
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5650049
+
+ src/pkg/net/http/fcgi/child.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

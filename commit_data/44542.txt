@@ -1,0 +1,30 @@
+commit a22bd3dc73bfcc9bf37cbd651933c54c82799c2a
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Mar 1 19:23:42 2021 -0500
+
+    cmd/compile: use getcallerpc for racefuncentry
+    
+    Currently, when instrumenting for the race detector, the compiler
+    inserts racefuncentry/racefuncentryfp at the entry of instrumented
+    functions. racefuncentry takes the caller's PC. On AMD64, we synthesize
+    a node which points to -8(FP) which is where the return address is
+    stored. Later this node turns to a special Arg in SSA that is not
+    really an argument. This causes problems in the new ABI work so that
+    special node has to be special-cased.
+    
+    This CL changes the special node to a call to getcallerpc, which lowers
+    to an intrinsic in SSA. This also unifies AMD64 code path and LR machine
+    code path, as getcallerpc works on all platforms.
+    
+    Change-Id: I1377e140b91e0473cfcadfda221f26870c1b124d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297929
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/base/base.go              |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go            |  6 +--
+ src/cmd/compile/internal/ssagen/ssa.go             |  3 ++
+ src/cmd/compile/internal/typecheck/builtin.go      | 57 +++++++++++-----------
+ .../compile/internal/typecheck/builtin/runtime.go  |  4 +-
+ src/cmd/compile/internal/walk/race.go              | 27 ++--------
+ 6 files changed, 44 insertions(+), 55 deletions(-)

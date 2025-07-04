@@ -1,0 +1,19 @@
+commit d3dcd89130674ee56a3ae55021e4b14ef989cf8a
+Author: Ian Davis <nospam@iandavis.com>
+Date:   Fri Sep 28 09:26:20 2018 +0100
+
+    all: remove repeated "the" from comments
+    
+    A simple grep over the codebase for "the the" which is often
+    missed by humans.
+    
+    Change-Id: Ie4b4f07abfc24c73dcd51c8ef1edf4f73514a21c
+    Reviewed-on: https://go-review.googlesource.com/138335
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/go/internal/modload/query.go | 2 +-
+ src/crypto/x509/cert_pool.go         | 2 +-
+ src/net/http/transport.go            | 2 +-
+ src/net/http/transport_test.go       | 4 ++--
+ src/os/os_unix_test.go               | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)

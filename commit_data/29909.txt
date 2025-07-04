@@ -1,0 +1,20 @@
+commit b07363da169413498908a9e959a9ee1c3d6fc2d0
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Dec 28 06:14:01 2016 +0900
+
+    net: display the complete BUGS section on every platform
+    
+    We cannot assume that the platform running documentation service is
+    the target platform.
+    
+    Change-Id: I241ed6f8778169faac9ef49e11dcd40f7422cccc
+    Reviewed-on: https://go-review.googlesource.com/34750
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/iprawsock.go       | 12 ++++++++++++
+ src/net/iprawsock_posix.go | 12 ------------
+ src/net/ipsock.go          |  7 +++++++
+ src/net/ipsock_posix.go    |  7 -------
+ 4 files changed, 19 insertions(+), 19 deletions(-)

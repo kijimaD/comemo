@@ -1,0 +1,57 @@
+commit d01388b04f391ac0c9872729920ebbdb0e4e6861
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Sep 2 11:27:12 2021 -0400
+
+    all: update vendored golang.org/x/crypto
+    
+    Ran the following commands inside std and cmd modules:
+    
+            go get -d golang.org/x/crypto@32db794688a5a24a23a43f2a984cecd5b3d8da58  # master
+            go mod tidy
+            go mod vendor
+    
+    Also add the new golang.org/x/crypto/curve25519/internal/field package
+    (it was created in x/crypto CL 315269) to TestDependencies in go/build.
+    Position it next to its upstream copy, since its required dependencies
+    are expected to be identical.
+    
+    For #36905.
+    
+    Change-Id: I589499cd7176c9b4b8758e59025653d19b58130e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/347190
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+
+ src/cmd/go.mod                                     |    2 +-
+ src/cmd/go.sum                                     |    4 +-
+ src/cmd/vendor/modules.txt                         |    2 +-
+ src/go.mod                                         |    2 +-
+ src/go.sum                                         |    4 +-
+ src/go/build/deps_test.go                          |    2 +-
+ .../golang.org/x/crypto/chacha20/chacha_arm64.s    |    1 +
+ .../golang.org/x/crypto/chacha20/chacha_ppc64le.s  |    1 +
+ .../golang.org/x/crypto/chacha20/chacha_s390x.s    |    1 +
+ .../chacha20poly1305/chacha20poly1305_amd64.s      |    1 +
+ .../golang.org/x/crypto/curve25519/curve25519.go   |   52 +-
+ .../x/crypto/curve25519/curve25519_amd64.go        |  241 ---
+ .../x/crypto/curve25519/curve25519_amd64.s         | 1793 --------------------
+ .../x/crypto/curve25519/curve25519_generic.go      |  828 ---------
+ .../x/crypto/curve25519/curve25519_noasm.go        |   12 -
+ .../x/crypto/curve25519/internal/field/README      |    7 +
+ .../x/crypto/curve25519/internal/field/fe.go       |  416 +++++
+ .../x/crypto/curve25519/internal/field/fe_amd64.go |   13 +
+ .../x/crypto/curve25519/internal/field/fe_amd64.s  |  379 +++++
+ .../curve25519/internal/field/fe_amd64_noasm.go    |   12 +
+ .../x/crypto/curve25519/internal/field/fe_arm64.go |   16 +
+ .../x/crypto/curve25519/internal/field/fe_arm64.s  |   43 +
+ .../curve25519/internal/field/fe_arm64_noasm.go    |   12 +
+ .../crypto/curve25519/internal/field/fe_generic.go |  264 +++
+ .../curve25519/internal/field/sync.checkpoint      |    1 +
+ .../x/crypto/curve25519/internal/field/sync.sh     |   19 +
+ .../golang.org/x/crypto/poly1305/sum_amd64.s       |    1 +
+ .../golang.org/x/crypto/poly1305/sum_ppc64le.s     |    1 +
+ .../golang.org/x/crypto/poly1305/sum_s390x.s       |    1 +
+ src/vendor/modules.txt                             |    3 +-
+ 30 files changed, 1250 insertions(+), 2884 deletions(-)

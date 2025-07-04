@@ -1,0 +1,18 @@
+commit b53d2f5ba7a09b60a3f3dda71a47149f41482290
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Mar 12 19:41:36 2014 -0700
+
+    cmd/gc: make the fpu handle all exceptions on Plan 9
+    
+    The compilers expect to not be interrupted by floating
+    point exceptions. On Plan 9, every process starts with
+    interrupts enabled for invalid operation, stack overflow,
+    and divide by zero exceptions.
+    
+    LGTM=rsc
+    R=rsc, 0intro
+    CC=golang-codereviews
+    https://golang.org/cl/72750043
+
+ src/cmd/gc/lex.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

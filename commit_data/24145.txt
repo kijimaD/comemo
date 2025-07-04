@@ -1,0 +1,16 @@
+commit e8da46f6db134573efdd0d5cf8ec4fce5919be57
+Author: Håvard Haugen <havard.haugen@gmail.com>
+Date:   Tue Sep 1 21:41:58 2015 +0200
+
+    cmd/compile/internal/gc: remove dead code found by vet
+    
+    See report in commit 3c9fa388df826a67cb5042513e3df079709e6b8b.
+    
+    Change-Id: I74a5995a1c1ca62b8d01857e89b084502e7da928
+    Reviewed-on: https://go-review.googlesource.com/14170
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/gen.go | 1 -
+ 1 file changed, 1 deletion(-)

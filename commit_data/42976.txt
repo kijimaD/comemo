@@ -1,0 +1,20 @@
+commit 114719e16e9681bd1001326598ededa719c17944
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Sep 14 21:00:52 2020 +0000
+
+    Revert "encoding/json: implement Is on all errors"
+    
+    This reverts CL 254537.
+    
+    Reason for revert: Reason for revert: The recommended way to check for a type of error is errors.As. API changes should also start with a proposal.
+    
+    Change-Id: I07c37428575e99c80b17525833a61831d10963bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254857
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/encoding/json/decode.go      | 18 ------------------
+ src/encoding/json/decode_test.go | 31 -------------------------------
+ src/encoding/json/encode.go      | 12 ------------
+ src/encoding/json/encode_test.go | 24 +-----------------------
+ 4 files changed, 1 insertion(+), 84 deletions(-)

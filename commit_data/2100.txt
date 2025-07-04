@@ -1,0 +1,24 @@
+commit 905338a84505e62a809753e2cb8e66b1c9d72b9d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Apr 28 07:16:03 2009 -0700
+
+    Recognize gcco error messages.
+    
+    declbad.go:15:3: error: variables redeclared but no variable is new
+    declbad.go:20:3: error: redefinition of 'f'
+    declbad.go:19:3: note: previous definition of 'f' was here
+    declbad.go:25:3: error: redefinition of 'i'
+    declbad.go:24:3: note: previous definition of 'i' was here
+    declbad.go:30:3: error: variables redeclared but no variable is new
+    declbad.go:35:3: error: redefinition of 'i'
+    declbad.go:34:3: note: previous definition of 'i' was here
+    declbad.go:40:3: error: variables redeclared but no variable is new
+    declbad.go:45:3: error: variables redeclared but no variable is new
+    
+    R=r
+    DELTA=10  (0 added, 0 deleted, 10 changed)
+    OCL=27934
+    CL=27957
+
+ test/declbad.go | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)

@@ -1,0 +1,21 @@
+commit 97765249082b6835c77517a4e63bb38cfd6db97b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 11 17:26:45 2022 +0000
+
+    net: disable TestLookupDotsWithRemoteSource and TestLookupGoogleSRV
+    
+    These tests fail consistently due to a DNS change causing widespread
+    trybot outages.
+    
+    Fixes #56707.
+    
+    Change-Id: Iebdf91254a922a48880021198f0f12f6bc16b6e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/449640
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/lookup_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

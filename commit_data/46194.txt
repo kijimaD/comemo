@@ -1,0 +1,17 @@
+commit 68ecdc2c70544c303aa923139a5f16caf107d955
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 17:48:01 2021 -0700
+
+    cmd/compile/internal/types: add Type.OrigSym getter/setters
+    
+    Will be used in the next CL, so that Type.OrigSym can be unexported.
+    
+    Change-Id: I085f2a886abd419343c7ec7e4ae18c19de1fbbd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345484
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types/type.go | 5 +++++
+ 1 file changed, 5 insertions(+)

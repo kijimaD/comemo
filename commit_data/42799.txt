@@ -1,0 +1,24 @@
+commit fb5c3eabd16bbeea28ee8a11d29a31cf5ed124dd
+Author: Segflow <asselmeher@gmail.com>
+Date:   Mon Aug 24 13:42:45 2020 +0000
+
+    net/http: set Content-Length:0 for empty PATCH requests as with POST, PATCH
+    
+    Sets Content-Length:0 for nil bodies in PATCH requests, as we already do for  POST and PUT requests.
+    
+    RFC 2616 mentions that unless a method’s Content-Length is forbidden it can send one.
+    In the wild, we’ve found that Microsoft Azure’s DataLake Gen2 storage API https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/path/update deliberately rejects PATCH requests without a Content-Length, yet there is no workaround for setting that header when trying to flush the content of a file which was uploaded in a previous request.
+    
+    Fixes #40978
+    
+    Change-Id: Ib0a623b907d827a1c5ee431dca3c41024fa291c5
+    GitHub-Last-Rev: 12a3903f2bc22bcc4f5f8e2abcc3922b612b8871
+    GitHub-Pull-Request: golang/go#40991
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/250039
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/requestwrite_test.go | 20 ++++++++++++++++++++
+ src/net/http/transfer.go          |  2 +-
+ 2 files changed, 21 insertions(+), 1 deletion(-)

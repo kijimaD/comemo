@@ -1,0 +1,19 @@
+commit 1627714cd518c56c0a39bd9d040670563410ad77
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri Oct 11 02:40:39 2019 -0400
+
+    test/fixedbugs: bump issue21576.go's timeout to 1min
+    
+    Increases the exec timeout from 5sec to 1min, but
+    also print out the error value on any test failure.
+    
+    Fixes #34836
+    
+    Change-Id: Ida2b8bd460243491ef0f90dfe0f978dfe02a0703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200519
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ test/fixedbugs/issue21576.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

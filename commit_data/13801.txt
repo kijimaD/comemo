@@ -1,0 +1,17 @@
+commit 18601f88fda8b037726b2e45a5032f680d47f713
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 12 12:04:45 2012 +1000
+
+    os: detect and handle console in File.Write on windows
+    
+    Fixes #3376.
+    
+    R=golang-dev, bsiegert, minux.ma, rsc
+    CC=golang-dev
+    https://golang.org/cl/6488044
+
+ src/pkg/os/file_windows.go                | 45 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go        |  2 ++
+ src/pkg/syscall/zsyscall_windows_386.go   | 26 ++++++++++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 26 ++++++++++++++++++
+ 4 files changed, 99 insertions(+)

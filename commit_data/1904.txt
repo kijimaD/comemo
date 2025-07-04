@@ -1,0 +1,23 @@
+commit 75a5d6cd2dab313f21face3decfaa4f5be23d088
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 27 19:27:09 2009 -0700
+
+    Significant parser cleanup:
+    - commented public interface
+    - much better and very precise error messages
+    - much better tracing output
+    - many more checks (still permits more than just syntactically legal
+      programs, but much more is checked that can be checked w/o semantic information)
+    - updated with respect to updated AST
+    - general cleanup throughout
+    
+    Parser almost ready for move into lib/go.
+    
+    R=r
+    OCL=26853
+    CL=26855
+
+ usr/gri/pretty/compilation.go |   6 +-
+ usr/gri/pretty/parser.go      | 868 +++++++++++++++++++++++-------------------
+ usr/gri/pretty/printer.go     |  25 +-
+ 3 files changed, 490 insertions(+), 409 deletions(-)

@@ -1,0 +1,14 @@
+commit 0357af80b461e8dea71602ee3d4bcb7d733c7613
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 10 14:21:36 2012 +1100
+
+    template: refer HTML users to html/template
+    
+    Fixes #2963.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5650051
+
+ src/pkg/text/template/doc.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

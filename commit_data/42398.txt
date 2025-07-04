@@ -1,0 +1,22 @@
+commit b5bf2f068251355538b66d36cc787cf59ced55be
+Author: Katie Hockman <katie@golang.org>
+Date:   Tue May 26 15:36:58 2020 -0400
+
+    crypto/x509: allow setting MaxPathLen to -1 without IsCA
+    
+    This fixes a bug in CL 228777 which disallowed
+    a MaxPathLen of -1 without IsCA, even though the
+    x509.Certificate documentation indicates that
+    MaxPathLen of -1 is considered "unset".
+    
+    Updates #38216
+    
+    Change-Id: Ib7240e00408d060f27567be8b820d0eee239256f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235280
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/x509.go      |  2 +-
+ src/crypto/x509/x509_test.go | 11 +++++++----
+ 2 files changed, 8 insertions(+), 5 deletions(-)

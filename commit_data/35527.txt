@@ -1,0 +1,21 @@
+commit 23b687eccbcc68f44acf34fd5971f0f5c04d90de
+Author: Dave Russell <forfuncsake@gmail.com>
+Date:   Sat May 19 00:54:43 2018 +0000
+
+    bytes: re-slice buffer to its previous length after call to grow()
+    
+    Fixes #25435
+    
+    The added test fails without the re-slice and passes with it.
+    
+    Change-Id: I5ebc2a737285eb116ecc5938d8bf49050652830f
+    GitHub-Last-Rev: 454ddad7df8d56a1d0e05a999ed8277c5516ce01
+    GitHub-Pull-Request: golang/go#25436
+    Reviewed-on: https://go-review.googlesource.com/113495
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/buffer.go      |  1 +
+ src/bytes/buffer_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)

@@ -1,0 +1,19 @@
+commit 4b21be46701cca3dcfc81ecf2841dc71f041f553
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 9 20:10:16 2015 +1000
+
+    cmd/internal/gc: clean up Componentgen
+    
+    Update #9855
+    
+    In preparation for introducing direct use of a zero register on
+    platforms that support it, take the opportunity to clean up
+    Componentgen a bit.
+    
+    Change-Id: I120ce1ffcca8c4f7603bfe76bfa1aedd27ebb4d2
+    Reviewed-on: https://go-review.googlesource.com/8691
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/gc/gen.go | 82 +++++++++++++++-------------------------------
+ 1 file changed, 26 insertions(+), 56 deletions(-)

@@ -1,0 +1,20 @@
+commit b83934830fe9353ae38a08f7efe5b30f8851edd1
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Nov 13 05:00:41 2023 +0000
+
+    cmd/trace: refactor pprof HTTP SVG serving into traceviewer
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: Id97380f19267ec765b25a703ea3e2f284396ad75
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541998
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/trace/main.go                   |   9 +-
+ src/cmd/trace/pprof.go                  | 214 ++++++++------------------------
+ src/go/build/deps_test.go               |   1 +
+ src/internal/trace/traceviewer/pprof.go | 150 ++++++++++++++++++++++
+ 4 files changed, 207 insertions(+), 167 deletions(-)

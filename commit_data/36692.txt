@@ -1,0 +1,36 @@
+commit a0f5d5f8830e578892c47f7704e6a2616273aac1
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Sep 10 15:36:59 2018 +0200
+
+    cmd/link: fix DWARF refs so that they always point to the typedef entry
+    
+    For types defined as:
+    
+    type typename struct { ... }
+    
+    the linker produces two DIEs: (1) a DW_TAG_structure_type DIE and (2) a
+    DW_TAG_typedef_type DIE having (1) as its type attribute.
+    
+    All subsequent references to 'typename' should use the
+    DW_TAG_typedef_type DIE, not the DW_TAG_structure_type. Mostly this is
+    true but sometimes one reference will use the DW_TAG_structure_type
+    directly. In particular, this happens to the 'first' reference to the
+    type in question (where 'first' means whatever happens first in the way
+    the linker scans its symbols).
+    
+    This isn't only true of struct types: pointer types, array types, etc.
+    can also be affected.
+    
+    This fix solves the problem by always returning the typedef DIE in
+    newtype, when one is created.
+    
+    Fixes #27614
+    
+    Change-Id: Ia65b4a1d8c2b752e33a4ebdb74ccd92faa69526e
+    Reviewed-on: https://go-review.googlesource.com/134555
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/dwarf.go      |  29 +++++----
+ src/cmd/link/internal/ld/dwarf_test.go | 114 +++++++++++++++++++++++++++++++++
+ 2 files changed, 131 insertions(+), 12 deletions(-)

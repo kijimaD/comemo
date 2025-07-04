@@ -1,0 +1,21 @@
+commit a67258f3801b6aa218c8c2563f0a743b944e5946
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 15:56:46 2008 -0700
+
+    proper handling of signals.
+    do not run init on g0.
+    
+    R=r
+    DELTA=161  (124 added, 23 deleted, 14 changed)
+    OCL=15490
+    CL=15497
+
+ src/runtime/proc.c             | 76 +++++++++++++++++++++++++-----------------
+ src/runtime/rt0_amd64.s        | 11 ++++--
+ src/runtime/rt1_amd64_darwin.c | 28 +++++++++++++++-
+ src/runtime/rt1_amd64_linux.c  | 31 ++++++++++++++++-
+ src/runtime/runtime.h          |  5 +++
+ src/runtime/string.c           |  2 +-
+ src/runtime/sys_amd64_darwin.s | 10 ++++++
+ src/runtime/sys_amd64_linux.s  | 10 ++++++
+ 8 files changed, 137 insertions(+), 36 deletions(-)

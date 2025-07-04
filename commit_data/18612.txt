@@ -1,0 +1,13 @@
+commit 96d52298189b556f9fabca9a940f60a18fbc49d9
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 20:28:14 2014 +0400
+
+    net/http: use RunParallel in benchmarks
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/68070043
+
+ src/pkg/net/http/serve_test.go | 52 +++++++++++++++++-------------------------
+ 1 file changed, 21 insertions(+), 31 deletions(-)

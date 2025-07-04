@@ -1,0 +1,19 @@
+commit ece6ac4d4d4aea14d51907979e76dfb32c4b174b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 4 20:06:18 2022 +0000
+
+    runtime/metrics: add gomaxprocs metric
+    
+    For #47216.
+    
+    Change-Id: Ib2d48c4583570a2dae9510a52d4c6ffc20161b31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404305
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/metrics.go             | 6 ++++++
+ src/runtime/metrics/description.go | 5 +++++
+ src/runtime/metrics/doc.go         | 5 +++++
+ src/runtime/metrics_test.go        | 4 ++++
+ 4 files changed, 20 insertions(+)

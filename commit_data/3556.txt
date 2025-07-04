@@ -1,0 +1,24 @@
+commit 3342574206edc65e335b4efb2ef7c3555b483510
+Author: Dave Bort <dbort@golang.org>
+Date:   Thu Oct 15 11:46:37 2009 -0700
+
+    Define the new Rand and Source types to allow creating
+    isolated sources of random values.
+    
+    Add normal and exponential distributions.
+    
+    Add some tests for the normal and exponential distributions.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1005  (904 added, 80 deleted, 21 changed)
+    OCL=35501
+    CL=35779
+
+ src/pkg/rand/Makefile     |   3 +
+ src/pkg/rand/exp.go       | 223 ++++++++++++++++++++++++++++++++
+ src/pkg/rand/normal.go    | 158 +++++++++++++++++++++++
+ src/pkg/rand/rand.go      | 198 +++++++++++++++++++++++++++++
+ src/pkg/rand/rand_test.go | 314 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/rand/rng.go       | 122 ++++--------------
+ 6 files changed, 921 insertions(+), 97 deletions(-)

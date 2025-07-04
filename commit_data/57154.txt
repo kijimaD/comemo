@@ -1,0 +1,41 @@
+commit 0b1494f5d24afe7725e724905173b910b83e24e7
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Aug 8 18:45:18 2024 -0400
+
+    cmd/link, runtime: support library mode on wasip1
+    
+    This CL adds support of "library", i.e. c-shared, build mode on
+    wasip1. When -buildmode=c-shared is set, it builds a Wasm module
+    that is intended to be used as a library, instead of an executable.
+    It does not have the _start function. Instead, it has an
+    _initialize function, which initializes the runtime, but not call
+    the main function.
+    
+    This is similar to the c-shared build mode on other platforms. One
+    difference is that unlike cgo callbacks, where Ms are created on-
+    demand, on Wasm we have only one M, so we just keep the M (and the
+    G) for callbacks.
+    
+    For #65199.
+    
+    Change-Id: Ieb21da96b25c1a9f3989d945cddc964c26f9085b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604316
+    Reviewed-by: Achille Roussel <achille.roussel@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/dist/test.go                 |  3 ++-
+ src/cmd/go/internal/load/pkg.go      |  7 ++++++-
+ src/cmd/internal/obj/wasm/wasmobj.go |  4 +++-
+ src/cmd/link/internal/ld/config.go   |  3 +++
+ src/cmd/link/internal/ld/symtab.go   |  2 +-
+ src/cmd/link/internal/wasm/asm.go    | 20 ++++++++++++++++++--
+ src/internal/platform/supported.go   |  3 ++-
+ src/runtime/asm_wasm.s               |  6 ++++++
+ src/runtime/lock_js.go               |  3 ---
+ src/runtime/proc.go                  | 15 ++++++++++++++-
+ src/runtime/rt0_js_wasm.s            |  6 ------
+ src/runtime/rt0_wasip1_wasm.s        |  4 ++++
+ src/runtime/stubs_nonwasm.go         | 10 ++++++++++
+ src/runtime/stubs_wasm.go            | 16 ++++++++++++++++
+ 14 files changed, 85 insertions(+), 17 deletions(-)

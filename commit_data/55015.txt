@@ -1,0 +1,22 @@
+commit 3e8000393e1b8e4cd0f8bb448bf4655920ff6fa4
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Thu Nov 16 09:44:21 2023 -0800
+
+    runtime: disable automatic GC for STW metric tests
+    
+    A follow-up to https://go.dev/cl/534161 -- calls to runtime/trace.Start
+    and Stop synchronize with the GC, waiting for any in-progress mark phase
+    to complete. Disable automatic GCs to quiet the system, so we can
+    observe only the test's intentional pauses.
+    
+    Change-Id: I6f8106c42528f9bda9afec1c151119783bbc78dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543075
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Rhys Hiltner <rhys@justin.tv>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/metrics_test.go | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)

@@ -1,0 +1,12 @@
+commit 2e90e5424ee21cc3303bd2479e7ab5e935191326
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 30 15:52:37 2008 -0700
+
+    - language for struct field tags
+    
+    DELTA=17  (15 added, 0 deleted, 2 changed)
+    OCL=18177
+    CL=18184
+
+ doc/go_spec.txt | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

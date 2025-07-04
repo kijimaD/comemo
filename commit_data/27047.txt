@@ -1,0 +1,16 @@
+commit 5a0881a1d1797a5f34c33ec4cf67cb97cc1aa634
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Apr 19 08:59:56 2016 -0400
+
+    cmd/link: calculate section alignment concurrently
+    
+    Reduces link time for cmd/go by 1%.
+    
+    Change-Id: Iad4a16db0aedc56f81ddf73ba9b632e418dc1b19
+    Reviewed-on: https://go-review.googlesource.com/22242
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 145 +++++++++++++++++++--------------------
+ 1 file changed, 70 insertions(+), 75 deletions(-)

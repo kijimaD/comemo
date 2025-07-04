@@ -1,0 +1,14 @@
+commit 8f2430a533964f7bab11525d0baa30149b019e04
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 13 12:00:03 2013 -0800
+
+    database/sql: add currently-disabled broken test
+    
+    Update #3865
+    
+    R=golang-dev, alex.brainman, nightlyone
+    CC=golang-dev
+    https://golang.org/cl/7324051
+
+ src/pkg/database/sql/sql_test.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

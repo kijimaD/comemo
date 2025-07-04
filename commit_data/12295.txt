@@ -1,0 +1,16 @@
+commit 984780a589fa46197674a6b6e56a4647954ec08a
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Mar 1 15:49:37 2012 +1100
+
+    misc/dist: implement binary distribution scripts in go
+    
+    R=golang-dev, r, alex.brainman, r, mike.rosset
+    CC=golang-dev
+    https://golang.org/cl/5697050
+
+ misc/dist/README           |   4 -
+ misc/dist/bindist.go       | 304 +++++++++++++++++++++++++++++++++++++++++++++
+ misc/dist/darwin/README    |   3 -
+ misc/dist/darwin/dist.bash |  69 ----------
+ misc/dist/linux/dist.bash  |  55 --------
+ 5 files changed, 304 insertions(+), 131 deletions(-)

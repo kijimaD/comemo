@@ -1,0 +1,13 @@
+commit bfaa175e0913df1e35a897f410fe375f81ddebc0
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 5 13:44:02 2011 +1000
+
+    time: add nanoseconds to the Time structure.
+    
+    R=golang-dev, dsymonds, bradfitz, kevlar, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4851041
+
+ src/pkg/time/time.go      |  30 +++++++++++++-
+ src/pkg/time/time_test.go | 102 ++++++++++++++++++++++++++++++++++++----------
+ 2 files changed, 109 insertions(+), 23 deletions(-)

@@ -1,0 +1,13 @@
+commit 792e664ee401e41f8e34dc758c88ba6bbd8122e2
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Nov 18 02:28:54 2012 +0800
+
+    lib/godoc/codewalk.html: remove duplicate jquery inclusion
+    now we load jquery in its parent--godoc.html.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6814112
+
+ lib/godoc/codewalk.html | 2 --
+ 1 file changed, 2 deletions(-)

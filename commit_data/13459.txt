@@ -1,0 +1,19 @@
+commit ac12131649391c6303f96514aee4424cb7a0b7d7
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Jul 12 10:18:24 2012 -0700
+
+    math/big: correct quadratic space complexity in Mul.
+    
+    The previous implementation used to have a O(n) recursion
+    depth for unbalanced inputs. A test is added to check that a
+    reasonable amount of bytes is allocated in this case.
+    
+    Fixes #3807.
+    
+    R=golang-dev, dsymonds, gri
+    CC=golang-dev, remy
+    https://golang.org/cl/6345075
+
+ src/pkg/math/big/nat.go      | 56 +++++++++++++++++++++++++++-----------------
+ src/pkg/math/big/nat_test.go | 56 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 91 insertions(+), 21 deletions(-)

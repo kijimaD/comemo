@@ -1,0 +1,18 @@
+commit be7c50a7101a6e3cbd39648814c9f1030980c0f6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 3 01:11:49 2016 +0000
+
+    net/http: deflake TestServerSetKeepAlivesEnabledClosesConns
+    
+    Fixes #17754
+    Updates #9478 (details in here)
+    
+    Change-Id: Iae2c1ca05a18ed266b53b2594c22fc57fab33c5e
+    Reviewed-on: https://go-review.googlesource.com/32587
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/export_test.go | 12 ++++++++++++
+ src/net/http/serve_test.go  |  3 +++
+ 2 files changed, 15 insertions(+)

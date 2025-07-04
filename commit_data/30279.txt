@@ -1,0 +1,17 @@
+commit 2ac32b6360b47e3e5bb87ad8cbc51c3d91467c85
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Feb 14 12:30:53 2017 -0500
+
+    cmd/go: improve stale reason for packages
+    
+    This adds more information to the pkg stale reason for debugging
+    purposes.
+    
+    Change-Id: I7b626db4520baa1127195ae859f4da9b49304636
+    Reviewed-on: https://go-review.googlesource.com/36944
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/load/pkg.go | 14 +++++++++++---
+ 1 file changed, 11 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit fca32f02e90b3ea2ddfb744fdd43608821f51220
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Apr 20 09:08:58 2012 +1000
+
+    exp/html: improve InHeadIM
+    
+    Clean up the flow of control, and add a case for doctype tokens (to
+    ignore them).
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6069045
+
+ src/pkg/exp/html/parse.go | 35 +++++++++++++++--------------------
+ 1 file changed, 15 insertions(+), 20 deletions(-)

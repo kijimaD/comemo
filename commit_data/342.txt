@@ -1,0 +1,24 @@
+commit 3f982aeaf6c5809d2ec61b07944a72ac2f6aa5a9
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jul 12 17:16:22 2008 -0700
+
+    morestack magic number
+    automatically generated in 6g and 6c,
+    manually set in 6a. format is
+            TEXT    a(SB),, $a-b
+    where a is auto size and b is parameter size
+    
+    SVN=126946
+
+ src/cmd/6a/a.y                | 49 ++++++++++++++++++++++++++++---------------
+ src/cmd/6a/lex.c              |  2 +-
+ src/cmd/6c/list.c             | 35 +++++++++++++++++++++++++------
+ src/cmd/6c/pgen.c             | 32 +++++++++++++++++++++++++++-
+ src/cmd/6g/align.c            |  1 +
+ src/cmd/6g/gen.c              |  7 ++-----
+ src/cmd/6l/list.c             |  7 -------
+ src/cmd/6l/optab.c            |  2 +-
+ src/cmd/gc/go.h               |  4 +---
+ src/runtime/rt0_amd64.s       |  4 ++--
+ src/runtime/sys_amd64_linux.s | 22 +++++++++----------
+ 11 files changed, 111 insertions(+), 54 deletions(-)

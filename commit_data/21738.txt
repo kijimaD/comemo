@@ -1,0 +1,19 @@
+commit 77d7771a829411b36461487b90a1e3034843b8dd
+Author: Chris Manghane <cmang@golang.org>
+Date:   Mon Dec 8 19:17:37 2014 -0800
+
+    cmd/internal/gc: omit non-explicit capacity in errors with map/chan make
+    
+    Fixes #9083.
+    
+    Change-Id: Ifbdebafb39a73a1dacf7e67171e8e88028d1f10b
+    Reviewed-on: https://go-review.googlesource.com/1219
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Chris Manghane <cmang@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/gc/fmt.go  |  2 +-
+ test/escape2.go             |  6 +++---
+ test/escape2n.go            |  6 +++---
+ test/fixedbugs/issue9083.go | 22 ++++++++++++++++++++++
+ 4 files changed, 29 insertions(+), 7 deletions(-)

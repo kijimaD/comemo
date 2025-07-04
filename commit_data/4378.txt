@@ -1,0 +1,15 @@
+commit 2b3813d0e2755bb026f1149b64ca221a8e14e52f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 10 14:26:25 2009 -0800
+
+    - unmodified copy of existing go/parser, not yet hooked up
+    
+    R=rsc
+    CC=r
+    https://golang.org/cl/175045
+
+ src/pkg/exp/parser/Makefile       |   12 +
+ src/pkg/exp/parser/interface.go   |  202 ++++
+ src/pkg/exp/parser/parser.go      | 2019 +++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/parser/parser_test.go |   93 ++
+ 4 files changed, 2326 insertions(+)

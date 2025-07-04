@@ -1,0 +1,14 @@
+commit bc7e26621e12796ca9284e3fc3b4d91761c221c6
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 11 20:47:35 2013 -0700
+
+    cmd/go: use -o option of cover tool
+    Separates correct from erroneous output so errors running the tool will appear
+    in the log.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/10191043
+
+ src/cmd/go/build.go | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

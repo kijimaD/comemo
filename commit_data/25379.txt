@@ -1,0 +1,15 @@
+commit 4e6750af81996424f26115be1b2d13665764db8a
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 22 12:46:23 2015 -0800
+
+    crypto/cipher: improve documentation for AEAD
+    
+    Give a link to the wikipedia page describing the mechanism and
+    explain better how to use the same buffer for input and output.
+    
+    Change-Id: If6dfd6cf9c6dff0517cb715f60a11349dbdd91e0
+    Reviewed-on: https://go-review.googlesource.com/18103
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/crypto/cipher/gcm.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

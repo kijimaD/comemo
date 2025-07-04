@@ -1,0 +1,22 @@
+commit 20a03fc7130d8d99b513071c7e413b436ea649a2
+Author: Tolya Korniltsev <korniltsev.anatoly@gmail.com>
+Date:   Mon Dec 4 17:53:29 2023 +0700
+
+    runtime/pprof: fix generics function names
+    
+    profileBuilder is using Frame->Function as key for checking if we already
+    emitted a function. However for generics functions it has dots there [...],
+    so sometimes for different functions with different generics types,
+    the profileBuilder emits wrong functions.
+    
+    Fixes #64528
+    
+    Change-Id: I8b39245e0b18f4288ce758c912c6748f87cba39a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546815
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/pprof/proto.go         |  7 +++--
+ src/runtime/pprof/protomem_test.go | 62 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 66 insertions(+), 3 deletions(-)

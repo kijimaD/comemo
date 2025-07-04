@@ -1,0 +1,24 @@
+commit f92a69f9079bc6aba242b90f185b5f40ee424fa2
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Aug 5 13:32:08 2022 +0800
+
+    runtime: implement cputicks with the stable counter on loong64
+    
+    The stable counter is described in Section 2.2.10.4, LoongArch Reference Manual Volume 1.
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: I160b695a8c0e38ef49b21fb8b41460fd23d9538c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421656
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/asm_loong64.s       | 6 ++++++
+ src/runtime/cputicks.go         | 2 +-
+ src/runtime/os_linux_loong64.go | 7 -------
+ 3 files changed, 7 insertions(+), 8 deletions(-)

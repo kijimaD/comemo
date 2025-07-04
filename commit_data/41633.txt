@@ -1,0 +1,29 @@
+commit c3b9042132efc4e9f3485cd12b07acd1ca9c7d57
+Author: zikaeroh <zikaeroh@gmail.com>
+Date:   Wed Mar 11 17:02:50 2020 -0700
+
+    cmd/cover: skip function declarations with blank names
+    
+    Function declarations with blank ("_") names do not introduce a binding,
+    and therefore cannot be referenced or executed (in fact, they do not
+    make it into the final compiled binary at all). As such, counters
+    defined while annotating their bodies will always be zero.
+    
+    These types of functions are commonly used to create compile-time
+    checks (e.g., stringer) which are not expected to be executed.
+    
+    Skip over these functions when annotating a file, preventing the unused
+    counters from being generated and appearing as uncovered lines in
+    coverage reports.
+    
+    Fixes #36264
+    
+    Change-Id: I6b516cf43c430a6248d68d5f483a3902253fbdab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223117
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/cover/cover.go                             |  5 ++++
+ .../go/testdata/script/cover_blank_func_decl.txt   | 31 ++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

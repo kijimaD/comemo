@@ -1,0 +1,20 @@
+commit 40f0a0d759d5930bc8bd046fa61c7cc3fe48be5f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 30 18:47:15 2011 -0700
+
+    godoc index: first step towards reducing index size
+    
+    - canonicalize package descriptors
+    - remove duplicate storage of file paths
+    - reduces (current) written index file by approx 3.5MB
+    (from 28434237B to 24686643B, or 13%)
+    
+    - next step: untangle DAG (when serializing, using
+    gob, the index dag explodes into an index tree)
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4983042
+
+ src/cmd/godoc/index.go | 52 ++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 40 insertions(+), 12 deletions(-)

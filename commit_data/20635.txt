@@ -1,0 +1,18 @@
+commit 83001ffaaf90dcb32a7a1e2c95f6913bf1503618
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 6 13:09:14 2014 -0400
+
+    net: disable TestDualStackUDPListener in short mode
+    
+    This test is flaky, just like TestDualStackTCPListener.
+    That one was disabled. Disable this one too.
+    
+    Update #5001
+    
+    LGTM=bradfitz
+    R=rlh, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/154950043
+
+ src/net/unicast_posix_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,16 @@
+commit c7b9bd745642677c8d4b3b76803a39b4e50b4d81
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jul 15 16:46:50 2016 -0700
+
+    cmd/compile: don't crash when exporting self-recursive interfaces
+    
+    For #16369.
+    
+    Change-Id: I4c9f5a66b95558adcc1bcface164b9b2b4382d2f
+    Reviewed-on: https://go-review.googlesource.com/24979
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 33 ++++++++++++++++++++++++++++++++-
+ src/go/types/stdlib_test.go            |  1 +
+ test/fixedbugs/issue16369.go           | 13 +++++++++++++
+ 3 files changed, 46 insertions(+), 1 deletion(-)

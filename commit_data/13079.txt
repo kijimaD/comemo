@@ -1,0 +1,12 @@
+commit c816d8c59f442928b67fb0ba9a2f136f1950f2bd
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Wed May 16 22:56:18 2012 +1000
+
+    log: fix typo in comment
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6195096
+
+ src/pkg/log/log.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,34 @@
+commit e27402aee03b9232b7042ca6cba8b42b15727ef7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Feb 25 11:32:00 2019 +0100
+
+    cmd/dist, cmd/link: allow passing default dynamic linker/loader
+    
+    Add an environment variable to make.bash to allow setting the default
+    dynamic linker/loader. This fixes alpine builds to use
+    /lib/ld-musl-x86_64.so.1:
+    
+      $ readelf -l ../bin/go | grep 'interpreter:' | sed -e 's/^.*interpreter: \(.*\)[]]/\1/'
+      /lib/ld-musl-x86_64.so.1
+    
+    Also re-enable the internal linker tests that were previously disabled
+    for alpine (CL 41759, CL 41678).
+    
+    Fixes #18243
+    Updates #19938
+    
+    This resurrects CL 50070 authored by Jessie Frazelle.
+    
+    Change-Id: I132b5282045a3d60c8568e3b002a7f075eac2d93
+    Reviewed-on: https://go-review.googlesource.com/c/163977
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go           |  3 +++
+ src/cmd/dist/buildruntime.go    |  1 +
+ src/cmd/dist/test.go            |  9 +--------
+ src/cmd/internal/objabi/util.go |  1 +
+ src/cmd/link/internal/ld/elf.go |  5 +++++
+ src/make.bash                   | 12 ++++++++++++
+ 6 files changed, 23 insertions(+), 8 deletions(-)

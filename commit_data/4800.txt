@@ -1,0 +1,21 @@
+commit d5b946f43dd9078baac61400559a67557a9dfc53
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 5 02:58:40 2010 -0800
+
+    dashboard: present benchmarks
+      * fix bug in benchmark collection: bad benchmark data key
+        meant that all the builders collided when writing data.
+      * report benchmarks even if make bench exits non-zero.
+      * graphical and json presentations
+    
+    R=agl1
+    CC=golang-dev
+    https://golang.org/cl/201065
+
+ misc/dashboard/builder.sh                  |   4 +-
+ misc/dashboard/godashboard/app.yaml        |   2 +-
+ misc/dashboard/godashboard/benchmark1.html | 107 ++++++++++++
+ misc/dashboard/godashboard/benchmarks.html |  83 +++++++++
+ misc/dashboard/godashboard/gobuild.py      | 271 ++++++++++++++++++++++++-----
+ misc/dashboard/godashboard/main.html       |   2 +
+ 6 files changed, 422 insertions(+), 47 deletions(-)

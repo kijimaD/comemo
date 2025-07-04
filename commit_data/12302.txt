@@ -1,0 +1,13 @@
+commit d88af88dfbd5b7a84ac3adbae6c714d644d72398
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Wed Feb 29 22:56:50 2012 -0800
+
+    5g, 8g: remove documentation dregs
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5714051
+
+ src/cmd/5g/doc.go | 2 --
+ src/cmd/8g/doc.go | 2 --
+ 2 files changed, 4 deletions(-)

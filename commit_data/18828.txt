@@ -1,0 +1,15 @@
+commit 42da29f47469ae9cc72ab96375e85506606ade33
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 12 08:55:30 2014 +1100
+
+    runtime: disable Native Client fake time support
+    
+    This CL is a reformulation of CL 73110043 containing only the minimum required to get the nacl builds compiling.
+    
+    LGTM=bradfitz
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/74220043
+
+ src/pkg/runtime/time.goc | 3 +++
+ 1 file changed, 3 insertions(+)

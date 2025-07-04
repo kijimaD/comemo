@@ -1,0 +1,19 @@
+commit 671cc6efba29dc7689d38bcb9893e28375783fbe
+Author: Chris Manghane <cmang@golang.org>
+Date:   Wed Mar 5 14:16:21 2014 -0500
+
+    cmd/gc: allow append and complex builtins to accept 2-result call expression as first argument.
+    
+    Fixes #5793.
+    
+    LGTM=rsc
+    R=rsc, adonovan, dave
+    CC=golang-codereviews
+    https://golang.org/cl/13367051
+
+ src/cmd/gc/inl.c            |  2 ++
+ src/cmd/gc/order.c          |  2 ++
+ src/cmd/gc/typecheck.c      | 49 ++++++++++++++++++++++++++++++++++-----------
+ src/cmd/gc/walk.c           |  9 +++++++++
+ test/fixedbugs/issue5793.go | 36 +++++++++++++++++++++++++++++++++
+ 5 files changed, 86 insertions(+), 12 deletions(-)

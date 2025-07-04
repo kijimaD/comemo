@@ -1,0 +1,19 @@
+commit bd77619142f6eb9212fb99ca17aade47afc001e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 18 15:50:55 2011 -0400
+
+    runtime: track running goroutine count
+    
+    Used to use mcpu+msyscall but that's
+    problematic for packing into a single
+    atomic word.  The running goroutine count
+    (where running == Go code or syscall)
+    can be maintained separately, always
+    manipulated under lock.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4767041
+
+ src/pkg/runtime/proc.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

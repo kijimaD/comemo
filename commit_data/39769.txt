@@ -1,0 +1,20 @@
+commit 9c295bdeabb47891e216139d88881613a52514b8
+Author: Derek Phan <derekphan94@gmail.com>
+Date:   Tue Aug 13 01:05:19 2019 +0000
+
+    net/http: remove redundant port validation
+    
+    The URL port is already checked in net/url, so we can remove the redundant validation in net/http.
+    
+    Fixes #33600
+    
+    Change-Id: I62511a452df6262d4b66180933758d34627ff9df
+    GitHub-Last-Rev: c19afa31025fee68ba0601bb75e9e20e09a36822
+    GitHub-Pull-Request: golang/go#33611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190057
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 22 ----------------------
+ 1 file changed, 22 deletions(-)

@@ -1,0 +1,17 @@
+commit d547ae2a8e2879aa330b9236e28873ddd714c1f8
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Thu Sep 29 20:49:07 2022 +0800
+
+    cmd/internal/cov: use io.SeekStart, io.SeekCurrent, and io.SeekEnd
+    
+    Change-Id: Ibf7e33e42c649783eaa0e638babff22d96ab51c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436701
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/internal/cov/mreader.go     | 6 +++---
+ src/cmd/internal/cov/readcovdata.go | 3 ++-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

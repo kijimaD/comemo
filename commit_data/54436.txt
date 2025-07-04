@@ -1,0 +1,19 @@
+commit 584aad5c57f559fd2d6b9215eafd05f25937839f
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Sep 13 13:14:15 2023 +0000
+
+    go/doc/comment: use slices.BinarySearch
+    
+    Change-Id: Ifb28dd08faa59d9186a4a2337aab0c536d9a885e
+    
+    Change-Id: Ifb28dd08faa59d9186a4a2337aab0c536d9a885e
+    GitHub-Last-Rev: dba95de0fbdafbef20a21f35b042a7a59f996a65
+    GitHub-Pull-Request: golang/go#62610
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527956
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/doc/comment/parse.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

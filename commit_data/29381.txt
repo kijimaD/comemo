@@ -1,0 +1,12 @@
+commit 9f5859759eccebb5d0e9d3ef4de1db41d66b41ac
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Nov 3 19:20:27 2016 -0700
+
+    cmd/go: fix minor typo in 'go bug'
+    
+    Change-Id: I6bb594576e174cb0df8d25d11b84f5a4752ebfd6
+    Reviewed-on: https://go-review.googlesource.com/32683
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/bug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

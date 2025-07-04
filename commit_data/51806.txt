@@ -1,0 +1,74 @@
+commit 0301c6c3512561b85b48d0e167f3e405484f496f
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed Jan 25 11:53:10 2023 -0600
+
+    test/codegen: combine trivial PPC64 tests into ppc64x
+    
+    Use a small python script to consolidate duplicate
+    ppc64/ppc64le tests into a single ppc64x codegen test.
+    
+    This makes small assumption that anytime two tests with
+    for different arch/variant combos exists, those tests
+    can be combined into a single ppc64x test.
+    
+    E.x:
+    
+      // ppc64le: foo
+      // ppc64le/power9: foo
+    into
+      // ppc64x: foo
+    
+    or
+    
+      // ppc64: foo
+      // ppc64le: foo
+    into
+      // ppc64x: foo
+    
+    import glob
+    import re
+    files = glob.glob("codegen/*.go")
+    for file in files:
+        with open(file) as f:
+            text = [l for l in f]
+        i = 0
+        while i < len(text):
+            first = re.match("\s*// ?ppc64(le)?(/power[89])?:(.*)", text[i])
+            if first:
+                j = i+1
+                while j < len(text):
+                    second = re.match("\s*// ?ppc64(le)?(/power[89])?:(.*)", text[j])
+                    if not second:
+                        break
+                    if (not first.group(2) or first.group(2) == second.group(2)) and first.group(3) == second.group(3):
+                        text[i] = re.sub(" ?ppc64(le|x)?"," ppc64x",text[i])
+                        text=text[:j] + (text[j+1:])
+                    else:
+                        j += 1
+            i+=1
+        with open(file, 'w') as f:
+            f.write("".join(text))
+    
+    Change-Id: Ic6b009b54eacaadc5a23db9c5a3bf7331b595821
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463220
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ test/codegen/arithmetic.go  | 129 +++++++++++----------------------
+ test/codegen/bool.go        |  30 +++-----
+ test/codegen/comparisons.go |  42 ++++-------
+ test/codegen/copy.go        |  45 ++++--------
+ test/codegen/floats.go      |  24 +++----
+ test/codegen/issue42610.go  |   6 +-
+ test/codegen/logic.go       |   3 +-
+ test/codegen/math.go        |  48 +++++--------
+ test/codegen/mathbits.go    | 171 +++++++++++++++-----------------------------
+ test/codegen/noextend.go    | 102 +++++++++-----------------
+ test/codegen/rotate.go      |  60 ++++++----------
+ test/codegen/shift.go       | 147 +++++++++++++------------------------
+ test/codegen/slices.go      |  78 +++++++-------------
+ test/codegen/stack.go       |  15 ++--
+ 14 files changed, 298 insertions(+), 602 deletions(-)

@@ -1,0 +1,12 @@
+commit 47ee98253e88805f7ff46c4b010818e1ca4c7713
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Mar 7 12:43:25 2012 +0800
+
+    test/run: use all available cores on ARM system
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5753054
+
+ test/run.go | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)

@@ -1,0 +1,24 @@
+commit c4653312623dca0b3f31d0fbb5575f2039efc33d
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Tue Feb 9 13:33:12 2010 -0800
+
+    math: add functions Log2, Nextafter, Fdim, Fmax, Fmin
+    
+    Add functions, tests and benchmarks. Fix typos in comments
+    in expm1 and hypot_386.  Fix Acosh domain error in benchmark
+    test.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/204069
+
+ src/pkg/math/Makefile     |   2 +
+ src/pkg/math/all_test.go  | 133 +++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/math/expm1.go     |   4 +-
+ src/pkg/math/fdim.go      |  29 ++++++++++
+ src/pkg/math/hypot_386.s  |   2 +-
+ src/pkg/math/log.go       |   4 ++
+ src/pkg/math/log_386.s    |   8 +++
+ src/pkg/math/log_decl.go  |   1 +
+ src/pkg/math/nextafter.go |  27 ++++++++++
+ 9 files changed, 206 insertions(+), 4 deletions(-)

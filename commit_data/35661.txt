@@ -1,0 +1,21 @@
+commit c00603607511701ecc9f56fd82ac528ecf6b8fc6
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 7 10:55:28 2018 -0400
+
+    cmd/vet: use vet-specific export data to record detected printf wrappers
+    
+    This CL takes advantage of the ability to record vet-specific export data,
+    added in CL 108558, to save information about observed printf wrappers.
+    Then calls to those wrappers from other packages can be format-checked.
+    This found a few real mistakes using previously-unrecognized printf
+    wrappers in cmd/compile. It will no doubt find real mistakes in external code.
+    
+    Change-Id: I9c29c92d89bbdc984571a174a96e6054585e9cd4
+    Reviewed-on: https://go-review.googlesource.com/108559
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/print.go          | 375 ++++++++++++++++++++++++++++++++----------
+ src/cmd/vet/testdata/print.go |  71 +++++++-
+ 2 files changed, 353 insertions(+), 93 deletions(-)

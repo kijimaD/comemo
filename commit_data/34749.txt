@@ -1,0 +1,12 @@
+commit 2f14fc9c682f6e6a6489a4e4757edd4011ba08e9
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Mar 28 17:42:01 2018 -0400
+
+    doc: document Go 1.9.5
+    
+    Change-Id: I8f12b188d2e13555e1d7634b9cc0319fc737cb1d
+    Reviewed-on: https://go-review.googlesource.com/103216
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/devel/release.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

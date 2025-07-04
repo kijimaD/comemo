@@ -1,0 +1,20 @@
+commit 76ec91923752f69d2fb20d8b5a2e7963a116ebd6
+Author: Ikko Eltociear Ashimine <eltociear@gmail.com>
+Date:   Thu Jan 5 18:05:31 2023 +0000
+
+    net: fix typo in hosts.go
+    
+    cannonical -> canonical
+    
+    Change-Id: I656ea210d8ef6eaa85245cb8f463f6b4fd67e1a2
+    GitHub-Last-Rev: 5a93045add2f2a6885b46377c784f665ab465cfd
+    GitHub-Pull-Request: golang/go#57633
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460756
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/hosts.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 437d229e2ac4cda4265090375b94d74ca218a846
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Mar 2 09:10:49 2021 +0100
+
+    runtime: document netpollclose
+    
+    Document that network poller implementations need to define
+    netpollclose.
+    
+    Change-Id: Idc73dea7cfd503d4de7e1d95902f0f102cf5ed8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297809
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/netpoll.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,14 @@
+commit 3452f07457497c7e2efbdee50d707367308566e5
+Author: changwang ma <machangwang.cn@gmail.com>
+Date:   Thu Oct 24 00:43:28 2024 +0800
+
+    runtime: fix out-of-date comment doc
+    
+    Change-Id: I352fa0e4e048b896d63427f1c2c519bfed24c702
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622017
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/mbarrier.go | 13 -------------
+ 1 file changed, 13 deletions(-)

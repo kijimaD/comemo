@@ -1,0 +1,24 @@
+commit 1cf357981ee9ec838555585d52f86ca60097c6b1
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Apr 26 21:44:36 2020 +0100
+
+    cmd/compile: remove If type in rulegen
+    
+    We only generate if statements via CondBreak, which is nice as the
+    control flow is simple and easy to work with. It seems like the If type
+    was added but never used, so remove it to avoid confusion.
+    
+    We had a TODO about replacing CondBreak with If instead. I gave that a
+    try, but it doesn't seem worth the effort. The code gets more complex
+    and we don't really win anything in return.
+    
+    While at it, don't use op strings as format strings in exprf. This
+    doesn't cause any issue at the moment, but it's best to be explicit
+    about the operator not containing any formatting verbs.
+    
+    Change-Id: Ib59ad72d3628bf91594efc609e222232ad1e8748
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230257
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 20 ++------------------
+ 1 file changed, 2 insertions(+), 18 deletions(-)

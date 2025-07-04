@@ -1,0 +1,55 @@
+commit 8a93546d686223e7f03658c69f08be397b62cb25
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Mar 2 09:07:14 2017 -0800
+
+    cmd/vet/all: vet using only source
+    
+    This simplifies the code and speeds it up.
+    It also allows us to eliminate some other TODOs;
+    those will come in a follow-up CL.
+    
+    Running for the host platform, before:
+    
+    real    0m9.907s
+    user    0m14.566s
+    sys     0m1.058s
+    
+    After:
+    
+    real    0m7.841s
+    user    0m12.339s
+    sys     0m0.572s
+    
+    Running for a single non-host platform, before:
+    
+    real    0m8.784s
+    user    0m15.451s
+    sys     0m3.445s
+    
+    After:
+    
+    real    0m7.681s
+    user    0m12.122s
+    sys     0m0.577s
+    
+    Running for all platforms, before:
+    
+    real    7m4.480s
+    user    8m43.398s
+    sys     1m15.683s
+    
+    After:
+    
+    real    4m37.596s
+    user    7m30.729s
+    sys     0m18.533s
+    
+    It also makes my laptop considerably more
+    responsive while running for all platforms.
+    
+    Change-Id: I748689fea0d2d4ef61aca2ce5524d03d8fafa5ca
+    Reviewed-on: https://go-review.googlesource.com/37691
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/all/main.go | 39 +++++----------------------------------
+ 1 file changed, 5 insertions(+), 34 deletions(-)

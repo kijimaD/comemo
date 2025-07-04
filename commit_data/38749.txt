@@ -1,0 +1,26 @@
+commit 97c4ad432743d74ee59648dee0db1b107c701834
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 2 10:40:12 2019 -0700
+
+    cmd/compile: add new escape analysis implementation
+    
+    This CL adds a new escape analysis implementation, which can be
+    enabled through the -newescape compiler flag.
+    
+    This implementation focuses on simplicity, but in the process ends up
+    using less memory, speeding up some compile-times, fixing memory
+    corruption issues, and overall significantly improving escape analysis
+    results.
+    
+    Updates #23109.
+    
+    Change-Id: I6176d9a7ae9d80adb0208d4112b8a1e1f4c9143a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/170322
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/esc.go    |   43 +-
+ src/cmd/compile/internal/gc/escape.go | 1386 +++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/main.go   |    1 +
+ 3 files changed, 1415 insertions(+), 15 deletions(-)

@@ -1,0 +1,12 @@
+commit 08d66439b4f0c4e5f73f48dca658c94e344c43ea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Oct 15 20:30:41 2012 -0700
+
+    builder: label the race builder as "race"
+    
+    R=golang-dev, adg, dave, rsc, minux.ma, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/6648043
+
+ misc/dashboard/app/build/ui.go | 3 +++
+ 1 file changed, 3 insertions(+)

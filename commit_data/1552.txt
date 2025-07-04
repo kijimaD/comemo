@@ -1,0 +1,15 @@
+commit 18b05c1a8d9fc3c14a384df4bd78063de3b1d61a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 26 09:34:19 2009 -0800
+
+    - clarified slice index bounds rules
+    - clarified comparisons of interfaces, slices, maps, channels
+    - removed respective TODO's
+    
+    R=r
+    DELTA=76  (42 added, 16 deleted, 18 changed)
+    OCL=23132
+    CL=23479
+
+ doc/go_spec.txt | 90 +++++++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 58 insertions(+), 32 deletions(-)

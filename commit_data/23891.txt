@@ -1,0 +1,29 @@
+commit 421220571d1ae7c78131f8a01ea3d5aca6a92160
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 29 15:04:30 2015 -0400
+
+    runtime, reflect: use correctly aligned stack frame sizes on arm64
+    
+    arm64 requires either no stack frame or a frame with a size that is 8 mod 16
+    (adding the saved LR will make it 16-aligned).
+    
+    The cmd/internal/obj/arm64 has been silently aligning frames, but it led to
+    a terrible bug when the compiler and obj disagreed on the frame size,
+    and it's just generally confusing, so we're going to make misaligned frames
+    an error instead of something that is silently changed.
+    
+    This CL prepares by updating assembly files.
+    Note that the changes in this CL are already being done silently by
+    cmd/internal/obj/arm64, so there is no semantic effect here,
+    just a clarity effect.
+    
+    For #9880.
+    
+    Change-Id: Ibd6928dc5fdcd896c2bacd0291bf26b364591e28
+    Reviewed-on: https://go-review.googlesource.com/12845
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/reflect/asm_arm64.s       |  4 +--
+ src/runtime/asm_arm64.s       | 60 ++++++++++++++++++++++---------------------
+ src/runtime/sys_linux_arm64.s |  6 ++---
+ 3 files changed, 36 insertions(+), 34 deletions(-)

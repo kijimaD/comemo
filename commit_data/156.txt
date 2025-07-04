@@ -1,0 +1,11 @@
+commit a40a79829ff1b4ba8230d10346f4029674364b17
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 12 13:12:41 2008 -0700
+
+    - fixed minor issues in spec
+    - fixed a couple of bugs in the spec (pointed out by iant)
+    
+    SVN=122479
+
+ doc/go_lang.txt | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

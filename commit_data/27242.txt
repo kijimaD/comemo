@@ -1,0 +1,24 @@
+commit e50346d26a935cd43023856d0df65a158d867c00
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun May 1 17:03:46 2016 -0700
+
+    cmd/cgo, misc/cgo/test: make -Wdeclaration-after-statement clean
+    
+    I got a complaint that cgo output triggers warnings with
+    -Wdeclaration-after-statement.  I don't think it's worth testing for
+    this--C has permitted declarations after statements since C99--but it is
+    easy enough to fix.  It may break again; so it goes.
+    
+    This CL also fixes errno handling to avoid getting confused if the tsan
+    functions happen to change the global errno variable.
+    
+    Change-Id: I0ec7c63a6be5653ef44799d134c8d27cb5efa441
+    Reviewed-on: https://go-review.googlesource.com/22686
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/issue3250.go |  2 +-
+ misc/cgo/test/issue5986.go |  3 ++-
+ src/cmd/cgo/out.go         | 20 +++++++++++++++-----
+ 3 files changed, 18 insertions(+), 7 deletions(-)

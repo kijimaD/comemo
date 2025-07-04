@@ -1,0 +1,18 @@
+commit f90b4cd6554f4f20280aa5229cf42650ed47221d
+Author: Dan Peterson <danp@danp.net>
+Date:   Sun May 21 10:54:28 2023 -0300
+
+    doc: fill out net/http.ErrSchemeMismatch note
+    
+    For #44855
+    
+    Change-Id: I517394b227ea948ed3e1f9ffdaab2bb2676863c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496795
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.21.html | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

@@ -1,0 +1,41 @@
+commit 88e7fd54109d2e6a35e1b56ab41b295266372e2d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 30 20:01:41 2009 -0700
+
+    in preparation for changing 6g's behavior to
+    align the output args separately from the input args,
+    change cgo2c to insert the necessary padding
+    when the two arg lists are concatenated in the c
+    translation.
+    
+    for example, there is a runtime
+    
+            func indexstring(s string, i int32) (b byte)
+    
+    right now in 6g those arguments are aligned in one
+    struct with s at offset 0, i at 16, and b at 20.
+    soon the b byte will be in its own struct and structs
+    are 8 aligned, so it will be b at 24.
+    
+    right now cgo2c generates:
+    
+            void indexstring(string s, int32 i, byte b)
+    
+    this CL makes it generate, in --6g mode:
+    
+            void indexstring(string s, int32 i, uint32, byte b)
+    
+    this is valid 6c input, although not valid gcc input.
+    (the code is being generated for 6c only anyway.)
+    
+    also, allow C code to be mixed in among the Go funcs.
+    every instance of the token `func' is expected to start
+    a new go func.
+    
+    R=iant
+    DELTA=145  (118 added, 0 deleted, 27 changed)
+    OCL=30949
+    CL=30963
+
+ src/pkg/runtime/cgo2c.c | 170 ++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 144 insertions(+), 26 deletions(-)

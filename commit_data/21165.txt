@@ -1,0 +1,15 @@
+commit 813386f200e2cc15a05c8e641227e3cadffffc0d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 30 13:06:52 2014 -0500
+
+    sync/atomic: remove atomic pointer hammer tests
+    
+    These depend on storing arbitrary integer values using
+    pointer atomics, and we can't support that anymore.
+    
+    Change-Id: I8cadd6d462c3eebdbe7078f43fe7c779fa8f52b3
+    Reviewed-on: https://go-review.googlesource.com/2311
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/sync/atomic/atomic_test.go | 60 ------------------------------------------
+ 1 file changed, 60 deletions(-)

@@ -1,0 +1,14 @@
+commit 238274ede0ec19e6a8b83334b5c6729afa746beb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 7 14:51:35 2011 +1000
+
+    exp/template: handle pointers and values in empty interfaces.
+    
+    R=golang-dev, r, mattn.jp
+    CC=golang-dev
+    https://golang.org/cl/4664064
+
+ src/pkg/exp/template/exec.go      | 25 ++++++++---
+ src/pkg/exp/template/exec_test.go | 94 ++++++++++++++++++++++++++++++---------
+ src/pkg/exp/template/funcs.go     |  4 ++
+ 3 files changed, 98 insertions(+), 25 deletions(-)

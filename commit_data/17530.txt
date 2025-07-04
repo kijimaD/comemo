@@ -1,0 +1,16 @@
+commit 7d249ef28f5566f77706ccf1b0b5f181e0d873ae
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 10 12:55:07 2013 -0400
+
+    cmd/go: fix build -n output when using swig
+    
+    $INTBITS will not be defined, of course, but that's the best we can do.
+    
+    Fixes #5978.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/13253048
+
+ src/cmd/go/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

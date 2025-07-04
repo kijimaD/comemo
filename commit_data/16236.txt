@@ -1,0 +1,18 @@
+commit 5b78cee3764ea71722a56dc2e1b33ae7e90e5427
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Apr 30 04:13:32 2013 +0800
+
+    runtime: fix stack pointer corruption in runtime.cgocallback_gofunc()
+    runtime.setmg() calls another function (cgo_save_gm), so it must save
+    LR onto stack.
+    Re-enabled TestCthread test in misc/cgo/test.
+    
+    Fixes #4863.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9019043
+
+ misc/cgo/test/cthread.go  | 5 -----
+ src/pkg/runtime/asm_arm.s | 2 +-
+ 2 files changed, 1 insertion(+), 6 deletions(-)

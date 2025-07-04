@@ -1,0 +1,21 @@
+commit e21154fe31fcf9cebe5163c53b6695cfedccac34
+Author: ALTree <alb.donizetti@gmail.com>
+Date:   Mon Apr 6 21:18:37 2015 +0200
+
+    math/big: fix Exp when exponent is 1
+    
+    Fixed bug that caused Exp(x, y, m) ( i.e. x**y (mod m) ) to return x
+    instead of x (mod m) when y == 1. See issue page on github for more
+    details.
+    
+    Added test case
+    
+    Fixes #9826
+    
+    Change-Id: Ibabb58275a20c4231c9474199b7f1c10e54241ce
+    Reviewed-on: https://go-review.googlesource.com/8409
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int_test.go | 1 +
+ src/math/big/nat.go      | 7 +++++++
+ 2 files changed, 8 insertions(+)

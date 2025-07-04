@@ -1,0 +1,18 @@
+commit e0c180c44f306997faf7ac4d5d29353fd9518997
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 30 14:53:44 2015 -0400
+
+    runtime/cgo: fix darwin/amd64 signal handling setup
+    
+    Was not allocating space for the frame above sigpanic,
+    nor was it pushing the LR into the right place.
+    Because traceback past sigpanic only needs the
+    LR for faulting leaves, this was not noticed too much.
+    But it did break the sync/atomic nil deref tests.
+    
+    Change-Id: Icba53fffa193423aab744c37f21ee893ce2ee3ac
+    Reviewed-on: https://go-review.googlesource.com/12926
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/cgo/signal_darwin_arm64.s | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)

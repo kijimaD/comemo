@@ -1,0 +1,17 @@
+commit d11a2184fb29d0f8a447b2e70299dc410c5642ed
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 8 14:48:43 2017 -0800
+
+    cmd/compile: allow earlier GC of freed constant value
+    
+    Minor fix, because it's the right thing to do.
+    No significant impact.
+    
+    Change-Id: I2138285d397494daa9a88c414149c2a7860edd7e
+    Reviewed-on: https://go-review.googlesource.com/38001
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/func.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,13 @@
+commit 19075ea609a5dfabe2f7423f03b4b89e803819aa
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 17 07:12:54 2010 +1000
+
+    netchan: add a cross-connect test.
+    Suggested in a bug report (since addressed) by Axel Schreiner.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2228041
+
+ src/pkg/netchan/netchan_test.go | 78 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 78 insertions(+)

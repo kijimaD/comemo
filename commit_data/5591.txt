@@ -1,0 +1,12 @@
+commit 8ae29642b17950127314c6e59fcd919d945dd8de
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 2 12:53:15 2010 -0700
+
+    big: fix spelling of Euclidean
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1372042
+
+ src/pkg/big/int.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

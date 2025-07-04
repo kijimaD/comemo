@@ -1,0 +1,12 @@
+commit ab7884da7eaea4ced7414c710aa0a5622e8eabd6
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Dec 8 08:31:26 2010 +1100
+
+    doc: add link to WindowsPort page from install.html
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3442042
+
+ doc/install.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

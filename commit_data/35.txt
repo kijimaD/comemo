@@ -1,0 +1,10 @@
+commit 67aafa6f5718352f0ada5abd9687f94df9a2d534
+Author: Rob Pike <r@golang.org>
+Date:   Tue Mar 25 23:53:07 2008 -0700
+
+    update document.  todo still: array and map literals; syntax for basic literals.
+    
+    SVN=113815
+
+ doc/go_lang.txt | 282 +++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 157 insertions(+), 125 deletions(-)

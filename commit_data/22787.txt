@@ -1,0 +1,18 @@
+commit 0774f6dbfd3103f59c7232a056b030d49cf5e82d
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Mon Apr 27 15:00:48 2015 +1200
+
+    misc/cgo/testshared: add basic test for -buildmode=shared/-linkshared
+    
+    Just a first basic test, I'll extend this to test more but want to get an
+    opinion on basic approach first.
+    
+    Change-Id: Idab9ebd7d9960b000b81a01a1e53258bf4bce755
+    Reviewed-on: https://go-review.googlesource.com/9386
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testshared/src/trivial/trivial.go |  4 ++
+ misc/cgo/testshared/test.bash              | 64 ++++++++++++++++++++++++++++++
+ src/cmd/dist/test.go                       |  9 +++++
+ 3 files changed, 77 insertions(+)

@@ -1,0 +1,29 @@
+commit c13e0e8ceed4395e9ec8176579346ca6a5db269f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 11 10:41:03 2018 -0800
+
+    spec: remove example explaining that type B0 and B0 are identical
+    
+    Every few months we get a new error report claiming that there
+    is a typo in the spec related to this specific example. Clearly,
+    the fact that two types with the same identifier are identical
+    seems exceedingly obvious to readers; thus the example seems not
+    worth the trouble. Removing it.
+    
+    For #9226.
+    For #22202.
+    For #22495.
+    For #23096.
+    For #23409.
+    
+    There may be more.
+    
+    Change-Id: I003ba79dc460ffb028a4ecb5f29efd60f2551912
+    Reviewed-on: https://go-review.googlesource.com/87417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

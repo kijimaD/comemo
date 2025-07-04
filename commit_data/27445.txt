@@ -1,0 +1,14 @@
+commit 1249197936aef58cb2296a3cd57b519ba3243042
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed May 18 13:43:50 2016 -0700
+
+    doc/go1.7: add runtime.KeepAlive
+    
+    Update #13347.
+    
+    Change-Id: I04bf317ed409478a859355f833d4a5e30db2b9c9
+    Reviewed-on: https://go-review.googlesource.com/23226
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.txt | 1 +
+ 1 file changed, 1 insertion(+)

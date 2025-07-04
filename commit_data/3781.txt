@@ -1,0 +1,12 @@
+commit 31053d4e47d7d8fdb05e1698098a22e9940e6b4c
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 4 17:29:20 2009 -0800
+
+    add a final section with a complete example
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1017033
+
+ doc/effective_go.html | 131 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 131 insertions(+)

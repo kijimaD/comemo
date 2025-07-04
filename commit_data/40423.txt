@@ -1,0 +1,19 @@
+commit 316fb95f4fd94fb00f7746c32ae85a82d5be1b81
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 25 20:48:07 2019 +0200
+
+    runtime: define emptyfunc as static function in assembly for freebsd/arm64
+    
+    CL 198544 broke the linux/arm64 build because it declares emptyfunc for
+    GOARCH=arm64, but only freebsd/arm64 defines it. Make it a static
+    assembly function specific for freebsd/arm64 and remove the stub.
+    
+    Fixes #35160
+    
+    Change-Id: I5fd94249b60c6fd259c251407b6eccc8fa512934
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203418
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/runtime/stubs_arm64.go      | 1 -
+ src/runtime/sys_freebsd_arm64.s | 4 ++--
+ 2 files changed, 2 insertions(+), 3 deletions(-)

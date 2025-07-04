@@ -1,0 +1,21 @@
+commit a25e368f44941c22406b2f88535ec9e812fd4dba
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Apr 6 18:42:14 2016 +0100
+
+    test: make goprint.go wait for goroutine termination
+    
+    Test goprint.go sometimes failed on a slow builder (plan9_arm)
+    because of timing dependency.  Instead of sleeping for a fixed
+    time to allow the child goroutine to finish, wait explicitly for
+    child termination by calling runtime.NumGoroutine until the
+    returned value is 1.
+    
+    Fixes #15097
+    
+    Change-Id: Ib3ef5ec3c8277083c774542f48bcd4ff2f79efde
+    Reviewed-on: https://go-review.googlesource.com/21603
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/goprint.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

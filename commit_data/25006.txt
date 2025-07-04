@@ -1,0 +1,14 @@
+commit af8cd3f6bdca237b3a843d66031c568f4679de73
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 20 09:58:22 2015 -0800
+
+    cmd/compile: fix TODO in tracing code
+    
+    For #13243.
+    
+    Change-Id: I214945278255a49f93120f9407f536a6c01a29fb
+    Reviewed-on: https://go-review.googlesource.com/17101
+    Reviewed-by: Chris Manghane <cmang@golang.org>
+
+ src/cmd/compile/internal/gc/parser.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

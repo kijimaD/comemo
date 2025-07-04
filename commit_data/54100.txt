@@ -1,0 +1,23 @@
+commit ca858a43f4e63275381e657a13ef7431cbe8c823
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 18 00:32:11 2023 -0700
+
+    cmd/compile/internal/gc: steps towards work-queue
+    
+    This CL reorganizes the top-level functions for handling package-level
+    declarations, runtime type descriptors, and SSA compilation to work in
+    a loop. This generalizes the loop that previously existed in dumpdata.
+    
+    Change-Id: I0e51e60f6ef9e7f96a4a3ccd5801f7baf83eba9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520611
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/compile/internal/gc/compile.go          |  4 --
+ src/cmd/compile/internal/gc/main.go             | 47 ++++++++++++++++++-----
+ src/cmd/compile/internal/gc/obj.go              | 51 +------------------------
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +
+ 4 files changed, 41 insertions(+), 63 deletions(-)

@@ -1,0 +1,15 @@
+commit 7241fee9b06da568251617ce3a715fae3e9f2881
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 10 15:30:09 2023 -0400
+
+    runtime: remove write-only sweepdata fields
+    
+    Change-Id: Ia238889a704812473b838b20efedfe9d24b1e26f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534160
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgc.go      | 7 -------
+ src/runtime/mgcsweep.go | 5 -----
+ 2 files changed, 12 deletions(-)

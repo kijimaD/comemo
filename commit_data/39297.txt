@@ -1,0 +1,16 @@
+commit 0c75eb824ca7ca41970c2265ad1bccb82bbb408f
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Mon Jun 3 15:57:43 2019 +0700
+
+    runtime: fix sigpipe do not check SIGPIPE was ignored
+    
+    Fixes #32386
+    
+    Change-Id: I29ad4113b02264336eebe7865895f07ef386f450
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180177
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

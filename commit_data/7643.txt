@@ -1,0 +1,25 @@
+commit f88abdad0fe9ac7659eb9cc8d0b703c98665dd19
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Mar 5 13:51:35 2011 -0800
+
+    httptest: introduce TempServer, clean up tests
+    
+    This also breaks fs_test into two parts
+    as the range tests test http's private httpRange
+    and I had to change the fs_test package from
+    "http" to "http_test" to use httptest which otherwise
+    has a cyclic depedency back on http.
+    
+    Aside: we should start exposing the Range
+    stuff in the future.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4261047
+
+ src/pkg/http/fs_test.go         | 83 +++++------------------------------------
+ src/pkg/http/httptest/Makefile  |  1 +
+ src/pkg/http/httptest/server.go | 42 +++++++++++++++++++++
+ src/pkg/http/range_test.go      | 57 ++++++++++++++++++++++++++++
+ src/pkg/http/serve_test.go      | 30 +++++----------
+ 5 files changed, 120 insertions(+), 93 deletions(-)

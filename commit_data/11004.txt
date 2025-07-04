@@ -1,0 +1,30 @@
+commit d5e45e3a8a9b3316f5b8c40804388f695fddb41f
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun Dec 25 12:42:47 2011 +1100
+
+    html: adjust foreign attributes.
+    
+    Pass tests10.dat, test 22:
+    <!DOCTYPE html><body xlink:href=foo><svg xlink:href=foo></svg>
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     xlink:href="foo"
+    |     <svg svg>
+    |       xlink href="foo"
+    
+    Also pass tests through test 29:
+    <div><svg><path></svg><path>
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5489117
+
+ src/pkg/html/foreign.go    | 19 +++++++++++++++++++
+ src/pkg/html/parse.go      |  4 ++--
+ src/pkg/html/parse_test.go | 17 ++++++++++++++---
+ src/pkg/html/render.go     |  8 ++++++++
+ src/pkg/html/token.go      |  9 ++++++---
+ 5 files changed, 49 insertions(+), 8 deletions(-)

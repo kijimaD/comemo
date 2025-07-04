@@ -1,0 +1,12 @@
+commit c0ca9f46d80f03fd0dcc4bee400c4c3009ce2904
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 18 11:58:35 2015 -0700
+
+    doc: go1.6.txt: template.IsTrue, bufio.Scanner.Buffer
+    
+    Change-Id: Iaa01d34caf09c12c017dc0379d4fe1d2cffd5340
+    Reviewed-on: https://go-review.googlesource.com/14728
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.6.txt | 2 ++
+ 1 file changed, 2 insertions(+)

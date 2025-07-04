@@ -1,0 +1,23 @@
+commit 728e3dc6f9c900654d94642135e0dcfe2f7bb645
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 1 16:31:29 2021 +0000
+
+    runtime: make gcSetTriggerRatio a method of gcControllerState
+    
+    gcSetTriggerRatio's purpose is to set a bunch of downstream values when
+    we choose to commit to a new trigger ratio computed by the gcController.
+    Now that almost all the inputs it uses to compute the downstream values
+    are in gcControllerState anyway, make it a method of gcControllerState.
+    
+    For #44167.
+    
+    Change-Id: I1b7ea709e8378566f812ae3450ab169d7fb66aea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/306599
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mgc.go      |  2 +-
+ src/runtime/mgcpacer.go | 22 +++++++++++-----------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

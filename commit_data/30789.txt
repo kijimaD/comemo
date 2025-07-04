@@ -1,0 +1,21 @@
+commit cfb3c8df62deb607726fbd8a7a90f4e67f990a27
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 22 10:17:46 2017 -0700
+
+    cmd/internal/obj: eliminate Link.Asmode
+    
+    Asmode is always set to p.Mode,
+    which is always set based on the arch family.
+    Instead, use the arch family directly.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Id982472dcc8eeb6dd22cac5ad2f116b54a44caee
+    Reviewed-on: https://go-review.googlesource.com/38451
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/link.go     |  1 -
+ src/cmd/internal/obj/x86/asm6.go | 12 +++++-------
+ 2 files changed, 5 insertions(+), 8 deletions(-)

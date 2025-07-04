@@ -1,0 +1,27 @@
+commit 53d689ce996fedbef50cf50aab57e54efe0711fb
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Fri Dec 13 18:00:09 2024 +0800
+
+    cmd/internal/obj/loong64: add {V,XV}ILV{L/H}.{B/H/W/D} instructions support
+    
+    Go asm syntax:
+             VILV{L/H}{B/H/W/V}     VK, VJ, VD
+            XVILV{L/H}{B/H/W/V}     XK, XJ, XD
+    
+    Equivalent platform assembler syntax:
+             vilv{l/h}.{b/h/w/d}    vd, vj, vk
+            xvilv{l/h}.{b/h/w/d}    xd, xj, xk
+    
+    Change-Id: I40e21737649d9fdbbc9a423e859f4c0a56d069fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635936
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 18 ++++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 18 ++++++++++
+ src/cmd/internal/obj/loong64/anames.go          | 16 +++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 48 +++++++++++++++++++++++++
+ 4 files changed, 100 insertions(+)

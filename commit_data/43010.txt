@@ -1,0 +1,25 @@
+commit 7f24142b7b289df7e98ed3e1ccd673824dd1d0ee
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 16 22:15:13 2020 +0200
+
+    syscall, cmd/go/internal/lockedfile/internal/filelock: add and use Flock on illumos
+    
+    Copy the syscall wrapper from golang.org/x/sys/unix CL 255377 to provide
+    Flock on illumos and switch cmd/go/internal/lockedfile/internal/filelock
+    to use it.
+    
+    Fixes #35618
+    
+    Change-Id: I876a2b782329a988fa85361fb1ea58eb6f329af1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255258
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ .../lockedfile/internal/filelock/filelock_fcntl.go |  2 +-
+ .../lockedfile/internal/filelock/filelock_test.go  |  2 +-
+ .../lockedfile/internal/filelock/filelock_unix.go  |  2 +-
+ src/syscall/syscall_illumos.go                     | 25 ++++++++++++++++++++++
+ src/syscall/types_illumos_amd64.go                 | 17 +++++++++++++++
+ 5 files changed, 45 insertions(+), 3 deletions(-)

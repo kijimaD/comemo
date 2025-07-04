@@ -1,0 +1,16 @@
+commit 38244018ce0d99d0364e408f3d77484a10d39dc6
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Feb 14 21:11:47 2013 +0100
+
+    cmd/gc: remove node printing in redeclare errors
+    
+    I suspect this is some debugging which got through the submission process.
+    
+    Fixes #4789.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7310079
+
+ src/cmd/gc/dcl.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

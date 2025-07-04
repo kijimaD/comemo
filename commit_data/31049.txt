@@ -1,0 +1,17 @@
+commit 5b38923eba10486e98873b657ee2db055780866b
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Apr 7 13:48:13 2017 -0700
+
+    cmd/compile/internal/types: remove IterFields
+    
+    No longer needed after previous CLs.
+    
+    Change-Id: I9dd1040f3f28363c44434a810cbd7061cf6a028f
+    Reviewed-on: https://go-review.googlesource.com/39857
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types/type.go | 31 -------------------------------
+ 1 file changed, 31 deletions(-)

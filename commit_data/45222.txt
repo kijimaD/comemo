@@ -1,0 +1,24 @@
+commit bc5de81e70f9572d7b1d63040c95b999dac57f50
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Mon Apr 12 18:34:04 2021 -0600
+
+    testing: remove data races so that parallel benchmarks can safely call .Fatal* and .Skip*
+    
+    Protects the usages of (*common).finished with locks
+    to prevent data races, thus allowing benchmarks to safely invoke
+    .Fatal* and .Skip* concurrently.
+    
+    Fixes #45526
+    
+    Change-Id: I2b4846f525c426d6c7d3418f8f6c86446adbf986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309572
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/testing/benchmark.go      |  7 +++++--
+ src/testing/benchmark_test.go | 24 ++++++++++++++++++++++++
+ src/testing/testing.go        | 26 ++++++++++++++++----------
+ 3 files changed, 45 insertions(+), 12 deletions(-)

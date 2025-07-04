@@ -1,0 +1,12 @@
+commit b4902c5f40630ae3812a1fa9d202369b298867c5
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 24 17:01:09 2008 -0700
+
+    fix ordering problem: flag depends on fmt
+    
+    R=gri
+    OCL=13442
+    CL=13442
+
+ src/lib/make.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

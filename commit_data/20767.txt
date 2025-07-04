@@ -1,0 +1,13 @@
+commit f29bd6c4a4385cd9ad24b4a0da0b66dd4f6644aa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 21 10:10:11 2014 -0700
+
+    cmd/ld: fix addstrdata for big-endian systems
+    
+    LGTM=rsc
+    R=minux, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/158280043
+
+ src/cmd/ld/data.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

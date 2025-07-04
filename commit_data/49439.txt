@@ -1,0 +1,20 @@
+commit bdde41e3ba4926b9c1143502f299286d5eca6490
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jun 8 12:24:55 2022 -0400
+
+    runtime: skip TestGdbBacktrace on gdb bug
+    
+    Very rarely, GDB will successfully run the whole test and the inferior
+    will exit successfully, and then GDB itself hangs and never exits.
+    Detect this and skip the test as flaky. We could just continue the
+    test since all of the output we need is there, but by skipping it
+    we're less likely to notice serious regressions in this test.
+    
+    Fixes #37405.
+    
+    Change-Id: I016cbb06f48673f064733da3e3f1ddcbefd58159
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411117
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/runtime-gdb_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

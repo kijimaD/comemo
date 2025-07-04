@@ -1,0 +1,13 @@
+commit ffe7fbf33b7dd284e67bb9ba0043910c68d1237e
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 27 12:34:45 2015 -0400
+
+    cmd/internal/gc: convert some comment text from C to Go syntax
+    
+    Change-Id: Icbc42bcff5a3eabe9f43cff7fcc126141e209ded
+    Reviewed-on: https://go-review.googlesource.com/8203
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/gc/walk.go | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)

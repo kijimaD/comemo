@@ -1,0 +1,74 @@
+commit d6ef98b8fa4851f025779ef4ade084d63290de2a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Nov 14 22:05:53 2023 +0000
+
+    runtime: optimize bulkBarrierPreWrite with allocheaders
+    
+    Currently bulkBarrierPreWrite follows a fairly slow path wherein it
+    calls typePointersOf, which ends up calling into fastForward. This does
+    some fairly heavy computation to move the iterator forward without any
+    assumptions about where it lands at all. It needs to be completely
+    general to support splitting at arbitrary boundaries, for example for
+    scanning oblets.
+    
+    This means that copying objects during the GC mark phase is fairly
+    expensive, and is a regression from before allocheaders.
+    
+    However, in almost all cases bulkBarrierPreWrite and
+    bulkBarrierPreWriteSrcOnly have perfect type information. We can do a
+    lot better in these cases because we're starting on a type-size
+    boundary, which is exactly what the iterator is built around.
+    
+    This change adds the typePointersOfType method which produces a
+    typePointers iterator from a pointer and a type. This change
+    significantly improves the performance of these bulk write barriers,
+    eliminating some performance regressions that were noticed on the perf
+    dashboard.
+    
+    There are still just a couple cases where we have to use the more
+    general typePointersOf calls, but they're fairly rare; most bulk
+    barriers have perfect type information.
+    
+    This change is tested by the GCInfo tests in the runtime and the GCBits
+    tests in the reflect package via an additional check in getgcmask.
+    
+    Results for tile38 before and after allocheaders. There was previous a
+    regression in the p90, now it's gone. Also, the overall win has been
+    boosted slightly.
+    
+    tile38 $ benchstat noallocheaders.results allocheaders.results
+    name             old time/op            new time/op            delta
+    Tile38QueryLoad             481µs ± 1%             468µs ± 1%  -2.71%  (p=0.000 n=10+10)
+    
+    name             old average-RSS-bytes  new average-RSS-bytes  delta
+    Tile38QueryLoad            6.32GB ± 1%            6.23GB ± 0%  -1.38%  (p=0.000 n=9+8)
+    
+    name             old peak-RSS-bytes     new peak-RSS-bytes     delta
+    Tile38QueryLoad            6.49GB ± 1%            6.40GB ± 1%  -1.38%  (p=0.002 n=10+10)
+    
+    name             old peak-VM-bytes      new peak-VM-bytes      delta
+    Tile38QueryLoad            7.72GB ± 1%            7.64GB ± 1%  -1.07%  (p=0.007 n=10+10)
+    
+    name             old p50-latency-ns     new p50-latency-ns     delta
+    Tile38QueryLoad              212k ± 1%              205k ± 0%  -3.02%  (p=0.000 n=10+9)
+    
+    name             old p90-latency-ns     new p90-latency-ns     delta
+    Tile38QueryLoad              622k ± 1%              616k ± 1%  -1.03%  (p=0.005 n=10+10)
+    
+    name             old p99-latency-ns     new p99-latency-ns     delta
+    Tile38QueryLoad             4.55M ± 2%             4.39M ± 2%  -3.51%  (p=0.000 n=10+10)
+    
+    name             old ops/s              new ops/s              delta
+    Tile38QueryLoad             12.5k ± 1%             12.8k ± 1%  +2.78%  (p=0.000 n=10+10)
+    
+    Change-Id: I0a48f848eae8777d0fd6769c3a1fe449f8d9d0a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542219
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/reflect/value.go                  |   2 +-
+ src/runtime/mbarrier.go               |  44 ++++++--
+ src/runtime/mbitmap_allocheaders.go   | 194 +++++++++++++++++++++++++++++++---
+ src/runtime/mbitmap_noallocheaders.go |  11 +-
+ src/runtime/slice.go                  |  12 ++-
+ 5 files changed, 237 insertions(+), 26 deletions(-)

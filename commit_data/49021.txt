@@ -1,0 +1,25 @@
+commit 2f23364340750fc96afc38cd28c71117f916f23b
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Tue Apr 26 10:32:43 2022 -0500
+
+    cmd/asm: on PPC64, allow ISEL to accept a CR bit arg
+    
+    Using the CR bit register arguments makes it more easy to
+    understand which condition and CR field is being tested when
+    using ISEL.
+    
+    Likewise, cleanup optab setup for ISEL. ISEL should only
+    accept a 5 bit unsigned constant (C_U5CON), and C_ZCON
+    arguments are accepted by a C_U5CON optab arg.
+    
+    Change-Id: I2495dbe3595dd3f16c510b3492a88133af9f7e1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402375
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  9 ++++++++-
+ src/cmd/internal/obj/ppc64/asm9.go        | 12 +++++++-----
+ 2 files changed, 15 insertions(+), 6 deletions(-)

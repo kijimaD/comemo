@@ -1,0 +1,16 @@
+commit 6820196b75daf4282ba46a62e84ed44e9a4fd09e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 16 13:14:44 2008 -0700
+
+    section on service multiplexing
+    
+    R=gri
+    DELTA=75  (57 added, 4 deleted, 14 changed)
+    OCL=15394
+    CL=15398
+
+ doc/go_tutorial.txt  | 65 +++++++++++++++++++++++++++++++++++++++++++++++-----
+ doc/progs/server.go  |  4 ++--
+ doc/progs/server1.go |  6 ++---
+ doc/progs/sieve1.go  |  2 +-
+ 4 files changed, 65 insertions(+), 12 deletions(-)

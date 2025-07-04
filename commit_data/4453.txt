@@ -1,0 +1,17 @@
+commit 9277b02537ecce700c8580b168c5a8d109313c5a
+Author: Devon H. O'Dell <devon.odell@gmail.com>
+Date:   Thu Dec 17 13:20:56 2009 -0800
+
+    Allow cgo to accept multiple .go inputs for a package
+    
+    Fixes #342.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/179062
+
+ src/Make.pkg        |  67 +++++++++++++++++++------------
+ src/cmd/cgo/ast.go  |   5 +--
+ src/cmd/cgo/main.go | 111 ++++++++++++++++++++++++++++++----------------------
+ src/cmd/cgo/out.go  | 110 +++++++++++++++++++++++++++++++++++++++------------
+ 4 files changed, 194 insertions(+), 99 deletions(-)

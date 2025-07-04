@@ -1,0 +1,13 @@
+commit be96e52cce0723dac8288f8ef7ea5565492dc679
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Aug 7 21:48:34 2014 -0400
+
+    misc/nacl/testzip.proto: include cmd/internal/* to fix build
+    
+    LGTM=adg, dave
+    R=golang-codereviews, adg, dave
+    CC=golang-codereviews
+    https://golang.org/cl/123050043
+
+ misc/nacl/testzip.proto | 2 ++
+ 1 file changed, 2 insertions(+)

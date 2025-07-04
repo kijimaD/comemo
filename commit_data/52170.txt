@@ -1,0 +1,19 @@
+commit ad461f3261d755ab24222bc8bc30624e03646c3b
+Author: miller <millerresearch@gmail.com>
+Date:   Wed Mar 1 09:33:27 2023 +0000
+
+    internal/poll: remove redundant atomics from poll.FD on plan9
+    
+    After CL 235820 all references to FD.rtimedout and FD.wtimedout
+    are guarded by mutexes. Therefore they can safely be changed
+    from type atomic.Bool to bool.
+    
+    Change-Id: I7ab921d1ad5c7ccc147feb2b0fba58a66b031261
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472435
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/internal/poll/fd_plan9.go | 21 ++++++++++-----------
+ 1 file changed, 10 insertions(+), 11 deletions(-)

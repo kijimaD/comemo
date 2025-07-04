@@ -1,0 +1,25 @@
+commit b65122f99a81fb745b1b1395607d10385eb9ea2a
+Author: Michael Munday <mike.munday@ibm.com>
+Date:   Mon Mar 26 21:18:27 2018 +0100
+
+    cmd/compile: optimize comparisons using load merging where available
+    
+    Multi-byte comparison operations were used on amd64, arm64, i386
+    and s390x for comparisons with constant arrays, but only amd64 and
+    i386 for comparisons with string constants. This CL combines the
+    check for platform capability, since they have the same requirements,
+    and also enables both on ppc64le which also supports load merging.
+    
+    Note that these optimizations currently use little endian byte order
+    which results in byte reversal instructions on s390x. This should
+    be fixed at some point.
+    
+    Change-Id: Ie612d13359b50c77f4d7c6e73fea4a59fa11f322
+    Reviewed-on: https://go-review.googlesource.com/102558
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 48 ++++++++++++++++++++-----------------
+ test/codegen/comparisons.go         | 15 ++++++++++++
+ 2 files changed, 41 insertions(+), 22 deletions(-)

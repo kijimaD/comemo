@@ -1,0 +1,14 @@
+commit b64b75daa7c7349f80e4eb00ddf82f840489017a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 24 13:07:12 2009 -0700
+
+    If we can't parse the package, call Fatalf so that the test
+    fails without crashing.
+    
+    R=gri
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=32164
+    CL=32171
+
+ src/pkg/go/parser/parser_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

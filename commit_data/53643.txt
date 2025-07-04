@@ -1,0 +1,20 @@
+commit 1e97c515367103da5278fe7047df8d5ffd8a3267
+Author: Chris O'Hara <cohara87@gmail.com>
+Date:   Sat Jun 3 11:49:48 2023 +1000
+
+    syscall: stub Getrlimit on wasip1
+    
+    This is a prerequisite to enabling the pure Go resolver for
+    wasip1.
+    
+    Change-Id: Iecd8a18ce4c9eb69a697d29930bedb7175b4f0ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/500577
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/syscall_wasip1.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

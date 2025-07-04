@@ -1,0 +1,16 @@
+commit 928fe05a4fc0f0e92d81f7b0f320014dad69105d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 23:41:27 2015 -0400
+
+    reflect: record unsafe.Pointer, not uintptr, during DeepEqual
+    
+    This is more correct with respect to garbage collection.
+    I don't know of any specific failures it could cause today.
+    
+    Change-Id: I7eed6a06d2f281051199e79e4a9913aa8360ded7
+    Reviewed-on: https://go-review.googlesource.com/14137
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/reflect/deepequal.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)

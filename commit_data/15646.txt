@@ -1,0 +1,18 @@
+commit 9e329a0d16a053a884ef02d4e17a50cafea61afc
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 8 10:41:20 2013 -0800
+
+    effective_go.html: move and rework the blank identifier section
+    Also rename the relevant examples and make sure the working one compiles.
+    
+    R=golang-dev, bradfitz, adg, iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/7597043
+
+ doc/effective_go.html    | 351 ++++++++++++++++++++++++++---------------------
+ doc/progs/eff_unused1.go |  18 +++
+ doc/progs/eff_unused2.go |  22 +++
+ doc/progs/run            |   1 +
+ doc/progs/unused1.go     |  12 --
+ doc/progs/unused2.go     |  16 ---
+ 6 files changed, 238 insertions(+), 182 deletions(-)

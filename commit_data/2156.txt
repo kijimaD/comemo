@@ -1,0 +1,14 @@
+commit e508c5576067a74762fcead1721d1004e0fdf298
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 6 17:05:55 2009 -0700
+
+    interface method tests
+    
+    R=r
+    DELTA=134  (134 added, 0 deleted, 0 changed)
+    OCL=28373
+    CL=28380
+
+ test/interface8.go | 101 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/interface9.go |  41 ++++++++++++++++++++++
+ 2 files changed, 142 insertions(+)

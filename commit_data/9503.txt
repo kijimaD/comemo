@@ -1,0 +1,12 @@
+commit 822804c6002eb0b46d0695f517f422e4a6fe2a1e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Aug 26 10:06:35 2011 +0400
+
+    http: support setting Transport's TLS client config
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4964043
+
+ src/pkg/http/transport.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

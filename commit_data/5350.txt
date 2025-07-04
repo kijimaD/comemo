@@ -1,0 +1,13 @@
+commit d6e4e18c8c806653a0d007771dd75b965574e4fe
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 26 22:35:27 2010 -0700
+
+    gc: more specific error for statements at top level
+    
+    R=ken2, r, ken3
+    CC=golang-dev
+    https://golang.org/cl/1006041
+
+ src/cmd/gc/go.y        | 30 ++++++++++++++++++++----------
+ test/syntax/topexpr.go | 20 ++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 10 deletions(-)

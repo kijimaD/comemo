@@ -1,0 +1,14 @@
+commit c68ae9d4675c35e3795c79349c67f653e5082db9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 26 19:35:32 2011 -0400
+
+    bytes: add EqualFold
+    
+    R=golang-dev, r, r
+    CC=golang-dev
+    https://golang.org/cl/5123047
+
+ src/pkg/bytes/bytes.go      | 55 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/bytes/bytes_test.go | 28 +++++++++++++++++++++++
+ src/pkg/strings/strings.go  |  3 ++-
+ 3 files changed, 85 insertions(+), 1 deletion(-)

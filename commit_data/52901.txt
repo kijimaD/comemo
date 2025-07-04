@@ -1,0 +1,17 @@
+commit 13a59e36c0a224db15cf2e9b59797c1e0103cae7
+Author: David Chase <drchase@google.com>
+Date:   Fri May 5 11:23:29 2023 -0400
+
+    cmd/dist: add explicit module version to generated go.mod
+    
+    This avoids bootstrapping problems with 1.20.
+    Tested w/ 1.19 and 1.20.
+    
+    Change-Id: I0ca9e111719e8c1bcd1a0b53b9f16d9a2d77e836
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492982
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/buildtool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit c19725016df2600a204c9f8447bfcb7dcbdb128a
+Author: Ori Rawlings <orirawlings@gmail.com>
+Date:   Thu May 28 22:41:38 2020 -0500
+
+    internal/reflectlite: include Kind in ValueError message
+    
+    The implementation has been ported from reflect, but to avoid
+    introducing a dependency on strconv, Kind.String() falls back to
+    "invalid" if the Kind is unknown rather than "kind" + strconv.Itoa(int(k))
+    
+    Fixes #39286
+    
+    Change-Id: I82277242a6c41d0146dabd9d20339fe72d562500
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235522
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/internal/reflectlite/type.go  | 38 ++++++++++++++++++++++++++++++++++++++
+ src/internal/reflectlite/value.go |  5 ++++-
+ 2 files changed, 42 insertions(+), 1 deletion(-)

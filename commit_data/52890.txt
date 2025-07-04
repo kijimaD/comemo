@@ -1,0 +1,18 @@
+commit e335a2665f5e322a7da8baa22fe816b6ef9aaf24
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu May 4 17:14:53 2023 -0400
+
+    testenv: allow HasGoBuild to be false on -noopt builders
+    
+    -noopt uses GO_GCFLAGS to disable optimization, and
+    GO_GCFLAGS has caused HasGoBuild to be false since CL 74470.
+    
+    Change-Id: Iadcd15d412c05aec11e9a23b86d7b24af79d73bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492795
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/internal/testenv/testenv_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

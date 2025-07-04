@@ -1,0 +1,27 @@
+commit abb818bc03fc19324c9271e8d4dbe5840eea18d2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 20 17:17:24 2015 -0700
+
+    spec: fix binary expression grammar rule
+    
+    The spec explains later in the "Operator precedence" section that *
+    has a higher precedence than +, but the current production rule
+    requires that "1 + 2 * 3" be parsed as "(1 + 2) * 3", instead of the
+    intended "1 + (2 * 3)".
+    
+    The new production rule better matches cmd/internal/gc/go.y's grammar:
+    
+        expr:
+                uexpr
+        |       expr LOROR expr
+        |       expr LANDAND expr
+        |       ...
+    
+    Fixes #10151.
+    
+    Change-Id: I13c9635d6ddf1263cafe7cc63e68f3e5779e24ba
+    Reviewed-on: https://go-review.googlesource.com/9163
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

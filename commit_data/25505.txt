@@ -1,0 +1,14 @@
+commit 5755c011de9c75a05825b0c08ce61c77c5207f1d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 7 18:48:42 2016 -0800
+
+    encoding/json: doc: Decode only writes to exported fields
+    
+    Fixes #13867.
+    
+    Change-Id: I6c0a6c64369681840df60f63036c2eece27de8b8
+    Reviewed-on: https://go-review.googlesource.com/18394
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/json/decode.go | 1 +
+ 1 file changed, 1 insertion(+)

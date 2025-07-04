@@ -1,0 +1,16 @@
+commit eb8688154bbc330f19c46d0932c8899848e9e799
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 16 22:01:57 2011 -0800
+
+    arm runtime: attempt to fix build by adding casp (same as cas)
+    untested.
+    
+    Fixes #1523.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4171057
+
+ src/pkg/runtime/arm/cas5.s | 35 +++++++++++++++++++++++++++++++++--
+ src/pkg/runtime/arm/cas6.s | 23 +++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 2 deletions(-)

@@ -1,0 +1,30 @@
+commit b39e0f461c099abf98f5a8c81d58d32d9a765a03
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jul 27 18:30:38 2021 -0700
+
+    runtime: don't crash on nil pointers in checkptrAlignment
+    
+    Ironically, checkptrAlignment had a latent case of bad pointer
+    arithmetic: if ptr is nil, then `add(ptr, size-1)` might produce an
+    illegal pointer value.
+    
+    The fix is to simply check for nil at the top of checkptrAlignment,
+    and short-circuit if so.
+    
+    This CL also adds a more explicit bounds check in checkptrStraddles,
+    rather than relying on `add(ptr, size-1)` to wrap around. I don't
+    think this is necessary today, but it seems prudent to be careful.
+    
+    Fixes #47430.
+    
+    Change-Id: I5c50b2f7f41415dbebbd803e1b8e7766ca95e1fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338029
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/checkptr.go                   | 11 ++++++++--
+ src/runtime/checkptr_test.go              |  1 +
+ src/runtime/testdata/testprog/checkptr.go | 36 ++++++++++++++++++++++++++++++-
+ 3 files changed, 45 insertions(+), 3 deletions(-)

@@ -1,0 +1,16 @@
+commit ceef10c222f6ea8aec8f76526a76346daa01c3e5
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Thu Apr 14 11:54:36 2011 -0700
+
+    pkg/runtime/plan9: Warning remediation, for Plan 9 native.
+    
+    . Missing declaration of runtime.brk_();
+    . Argument v in runtime.SysReserve() is not used;
+      (I'd prefer a Plan 9-type solution...)
+    
+    R=golang-dev, r, r2
+    CC=golang-dev
+    https://golang.org/cl/4368076
+
+ src/pkg/runtime/plan9/mem.c | 2 ++
+ 1 file changed, 2 insertions(+)

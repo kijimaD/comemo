@@ -1,0 +1,19 @@
+commit d4599629674251e9134ea8e0aa4039d9de3dd678
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Fri Dec 28 20:02:13 2018 +0000
+
+    encoding/gob: mention that Encoder and Decoder are safe for concurrent use
+    
+    Fixes #29416
+    
+    Change-Id: I24364bfee77aceace53f85f1046ef4d73f8feebb
+    
+    Change-Id: I24364bfee77aceace53f85f1046ef4d73f8feebb
+    GitHub-Last-Rev: ad9f31145763dc16f53dd9f3154667b162759f69
+    GitHub-Pull-Request: golang/go#29417
+    Reviewed-on: https://go-review.googlesource.com/c/155742
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/encoding/gob/decoder.go | 3 ++-
+ src/encoding/gob/encoder.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

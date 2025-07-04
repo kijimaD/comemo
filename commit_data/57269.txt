@@ -1,0 +1,48 @@
+commit aeac0b6cbfb42bc9c9301913a191bb09454d316a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Aug 16 15:13:39 2024 -0400
+
+    go/types, types2: use max(fileVersion, go1.21) if fileVersion present
+    
+    Change the rules for how //go:build "file versions" are applied: instead
+    of considering whether a file version is an upgrade or downgrade from
+    the -lang version, always use max(fileVersion, go1.21). This prevents
+    file versions from downgrading the version below go1.21.  Before Go 1.21
+    the //go:build version did not have the meaning of setting the file's
+    langage version.
+    
+    This fixes an issue that was appearing in GOPATH builds: Go 1.23.0
+    started providing -lang versions to the compiler in GOPATH mode (among
+    other places) which it wasn't doing before, and it set -lang to the
+    toolchain version (1.23). Because the -lang version was greater than
+    go1.21, language version used to compile the file would be set to the
+    //go:build file version. //go:build file versions below 1.21 could cause
+    files that could previously build to stop building.
+    
+    For example, take a Go file with a //go:build line specifying go1.10.
+    If that file used a 1.18 feature, that use would compile fine with a Go
+    1.22 toolchain. But it would produce an error when compiling with the
+    1.23.0 toolchain because it set the language version to 1.10 and
+    disallowed the 1.18 feature. This breaks backwards compatibility: when
+    the build tag was added, it did not have the meaning of restricting the
+    language version.
+    
+    For #68658
+    
+    Change-Id: I6cedda81a55bcccffaa3501eef9e2be6541b6ece
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607955
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go        | 50 ++++++++++++++++------
+ src/cmd/compile/internal/types2/check.go           | 47 ++++++++------------
+ src/go/types/api_test.go                           | 50 ++++++++++++++++------
+ src/go/types/check.go                              | 48 +++++++++------------
+ src/internal/types/testdata/check/go1_20_19.go     |  2 +-
+ src/internal/types/testdata/check/go1_21_19.go     |  2 +-
+ src/internal/types/testdata/check/go1_21_22.go     | 16 +++++++
+ src/internal/types/testdata/check/go1_22_21.go     | 16 +++++++
+ .../types/testdata/fixedbugs/issue66285.go         |  7 +--
+ test/fixedbugs/issue63489a.go                      | 20 +++++----
+ test/fixedbugs/issue63489b.go                      | 15 +++++--
+ 11 files changed, 174 insertions(+), 99 deletions(-)

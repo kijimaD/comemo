@@ -1,0 +1,14 @@
+commit 1b6282a7990299c22286299bd2082e1d0dcd9915
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 7 06:46:01 2010 -0400
+
+    runtime: fix tiny build
+    
+    Reported by Jeff Allen.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/2385042
+
+ src/pkg/runtime/tiny/mem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

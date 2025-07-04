@@ -1,0 +1,18 @@
+commit 6084dcdd0702e41e320c7ad39467243b3490eb4c
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Oct 9 07:37:49 2009 -0700
+
+    floating point calc, added a few more packages that pass
+    
+    go/test: passes 80% (274/340)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=61  (59 added, 0 deleted, 2 changed)
+    OCL=35506
+    CL=35517
+
+ src/cmd/5g/cgen.c | 44 +++++++++++++++++++++++++++++++++++++++++++-
+ src/make-arm.bash |  2 +-
+ test/arm-pass.txt | 17 +++++++++++++++++
+ 3 files changed, 61 insertions(+), 2 deletions(-)

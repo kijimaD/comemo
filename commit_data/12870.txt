@@ -1,0 +1,13 @@
+commit c9ad57ff2c1c00e6f4eadcea5e0be87de9733347
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 10 15:14:04 2012 -0400
+
+    A+C: Akshat Kumar (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6004043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

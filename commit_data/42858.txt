@@ -1,0 +1,24 @@
+commit cdc635547fc436dc49c91ddb172b0e101febd3d7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 30 15:59:40 2020 -0700
+
+    cmd/compile: invalidate zero-use values during rewrite
+    
+    This helps remove uses that aren't needed any more.
+    That in turn helps other rules with Uses==1 conditions fire.
+    
+    Update #39918
+    
+    Change-Id: I68635b675472f1d59e59604e4d34b949a0016533
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249463
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/decompose.go |  8 +++++---
+ src/cmd/compile/internal/ssa/lower.go     |  2 +-
+ src/cmd/compile/internal/ssa/opt.go       |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go   | 22 +++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/softfloat.go |  2 +-
+ src/cmd/compile/internal/ssa/value.go     | 20 ++++++++++++++++++++
+ 6 files changed, 49 insertions(+), 7 deletions(-)

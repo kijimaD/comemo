@@ -1,0 +1,18 @@
+commit 877153f04aef18d25757ad3bf4b097460c7c4699
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Feb 27 17:00:02 2013 -0500
+
+    exp/ssa: fix *bsd breakage.
+    
+    Use portable ReadDirent, not linux Getdents.
+    
+    R=gri
+    TBR=gri
+    CC=golang-dev
+    https://golang.org/cl/7405051
+
+ src/pkg/exp/ssa/interp/external.go         | 2 +-
+ src/pkg/exp/ssa/interp/external_plan9.go   | 6 +++---
+ src/pkg/exp/ssa/interp/external_unix.go    | 6 +++---
+ src/pkg/exp/ssa/interp/external_windows.go | 6 +++---
+ 4 files changed, 10 insertions(+), 10 deletions(-)

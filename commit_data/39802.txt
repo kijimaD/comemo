@@ -1,0 +1,21 @@
+commit d21953df047868ed3bcfd0172a6c1672642f5b4a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 4 12:59:41 2019 -0400
+
+    cmd/go/internal/test: prepend -test.timeout rather than appending
+    
+    Tests may accept positional arguments, in which case the -test.timeout
+    flag must be passed before those arguments.
+    
+    Fixes #34072
+    
+    Change-Id: I5b92d7c0edc4f9e1efb63b0733937b76236c0eff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193297
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/test/test.go            |  3 ++-
+ src/cmd/go/testdata/script/test_timeout.txt | 11 ++++++-----
+ 2 files changed, 8 insertions(+), 6 deletions(-)

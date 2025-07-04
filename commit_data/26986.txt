@@ -1,0 +1,17 @@
+commit f5423a63dfa5d010e7796271666f592a5f9dad70
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Apr 17 15:33:07 2016 -0700
+
+    cmd/compile: a dot expression can not be a struct literal key
+    
+    Passes toolstash -cmp.
+    
+    Fixes #15311.
+    
+    Change-Id: I1d67f5c9de38e899ab2d6c8986fabd6f197df23a
+    Reviewed-on: https://go-review.googlesource.com/22162
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  7 ++++++-
+ test/fixedbugs/issue15311.go             | 20 ++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)

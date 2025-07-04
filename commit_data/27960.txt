@@ -1,0 +1,27 @@
+commit 880c967ccd71013253a751452a83e6c6a0cf86df
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Aug 13 18:12:21 2016 -0700
+
+    runtime: minor string/rune optimizations
+    
+    Eliminate a spill in concatstrings.
+    Provide bounds elim hints in runetochar.
+    No significant benchmark movement.
+    
+    Before:
+    "".runetochar t=1 size=412 args=0x28 locals=0x0
+    "".concatstrings t=1 size=736 args=0x30 locals=0x98
+    
+    After:
+    "".runetochar t=1 size=337 args=0x28 locals=0x0
+    "".concatstrings t=1 size=711 args=0x30 locals=0x90
+    
+    Change-Id: Icce646976cb20a223163b7e72a54761193ac17e3
+    Reviewed-on: https://go-review.googlesource.com/27460
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Martin Möhrmann <martisch@uos.de>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/rune.go   | 3 +++
+ src/runtime/string.go | 5 ++---
+ 2 files changed, 5 insertions(+), 3 deletions(-)

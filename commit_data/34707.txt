@@ -1,0 +1,25 @@
+commit f7404974daaf8f58af4d9c1fd504e81e7f0db0a2
+Author: David Chase <drchase@google.com>
+Date:   Fri Mar 23 11:30:58 2018 -0400
+
+    cmd/compile: finish GOEXPERIMENT=preemptibleloops repair
+    
+    A newish check for branch-likely on single-successor blocks
+    caught a case where the preemption-check inserter was
+    setting "likely" on an unconditional branch.
+    
+    Fixed by checking for that case before setting likely.
+    
+    Also removed an overconservative restriction on parallel
+    compilation for GOEXPERIMENT=preemptibleloops; it works
+    fine, it is just another control-flow transformation.
+    
+    Change-Id: I8e786e6281e0631cac8d80cff67bfb6402b4d225
+    Reviewed-on: https://go-review.googlesource.com/102317
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/gc/main.go               | 2 +-
+ src/cmd/compile/internal/ssa/loopreschedchecks.go | 4 +++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit c54b5d032f593c5379e2286da11fb78fe33fd7a3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 25 09:45:06 2011 -0800
+
+    gob: make recursive map and slice types work.
+    
+    Before this fix, types such as
+            type T map[string]T
+    caused infinite recursion in the gob implementation.
+    Now they just work.
+    
+    Fixes #1518.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4230045
+
+ src/pkg/gob/codec_test.go   | 10 ++---
+ src/pkg/gob/decode.go       | 63 +++++++++++++++++------------
+ src/pkg/gob/encode.go       | 43 +++++++++++---------
+ src/pkg/gob/encoder_test.go | 18 +++++++++
+ src/pkg/gob/type.go         | 98 ++++++++++++++++++++++++++++++++-------------
+ 5 files changed, 156 insertions(+), 76 deletions(-)

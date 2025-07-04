@@ -1,0 +1,14 @@
+commit 3f952b75046548881709086cc20ab3c5fca2f52e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 4 14:40:38 2016 -0700
+
+    cmd/compile/internal/ssa: update BlockKind documentation
+    
+    BlockCall was removed in golang.org/cl/28950.
+    
+    Change-Id: Ib8d9f3111bf3dc01956dd776afeb345ede8bc933
+    Reviewed-on: https://go-review.googlesource.com/30353
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/block.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

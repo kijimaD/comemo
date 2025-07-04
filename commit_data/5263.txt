@@ -1,0 +1,22 @@
+commit 6363542695045d39715c3d00a0d4863e6f85ada2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 9 15:30:40 2010 -0700
+
+    runtime: delete malx, skip_depth argument to malloc
+    
+    remove internal functions from traces in gopprof instead.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/855046
+
+ src/cmd/prof/gopprof       | 28 ++++++++++++++++++++++++++++
+ src/pkg/runtime/iface.c    |  6 +++---
+ src/pkg/runtime/malloc.cgo | 16 +++++-----------
+ src/pkg/runtime/malloc.h   |  4 ++--
+ src/pkg/runtime/mfinal.c   |  4 ++--
+ src/pkg/runtime/mprof.cgo  | 10 +++++-----
+ src/pkg/runtime/runtime.h  |  1 -
+ src/pkg/runtime/slice.c    |  2 +-
+ src/pkg/runtime/string.cgo |  6 +++---
+ 9 files changed, 49 insertions(+), 28 deletions(-)

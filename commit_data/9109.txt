@@ -1,0 +1,14 @@
+commit c1f035ba4c77e84bd7bc857337f5963c9b6eeab2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 18 10:50:04 2011 -0400
+
+    runtime: fix data race in Plan9 sysalloc
+    Add mutex to protect brk limit.
+    Add mstats.sys update.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4762045
+
+ src/pkg/runtime/plan9/mem.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 5de497bc6fbae2470f700bb9d786a844cd7908db
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Dec 11 19:09:39 2014 +0100
+
+    math: Added parity check to ProbablyPrime
+    
+    Fixes #9269
+    
+    Change-Id: I25751632e95978537b656aedfa5c35ab2273089b
+    Reviewed-on: https://go-review.googlesource.com/1380
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/nat.go | 4 ++++
+ 1 file changed, 4 insertions(+)

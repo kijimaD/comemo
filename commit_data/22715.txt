@@ -1,0 +1,35 @@
+commit a9e50a6b358df2e725157128c140684264c8ed38
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 24 17:06:52 2015 -0700
+
+    cmd/dist: consolidate runtime CPU tests
+    
+    Instead of running:
+    
+    go test -short runtime -cpu=1
+    go test -short runtime -cpu=2
+    go test -short runtime -cpu=4
+    
+    Run just:
+    
+    go test -short runtime -cpu=1,2,4
+    
+    This is a return to the Go 1.4.2 behavior.
+    
+    We lose incremental display of progress and
+    per-cpu timing information, but we don't have
+    to recompile and relink the runtime test,
+    which is slow.
+    
+    This cuts about 10s off all.bash.
+    
+    Updates #10571.
+    
+    Change-Id: I6e8c7149780d47439f8bcfa888e6efc84290c60a
+    Reviewed-on: https://go-review.googlesource.com/9350
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/cmd/dist/test.go | 27 ++++++++++++---------------
+ 1 file changed, 12 insertions(+), 15 deletions(-)

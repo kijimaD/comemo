@@ -1,0 +1,25 @@
+commit f891b7c3425621d0ec3771144182507c90a80cff
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 30 23:52:04 2019 -0400
+
+    cmd/doc: avoid calling token.IsExported on non-tokens
+    
+    token.IsExported expects to be passed a token, and does not check for
+    non-token arguments such as "C:\workdir\go\src\text".
+    
+    While we're at it, clean up a few other parts of the code that
+    are assuming a package path where a directory may be passed instead.
+    There are probably others lurking around here, but I believe this
+    change is sufficient to get past the test failures on the
+    windows-amd64-longtest builder.
+    
+    Fixes #35236
+    
+    Change-Id: Ic79fa035531ca0777f64b1446c2f9237397b1bdf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204442
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/doc/main.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

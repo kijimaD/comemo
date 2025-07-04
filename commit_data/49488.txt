@@ -1,0 +1,20 @@
+commit ef808ae1d446700aeeb19d5aa041ca14db44c951
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat May 28 07:51:56 2022 -0700
+
+    expvar: don't crash if map value set to nil
+    
+    Fixes #52719
+    
+    Change-Id: Ib032193d00664090c47ae92e7d59674ec2d0165a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408677
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ src/expvar/expvar.go      | 10 ++++++++--
+ src/expvar/expvar_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 2 deletions(-)

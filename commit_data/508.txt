@@ -1,0 +1,13 @@
+commit b89c53847324f6f4d25953fd97f4cdfeb8ed9e2d
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Aug 10 14:35:02 2008 -0700
+
+    fixed unary ^ opcode (bug082)
+    
+    R=r
+    DELTA=11  (10 added, 1 deleted, 0 changed)
+    OCL=14047
+    CL=14047
+
+ src/cmd/6g/cgen.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

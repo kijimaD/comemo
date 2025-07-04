@@ -1,0 +1,15 @@
+commit e607380ff69de8dd6235e662895644b56b4114ff
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Aug 29 23:42:05 2012 +0800
+
+    cmd/ld: handle a special case of scattered relocation 2/1 on Darwin/386
+            Fixes #1635.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/6496043
+
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue1635.go | 33 +++++++++++++++++++++++++++++++++
+ src/cmd/ld/ldmacho.c       | 21 +++++++++++++++------
+ 3 files changed, 49 insertions(+), 6 deletions(-)

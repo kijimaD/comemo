@@ -1,0 +1,12 @@
+commit 5f4c052e2d083f105a2e9beeda8c3279f95da998
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 26 16:12:50 2010 -0800
+
+    gc: do not treat .6 different from .a anymore
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/195050
+
+ src/cmd/gc/lex.c | 21 ++++++++-------------
+ 1 file changed, 8 insertions(+), 13 deletions(-)

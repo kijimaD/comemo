@@ -1,0 +1,18 @@
+commit 521dbbfef3f24eee4effb872bf358870958ac7cd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sun Sep 22 17:31:08 2013 +1000
+
+    runtime/pprof: run TestGoroutineSwitch for longer
+    
+    Short test now takes about 0.5 second here.
+    
+    Fixes #6417.
+    
+    The failure was also seen on our builders.
+    
+    R=golang-dev, minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/13321048
+
+ src/pkg/runtime/pprof/pprof_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

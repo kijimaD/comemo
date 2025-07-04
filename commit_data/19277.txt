@@ -1,0 +1,20 @@
+commit 0462d091e2a1f41b5a0589510bda25aaebe12f87
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue May 6 07:22:10 2014 +0900
+
+    syscall: add missing TIOCGSID for openbsd/386
+    
+    The previous syscall constants regeneration on openbsd was conducted
+    with OpenBSD current 3 months ago and it missed updating openbsd/386.
+    This CL adds TIOCGSID for fixing the inconsistency between opensbd/amd64
+    and openbsd/386.
+    
+    Update #7049
+    
+    LGTM=iant
+    R=jsing, rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/96960044
+
+ src/pkg/syscall/zerrors_openbsd_386.go | 1 +
+ 1 file changed, 1 insertion(+)

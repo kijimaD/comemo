@@ -1,0 +1,15 @@
+commit 54c8948f7f905b0681b765ed901a847697be5413
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 1 12:14:15 2008 -0700
+
+    - added import/export test cases
+    
+    R=r
+    OCL=13723
+    CL=13723
+
+ usr/gri/gosrc/test/a.go |  7 +++++++
+ usr/gri/gosrc/test/b.go | 13 +++++++++++++
+ usr/gri/gosrc/test/c.go |  7 +++++++
+ usr/gri/gosrc/test/d.go | 15 +++++++++++++++
+ 4 files changed, 42 insertions(+)

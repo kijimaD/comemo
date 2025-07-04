@@ -1,0 +1,14 @@
+commit 776e1709e59c2c50d93467e666d4bb8955b32ed3
+Author: adarsh ravichandran <adarshravichandran91@gmail.com>
+Date:   Mon May 20 16:27:13 2019 +0530
+
+    math/bits: add example for OnesCount function
+    
+    Change-Id: Id87db9bed5e8715d554c1bf95c063d7d0a03c3e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/178117
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/bits/example_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

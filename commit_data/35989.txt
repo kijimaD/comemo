@@ -1,0 +1,14 @@
+commit 6f96cf2793830fa33f18d154ac360eb8e53b79ea
+Author: Adam Shannon <adamkshannon@gmail.com>
+Date:   Fri Jul 13 13:44:51 2018 -0500
+
+    os/exec: document ExtraFiles is not supported on windows
+    
+    Fixes #26182
+    
+    Change-Id: I1181e191f4742f166c9b67a6f41332a237cf0ede
+    Reviewed-on: https://go-review.googlesource.com/123855
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec.go | 2 ++
+ 1 file changed, 2 insertions(+)

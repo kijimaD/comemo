@@ -1,0 +1,23 @@
+commit c8214c78bd2f8ad308119dc2344634993ab499c8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 14:48:35 2013 -0500
+
+    runtime: make return from main wait for active panic
+    
+    Arguably if this happens the program is buggy anyway,
+    but letting the panic continue looks better than interrupting it.
+    Otherwise things like this are possible, and confusing:
+    
+    $ go run x.go
+    panic: $ echo $?
+    0
+    $
+    
+    Fixes #3934.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7322083
+
+ src/pkg/runtime/proc.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)

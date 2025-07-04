@@ -1,0 +1,16 @@
+commit a070722340815d1cc7246a34228b58d7040a2ec8
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Nov 13 14:59:04 2009 -0800
+
+    json: minor comment fix.
+    
+    I screwed up and didn't write one of the code review changes to disk
+    before submitting.
+    
+    TBR=rsc
+    
+    R=rsc
+    https://golang.org/cl/154122
+
+ src/pkg/json/struct.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

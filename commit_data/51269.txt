@@ -1,0 +1,24 @@
+commit 03a18104735c78ad71cbd67d59b25bdc7fe8dcdf
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Nov 14 23:11:30 2022 +0700
+
+    cmd/compile: fix missing typecheck for static initialization slice
+    
+    CL 440455 fixed missing walk pass for static initialization slice.
+    However, slicelit may produce un-typechecked node, thus we need to do
+    typecheck for sinit before calling walkStmtList.
+    
+    Fixes #56727
+    
+    Change-Id: I40730cebcd09f2be4389d71c5a90eb9a060e4ab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450215
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/walk/complit.go |  1 +
+ test/fixedbugs/issue56727.go             | 45 ++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)

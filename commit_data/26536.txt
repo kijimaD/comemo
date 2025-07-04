@@ -1,0 +1,50 @@
+commit d170d3edd77aa571e65ff51ff382b90e9b00f40b
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Mar 19 08:54:07 2016 +0100
+
+    fmt: cleanup reflect value handling
+    
+    Merge printReflectValue into printValue. Determine if handleMethods
+    was already called in printArg by checking if depth is 0. Do not
+    call handleMethods on depth 0 again in printValue to not introduce
+    a performance regression. handleMethods is called already in printArg
+    to not introduce a performance penalty for top-level Stringer,
+    GoStringer, Errors and Formatters by using reflect.ValueOf on them
+    just to retrieve them again as interface{} values in printValue.
+    
+    Clear p.arg in printValue after handleMethods to print the type
+    of the value inside the reflect.Value when a bad verb is encountered
+    on the top level instead of printing "reflect.Value=" as the type of
+    the argument. This also fixes a bug that incorrectly prints the
+    whole map instead of just the value for a key if the returned value
+    by the map for the key is an invalid reflect value.
+    
+    name                     old time/op  new time/op  delta
+    SprintfPadding-2          229ns ± 2%   227ns ± 1%  -0.50%  (p=0.013 n=20+20)
+    SprintfEmpty-2           36.4ns ± 6%  37.2ns ±14%    ~     (p=0.091 n=18+20)
+    SprintfString-2           102ns ± 1%   102ns ± 0%    ~     (p=0.751 n=20+20)
+    SprintfTruncateString-2   142ns ± 0%   141ns ± 1%  -0.95%  (p=0.000 n=16+20)
+    SprintfQuoteString-2      389ns ± 0%   388ns ± 0%  -0.12%  (p=0.019 n=20+20)
+    SprintfInt-2              100ns ± 2%   100ns ± 1%    ~     (p=0.188 n=20+15)
+    SprintfIntInt-2           155ns ± 3%   154ns ± 2%    ~     (p=0.092 n=20+20)
+    SprintfPrefixedInt-2      250ns ± 2%   251ns ± 3%    ~     (p=0.559 n=20+20)
+    SprintfFloat-2            177ns ± 2%   175ns ± 1%  -1.30%  (p=0.000 n=20+20)
+    SprintfComplex-2          516ns ± 1%   510ns ± 1%  -1.13%  (p=0.000 n=19+16)
+    SprintfBoolean-2         90.9ns ± 3%  90.6ns ± 1%    ~     (p=0.193 n=19+19)
+    SprintfHexString-2        171ns ± 1%   169ns ± 1%  -1.44%  (p=0.000 n=19+20)
+    SprintfHexBytes-2         180ns ± 1%   180ns ± 1%    ~     (p=0.060 n=19+18)
+    SprintfBytes-2            330ns ± 1%   329ns ± 1%  -0.42%  (p=0.003 n=20+20)
+    SprintfStringer-2         354ns ± 3%   352ns ± 3%    ~     (p=0.525 n=20+19)
+    SprintfStructure-2        804ns ± 3%   776ns ± 2%  -3.56%  (p=0.000 n=20+20)
+    FprintInt-2               155ns ± 0%   151ns ± 1%  -2.35%  (p=0.000 n=19+20)
+    FprintfBytes-2            169ns ± 0%   170ns ± 1%  +0.81%  (p=0.000 n=18+19)
+    FprintIntNoAlloc-2        112ns ± 0%   109ns ± 1%  -2.28%  (p=0.000 n=20+20)
+    
+    Change-Id: Ib9a39082ed1be0f1f7499ee6fb6c9530f043e43a
+    Reviewed-on: https://go-review.googlesource.com/20923
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 26 ++++++++++++++
+ src/fmt/print.go    | 99 ++++++++++++++++++++---------------------------------
+ 2 files changed, 63 insertions(+), 62 deletions(-)

@@ -1,0 +1,17 @@
+commit 8fa0d85b385b549fed163fe67342dfcd092e02c4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 28 22:34:50 2016 -0800
+
+    cmd/compile: don't panic on syntax error in select statement
+    
+    Fixes #18092.
+    
+    Change-Id: I54e2da2e0f168c068f5e4a1b22ba508d78259168
+    Reviewed-on: https://go-review.googlesource.com/33658
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 29 ++++++++++++-----------------
+ test/fixedbugs/issue18092.go              | 15 +++++++++++++++
+ 2 files changed, 27 insertions(+), 17 deletions(-)

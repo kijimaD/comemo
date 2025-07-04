@@ -1,0 +1,18 @@
+commit d67db881465320b46e8142d5eac1b808c3ac659d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jun 2 15:35:25 2018 +1000
+
+    cmd/link: split pe .text section into .text and .rdata
+    
+    Fixes #24725
+    
+    Change-Id: I2864b88315ab15be036e8940d0a5884d876698d6
+    Reviewed-on: https://go-review.googlesource.com/115975
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 10 ++++---
+ src/cmd/link/internal/ld/pe.go   | 58 ++++++++++++++++++++++++++++------------
+ src/cmd/nm/nm_test.go            | 18 +++++++++++++
+ 3 files changed, 66 insertions(+), 20 deletions(-)

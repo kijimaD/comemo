@@ -1,0 +1,31 @@
+commit 9058080319e5e3b8edbde8c5e2406b11bac163ee
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 23 13:29:43 2022 -0700
+
+    cmd/compile: clarify help message for -L flag
+    
+    The file names reported in error messages by the compiler are
+    printed unchanged from the file names provided to the compiler;
+    the -L flag has no impact on the file names themselves, contrary
+    to what the old flag description suggested.
+    
+    If an error is reported on a line that is affected by a //line
+    directive, an error message reports the file name and line as
+    controlled by the directive (i.e., the actual source position
+    is not known).
+    
+    If the -L flag is provided, the actual source position is also
+    reported in square brackets.
+    
+    This change documents this with an updated help string for the
+    flag.
+    
+    For #36988.
+    
+    Change-Id: I39ee35e6ff6cd5cfa44d87dabb05b8d78575d631
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/395115
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/cmd/compile/internal/base/flag.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

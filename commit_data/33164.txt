@@ -1,0 +1,16 @@
+commit ada655759393e30ae25296b94c5cc07b27a4d683
+Author: griesemer <gri@golang.org>
+Date:   Tue Oct 17 15:30:12 2017 -0700
+
+    spec: simplify paragraph on certain range expressions over arrays
+    
+    Fixes #22258.
+    
+    Change-Id: I43e68f1cf3163e1a041ebff2734ff2cb7943f695
+    Reviewed-on: https://go-review.googlesource.com/71431
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)

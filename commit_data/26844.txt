@@ -1,0 +1,19 @@
+commit 7f53391f6b7f2387a5ed00398d34b046c321966f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 11 12:22:26 2016 -0700
+
+    cmd/compile: fix -N build
+    
+    The decomposer of builtin types is confused by having structs
+    still around from the user-type decomposer.  They're all dead though,
+    so just enabling a deadcode pass fixes things.
+    
+    Change-Id: I2df6bc7e829be03eabfd24c8dda1bff96f3d7091
+    Reviewed-on: https://go-review.googlesource.com/21839
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/compile.go   | 6 +++---
+ src/cmd/compile/internal/ssa/decompose.go | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,17 @@
+commit b61b1d2c57131b4fad9269c07ef8429add208017
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Mar 16 12:05:18 2018 +0100
+
+    test/codegen: port structs test to codegen
+    
+    And delete them from asm_test.
+    
+    Change-Id: Ia286239a3d8f3915f2ca25dbcb39f3354a4f8aea
+    Reviewed-on: https://go-review.googlesource.com/101138
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/asm_test.go | 37 --------------------------
+ test/codegen/structs.go                 | 46 +++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 37 deletions(-)

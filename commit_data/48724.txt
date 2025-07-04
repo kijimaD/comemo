@@ -1,0 +1,25 @@
+commit b6fb3af6af9835962ce1de1e1afcaa46726a654e
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Nov 24 16:33:14 2021 +0800
+
+    archive/zip: fail fast if UncompressedSize64 < nread
+    
+    The zip reader checks that the uncompressed file size is valid
+    after all compressed files read until EOF.
+    However in between reading each file, there could have already
+    been an overflow where nread > UncompressedSize64 hence this
+    change will now return ErrFormat in such situations.
+    
+    Fixes #49791
+    
+    Change-Id: If3584a57d173de6a97bf35c07d2a99ff6972f820
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366854
+    Trust: mzh <mzh@golangcn.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/archive/zip/reader.go      |  3 +++
+ src/archive/zip/reader_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

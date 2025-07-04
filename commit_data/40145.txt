@@ -1,0 +1,33 @@
+commit c450ace12c657e3953d79975c04f51605395cd50
+Author: David Chase <drchase@google.com>
+Date:   Mon Jul 29 16:23:31 2019 -0400
+
+    cmd/compile: remove statement marks from secondary calls
+    
+    Calls are code-generated in an alternate path that inherits
+    its positions from values, not from *SSAGenState.  The
+    default position on *SSAGenState was marked as not-a-statement,
+    but this was not applied to the value itself, leading to
+    spurious "is statement" marks in the output (convention:
+    after code generation in the compiler, everything is either
+    definitely a statement or definitely not a statement, nothing
+    is in the undetermined state).
+    
+    This CL causes a 35 statement regression in ssa/stmtlines_test.
+    This is down from the earlier 150 because of all the other
+    CLs preceding this one that deal with the root causes of the
+    missing lines (repeated lines on nested calls hid missing lines).
+    
+    This also removes some line repeats from ssa/debug_test.
+    
+    Change-Id: Ie9a507bd5447e906b35bbd098e3295211df2ae01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188018
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go                 | 10 ++++-
+ .../internal/ssa/testdata/hist.dlv-opt.nexts       |  8 ----
+ .../internal/ssa/testdata/hist.gdb-dbg.nexts       |  2 +-
+ .../internal/ssa/testdata/hist.gdb-opt.nexts       | 44 +++++-----------------
+ 4 files changed, 19 insertions(+), 45 deletions(-)

@@ -1,0 +1,17 @@
+commit e14d1d7e41eed928e045961195f160069f6abb2d
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Dec 14 17:34:35 2011 +0100
+
+    gc: use inferred type rather than original one when reporting non-assignability.
+    
+    Fixes #2451
+    
+    R=rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5372105
+
+ src/cmd/gc/fmt.c         | 14 ++++++++------
+ test/ddd1.go             |  2 +-
+ test/fixedbugs/bug386.go | 12 ++++++++++++
+ test/named1.go           |  2 +-
+ 4 files changed, 22 insertions(+), 8 deletions(-)

@@ -1,0 +1,14 @@
+commit 545ef1103712dda49542709d48ce030addecb8e7
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 23 10:52:16 2018 -0700
+
+    cmd/compile: remove toolstash workaround in bexport.go
+    
+    Change-Id: Ie4facdcab4b35cf7d350c4b8fa06a3c5a0c6caeb
+    Reviewed-on: https://go-review.googlesource.com/108875
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

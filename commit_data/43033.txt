@@ -1,0 +1,19 @@
+commit df73945fd2fa0b7c168a042e87e648fdfdfc2c70
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 17 07:54:01 2020 +0700
+
+    cmd/compile: make error message involving variadic calls clearer
+    
+    Fixes #41440
+    
+    Change-Id: I2fbac72ae3b76bca32cdeaee678a19af3595d116
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255241
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 20 ++++++++++++--------
+ test/fixedbugs/issue41440.go             | 14 ++++++++++++++
+ test/fixedbugs/issue6750.go              |  2 +-
+ 3 files changed, 27 insertions(+), 9 deletions(-)

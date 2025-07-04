@@ -1,0 +1,18 @@
+commit 5b1fb14371ea5d863301ee87207c8d19335b553e
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 4 14:27:46 2009 -0700
+
+    nbody benchmark
+    timing.sh improvements
+    
+    R=rsc
+    DELTA=334  (319 added, 0 deleted, 15 changed)
+    OCL=32734
+    CL=32736
+
+ test/bench/nbody.c    | 170 ++++++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/nbody.go   | 177 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ test/bench/nbody.txt  |   2 +
+ test/bench/timing.log |   7 +-
+ test/bench/timing.sh  |  52 +++++++++++----
+ 5 files changed, 392 insertions(+), 16 deletions(-)

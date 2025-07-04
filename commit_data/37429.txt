@@ -1,0 +1,14 @@
+commit a3f64237adf0ccfe379ffa2cb00e013896995a3a
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Nov 16 14:43:23 2018 -0500
+
+    cmd/vet: basic tests of go vet -json -c=N flags
+    
+    Change-Id: I787592a5d92ff9329ecdfcf879e491af66c8b749
+    Reviewed-on: https://go-review.googlesource.com/c/149962
+    Run-TryBot: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/vet_asm.txt | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)

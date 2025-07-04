@@ -1,0 +1,18 @@
+commit 411ba0ae8608a0829a185d83f122d83c8a51c754
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue Mar 26 20:23:30 2024 +0100
+
+    runtime/pprof: add label benchmark
+    
+    Add several benchmarks for pprof labels to analyze the impact of
+    follow-up CLs.
+    
+    Change-Id: Ifae39cfe83ec93858fce9e3af6c1be024ba76736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574515
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/pprof/label_test.go | 73 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)

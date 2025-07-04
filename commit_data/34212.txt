@@ -1,0 +1,20 @@
+commit 1ae22d8cfe3e5a22370d51fb75fe78ab99d8a269
+Author: Hana Kim <hakim@google.com>
+Date:   Tue Feb 13 17:18:08 2018 -0500
+
+    internal/trace: link user span start and end events
+    
+    Also add testdata for version 1.11 including UserTaskSpan test trace.
+    
+    Change-Id: I673fb29bb3aee96a14fadc0ab860d4f5832143f5
+    Reviewed-on: https://go-review.googlesource.com/93795
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/internal/trace/mkcanned.bash                   |   3 +-
+ src/internal/trace/parser.go                       |  41 +++++++++++++++-
+ src/internal/trace/testdata/http_1_11_good         | Bin 0 -> 2779 bytes
+ src/internal/trace/testdata/stress_1_11_good       | Bin 0 -> 370129 bytes
+ .../trace/testdata/stress_start_stop_1_11_good     | Bin 0 -> 4882 bytes
+ .../trace/testdata/user_task_span_1_11_good        | Bin 0 -> 2000 bytes
+ src/runtime/trace/annotation_test.go               |  54 +++++++++++++++------
+ 7 files changed, 81 insertions(+), 17 deletions(-)

@@ -1,0 +1,24 @@
+commit e8a85e90aca4adb472c66f8c42f6d4a41b8cca99
+Author: Amelia Downs <adowns@vmware.com>
+Date:   Thu Sep 30 11:35:30 2021 -0400
+
+    internal/fuzz: print size of interesting cache
+    
+    This change updates the log lines to clarify that the printed
+    interesting count is only for newly discovered cache entries, and prints
+    the total cache size. It only prints information about interesting
+    entries when coverageEnabled is true.
+    
+    Fixes #48669
+    
+    Change-Id: I2045afc204764c1842d323e8ae42016fb21b6fb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353172
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/internal/fuzz/fuzz.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

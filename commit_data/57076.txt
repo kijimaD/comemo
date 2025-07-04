@@ -1,0 +1,28 @@
+commit c5f2e4e56e2d3b13737de597be62f3020d59c137
+Author: Manuel Sabin <msabin27@gmail.com>
+Date:   Thu Jun 27 15:06:55 2024 -0400
+
+    crypto/internal/cryptotest: add tests for the cipher.Stream interface
+    
+    This CL creates tests for the cipher.Stream interface in the new
+    cryptotest package.  This set of tests is called from the tests of
+    implementations of the Stream interface e.g. ctr_test.go, ofb_test.go,
+    rc4_test.go, etc.
+    
+    Updates #25309
+    
+    Change-Id: I57204ef9f4c0ec09b94e88466deb03c6715e411d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595564
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
+
+ src/crypto/cipher/cfb_test.go            |  47 ++++++
+ src/crypto/cipher/ctr_test.go            |  38 +++++
+ src/crypto/cipher/ofb_test.go            |  37 +++++
+ src/crypto/internal/cryptotest/stream.go | 241 +++++++++++++++++++++++++++++++
+ src/crypto/rc4/rc4_test.go               |   9 ++
+ 5 files changed, 372 insertions(+)

@@ -1,0 +1,21 @@
+commit c00295d1158b4851c5efad739331d219f6ee01f2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 24 13:29:59 2008 -0800
+
+    Automated g4 rollback of changelist 19913.
+    
+    *** Reason for rollback ***
+    
+    broke build
+    
+    *** Original change description ***
+    
+    bufio.ReadRune
+    
+    TBR=r
+    OCL=19923
+    CL=19923
+
+ src/lib/bufio.go | 34 +++-------------------------------
+ src/lib/utf8.go  |  1 -
+ 2 files changed, 3 insertions(+), 32 deletions(-)

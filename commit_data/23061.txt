@@ -1,0 +1,16 @@
+commit 0b9866fd561d5ecebee14d73c0a4938dec5abe7d
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 16 20:05:58 2015 -0400
+
+    buildall.bash: exit 1 when make.bash fails
+    
+    If make.bash fails, there is no point continuing any further.
+    
+    Fixes #10880.
+    
+    Change-Id: I350cc16999372422ad3d2e0327d52d467886a5b1
+    Reviewed-on: https://go-review.googlesource.com/10180
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/buildall.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit 5a54696d78003a1e5c17ea9d818dc00e85624c2c
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Aug 7 10:23:24 2013 -0700
+
+    cmd/ld: Put the textflag constants in a separate file.
+    We can then include this file in assembly to replace
+    cryptic constants like "7" with meaningful constants
+    like "(NOPROF|DUPOK|NOSPLIT)".
+    
+    Converting just pkg/runtime/asm*.s for now.  Dropping NOPROF
+    and DUPOK from lots of places where they aren't needed.
+    More .s files to come in a subsequent changelist.
+    
+    A nonzero number in the textflag field now means
+    "has not been converted yet".
+    
+    R=golang-dev, daniel.morsing, rsc, khr
+    CC=golang-dev
+    https://golang.org/cl/12568043
+
+ src/cmd/5l/5.out.h          |   7 +--
+ src/cmd/6l/6.out.h          |   6 +--
+ src/cmd/8l/8.out.h          |   6 +--
+ src/cmd/ld/textflag.h       |  19 +++++++
+ src/pkg/runtime/asm_386.s   | 105 ++++++++++++++++++------------------
+ src/pkg/runtime/asm_amd64.s | 127 ++++++++++++++++++++++----------------------
+ src/pkg/runtime/asm_arm.s   |  65 ++++++++++++-----------
+ 7 files changed, 172 insertions(+), 163 deletions(-)

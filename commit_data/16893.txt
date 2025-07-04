@@ -1,0 +1,12 @@
+commit d26d5e6403613f989e123ee492bd8d63c113e725
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Jul 29 00:57:19 2013 +0200
+
+    effective_go.html: make snippets look formatted.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/11991043
+
+ doc/effective_go.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

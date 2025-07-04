@@ -1,0 +1,12 @@
+commit 5a716206a4b680ef6e24e5bc424d19f5d35a7162
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 26 16:33:59 2010 -0700
+
+    fix build
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/790041
+
+ src/pkg/testing/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

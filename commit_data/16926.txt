@@ -1,0 +1,14 @@
+commit a20784bdafc9a594a2c70be1e91f4b86182e6a21
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jul 30 22:17:38 2013 +0400
+
+    runtime: enable goroutine preemption
+    All known issues with preemption have beed fixed.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12008044
+
+ src/pkg/runtime/proc.c       | 2 +-
+ src/pkg/runtime/proc_test.go | 2 --
+ 2 files changed, 1 insertion(+), 3 deletions(-)

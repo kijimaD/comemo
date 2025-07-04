@@ -1,0 +1,18 @@
+commit 00e7fdc07792abdd1cf323c62c5c9bede368ecc0
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Jan 31 08:34:13 2023 +0000
+
+    net: move context cancellation logic of blocking calls to a common function.
+    
+    Change-Id: I5f7219a111436e3d6a4685df9461f5a8f8bcb000
+    GitHub-Last-Rev: e420129bade2681d2b6ce92087ed94444f424810
+    GitHub-Pull-Request: golang/go#58108
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463231
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/cgo_unix.go | 128 +++++++++++++++++-----------------------------------
+ 1 file changed, 41 insertions(+), 87 deletions(-)

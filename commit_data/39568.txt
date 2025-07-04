@@ -1,0 +1,14 @@
+commit 55e23cb1fe18c6784b573a44bce4c798a1983c2f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Aug 2 13:17:59 2019 -0700
+
+    doc/go1.13: mention confusion between keep-alive timeout and deadline
+    
+    Updates #31449
+    
+    Change-Id: I4d7075b20cd8171bc792e40b388f4215264a3317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188819
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ doc/go1.13.html | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

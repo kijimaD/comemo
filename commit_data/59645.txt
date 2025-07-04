@@ -1,0 +1,25 @@
+commit ce46c9db867fb54a9c1f39b73ac8c2f339ca0587
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 12 18:02:39 2025 +0100
+
+    internal/godebug,crypto/fips140: make fips140 setting immutable
+    
+    Updates #70123
+    
+    Co-authored-by: qmuntal <quimmuntal@gmail.com>
+    Change-Id: I6a6a4656fd23ecd82428cccbd7c48692287fc75a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657116
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+
+ src/crypto/fips140/fips140.go        |  8 ------
+ src/crypto/fips140/fips140_test.go   | 51 ++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go            |  4 +--
+ src/internal/godebug/godebug.go      |  8 +++++-
+ src/internal/godebug/godebug_test.go | 29 ++++++++++++++++++++
+ src/internal/godebugs/table.go       | 13 ++++-----
+ 6 files changed, 95 insertions(+), 18 deletions(-)

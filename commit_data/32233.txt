@@ -1,0 +1,21 @@
+commit 2c990f4596b8211ec24b095d80e66ec82a5a5021
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 11 09:48:46 2017 -0700
+
+    runtime: add a use of runtime.KeepAlive's argument
+    
+    This makes sure that its argument is marked live on entry.
+    We need its arg to be live so defers of KeepAlive get
+    scanned correctly by the GC.
+    
+    Fixes #21402
+    
+    Change-Id: I906813e433d0e9726ca46483723303338da5b4d7
+    Reviewed-on: https://go-review.googlesource.com/55150
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/mfinal.go      | 15 +++++++++------
+ src/runtime/mfinal_test.go | 17 +++++++++++++++++
+ 2 files changed, 26 insertions(+), 6 deletions(-)

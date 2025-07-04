@@ -1,0 +1,18 @@
+commit 7b8b3f30edde4ec93b91e62d2d6442dff7360056
+Author: Ben Shi <powerman1st@163.com>
+Date:   Fri Oct 5 12:09:43 2018 +0000
+
+    cmd/compile: combine similar code in 386's assembly generator
+    
+    The indexed MOVload and MOVstore have similar logic, and this CL
+    combine them together. The total size of pkg/linux_386/cmd/compile/
+    decreases about 4KB.
+    
+    Change-Id: I06236a3542aaa3dfc113c49fe4c69d209e018dfe
+    Reviewed-on: https://go-review.googlesource.com/c/139958
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/x86/ssa.go | 94 ++++++++++++-------------------------
+ 1 file changed, 30 insertions(+), 64 deletions(-)

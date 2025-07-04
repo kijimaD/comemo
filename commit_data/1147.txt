@@ -1,0 +1,13 @@
+commit 4d1d5e8a88673d8866b80942575c2532048626f3
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 17 17:16:50 2008 -0800
+
+    work around more commonly-unreachable 6g code sequences.
+    
+    R=r
+    DELTA=23  (23 added, 0 deleted, 0 changed)
+    OCL=19405
+    CL=19420
+
+ src/cmd/cov/main.c | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

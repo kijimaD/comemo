@@ -1,0 +1,24 @@
+commit ef4cb2f776f1c7e861604d1b46ab8fcf2672f10d
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 27 17:57:04 2021 -0700
+
+    cmd/compile/internal/types: change NewNamed to use TypeObject
+    
+    Semantically, TypeObject is the interface that go/types.TypeName would
+    implement, so we might as well use that instead of the more generic
+    Object (analog to go/types.Object) for NewNamed. In practice, this
+    doesn't really matter though, because we use *ir.Name for almost all
+    Objects anyway.
+    
+    Also, remove VarObject: its last use was removed in CL 302071 (March
+    2021).
+    
+    Change-Id: I6e987ecd419105e09f74fc8d60cadb61bcbc751f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345810
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types/type.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)

@@ -1,0 +1,16 @@
+commit 53d42fbead530b4b34c217a9d49de5b50bf433fa
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Wed Oct 28 07:44:35 2015 +0100
+
+    cmd/asm/internal/lex: format error correctly
+    
+    Error doesn't take a format string and appends its own newline. Phrase
+    the error like the other ones.
+    
+    Change-Id: Ic3af857e5d4890207c74a6eb59a0d1067b503e1b
+    Reviewed-on: https://go-review.googlesource.com/16420
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/asm/internal/lex/input.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

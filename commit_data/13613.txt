@@ -1,0 +1,18 @@
+commit f087764abcba7e041fb5c8c59f6122861b00ddba
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 9 23:22:51 2012 +0200
+
+    go/build: correct shouldBuild bug reading whole contents of file.
+    
+    It was caused by bytes.TrimSpace being able to return a nil
+    slice.
+    
+    Fixes #3914.
+    
+    R=golang-dev, r
+    CC=golang-dev, remy
+    https://golang.org/cl/6458091
+
+ src/pkg/go/build/build.go      |  2 +-
+ src/pkg/go/build/build_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

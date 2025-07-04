@@ -1,0 +1,17 @@
+commit 10560afb540b783da568aebe83d0f782e46bb673
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Oct 20 11:24:51 2016 +0200
+
+    runtime/debug: avoid overflow in SetMaxThreads
+    
+    Fixes #16076
+    
+    Change-Id: I91fa87b642592ee4604537dd8c3197cd61ec8b31
+    Reviewed-on: https://go-review.googlesource.com/31516
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/debug/garbage_test.go | 13 +++++++++++++
+ src/runtime/proc.go               |  6 +++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)

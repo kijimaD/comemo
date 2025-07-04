@@ -1,0 +1,21 @@
+commit ecccdccf3e235c124a768e5474e07cfb958f8aeb
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Thu Oct 18 16:26:56 2018 +0100
+
+    misc/wasm: fix panic on os.Stdout.Sync() in the browser
+    
+    Before this change running os.Stdout.Sync() in the browser would panic
+    the application with:
+    
+    panic: syscall/js: Value.Call: property fsync is not a function, got undefined
+    
+    Afterwards Sync() becomes a noop for compatibility reasons.
+    
+    Change-Id: I1fcef694beb35fdee3173f87371e1ff233b15d32
+    Reviewed-on: https://go-review.googlesource.com/c/143138
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/wasm/wasm_exec.js | 3 +++
+ 1 file changed, 3 insertions(+)

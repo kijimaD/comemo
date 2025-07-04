@@ -1,0 +1,12 @@
+commit 773e77981debb88069a055e64aab9853c593ec6e
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 25 11:39:34 2009 -0800
+
+    rewrite RuneCountInString to use range.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/160069
+
+ src/pkg/utf8/utf8.go | 16 ++++------------
+ 1 file changed, 4 insertions(+), 12 deletions(-)

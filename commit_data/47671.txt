@@ -1,0 +1,20 @@
+commit 94e22fa03eb5eb678689e05b8e309cd23f874698
+Author: Jeremy Faller <jeremy@golang.org>
+Date:   Wed Dec 1 13:48:22 2021 -0500
+
+    doc/go1.18: add Conn.NetConn documentation to crypto/tls section
+    
+    Updates #47694
+    
+    Change-Id: Iead44baa8b2a06ecf7b92d343ed9117f0fc0793e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/368315
+    Trust: Jeremy Faller <jeremy@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Jeremy Faller <jeremy@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
+
+ doc/go1.18.html | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

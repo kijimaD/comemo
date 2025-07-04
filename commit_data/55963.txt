@@ -1,0 +1,23 @@
+commit b822f098c557ea3d9200fd2d8a2e2b4d641e83e4
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Mon Mar 11 20:10:48 2024 -0700
+
+    os: don't try to make the directory FD non-blocking in os.ReadDir
+    
+    This will fail because epoll_ctl() fails on directory FDs, so we
+    end up issuing unnecessary syscalls. My test program that calls
+    filepath.WalkDir on a large directory tree runs 1.23 ± 0.04 times
+    faster than with the original implementation.
+    
+    Change-Id: Ie33d798c48057a7b2d0bacac80fcdde5b5a8bb1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570877
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/dir.go          |  2 +-
+ src/os/file.go         |  8 ++++++++
+ src/os/file_plan9.go   |  4 ++++
+ src/os/file_unix.go    | 30 ++++++++++++++++++++++++++++--
+ src/os/file_windows.go |  4 ++++
+ 5 files changed, 45 insertions(+), 3 deletions(-)

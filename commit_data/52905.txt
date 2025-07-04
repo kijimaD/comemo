@@ -1,0 +1,25 @@
+commit f90bb8a38f2f1ed2109f8fa88fb90a5c2db1f3fe
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 4 17:09:49 2023 -0400
+
+    cmd/link: remove elfsetstring out of the loader
+    
+    Currently, we pass elfsetstring to the loader as a callback, for
+    a special case of Addstring. This is only used for ELF when adding
+    strings to the section header string table. Move the logic to the
+    caller instead, so the loader would not have this special case.
+    
+    Change-Id: Icfb91f380fe4ba435985c3019681597932f58242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492718
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/data_test.go         |   3 +-
+ src/cmd/link/internal/ld/dwarf.go             |  13 ++-
+ src/cmd/link/internal/ld/elf.go               | 127 +++++++++++++-------------
+ src/cmd/link/internal/ld/lib.go               |   3 +-
+ src/cmd/link/internal/loader/loader.go        |   7 +-
+ src/cmd/link/internal/loader/loader_test.go   |   3 +-
+ src/cmd/link/internal/loader/symbolbuilder.go |   4 -
+ 7 files changed, 76 insertions(+), 84 deletions(-)

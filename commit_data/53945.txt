@@ -1,0 +1,20 @@
+commit 288fd6eb9d16cc29b0370f4a0b5e3e499521d502
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 01:19:38 2023 -0700
+
+    internal/bisect: fix PrintMarker and examples
+    
+    PrintMarker was printing 50 NUL bytes before the marker.
+    
+    Also, the examples for writing your own ShouldEnable helper suggest
+    "if m == nil { return false }", but this is inconsistent with how
+    Matcher.ShouldEnable handles nil pointers.
+    
+    Change-Id: Ie45075ba7fb8fcc63eadce9d793a06ef0c8aa9f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517615
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+
+ src/internal/bisect/bisect.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

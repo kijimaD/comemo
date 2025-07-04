@@ -1,0 +1,27 @@
+commit 6458b2e8db7c4529248934f7e491df02d1e89318
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jul 16 03:06:18 2021 +1000
+
+    all: add support for c-archive and c-shared on linux/riscv64
+    
+    This provides the runtime glue (_rt0_riscv64_linux_lib) for c-archive and c-shared
+    support, along with enabling both of these buildmodes on linux/riscv64.
+    
+    Both misc/cgo/testcarchive and misc/cgo/testcshared now pass on this platform.
+    
+    Fixes #47100
+    
+    Change-Id: I7ad75b23ae1d592dbac60d15bba557668287711f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334872
+    Trust: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ misc/cgo/testcshared/testdata/libgo2/dup2.go |  2 +-
+ misc/cgo/testcshared/testdata/libgo2/dup3.go |  2 +-
+ src/cmd/compile/internal/ssa/regalloc.go     |  2 +
+ src/cmd/dist/test.go                         |  4 +-
+ src/cmd/internal/sys/supported.go            |  2 +-
+ src/cmd/link/internal/ld/config.go           |  2 +-
+ src/runtime/rt0_linux_riscv64.s              | 98 ++++++++++++++++++++++++++++
+ 7 files changed, 106 insertions(+), 6 deletions(-)

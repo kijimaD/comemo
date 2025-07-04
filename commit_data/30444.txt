@@ -1,0 +1,12 @@
+commit 09294ab75461c088e3676e1575acb44c38371b08
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Feb 28 15:24:18 2017 -0800
+
+    cmd/vet/all: disable cgo when running 'go install'
+    
+    Change-Id: Iab1e84624c0288ebdd33fbe83bd60948b5d91fc4
+    Reviewed-on: https://go-review.googlesource.com/37612
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/main.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit 63f4ab98ebbe168fd508469a76d038160af8487d
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Feb 16 18:41:41 2018 +0000
+
+    cmd/compile: deduplicate racewalk switch cases
+    
+    Only the contiguous ones, to keep the patch simple. Remove some
+    unnecessary newlines, while at it.
+    
+    Change-Id: Ia588f80538b49a169fbf49835979ebff5a0a7b6d
+    Reviewed-on: https://go-review.googlesource.com/94756
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/racewalk.go | 42 ++++++---------------------------
+ 1 file changed, 7 insertions(+), 35 deletions(-)

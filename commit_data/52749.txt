@@ -1,0 +1,21 @@
+commit eaecd642004641a0353786f1c679bc3c726d1a02
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Apr 19 15:39:01 2023 -0400
+
+    cmd/go: assert on more of the version string in TestScript/gotoolchain
+    
+    The previous assert triggers whenever the 40-character git commit
+    contains the substring "999", which happens with a probability
+    decidedly greater than zero.
+    
+    For #57001.
+    
+    Change-Id: If0f1bc1a3dd0e6b7e66768d0cf3a79545ee4e5ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486399
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/gotoolchain.txt | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

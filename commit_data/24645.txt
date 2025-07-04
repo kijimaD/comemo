@@ -1,0 +1,20 @@
+commit d3f88ce06c80a066cebf7239d6189424b1ae20cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 27 18:30:20 2015 +0000
+
+    net/http/httptest: close conns in StateNew on Server close
+    
+    This part got dropped when we were debating between two solutions
+    in https://golang.org/cl/15151
+    
+    Fixes #13032
+    
+    Change-Id: I820b94f6c0c102ccf9342abf957328ea01f49a26
+    Reviewed-on: https://go-review.googlesource.com/16313
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/httptest/server.go      | 20 +++++++++++++++++++-
+ src/net/http/httptest/server_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 1 deletion(-)

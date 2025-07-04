@@ -1,0 +1,21 @@
+commit 7d0cb2a2adec493b8ad9d79ef35354c8e20f0213
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 21 12:44:24 2025 -0700
+
+    cmd/compile: constant fold 128-bit multiplies
+    
+    The full 64x64->128 multiply comes up when using bits.Mul64.
+    The 64x64->64+overflow multiply comes up in unsafe.Slice when using
+    a constant length.
+    
+    Change-Id: I298515162ca07d804b2d699d03bc957ca30a4ebc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667175
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ssa/_gen/generic.rules |   4 +
+ src/cmd/compile/internal/ssa/rewrite.go         |  11 +++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 108 ++++++++++++++++++++++++
+ test/codegen/mathbits.go                        |  16 +++-
+ 4 files changed, 138 insertions(+), 1 deletion(-)

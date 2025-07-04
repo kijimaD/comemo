@@ -1,0 +1,37 @@
+commit 6a9c76524fab12553108199352fc1faa3a76d783
+Author: Tim King <taking@google.com>
+Date:   Mon Nov 14 13:07:36 2022 -0800
+
+    cmd: update vendored golang.org/x/tools for loopclosure improvements
+    
+    Updates vet to report errors where a loop variable escapes the current
+    loop iteration by a call to testing.T.Run where the subtest body invokes
+    t.Parallel().
+    
+    Change-Id: I727f01d0cdd479ff1b5b1e4f1872c530bfefb263
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450435
+    Run-TryBot: Tim King <taking@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go.mod                                     | 13 ++-
+ src/cmd/go.sum                                     | 18 ++--
+ src/cmd/vendor/golang.org/x/crypto/LICENSE         | 27 ------
+ src/cmd/vendor/golang.org/x/crypto/PATENTS         | 22 -----
+ .../vendor/golang.org/x/crypto/ed25519/ed25519.go  | 71 ----------------
+ src/cmd/vendor/golang.org/x/mod/sumdb/note/note.go |  3 +-
+ .../vendor/golang.org/x/sys/unix/sockcmsg_unix.go  | 14 ++++
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  1 +
+ .../go/analysis/passes/loopclosure/loopclosure.go  | 96 ++++++++++++++++++----
+ .../x/tools/go/analysis/passes/tests/tests.go      |  4 +-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |  8 +-
+ .../golang.org/x/tools/go/types/typeutil/map.go    | 77 ++++++++++++++++-
+ .../x/tools/internal/analysisinternal/analysis.go  |  4 -
+ .../{go/analysis => }/internal/facts/facts.go      | 35 +++++---
+ .../{go/analysis => }/internal/facts/imports.go    |  3 +
+ src/cmd/vendor/modules.txt                         | 13 ++-
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 +-
+ src/vendor/modules.txt                             |  2 +-
+ 19 files changed, 228 insertions(+), 189 deletions(-)

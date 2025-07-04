@@ -1,0 +1,10 @@
+commit 7e21ec300722023af9afb1a243e5bb6a04407dca
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 26 11:56:17 2008 -0700
+
+    - filed a bug against len()
+    
+    SVN=124926
+
+ test/bugs/bug057.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

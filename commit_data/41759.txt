@@ -1,0 +1,27 @@
+commit bfb1342a40216cba0ff5ae3a1b102823b7603068
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Mar 25 22:24:44 2020 -0400
+
+    cmd/go: do not append to the global cfg.OrigEnv slice
+    
+    Appending to a global slice is only safe if its length is already
+    equal to its capacity. That property is not guaranteed for slices in
+    general, and empirically does not hold for this one.
+    
+    This is a minimal fix to make it easier to backport.
+    A more robust cleanup of the base.EnvForDir function will be sent in a
+    subsequent CL.
+    
+    Fixes #38077
+    Updates #37940
+    
+    Change-Id: I731d5bbd0e516642c2cf43e713eeea15402604e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225577
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/generate/generate.go | 3 ++-
+ src/cmd/go/internal/test/test.go         | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)

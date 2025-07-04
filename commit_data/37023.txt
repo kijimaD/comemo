@@ -1,0 +1,21 @@
+commit 8ccafb1ac732ab7994acb3c40786a0b943974554
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 11 12:03:44 2017 -0800
+
+    test: add fixedbugs/bug506 for gccgo
+    
+    Building with gccgo failed with an undefined symbol error from an
+    unnecessary hash function.
+    
+    Updates #19773
+    
+    Change-Id: Ic78bf1b086ff5ee26d464089c0e14987d3fe8b02
+    Reviewed-on: https://go-review.googlesource.com/c/130956
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/bug506.dir/a.go    | 16 ++++++++++++++++
+ test/fixedbugs/bug506.dir/main.go | 20 ++++++++++++++++++++
+ test/fixedbugs/bug506.go          | 10 ++++++++++
+ 3 files changed, 46 insertions(+)

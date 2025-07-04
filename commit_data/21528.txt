@@ -1,0 +1,13 @@
+commit 9e6869b93bba5c04e9536e26944d657f15a88386
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Feb 9 09:26:56 2015 +1100
+
+    Build fix for plan9 after 8bf13838eb21.
+    
+    Change-Id: I66d923abbef13ba35c76c6f6da5b14c6d534127c
+    Reviewed-on: https://go-review.googlesource.com/4165
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+
+ src/time/zoneinfo_plan9.go | 1 -
+ 1 file changed, 1 deletion(-)

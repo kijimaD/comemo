@@ -1,0 +1,22 @@
+commit d073677569085642935d5d3b6acfe6df1054ae21
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Aug 31 20:17:59 2012 +1000
+
+    cgo/misc/test: burn CPU to improve sleep accuracy
+    
+    Fixes #4008.
+    
+    Run a background goroutine that wastes CPU to trick the
+    power management into raising the CPU frequency which,
+    by side effect, makes sleep more accurate on arm.
+    
+    === RUN TestParallelSleep
+    --- PASS: TestParallelSleep (1.30 seconds)
+    _cgo_gotypes.go:772:    sleep(1) slept for 1.000458s
+    
+    R=minux.ma, r
+    CC=golang-dev
+    https://golang.org/cl/6498060
+
+ misc/cgo/test/issue1560.go | 31 +++++++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 6 deletions(-)

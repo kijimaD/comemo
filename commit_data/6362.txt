@@ -1,0 +1,14 @@
+commit bfb127612aef196b267202ac2936980d076cb95a
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Thu Sep 23 22:06:59 2010 -0400
+
+    os: check for valid arguments in windows Readdir
+    
+    Fixes #1129.
+    
+    R=rsc, brainman
+    CC=Joe Poirier, golang-dev
+    https://golang.org/cl/2211045
+
+ src/pkg/os/file_windows.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

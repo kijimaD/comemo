@@ -1,0 +1,24 @@
+commit cbcb031fe8b26be9d40c5fbb0c1934b0afdcf422
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 8 11:39:39 2020 -0700
+
+    cmd/compile: more minor cleanup in shortcircuitBlock
+    
+    Continue to simplify, rename for clarity,
+    improve docs, and reduce variable scope.
+    
+    This is in preparation for this function becoming
+    more complicated.
+    
+    Passes toolstash-check.
+    
+    Updates #37608
+    
+    Change-Id: I630a4e07c92297c46d18aea69ec29852d6371ff0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222919
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/shortcircuit.go | 32 +++++++++++-----------------
+ 1 file changed, 13 insertions(+), 19 deletions(-)

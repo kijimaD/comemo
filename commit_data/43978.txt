@@ -1,0 +1,27 @@
+commit 6c64b6db6802818dd9a4789cdd564f19b70b6b4c
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Dec 9 08:27:54 2020 -0800
+
+    cmd/compile: don't constant fold divide by zero
+    
+    It just makes the compiler crash. Oops.
+    
+    Fixes #43099
+    
+    Change-Id: Id996c14799c1a5d0063ecae3b8770568161c2440
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276652
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules    |  4 ++--
+ src/cmd/compile/internal/ssa/gen/ARM64.rules  | 16 ++++++-------
+ src/cmd/compile/internal/ssa/gen/MIPS.rules   |  8 +++----
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |  8 +++----
+ src/cmd/compile/internal/ssa/rewriteARM.go    |  8 +++++++
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 32 +++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS.go   | 16 +++++++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 16 +++++++++++++
+ test/fixedbugs/issue43099.go                  | 34 +++++++++++++++++++++++++++
+ 9 files changed, 124 insertions(+), 18 deletions(-)

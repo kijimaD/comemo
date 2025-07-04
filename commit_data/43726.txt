@@ -1,0 +1,18 @@
+commit b7e0adfee28b516a0dcceb5ecf0e5a695b38c61f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Nov 5 16:41:32 2020 +1100
+
+    cmd/dist: remove openbsd/mips64 from incomplete ports
+    
+    Remove openbsd/mips64 from incomplete ports lists - all of the necessary code
+    has landed and we want to run tests so we can see/deal with remaining failures.
+    
+    Update #40995
+    
+    Change-Id: I5d4f89af82ff3abe57570a9a8abf889498093d32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267606
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/dist/build.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

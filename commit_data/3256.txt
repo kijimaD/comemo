@@ -1,0 +1,12 @@
+commit 1f11578614b0dfe46d4a7c979e840defe87b3829
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 10 18:26:14 2009 -0700
+
+    fix build
+    
+    TBR=rsc
+    OCL=34550
+    CL=34552
+
+ src/pkg/go/printer/testdata/linebreaks.golden | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

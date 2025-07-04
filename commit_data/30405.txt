@@ -1,0 +1,20 @@
+commit eae657e9ee2897ffac8c8918738b0a4bab5864d6
+Author: Kevin Burke <kev@inburke.com>
+Date:   Mon Feb 27 02:28:24 2017 -0800
+
+    os/user: rename group cgo file
+    
+    In another CL, I'll add a pure Go implementation of lookupGroup and
+    lookupGroupId in lookup_unix.go, but attempting that in one CL makes
+    the diff too difficult to read.
+    
+    Updates #18102.
+    
+    Change-Id: If8e26cee5efd30385763430f34304c70165aef32
+    Reviewed-on: https://go-review.googlesource.com/37497
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/user/{lookup_unix.go => cgo_lookup_unix.go} | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

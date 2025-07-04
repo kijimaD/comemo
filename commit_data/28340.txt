@@ -1,0 +1,16 @@
+commit 09686a58734382ace059f1dbd882dadbb39b2268
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 12 17:08:21 2016 -0700
+
+    cmd/compile: remove another bytes.Buffer use in fmt.go
+    
+    Missed in prior commit.
+    
+    Change-Id: Ib3a41fb4e4d41feeb28c316fe70a329c73e72379
+    Reviewed-on: https://go-review.googlesource.com/29088
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 25 ++++++++++++-------------
+ 1 file changed, 12 insertions(+), 13 deletions(-)

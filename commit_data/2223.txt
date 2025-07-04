@@ -1,0 +1,13 @@
+commit 8ee8fdea3c9b38ca89bd4ad42086965ab11de41f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri May 15 15:45:35 2009 -0700
+
+    restart functionality
+    
+    R=rsc
+    DELTA=21  (19 added, 0 deleted, 2 changed)
+    OCL=28938
+    CL=28941
+
+ usr/gri/pretty/godoc.go | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)

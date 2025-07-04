@@ -1,0 +1,14 @@
+commit e07958f7dfde86fe9053e25793219d4807f4d74c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jul 31 23:02:46 2012 -0400
+
+    runtime: round return value address in runtime.equal
+         Fixes #3866.
+    
+    R=rsc, r, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6452046
+
+ src/pkg/runtime/alg.c    |  9 ++++---
+ test/fixedbugs/bug449.go | 69 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 4 deletions(-)

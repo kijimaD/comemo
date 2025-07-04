@@ -1,0 +1,26 @@
+commit 0f003f9d15b896841544925ff621056ae285679d
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Wed Apr 5 15:56:42 2023 +0800
+
+    internal/cpu, runtime: make linux/loong64 HWCAP data available
+    
+    This can be used to toggle runtime usages of ISA extensions as such
+    usages appear.
+    
+    Only the CRC32 bit is exposed for now, as the others are not going to be
+    utilized in the standard library for a while.
+    
+    Change-Id: I774032ca84dc8bcf1c9f17558917315af07c7314
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482416
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: xiaodong liu <teaofmoli@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+
+ src/internal/cpu/cpu.go               |  8 ++++++++
+ src/internal/cpu/cpu_loong64.go       |  8 +++++++-
+ src/internal/cpu/cpu_loong64_hwcap.go | 30 ++++++++++++++++++++++++++++++
+ src/internal/cpu/cpu_loong64_linux.go | 11 +++++++++++
+ src/runtime/os_linux_loong64.go       |  9 ++++++++-
+ 5 files changed, 64 insertions(+), 2 deletions(-)

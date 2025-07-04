@@ -1,0 +1,19 @@
+commit a6edffb28696b739136172995ed3ec000e8e6fdb
+Author: David Chase <drchase@google.com>
+Date:   Tue Sep 6 13:39:22 2016 -0700
+
+    cmd/compile: add BVC/BVS to branch ops in ppc64/prog.go
+    
+    Includes test case shown to fail with unpatched compiler.
+    
+    Fixes #17005.
+    
+    Change-Id: I49b7b1a3f02736d85846a2588018b73f68d50320
+    Reviewed-on: https://go-review.googlesource.com/28573
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/ppc64/prog.go |  2 ++
+ test/fixedbugs/issue17005.go           | 46 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+)

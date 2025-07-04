@@ -1,0 +1,12 @@
+commit 888ab022287badba7a57a08a21e5524a42c5f6b2
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Feb 11 20:13:57 2011 -0800
+
+    5ld: part of 64bit eor - forgot to check in.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4176046
+
+ src/cmd/5l/optab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

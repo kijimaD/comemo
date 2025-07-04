@@ -1,0 +1,12 @@
+commit 4a7a72b8c1146cd84a869f61a77331a6de89b962
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Aug 22 00:59:48 2013 +0200
+
+    syscall: fix stale URL for linux/arm unistd.h
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13105047
+
+ src/pkg/syscall/mkall.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

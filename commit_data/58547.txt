@@ -1,0 +1,16 @@
+commit 28d389ef30fc4c542a80603123990115035c6422
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 23 17:37:29 2025 -0800
+
+    internal/godebug: check error from os.ReadFile in test
+    
+    Change-Id: I4770443c8eaa12add2e04cbf9d18ebfbbd851162
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643259
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/godebug/godebug_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

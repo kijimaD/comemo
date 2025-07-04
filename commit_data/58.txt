@@ -1,0 +1,11 @@
+commit 75bbce9e845cb8b7f261da647a69a5e83717c468
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 17 19:06:33 2008 -0700
+
+    - added language to document .() notation
+    - propose change to char/string productions: I find this easier to read
+    
+    SVN=116037
+
+ doc/go_lang.txt | 32 +++++++++++++++++---------------
+ 1 file changed, 17 insertions(+), 15 deletions(-)

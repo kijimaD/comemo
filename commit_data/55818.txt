@@ -1,0 +1,68 @@
+commit c8718f6a3d23e9c158a6916df60dd484f9f134e3
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Feb 15 16:07:40 2024 -0500
+
+    cmd/go: add file with list of all counters we collect
+    
+    Maintain a list of counters we collect and test that it hasn't
+    changed. If it has, fail a test and have the user update the list. The
+    update process will print a reminder to update the list of collected
+    counters.
+    
+    Also run go mod vendor to pull in
+    golang.org/x/telemetry/counter/countertest.
+    
+    For #58894
+    
+    Change-Id: I661a9c3d67cb33f42a5519f4639af7aa05c3821d
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/564555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/go/counters_test.go                        |   89 +
+ src/cmd/go/go_test.go                              |   11 +
+ src/cmd/go/main.go                                 |   11 +-
+ src/cmd/go/script_test.go                          |   64 +-
+ src/cmd/go/telemetry.go                            |   13 +
+ src/cmd/go/telemetry_bootstrap.go                  |    9 +
+ src/cmd/go/testdata/counters.txt                   |  661 +++
+ .../vendor/golang.org/x/sync/errgroup/errgroup.go  |  135 +
+ src/cmd/vendor/golang.org/x/sync/errgroup/go120.go |   13 +
+ .../vendor/golang.org/x/sync/errgroup/pre_go120.go |   14 +
+ .../vendor/golang.org/x/telemetry/.dockerignore    |   17 +
+ .../vendor/golang.org/x/telemetry/.eslintrc.json   |   11 +
+ .../vendor/golang.org/x/telemetry/.gitattributes   |   14 +
+ src/cmd/vendor/golang.org/x/telemetry/.gitignore   |    2 +
+ .../vendor/golang.org/x/telemetry/.prettierrc.json |    1 +
+ .../golang.org/x/telemetry/.stylelintrc.json       |   11 +
+ .../vendor/golang.org/x/telemetry/CONTRIBUTING.md  |   30 +
+ src/cmd/vendor/golang.org/x/telemetry/README.md    |   60 +
+ .../x/telemetry/counter/countertest/countertest.go |   62 +
+ .../counter/countertest/countertest_go118.go       |   21 +
+ .../counter/countertest/countertest_go121.go       |   16 +
+ src/cmd/vendor/golang.org/x/telemetry/doc.go       |    1 +
+ .../x/telemetry/internal/config/config.go          |  140 +
+ .../x/telemetry/internal/configstore/download.go   |   78 +
+ .../telemetry/internal/crashmonitor/crash_go123.go |   14 +
+ .../x/telemetry/internal/crashmonitor/monitor.go   |  256 ++
+ .../golang.org/x/telemetry/internal/upload/Doc.txt |   45 +
+ .../golang.org/x/telemetry/internal/upload/date.go |   91 +
+ .../x/telemetry/internal/upload/findwork.go        |   96 +
+ .../x/telemetry/internal/upload/reports.go         |  311 ++
+ .../golang.org/x/telemetry/internal/upload/run.go  |  135 +
+ .../x/telemetry/internal/upload/upload.go          |   85 +
+ src/cmd/vendor/golang.org/x/telemetry/mode.go      |   40 +
+ src/cmd/vendor/golang.org/x/telemetry/npm          |   13 +
+ src/cmd/vendor/golang.org/x/telemetry/npx          |   13 +
+ .../golang.org/x/telemetry/package-lock.json       | 4363 ++++++++++++++++++++
+ src/cmd/vendor/golang.org/x/telemetry/package.json |   23 +
+ src/cmd/vendor/golang.org/x/telemetry/start.go     |  213 +
+ .../vendor/golang.org/x/telemetry/start_posix.go   |   22 +
+ .../vendor/golang.org/x/telemetry/start_windows.go |   29 +
+ .../vendor/golang.org/x/telemetry/tsconfig.json    |   26 +
+ .../vendor/golang.org/x/telemetry/types_alias.go   |   21 +
+ .../vendor/golang.org/x/telemetry/upload/upload.go |   38 +
+ src/cmd/vendor/modules.txt                         |    8 +
+ 44 files changed, 7320 insertions(+), 6 deletions(-)

@@ -1,0 +1,17 @@
+commit a10884838aabb854e3a6595791c663bb16ca32ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 9 20:38:11 2017 -0500
+
+    cmd/vendor/.../pprof: do not run test that opens web browser
+    
+    Obviously not OK.
+    
+    For #22651.
+    
+    Change-Id: I4238045bec6e50788daaa27a7fbc1d547e72cde9
+    Reviewed-on: https://go-review.googlesource.com/76870
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ .../github.com/google/pprof/internal/driver/webui_test.go   | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)

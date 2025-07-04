@@ -1,0 +1,17 @@
+commit 5dd4d6edb8c935ce313782ec6ce838c03c73ea9b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 30 17:16:32 2016 -0500
+
+    cmd/go: document GOPATH default exception
+    
+    Doesn't get defaulted if $HOME/go is a GOROOT.
+    
+    Change-Id: I6ac8211a74029e4ad70a50f6e7884a039a27ab05
+    Reviewed-on: https://go-review.googlesource.com/33720
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/alldocs.go | 3 ++-
+ src/cmd/go/help.go    | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,43 @@
+commit 7f9e0220cdc3516308d24bba4ef8180b6a923a27
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 11 18:05:19 2019 -0700
+
+    cmd/link: fix off-by-one in ftabaddstring
+    
+    ftabaddstring adds a string to the pclntab.
+    The pclntab uses C strings, so the code added 1 to the length.
+    However, it also added an extraneous 1 in the Grow call. Remove that.
+    
+    While we're here, simplify, document, remove an unnecessary parameter,
+    and remove some unnecessary conversions.
+    
+    Shaves off a few bytes here and there, and thus updates #6853.
+    
+    file      before    after     Δ       %
+    go        14671316  14659028  -12288  -0.084%
+    addr2line 4280552   4276456   -4096   -0.096%
+    api       6058936   6050744   -8192   -0.135%
+    buildid   2861040   2856944   -4096   -0.143%
+    cgo       4867912   4863816   -4096   -0.084%
+    compile   25770104  25753720  -16384  -0.064%
+    cover     5286888   5282792   -4096   -0.077%
+    dist      3634048   3629952   -4096   -0.113%
+    doc       4691000   4686904   -4096   -0.087%
+    fix       3393736   3389640   -4096   -0.121%
+    link      6109280   6105184   -4096   -0.067%
+    nm        4225960   4221864   -4096   -0.097%
+    objdump   4636520   4632424   -4096   -0.088%
+    pack      2285200   2281104   -4096   -0.179%
+    pprof     14657508  14645220  -12288  -0.084%
+    test2json 2818568   2814472   -4096   -0.145%
+    trace     11618524  11610332  -8192   -0.071%
+    vet       8403544   8395352   -8192   -0.097%
+    
+    Change-Id: I20b1f541de5d3ed326dd937aad6a43801862df51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171820
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

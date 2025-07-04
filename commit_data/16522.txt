@@ -1,0 +1,12 @@
+commit ed6dce6f9d5bfb109b46a11f6843f8391abb8678
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Jun 11 02:02:42 2013 +0800
+
+    cmd/5l: use guaranteed undefined instruction for UNDEF to match [68]l.
+    
+    R=golang-dev, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/10085050
+
+ src/cmd/5l/asm.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

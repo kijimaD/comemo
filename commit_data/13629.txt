@@ -1,0 +1,14 @@
+commit 858bd05e2d4421018ee886c54299564727a0fc2e
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Aug 16 00:44:20 2012 +1000
+
+    net: implement netbsd sockoptip
+    
+    Provide sockoptip for NetBSD, based on sockoptip for OpenBSD.
+    
+    R=golang-dev, rsc, mikioh.mikioh, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6308053
+
+ src/pkg/net/sockoptip_netbsd.go | 79 +++++++++++++++++++++++++++++++++--------
+ 1 file changed, 65 insertions(+), 14 deletions(-)

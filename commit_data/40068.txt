@@ -1,0 +1,28 @@
+commit bdf0fe54480034cd21e36cfed6e44f10f4cb5c92
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 23 23:10:25 2019 +0100
+
+    cmd/compile: minor simplifications in rulegen
+    
+    First, be consistent about declaring typ as &b.Func.Config.Types and
+    not &config.Types. Not particularly better, and it barely changes the
+    output, but we're more consistent now.
+    
+    Second, remove a bit of duplication when handling the typ, auxint, and
+    aux variables.
+    
+    Third and last, remove a stray canFail assignment; we ended up setting
+    that in add, not breakf, so it's not necessary to set it manually if we
+    don't use breakf.
+    
+    Updates #33644.
+    
+    Change-Id: I75999cb223a201969266fbfeae043599fa27fac5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196803
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go  | 34 +++++++++++-----------------
+ src/cmd/compile/internal/ssa/rewriteS390X.go |  3 +--
+ 2 files changed, 14 insertions(+), 23 deletions(-)

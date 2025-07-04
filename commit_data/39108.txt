@@ -1,0 +1,14 @@
+commit b8d5150f4a81c82ae7ebeb750f568055b7e8b212
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 9 21:04:39 2019 +0000
+
+    os/user: make Current return better error w/o cgo & complete environment
+    
+    Fixes #31949
+    
+    Change-Id: Ib96a43e4c56a00c5ba04e4d213255a063058ae08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176337
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/user/lookup_stubs.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

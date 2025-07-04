@@ -1,0 +1,16 @@
+commit 9121e7e4df8e3867be2929cb2188272fbfe4408e
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 3 13:44:44 2014 +1100
+
+    runtime: check that new slice cap doesn't overflow
+    
+    Fixes #7550.
+    
+    LGTM=iant
+    R=golang-codereviews, iant, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/83520043
+
+ src/pkg/runtime/slice.goc   |  2 +-
+ test/fixedbugs/issue7550.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)

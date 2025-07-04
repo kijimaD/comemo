@@ -1,0 +1,20 @@
+commit cdc6aeb6730d9bf5ec8bdf1fa155834e6db11e95
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Sep 4 14:55:00 2022 +0000
+
+    internal: convert calls to atomic type
+    
+    For #53821
+    
+    Change-Id: Iee8ccea714726bbb6a4b384887bb107c29b823a9
+    GitHub-Last-Rev: 119aad36245800115ea85b9748e61d7c75f20344
+    GitHub-Pull-Request: golang/go#54862
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428335
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/singleflight/singleflight_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

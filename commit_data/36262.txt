@@ -1,0 +1,26 @@
+commit daeb0b4f538872a37787626816c47afcf71bfd2c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 13 17:25:49 2018 -0700
+
+    go/printer: revert "make empty lines break table alignment"
+    
+    This reverts commit c116265eb3f2b1a8549e7ceef73b780439404030.
+    
+    The change, while addressing issue #26352, introduced another
+    regression (#26930), which is worse. Reverting this change in
+    favor of a better fix for the original issue.
+    
+    Updates #26352.
+    Fixes #26930.
+    
+    Change-Id: I71ad12a8212992cce5c1e73907d1f7460f98d9e8
+    Reviewed-on: https://go-review.googlesource.com/129255
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/printer/nodes.go                  | 17 ++++-------------
+ src/go/printer/testdata/alignment.golden |  9 ---------
+ src/go/printer/testdata/alignment.input  |  9 ---------
+ 3 files changed, 4 insertions(+), 31 deletions(-)

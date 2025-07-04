@@ -1,0 +1,13 @@
+commit 138498183cb53382c115fc761cbf2898fb72eac8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 14 11:36:19 2015 -0700
+
+    go/types: remove _ imports that are not needed anymore
+    
+    Change-Id: I392b0a0083d6bea80a65f9eef46dd06b02a70e1b
+    Reviewed-on: https://go-review.googlesource.com/10082
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/eval_test.go | 1 -
+ src/go/types/self_test.go | 1 -
+ 2 files changed, 2 deletions(-)

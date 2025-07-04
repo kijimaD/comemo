@@ -1,0 +1,18 @@
+commit 78615844f536c6664909e3269652f4938fd2b027
+Author: Reilly Watson <reillywatson@gmail.com>
+Date:   Tue Nov 21 11:00:58 2017 -0500
+
+    doc: fix some typos in diagnostics.html
+    
+    The section about custom pprof paths referenced the wrong path.
+    
+    This also fixes a couple minor grammatical issues elsewhere in the doc.
+    
+    Fixes #22832
+    
+    Change-Id: I890cceb53a13c1958d9cf958c658ccfcbb6863d5
+    Reviewed-on: https://go-review.googlesource.com/79035
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ doc/diagnostics.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

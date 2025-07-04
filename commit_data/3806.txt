@@ -1,0 +1,12 @@
+commit 18cb960f3e348ffd2defb96684cb03e3831e96e6
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Nov 5 13:05:07 2009 -0800
+
+    forgot a piece of debugging
+    in previous change
+    
+    R=rsc
+    http://go/go-review/1017052
+
+ src/cmd/8l/span.c | 20 ++------------------
+ 1 file changed, 2 insertions(+), 18 deletions(-)

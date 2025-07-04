@@ -1,0 +1,21 @@
+commit 9a5bddd7ed57596a259f3896dd31ea30e331027d
+Author: Richard Gibson <richard.gibson@gmail.com>
+Date:   Sat Oct 22 00:21:18 2016 -0400
+
+    net: bring domain name length checks into RFC compliance
+    
+    The 255-octet limit applies to wire format, not presentation format.
+    
+    Fixes #17549
+    
+    Change-Id: I2b5181c53fba32fea60178e0d8df9114aa992b55
+    Reviewed-on: https://go-review.googlesource.com/31722
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/dnsclient.go           | 16 +++++++++----
+ src/net/dnsclient_unix.go      | 15 +++++++++---
+ src/net/dnsconfig_unix_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++
+ src/net/dnsname_test.go        | 27 +++++++++++----------
+ 4 files changed, 90 insertions(+), 21 deletions(-)

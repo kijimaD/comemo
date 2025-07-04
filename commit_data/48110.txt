@@ -1,0 +1,18 @@
+commit 540632841e678573885e296db0cb73b15f48f96c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 3 12:13:00 2022 -0800
+
+    bytes, strings: mention Cut in docs for Split and SplitN
+    
+    For #46336
+    
+    Change-Id: Idc23302085e14e24d571f5995d6d33ca964a0021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382954
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/bytes/bytes.go     | 4 ++++
+ src/strings/strings.go | 4 ++++
+ 2 files changed, 8 insertions(+)

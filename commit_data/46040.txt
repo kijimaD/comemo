@@ -1,0 +1,28 @@
+commit 41d991e4e1f3a9230cc3832a39dbf49ce9aa191f
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jul 14 15:37:06 2021 -0700
+
+    cmd/internal/str: add utilities for quoting and splitting args
+    
+    JoinAndQuoteFields does the inverse of SplitQuotedFields: it joins a
+    list of arguments with spaces into one string, quoting arguments that
+    contain spaces or quotes.
+    
+    QuotedStringListFlag uses SplitQuotedFields and JoinAndQuoteFields
+    together to define new flags that accept lists of arguments.
+    
+    For golang/go#41400
+    
+    Change-Id: I4986b753cb5e6fabb5b489bf26aedab889f853f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/334731
+    Trust: Jay Conrod <jayconrod@google.com>
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/341935
+
+ src/cmd/internal/str/str.go      | 72 ++++++++++++++++++++++++++++++++++
+ src/cmd/internal/str/str_test.go | 83 +++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 154 insertions(+), 1 deletion(-)

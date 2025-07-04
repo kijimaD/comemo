@@ -1,0 +1,21 @@
+commit 91d326e7341247dc3f4c391cc7eb7dd7163446aa
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Fri May 25 14:01:25 2018 +0200
+
+    runtime: remove duplicate cpu feature detection on x86
+    
+    This also allows the GODEBUGCPU options to change the
+    support_* runtime cpu feature variable values.
+    
+    Change-Id: I884c5f03993afc7e3344ff2fd471a2c6cfde43d4
+    Reviewed-on: https://go-review.googlesource.com/114615
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/asm_386.s      | 36 ------------------------------------
+ src/runtime/asm_amd64.s    | 32 --------------------------------
+ src/runtime/asm_amd64p32.s | 38 --------------------------------------
+ src/runtime/proc.go        |  6 ++++++
+ src/runtime/runtime2.go    |  3 +--
+ 5 files changed, 7 insertions(+), 108 deletions(-)

@@ -1,0 +1,13 @@
+commit d83b994da62f88d9bee5ab62702cb560e9c3ad48
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 6 20:43:29 2008 -0700
+
+    div and mod operators
+    
+    SVN=121576
+
+ src/cmd/6g/cgen.c  |  7 +++++--
+ src/cmd/6g/gen.c   | 53 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/6g/gg.h    |  1 +
+ src/cmd/6g/gsubr.c | 10 ++++++++++
+ 4 files changed, 69 insertions(+), 2 deletions(-)

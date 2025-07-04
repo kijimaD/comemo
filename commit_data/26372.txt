@@ -1,0 +1,21 @@
+commit 815c9a7f289d172c979261230260c0c5f0d1106e
+Author: David Chase <drchase@google.com>
+Date:   Thu Mar 10 14:42:52 2016 -0500
+
+    cmd/compile: use loop information in regalloc
+    
+    This seems to help the problem reported in #14606; this
+    change seems to produce about a 4% improvement (mostly
+    for the 128-8192 shards).
+    
+    Fixes #14789.
+    
+    Change-Id: I1bd52c82d4ca81d9d5e9ab371fdfc860d7e8af50
+    Reviewed-on: https://go-review.googlesource.com/20660
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/likelyadjust.go | 22 ++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/regalloc.go     | 28 ++++++++--------------------
+ 2 files changed, 28 insertions(+), 22 deletions(-)

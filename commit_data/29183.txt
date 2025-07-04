@@ -1,0 +1,31 @@
+commit aa581f51570b1c35dc2648226fd8de861de526d4
+Author: Austin Clements <austin@google.com>
+Date:   Mon Oct 17 17:00:05 2016 -0400
+
+    runtime: use typedmemclr for typed memory
+    
+    The hybrid barrier requires distinguishing typed and untyped memory
+    even when zeroing because the *current* contents of the memory matters
+    even when overwriting.
+    
+    This commit introduces runtime.typedmemclr and runtime.memclrHasPointers
+    as a typed memory clearing functions parallel to runtime.typedmemmove.
+    Currently these simply call memclr, but with the hybrid barrier we'll
+    need to shade any pointers we're overwriting. These will provide us
+    with the necessary hooks to do so.
+    
+    Updates #17503.
+    
+    Change-Id: I74478619f8907825898092aaa204d6e4690f27e6
+    Reviewed-on: https://go-review.googlesource.com/31366
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/reflect/value.go    |  4 ++++
+ src/runtime/chan.go     |  6 +++---
+ src/runtime/hashmap.go  | 18 +++++++++++++++---
+ src/runtime/iface.go    |  4 ++--
+ src/runtime/mbarrier.go | 21 +++++++++++++++++++++
+ src/runtime/select.go   |  4 ++--
+ src/runtime/stubs.go    |  6 ++++++
+ 7 files changed, 53 insertions(+), 10 deletions(-)

@@ -1,0 +1,20 @@
+commit 300f5d5b4bac870aa146c14cbb50dbb3902f1feb
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Nov 21 18:54:38 2019 -0500
+
+    cmd/go: add 'go generate' commands to modfile_flag test
+    
+    Verify that 'go generate' works with -modfile. Also check that
+    go commands starts with 'go generate' do not inherit -modfile, but
+    they should still work if -modfile is set in GOFLAGS.
+    
+    Updates #34506
+    
+    Change-Id: I5e1f897b4e38e4fdaccc0fbb7a71b8d0e9fc0660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208236
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/modfile_flag.txt | 19 ++++++++++++++++++-
+ 1 file changed, 18 insertions(+), 1 deletion(-)

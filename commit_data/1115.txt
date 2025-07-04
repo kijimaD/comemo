@@ -1,0 +1,16 @@
+commit c4d8dc0b835dc307a14b8ef8867eef13139e23c8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 12 21:59:43 2008 -0800
+
+    This bug has been fixed; moving it from bugs to fixedbugs.
+    
+    R=gri
+    DELTA=36  (18 added, 18 deleted, 0 changed)
+    OCL=19059
+    CL=19133
+
+ test/{bugs => fixedbugs}/bug083.dir/bug0.go | 0
+ test/{bugs => fixedbugs}/bug083.dir/bug1.go | 0
+ test/{bugs => fixedbugs}/bug083.go          | 0
+ test/golden.out                             | 6 +++---
+ 4 files changed, 3 insertions(+), 3 deletions(-)

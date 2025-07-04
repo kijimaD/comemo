@@ -1,0 +1,22 @@
+commit a2bb68de4d1cb1ca35279523365e9caf36fb9896
+Author: Sebastiaan van Stijn <github@gone.nl>
+Date:   Fri Jan 11 15:28:04 2019 +0000
+
+    cmd/go: remove note about GOCACHE=off in docs
+    
+    This patch removes mention of GOCACHE=off from the help/docs.
+    It is no longer supported in Go 1.12, per the release notes.
+    
+    Fixes #29680
+    
+    Change-Id: I53ab15a62743f2e55ae1d8aa50629b1bf1ae32ad
+    GitHub-Last-Rev: 31e904f51dece13645696a87b1164d86c984457f
+    GitHub-Pull-Request: golang/go#29681
+    Reviewed-on: https://go-review.googlesource.com/c/157517
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go               | 1 -
+ src/cmd/go/internal/help/helpdoc.go | 1 -
+ 2 files changed, 2 deletions(-)

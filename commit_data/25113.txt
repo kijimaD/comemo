@@ -1,0 +1,21 @@
+commit b64b3a771320d95a4c9b8456e8de0e70702a0275
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 1 21:16:29 2015 -0800
+
+    cmd/go: fix reading PT_NOTE segment with multiple notes
+    
+    The old code was assuming that a PT_NOTE segment never had more than one
+    note, but there is no such requirement.
+    
+    Fixes #13364.
+    
+    Change-Id: I3f6b3716130bf7af6abe81b8e10571a8c7cd943c
+    Reviewed-on: https://go-review.googlesource.com/17331
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/note.go      | 27 +++++++++++++++++++--------
+ src/cmd/go/note_test.go |  3 ---
+ 2 files changed, 19 insertions(+), 11 deletions(-)

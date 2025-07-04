@@ -1,0 +1,36 @@
+commit 9c9d74aba7eb4de2a253b04817ff26b32a6fea40
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 18 14:10:40 2015 -0500
+
+    runtime: prevent sigprof during all stack barrier ops
+    
+    A sigprof during stack barrier insertion or removal can crash if it
+    detects an inconsistency between the stkbar array and the stack
+    itself. Currently we protect against this when scanning another G's
+    stack using stackLock, but we don't protect against it when unwinding
+    stack barriers for a recover or a memmove to the stack.
+    
+    This commit cleans up and improves the stack locking code. It
+    abstracts out the lock and unlock operations. It uses the lock
+    consistently everywhere we perform stack operations, and pushes the
+    lock/unlock down closer to where the stack barrier operations happen
+    to make it more obvious what it's protecting. Finally, it modifies
+    sigprof so that instead of spinning until it acquires the lock, it
+    simply doesn't perform a traceback if it can't acquire it. This is
+    necessary to prevent self-deadlock.
+    
+    Updates #11863, which introduced stackLock to fix some of these
+    issues, but didn't go far enough.
+    
+    Updates #12528.
+    
+    Change-Id: I9d1fa88ae3744d31ba91500c96c6988ce1a3a349
+    Reviewed-on: https://go-review.googlesource.com/17036
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgcmark.go |  5 +++++
+ src/runtime/mstkbar.go | 29 +++++++++++++++++++++++++++++
+ src/runtime/proc.go    | 25 +++++++++++++------------
+ 3 files changed, 47 insertions(+), 12 deletions(-)

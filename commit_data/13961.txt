@@ -1,0 +1,19 @@
+commit e039c405c8d587632fee6c18ddc1f2b8fe171ffd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Sep 27 01:53:08 2012 +0800
+
+    cmd/6a, cmd/6l: add support for AES-NI instrutions and PSHUFD
+    This CL adds support for the these 7 new instructions to 6a/6l in
+    preparation of the upcoming CL for AES-NI accelerated crypto/aes:
+    AESENC, AESENCLAST, AESDEC, AESDECLAST, AESIMC, AESKEYGENASSIST,
+    and PSHUFD.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5970055
+
+ src/cmd/6a/lex.c   |  7 +++++++
+ src/cmd/6l/6.out.h |  9 +++++++++
+ src/cmd/6l/optab.c | 45 ++++++++++++++++++++++++++++++++-------------
+ src/cmd/6l/span.c  |  3 ++-
+ 4 files changed, 50 insertions(+), 14 deletions(-)

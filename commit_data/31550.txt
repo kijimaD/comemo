@@ -1,0 +1,20 @@
+commit 19b05acd13da49ebff6812012d20e5ace6957b58
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed May 10 18:21:21 2017 +0200
+
+    reflect: remove dead v.typ assignment
+    
+    v is not a pointer receiver, and v.typ isn't used in the lines below.
+    The assignment is dead. Remove it.
+    
+    Keep the comment, as it refers to the whole case block and not just the
+    removed line.
+    
+    Change-Id: Icb2d20c287d9a41bf620ebe5cdec764cd84178a7
+    Reviewed-on: https://go-review.googlesource.com/43134
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/value.go | 1 -
+ 1 file changed, 1 deletion(-)

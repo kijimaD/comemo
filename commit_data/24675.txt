@@ -1,0 +1,19 @@
+commit 70119accdf1f7fcb909ec712f69a02a20a571e95
+Author: Quentin Perez <qperez@ocs.online.net>
+Date:   Fri Oct 30 16:25:29 2015 +0100
+
+    cmd/link/internal/ld: fix extra arguments Errorf
+    
+    lib.go:1309
+    lib.go:1313
+    lib.go:1317
+    lib.go:1325
+    
+    Change-Id: Ic3d3282d836c28f8bdeb5ce52fb7c018450871b9
+    Reviewed-on: https://go-review.googlesource.com/16473
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

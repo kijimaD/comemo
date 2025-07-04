@@ -1,0 +1,13 @@
+commit ef1b9653dd1cb8b626c2ce13432c7bdcc9ea5744
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 9 22:35:06 2009 -0700
+
+    conversions are mostly cleaned up; bring the spec in line.
+    
+    R=gri
+    DELTA=31  (12 added, 18 deleted, 1 changed)
+    OCL=25974
+    CL=25976
+
+ doc/go_spec.html | 32 +++++++++++++-------------------
+ 1 file changed, 13 insertions(+), 19 deletions(-)

@@ -1,0 +1,35 @@
+commit a0bc379d469435b5783da684f59d42f7e985b811
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 11 15:14:11 2013 -0400
+
+    undo CL 13084043 / ef4ee02a5853
+    
+    There is a cleaner, simpler way.
+    
+    ««« original CL description
+    cmd/5g, cmd/6g, cmd/8g: faster compilation
+    Replace linked list walk with memset.
+    This reduces CPU time taken by 'go install -a std' by ~10%.
+    Before:
+    real            user            sys
+    0m23.561s       0m16.625s       0m5.848s
+    0m23.766s       0m16.624s       0m5.846s
+    0m23.742s       0m16.621s       0m5.868s
+    after:
+    0m22.714s       0m14.858s       0m6.138s
+    0m22.644s       0m14.875s       0m6.120s
+    0m22.604s       0m14.854s       0m6.081s
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13084043
+    »»»
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/13352049
+
+ src/cmd/5g/peep.c | 17 +++++------------
+ src/cmd/6g/peep.c | 19 ++++++-------------
+ src/cmd/8g/peep.c | 17 +++++------------
+ 3 files changed, 16 insertions(+), 37 deletions(-)

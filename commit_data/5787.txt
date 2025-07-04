@@ -1,0 +1,13 @@
+commit c9f83372d87fca87873116aba2efaabb3137375b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 12 16:31:51 2010 -0700
+
+    add missing argument to usage message.
+    Fixes #912.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1819041
+
+ src/cmd/gc/lex.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

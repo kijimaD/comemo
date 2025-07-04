@@ -1,0 +1,15 @@
+commit 413e28da0d13a2b3387c4a5eca2c848fe3ba790c
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 11 16:09:42 2014 +1100
+
+    archive/zip: actually test uncompressed size
+    
+    Fixes #7292.
+    
+    LGTM=dsymonds
+    R=dsymonds
+    CC=golang-codereviews
+    https://golang.org/cl/61650046
+
+ src/pkg/archive/zip/reader_test.go | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)

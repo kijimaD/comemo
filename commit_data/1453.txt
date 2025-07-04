@@ -1,0 +1,23 @@
+commit c45d2a767ca0a9f1b9246dd95adcb57dc7b624c9
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 9 13:42:46 2009 -0800
+
+    simplify flag interface. no more BVal etc. you just get a pointer.
+    fixed everything except the tutorial.
+    
+    R=rsc
+    DELTA=404  (94 added, 139 deleted, 171 changed)
+    OCL=22414
+    CL=22422
+
+ src/lib/flag.go                | 349 ++++++++++++++++++-----------------------
+ src/lib/net/dialgoogle_test.go |   5 +-
+ src/lib/testing.go             |   9 +-
+ test/malloc1.go                |   5 +-
+ test/mallocrand.go             |   7 +-
+ test/mallocrep.go              |  11 +-
+ test/mallocrep1.go             |  19 +--
+ usr/gri/pretty/pretty.go       |  21 +--
+ usr/gri/pretty/printer.go      |  42 ++---
+ usr/gri/pretty/untab.go        |   8 +-
+ 10 files changed, 217 insertions(+), 259 deletions(-)

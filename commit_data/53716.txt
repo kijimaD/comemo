@@ -1,0 +1,18 @@
+commit 90a73ec1f26ba1646c741877c76e42b8d70de555
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 8 13:11:31 2023 -0700
+
+    runtime: use unsafe.{String,StringData} in arena test
+    
+    Change-Id: Ia567b163efe7b323694c15abcf0cef0effc6ff6a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501995
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/arena_test.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

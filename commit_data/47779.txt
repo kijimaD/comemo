@@ -1,0 +1,27 @@
+commit 083ef5462494e81ee23316245c5d65085a3f62d9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Dec 10 15:35:46 2021 -0800
+
+    spec: fix conversion rules (match implementation)
+    
+    As written, the conversion P(x), where P and the type
+    of x are type parameters with identical underlying types
+    (i.e., identical constraints), is valid. However, unless
+    the type of x and P are identical (which is covered with
+    the assignability rule), such a conversion is not valid
+    in general (consider the case where both type parameters
+    are different type parameters with constraint "any").
+    
+    This change adjusts the rules to prohibit type parameters
+    in this case. The same reasoning applies and the analogue
+    change is made for pointer types.
+    
+    The type checker already implements these updated rules.
+    
+    Change-Id: Id90187900cb2820f6a0a0cf582cf26cdf8addbce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371074
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

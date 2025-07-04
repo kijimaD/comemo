@@ -1,0 +1,22 @@
+commit 3fb1e0bd7f99a9592bd3438b4ebb0b9ebcb3c445
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 12 22:10:45 2016 -0500
+
+    cmd/go: fix go get -t -u path/... containing vendor directories
+    
+    A lot of things had to line up to make this break,
+    but the caching of download results interacted badly
+    with vendor directories, "go get -t -u", and wildcard
+    expansion.
+    
+    Fixes #18219.
+    
+    Change-Id: I2676498d2f714eaeb69f399e9ed527640c12e60d
+    Reviewed-on: https://go-review.googlesource.com/34201
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/get.go         | 54 +++++++++++++++++++++++++++++------------------
+ src/cmd/go/pkg.go         |  4 +++-
+ src/cmd/go/vendor_test.go | 36 +++++++++++++++++++++++++++++++
+ 3 files changed, 73 insertions(+), 21 deletions(-)

@@ -1,0 +1,13 @@
+commit d5c2154caf1d5826328a9fbc14e89001599f0a30
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jul 14 15:59:52 2012 +0400
+
+    build: revert 61d1d72136f7 (add few tests with GOMAXPROCS=32)
+    Some tests currently fail with GOMAXPROCS>1
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6398044
+
+ src/run.bash | 5 -----
+ 1 file changed, 5 deletions(-)

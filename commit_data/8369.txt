@@ -1,0 +1,15 @@
+commit f4e5f364c7f3107f707c3547a72e546167b9410c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu May 12 16:11:35 2011 -0700
+
+    html: parse empty, unquoted, and single-quoted attribute values
+    
+    Fixes #1391
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4453054
+
+ src/pkg/html/token.go      | 39 +++++++++++++++++++++++++++------------
+ src/pkg/html/token_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 65 insertions(+), 12 deletions(-)

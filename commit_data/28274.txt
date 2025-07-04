@@ -1,0 +1,21 @@
+commit 0ab6bb42e197c4c766769bfc4a8807f93cc630b9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 9 01:30:49 2016 +0000
+
+    doc: clarify that any C compiler works for cgo
+    
+    Currently the footnote says "gcc is required only if you plan to use cgo",
+    but the footnote was referenced from the text:
+    
+       "use the clang or gcc† that comes with Xcode‡ for cgo support"
+    
+    That seems to imply that clang doesn't get you cgo support on OS X,
+    which isn't true. The update text matches what the install-source.html
+    page says.
+    
+    Change-Id: Ib88464a0d138227d357033123f6675a77d5d777f
+    Reviewed-on: https://go-review.googlesource.com/28786
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

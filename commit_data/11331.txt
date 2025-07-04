@@ -1,0 +1,15 @@
+commit 858f0b4d9568bb3a2ef9b9ee6ad078eb3b7c5aaa
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Mon Jan 23 10:31:51 2012 -0500
+
+    compress/flate: delete unused util functions.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5555071
+
+ src/pkg/compress/flate/Makefile              |  1 -
+ src/pkg/compress/flate/huffman_bit_writer.go | 26 +++++++---
+ src/pkg/compress/flate/huffman_code.go       |  4 +-
+ src/pkg/compress/flate/util.go               | 72 ----------------------------
+ 4 files changed, 22 insertions(+), 81 deletions(-)

@@ -1,0 +1,22 @@
+commit a1371756c368e4d85cfb84ac8ffc53180aa4d2f2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 8 15:50:43 2017 -0700
+
+    testing: don't fail all tests after racy test failure
+    
+    The code was adding race.Errors to t.raceErrors before checking
+    Failed, but Failed was using t.raceErrors+race.Errors. We don't want
+    to change Failed, since that would affect tests themselves, so modify
+    the harness to not unnecessarily change t.raceErrors.
+    
+    Updates #19851
+    Fixes #21338
+    Change-Id: I7bfdf281f90e045146c92444f1370d55c45221d4
+    Reviewed-on: https://go-review.googlesource.com/54050
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/race/output_test.go | 21 +++++++++++++++++++++
+ src/testing/testing.go          |  3 +--
+ 2 files changed, 22 insertions(+), 2 deletions(-)

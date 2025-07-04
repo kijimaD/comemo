@@ -1,0 +1,20 @@
+commit fc37eba149e134eba6ccd0debf283f9d7af635e1
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Jan 17 20:18:37 2014 +0400
+
+    syscall: mark arguments to Syscall as noescape
+    Heap arguments to "async" syscalls will break when/if we have moving GC anyway.
+    With this change is must not break until moving GC, because a user must
+    reference the object in Go to preserve liveness. Otherwise the code is broken already.
+    Reduces number of leaked params from 125 to 36 on linux.
+    
+    R=golang-codereviews, mikioh.mikioh, bradfitz
+    CC=cshapiro, golang-codereviews, khr, rsc
+    https://golang.org/cl/45930043
+
+ src/cmd/gc/esc.c                     |  9 +++++++--
+ src/pkg/syscall/dll_windows.go       | 20 ++++++++++++++++++++
+ src/pkg/syscall/syscall_linux_386.go |  9 +++++++++
+ src/pkg/syscall/syscall_plan9.go     | 15 +++++++++++++++
+ src/pkg/syscall/syscall_unix.go      | 15 +++++++++++++++
+ 5 files changed, 66 insertions(+), 2 deletions(-)

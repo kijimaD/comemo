@@ -1,0 +1,18 @@
+commit 2f5bd4e4f2399091993774d015e3be0ba65dc866
+Author: David Chase <drchase@google.com>
+Date:   Wed Nov 15 14:31:30 2023 -0500
+
+    cmd/compile: extend profiling-per-package-into-directory to other profiling flags
+    
+    Also allow specification of "directory" with a trailing
+    path separator on the name.  Updated suffix ".mprof" to ".memprof",
+    others are similarly disambiguated.
+    
+    Change-Id: I2f3f44a436893730dbfe70b6815dff1e74885404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542715
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/util.go | 31 ++++++++++++++++++++++++++-----
+ 1 file changed, 26 insertions(+), 5 deletions(-)

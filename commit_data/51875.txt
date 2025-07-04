@@ -1,0 +1,17 @@
+commit 6e668267ac89a07fdf9aa9ca0d19a4a9f3077c4b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Mar 27 17:16:26 2020 -0400
+
+    net/http: remove another arbitrary timeout in TestTLSHandshakeTimeout
+    
+    Updates #37327
+    
+    Change-Id: I87774be71ed54e9c45a27062122e6177888e890a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226137
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/serve_test.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)

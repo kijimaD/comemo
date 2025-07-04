@@ -1,0 +1,19 @@
+commit dfde9e8361264e9f551fc3836050e05de141b697
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Aug 4 04:58:40 2023 +0000
+
+    os: replace "used to used" with "used to use" in description text
+    
+    Change-Id: I5445f3393373423592dfdd88b91d267c2c98d113
+    GitHub-Last-Rev: f554da58f49deb38101fd9ffba744bf4bf35ab55
+    GitHub-Pull-Request: golang/go#61749
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/515798
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/wait_waitid.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

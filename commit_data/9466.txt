@@ -1,0 +1,24 @@
+commit 66bedf82210220e45ca2eb4919fe764e6a022630
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 23 22:45:30 2011 -0400
+
+    go/build: add test support & use in gotest
+    
+    A side-effect is that, just like foo_386.go
+    is only built on 386, foo_386_test.go is only
+    built for testing on 386.
+    
+    R=adg, r, mattn.jp
+    CC=golang-dev
+    https://golang.org/cl/4942050
+
+ src/cmd/gotest/gotest.go                    |  15 ++--
+ src/pkg/go/build/build_test.go              |  64 ++++++++++---
+ src/pkg/go/build/dir.go                     | 134 ++++++++++++++++++----------
+ src/pkg/go/build/pkgtest/sqrt_386_test.go   |   1 +
+ src/pkg/go/build/pkgtest/sqrt_amd64_test.go |   1 +
+ src/pkg/go/build/pkgtest/sqrt_arm_test.go   |   1 +
+ src/pkg/go/build/pkgtest/sqrt_test.go       |   1 +
+ src/pkg/go/build/pkgtest/xsqrt_test.go      |   1 +
+ src/pkg/go/build/syslist_test.go            |   2 +-
+ 9 files changed, 153 insertions(+), 67 deletions(-)

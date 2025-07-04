@@ -1,0 +1,15 @@
+commit 27f2d5ce8cda3734200300d06889729e3c517d15
+Author: Nigel Kerr <nigel.kerr@gmail.com>
+Date:   Thu Dec 9 14:51:01 2010 -0500
+
+    xml: disallow invalid Unicode code points
+    
+    Fixes #1259.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2967041
+
+ src/pkg/xml/xml.go      | 28 ++++++++++++++++++++++++++++
+ src/pkg/xml/xml_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+)

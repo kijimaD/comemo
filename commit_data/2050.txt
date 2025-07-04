@@ -1,0 +1,15 @@
+commit ae08a48719926dddb067dc567743f656fdff19e8
+Author: Rob Pike <r@golang.org>
+Date:   Sat Apr 18 16:44:13 2009 -0700
+
+    the Big Error Shift applied to lib/time/zoneinfo.go.
+    
+    R=gri
+    DELTA=22  (5 added, 0 deleted, 17 changed)
+    OCL=27608
+    CL=27614
+
+ src/lib/os/error.go          |  4 ++--
+ src/lib/template/template.go |  4 +++-
+ src/lib/time/zoneinfo.go     | 31 +++++++++++++++++--------------
+ 3 files changed, 22 insertions(+), 17 deletions(-)

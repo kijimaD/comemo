@@ -1,0 +1,12 @@
+commit 253c139275d4997f466157dcfd0699bd6227751e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Feb 18 11:15:52 2012 -0800
+
+    doc: update gccgo_contribute.html
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5673080
+
+ doc/gccgo_contribute.html | 115 ++++++++++++++++++++++++----------------------
+ 1 file changed, 60 insertions(+), 55 deletions(-)

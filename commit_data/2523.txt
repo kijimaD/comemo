@@ -1,0 +1,12 @@
+commit ae11e9eb884893e4fb16c870fa3a8d3c64319fe8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 25 15:15:44 2009 -0700
+
+    fix build
+    
+    TBR=r
+    OCL=30757
+    CL=30757
+
+ src/pkg/reflect/all_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,12 @@
+commit c967ba02102a654b781701216980be31b04044fa
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Jun 19 09:36:45 2011 +1000
+
+    goinstall: always rebuild a package after its dependencies are built
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4627047
+
+ src/cmd/goinstall/main.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)

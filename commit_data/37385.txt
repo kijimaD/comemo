@@ -1,0 +1,17 @@
+commit 160ddf76e397557a4f05203e9c38ffd43365a65a
+Author: Samuel Kelemen <SCKelemen@users.noreply.github.com>
+Date:   Tue Nov 13 17:59:23 2018 +0000
+
+    cmd/internal/obj/arm64: fix spelling in arm64 doc
+    
+    ln5: "instrutions" => "instructions";
+    ln159: "immedate" => "immediate";
+    
+    Change-Id: Ifb94a9c145d1911ed92f12883213245beee2bd67
+    GitHub-Last-Rev: 78627835e76c6d837a72badd5fc28ba27f0a6ff7
+    GitHub-Pull-Request: golang/go#28776
+    Reviewed-on: https://go-review.googlesource.com/c/149378
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/obj/arm64/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

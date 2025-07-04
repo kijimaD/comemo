@@ -1,0 +1,23 @@
+commit cbcef91a1054dedaa97ce07874281ac842838ac8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 20 13:32:04 2023 -0700
+
+    go/types: remove Checker.useLHS - not needed
+    
+    We can just use Checker.use, as long as we take care of blank (_)
+    identifiers that may appear of the LHS of assignments. It's ok to
+    "use" non-blank variables in case of an error, even on the LHS.
+    
+    This makes this code match the types2 implementation.
+    
+    Change-Id: Ied9b9802ecb63912631bbde1dc6993ae855a691b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477895
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/go/types/assignments.go |  6 +++---
+ src/go/types/call.go        | 43 ++++++++-----------------------------------
+ 2 files changed, 11 insertions(+), 38 deletions(-)

@@ -1,0 +1,12 @@
+commit c90850277b5144d967b9300a5f56f22a4e86fdf8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 22 17:52:55 2013 -0700
+
+    runtime: remove declaration of non-existent function
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/7577049
+
+ src/pkg/runtime/mcentral.c | 1 -
+ 1 file changed, 1 deletion(-)

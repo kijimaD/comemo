@@ -1,0 +1,27 @@
+commit cd9cd925bb9ed79975f2531a6b84f69905e4fc31
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Fri Jul 29 22:38:24 2022 -0600
+
+    cmd: vendor github.com/google/pprof to fix mangled type parameter symbol names
+    
+    Updates github.com/google/pprof to bring in the commit from
+    https://github.com/google/pprof/pull/717 which fixes mangled
+    symbol names for type parameters.
+    
+    Fixes #54105
+    
+    Change-Id: I01af9f780aba3338b960a03b30906a23642e4448
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420234
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../google/pprof/internal/driver/settings.go       |  8 +--
+ .../google/pprof/internal/graph/dotgraph.go        |  3 ++
+ .../google/pprof/internal/symbolizer/symbolizer.go | 61 ++++++++++++++--------
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 6 files changed, 50 insertions(+), 30 deletions(-)

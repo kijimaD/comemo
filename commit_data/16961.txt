@@ -1,0 +1,14 @@
+commit 64cb2cf5ccff1f7f86a481992d6085eddb2db5ad
+Author: Robert Daniel Kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Thu Aug 1 11:03:13 2013 +1000
+
+    doc: don't invoke go build with -o /dev/null during test
+    
+    Fixes #5998.
+    
+    R=golang-dev, khr
+    CC=golang-dev
+    https://golang.org/cl/12149043
+
+ doc/codewalk/run | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

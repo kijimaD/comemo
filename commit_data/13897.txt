@@ -1,0 +1,13 @@
+commit f934bb8ebaf4695ae08ae1302a1b7f22e3e61902
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 22 07:25:41 2012 +1000
+
+    cgo: set alignment to 1 for unions and classes; avoids crash from divide-by-zero
+    Fixes #4114.
+    
+    R=golang-dev, iant, rsc, iant, devon.odell
+    CC=golang-dev
+    https://golang.org/cl/6553050
+
+ src/cmd/cgo/gcc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

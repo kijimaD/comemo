@@ -1,0 +1,17 @@
+commit c6bdef3fd83aa826abe14e8a63924365a286057f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 21 11:16:46 2011 -0700
+
+    gotest: make it easier to get the help string
+    Because gotest's args are mingled with the tests, it's
+    hard to get the usage message to print. This CL adds
+    explicit support for -help, spelled several different ways.
+    Gotest has special flags like -file that are somewhat
+    hidden otherwise.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5298052
+
+ src/cmd/gotest/flag.go | 4 ++++
+ 1 file changed, 4 insertions(+)

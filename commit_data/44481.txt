@@ -1,0 +1,19 @@
+commit 3e524ee65addd8a30bbfb4fd69508d429fda6d4f
+Author: David Chase <drchase@google.com>
+Date:   Mon Mar 1 11:02:48 2021 -0500
+
+    cmd/compile: make modified Aux type for OpArgXXXX pass ssa/check
+    
+    For #40724.
+    
+    Change-Id: I7d1e76139d187cd15a6e0df9d19542b7200589f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297911
+    Trust: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/check.go          |  6 ++++
+ src/cmd/compile/internal/ssa/gen/genericOps.go |  4 +--
+ src/cmd/compile/internal/ssa/op.go             | 41 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/opGen.go          |  4 +--
+ src/cmd/compile/internal/ssa/value.go          |  2 +-
+ 5 files changed, 32 insertions(+), 25 deletions(-)

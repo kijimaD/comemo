@@ -1,0 +1,12 @@
+commit 259e8cec7ad3d7c0031c53d70442fafdbdabe528
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 22 16:41:27 2013 -0700
+
+    doc/go1.1.html: fix broken links
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7834049
+
+ doc/go1.1.html | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

@@ -1,0 +1,17 @@
+commit 99fbccbd930fbcf86e41fa7e969894f69bc8b95b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Mar 1 21:11:25 2017 -0800
+
+    cmd/vet: use types.SizesFor
+    
+    This eliminates a duplicate copy of
+    the SizesFor map.
+    
+    Change-Id: I51e44ea8ee860901086616e3f4dfa32aaa9b4d2d
+    Reviewed-on: https://go-review.googlesource.com/37667
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/asmdecl.go | 77 +++++++++++++++++++++++++++-----------------------
+ 1 file changed, 41 insertions(+), 36 deletions(-)

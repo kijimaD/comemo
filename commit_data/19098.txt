@@ -1,0 +1,13 @@
+commit 1e68e6ae21ec4e88f7f59635831be74e39b26f7c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 10 15:09:59 2014 -0700
+
+    doc: finish net/http notes in go1.3.html
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/86580043
+
+ doc/go1.3.html | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 52 insertions(+), 6 deletions(-)

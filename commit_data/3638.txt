@@ -1,0 +1,15 @@
+commit 03bbfe6724158838098e08eeb80316b284c6ec76
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Oct 22 13:31:52 2009 -0700
+
+    fix off by 4 in newproc arg copying.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=4  (0 added, 0 deleted, 4 changed)
+    OCL=36001
+    CL=36004
+
+ src/cmd/5g/ggen.c         | 4 ++--
+ src/pkg/runtime/arm/asm.s | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

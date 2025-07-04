@@ -1,0 +1,19 @@
+commit f5cf0a486ecded2e5200b53973cc53c74d1f25aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 14 13:35:22 2011 -0800
+
+    math/big: replace nat{} -> nat(nil)
+    
+    No need for creating a new nat each time.
+    Per Roger Peppe's suggestion; assuming
+    nat(nil) produces better code than nat{}.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5375092
+
+ src/pkg/math/big/int.go      | 30 +++++++++++++++---------------
+ src/pkg/math/big/nat.go      | 10 +++++-----
+ src/pkg/math/big/nat_test.go | 26 +++++++++++++-------------
+ src/pkg/math/big/rat.go      | 14 +++++++-------
+ 4 files changed, 40 insertions(+), 40 deletions(-)

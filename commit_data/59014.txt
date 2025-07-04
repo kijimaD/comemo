@@ -1,0 +1,19 @@
+commit 8867af920748f8aa4e9beb5bb8b88c34c85766f2
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 10 10:36:08 2025 +0100
+
+    os: add more File.WriteAt tests
+    
+    The File.WriteAt doesn't verify that the file offset is not changed
+    when calling WriteAt, although it is what users expect.
+    
+    Add some new tests to verify that this behavior doesn't regress.
+    
+    Change-Id: Ib1e048c7333d6efec71bd8f75a4fa745775306f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656355
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/os_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 45 insertions(+), 6 deletions(-)

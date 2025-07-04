@@ -1,0 +1,30 @@
+commit e3e0122ae269027bfd2e2db1dbf106883ad5a8a7
+Author: Todd Neal <todd@tneal.org>
+Date:   Thu Oct 29 21:45:19 2015 -0500
+
+    test: use go:noinline consistently
+    
+    Replace various implementations of inlining prevention with
+    "go:noinline"
+    
+    Change-Id: Iac90895c3a62d6f4b7a6c72e11e165d15a0abfa4
+    Reviewed-on: https://go-review.googlesource.com/16510
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Todd Neal <todd@tneal.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/gc_test.go                       |  6 ++++--
+ src/runtime/pprof/mprof_test.go              | 15 ++++++---------
+ src/runtime/race/testdata/mop_test.go        |  8 +-------
+ src/runtime/race/testdata/regression_test.go |  9 ++-------
+ test/fixedbugs/bug401.go                     |  3 +--
+ test/fixedbugs/bug484.go                     | 26 +++++++-------------------
+ test/fixedbugs/issue10441.go                 |  2 +-
+ test/fixedbugs/issue12133.go                 |  4 ++--
+ test/fixedbugs/issue4518.go                  |  6 ++----
+ test/fixedbugs/issue4964.dir/a.go            |  6 ++----
+ test/fixedbugs/issue7995b.dir/x1.go          |  6 +-----
+ test/fixedbugs/issue8036.go                  |  4 ++--
+ test/func8.go                                |  6 ++----
+ test/reorder2.go                             | 24 +++++++++++-------------
+ 14 files changed, 44 insertions(+), 81 deletions(-)

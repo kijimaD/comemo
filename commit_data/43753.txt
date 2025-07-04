@@ -1,0 +1,40 @@
+commit a07e4360a80b3ff2490879e4b4065ecc7b1b9098
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Nov 5 12:59:16 2020 -0500
+
+    cmd/go: prefer 'go get -d' instead of 'go get' in script tests
+    
+    'get -d' has somewhat narrower semantics and is generally faster.
+    We're deprecating the non-'-d' mode in CL 266360.
+    
+    For #26472
+    
+    Change-Id: Id4a324771f77b83e5f47043fd50b74e1c062390b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/267883
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/testdata/script/get_go_file.txt             | 18 +++++++++---------
+ src/cmd/go/testdata/script/mod_case.txt                |  2 +-
+ src/cmd/go/testdata/script/mod_case_cgo.txt            |  4 +++-
+ src/cmd/go/testdata/script/mod_get_commit.txt          |  4 ++--
+ src/cmd/go/testdata/script/mod_get_downgrade.txt       | 14 ++++++++------
+ .../go/testdata/script/mod_get_downgrade_missing.txt   |  8 ++++----
+ src/cmd/go/testdata/script/mod_get_incompatible.txt    |  4 ++--
+ src/cmd/go/testdata/script/mod_get_moved.txt           |  4 ++--
+ src/cmd/go/testdata/script/mod_get_none.txt            |  4 ++--
+ src/cmd/go/testdata/script/mod_get_sum_noroot.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_get_test.txt            |  2 +-
+ src/cmd/go/testdata/script/mod_get_upgrade.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_gonoproxy.txt           | 14 +++++++-------
+ src/cmd/go/testdata/script/mod_gopkg_unstable.txt      |  2 +-
+ src/cmd/go/testdata/script/mod_issue35317.txt          |  2 +-
+ src/cmd/go/testdata/script/mod_proxy_list.txt          | 14 +++++++-------
+ src/cmd/go/testdata/script/mod_readonly.txt            |  2 +-
+ src/cmd/go/testdata/script/mod_tidy_replace.txt        |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_auto.txt         |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_build.txt        |  2 +-
+ src/cmd/go/testdata/script/vendor_list_issue11977.txt  |  2 +-
+ 21 files changed, 57 insertions(+), 53 deletions(-)

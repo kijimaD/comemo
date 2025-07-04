@@ -1,0 +1,31 @@
+commit 84afaa9e9491d76ea43d7125b336030a0a2a902d
+Author: Jordan Liggitt <liggitt@google.com>
+Date:   Tue Oct 8 13:19:48 2019 -0400
+
+    encoding/json: limit max nesting depth
+    
+    Limit the maximum nesting depth when parsing to protect against stack
+    overflow, permitted by https://tools.ietf.org/html/rfc7159#section-9
+    
+    A nesting depth limit of 10,000 was chosen to be a conservative
+    balance between avoiding stack overflow and avoiding impacting
+    legitimate JSON documents.
+    
+    10,000 is less than 1% of the experimental stack depth limit
+    with the default stack size:
+    * On 64-bit systems, the default stack limit is 1GB,
+      which allows ~2,800,000 frames of recursive parsing
+    * On 32-bit systems, the default stack limit is 250MB,
+      which allows ~1,100,000 frames of recursive parsing
+    
+    Fixes #31789
+    
+    Change-Id: I4f5a90e89dcb4ab1a957ad9d02e1fa0efafaccf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/199837
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/encoding/json/decode_test.go | 96 ++++++++++++++++++++++++++++++++++++++++
+ src/encoding/json/scanner.go     | 19 +++++---
+ 2 files changed, 109 insertions(+), 6 deletions(-)

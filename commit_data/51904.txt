@@ -1,0 +1,47 @@
+commit 2f2c5e41e7728cae99abd14e8bd5ffcfebf9df8e
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Mon Jan 30 17:27:42 2023 +0000
+
+    cmd/go/internal/par: use generic Cache
+    
+    Using generics here makes the code easier to understand,
+    as the contract is clearly specified. It also makes the
+    code a little more concise, as it's easy to write a wrapper
+    for the cache that adds an error value, meaning that
+    a bunch of auxilliary types no longer need to be defined
+    for this common case.
+    
+    The load.cachingRepo code has been changed to use a separate
+    cache for each key-value type combination, which seems a bit less
+    sleazy, but might have some knock-on effect on memory usage,
+    and could easily be changed back if desired.
+    
+    Because there's no longer an unambiguous way to find out
+    whether there's an entry in the cache, the Cache.Get method
+    now returns a bool as well as the value itself.
+    
+    Change-Id: I28443125bab0b3720cc95d750e72d28e9b96257d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463843
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: roger peppe <rogpeppe@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/internal/load/pkg.go              | 76 +++++++++++---------------
+ src/cmd/go/internal/modfetch/cache.go        | 82 ++++++++++++----------------
+ src/cmd/go/internal/modfetch/codehost/git.go | 39 +++++--------
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 25 ++++-----
+ src/cmd/go/internal/modfetch/fetch.go        | 40 +++++---------
+ src/cmd/go/internal/modfetch/repo.go         | 14 ++---
+ src/cmd/go/internal/modget/get.go            | 26 ++++-----
+ src/cmd/go/internal/modindex/read.go         | 42 +++++---------
+ src/cmd/go/internal/modindex/scan.go         |  3 -
+ src/cmd/go/internal/modload/build.go         |  2 +-
+ src/cmd/go/internal/modload/buildlist.go     | 23 +++-----
+ src/cmd/go/internal/modload/import.go        | 27 ++++-----
+ src/cmd/go/internal/modload/load.go          | 16 +++---
+ src/cmd/go/internal/modload/modfile.go       | 39 ++++---------
+ src/cmd/go/internal/par/work.go              | 67 +++++++++++++++++------
+ src/cmd/go/internal/par/work_test.go         | 10 ++--
+ src/cmd/go/proxy_test.go                     | 32 +++++------
+ 17 files changed, 241 insertions(+), 322 deletions(-)

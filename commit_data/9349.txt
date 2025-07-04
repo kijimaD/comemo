@@ -1,0 +1,27 @@
+commit 5233c50321828323959663faf000d599f0cefa6c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 12 10:06:32 2011 -0700
+
+    godoc: first round of template cleanups
+    
+    - simplified pipelines
+    - simplified templates by using template variables
+    - converted most old-style formatters into new-style funcs
+    - fixed some escaping bugs (use of url escaping where it was missing)
+    
+    R=r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4868044
+
+ lib/godoc/codewalk.html    |  10 +--
+ lib/godoc/codewalkdir.html |   4 +-
+ lib/godoc/dirlist.html     |   6 +-
+ lib/godoc/error.html       |   2 +-
+ lib/godoc/godoc.html       |  12 +--
+ lib/godoc/package.html     |  66 ++++++++---------
+ lib/godoc/package.txt      |  20 ++---
+ lib/godoc/search.html      |  37 +++++-----
+ lib/godoc/search.txt       |   9 ++-
+ src/cmd/godoc/godoc.go     | 179 +++++++++++++++------------------------------
+ src/cmd/godoc/main.go      |   6 +-
+ 11 files changed, 150 insertions(+), 201 deletions(-)

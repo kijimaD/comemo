@@ -1,0 +1,24 @@
+commit 2157025ef0f56b5cd564eed7a20660206f1cd409
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 30 17:33:39 2009 -0700
+
+    step toward darwin ffi: factor out macho code
+    
+    R=r
+    DELTA=771  (374 added, 287 deleted, 110 changed)
+    OCL=35187
+    CL=35187
+
+ src/cmd/6l/Makefile |   4 +-
+ src/cmd/6l/asm.c    | 270 ++++++++++++++++--------------------------------
+ src/cmd/6l/macho.c  |   6 ++
+ src/cmd/6l/obj.c    |   4 +-
+ src/cmd/8l/Makefile |   3 +
+ src/cmd/8l/asm.c    | 292 ++++++++++++++++------------------------------------
+ src/cmd/8l/l.h      |   1 +
+ src/cmd/8l/macho.c  |   6 ++
+ src/cmd/8l/obj.c    |   4 +-
+ src/cmd/ld/elf.h    |   2 +-
+ src/cmd/ld/macho.c  | 207 +++++++++++++++++++++++++++++++++++++
+ src/cmd/ld/macho.h  |  70 +++++++++++++
+ 12 files changed, 478 insertions(+), 391 deletions(-)

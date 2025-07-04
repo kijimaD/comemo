@@ -1,0 +1,17 @@
+commit e678ab4e375659fea86b17557c23673033cf897c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Mar 13 17:41:08 2014 +0400
+
+    runtime: detect stack split after fork
+    This check would allowed to easily prevent issue 7511.
+    Update #7511
+    
+    LGTM=rsc
+    R=rsc, aram
+    CC=golang-codereviews
+    https://golang.org/cl/75260043
+
+ src/pkg/runtime/proc.c    | 14 ++++++++++++++
+ src/pkg/runtime/runtime.h |  1 +
+ src/pkg/runtime/stack.c   |  2 ++
+ 3 files changed, 17 insertions(+)

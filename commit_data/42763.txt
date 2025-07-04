@@ -1,0 +1,17 @@
+commit 8d91d736e2eb518e0a95eb47ae463c0dd80827c4
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Aug 18 12:01:41 2020 -0400
+
+    cmd/dist: ignore _test.s files in bootstrap
+    
+    Ignore all _test.s files in bootstrap, not only the ARM64 one.
+    They are for testing only.
+    
+    Fixes #40855.
+    
+    Change-Id: I00e6b4ab5349e317c9ad3a503997de85aed49373
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/249018
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildtool.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

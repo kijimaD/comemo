@@ -1,0 +1,20 @@
+commit 130e6f42f1b993c1764dc1c346c9af222e59e1d2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 21 09:35:49 2008 -0800
+
+    - implemented arbitrary padding char for tabwriter
+    - implemented right-to-left alignment (numerical results)
+    - better comments and error handling
+    - added more tests
+    - updated dependent files
+    
+    R=r
+    DELTA=232  (175 added, 11 deleted, 46 changed)
+    OCL=19761
+    CL=19780
+
+ src/lib/tabwriter/tabwriter.go      | 107 ++++++++++++++++----------
+ src/lib/tabwriter/tabwriter_test.go | 147 ++++++++++++++++++++++++++++++++++--
+ usr/gri/pretty/printer.go           |   6 +-
+ usr/gri/pretty/untab.go             |   6 +-
+ 4 files changed, 215 insertions(+), 51 deletions(-)

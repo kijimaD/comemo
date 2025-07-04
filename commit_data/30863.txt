@@ -1,0 +1,25 @@
+commit aa4c2ca316b1553ae65a3e8afb4cf862e11b78d0
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Mar 25 14:54:28 2017 +0100
+
+    runtime/pprof: fix proto tests on NetBSD
+    
+    The proto_test tests are failing on NetBSD:
+    
+    https://build.golang.org/log/a3a577144ac48c6ef8e384ce6a700ad30549fb78
+    
+    the failures seem similar to previous failures on Android:
+    
+    https://build.golang.org/log/b5786e0cd6d5941dc37b6a50be5172f6b99e22f0
+    
+    The Android failures where fixed by CL 37896. This CL is an attempt
+    to fix the NetBSD failures with a similar fix.
+    
+    Change-Id: I3834afa5b32303ca226e6a31f0f321f66fef9a3f
+    Reviewed-on: https://go-review.googlesource.com/38637
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/pprof/proto_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

@@ -1,0 +1,24 @@
+commit 4ffc2bc533ed39b3cbb343ad5873105bfd58ff10
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 17 07:46:01 2020 +0700
+
+    cmd/compile: rename retsigerr to sigerr
+    
+    retsigerr was used to create error message for both wrong function
+    arguments and return arguments, so change its name to sigerr to reflect
+    that.
+    
+    While at it, also add documentation for the wrong function arguments
+    case.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I740c717ad38d4afab9e8c20f2e94579c8bca67ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255240
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

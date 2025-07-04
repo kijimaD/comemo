@@ -1,0 +1,15 @@
+commit 0eb49f67d467c93383a4d4917c9bd4d9e9f51671
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 16:32:14 2020 -0800
+
+    doc/go1.14: mime: .js files now text/javascript
+    
+    Updates #32351
+    Updates #36878
+    
+    Change-Id: I19f87430f4344dcc6664d8dd1b8adfc67660f099
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217122
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

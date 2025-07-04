@@ -1,0 +1,18 @@
+commit 132f9fa9f8d52ac6ca38b5f3a65d67c1492a42c2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 26 13:18:34 2024 -0700
+
+    test: issue16016: use fewer goroutines for gccgo
+    
+    For https://gcc.gnu.org/PR114453
+    
+    Change-Id: If41d9fca6288b18ed47b0f21ff224c74ddb34958
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574536
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ test/fixedbugs/issue16016.go | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)

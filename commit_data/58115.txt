@@ -1,0 +1,16 @@
+commit 944df9a7516021f0405cd8adb1e6894ae9872cb5
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 19 09:04:11 2024 -0800
+
+    runtime: use indirect call in adjustSignalStack to avoid nosplit overflow
+    
+    Avoids a nosplit stack overflow on OpenBSD after CL 591997
+    increases the adjustSignalStack stack by 16 bytes.
+    
+    Change-Id: I2c990de6c7cd8d2aca6e6b98133da120c8a4174b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629696
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/signal_unix.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

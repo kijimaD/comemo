@@ -1,0 +1,37 @@
+commit 87272bd1a18666ec38ac44c63e11c739f3054056
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 19 14:58:47 2023 -0400
+
+    runtime: tidy _Stack* constant naming
+    
+    For #59670.
+    
+    Change-Id: I0efa743edc08e48dc8d906803ba45e9f641369db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486977
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/runtime/asm_386.s           |  2 +-
+ src/runtime/asm_amd64.s         |  2 +-
+ src/runtime/asm_arm.s           |  2 +-
+ src/runtime/asm_arm64.s         |  2 +-
+ src/runtime/asm_loong64.s       |  2 +-
+ src/runtime/asm_mips64x.s       |  2 +-
+ src/runtime/asm_mipsx.s         |  2 +-
+ src/runtime/asm_ppc64x.s        |  2 +-
+ src/runtime/asm_riscv64.s       |  2 +-
+ src/runtime/asm_s390x.s         |  2 +-
+ src/runtime/os_windows.go       |  2 +-
+ src/runtime/preempt.go          |  2 +-
+ src/runtime/proc.go             | 24 ++++++++---------
+ src/runtime/runtime1.go         |  2 +-
+ src/runtime/signal_unix.go      |  4 +--
+ src/runtime/signal_windows.go   |  2 +-
+ src/runtime/stack.go            | 60 ++++++++++++++++++++---------------------
+ src/runtime/sys_aix_ppc64.s     |  2 +-
+ src/runtime/sys_solaris_amd64.s |  2 +-
+ src/runtime/sys_windows_386.s   |  2 +-
+ src/runtime/sys_windows_amd64.s |  2 +-
+ 21 files changed, 62 insertions(+), 62 deletions(-)

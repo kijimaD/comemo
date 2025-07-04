@@ -1,0 +1,30 @@
+commit c1a48694530afcf9e378a234de493f9f6de6a364
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Aug 26 04:42:50 2023 +1000
+
+    all: clean up addition of constants in riscv64 assembly
+    
+    Use ADD with constants, instead of ADDI. Also use SUB with a positive constant
+    rather than ADD with a negative constant. The resulting assembly is still the
+    same.
+    
+    Change-Id: Ife10bf5ae4122e525f0e7d41b5e463e748236a9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/540136
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+
+ src/crypto/internal/bigmod/nat_riscv64.s |  6 +--
+ src/internal/bytealg/compare_riscv64.s   | 12 +++---
+ src/internal/bytealg/equal_riscv64.s     | 10 ++---
+ src/internal/bytealg/indexbyte_riscv64.s |  4 +-
+ src/runtime/asm_riscv64.s                | 12 +++---
+ src/runtime/memclr_riscv64.s             | 14 +++----
+ src/runtime/memmove_riscv64.s            | 64 ++++++++++++++++----------------
+ src/runtime/mkpreempt.go                 |  2 +-
+ src/runtime/preempt_riscv64.s            |  2 +-
+ src/runtime/sys_linux_riscv64.s          |  4 +-
+ 10 files changed, 65 insertions(+), 65 deletions(-)

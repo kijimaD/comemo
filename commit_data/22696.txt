@@ -1,0 +1,16 @@
+commit ada8cdb9f68f2e3441af1c514f8fbe28a2e07387
+Author: Rick Hudson <rlh@golang.org>
+Date:   Thu Apr 23 16:28:15 2015 -0400
+
+    runtime: Fix bug due to elided return.
+    
+    A previous change to mbitmap.go dropped a return on a
+    path the seems not to be excersized. This was a mistake that
+    this CL fixes.
+    
+    Change-Id: I715ee4ef08f5bf8d9f53cee84e8fb31a237e2d43
+    Reviewed-on: https://go-review.googlesource.com/9295
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go | 1 +
+ 1 file changed, 1 insertion(+)

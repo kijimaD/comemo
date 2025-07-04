@@ -1,0 +1,15 @@
+commit 5adaa1290ec4a7507c0be56743c237d9bf311055
+Author: Vee Zhang <veezhang@126.com>
+Date:   Thu Jun 11 04:39:49 2020 +0000
+
+    A+C: add Vee Zhang (individual CLA)
+    
+    Change-Id: Id52c5fef2e5b65056d3c87e70e176b67998cea90
+    GitHub-Last-Rev: b88e3afa38d96a5a51334100bb29108c5f2618f4
+    GitHub-Pull-Request: golang/go#39520
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237223
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

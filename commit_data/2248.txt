@@ -1,0 +1,26 @@
+commit b0608c13914e38e247209f193441a356133dc814
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 19 14:01:03 2009 -0700
+
+    Crypto modes: CBC, CFB, ECB.
+    Not ready to link into build yet.
+    
+    Delta says 1272 lines but only 474
+    if you subtract the test files,
+    which are mostly data.
+    
+    R=r
+    DELTA=1252  (1249 added, 0 deleted, 3 changed)
+    OCL=29013
+    CL=29037
+
+ src/lib/crypto/block/cbc.go          |  75 +++++++++
+ src/lib/crypto/block/cbc_aes_test.go | 107 ++++++++++++
+ src/lib/crypto/block/cfb.go          | 100 +++++++++++
+ src/lib/crypto/block/cfb_aes_test.go | 316 +++++++++++++++++++++++++++++++++++
+ src/lib/crypto/block/cipher.go       |  58 +++++++
+ src/lib/crypto/block/ecb.go          | 271 ++++++++++++++++++++++++++++++
+ src/lib/crypto/block/ecb_aes_test.go | 136 +++++++++++++++
+ src/lib/crypto/block/ecb_test.go     | 183 ++++++++++++++++++++
+ src/lib/io/io.go                     |  17 +-
+ 9 files changed, 1260 insertions(+), 3 deletions(-)

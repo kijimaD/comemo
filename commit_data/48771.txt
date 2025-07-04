@@ -1,0 +1,18 @@
+commit 65558a4f3da02fd7ad3d7ea93821c2a1be5508d7
+Author: hopehook <hopehook@qq.com>
+Date:   Mon Apr 11 18:38:08 2022 +0800
+
+    cmd/asm: update comment to refer to #44505
+    
+    Updates #44505
+    
+    Change-Id: I400110c33e69decf133fe9c4b582a450b7258b39
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/399514
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/asm/internal/lex/tokenizer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

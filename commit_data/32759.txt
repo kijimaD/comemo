@@ -1,0 +1,24 @@
+commit f2a5ed852bbde6c1bd21e3a716d6b8c834332015
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 14 11:36:21 2017 -0400
+
+    cmd/cgo: use a named type to indicate syntactic context
+    
+    We previously used bare strings, which made it difficult to see (and
+    to cross-reference) the set of allowed context values.
+    
+    This change is purely cosmetic, but makes it easier for me to
+    understand how to address #21878.
+    
+    updates #21878
+    
+    Change-Id: I9027d94fd5997a0fe857c0055dea8719e1511f03
+    Reviewed-on: https://go-review.googlesource.com/63830
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/ast.go  | 210 +++++++++++++++++++++++++++++-----------------------
+ src/cmd/cgo/gcc.go  |  18 ++---
+ src/cmd/cgo/main.go |   4 +-
+ 3 files changed, 127 insertions(+), 105 deletions(-)

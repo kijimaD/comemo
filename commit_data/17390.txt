@@ -1,0 +1,13 @@
+commit f033d988b1926215f59aa1eee37c05e59adbac02
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Tue Aug 27 09:21:08 2013 +1000
+
+    bytes, strings: use copy in Repeat
+    
+    R=golang-dev, dave, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/13249043
+
+ src/pkg/bytes/bytes.go     | 5 +----
+ src/pkg/strings/strings.go | 5 +----
+ 2 files changed, 2 insertions(+), 8 deletions(-)

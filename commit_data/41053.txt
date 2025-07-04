@@ -1,0 +1,21 @@
+commit fc5eee3c1d37131ca5887ed1d020f6cf83d20a92
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Jan 6 00:18:56 2020 +1100
+
+    syscall: fix riscv64 syscall assembly
+    
+    RISCV has no instruction to store an immediate value to memory, or to
+    subtract an immediate value. An immediate needs to be moved to a register
+    first, or in the case of $0, the zero value register (ZERO or R0) can be
+    used instead. Restore the original riscv-go code so that it compiles.
+    
+    Updates #27532
+    
+    Change-Id: I3c60e6f385c59679252a710dbba153357a367516
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/212761
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/asm_linux_riscv64.s | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

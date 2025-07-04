@@ -1,0 +1,45 @@
+commit 756841bffa561bedf855cd2b56d07a459ed52939
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Jul 17 15:23:28 2023 -0500
+
+    internal/bytealg: optimize Count/CountString for PPC64/Power10
+    
+    Power10 adds a handful of new instructions which make this
+    noticeably quicker for smaller values.
+    
+    Likewise, since the vector loop requires 32B to enter,
+    unroll it once to count 32B per iteration. This
+    improvement benefits all PPC64 cpus.
+    
+    On Power10 comparing a binary built with GOPPC64=power8
+    
+    CountSingle/10     8.99ns ± 0%    5.55ns ± 3%   -38.24%
+    CountSingle/16     7.55ns ± 0%    5.56ns ± 3%   -26.37%
+    CountSingle/17     7.45ns ± 0%    5.25ns ± 0%   -29.52%
+    CountSingle/31     18.4ns ± 0%     6.2ns ± 0%   -66.41%
+    CountSingle/32     6.17ns ± 0%    5.04ns ± 0%   -18.37%
+    CountSingle/33     7.13ns ± 0%    5.99ns ± 0%   -15.94%
+    CountSingle/4K      198ns ± 0%     115ns ± 0%   -42.08%
+    CountSingle/4M      190µs ± 0%     109µs ± 0%   -42.49%
+    CountSingle/64M    3.28ms ± 0%    2.08ms ± 0%   -36.53%
+    
+    Furthermore, comparing the new tail implementation on
+    GOPPC64=power8 with GOPPC64=power10:
+    
+    CountSingle/10     5.55ns ± 3%    4.52ns ± 1%  -18.66%
+    CountSingle/16     5.56ns ± 3%    4.80ns ± 0%  -13.65%
+    CountSingle/17     5.25ns ± 0%    4.79ns ± 0%   -8.78%
+    CountSingle/31     6.17ns ± 0%    4.82ns ± 0%  -21.79%
+    CountSingle/32     5.04ns ± 0%    5.09ns ± 6%   +1.01%
+    CountSingle/33     5.99ns ± 0%    5.42ns ± 2%   -9.54%
+    
+    Change-Id: I62d80be3b5d706e1abbb4bec7d6278a939a5eed4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512695
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/bytealg/count_ppc64x.s | 202 +++++++++++++++++++++++-------------
+ 1 file changed, 130 insertions(+), 72 deletions(-)

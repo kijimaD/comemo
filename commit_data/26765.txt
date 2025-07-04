@@ -1,0 +1,18 @@
+commit 31cf1c17792d4da9dae2504c703633a0db8072c7
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Thu Apr 7 11:47:32 2016 +1200
+
+    runtime: clamp OS-reported number of processors to _MaxGomaxprocs
+    
+    So that all Go processes do not die on startup on a system with >256 CPUs.
+    
+    I tested this by hacking osinit to set ncpu to 1000.
+    
+    Updates #15131
+    
+    Change-Id: I52e061a0de97be41d684dd8b748fa9087d6f1aef
+    Reviewed-on: https://go-review.googlesource.com/21599
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/proc.go | 3 +++
+ 1 file changed, 3 insertions(+)

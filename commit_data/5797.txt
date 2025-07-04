@@ -1,0 +1,14 @@
+commit 0c2e6b363794f953d7d689a3f857ab663114db67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 13 11:54:57 2010 -0700
+
+    go spec: specify len/cap for nil slices, maps, and channels
+    
+    Fixes #891.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/1760043
+
+ doc/go_spec.html | 38 ++++++++++++++++++++------------------
+ 1 file changed, 20 insertions(+), 18 deletions(-)

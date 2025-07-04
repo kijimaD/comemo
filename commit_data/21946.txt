@@ -1,0 +1,13 @@
+commit 09b49bf18d9d5035bc8dcd9d96f810ee2810823a
+Author: Chris Manghane <cmang@golang.org>
+Date:   Fri Mar 6 10:33:07 2015 -0800
+
+    test: add testcase for gccgo-specific issue 10047.
+    
+    Change-Id: Ia5115b15a79e1b2b53036646f1ed4b08225b220f
+    Reviewed-on: https://go-review.googlesource.com/7051
+    Run-TryBot: Chris Manghane <cmang@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue10047.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

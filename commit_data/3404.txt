@@ -1,0 +1,13 @@
+commit b71c484c914a0ddaac68f354a7fc17740e269d66
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 30 08:56:01 2009 -0700
+
+    fix 386 build - register allocation and shift bug
+    
+    R=ken
+    OCL=35140
+    CL=35142
+
+ src/cmd/8g/cgen.c | 28 +++++++++++++++++++---------
+ src/cmd/8g/ggen.c |  8 ++++----
+ 2 files changed, 23 insertions(+), 13 deletions(-)

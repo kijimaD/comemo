@@ -1,0 +1,17 @@
+commit 2d823fdebf850a3e9cf2c8deb69a41def61ce499
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 13 00:29:44 2015 +0000
+
+    net/http: ignore Transfer-Encoding for HTTP/1.0 responses
+    
+    Fixes #12785
+    
+    Change-Id: Iae4383889298c6a78b1ba41bd2cda70b0758fcba
+    Reviewed-on: https://go-review.googlesource.com/15737
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/response_test.go | 49 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/transfer.go      | 32 ++++++++++++++++++----------
+ 2 files changed, 70 insertions(+), 11 deletions(-)

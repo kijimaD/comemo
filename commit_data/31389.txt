@@ -1,0 +1,16 @@
+commit 220e0e0f7383a79fda0ba61bd1bf2076f5f74d72
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 26 21:22:03 2017 -0700
+
+    os: use kernel limit on pipe size if possible
+    
+    Fixes #20134
+    
+    Change-Id: I92699d118c713179961c037a6bbbcbec4efa63ba
+    Reviewed-on: https://go-review.googlesource.com/41823
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/pipe_test.go | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)

@@ -1,0 +1,28 @@
+commit ede59583858bd64a09479f624e989e7c35df0c52
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Nov 23 15:34:08 2016 -0500
+
+    reflect: add Value.MapRange method and MapIter type
+    
+    Example of use:
+    
+            iter := reflect.ValueOf(m).MapRange()
+            for iter.Next() {
+                    k := iter.Key()
+                    v := iter.Value()
+                    ...
+            }
+    
+    See issue golang/go#11104
+    
+    Q. Are there any benchmarks that would exercise the new calls to
+       copyval in existing code?
+    
+    Change-Id: Ic469fcab5f1d9d853e76225f89bde01ee1d36e7a
+    Reviewed-on: https://go-review.googlesource.com/33572
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go | 121 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 106 +++++++++++++++++++++++++++++++++++-------
+ src/runtime/map.go      |   5 ++
+ 3 files changed, 215 insertions(+), 17 deletions(-)

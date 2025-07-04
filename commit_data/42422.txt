@@ -1,0 +1,14 @@
+commit f1f8f9af9a55d73dfc6603a93bee0559fdc9024d
+Author: Yasser Abdolmaleki <yasser@yasser.ca>
+Date:   Sat May 30 17:42:34 2020 -0700
+
+    container/list: fix typo in function comments
+    
+    The correct word to use here is 'another' not 'an other'
+    
+    Change-Id: Ie4f748ae94a5945dceb52779222ffd8cf36b8845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235838
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/container/list/list.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,23 @@
+commit 688667716ede8b133d361db0a1d47eab24ced7f7
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Thu Jan 3 12:13:53 2019 -0800
+
+    runtime: don't scan go'd function args past length of ptr bitmap
+    
+    Use the length of the bitmap to decide how much to pass to the
+    write barrier, not the total length of the arguments.
+    
+    The test needs enough arguments so that two distinct bitmaps
+    get interpreted as a single longer bitmap.
+    
+    Update #29362
+    
+    Change-Id: I78f3f7f9ec89c2ad4678f0c52d3d3def9cac8e72
+    Reviewed-on: https://go-review.googlesource.com/c/156123
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/proc.go           |  2 +-
+ test/fixedbugs/issue29362b.go | 53 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 54 insertions(+), 1 deletion(-)

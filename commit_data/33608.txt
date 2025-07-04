@@ -1,0 +1,14 @@
+commit 096b195df5b6b29521af3e10ef40f4118164596b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 16 15:41:44 2017 -0500
+
+    cmd/go: add import config debugging flag
+    
+    Change-Id: I11d83c8841f3de4ed4d9d014dec65d6f20464b11
+    Reviewed-on: https://go-review.googlesource.com/78396
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/internal/load/icfg.go  | 75 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/load/pkg.go   | 26 ++++++++++----
+ src/cmd/go/internal/work/build.go |  1 +
+ 3 files changed, 95 insertions(+), 7 deletions(-)

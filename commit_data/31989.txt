@@ -1,0 +1,14 @@
+commit fcc35147d5940d5b077586c02a97894c3edf870d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jul 7 03:45:50 2017 +0000
+
+    doc: note that Go 1.9 is last release to support FreeBSD 9.3
+    
+    Fixes #20930
+    
+    Change-Id: I4a59de0556cffeae9af2eaa41609601e086211b2
+    Reviewed-on: https://go-review.googlesource.com/47731
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.9.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

@@ -1,0 +1,13 @@
+commit 7911965fe922a4412aa5e56eb32a2a15c67e67b1
+Author: Mike Solomon <msolo@gmail.com>
+Date:   Wed Jul 20 14:34:49 2011 -0700
+
+    io/ioutil: improve performance of ioutil.Discard
+    Fixes #2084.
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4817041
+
+ src/pkg/io/ioutil/ioutil.go | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

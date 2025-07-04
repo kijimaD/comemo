@@ -1,0 +1,14 @@
+commit 8eb8ad245416f29c7f9848de288a0ece325d531b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Aug 12 13:03:50 2013 +1000
+
+    bufio: add Writer example
+    
+    Update #5530
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12504044
+
+ src/pkg/bufio/example_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

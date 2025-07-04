@@ -1,0 +1,15 @@
+commit 1e4f86e48550c1d04a3778948613f38a078e2801
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Sep 15 12:30:57 2014 -0700
+
+    runtime: try harder to get different iteration orders.
+    
+    Fixes #8736.
+    
+    LGTM=iant, josharian
+    R=golang-codereviews, iant, josharian
+    CC=golang-codereviews
+    https://golang.org/cl/144910044
+
+ src/runtime/map_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

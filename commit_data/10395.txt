@@ -1,0 +1,14 @@
+commit a619da9f4af538194a0b31e10e0f77340511fe1f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Nov 15 10:28:01 2011 +0900
+
+    xml: fix build
+    
+    empty is already not a nil.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5376098
+
+ src/pkg/encoding/xml/xml_test.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)

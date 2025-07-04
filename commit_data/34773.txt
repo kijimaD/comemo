@@ -1,0 +1,17 @@
+commit 3b0b8bcd6893742554c120bd3e30b350d3ec3fae
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Mar 29 10:40:45 2018 +0200
+
+    test/codegen: port stack-related tests to codegen
+    
+    And delete them from asm_test.
+    
+    Change-Id: Idfe1249052d82d15b9c30b292c78656a0bf7b48d
+    Reviewed-on: https://go-review.googlesource.com/103315
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 102 --------------------------------
+ test/codegen/stack.go                   |  24 ++++++++
+ 2 files changed, 24 insertions(+), 102 deletions(-)

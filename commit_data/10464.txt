@@ -1,0 +1,16 @@
+commit 82182514989c9872b9bc3be35c4fb02cf8d82a5b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 18 20:55:35 2011 -0800
+
+    go/printer: cleanup more string/byte conversions
+    
+    Slight slow-down for printer benchmark (-0.7%) before
+    applying CL 5416049 (which will wash it out). Code is
+    cleaner and simpler.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5417053
+
+ src/pkg/go/printer/printer.go | 69 +++++++++++++++++++------------------------
+ 1 file changed, 30 insertions(+), 39 deletions(-)

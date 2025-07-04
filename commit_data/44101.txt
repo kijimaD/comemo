@@ -1,0 +1,34 @@
+commit 304f769ffc68e64244266b3aadbf91e6738c0064
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 7 14:57:53 2021 -0800
+
+    cmd/compile: don't short-circuit copies whose source is volatile
+    
+    Current optimization: When we copy a->b and then b->c, we might as well
+    copy a->c instead of b->c (then b might be dead and go away).
+    
+    *Except* if a is a volatile location (might be clobbered by a call).
+    In that case, we really do want to copy a immediately, because there
+    might be a call before we can do the a->c copy.
+    
+    User calls can't happen in between, because the rule matches up the
+    memory states. But calls inserted for memory barriers, particularly
+    runtime.typedmemmove, can.
+    
+    (I guess we could introduce a register-calling-convention version
+    of runtime.typedmemmove, but that seems a bigger change than this one.)
+    
+    Fixes #43570
+    
+    Change-Id: Ifa518bb1a6f3a8dd46c352d4fd54ea9713b3eb1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282492
+    Trust: Keith Randall <khr@golang.org>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  4 +--
+ src/cmd/compile/internal/ssa/rewritegeneric.go |  8 +++---
+ test/fixedbugs/issue43570.go                   | 40 ++++++++++++++++++++++++++
+ 3 files changed, 46 insertions(+), 6 deletions(-)

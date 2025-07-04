@@ -1,0 +1,14 @@
+commit 5868ce3519313dfa60dbc9192bf6b701b25bd4ca
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Feb 20 16:46:48 2015 +1100
+
+    path/filepath: add example for filepath.Split
+    
+    Fixes #9928
+    
+    Change-Id: Iab37051078755a132f211ad48e756422f7c55a39
+    Reviewed-on: https://go-review.googlesource.com/5416
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/path/filepath/example_unix_test.go | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)

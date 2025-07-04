@@ -1,0 +1,23 @@
+commit 66ce8aa88d144338868b0d3ab8c895608a460750
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue May 4 16:18:56 2021 -0400
+
+    cmd/compile: handle degenerate entry blocks in -N debug gen
+    
+    The code that created DWARF debug var locations for input parameters
+    in the non-optimized case for regabi was not doing the right thing for
+    degenerate functions with infinite loops. Detect these cases and don't
+    try to emit the normal location data.
+    
+    Fixes #45948.
+    
+    Change-Id: I2717fc4bac2e03d5d850a6ec8a09ed05fed0c896
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/316752
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/debug.go | 12 +++++++++---
+ test/fixedbugs/issue45948.go          | 16 ++++++++++++++++
+ 2 files changed, 25 insertions(+), 3 deletions(-)

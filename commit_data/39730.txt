@@ -1,0 +1,35 @@
+commit b8cbcacabe4fecab9122e04cdc71e7f2649e9981
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Jun 6 11:40:47 2019 -0700
+
+    cmd/compile: optimize more pointer comparisons
+    
+    The existing pointer comparison optimizations
+    don't include pointer arithmetic. Add them.
+    
+    These rules trigger a few times in std cmd, while compiling:
+    
+    time.Duration.String
+    cmd/go/internal/tlog.NodeHash
+    crypto/tls.ticketKeyFromBytes (3 times)
+    crypto/elliptic.(*p256Point).p256ScalarMult (15 times!)
+    crypto/elliptic.initTable
+    
+    These weird comparisons occur when using the copy builtin,
+    which does a pointer comparison between src and dst.
+    
+    This also happens to fix #32454, by optimizing enough
+    early on that all values can be eliminated.
+    
+    Fixes #32454
+    
+    Change-Id: I799d45743350bddd15a295dc1e12f8d03c11d1c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180940
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  14 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 762 ++++++++++++++++++++++++-
+ test/fixedbugs/issue32454.go                   |  23 +
+ 3 files changed, 781 insertions(+), 18 deletions(-)

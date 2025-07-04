@@ -1,0 +1,85 @@
+commit d47d888ba663014e6aa8ca043e694f4b2a5898b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 18 22:37:22 2008 -0800
+
+    convert *[] to [].
+    
+    R=r
+    OCL=21563
+    CL=21571
+
+ src/cmd/gc/sys.go                   |  2 +-
+ src/cmd/gotest/gotest               |  4 +-
+ src/lib/Makefile                    |  9 +++--
+ src/lib/bignum.go                   | 32 +++++++--------
+ src/lib/bufio.go                    | 49 +++++++++++------------
+ src/lib/bufio_test.go               | 47 +++++++++++-----------
+ src/lib/container/array/array.go    |  4 +-
+ src/lib/fmt/fmt_test.go             | 12 +++---
+ src/lib/fmt/print.go                | 17 ++++----
+ src/lib/hash/adler32.go             |  4 +-
+ src/lib/hash/crc32.go               | 15 +++----
+ src/lib/hash/md5.go                 | 14 +++----
+ src/lib/hash/md5_test.go            |  2 +-
+ src/lib/hash/md5block.go            |  2 +-
+ src/lib/hash/sha1.go                | 14 +++----
+ src/lib/hash/sha1_test.go           |  2 +-
+ src/lib/hash/sha1block.go           |  2 +-
+ src/lib/http/request.go             | 10 +++--
+ src/lib/io/bytebuffer.go            | 24 ++++-------
+ src/lib/io/io.go                    | 18 ++++-----
+ src/lib/json/struct_test.go         |  4 +-
+ src/lib/net/dnsclient.go            | 21 +++++-----
+ src/lib/net/dnsconfig.go            |  6 +--
+ src/lib/net/dnsmsg.go               | 59 +++++++++++----------------
+ src/lib/net/fd.go                   | 10 ++---
+ src/lib/net/fd_darwin.go            | 12 +++---
+ src/lib/net/ip.go                   | 76 ++++++++++++++++++-----------------
+ src/lib/net/ip_test.go              | 10 ++---
+ src/lib/net/net.go                  | 50 +++++++++++------------
+ src/lib/net/net_darwin.go           | 30 +++++++-------
+ src/lib/net/net_linux.go            |  6 +--
+ src/lib/net/parse.go                |  6 +--
+ src/lib/net/tcpserver_test.go       |  6 +--
+ src/lib/os/os_file.go               |  4 +-
+ src/lib/rand.go                     |  2 +-
+ src/lib/reflect/all_test.go         | 61 ++++++++++++++--------------
+ src/lib/reflect/type.go             | 13 +++---
+ src/lib/reflect/value.go            |  4 +-
+ src/lib/regexp/all_test.go          | 78 +++++++++++++++---------------------
+ src/lib/regexp/regexp.go            | 15 +++----
+ src/lib/sort.go                     | 18 ++++-----
+ src/lib/sort_test.go                | 24 +++++------
+ src/lib/strconv/decimal.go          | 20 +++++-----
+ src/lib/strconv/ftoa.go             |  2 +-
+ src/lib/strconv/itoa.go             |  4 +-
+ src/lib/strings.go                  |  6 +--
+ src/lib/strings_test.go             | 26 ++++++------
+ src/lib/syscall/file_darwin.go      | 10 ++---
+ src/lib/syscall/socket_darwin.go    |  6 +--
+ src/lib/syscall/socket_linux.go     |  2 +-
+ src/lib/syscall/syscall.go          |  2 +-
+ src/lib/tabwriter/tabwriter.go      | 20 +++++-----
+ src/lib/tabwriter/tabwriter_test.go |  4 +-
+ src/lib/testing.go                  |  2 +-
+ src/lib/time/time.go                | 14 +++----
+ src/lib/time/zoneinfo.go            | 80 +++++++++++++++++++++----------------
+ src/lib/utf8.go                     | 10 ++---
+ src/lib/utf8_test.go                |  8 ++--
+ src/run.bash                        |  5 ++-
+ src/runtime/string.c                |  8 ++--
+ test/235.go                         |  4 +-
+ test/chan/powser1.go                |  8 ++--
+ test/chan/powser2.go                |  8 ++--
+ test/complit.go                     |  4 +-
+ test/fixedbugs/bug027.go            |  2 +-
+ test/fixedbugs/bug045.go            |  2 +-
+ test/fixedbugs/bug054.go            |  2 +-
+ test/fixedbugs/bug059.go            |  4 +-
+ test/fixedbugs/bug119.go            |  2 +-
+ test/func2.go                       |  2 +-
+ test/hilbert.go                     |  2 +-
+ test/interface1.go                  |  2 +-
+ test/map.go                         |  4 +-
+ test/nil.go                         |  2 +-
+ 74 files changed, 532 insertions(+), 543 deletions(-)

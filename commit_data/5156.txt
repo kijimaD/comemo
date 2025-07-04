@@ -1,0 +1,12 @@
+commit 66dd26e9673b458a36265d6e8878de20abf3ab8d
+Author: Raif S. Naffah <go@naffah-raif.name>
+Date:   Sat Mar 27 23:12:30 2010 -0700
+
+    xml: use io.ReadByter in place of local readByter
+    
+    R=cemeyer, rsc
+    CC=golang-dev
+    https://golang.org/cl/809041
+
+ src/pkg/xml/xml.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

@@ -1,0 +1,159 @@
+commit 561bf0457fc6d602b6c22dc3c9f884cf776f5b36
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Sun Sep 17 13:08:55 2023 +0200
+
+    cmd/compile: optimize right shifts of uint32 on riscv
+    
+    The compiler is currently zero extending 32 bit unsigned integers to
+    64 bits before right shifting them using a 64 bit shift instruction.
+    There's no need to do this as RISC-V has instructions for right
+    shifting 32 bit unsigned values (srlw and srliw) which zero extend
+    the result of the shift to 64 bits.  Change the compiler so that
+    it uses srlw and srliw for 32 bit unsigned shifts reducing in most
+    cases the number of instructions needed to perform the shift.
+    
+    Here are some examples of code sequences that are changed by this
+    patch:
+    
+    uint32(a) >> 2
+    
+      before:
+    
+        sll     x5,x10,0x20
+        srl     x10,x5,0x22
+    
+      after:
+    
+        srlw    x10,x10,0x2
+    
+    uint32(a) >> int(b)
+    
+      before:
+    
+        sll     x5,x10,0x20
+        srl     x5,x5,0x20
+        srl     x5,x5,x11
+        sltiu   x6,x11,64
+        neg     x6,x6
+        and     x10,x5,x6
+    
+      after:
+    
+        srlw    x5,x10,x11
+        sltiu   x6,x11,32
+        neg     x6,x6
+        and     x10,x5,x6
+    
+    bits.RotateLeft32(uint32(a), 1)
+    
+      before:
+    
+        sll     x5,x10,0x1
+        sll     x6,x10,0x20
+        srl     x7,x6,0x3f
+        or      x5,x5,x7
+    
+      after:
+    
+       sll     x5,x10,0x1
+       srlw    x6,x10,0x1f
+       or      x10,x5,x6
+    
+    bits.RotateLeft32(uint32(a), int(b))
+    
+      before:
+        and     x6,x11,31
+        sll     x7,x10,x6
+        sll     x8,x10,0x20
+        srl     x8,x8,0x20
+        add     x6,x6,-32
+        neg     x6,x6
+        srl     x9,x8,x6
+        sltiu   x6,x6,64
+        neg     x6,x6
+        and     x6,x9,x6
+        or      x6,x6,x7
+    
+      after:
+    
+        and     x5,x11,31
+        sll     x6,x10,x5
+        add     x5,x5,-32
+        neg     x5,x5
+        srlw    x7,x10,x5
+        sltiu   x5,x5,32
+        neg     x5,x5
+        and     x5,x7,x5
+        or      x10,x6,x5
+    
+    The one regression observed is the following case, an unbounded right
+    shift of a uint32 where the value we're shifting by is known to be
+    < 64 but > 31.  As this is an unusual case this commit does not
+    optimize for it, although the existing code does.
+    
+    uint32(a) >> (b & 63)
+    
+      before:
+    
+        sll     x5,x10,0x20
+        srl     x5,x5,0x20
+        and     x6,x11,63
+        srl     x10,x5,x6
+    
+      after
+    
+        and     x5,x11,63
+        srlw    x6,x10,x5
+        sltiu   x5,x5,32
+        neg     x5,x5
+        and     x10,x6,x5
+    
+    Here we have one extra instruction.
+    
+    Some benchmark highlights, generated on a VisionFive2 8GB running
+    Ubuntu 23.04.
+    
+    pkg: math/bits
+    LeadingZeros32-4    18.64n ± 0%     17.32n ± 0%   -7.11% (p=0.000 n=10)
+    LeadingZeros64-4    15.47n ± 0%     15.51n ± 0%   +0.26% (p=0.027 n=10)
+    TrailingZeros16-4   18.48n ± 0%     17.68n ± 0%   -4.33% (p=0.000 n=10)
+    TrailingZeros32-4   16.87n ± 0%     16.07n ± 0%   -4.74% (p=0.000 n=10)
+    TrailingZeros64-4   15.26n ± 0%     15.27n ± 0%   +0.07% (p=0.043 n=10)
+    OnesCount32-4       20.08n ± 0%     19.29n ± 0%   -3.96% (p=0.000 n=10)
+    RotateLeft-4        8.864n ± 0%     8.838n ± 0%   -0.30% (p=0.006 n=10)
+    RotateLeft32-4      8.837n ± 0%     8.032n ± 0%   -9.11% (p=0.000 n=10)
+    Reverse32-4         29.77n ± 0%     26.52n ± 0%  -10.93% (p=0.000 n=10)
+    ReverseBytes32-4    9.640n ± 0%     8.838n ± 0%   -8.32% (p=0.000 n=10)
+    Sub32-4             8.835n ± 0%     8.035n ± 0%   -9.06% (p=0.000 n=10)
+    geomean             11.50n          11.33n        -1.45%
+    
+    pkg: crypto/md5
+    Hash8Bytes-4             1.486µ ± 0%   1.426µ ± 0%  -4.04% (p=0.000 n=10)
+    Hash64-4                 2.079µ ± 0%   1.968µ ± 0%  -5.36% (p=0.000 n=10)
+    Hash128-4                2.720µ ± 0%   2.557µ ± 0%  -5.99% (p=0.000 n=10)
+    Hash256-4                3.996µ ± 0%   3.733µ ± 0%  -6.58% (p=0.000 n=10)
+    Hash512-4                6.541µ ± 0%   6.072µ ± 0%  -7.18% (p=0.000 n=10)
+    Hash1K-4                 11.64µ ± 0%   10.75µ ± 0%  -7.58% (p=0.000 n=10)
+    Hash8K-4                 82.95µ ± 0%   76.32µ ± 0%  -7.99% (p=0.000 n=10)
+    Hash1M-4                10.436m ± 0%   9.591m ± 0%  -8.10% (p=0.000 n=10)
+    Hash8M-4                 83.50m ± 0%   76.73m ± 0%  -8.10% (p=0.000 n=10)
+    Hash8BytesUnaligned-4    1.494µ ± 0%   1.434µ ± 0%  -4.02% (p=0.000 n=10)
+    Hash1KUnaligned-4        11.64µ ± 0%   10.76µ ± 0%  -7.52% (p=0.000 n=10)
+    Hash8KUnaligned-4        83.01µ ± 0%   76.32µ ± 0%  -8.07% (p=0.000 n=10)
+    geomean                  28.32µ        26.42µ       -6.72%
+    
+    Change-Id: I20483a6668cca1b53fe83944bee3706aadcf8693
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528975
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/riscv64/ssa.go         |  4 +-
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 18 ++++---
+ src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go | 14 +++---
+ src/cmd/compile/internal/ssa/opGen.go           | 30 ++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 65 ++++++++++++++++++++++---
+ test/codegen/shift.go                           | 21 +++++---
+ 6 files changed, 122 insertions(+), 30 deletions(-)

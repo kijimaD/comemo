@@ -1,0 +1,18 @@
+commit c8b0dcea4a3e67289ccf985b10616200817cca86
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 20 08:54:59 2022 -0500
+
+    doc/go1.18: note short-circuit and/or in html/template
+    
+    It was already noted in text/template; copied from there.
+    
+    Change-Id: Ie749d04004af60f2333073ddf556ff7e16c81c45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379794
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.18.html | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

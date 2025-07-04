@@ -1,0 +1,19 @@
+commit 4861475c1a373f2004ef9f95862fb1b370577d91
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon May 9 12:51:28 2022 -0400
+
+    net: avoid racing on port reuse in TestListenConfigControl
+    
+    Fixes #52798.
+    Fixes #51441 (until proven otherwise 😅).
+    
+    Change-Id: Ic1eadebd0d41c5cbe37340190f8b2bde4b6c5673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405214
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/listen_test.go     | 31 ++-----------------------------
+ src/net/mockserver_test.go | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 29 insertions(+), 33 deletions(-)

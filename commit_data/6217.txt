@@ -1,0 +1,12 @@
+commit 0eb0afde9aebfe08637cc70a21fcf06dcd5272eb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 9 14:42:49 2010 -0700
+
+    fix build
+    
+    R=rsc, ken2
+    CC=golang-dev
+    https://golang.org/cl/2118050
+
+ src/cmd/gc/go.h | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,12 @@
+commit fa0100cf26336053f9c072c3cb1081a09df41449
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 16 11:34:41 2012 +1100
+
+    make.bat: implement --no-clean
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5656070
+
+ src/make.bat | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit c95a8e458fdf9f3cb0c176ac92a513e5dc9b32c1
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 5 18:32:21 2016 -0400
+
+    runtime: make markrootSpans time proportional to in-use spans
+    
+    Currently markrootSpans iterates over all spans ever allocated to find
+    the in-use spans. Since we now have a list of in-use spans, change it
+    to iterate over that instead.
+    
+    This, combined with the previous change, fixes #9265. Before these two
+    changes, blowing up the heap to 8GB and then shrinking it to a 0MB
+    live set caused the small-heap portion of the test to run 60x slower
+    than without the initial blowup. With these two changes, the time is
+    indistinguishable.
+    
+    No significant effect on other benchmarks.
+    
+    Change-Id: I4a27e533efecfb5d18cba3a87c0181a81d0ddc1e
+    Reviewed-on: https://go-review.googlesource.com/30536
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgcmark.go     | 16 +++++++++-------
+ src/runtime/mgcsweepbuf.go | 47 +++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 55 insertions(+), 8 deletions(-)

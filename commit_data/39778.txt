@@ -1,0 +1,23 @@
+commit b36a7a502a590bd9fbf7f73b9678ba58028acfde
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 2 14:34:20 2019 +0000
+
+    Revert "runtime: remove slow time compatibility hacks for wine"
+    
+    This reverts CL 191759.
+    
+    Reason for revert: broke most Go programs using the time package on Wine,
+    including on 4.15, the latest stable version. Only wine-staging (with
+    experimental patches) contains an upstream fix we could rely on.
+    
+    Change-Id: Ic8ba126022e54f412174042fbb9abed82d5eb318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/192622
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/runtime/os_windows.go       | 78 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/sys_windows_386.s   | 10 ++++++
+ src/runtime/sys_windows_amd64.s | 10 ++++++
+ src/runtime/sys_windows_arm.s   | 14 ++++++++
+ 4 files changed, 112 insertions(+)

@@ -1,0 +1,27 @@
+commit 5f62ba621e9f1c925912f655901d0550e4a99f39
+Author: Austin Clements <austin@google.com>
+Date:   Wed Mar 15 14:27:10 2023 -0400
+
+    runtime: fix callee tracking in traceback printing
+    
+    In CL 466099, we accidentally stopped tracking callees while unwinding
+    inlined frames during traceback printing. The effect is that if you
+    have a call stack like:
+    
+      f -> wrapper -> inlined into wrapper -> panic
+    
+    when considering whether to print the frame for "wrapper", we'll think
+    that wrapper called panic, rather than the inlined function.
+    
+    Fix this in the traceback code and add a test.
+    
+    Change-Id: I30ec836cc316846ce93de94e28a650e23dca184e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476579
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/stack_test.go | 30 ++++++++++++++++++++++++++++++
+ src/runtime/traceback.go  |  4 +++-
+ 2 files changed, 33 insertions(+), 1 deletion(-)

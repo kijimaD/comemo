@@ -1,0 +1,20 @@
+commit 22951fbc89a1bc3c5cc38f4e71b4a682f5149361
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 15 08:06:58 2021 -0700
+
+    cmd/compile: make for loops with range statements not terminating
+    
+    Fixes #49003
+    
+    Change-Id: If09c6f028dce5440b1be238612653ffdd626113a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/356189
+    Trust: Keith Randall <khr@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ doc/go_spec.html                          |  5 +++--
+ src/cmd/compile/internal/types2/return.go |  5 +++++
+ test/fixedbugs/issue49003.go              | 12 ++++++++++++
+ 3 files changed, 20 insertions(+), 2 deletions(-)

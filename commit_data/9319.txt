@@ -1,0 +1,14 @@
+commit 1ac7a6970198b2448b1165d5e0d651ced4bf73d7
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Wed Aug 10 11:09:06 2011 +1000
+
+    ld: add one empty symbol into pe to make dumpbin works.
+    
+    Fixes #2139.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4838056
+
+ src/cmd/ld/pe.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

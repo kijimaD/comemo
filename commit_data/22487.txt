@@ -1,0 +1,51 @@
+commit cea272de301e511472ff54905140f526c2ec61f4
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Mon Apr 13 19:37:04 2015 -0400
+
+    runtime: rename close to closefd
+    
+    Avoids shadowing the builtin channel close function.
+    
+    Change-Id: I7a729b0937c8248fe27222be61318a88db995eee
+    Reviewed-on: https://go-review.googlesource.com/8898
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/env_plan9.go          | 4 ++--
+ src/runtime/export_test.go        | 2 +-
+ src/runtime/os1_darwin.go         | 2 +-
+ src/runtime/os1_dragonfly.go      | 2 +-
+ src/runtime/os1_freebsd.go        | 2 +-
+ src/runtime/os1_linux.go          | 2 +-
+ src/runtime/os1_netbsd.go         | 2 +-
+ src/runtime/os1_openbsd.go        | 2 +-
+ src/runtime/os1_plan9.go          | 8 ++++----
+ src/runtime/os3_solaris.go        | 4 ++--
+ src/runtime/os_nacl.go            | 2 +-
+ src/runtime/os_plan9.go           | 2 +-
+ src/runtime/os_windows.go         | 2 +-
+ src/runtime/stubs2.go             | 2 +-
+ src/runtime/sys_darwin_386.s      | 2 +-
+ src/runtime/sys_darwin_amd64.s    | 2 +-
+ src/runtime/sys_darwin_arm.s      | 2 +-
+ src/runtime/sys_dragonfly_amd64.s | 2 +-
+ src/runtime/sys_freebsd_386.s     | 2 +-
+ src/runtime/sys_freebsd_amd64.s   | 2 +-
+ src/runtime/sys_freebsd_arm.s     | 2 +-
+ src/runtime/sys_linux_386.s       | 2 +-
+ src/runtime/sys_linux_amd64.s     | 2 +-
+ src/runtime/sys_linux_arm.s       | 2 +-
+ src/runtime/sys_linux_arm64.s     | 2 +-
+ src/runtime/sys_linux_ppc64x.s    | 2 +-
+ src/runtime/sys_nacl_386.s        | 2 +-
+ src/runtime/sys_nacl_amd64p32.s   | 2 +-
+ src/runtime/sys_nacl_arm.s        | 2 +-
+ src/runtime/sys_netbsd_386.s      | 2 +-
+ src/runtime/sys_netbsd_amd64.s    | 2 +-
+ src/runtime/sys_netbsd_arm.s      | 2 +-
+ src/runtime/sys_openbsd_386.s     | 2 +-
+ src/runtime/sys_openbsd_amd64.s   | 2 +-
+ src/runtime/sys_openbsd_arm.s     | 2 +-
+ src/runtime/sys_plan9_386.s       | 2 +-
+ src/runtime/sys_plan9_amd64.s     | 2 +-
+ 37 files changed, 42 insertions(+), 42 deletions(-)

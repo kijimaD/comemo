@@ -1,0 +1,18 @@
+commit 420f713b7aa3b85995ded01d13cdeee520dbe38a
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 18 14:38:37 2012 +1100
+
+    encoding/gob: cache engine for user type, not base type
+    When we build the encode engine for a recursive type, we
+    mustn't disregard the indirections or we can try to reuse an
+    engine at the wrong indirection level.
+    
+    Fixes #3026.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5675087
+
+ src/pkg/encoding/gob/decode.go       |  4 ++--
+ src/pkg/encoding/gob/encoder_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 2 deletions(-)

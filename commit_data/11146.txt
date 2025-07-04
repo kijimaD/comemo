@@ -1,0 +1,21 @@
+commit 9535b86a27bb6ef585e6bafe89ba19dd1bff2cb7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 12 16:05:05 2012 -0800
+
+    go/doc: don't ignore anonymous non-exported fields
+    
+    - remove wrapper.go from testing package (not needed anymore)
+    
+    Fixes #1000.
+    
+    R=rsc, golang-dev, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5502074
+
+ src/pkg/go/doc/doc.go      |   2 +-
+ src/pkg/go/doc/exports.go  |  39 +++++++++++------
+ src/pkg/go/doc/reader.go   | 101 +++++++++++++++++++++++++++++--------------
+ src/pkg/testing/Makefile   |   1 -
+ src/pkg/testing/testing.go |   2 +-
+ src/pkg/testing/wrapper.go | 105 ---------------------------------------------
+ 6 files changed, 95 insertions(+), 155 deletions(-)

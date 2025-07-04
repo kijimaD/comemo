@@ -1,0 +1,20 @@
+commit 1f6fba2d5648edb757644431b87f93c8481f36c1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 5 08:48:23 2012 -0700
+
+    go/printer: don't forget the .0 in 1.0
+    
+    (use floating-point rather then integer constant division)
+    
+    gofmt -w src misc
+    
+    Fixes #3965.
+    
+    R=r, bsiegert, 0xjnml
+    CC=bradfitz, golang-dev
+    https://golang.org/cl/6610051
+
+ src/pkg/go/printer/nodes.go                     |  2 +-
+ src/pkg/go/printer/testdata/declarations.golden | 29 +++++++++++++++++++++++++
+ src/pkg/go/printer/testdata/declarations.input  | 29 +++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 1 deletion(-)

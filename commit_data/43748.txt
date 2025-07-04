@@ -1,0 +1,20 @@
+commit cb4df9833474d36c6e4cb005682215047b5f0979
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun Oct 18 17:02:06 2020 +0000
+
+    cmd/go: add /v2 to another require example
+    
+    This is the same change as in CL 144917, but applied to a nearby line.
+    
+    For #28374.
+    
+    Change-Id: I6e1693d3a14e2517d863d1052a06c1156fc1edd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263437
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/modload/help.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

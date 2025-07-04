@@ -1,0 +1,12 @@
+commit d0459447fa1a464459e49469b63e47d2a75018e8
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 23 18:06:28 2010 -0400
+
+    http: doc nit
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2013043
+
+ src/pkg/http/request.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

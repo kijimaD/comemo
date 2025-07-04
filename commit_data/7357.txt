@@ -1,0 +1,14 @@
+commit c1a695c160930d501118819438112a4528756cf5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 3 14:17:20 2011 -0500
+
+    gc, ld: package name main no longer reserved
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4128054
+
+ src/cmd/gc/go.y  | 8 --------
+ src/cmd/gc/lex.c | 9 +++++++++
+ src/cmd/ld/go.c  | 2 --
+ 3 files changed, 9 insertions(+), 10 deletions(-)

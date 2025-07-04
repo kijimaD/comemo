@@ -1,0 +1,18 @@
+commit 8c8c260d2eecae480f99fcc336ab0e6fc15b23c4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 16 06:49:50 2014 +0900
+
+    api: update openbsd exceptions
+    
+    This CL restores dropped constants not supported in OpenBSD 5.5
+    and tris to keep the promise of API compatibility.
+    
+    Update #7049
+    
+    LGTM=jsing, bradfitz
+    R=rsc, jsing, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/94950043
+
+ api/except.txt | 72 ----------------------------------------------------------
+ 1 file changed, 72 deletions(-)

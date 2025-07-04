@@ -1,0 +1,21 @@
+commit a0d477cb6d3173c860583ccf7aa7919687bddbca
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jul 3 13:49:26 2023 -0700
+
+    runtime: print exported methods from the runtime in tracebacks
+    
+    We currently suppress runtime frames in tracebacks, except for
+    exported functions.
+    This CL also prints exported methods of exported types
+    in tracebacks, for consistency.
+    
+    Change-Id: Ic65e7611621f0b210de5ae0c02b9d0a044f39fd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507736
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/runtime/crash_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ src/runtime/traceback.go  | 28 +++++++++++++++++++++++++---
+ 2 files changed, 61 insertions(+), 3 deletions(-)

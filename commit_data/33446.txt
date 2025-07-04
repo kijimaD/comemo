@@ -1,0 +1,21 @@
+commit 37b056948d058679efa4e87fb6c9b2a2ddfa31a3
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Tue Oct 31 16:51:21 2017 -0700
+
+    strings: add Builder
+    
+    This is like a write-only subset of bytes.Buffer with an
+    allocation-free String method.
+    
+    Fixes #18990.
+    
+    Change-Id: Icdf7240f4309a52924dc3af04a39ecd737a210f4
+    Reviewed-on: https://go-review.googlesource.com/74931
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/builder.go      | 120 +++++++++++++++++++
+ src/strings/builder_test.go | 282 ++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/example_test.go |  11 ++
+ 3 files changed, 413 insertions(+)

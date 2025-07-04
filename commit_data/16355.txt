@@ -1,0 +1,15 @@
+commit f5d06da07229ace92d34585ff56f89b11fc95f70
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue May 21 21:47:32 2013 +0800
+
+    cmd/api: add more platforms
+    as OpenBSD lacks 4 errno constants, api/go1.txt is updated so that
+    api check won't fail.
+    
+    R=golang-dev, iant, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/9149045
+
+ api/go1.txt          | 56 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ src/cmd/api/goapi.go | 17 +++++++++++++++-
+ 2 files changed, 68 insertions(+), 5 deletions(-)

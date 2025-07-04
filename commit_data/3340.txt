@@ -1,0 +1,18 @@
+commit 586d9d5a199bf6f7c023ea4d5997e6027de4193b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 22 07:48:43 2009 -0700
+
+    use $(shell uname) instead of $GOOS when
+    deciding what the host process support is.
+    this makes a cross-compiling (e.g., GOOS=nacl) build
+    still generate valid host debugger binaries.
+    
+    R=r
+    DELTA=5  (0 added, 0 deleted, 5 changed)
+    OCL=34878
+    CL=34889
+
+ src/cmd/cov/Makefile  | 2 +-
+ src/cmd/prof/Makefile | 2 +-
+ src/libmach/Makefile  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

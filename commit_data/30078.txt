@@ -1,0 +1,25 @@
+commit 6bc9844b63efaa5e29e3c93c1d27477b1663db09
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 18 13:24:01 2017 -0500
+
+    cmd/go: split out cmd/go/internal/env
+    
+    This is one CL in a long sequence of changes to break up the
+    go command from one package into a plausible group of packages.
+    
+    This sequence is concerned only with moving code, not changing
+    or cleaning up code. There will still be more cleanup after this sequence.
+    
+    The entire sequence will be submitted together: it is not a goal
+    for the tree to build at every step.
+    
+    For #18653.
+    
+    Change-Id: I28b20d53d20dff06eede574eb5c20359db0d3991
+    Reviewed-on: https://go-review.googlesource.com/36200
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/bug.go                    |  3 ++-
+ src/cmd/go/{ => internal/env}/env.go | 12 ++++++------
+ src/cmd/go/main.go                   |  5 +++--
+ 3 files changed, 11 insertions(+), 9 deletions(-)

@@ -1,0 +1,19 @@
+commit 461dd9126c9b8dc6a04b99a878e7cf1e4e1d00ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 4 14:44:51 2009 -0800
+
+    change Go logo to link to home page
+    
+    fix grammar for forward declaration of interface, struct.
+    
+    move array down next to slice.
+    
+    fix type equal example for structs.
+    
+    R=r,gri
+    DELTA=247  (122 added, 114 deleted, 11 changed)
+    OCL=25694
+    CL=25704
+
+ doc/go_spec.html | 250 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 129 insertions(+), 121 deletions(-)

@@ -1,0 +1,14 @@
+commit eec1e5d9c6d00fc493714a09b71e2bca2d7e7fa4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 31 11:16:15 2016 -0700
+
+    go/types: don't expose types.Alias kind field - only used by go/types
+    
+    Change-Id: I8a28a88a655d9929f8641f71573dc01dc53be00f
+    Reviewed-on: https://go-review.googlesource.com/32443
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/gcimporter/bimport.go |  2 +-
+ src/go/types/object.go                | 13 +++++++------
+ src/go/types/resolver.go              |  3 ++-
+ 3 files changed, 10 insertions(+), 8 deletions(-)

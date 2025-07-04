@@ -1,0 +1,22 @@
+commit c514071988ac08249c8675dfa501ad242c4c0cec
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 8 18:50:52 2019 -0400
+
+    encoding/gob: rename encBuffer.WriteByte to writeByte
+    
+    Renaming the method makes clear, both to readers and to vet,
+    that this method is not the implementation of io.ByteWriter.
+    
+    Working toward making the tree vet-safe instead of having
+    so many exceptions in cmd/vet/all/whitelist.
+    
+    For #31916.
+    
+    Change-Id: I5b509eb7f0118d5f2d3c6e352ff2849cd5a3071e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/176110
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/whitelist/all.txt | 4 ----
+ src/encoding/gob/encode.go        | 4 ++--
+ 2 files changed, 2 insertions(+), 6 deletions(-)

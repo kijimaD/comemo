@@ -1,0 +1,12 @@
+commit 4fd12c04c5c39b4da8896ec35fe1ae0d9f3e1daa
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 21 13:06:17 2010 -0400
+
+    fix windows build
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2650041
+
+ src/pkg/runtime/windows/386/signal.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

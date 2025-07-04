@@ -1,0 +1,21 @@
+commit 85146fabcdc9609d4ec9ce666b1015dc83fdfcee
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Feb 21 16:33:31 2018 +0000
+
+    cmd/vet: use type information in isLocalType
+    
+    Now that vet always has type information, there's no reason to use
+    string handling on type names to gather information about them, such as
+    whether or not they are a local type.
+    
+    The semantics remain the same - the only difference should be that the
+    implementation is less fragile and simpler.
+    
+    Change-Id: I71386b4196922e4c9f2653d90abc382efbf01b3c
+    Reviewed-on: https://go-review.googlesource.com/95915
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/vet/composite.go | 28 ++++++++++------------------
+ 1 file changed, 10 insertions(+), 18 deletions(-)

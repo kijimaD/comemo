@@ -1,0 +1,12 @@
+commit 1e09031f7f9293ba032c88abb55b373d341f01bf
+Author: David G. Andersen <dave.andersen@gmail.com>
+Date:   Wed Jan 25 16:09:12 2012 -0800
+
+    math/big:  return type of bitLen is an int;  use MOVL on amd64.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5577050
+
+ src/pkg/math/big/arith_amd64.s | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

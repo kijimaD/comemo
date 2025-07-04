@@ -1,0 +1,15 @@
+commit 6dae588a06016a67aad62e732087cb2e32cda139
+Author: Seiji Takahashi <timaki.st@gmail.com>
+Date:   Thu Aug 3 22:08:55 2017 +0900
+
+    html: updated entity spec link
+    
+    Fixes #21194
+    
+    Change-Id: Iac5187335df67f90f0f47c7ef6574de147c2ac9b
+    Reviewed-on: https://go-review.googlesource.com/52970
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/html/entity.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

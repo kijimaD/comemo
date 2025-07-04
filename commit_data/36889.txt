@@ -1,0 +1,55 @@
+commit f90e89e675443731e36c2de4bcd3cdd7316d3dfc
+Author: Igor Zhilianin <igor.zhilianin@gmail.com>
+Date:   Sat Oct 6 06:10:25 2018 +0000
+
+    all: fix a bunch of misspellings
+    
+    Change-Id: If2954bdfc551515403706b2cd0dde94e45936e08
+    GitHub-Last-Rev: d4cfc41a5504cf10befefdb881d4c45986a1d1f8
+    GitHub-Pull-Request: golang/go#28049
+    Reviewed-on: https://go-review.googlesource.com/c/140299
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/test/callback.go                              | 2 +-
+ misc/cgo/testplugin/unnamed1/main.go                   | 2 +-
+ misc/cgo/testsanitizers/cc_test.go                     | 2 +-
+ misc/cgo/testshared/shared_test.go                     | 2 +-
+ src/cmd/compile/doc.go                                 | 2 +-
+ src/cmd/compile/internal/gc/syntax.go                  | 2 +-
+ src/cmd/compile/internal/gc/walk.go                    | 2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules           | 2 +-
+ src/cmd/compile/internal/ssa/layout.go                 | 2 +-
+ src/cmd/compile/internal/ssa/poset.go                  | 2 +-
+ src/cmd/compile/internal/ssa/stackalloc.go             | 2 +-
+ src/cmd/compile/internal/types/pkg.go                  | 2 +-
+ src/cmd/go/internal/modget/get.go                      | 2 +-
+ src/cmd/go/testdata/testterminal18153/terminal_test.go | 2 +-
+ src/cmd/internal/obj/arm64/asm7.go                     | 2 +-
+ src/cmd/internal/obj/util.go                           | 2 +-
+ src/cmd/internal/obj/x86/asm6.go                       | 2 +-
+ src/cmd/internal/obj/x86/ytab.go                       | 2 +-
+ src/cmd/link/internal/ld/dwarf_test.go                 | 2 +-
+ src/cmd/link/internal/ld/elf.go                        | 4 ++--
+ src/cmd/link/internal/ld/lib.go                        | 2 +-
+ src/cmd/vet/testdata/structtag.go                      | 4 ++--
+ src/compress/flate/inflate.go                          | 2 +-
+ src/compress/zlib/reader.go                            | 2 +-
+ src/database/sql/sql_test.go                           | 2 +-
+ src/go/constant/value.go                               | 2 +-
+ src/go/parser/parser.go                                | 2 +-
+ src/go/printer/testdata/parser.go                      | 2 +-
+ src/math/big/float.go                                  | 2 +-
+ src/net/http/transport_test.go                         | 2 +-
+ src/net/smtp/smtp_test.go                              | 4 ++--
+ src/os/file_windows.go                                 | 2 +-
+ src/os/os_test.go                                      | 2 +-
+ src/runtime/mgc.go                                     | 2 +-
+ src/runtime/proc.go                                    | 2 +-
+ src/runtime/stack.go                                   | 2 +-
+ src/syscall/mksyscall_windows.go                       | 2 +-
+ src/syscall/syscall_windows.go                         | 4 ++--
+ test/closure3.dir/main.go                              | 2 +-
+ test/closure3.go                                       | 2 +-
+ 40 files changed, 44 insertions(+), 44 deletions(-)

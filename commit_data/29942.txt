@@ -1,0 +1,47 @@
+commit 9c3630f578db1d4331b367c3c7d284db299be3a6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jan 11 23:03:15 2017 -0800
+
+    compress/flate: avoid large stack growth in fillDeflate
+    
+    Ranging over an array causes the array to be copied over to the
+    stack, which cause large re-growths. Instead, we should iterate
+    over slices of the array.
+    
+    Also, assigning a large struct literal uses the stack even
+    though the actual fields being populated are small in comparison
+    to the entirety of the struct (see #18636).
+    
+    Fixing the stack growth does not alter CPU-time performance much
+    since the stack-growth and copying was such a tiny portion of the
+    compression work:
+    
+    name                         old time/op    new time/op    delta
+    Encode/Digits/Default/1e4-8     332µs ± 1%     332µs ± 1%   ~     (p=0.796 n=10+10)
+    Encode/Digits/Default/1e5-8    5.07ms ± 2%    5.05ms ± 1%   ~       (p=0.815 n=9+8)
+    Encode/Digits/Default/1e6-8    53.7ms ± 1%    53.9ms ± 1%   ~     (p=0.075 n=10+10)
+    Encode/Twain/Default/1e4-8      380µs ± 1%     380µs ± 1%   ~     (p=0.684 n=10+10)
+    Encode/Twain/Default/1e5-8     5.79ms ± 2%    5.79ms ± 1%   ~      (p=0.497 n=9+10)
+    Encode/Twain/Default/1e6-8     61.5ms ± 1%    61.8ms ± 1%   ~     (p=0.247 n=10+10)
+    
+    name                         old speed      new speed      delta
+    Encode/Digits/Default/1e4-8  30.1MB/s ± 1%  30.1MB/s ± 1%   ~     (p=0.753 n=10+10)
+    Encode/Digits/Default/1e5-8  19.7MB/s ± 2%  19.8MB/s ± 1%   ~       (p=0.795 n=9+8)
+    Encode/Digits/Default/1e6-8  18.6MB/s ± 1%  18.5MB/s ± 1%   ~     (p=0.072 n=10+10)
+    Encode/Twain/Default/1e4-8   26.3MB/s ± 1%  26.3MB/s ± 1%   ~     (p=0.616 n=10+10)
+    Encode/Twain/Default/1e5-8   17.3MB/s ± 2%  17.3MB/s ± 1%   ~      (p=0.484 n=9+10)
+    Encode/Twain/Default/1e6-8   16.3MB/s ± 1%  16.2MB/s ± 1%   ~     (p=0.238 n=10+10)
+    
+    Updates #18636
+    Fixes #18625
+    
+    Change-Id: I471b20339bf675f63dc56d38b3acdd824fe23328
+    Reviewed-on: https://go-review.googlesource.com/35122
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/compress/flate/deflate.go      |  7 +++++--
+ src/compress/flate/deflate_test.go | 31 +++++++++++++++++++++++++++++++
+ src/compress/flate/deflatefast.go  | 19 +++++++++++++++++--
+ 3 files changed, 53 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit aff6aa0a21baa332bb94c34795520008c8db9198
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 26 20:33:21 2016 +0000
+
+    net/http: quiet http2 log spam
+    
+    Updates x/net/http2 to git rev eb066e3 for https://golang.org/cl/18932
+    
+    Fixes #13925
+    Fixes #14061
+    
+    Change-Id: I73f8c09232877404362358240b7b369bb9c76a12
+    Reviewed-on: https://go-review.googlesource.com/18934
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/h2_bundle.go | 47 +++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 43 insertions(+), 4 deletions(-)

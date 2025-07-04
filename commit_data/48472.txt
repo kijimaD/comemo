@@ -1,0 +1,16 @@
+commit 6be52abfa1aea30b33c1e2db27ea92e954661aa4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 16 15:17:36 2022 -0700
+
+    go/types, types2: remove mechanism to exclude tests for unified build
+    
+    The unified build will become the norm and the excluded tests run now.
+    
+    Change-Id: I0f0873eb73483a4f04736d167d2eb796ee8a857b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393438
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types2/check_test.go | 18 ------------------
+ src/go/types/check_test.go                    | 18 ------------------
+ 2 files changed, 36 deletions(-)

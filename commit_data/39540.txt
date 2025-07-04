@@ -1,0 +1,21 @@
+commit 919594830f17f25c9e971934d825615463ad8a10
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Jun 12 08:19:31 2019 -0700
+
+    os: document File's concurrent operation resource limits
+    
+    Document that *os.File is subject to resource limits
+    for concurrent operations. We aren't documenting
+    a specific number of concurrent operations because that
+    number is OS/system dependent. This limit comes from:
+        internal/poll/fd_mutex.go
+    where we use 20 bits to count locks.
+    
+    Fixes #32544
+    
+    Change-Id: I7d305d4aaba5b2dbc6f1ab8c447117fde5e31a66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181841
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/file.go | 4 ++++
+ 1 file changed, 4 insertions(+)

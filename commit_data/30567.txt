@@ -1,0 +1,16 @@
+commit 8d3f29577d95aa06b2653d20e331aa47f759db06
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Mon Mar 6 19:43:21 2017 -0500
+
+    cmd/compile: regenerate knownFormats
+    
+    Should fix the build dashboard.
+    
+    Change-Id: Id4c8a996d9f689e1fa865a9cff9a7f52c700c691
+    Reviewed-on: https://go-review.googlesource.com/37877
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/fmt_test.go | 1 +
+ 1 file changed, 1 insertion(+)

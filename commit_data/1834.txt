@@ -1,0 +1,21 @@
+commit 3cfd91f85b1ef367238d0b67b5836f78bc7a1774
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 16 20:29:31 2009 -0700
+
+    daily snapshot:
+    - use explicit expression lists instead of binary trees to represent lists of the form a, b, c
+    (per discussion w/ Russ)
+    - use explicit nodes for various language constructs for better readability
+    - various adjustments in parsing and printing
+    
+    next steps:
+    - clean up AST fully so it can be checked in as library
+    
+    R=r
+    OCL=26371
+    CL=26371
+
+ usr/gri/pretty/ast.go     |  98 ++++++++++++-------
+ usr/gri/pretty/parser.go  | 244 ++++++++++++++++++++++++++--------------------
+ usr/gri/pretty/printer.go | 116 ++++++++++++++++++++--
+ 3 files changed, 308 insertions(+), 150 deletions(-)

@@ -1,0 +1,15 @@
+commit 52e5987f5d92f707411359d9f56cb0cec97ac167
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 15 07:52:23 2019 -0700
+
+    os: keep attr.Files alive when calling StartProcess
+    
+    Updates #34810
+    Fixes #34858
+    
+    Change-Id: Ie934861e51eeafe8a7fd6653c4223a5f5d45efe8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201198
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/os/exec_posix.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

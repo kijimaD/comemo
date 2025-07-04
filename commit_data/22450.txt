@@ -1,0 +1,19 @@
+commit ae740a459ef40f63d3a2864b70c89e316efd0c8b
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Apr 12 19:36:23 2015 +0200
+
+    os: add TestProgWideChdir
+    
+    This test checks the working directory is
+    always consistent after Chdir in a Go program.
+    
+    Fixes #10035.
+    
+    Change-Id: I6abf0e4fcd40680ee572c6b40fc52ab17ef38d54
+    Reviewed-on: https://go-review.googlesource.com/6382
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/os_test.go | 51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

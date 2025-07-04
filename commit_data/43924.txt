@@ -1,0 +1,16 @@
+commit f26f227f66ff4113cad0cd51c0780e5849e9accc
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Dec 1 13:02:44 2020 -0800
+
+    doc/go1.16: add crypto/tls Config.Clone note
+    
+    For #40700
+    Fixes #42896
+    
+    Change-Id: I842c9d60b18abe2ee061c6705a5c7ba62b224d77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274613
+    Trust: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

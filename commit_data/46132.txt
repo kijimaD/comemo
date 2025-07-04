@@ -1,0 +1,37 @@
+commit 0a7f00ae239570d664488085f9c395919bc69066
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Tue Jul 6 21:45:02 2021 +0200
+
+    cmd/compile: do not mark arrays used for map initialization noalg
+    
+    Arrays marked noalg are created by the compiler to hold keys and values
+    to initialize map literals. The ssa backend creates a pointer type for
+    the array type when creating an OpAddr while processing the loop that
+    initializes the map from the arrays. The pointer type does not inherit
+    the noalg property but points to the noalg array type.
+    
+    This causes values created through reflect of types that should be
+    equal to compare unequal because the noalg and alg type might be
+    compared and these are not the same.
+    
+    A similar problem occurred in #32595 for argument arrays of defer structs.
+    
+    Created #47904 to track improve noalg handling to be able to
+    reintroduce this optimization again.
+    
+    Fixes #47068
+    
+    Change-Id: I87549342bd404b98d71a3c0f33e3c169e9d4efc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344349
+    Trust: Martin Möhrmann <martin@golang.org>
+    Run-TryBot: Martin Möhrmann <martin@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/walk/complit.go |  4 ++--
+ test/fixedbugs/issue47068.dir/a.go       | 15 +++++++++++++++
+ test/fixedbugs/issue47068.dir/b.go       | 15 +++++++++++++++
+ test/fixedbugs/issue47068.dir/main.go    | 15 +++++++++++++++
+ test/fixedbugs/issue47068.go             |  7 +++++++
+ 5 files changed, 54 insertions(+), 2 deletions(-)

@@ -1,0 +1,14 @@
+commit b60c7a5c7f50fc75ddecb7f1dea6c2e47a12b42c
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Nov 10 11:56:15 2019 +0530
+
+    go/doc: document unicode quoting conversion
+    
+    Fixes #30955
+    
+    Change-Id: I8a2bff5215ddf6c3a80b1e760cb72b0bb9a5e0d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206122
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/doc/comment.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

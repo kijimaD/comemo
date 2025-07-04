@@ -1,0 +1,19 @@
+commit 8e4f1a71f22683745c863a776878d9c47e737305
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Tue Apr 30 20:36:20 2019 +0200
+
+    time: look for zoneinfo.zip in GOROOT
+    
+    The zoneinfo.zip file will be in the $GOROOT in self-hsoted builds
+    on iOS.
+    
+    Updates #31722
+    
+    Change-Id: I991fae92e3dc50581b099a2d8901aed36ecc7cef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174310
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/zoneinfo_ios.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

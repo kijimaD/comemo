@@ -1,0 +1,48 @@
+commit 4ebc6514faa8530d1a68b4e04f57dc5c25bcb01c
+Author: Mark Ryan <mark.d.ryan@intel.com>
+Date:   Mon Mar 18 15:48:34 2019 +0100
+
+    cmd/asm: Fix EVEX RIP-relative addressing
+    
+    AVX-512 instructions that use RIP-relative addressing and require the
+    R bit of the EVEX prefix to be zero, i.e., instructions that use Z8-Z15 or
+    Z24-Z31, are incorrectly encoded by the assembler.  The reason is that
+    the location of the offset at which the relative address is to be written
+    is incorrectly computed when the R bit is clear.
+    
+    For example,
+    
+    VMOVUPS bInitX<>+0(SB), Z0
+    
+    encodes correctly to
+    
+    62 f1 7c 48 10 05 66 e9 02 00
+    
+    whereas
+    
+    VMOVUPS bInitX<>+0(SB), Z8
+    
+    encodes incorrectly to
+    
+    62 71 7c 48 10 05 00 56 e9 02 00
+    
+    Note the extra zero byte between the ModR/M byte (05) and the relative
+    address starting with 56.  This error results in the first byte of the
+    following instruction being overwritten and typically, a program crash.
+    
+    This commit fixes the issue in the same way that is fixed for VEX encoded
+    instructions, by simply not incrementing the offset for EVEX instructions.
+    Existing test code created for a similar VEX encoding issue (19518) has
+    been modified to also test for the issue addressed by this commit.
+    
+    Fixes #31001
+    
+    Change-Id: If84719ac22ebb5fb3c42ff96cd32b611ad497414
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168562
+    Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
+
+ src/cmd/internal/obj/x86/asm6.go                   |  2 +-
+ .../x86/{issue19518_test.go => pcrelative_test.go} | 33 ++++++++++++----------
+ 2 files changed, 19 insertions(+), 16 deletions(-)

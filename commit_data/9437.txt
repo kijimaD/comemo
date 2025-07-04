@@ -1,0 +1,13 @@
+commit 8f37c8845c6096302435e5a0f5729e8e73487413
+Author: Tarmigan Casebolt <tarmigan@gmail.com>
+Date:   Mon Aug 22 15:40:15 2011 +1000
+
+    gofix: osopen: fixed=true when changing O_CREAT
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4921047
+
+ src/cmd/gofix/osopen.go      |  1 +
+ src/cmd/gofix/osopen_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 24 insertions(+)

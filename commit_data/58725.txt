@@ -1,0 +1,18 @@
+commit e4b12eb8af28d3f505a5487b76dbfd4b1a37c0da
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Dec 23 11:34:03 2024 -0500
+
+    io: use runtime.AddCleanup instead of runtime.SetFinalizer
+    
+    Replace the usage of runtime.SetFinalizer with runtime.AddCleanup.
+    
+    Updates #70907
+    
+    Change-Id: Id604ca44ea67dcf8f87797e27347c6f4e9ad0b86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638556
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    TryBot-Bypass: Carlos Amedee <carlos@golang.org>
+
+ src/io/multi_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

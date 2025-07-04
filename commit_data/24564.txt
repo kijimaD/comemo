@@ -1,0 +1,19 @@
+commit 77b1fef27e736764395633413fc13c14d8fed712
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 19 17:01:37 2015 -0700
+
+    cmd/compile, syscall: use go:norace comment for forkAndExecInChild
+    
+    Use a go:norace comment rather than having the compiler know the special
+    name syscall.forkAndExecInChild.
+    
+    Change-Id: I69bc6aa6fc40feb2148d23f269ff32453696fb28
+    Reviewed-on: https://go-review.googlesource.com/16097
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/compile/internal/gc/racewalk.go | 12 +-----------
+ src/syscall/exec_bsd.go                 |  1 +
+ src/syscall/exec_linux.go               |  1 +
+ src/syscall/exec_plan9.go               |  1 +
+ src/syscall/exec_solaris.go             |  1 +
+ 5 files changed, 5 insertions(+), 11 deletions(-)

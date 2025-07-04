@@ -1,0 +1,23 @@
+commit e0822b55ac2076112507016bc08d52999c25d728
+Author: kurochan <kuro@kurochan.org>
+Date:   Thu Sep 15 00:02:32 2022 +0000
+
+    text/template: fixed typo in a nested template definition
+    
+    The text was mistakenly quoted with backquotes.
+    
+    Change-Id: I77ed4adac8c78b719bea61c08f1c377ed4ac4c9d
+    GitHub-Last-Rev: 6f1430fe167ad34effd75e8f2ac441436a81a878
+    GitHub-Pull-Request: golang/go#55059
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430775
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+
+ src/text/template/doc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

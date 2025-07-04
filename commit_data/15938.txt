@@ -1,0 +1,14 @@
+commit eee3e636072eadcde0bb9088f4fcb31192bf16d3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 25 17:38:51 2013 -0700
+
+    database/sql: link to driver wiki page
+    
+    Fixes #5127
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/8011044
+
+ src/pkg/database/sql/sql.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

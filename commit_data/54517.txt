@@ -1,0 +1,21 @@
+commit 3857a89e7eb872fa22d569e70b7e076bec74ebbb
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Tue Sep 19 17:23:58 2023 -0400
+
+    net/http: add a benchmark for multi indexing
+    
+    We don't index multis, so a corpus full of them will take quadratic
+    time to check for conflicts. How slow is that going to be in practice?
+    
+    This benchmark indexes and checks a thousand multi patterns, all disjoint.
+    It runs in about 35ms.
+    
+    Change-Id: Id27940ab19ad003627bd5c43c53466e01456b796
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529477
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/pattern_test.go       |  6 +++---
+ src/net/http/routing_index_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 3 deletions(-)

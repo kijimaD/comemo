@@ -1,0 +1,16 @@
+commit be08ddbfcd855fd13cf80497921ae53d2b64a7b1
+Author: Sam Whited <sam@samwhited.com>
+Date:   Fri Oct 13 22:28:57 2017 -0500
+
+    encoding/xml: don't panic when custom Unmarshaler sees StartElement
+    
+    Change-Id: I90aa0a983abd0080f3de75d3340fdb15c1f9ca35
+    Reviewed-on: https://go-review.googlesource.com/70891
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Sam Whited <sam@samwhited.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/all/whitelist/all.txt |  1 +
+ src/encoding/xml/xml.go           |  6 +++---
+ src/encoding/xml/xml_test.go      | 23 +++++++++++++++++++++++
+ 3 files changed, 27 insertions(+), 3 deletions(-)

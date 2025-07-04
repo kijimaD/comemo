@@ -1,0 +1,19 @@
+commit 2ca4104f0519027c55266d48b47ea16ee4da6915
+Author: cui fliter <imcusg@gmail.com>
+Date:   Thu May 4 19:30:53 2023 +0800
+
+    cmd: use slices.Equal to simplify code
+    
+    #57433 added slices.Equal, using it can reduce the amount of code
+    
+    Change-Id: I70d14b6c4c24da641a34ed36c900d9291033f526
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/492576
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+
+ src/cmd/covdata/argsmerge.go | 15 ++-------------
+ 1 file changed, 2 insertions(+), 13 deletions(-)

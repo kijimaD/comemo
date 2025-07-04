@@ -1,0 +1,17 @@
+commit 5d8c49a5a13d922c24dc30675d64f0c49b676535
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 23 12:02:40 2021 -0800
+
+    spec: add definition of "specific types" of an interface
+    
+    The notion of specific types will be used to define rules for
+    assignability, convertability, etc. when type parameters are
+    involved.
+    
+    Change-Id: Ic5c134261e2a9fe05cdf25efd342f052458ab5c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366754
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 64 +++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 57 insertions(+), 7 deletions(-)

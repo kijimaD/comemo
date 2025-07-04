@@ -1,0 +1,12 @@
+commit 85626a926659144579551f694e25179adfbd9211
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 4 09:22:44 2015 -0800
+
+    math/big: added more comprehensive mul/quo test
+    
+    Change-Id: Ib813eb5960c3310b1c919f25f687560f4f9d63b0
+    Reviewed-on: https://go-review.googlesource.com/6820
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/math/big/float_test.go | 103 +++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 85 insertions(+), 18 deletions(-)

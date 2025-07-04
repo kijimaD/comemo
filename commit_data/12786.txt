@@ -1,0 +1,25 @@
+commit 5eb007dedeb59a52a3000202dcb162a3677a384b
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 27 12:22:19 2012 -0400
+
+    runtime: work around false negative in deadlock detection
+    
+    Not a complete fix for issue 3342, but fixes the trivial case.
+    There may still be a race in the instants before and after
+    a scavenger-induced garbage collection.
+    
+    Intended to be "obviously safe": a call to runtime·gosched
+    before main.main is no different than a call to runtime.Gosched
+    at the beginning of main.main, and it is (or had better be)
+    safe to call runtime.Gosched at any point during main.
+    
+    Update #3342.
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/5919052
+
+ src/pkg/runtime/proc.c   | 19 +++++++++++++++++++
+ test/fixedbugs/bug429.go | 13 +++++++++++++
+ test/golden.out          |  3 +++
+ 3 files changed, 35 insertions(+)

@@ -1,0 +1,12 @@
+commit 9e88f79d325b1c0d594959b3313f6cd99e5d426b
+Author: Jonathan Rudenberg <jonathan@titanous.com>
+Date:   Tue Jul 14 18:53:13 2015 -0400
+
+    doc/go1.5.html: fix typo
+    
+    Change-Id: I8bbdf6c769e089fca8458166dffff5aea0f74675
+    Reviewed-on: https://go-review.googlesource.com/12196
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

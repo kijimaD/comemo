@@ -1,0 +1,15 @@
+commit 2ce8b444b91dcb6fd79715a89f750252e49d999c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 24 15:52:31 2009 -0700
+
+    base64: cut out some middle layers
+    
+    R=austin
+    DELTA=352  (67 added, 196 deleted, 89 changed)
+    OCL=30694
+    CL=30713
+
+ src/pkg/Make.deps             |   2 +-
+ src/pkg/base64/base64.go      | 369 ++++++++++++------------------------------
+ src/pkg/base64/base64_test.go |  34 ++++
+ 3 files changed, 138 insertions(+), 267 deletions(-)

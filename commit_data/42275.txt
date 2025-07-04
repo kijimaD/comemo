@@ -1,0 +1,19 @@
+commit a6c6e59655e2599bd6dabce51a3a68accff433f8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 29 17:54:24 2020 -0400
+
+    crypto/tls: enforce TLS 1.3 (and TLS 1.2) downgrade protection checks
+    
+    Fixes #37763
+    
+    Change-Id: Ic6bcc9af0d164966f4ae31087998e5b546540038
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231038
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/tls/common.go                |  4 +++
+ src/crypto/tls/handshake_client.go      | 14 +++++++++-
+ src/crypto/tls/handshake_client_test.go | 45 +++++++++++++++++++++++++++++++++
+ src/crypto/tls/handshake_server.go      |  2 +-
+ 4 files changed, 63 insertions(+), 2 deletions(-)

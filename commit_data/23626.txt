@@ -1,0 +1,14 @@
+commit 2de67e9974b2d4be23e53d3aee1c969840e6baa2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 10 06:20:51 2015 -0700
+
+    runtime: clarify that NumCPU returns only available CPUs
+    
+    Update #11609.
+    
+    Change-Id: Ie363facf13f5e62f1af4a8bdc42a18fb36e16ebf
+    Reviewed-on: https://go-review.googlesource.com/12022
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/debug.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

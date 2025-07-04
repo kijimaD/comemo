@@ -1,0 +1,15 @@
+commit 8c4c6c413facabf44b3ecd1fc44bd887fc710271
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon May 14 19:27:29 2012 +0400
+
+    sync: use atomic.Store in Once.Do
+    No perf/semantic changes, merely improves code health.
+    There were several questions as to why Once.Do uses
+    atomic.CompareAndSwap to do a store.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6208057
+
+ src/pkg/sync/once.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

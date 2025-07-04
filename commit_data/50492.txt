@@ -1,0 +1,24 @@
+commit e7a2014fac885392e14205c93fff3fd8db84fa8d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Sep 13 10:54:07 2022 -0700
+
+    time: move RFC 3339 optimizations to separate file
+    
+    The optimizations were added in CL 425197 and CL 421877.
+    Move this functionality to a separate file to keep format.go smaller
+    and to document the justification for why this optimization exists.
+    
+    Change-Id: I1e4e1ace19f9d596d8c0cf49ab6062f63a87b5bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/430675
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+
+ src/time/format.go         | 117 ----------------------------------------
+ src/time/format_rfc3339.go | 131 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 131 insertions(+), 117 deletions(-)

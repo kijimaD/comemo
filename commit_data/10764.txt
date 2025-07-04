@@ -1,0 +1,13 @@
+commit 39213c1fdb74dffb02617b6a8ac5b482d9aa4fc7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Dec 13 14:49:26 2011 -0800
+
+    strconv: some allocation tests
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5477084
+
+ src/pkg/strconv/ftoa_test.go | 17 +++++++++++++++++
+ src/pkg/strconv/itoa_test.go | 28 ++++++++++++++++++++++++++++
+ 2 files changed, 45 insertions(+)

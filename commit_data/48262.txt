@@ -1,0 +1,28 @@
+commit d3672054fb58d5eaa241f15fa9d7fb9d61e9ac05
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 2 15:08:23 2022 -0800
+
+    cmd/compile: don't include instantiating types in type hash
+    
+    This CL is a bit overkill, but it is pretty safe for 1.18. We'll
+    want to revisit for 1.19 so we can avoid the hash collisions between
+    types, e.g. G[int] and G[float64], that will cause some slowdowns
+    (but not incorrect behavior). Thanks Cherry for the simple idea.
+    
+    Fixes #51250
+    
+    Change-Id: I68130e09ba68e7cc35687bc623f63547bc552867
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/389474
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/reflectdata/reflect.go |  2 +-
+ src/cmd/compile/internal/types/fmt.go           | 28 ++++++++++++++++++-------
+ test/typeparam/issue51250a.dir/a.go             |  9 ++++++++
+ test/typeparam/issue51250a.dir/b.go             | 24 +++++++++++++++++++++
+ test/typeparam/issue51250a.dir/main.go          | 24 +++++++++++++++++++++
+ test/typeparam/issue51250a.go                   |  7 +++++++
+ 6 files changed, 85 insertions(+), 9 deletions(-)

@@ -1,0 +1,12 @@
+commit a10e2051aeb189afe1a163f82a3c4d502983613c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 9 23:22:04 2009 -0800
+
+    - add .. link to package directory listing, for easy traversal
+    - matches style of source file directory listing
+    
+    R=rsc
+    http://go/go-review/1024044
+
+ lib/godoc/package.html | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,13 @@
+commit addd6fa84608a292983f910d8ab1e3dbbfab71a7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Nov 18 22:32:01 2008 -0800
+
+    read and write never return -1 now: error return is through the error variable only
+    
+    R=rsc
+    DELTA=13  (9 added, 0 deleted, 4 changed)
+    OCL=19538
+    CL=19570
+
+ src/lib/os/os_file.go | 17 +++++++++++++----
+ 1 file changed, 13 insertions(+), 4 deletions(-)

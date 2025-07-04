@@ -1,0 +1,17 @@
+commit 7837dbfcb821767e4a9f315d76a8a08ca8820b3a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 8 20:17:04 2009 -0800
+
+    use grouping instead of colors to show non-global search hits:
+    - introduced a new run per file containing all spots belonging
+      to the same kind (e.g. var decl, const decl, etc.)
+    - more comments, better index.go file organization
+    
+    R=rsc
+    http://go/go-review/1026028
+
+ doc/style.css          |  49 ++-------------
+ lib/godoc/search.html  |  39 ++++++------
+ src/cmd/godoc/godoc.go |  30 +++++-----
+ src/cmd/godoc/index.go | 159 ++++++++++++++++++++++++++++++++-----------------
+ 4 files changed, 143 insertions(+), 134 deletions(-)

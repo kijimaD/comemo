@@ -1,0 +1,23 @@
+commit cbc9e589053e7339c1e3c4d6e88c6c015792efce
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jan 12 13:28:33 2022 -0500
+
+    cmd/go/internal/base: in AppendPWD, check that PWD is absolute
+    
+    The POSIX standard requires the PWD variable to be an absolute path.
+    
+    Fixes #46832
+    
+    Change-Id: I1938592538633e1a0a0958276f1fefc3c4808399
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/378396
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/base/env.go                | 12 ++++++++++--
+ src/cmd/go/internal/generate/generate_test.go  | 17 +++++++++++------
+ src/cmd/go/internal/vcs/vcs.go                 | 16 +++++++++++++---
+ src/cmd/go/internal/work/buildid.go            |  4 +---
+ src/cmd/go/internal/work/exec.go               |  9 ++++++---
+ src/cmd/go/testdata/script/mod_list_direct.txt |  2 +-
+ 6 files changed, 42 insertions(+), 18 deletions(-)

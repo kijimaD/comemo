@@ -1,0 +1,20 @@
+commit 21d0b306afc204d9b523a89914b6440dcc6d73cc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Aug 27 22:53:48 2021 -0700
+
+    cmd/compile/internal/types: remove unused Tie method
+    
+    Once upon a time, this was used by package walk to compute the
+    "conv[TIE]2[TIE]" function names, etc.; but it seems like those
+    callers have all changed to directly specializing on IsInterface and
+    IsEmptyInterface instead.
+    
+    Change-Id: I629cdf076a09e7255ae293b8f879db0cdcf4de5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345793
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types/type.go | 13 -------------
+ 1 file changed, 13 deletions(-)

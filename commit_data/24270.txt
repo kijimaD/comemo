@@ -1,0 +1,14 @@
+commit 19d262ffdf94c986c47d15424da8d07326f0641c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 14 20:58:21 2015 -0700
+
+    net: remove named parameters in Listener.Accept doc signature
+    
+    They added no value.
+    
+    Change-Id: I9e690379d2dfd983266de0ea5231f2b57c8b1517
+    Reviewed-on: https://go-review.googlesource.com/14568
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

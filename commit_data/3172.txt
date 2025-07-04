@@ -1,0 +1,23 @@
+commit 155fe7925b9decba60581669420622d9f8024feb
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Tue Sep 1 13:01:37 2009 -0700
+
+    Add stack frame support.  Architectures are now responsible
+    for decoding closures.  There is now no notion of a current OS
+    thread, though that needs to come back in the form of a
+    current Go thread.  As a result, Process now implements Peek
+    and Poke and maps them to any stopped OS thread, since they
+    all share the address space anyways.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=322  (310 added, 3 deleted, 9 changed)
+    OCL=34136
+    CL=34201
+
+ usr/austin/ogle/arch.go     |  21 +++++
+ usr/austin/ogle/frame.go    | 201 ++++++++++++++++++++++++++++++++++++++++++++
+ usr/austin/ogle/process.go  |  74 ++++++++++++++--
+ usr/austin/ogle/rruntime.go |  29 ++++++-
+ usr/austin/ogle/rvalue.go   |   6 +-
+ 5 files changed, 321 insertions(+), 10 deletions(-)

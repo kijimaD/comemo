@@ -1,0 +1,23 @@
+commit 5bf1853e595eb35c635046f4316930b3baa1e70e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed May 6 07:11:39 2015 +1000
+
+    cmd/go: don't fetch from insecure repositories without -insecure
+    
+    Fixes #9637
+    Fixes #10120
+    
+    Change-Id: I3728239089efb94d04cd4115c9f840afd7badeaf
+    Reviewed-on: https://go-review.googlesource.com/9715
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/alldocs.go           |  5 ++-
+ src/cmd/go/bootstrap.go         |  2 +-
+ src/cmd/go/get.go               | 41 +++++++++++++++++-------
+ src/cmd/go/go_test.go           | 69 +++++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/http.go              | 16 ++++++++--
+ src/cmd/go/testdata/failssh/ssh |  2 ++
+ src/cmd/go/vcs.go               | 67 +++++++++++++++++++++++++++++++--------
+ src/cmd/go/vcs_test.go          |  2 +-
+ 8 files changed, 173 insertions(+), 31 deletions(-)

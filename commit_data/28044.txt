@@ -1,0 +1,22 @@
+commit 5f94ff4c8702e05bdee32b4a5dc6f8c736adab38
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Aug 24 20:27:38 2016 +1000
+
+    cmd/link/internal/ld: move ld.Cpos to coutbuf.Offset
+    
+    This change moves the ld.Cpos function to a method on coutbuf. This is
+    part of a larger change that makes ld.outbuf look more like a bio.Buf in
+    an effort to eventually replace the former with the latter.
+    
+    Change-Id: I506f7131935a2aa903fa302a0fab0c5be50220fd
+    Reviewed-on: https://go-review.googlesource.com/27578
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/link/internal/ld/data.go  |  6 +++---
+ src/cmd/link/internal/ld/elf.go   |  6 +++---
+ src/cmd/link/internal/ld/lib.go   |  8 ++++----
+ src/cmd/link/internal/ld/macho.go | 10 +++++-----
+ src/cmd/link/internal/ld/pe.go    | 39 +++++++++++++++++++--------------------
+ 5 files changed, 34 insertions(+), 35 deletions(-)

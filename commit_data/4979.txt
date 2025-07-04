@@ -1,0 +1,12 @@
+commit 90367756bb09abdf268ec120c4912a1ddfe576b1
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 3 12:35:16 2010 -0800
+
+    encoding/binary: fix error reporting bug
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/224096
+
+ src/pkg/encoding/binary/binary.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,36 @@
+commit fdf9b3c994d832fab925ec1a5acc967289b88c72
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 6 12:17:46 2016 -0500
+
+    runtime: increase assumed stack size in externalthreadhandler
+    
+    On Windows, externalthreadhandler currently sets the assumed stack
+    size for the profiler thread and the ctrlhandler threads to 8KB. The
+    actual stack size is determined by the SizeOfStackReserve field in the
+    binary set by the linker, which is currently at least 64KB (and
+    typically 128KB).
+    
+    It turns out the profiler thread is running within a few words of the
+    8KB-(stack guard) bound set by externalthreadhandler. If it overflows
+    this bound, morestack crashes unceremoniously with an access
+    violation, which we then fail to handle, causing the whole process to
+    exit without explanation.
+    
+    To avoid this problem and give us some breathing room, increase the
+    assumed stack size in externalthreadhandler to 32KB (there's some
+    unknown amount of stack already in use, so it's not safe to increase
+    this all the way to the reserve size).
+    
+    We also document the relationships between externalthreadhandler and
+    SizeOfStackReserve to make this more obvious in the future.
+    
+    Change-Id: I2f9f9c0892076d78e09827022ff0f2bedd9680a9
+    Reviewed-on: https://go-review.googlesource.com/18304
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/link/internal/ld/pe.go  | 15 ++++++++++-----
+ src/runtime/sys_windows_386.s   |  3 ++-
+ src/runtime/sys_windows_amd64.s |  2 +-
+ 3 files changed, 13 insertions(+), 7 deletions(-)

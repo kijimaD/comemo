@@ -1,0 +1,16 @@
+commit 913d290402dfacabd2ec2b4d9ff7faef218eb02c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 28 14:50:53 2019 -0700
+
+    cmd/compile: sort OAS2* declarations
+    
+    Change-Id: Idd3acf5f808705c608cd4e5877bc93e1626d9a58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179238
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/class_string.go | 14 ++++++++++++++
+ src/cmd/compile/internal/gc/op_string.go    | 10 +++++-----
+ src/cmd/compile/internal/gc/syntax.go       |  4 ++--
+ 3 files changed, 21 insertions(+), 7 deletions(-)

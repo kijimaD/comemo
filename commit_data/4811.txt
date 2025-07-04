@@ -1,0 +1,12 @@
+commit abe6a5b0f7012bab63da5a57c2f29fa3cfb42997
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sun Feb 7 23:11:54 2010 -0800
+
+    testing: Fix comment typo
+    
+    R=iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/204068
+
+ src/pkg/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

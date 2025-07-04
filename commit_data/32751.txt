@@ -1,0 +1,16 @@
+commit 8bdf0b72b0b53c877525a608fed6a7b01fd4fd17
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 18 15:20:31 2017 +0200
+
+    cmd/compile: simplify range expression
+    
+    Found by running gofmt -s on the file in question.
+    
+    Change-Id: I84511bd2bc75dff196930a7a87ecf5a2aca2fbb8
+    Reviewed-on: https://go-review.googlesource.com/64310
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

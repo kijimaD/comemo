@@ -1,0 +1,49 @@
+commit 5c84441d888655ebcc57c2ba2db834f97fa6d102
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 14 17:35:36 2016 -0700
+
+    go/types: fix computation of initialization order
+    
+    The old algorithm operated on a dependency graph that included
+    all objects (including functions) for simplicity: it was based
+    directly on the dependencies collected for each object during
+    type checking an object's initialization expression. It also
+    used that graph to compute the objects involved in an erroneous
+    initialization cycle.
+    
+    Cycles that consist only of (mutually recursive) functions are
+    permitted in initialization code; so those cycles were silently
+    ignored if encountered. However, such cycles still inflated the
+    number of dependencies a variable might have (due to the cycle),
+    which in some cases lead to the wrong variable being scheduled
+    for initialization before the one with the inflated dependency
+    count.
+    
+    Correcting for the cycle when it is found is too late since at
+    that point another variable may have already been scheduled.
+    
+    The new algorithm computes the initialization dependency graph as
+    before but adds an extra pass during which functions are eliminated
+    from the graph (and their dependencies are "back-propagated").
+    This eliminates the problem of cycles only involving functions
+    (there are no functions).
+    
+    When a cycle is found, the new code computes the cycle path from
+    the original object dependencies so it can still include functions
+    on the path as before, for the same detailed error message.
+    
+    The new code also more clearly distinguishes between objects that
+    can be in the dependency graph (constants, variables, functions),
+    and objects that cannot, by introducing the dependency type, a new
+    subtype of Object. As a consequence, the dependency graph is smaller.
+    
+    Fixes #10709.
+    
+    Change-Id: Ib58d6ea65cfb279041a0286a2c8e865f11d244eb
+    Reviewed-on: https://go-review.googlesource.com/24131
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/api_test.go  |  57 ++++++++----
+ src/go/types/initorder.go | 230 ++++++++++++++++++++++++++++------------------
+ src/go/types/object.go    |   6 ++
+ 3 files changed, 185 insertions(+), 108 deletions(-)

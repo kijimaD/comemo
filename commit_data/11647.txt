@@ -1,0 +1,18 @@
+commit facee93a8627881ae39abda13cba115274fe20cf
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 6 11:24:34 2012 -0500
+
+    runtime: fix float64 hash on 32-bit machine
+    
+    Multiplying by the low 32 bits was a bad idea
+    no matter what, but it was a particularly unfortunate
+    choice because those bits are 0 for small integer values.
+    
+    Fixes #2883.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/5634047
+
+ src/pkg/runtime/alg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

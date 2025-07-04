@@ -1,0 +1,12 @@
+commit 89fd4dd766780214ebe7b3074da0c58d2565281d
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 22 09:25:56 2012 +1100
+
+    godoc: support flat directory view again
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5690058
+
+ lib/godoc/package.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

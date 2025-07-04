@@ -1,0 +1,13 @@
+commit d08f0067b5e5cfb4dbb437b6f4197d2bf4c8b7ca
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 11 13:30:35 2009 -0700
+
+    commentary about extern register
+    
+    R=rsc
+    DELTA=16  (12 added, 0 deleted, 4 changed)
+    OCL=33030
+    CL=33035
+
+ src/pkg/runtime/runtime.h | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)

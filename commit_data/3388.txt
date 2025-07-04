@@ -1,0 +1,13 @@
+commit dd64f86e0874804d0ec5b7138dafc28b51f61c12
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 28 16:40:34 2009 -0700
+
+    another bite-sized checkpoint on the language design FAQ
+    
+    R=rsc,iant
+    DELTA=87  (54 added, 2 deleted, 31 changed)
+    OCL=35058
+    CL=35061
+
+ doc/go_lang_faq.html | 112 +++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 82 insertions(+), 30 deletions(-)

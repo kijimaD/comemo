@@ -1,0 +1,12 @@
+commit e2ca3e6c0fddeca2135cd35e2a7c9de917054cbe
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 16 12:24:51 2015 -0700
+
+    cmd/internal/gc: remove dead code
+    
+    Change-Id: Id5ce859bd4b6318dc9104f7377ae23d7f0bc30cd
+    Reviewed-on: https://go-review.googlesource.com/7640
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/internal/gc/array.go | 9 ---------
+ 1 file changed, 9 deletions(-)

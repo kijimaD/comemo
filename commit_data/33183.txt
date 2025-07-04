@@ -1,0 +1,50 @@
+commit 23aad448b1e3f7c3b4ba2af90120bde91ac865b4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 19 16:01:43 2017 -0700
+
+    runtime: for kqueue treat EVFILT_READ with EV_EOF as permitting a write
+    
+    On systems that use kqueue, we always register descriptors for both
+    EVFILT_READ and EVFILT_WRITE. On at least FreeBSD and OpenBSD, when
+    the write end of a pipe is registered for EVFILT_READ and EVFILT_WRITE
+    events, and the read end of the pipe is closed, kqueue reports an
+    EVFILT_READ event with EV_EOF set, but does not report an EVFILT_WRITE
+    event. Since the write to the pipe is waiting for an EVFILT_WRITE
+    event, closing the read end of a pipe can cause the write end to hang
+    rather than attempt another write which will fail with EPIPE.
+    
+    Fix this by treating EVFILT_READ with EV_EOF set as making both reads
+    and writes ready to proceed.
+    
+    The real test for this is in CL 71770, which tests using various
+    timeouts with pipes.
+    
+    Updates #22114
+    
+    Change-Id: Ib23fbaaddbccd8eee77bdf18f27a7f0aa50e2742
+    Reviewed-on: https://go-review.googlesource.com/71973
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/internal/poll/fd_unix.go        |  9 +++++
+ src/net/write_unix_test.go          | 66 +++++++++++++++++++++++++++++++++++++
+ src/runtime/defs1_netbsd_386.go     |  1 +
+ src/runtime/defs1_netbsd_amd64.go   |  1 +
+ src/runtime/defs1_netbsd_arm.go     |  1 +
+ src/runtime/defs_darwin.go          |  1 +
+ src/runtime/defs_darwin_386.go      |  1 +
+ src/runtime/defs_darwin_amd64.go    |  1 +
+ src/runtime/defs_darwin_arm.go      |  1 +
+ src/runtime/defs_darwin_arm64.go    |  1 +
+ src/runtime/defs_dragonfly.go       |  1 +
+ src/runtime/defs_dragonfly_amd64.go |  1 +
+ src/runtime/defs_freebsd.go         |  1 +
+ src/runtime/defs_freebsd_386.go     |  1 +
+ src/runtime/defs_freebsd_amd64.go   |  1 +
+ src/runtime/defs_freebsd_arm.go     |  1 +
+ src/runtime/defs_netbsd.go          |  1 +
+ src/runtime/defs_openbsd.go         |  1 +
+ src/runtime/defs_openbsd_386.go     |  1 +
+ src/runtime/defs_openbsd_amd64.go   |  1 +
+ src/runtime/defs_openbsd_arm.go     |  1 +
+ src/runtime/netpoll_kqueue.go       | 19 +++++++++--
+ 22 files changed, 110 insertions(+), 3 deletions(-)

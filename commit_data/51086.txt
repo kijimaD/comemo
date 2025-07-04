@@ -1,0 +1,21 @@
+commit 3e3a8fe5bed87845e7c93da50378403564ad9e69
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Nov 3 15:30:42 2022 +0100
+
+    cmd/go/internal/script: Cmp() should not perform environment substitutions
+    
+    This is an oversight from https://go-review.googlesource.com/c/go/+/419875,
+    where script commands were refactored and factored out to a new package.
+    
+    For #27494.
+    
+    Change-Id: Ie606cab39f60859ee1da5165dcc94c8470c94325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447575
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/script/cmds.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

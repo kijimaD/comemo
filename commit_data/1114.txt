@@ -1,0 +1,14 @@
+commit 419e1e05a1ad418c4f5526dee993e300f7551f46
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 12 19:05:05 2008 -0800
+
+    add some support for modifying what pointers point to
+    
+    R=rsc
+    DELTA=27  (16 added, 11 deleted, 0 changed)
+    OCL=19130
+    CL=19132
+
+ src/lib/reflect/test.go  | 22 +++++++++++-----------
+ src/lib/reflect/value.go |  5 +++++
+ 2 files changed, 16 insertions(+), 11 deletions(-)

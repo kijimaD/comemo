@@ -1,0 +1,27 @@
+commit 177dfba1120d2d5976bb5fb5a68bf20bb6ca9ada
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Feb 18 11:14:35 2017 -0800
+
+    math/bits: faster OnesCount
+    
+    Using some additional suggestions per "Hacker's Delight".
+    Added documentation and extra tests.
+    
+    Measured on 1.7 GHz Intel Core i7, running macOS 10.12.3.
+    
+    benchmark                  old ns/op     new ns/op     delta
+    BenchmarkOnesCount-4       7.34          5.38          -26.70%
+    BenchmarkOnesCount8-4      2.03          1.98          -2.46%
+    BenchmarkOnesCount16-4     2.56          2.50          -2.34%
+    BenchmarkOnesCount32-4     2.98          2.39          -19.80%
+    BenchmarkOnesCount64-4     4.22          2.96          -29.86%
+    
+    Change-Id: I566b0ef766e55cf5776b1662b6016024ebe5d878
+    Reviewed-on: https://go-review.googlesource.com/37223
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/bits/bits.go      | 44 ++++++++++++++++++------
+ src/math/bits/bits_test.go | 85 ++++++++++++++++++++++++++--------------------
+ 2 files changed, 82 insertions(+), 47 deletions(-)

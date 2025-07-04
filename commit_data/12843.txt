@@ -1,0 +1,13 @@
+commit 9903d6870f75f7c174ceb1bb8ea67e303920c8e5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Apr 5 21:02:20 2012 +0400
+
+    runtime: minor refactoring in preparation for parallel GC
+    factor sweepspan() out of sweep(), no logical changes
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5991047
+
+ src/pkg/runtime/mgc0.c | 130 ++++++++++++++++++++++++++-----------------------
+ 1 file changed, 69 insertions(+), 61 deletions(-)

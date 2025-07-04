@@ -1,0 +1,14 @@
+commit 158f19b259da623c1afcfaa1812a71601aa2d2a8
+Author: Richard Miller <miller.research@gmail.com>
+Date:   Wed Jan 27 11:27:50 2016 +0000
+
+    cmd/go: recognise plan9_arm object files
+    
+    Add magic word for Plan 9 ARM object header to objectMagic table.
+    
+    Change-Id: I21eb8845a2ee2e8cdddc0849eedf43481aee9cde
+    Reviewed-on: https://go-review.googlesource.com/18963
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/build.go | 1 +
+ 1 file changed, 1 insertion(+)

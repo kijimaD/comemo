@@ -1,0 +1,20 @@
+commit fb5279cc45703d24a37279e6c0d9e0e7fd7228c5
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Mon Jun 4 15:03:05 2018 +0000
+
+    net/http: fix build errors on js/wasm target
+    
+    The in-progress WASM port does not yet have sufficient automatic
+    testing performed against it, so these errors slipped through when
+    adding the new Fetch API backed http.Roundtripper.
+    
+    Updates #25506
+    
+    Change-Id: I84c5832452e3e6067a02d926f67d01aaca66b837
+    GitHub-Last-Rev: 064062b5fd256e7fce961a13a8ac00a135f60221
+    GitHub-Pull-Request: golang/go#25714
+    Reviewed-on: https://go-review.googlesource.com/116076
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/roundtrip_js.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

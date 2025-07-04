@@ -1,0 +1,14 @@
+commit b923b01665d28cdc16e00d3936da56a7d2cdc843
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 26 16:05:30 2009 -0700
+
+    EncodeRuneToString
+    
+    R=rsc
+    DELTA=22  (22 added, 0 deleted, 0 changed)
+    OCL=26779
+    CL=26792
+
+ src/lib/utf8.go      | 11 +++++++++++
+ src/lib/utf8_test.go | 11 +++++++++++
+ 2 files changed, 22 insertions(+)

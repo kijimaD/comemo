@@ -1,0 +1,22 @@
+commit 608f204ac79455bee144d6fa93162991bdb46b61
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Wed Apr 19 14:42:30 2023 -0400
+
+    runtime: turn frame pointer unwinding for tracing off by default
+    
+    Frame pointer unwinding during execution tracing sometimes crashes.
+    Until this is diagnosed and fixed, it should be turned off by default.
+    
+    Updates #59692
+    
+    Change-Id: I0f2ca24b6d48435b0acfd3da8e4f25b9cfa4ec19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486382
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Nick Ripley <nick.ripley@datadoghq.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/runtime/runtime1.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,44 @@
+commit 0157c72d133471631c13419f61117b75dcd7c255
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue Aug 7 23:45:50 2012 +0800
+
+    runtime: inline several float64 routines to speed up complex128 division
+    Depends on CL 6197045.
+    
+    Result obtained on Core i7 620M, Darwin/amd64:
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkComplex128DivNormal           57           28  -50.78%
+    BenchmarkComplex128DivNisNaN           49           15  -68.90%
+    BenchmarkComplex128DivDisNaN           49           15  -67.88%
+    BenchmarkComplex128DivNisInf           40           12  -68.50%
+    BenchmarkComplex128DivDisInf           33           13  -61.06%
+    
+    Result obtained on Core i7 620M, Darwin/386:
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkComplex128DivNormal           89           50  -44.05%
+    BenchmarkComplex128DivNisNaN          307          802  +161.24%
+    BenchmarkComplex128DivDisNaN          309          788  +155.02%
+    BenchmarkComplex128DivNisInf          278          237  -14.75%
+    BenchmarkComplex128DivDisInf           46           22  -52.46%
+    
+    Result obtained on 700MHz OMAP4460, Linux/ARM:
+    benchmark                       old ns/op    new ns/op    delta
+    BenchmarkComplex128DivNormal         1557          465  -70.13%
+    BenchmarkComplex128DivNisNaN         1443          220  -84.75%
+    BenchmarkComplex128DivDisNaN         1481          218  -85.28%
+    BenchmarkComplex128DivNisInf          952          216  -77.31%
+    BenchmarkComplex128DivDisInf          861          231  -73.17%
+    
+    The 386 version has a performance regression, but as we have
+    decided to use SSE2 instead of x87 FPU for 386 too (issue 3912),
+    I won't address this issue.
+    
+    R=dsymonds, mchaten, iant, dave, mtj, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6024045
+
+ src/pkg/runtime/complex.c |  30 ++++----
+ src/pkg/runtime/float.c   | 171 ++--------------------------------------------
+ src/pkg/runtime/print.c   |   6 +-
+ src/pkg/runtime/runtime.h |   9 +++
+ 4 files changed, 32 insertions(+), 184 deletions(-)

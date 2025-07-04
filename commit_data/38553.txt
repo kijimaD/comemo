@@ -1,0 +1,18 @@
+commit cd5309355e25dda4a33bcf5c931aae5a15f9de94
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Mon Mar 25 00:31:41 2019 +0100
+
+    syscall/js: improve type checks of js.Value's methods
+    
+    Add more explicit checks if the given js.Value is of the correct type
+    instead of erroring on the JavaScript layer.
+    
+    Change-Id: I30b18a76820fb68f6ac279bb88a57456f5bab467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168886
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/js/js.go      | 42 ++++++++++++++++++++++++++++-----
+ src/syscall/js/js_test.go | 59 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 95 insertions(+), 6 deletions(-)

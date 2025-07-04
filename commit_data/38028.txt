@@ -1,0 +1,36 @@
+commit dd4e7f9722ab22d9da2dca03c559eca3ef3fe1c7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 22 10:50:47 2019 -0500
+
+    misc/cgo/testso{,var}: fix tests in module mode
+    
+    Add _test.go files in the individal directories to invoke 'go build'
+    with appropriate arguments.
+    
+    Move the test driver out of cmd/dist so that it's easier to invoke the
+    test separately (using 'go test .').
+    
+    Updates #30228
+    Updates #28387
+    
+    Change-Id: Ibc4a024a52c12a274058298b41cc90709f7f56c8
+    Reviewed-on: https://go-review.googlesource.com/c/163420
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testso/noso_test.go                 |   9 ++
+ misc/cgo/testso/overlaydir_test.go           |  81 +++++++++++++++++
+ misc/cgo/testso/so_test.go                   | 126 +++++++++++++++++++++++++++
+ misc/cgo/testso/{ => testdata}/cgoso.c       |   0
+ misc/cgo/testso/{ => testdata}/cgoso.go      |   0
+ misc/cgo/testso/{ => testdata}/cgoso_c.c     |   0
+ misc/cgo/testso/{ => testdata}/cgoso_unix.go |   0
+ misc/cgo/testso/{ => testdata}/main.go       |   2 +-
+ misc/cgo/testsovar/noso_test.go              |   9 ++
+ misc/cgo/testsovar/overlaydir_test.go        |  81 +++++++++++++++++
+ misc/cgo/testsovar/so_test.go                | 126 +++++++++++++++++++++++++++
+ misc/cgo/testsovar/{ => testdata}/cgoso.go   |   0
+ misc/cgo/testsovar/{ => testdata}/cgoso_c.c  |   0
+ misc/cgo/testsovar/{ => testdata}/cgoso_c.h  |   0
+ misc/cgo/testsovar/{ => testdata}/main.go    |   2 +-
+ src/cmd/dist/test.go                         |  98 +--------------------
+ 16 files changed, 436 insertions(+), 98 deletions(-)

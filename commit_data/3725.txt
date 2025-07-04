@@ -1,0 +1,15 @@
+commit 74a52ee75fdae1013fb5e3dbd0c54bdd08d6c49c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 2 13:17:12 2009 -0800
+
+    Set LANG to control sorting.  This affects the order in which
+    tests are processed, and thus the run.out output.  The default
+    LANG on Fedora 10, en_US.utf8, causes the tests to be sorted
+    differently--e.g., arrayindex1.go and arrayindex.go are sorted
+    in the opposite order.
+    
+    R=r, rsc
+    http://go/go-review/1018022
+
+ test/run | 1 +
+ 1 file changed, 1 insertion(+)

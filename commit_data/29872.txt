@@ -1,0 +1,14 @@
+commit d51046b37ce382bbca0de7277721567e1ee0146a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 21 20:48:09 2016 +0000
+
+    doc: fix install.html unclosed bold tag, link to /help/
+    
+    Fixes #18406
+    
+    Change-Id: Ifd7342fa8de1d2cac47b9279c1f14ac127ac193c
+    Reviewed-on: https://go-review.googlesource.com/34666
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ doc/install.html | 16 +++++-----------
+ 1 file changed, 5 insertions(+), 11 deletions(-)

@@ -1,0 +1,16 @@
+commit b0c586a8211d8d8804a6052a3646b0f2cc724f19
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Jun 24 20:37:28 2014 -0700
+
+    index/suffixarray: reduce size of a benchmark
+    A single iteration of BenchmarkSaveRestore runs for 5 seconds
+    on my freebsd machine. 5 seconds looks like too long for a single
+    iteration.
+    This is the only benchmark that times out on freebsd-amd64-race builder.
+    
+    R=golang-codereviews, dave
+    CC=golang-codereviews
+    https://golang.org/cl/107340044
+
+ src/pkg/index/suffixarray/suffixarray_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

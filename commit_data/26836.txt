@@ -1,0 +1,14 @@
+commit 00681eec6aec03b8b2822c9220fba27c18923c01
+Author: Dan Peterson <dpiddy@gmail.com>
+Date:   Mon Apr 11 11:15:00 2016 -0300
+
+    net/http: document Error does not end the request
+    
+    Fixes #15205
+    
+    Change-Id: Ia650806756758ca8ed2272b1696e59b809b16c61
+    Reviewed-on: https://go-review.googlesource.com/21836
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/server.go | 2 ++
+ 1 file changed, 2 insertions(+)

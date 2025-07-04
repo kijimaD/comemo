@@ -1,0 +1,15 @@
+commit 2940dd4bf416322011182a7f8d8d5706932db61f
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Mon Mar 17 11:58:02 2014 -0700
+
+    misc/bash/go: Add a completion rule for "go env".
+    
+    "env" is a valid go command. This patch is to make bash to autocomplete it.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/74660045
+
+ misc/bash/go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

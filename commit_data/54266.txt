@@ -1,0 +1,25 @@
+commit 0e02baa59af2e8e3e26702bd8ebe72ae5a0e39c7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 29 22:43:02 2023 +0000
+
+    Revert "cmd/compile: use shorter ANDL/TESTL if upper 32 bits are known to be zero"
+    
+    This reverts commit c1dfbf72e1298df8495171810a553836e5027f98.
+    
+    Reason for revert: TESTL rule is wrong when the result is used for an ordered comparison.
+    
+    Fixes #62360
+    
+    Change-Id: I4d5b6aca24389b0a2bf767bfbc0a9d085359eb38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524255
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Jakub Ciolek <jakub@ciolek.dev>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |  4 ----
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 32 ---------------------------
+ test/fixedbugs/issue62360.go                  | 24 ++++++++++++++++++++
+ 3 files changed, 24 insertions(+), 36 deletions(-)

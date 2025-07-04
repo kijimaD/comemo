@@ -1,0 +1,20 @@
+commit 786899a72afe02836c003c1414ca279090e7d637
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Mar 21 19:42:24 2018 +0100
+
+    runtime: adjust GOARM floating point compatibility error message
+    
+    As pointed out by Josh Bleecher Snyder in CL 99780.
+    
+    The check is for GOARM > 6, so suggest to recompile with either GOARM=5
+    or GOARM=6.
+    
+    Change-Id: I6a97e87bdc17aa3932f5c8cb598bba85c3cf4be9
+    Reviewed-on: https://go-review.googlesource.com/101936
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/runtime/os_freebsd_arm.go | 2 +-
+ src/runtime/os_linux_arm.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

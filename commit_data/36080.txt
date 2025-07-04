@@ -1,0 +1,28 @@
+commit 764d0bb0314c327a5149160ca77de9873dafb0fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 18 15:05:17 2018 -0400
+
+    cmd/go: diagnose 'go mod' in GOPATH/src better
+    
+    People are (understandably) confused by creating go.mod files in GOPATH/src
+    and then having the go command not use modules in those directories.
+    We can't change that behavior (or we'll break non-module users of GOPATH)
+    but we can force 'go mod' (including 'go mod -init') to fail loudly in that case.
+    
+    If this is not enough, the next step would be to print a warning every time
+    the go command is run in a GOPATH/src directory with a go.mod but
+    module mode hasn't triggered. But that will annoy all the non-module users.
+    Hopefully anyone confused will eventually run a 'go mod' command of
+    some kind, which will fail loudly.
+    
+    Fixes #26365.
+    
+    Change-Id: I8c5fe987fbc3f8d2eceb1138e6862a391ade150c
+    Reviewed-on: https://go-review.googlesource.com/124708
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/mod.go       |  2 +-
+ src/cmd/go/internal/modload/init.go     | 55 +++++++++++--------------
+ src/cmd/go/internal/search/search.go    | 71 +++++++++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_find.txt | 10 +++--
+ 4 files changed, 102 insertions(+), 36 deletions(-)

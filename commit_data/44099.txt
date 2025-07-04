@@ -1,0 +1,25 @@
+commit a9ccd2d79574eead8c20d2bca4562cf2fd412787
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Sat Dec 26 10:13:57 2020 +0800
+
+    go/build: skip string literal while findEmbed
+    
+    The findEmbed function looking for comment by readbyte,
+    however it might have constant or variables that contains
+    comment.
+    Maybe we should use ast parser in the future.
+    
+    Fixes #43373
+    
+    Change-Id: I92544384fc4c11363d8b2f6b9898c8dea1602767
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/280332
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/go/build/read.go      | 35 +++++++++++++++++++++++++++++++++++
+ src/go/build/read_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 55 insertions(+)

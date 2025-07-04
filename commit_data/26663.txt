@@ -1,0 +1,17 @@
+commit 59fc42b230671d083feb68925d9cadc1da1d2616
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 1 15:06:25 2016 -0700
+
+    runtime: allocate mp.cgocallers earlier
+    
+    Fixes #15061.
+    
+    Change-Id: I71f69f398d1c5f3a884bbd044786f1a5600d0fae
+    Reviewed-on: https://go-review.googlesource.com/21398
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgocall.go | 5 -----
+ src/runtime/proc.go    | 5 +++++
+ 2 files changed, 5 insertions(+), 5 deletions(-)

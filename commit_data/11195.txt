@@ -1,0 +1,12 @@
+commit a5aa4d3307ccc557127d333b7b084b52d5097979
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Jan 17 10:59:39 2012 +0900
+
+    net: fix unintentional error variable shadowing
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5543065
+
+ src/pkg/net/sock.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

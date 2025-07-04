@@ -1,0 +1,21 @@
+commit d0ed8d6ea161f89880e057fe54fa4825df4097b9
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri May 4 10:10:59 2018 +0700
+
+    cmd/vet: %T is a formatting directive too
+    
+    Some warnings were being missed, because vet's regex that finds
+    formatting directives was missing the 'T' verb.
+    
+    Fixes #24646.
+    
+    Change-Id: I2f6f9ed19e7daf9a07175199f428a62e94799ea9
+    Reviewed-on: https://go-review.googlesource.com/111357
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/print.go          | 2 +-
+ src/cmd/vet/testdata/print.go | 1 +
+ 2 files changed, 2 insertions(+), 1 deletion(-)

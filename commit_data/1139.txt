@@ -1,0 +1,12 @@
+commit f333f4685cc667dda0be6ecd5500ff8fa10f4a2a
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 17 12:33:49 2008 -0800
+
+    floating point constant errors in 6g
+    
+    R=r
+    OCL=19379
+    CL=19379
+
+ test/bugs/bug120.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)

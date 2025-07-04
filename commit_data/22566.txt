@@ -1,0 +1,16 @@
+commit 485f3489791cf3bd79c870e8066a4f541e397841
+Author: Michael Matloob <matloob@google.com>
+Date:   Mon Apr 6 13:33:47 2015 -0700
+
+    regexp: set b.cap[0] and b.cap[1] only when captures requested
+    
+    Fixes #10319
+    
+    Change-Id: I96015b0e1dff30a72de11fea3837638b5c672891
+    Reviewed-on: https://go-review.googlesource.com/8501
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/regexp/all_test.go  | 11 +++++++++++
+ src/regexp/backtrack.go | 32 +++++++++++++++++++-------------
+ 2 files changed, 30 insertions(+), 13 deletions(-)

@@ -1,0 +1,22 @@
+commit 20c50cf0f824141a998280c8e0ad6949a35e3a86
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 20 17:03:25 2010 -0700
+
+    runtime: rename cgo2c, *.cgo to goc2c, *.goc
+    to avoid confusion with real cgo
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/904046
+
+ src/pkg/runtime/Makefile                           | 8 ++++----
+ src/pkg/runtime/{cgo2c.c => goc2c.c}               | 0
+ src/pkg/runtime/{malloc.cgo => malloc.goc}         | 0
+ src/pkg/runtime/mingw/{syscall.cgo => syscall.goc} | 0
+ src/pkg/runtime/{mprof.cgo => mprof.goc}           | 0
+ src/pkg/runtime/{reflect.cgo => reflect.goc}       | 0
+ src/pkg/runtime/{runtime1.cgo => runtime1.goc}     | 0
+ src/pkg/runtime/{sema.cgo => sema.goc}             | 0
+ src/pkg/runtime/{sigqueue.cgo => sigqueue.goc}     | 0
+ src/pkg/runtime/{string.cgo => string.goc}         | 0
+ 10 files changed, 4 insertions(+), 4 deletions(-)

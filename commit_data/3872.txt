@@ -1,0 +1,12 @@
+commit b2d3701ccecd3d63b46faa1e0cca6d88ea73a854
+Author: Rob Pike <r@golang.org>
+Date:   Fri Nov 6 17:31:23 2009 -0800
+
+    8g has an optimizer; update its description
+    
+    R=rsc
+    CC=go-dev
+    http://go/go-review/1025010
+
+ doc/install.html | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

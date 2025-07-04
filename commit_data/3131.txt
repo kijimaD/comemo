@@ -1,0 +1,13 @@
+commit e667e8a4f73614cadf1562051f8196775487e4d7
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Aug 28 15:44:24 2009 -0700
+
+    arraytoslice and some cleanup
+    
+    R=rsc
+    OCL=34058
+    CL=34058
+
+ src/cmd/6g/ggen.c      | 168 +++++++++++++++++++++++++++++--------------------
+ test/ken/slicearray.go |   7 ++-
+ 2 files changed, 107 insertions(+), 68 deletions(-)

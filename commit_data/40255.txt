@@ -1,0 +1,27 @@
+commit 6adaf17eaaa7f2a8ec59a01f5b7280db210b3e75
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 9 18:06:06 2019 -0400
+
+    cmd/compile: preserve statements in late nilcheckelim optimization
+    
+    When a subsequent load/store of a ptr makes the nil check of that pointer
+    unnecessary, if their lines differ, change the line of the load/store
+    to that of the nilcheck, and attempt to rehome the load/store position
+    instead.
+    
+    This fix makes profiling less accurate in order to make panics more
+    informative.
+    
+    Fixes #33724
+    
+    Change-Id: Ib9afaac12fe0d0320aea1bf493617facc34034b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200197
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/nilcheck.go    | 22 ++++++++++----
+ src/cmd/compile/internal/ssa/numberlines.go |  2 +-
+ test/codegen/memcombine.go                  |  4 +--
+ test/fixedbugs/issue33724.go                | 45 +++++++++++++++++++++++++++++
+ 4 files changed, 65 insertions(+), 8 deletions(-)

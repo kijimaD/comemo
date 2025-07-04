@@ -1,0 +1,25 @@
+commit 95add73abf50dedec79b58ce4c58664eccfcca4d
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Mar 25 01:27:34 2016 +0100
+
+    misc/cgo/testcarchive: fix build
+    
+    I failed to rebase (and re-test) CL 21102 before submit, which meant
+    that two extra tests sneaked into testcarchive that still referenced
+    runtime.GOOS and runtime.GOARCH.
+    
+    Convert the new tests.
+    
+    While we're here, make sure pending tasks are flushed before running
+    the host tests. If not, the "##### misc/cgo/testcarchive" banner
+    and "PASS" won't show up in the all.bash output.
+    
+    Change-Id: I41fc4ec9515f9a193fa052f7c31fac452153c897
+    Reviewed-on: https://go-review.googlesource.com/21106
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go | 12 ++++++------
+ src/cmd/dist/test.go                   |  1 +
+ 2 files changed, 7 insertions(+), 6 deletions(-)

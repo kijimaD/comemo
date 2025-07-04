@@ -1,0 +1,20 @@
+commit 8d2169104467a14dea5705beb8ea351c68c5595d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Dec 19 09:15:04 2016 -0800
+
+    cmd/compile: test for correct zeroing
+    
+    Make sure we generate the right code for zeroing a structure.
+    
+    Check in after Matthew's CL (34564).
+    
+    Update #18370
+    
+    Change-Id: I987087f979d99227a880b34c44d9d4de6c25ba0c
+    Reviewed-on: https://go-review.googlesource.com/34565
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/asm_test.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)

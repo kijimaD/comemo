@@ -1,0 +1,16 @@
+commit 8919fe9e4d00aec34cfb8e3a0e5c7f629c9e1fc5
+Author: Eduard Urbach <e.urbach@gmail.com>
+Date:   Tue Apr 24 14:28:19 2018 +0000
+
+    net/http: explain more how Pusher.Push works
+    
+    This will clarify that the resources are not completely pushed yet when `Push` returns and that it starts a separate goroutine. This might be implementation dependant but as I believe there is currently only one implementation it should be added to the documentation of the interface which most people will look up first.
+    
+    Change-Id: Id151c5563fd0c4e611eb1d93b4f64bf747ddf6d4
+    GitHub-Last-Rev: 1f46eb9a081f4529abc04026589ffd463be579b3
+    GitHub-Pull-Request: golang/go#25025
+    Reviewed-on: https://go-review.googlesource.com/c/108939
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/http.go | 4 ++++
+ 1 file changed, 4 insertions(+)

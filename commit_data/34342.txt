@@ -1,0 +1,35 @@
+commit 9697a119e6af9fd08080e7765d8ba75d715117a6
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Feb 23 15:08:11 2018 -0800
+
+    archive/zip: fix handling of Info-ZIP Unix extended timestamps
+    
+    The Info-ZIP Unix1 extra field is specified as such:
+    >>>
+    Value    Size   Description
+    -----    ----   -----------
+    0x5855   Short  tag for this extra block type ("UX")
+    TSize    Short  total data size for this block
+    AcTime   Long   time of last access (GMT/UTC)
+    ModTime  Long   time of last modification (GMT/UTC)
+    <<<
+    
+    The previous handling was incorrect in that it read the AcTime field
+    instead of the ModTime field.
+    
+    The test-osx.zip test unfortunately locked in the wrong behavior.
+    Manually parsing that ZIP file shows that the encoded MS-DOS
+    date and time are 0x4b5f and 0xa97d, which corresponds with a
+    date of 2017-10-31 21:11:58, which matches the correct mod time
+    (off by 1 second due to MS-DOS timestamp resolution).
+    
+    Fixes #23901
+    
+    Change-Id: I567824c66e8316b9acd103dbecde366874a4b7ef
+    Reviewed-on: https://go-review.googlesource.com/96895
+    Run-TryBot: Joe Tsai <joetsai@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/zip/reader.go      | 8 +-------
+ src/archive/zip/reader_test.go | 2 +-
+ 2 files changed, 2 insertions(+), 8 deletions(-)

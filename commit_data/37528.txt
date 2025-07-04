@@ -1,0 +1,32 @@
+commit 143c1c82371d52a4f2cf72c56eaaac4c8766e234
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 23 15:51:42 2018 -0400
+
+    cmd/go/internal/{modcmd,modload}: lock edits to go.mod
+    
+    Use an arbitrary lockfile to serialize edits, and use atomic renames
+    to actually write the go.mod file so that we never drop version
+    requirements due to a command failing partway through a write.
+    
+    Multiple invocations of the 'go' command may read the go.mod file
+    concurrently, and will see some consistent version even if some other
+    invocation changes it concurrently.
+    
+    Multiple commands may attempt to write the go.mod file concurrently.
+    One writer will succeed and write a consistent, complete go.mod file.
+    The others will detect the changed contents and fail explicitly: it is
+    not, in general, possible to resolve two conflicting changes to module
+    requirements, so we surface the problem to the user rather than trying
+    to solve the problem heuristically.
+    
+    Updates #26794
+    
+    Change-Id: Ia1a06a01ef93fa9be664f560eb83bb86b0207443
+    Reviewed-on: https://go-review.googlesource.com/c/146380
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modcmd/edit.go  | 14 +++++++--
+ src/cmd/go/internal/modload/init.go | 58 +++++++++++++++++++++++++++++--------
+ 2 files changed, 57 insertions(+), 15 deletions(-)

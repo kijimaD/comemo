@@ -1,0 +1,25 @@
+commit b83d7f72537bdc0cec2e949d73ae40fbd42b7c63
+Merge: 20e228f2fd 74b56022a1
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Feb 12 15:05:15 2018 -0500
+
+    [release-branch.go1.10] all: merge master into release-branch.go1.10
+    
+    * 74b56022a1 doc: note that x509 cert parsing rejects some more certs now
+    * c52e27e68d CONTRIBUTING: remove Pull Request bit
+    * 829b64c1ea cmd/fix: fix cast check
+    * ee59f6dff2 doc: minor wording improvement to the diagnostics guide
+    * c6e7330ebd all: remove PULL_REQUEST_TEMPLATE from .github
+    * d814c2be9b doc: remove Pull Request note in README.md
+    * 104445e314 doc: document Go 1.9.4 and Go 1.8.7
+    
+    Change-Id: I58bfc6800964504258690d774a9b0aeaba509086
+
+ .github/PULL_REQUEST_TEMPLATE |  7 -------
+ CONTRIBUTING.md               |  5 -----
+ README.md                     |  7 +++----
+ doc/devel/release.html        | 13 +++++++++++++
+ doc/diagnostics.html          |  2 +-
+ doc/go1.10.html               |  3 ++-
+ src/cmd/fix/cftype.go         |  2 +-
+ 7 files changed, 20 insertions(+), 19 deletions(-)

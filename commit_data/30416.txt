@@ -1,0 +1,16 @@
+commit 459d061c99b8bcd0ab688e2536f5429c9f125a4b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 22 15:24:30 2017 -0800
+
+    go/internal/srcimporter: implemented srcimporter
+    
+    For #11415.
+    
+    Change-Id: I87a8f534ab9dfd5022422457ea637b342c057d77
+    Reviewed-on: https://go-review.googlesource.com/37393
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/build/deps_test.go                       |   1 +
+ src/go/internal/srcimporter/srcimporter.go      | 199 ++++++++++++++++++++++++
+ src/go/internal/srcimporter/srcimporter_test.go | 134 ++++++++++++++++
+ 3 files changed, 334 insertions(+)

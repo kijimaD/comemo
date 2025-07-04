@@ -1,0 +1,14 @@
+commit 2420926a8a38eef9131a4c3543987b92667204c1
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 25 12:00:54 2015 +1100
+
+    runtime: remove obsolete comment
+    
+    We do not use SEH to handle Windows exception anymore.
+    
+    Change-Id: I0ac807a0fed7a5b4c745454246764c524460472b
+    Reviewed-on: https://go-review.googlesource.com/8071
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/proc1.go | 4 ----
+ 1 file changed, 4 deletions(-)

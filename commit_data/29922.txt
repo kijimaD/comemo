@@ -1,0 +1,17 @@
+commit 8fa2344e98aa0eb2ef5a401847a4b760e9d19418
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 6 20:41:14 2017 -0800
+
+    net/http: don't do a background read if we've already done one
+    
+    Fixes #18535
+    
+    Change-Id: I9e49d33ce357a534529a6b0fcdbc09ff4fa98622
+    Reviewed-on: https://go-review.googlesource.com/34920
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/serve_test.go | 47 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     |  3 +++
+ 2 files changed, 50 insertions(+)

@@ -1,0 +1,17 @@
+commit 6a0bb87bd0bf0fdf8ddbd35f77a75ebd412f61b0
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Apr 2 00:20:13 2016 +0000
+
+    syscall: point to x/sys in DLL loading docs, update syscall generator
+    
+    Updates the syscall generator for patchset 4 of https://golang.org/cl/21388.
+    
+    Updates #14959
+    
+    Change-Id: Icbd6df489887d3dcc076dfc73d4feb1376abaf8b
+    Reviewed-on: https://go-review.googlesource.com/21428
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/dll_windows.go       | 13 +++++++++++++
+ src/syscall/mksyscall_windows.go |  4 ++--
+ 2 files changed, 15 insertions(+), 2 deletions(-)

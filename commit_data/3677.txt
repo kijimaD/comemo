@@ -1,0 +1,14 @@
+commit 09d68334cc9da0f6d6db65c8e155f3dc3eb03d9e
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Oct 29 18:34:44 2009 -0700
+
+    Forgot to change quickcheck to quick in the Makefile.
+    
+    TBR=rsc
+    
+    R=rsc
+    http://go/go-review/1017004
+
+ src/pkg/Make.deps | 15 ++++++++-------
+ src/pkg/Makefile  |  2 +-
+ 2 files changed, 9 insertions(+), 8 deletions(-)

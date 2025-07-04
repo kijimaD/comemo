@@ -1,0 +1,57 @@
+commit 38607c553878da21b5042e63997ecb3b7201e684
+Author: Motiejus Jakštys <motiejus@jakstys.lt>
+Date:   Tue Jun 7 05:55:40 2022 +0000
+
+    cmd/link: specify -Wl,-z params as documented
+    
+    Both GNU and LLVM linkers de facto accept `-zPARAM`, and Go sometimes
+    does it. Inconsistently: there are more uses of `-z PARAM` than
+    `-zPARAM`:
+    
+        $ git grep -E -- '-Wl,-z[^,]' master | wc -l
+        4
+        $ git grep -E -- '-Wl,-z,' master | wc -l
+        7
+    
+    However, not adding a space between `-z` and the param is not
+    documented:
+    
+    llvm-13:
+    
+        $ man ld.lld-13 | grep -E -A1 -w -- "^ +-z"
+             -z option
+                     Linker option extensions.
+    
+    gnu ld:
+    
+        $ man ld | grep -E -A1 -w -- "^ +-z"
+               -z keyword
+                   The recognized keywords are:
+        --
+               -z defs
+                   Report unresolved symbol references from regular object files.  This is done even if the linker is creating a non-symbolic
+        --
+               -z muldefs
+                   Normally when a symbol is defined multiple times, the linker will report a fatal error. These options allow multiple definitions
+        --
+               -z
+               --imagic
+    
+    ... and thus should be avoided.
+    
+    `zig cc`, when used as the C compiler (`CC="zig cc" go build ...`), will
+    bark, because `zig cc` accepts only `-z PARAM`, as documented.
+    
+    Closes ziglang/zig#11669
+    
+    Change-Id: I758054ecaa3ce01a72600bf65d7f7b5c3ec46d09
+    GitHub-Last-Rev: e068e007da9f2b0441ee0aa8b198a7ba3cd93ed3
+    GitHub-Pull-Request: golang/go#53030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407834
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/lib.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 91962dfde1a754a0ccdc514c9a2acfae25fc1f5e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Nov 2 12:25:23 2021 -0700
+
+    syscall: unify unix Recvmsg epilogues
+    
+    These were identical. This is a preliminary step
+    towards remove allocs per UDP receive.
+    
+    Change-Id: I83106cd3f1fe4bc5bae2d1b0ebd23eedd820abed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361258
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_aix.go     |  9 ++-------
+ src/syscall/syscall_bsd.go     |  9 ++-------
+ src/syscall/syscall_linux.go   |  9 ++-------
+ src/syscall/syscall_solaris.go |  9 ++-------
+ src/syscall/syscall_unix.go    | 10 ++++++++++
+ 5 files changed, 18 insertions(+), 28 deletions(-)

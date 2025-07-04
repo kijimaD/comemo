@@ -1,0 +1,24 @@
+commit bba88467f86472764a656e61f5f3265ed6853692
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Mar 19 17:48:42 2020 -0700
+
+    cmd/compile: add indexed-load CMP instructions
+    
+    Things like CMPQ 4(AX)(BX*8), CX
+    
+    Fixes #37955
+    
+    Change-Id: Icbed430f65c91a0e3f38a633d8321d79433ad8b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224219
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go              |  13 +
+ src/cmd/compile/internal/ssa/addressingmodes.go    |  26 ++
+ src/cmd/compile/internal/ssa/gen/AMD64Ops.go       |  19 ++
+ .../compile/internal/ssa/gen/AMD64splitload.rules  |  10 +
+ src/cmd/compile/internal/ssa/opGen.go              | 225 +++++++++++++
+ .../compile/internal/ssa/rewriteAMD64splitload.go  | 371 +++++++++++++++++++++
+ test/codegen/memops.go                             |  60 ++++
+ 7 files changed, 724 insertions(+)

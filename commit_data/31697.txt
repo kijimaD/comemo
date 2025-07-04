@@ -1,0 +1,14 @@
+commit cba4b416719f7019ecc01a02d8efbf0c9c0e5df9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Jun 1 17:31:24 2017 -0700
+
+    compress/gzip: clarify behavior of Writer.Close
+    
+    Fixes #20551
+    
+    Change-Id: Ia47cae14a26fe5f278ad7209218d083cc50a3ff8
+    Reviewed-on: https://go-review.googlesource.com/44572
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/compress/gzip/gzip.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

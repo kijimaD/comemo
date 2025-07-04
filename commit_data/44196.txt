@@ -1,0 +1,17 @@
+commit 210f70e298cf7e45a2b2638545228a44c78740de
+Author: Ryuji Iwata <qt.luigi@gmail.com>
+Date:   Tue Jan 26 12:53:08 2021 +0000
+
+    doc/go1.16: fix closing brace in .Export format
+    
+    A parenthesis of go list "-f" flag format is double curly braces.
+    
+    Change-Id: Ifd38e0b0ae3c46272a4acd65584818228168b7c6
+    GitHub-Last-Rev: b46030492b5caf18fe127621fdf92cbec4c03ad5
+    GitHub-Pull-Request: golang/go#43924
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/286752
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+
+ doc/go1.16.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

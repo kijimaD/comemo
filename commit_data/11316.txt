@@ -1,0 +1,25 @@
+commit 387e7c274249a307f62ed94c8dfdabfe42e3b01c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jan 22 11:50:45 2012 -0800
+
+    test: explicitly use variables to avoid gccgo "not used" error
+    
+    I haven't looked at the source, but the gc compiler appears to
+    omit "not used" errors when there is an error in the
+    initializer.  This is harder to do in gccgo, and frankly I
+    think the "not used" error is still useful even if the
+    initializer has a problem.  This CL tweaks some tests to avoid
+    the error, which is not the point of these tests in any case.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5561059
+
+ test/blank1.go           | 1 +
+ test/fixedbugs/bug014.go | 1 +
+ test/fixedbugs/bug108.go | 1 +
+ test/fixedbugs/bug175.go | 2 +-
+ test/fixedbugs/bug363.go | 2 +-
+ test/func4.go            | 1 +
+ test/indirect1.go        | 1 +
+ 7 files changed, 7 insertions(+), 2 deletions(-)

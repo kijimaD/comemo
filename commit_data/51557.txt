@@ -1,0 +1,16 @@
+commit 5c682f94c6b465f75b3e638ecff77adaf87aabb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 13 17:41:19 2022 -0800
+
+    spec: document illegal recursive type parameter lists
+    
+    Fixes #40882.
+    
+    Change-Id: I90f99d75e6d66f857b6ab8789c6d436f85d20993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457515
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ doc/go_spec.html | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)

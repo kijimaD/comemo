@@ -1,0 +1,24 @@
+commit 7042ea62da0f9d3f39e902352484ef30a746641b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 7 19:01:38 2023 -0800
+
+    go/types, types2: clean up defined type identity check/unification
+    
+    Factor out check for identical origin.
+    Match unification code with type identity check.
+    Add a test case for #53692.
+    
+    Change-Id: I1238b28297a5ac549e99261c8a085dd46f3dd65f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/474197
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/predicates.go      | 32 ++++++++++------------
+ src/cmd/compile/internal/types2/unify.go           | 22 +++++++--------
+ src/go/types/predicates.go                         | 32 ++++++++++------------
+ src/go/types/unify.go                              | 22 +++++++--------
+ .../types/testdata/fixedbugs/issue53692.go         | 15 ++++++++++
+ 5 files changed, 63 insertions(+), 60 deletions(-)

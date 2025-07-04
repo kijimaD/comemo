@@ -1,0 +1,14 @@
+commit 984e81f64e0c8ec67497fde5ea0dcbefcd1e51b1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 19 09:34:24 2018 -0800
+
+    doc/faq: clarify that concurrent maps reads are safe
+    
+    Fixes #23480
+    
+    Change-Id: I33b4bdc60b9983ab62d87bfa0ae3ff33304269c0
+    Reviewed-on: https://go-review.googlesource.com/88515
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_faq.html | 9 +++++++++
+ 1 file changed, 9 insertions(+)

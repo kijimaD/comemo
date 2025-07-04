@@ -1,0 +1,17 @@
+commit 28b5d80d8d1746d2e33fb3cf49f3087521264b80
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 11 15:10:47 2024 -0700
+
+    os: document file mode of temporary files
+    
+    Fixes #66784
+    
+    Change-Id: Ifd17e0830e04e7028d8a876c6c12c496f5167887
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578395
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/tempfile.go | 2 ++
+ 1 file changed, 2 insertions(+)

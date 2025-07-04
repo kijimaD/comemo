@@ -1,0 +1,20 @@
+commit 1ffc1104699603631305aba9cc380217693b9e45
+Author: Nasfame <laciferin@gmail.com>
+Date:   Tue Feb 6 18:51:22 2024 +0000
+
+    doc/next: add release note for sync/Map.Clear
+    
+    Fix https://go-review.git.corp.google.com/c/go/+/561456
+    
+    For #61696
+    
+    Change-Id: I573bd14cf0e5c41adcc8c2b9481e85c5792c2a82
+    GitHub-Last-Rev: c6fce6d25f8c071c92926ec3341855ad2303b876
+    GitHub-Pull-Request: golang/go#65534
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561755
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+
+ doc/next/6-stdlib/99-minor/sync/61696.md | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

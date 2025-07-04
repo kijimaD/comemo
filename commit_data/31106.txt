@@ -1,0 +1,32 @@
+commit 7f32d41e5dc3885f440244e0e181832879426b45
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 12 09:43:28 2017 -0400
+
+    runtime: expand inlining iteratively in CallersFrames
+    
+    Currently CallersFrames expands each PC to a slice of Frames and then
+    iteratively returns those Frames. However, this makes it very
+    difficult to avoid heap allocation: either the Frames slice will be
+    heap allocated, or, if it uses internal scratch space for small slices
+    (as it currently does), the Frames object itself has to be heap
+    allocated.
+    
+    Fix this, at least in the common case, by expanding each PC
+    iteratively. We introduce a new pcExpander type that's responsible for
+    expanding a single PC. This maintains state from one Frame to the next
+    in the same PC. Frames then becomes a wrapper around this responsible
+    for feeding it the next PC when the pcExpander runs out of frames for
+    the current PC.
+    
+    This makes it possible to stack-allocate a Frames object, which will
+    make it possible to use this API for PC expansion from within the
+    runtime itself.
+    
+    Change-Id: I993463945ab574557cf1d6bedbe79ce7e9cbbdcd
+    Reviewed-on: https://go-review.googlesource.com/40434
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Lazar <lazard@golang.org>
+
+ src/runtime/symtab.go | 241 +++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 149 insertions(+), 92 deletions(-)

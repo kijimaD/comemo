@@ -1,0 +1,12 @@
+commit 47424d90ec11d9e72088b661a52e769b8074be70
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 14 07:11:39 2012 +1100
+
+    text/template: drop reference to os.EPERM in the test
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5654077
+
+ src/pkg/text/template/exec_test.go | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

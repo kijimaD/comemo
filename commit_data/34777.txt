@@ -1,0 +1,64 @@
+commit 80e69220c8274223b98247b879df3c57b0dbc476
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Wed Mar 28 01:15:39 2018 +0200
+
+    go/build, go/types, cmd/dist: add js/wasm architecture
+    
+    This is the first commit of a series that will add WebAssembly
+    as an architecture target. The design document can be found at
+    https://docs.google.com/document/d/131vjr4DH6JFnb-blm_uRdaC0_Nv3OUwjEY5qVCxCup4.
+    
+    The GOARCH name "wasm" is the official abbreviation of WebAssembly.
+    The GOOS name "js" got chosen because initially the host environment
+    that executes WebAssembly bytecode will be web browsers and Node.js,
+    which both use JavaScript to embed WebAssembly. Other GOOS values
+    may be possible later, see:
+    https://github.com/WebAssembly/design/blob/master/NonWeb.md
+    
+    Updates #18892
+    
+    Change-Id: Ia25b4fa26bba8029c25923f48ad009fd3681933a
+    Reviewed-on: https://go-review.googlesource.com/102835
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go                           |  1 +
+ src/cmd/vet/all/main.go                         |  6 +++++
+ src/go/build/syslist.go                         |  4 ++--
+ src/go/types/sizes.go                           |  3 ++-
+ src/runtime/internal/sys/zgoarch_386.go         |  1 +
+ src/runtime/internal/sys/zgoarch_amd64.go       |  1 +
+ src/runtime/internal/sys/zgoarch_amd64p32.go    |  1 +
+ src/runtime/internal/sys/zgoarch_arm.go         |  1 +
+ src/runtime/internal/sys/zgoarch_arm64.go       |  1 +
+ src/runtime/internal/sys/zgoarch_arm64be.go     |  1 +
+ src/runtime/internal/sys/zgoarch_armbe.go       |  1 +
+ src/runtime/internal/sys/zgoarch_mips.go        |  1 +
+ src/runtime/internal/sys/zgoarch_mips64.go      |  1 +
+ src/runtime/internal/sys/zgoarch_mips64le.go    |  1 +
+ src/runtime/internal/sys/zgoarch_mips64p32.go   |  1 +
+ src/runtime/internal/sys/zgoarch_mips64p32le.go |  1 +
+ src/runtime/internal/sys/zgoarch_mipsle.go      |  1 +
+ src/runtime/internal/sys/zgoarch_ppc.go         |  1 +
+ src/runtime/internal/sys/zgoarch_ppc64.go       |  1 +
+ src/runtime/internal/sys/zgoarch_ppc64le.go     |  1 +
+ src/runtime/internal/sys/zgoarch_s390.go        |  1 +
+ src/runtime/internal/sys/zgoarch_s390x.go       |  1 +
+ src/runtime/internal/sys/zgoarch_sparc.go       |  1 +
+ src/runtime/internal/sys/zgoarch_sparc64.go     |  1 +
+ src/runtime/internal/sys/zgoarch_wasm.go        | 29 +++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoos_android.go       |  1 +
+ src/runtime/internal/sys/zgoos_darwin.go        |  1 +
+ src/runtime/internal/sys/zgoos_dragonfly.go     |  1 +
+ src/runtime/internal/sys/zgoos_freebsd.go       |  1 +
+ src/runtime/internal/sys/zgoos_js.go            | 21 ++++++++++++++++++
+ src/runtime/internal/sys/zgoos_linux.go         |  1 +
+ src/runtime/internal/sys/zgoos_nacl.go          |  1 +
+ src/runtime/internal/sys/zgoos_netbsd.go        |  1 +
+ src/runtime/internal/sys/zgoos_openbsd.go       |  1 +
+ src/runtime/internal/sys/zgoos_plan9.go         |  1 +
+ src/runtime/internal/sys/zgoos_solaris.go       |  1 +
+ src/runtime/internal/sys/zgoos_windows.go       |  1 +
+ src/runtime/internal/sys/zgoos_zos.go           |  1 +
+ 38 files changed, 93 insertions(+), 3 deletions(-)

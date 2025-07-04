@@ -1,0 +1,18 @@
+commit 178b0f59ff0d8be6d41d0f4099d16bfd3bc21ea7
+Author: hk <hk@tinyclouds.cn>
+Date:   Mon Oct 19 12:13:25 2020 +0000
+
+    cmd/compile/internal/gc: remove an unused method
+    
+    Change-Id: Ib496d1e9a47d2cf69509ffd0009038b7d34a0149
+    GitHub-Last-Rev: 5b5589dd03e1d781e4cedc643d5e8a7f8bda2139
+    GitHub-Pull-Request: golang/go#42060
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263618
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/noder.go | 5 -----
+ 1 file changed, 5 deletions(-)

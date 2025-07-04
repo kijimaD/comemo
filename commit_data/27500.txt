@@ -1,0 +1,14 @@
+commit a0abecf1020c33e82c464f7891b317e83f0c6a78
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue May 24 13:40:02 2016 -0400
+
+    cmd/link: ensure -fuse-ld=gold uses gold
+    
+    Fixes #15696
+    
+    Change-Id: I134e918dc56f79a72a04aa54f415371884113d2a
+    Reviewed-on: https://go-review.googlesource.com/23400
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/lib.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

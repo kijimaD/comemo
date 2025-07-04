@@ -1,0 +1,28 @@
+commit 499458f7ca04087958987a33c2703c3ef03e27e2
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jun 28 13:20:08 2023 -0700
+
+    net/http: validate Host header before sending
+    
+    Verify that the Host header we send is valid.
+    Avoids surprising behavior such as a Host of "go.dev\r\nX-Evil:oops"
+    adding an X-Evil header to HTTP/1 requests.
+    
+    Add a test, skip the test for HTTP/2. HTTP/2 is not vulnerable to
+    header injection in the way HTTP/1 is, but x/net/http2 doesn't validate
+    the header and will go into a retry loop when the server rejects it.
+    CL 506995 adds the necessary validation to x/net/http2.
+    
+    For #60374
+    
+    Change-Id: I05cb6866a9bead043101954dfded199258c6dd04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506996
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ src/net/http/http_test.go      | 29 --------------------------
+ src/net/http/request.go        | 47 +++++++++---------------------------------
+ src/net/http/request_test.go   | 11 ++--------
+ src/net/http/transport_test.go | 19 +++++++++++++++++
+ 4 files changed, 31 insertions(+), 75 deletions(-)

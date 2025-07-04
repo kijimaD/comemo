@@ -1,0 +1,43 @@
+commit e0ab505a97eed8773ea16842f2748b6d518fedd9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Aug 18 18:18:38 2017 -0700
+
+    archive/tar: implement Writer support for sparse files
+    
+    This CL is the second step (of two; part1 is CL/56771) for adding
+    sparse file support to the Writer.
+    
+    There are no new identifiers exported in this CL, but this does make
+    use of Header.SparseHoles added in part1. If the Typeflag is set to
+    TypeGNUSparse or len(SparseHoles) > 0, then the Writer will emit an
+    sparse file, where the holes must be written by the user as zeros.
+    
+    If TypeGNUSparse is set, then the output file must use the GNU format.
+    Otherwise, it must use the PAX format (with GNU-defined PAX keys).
+    
+    A future CL may export Reader.Discard and Writer.FillZeros,
+    but those methods are currently unexported, and only used by the
+    tests for efficiency reasons.
+    Calling Discard or FillZeros on a hole 10GiB in size does take
+    time, even if it is essentially a memcopy.
+    
+    Updates #13548
+    
+    Change-Id: Id586d9178c227c0577f796f731ae2cbb72355601
+    Reviewed-on: https://go-review.googlesource.com/57212
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/common.go                        |  26 +-
+ src/archive/tar/example_test.go                  | 112 +++-
+ src/archive/tar/reader_test.go                   | 133 +++--
+ src/archive/tar/testdata/gnu-nil-sparse-data.tar | Bin 0 -> 2560 bytes
+ src/archive/tar/testdata/gnu-nil-sparse-hole.tar | Bin 0 -> 1536 bytes
+ src/archive/tar/testdata/gnu-sparse-big.tar      | Bin 0 -> 5120 bytes
+ src/archive/tar/testdata/pax-nil-sparse-data.tar | Bin 0 -> 4096 bytes
+ src/archive/tar/testdata/pax-nil-sparse-hole.tar | Bin 0 -> 3072 bytes
+ src/archive/tar/testdata/pax-sparse-big.tar      | Bin 0 -> 6144 bytes
+ src/archive/tar/testdata/writer-big-long.tar     | Bin 4096 -> 1536 bytes
+ src/archive/tar/testdata/writer-big.tar          | Bin 4096 -> 512 bytes
+ src/archive/tar/writer.go                        | 293 +++++++++-
+ src/archive/tar/writer_test.go                   | 665 ++++++++++++++++++-----
+ 13 files changed, 1026 insertions(+), 203 deletions(-)

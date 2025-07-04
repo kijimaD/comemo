@@ -1,0 +1,31 @@
+commit 748fab9d11e23b8f8c17cd583f995252ec86bfd3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Jan 10 11:06:09 2012 +1100
+
+    html: foreign element HTML integration points, tag name adjustment,
+    shorten the MathML namespace abbreviation from "mathml" to "math".
+    Python's html5lib uses "mathml", but I think that that is an internal
+    implementation detail; the test cases use "math".
+    
+    Pass tests10.dat, test 30:
+    <div><svg><path><foreignObject><math></div>a
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <div>
+    |       <svg svg>
+    |         <svg path>
+    |           <svg foreignObject>
+    |             <math math>
+    |               "a"
+    
+    R=andybalholm
+    CC=golang-dev
+    https://golang.org/cl/5529044
+
+ src/pkg/html/foreign.go    |  59 +++++++++++-
+ src/pkg/html/node.go       |   4 +
+ src/pkg/html/parse.go      | 222 +++++++++++++++++++++++++++------------------
+ src/pkg/html/parse_test.go |   2 +-
+ 4 files changed, 196 insertions(+), 91 deletions(-)

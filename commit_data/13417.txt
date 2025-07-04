@@ -1,0 +1,12 @@
+commit 4c3dc1ba74dfb28f018a12219fff4e5fa83db30e
+Author: Andrey Mirtchovski <mirtchovski@gmail.com>
+Date:   Thu Jun 28 15:18:35 2012 -0700
+
+    net/http: Fix a verb-tense mismatch and a typo in documentation.
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6357049
+
+ src/pkg/net/http/server.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

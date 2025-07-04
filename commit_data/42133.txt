@@ -1,0 +1,26 @@
+commit 8bcf2834afdf6a1f7937390903a41518715ef6f5
+Author: Pierre Carru <pierre.carru@eshard.com>
+Date:   Sun Apr 26 09:11:35 2020 +0000
+
+    net/http/httputil: make Switching Protocol requests (e.g. Websockets) cancelable
+    
+    Ensures that a canceled client request for Switching Protocols
+    (e.g. h2c, Websockets) will cause the underlying connection to
+    be terminated.
+    
+    Adds a goroutine in handleUpgradeResponse in order to select on
+    the incoming client request's context and appropriately cancel it.
+    
+    Fixes #35559
+    
+    Change-Id: I1238e18fd4cce457f034f78d9cdce0e7f93b8bf6
+    GitHub-Last-Rev: 3629c78493f667703ea99f9f4db5e63ddaaa0e6b
+    GitHub-Pull-Request: golang/go#38021
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224897
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/net/http/httputil/reverseproxy.go      |  15 +++-
+ src/net/http/httputil/reverseproxy_test.go | 122 +++++++++++++++++++++++++++++
+ 2 files changed, 136 insertions(+), 1 deletion(-)

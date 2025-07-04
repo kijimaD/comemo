@@ -1,0 +1,12 @@
+commit 58ce43baaa9c6c41f16c7eabec022fcb2174f2dd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 15 02:17:31 2017 +0000
+
+    doc: fix typo in Go 1.9 release notes
+    
+    Change-Id: I78443d5874a7667fbac78eac188d402227373da3
+    Reviewed-on: https://go-review.googlesource.com/45813
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

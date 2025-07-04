@@ -1,0 +1,14 @@
+commit 16c33992e0848209d0254bdb5c8f6c7b7ceb5c60
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Nov 22 21:15:52 2016 -0500
+
+    doc/go1.8.html: announce 1.8 will be the last to support linux/arm prior to ARMv6K
+    
+    Updates #17082.
+    
+    Change-Id: I0bf330d1a1ebb7e31e42d03287160b474522c332
+    Reviewed-on: https://go-review.googlesource.com/33455
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.8.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

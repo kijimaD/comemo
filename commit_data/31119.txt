@@ -1,0 +1,23 @@
+commit 7c3fa418bf662d0499dfb5d6b7367090a76e797f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Apr 12 12:40:07 2017 +0900
+
+    internal/poll: rename RecvFrom to ReadFrom for consistency
+    
+    Also adds missing docs.
+    
+    Change-Id: Ibd8dbe8441bc7a41f01ed2e2033db98e479a5176
+    Reviewed-on: https://go-review.googlesource.com/40412
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/fd_plan9.go        |  2 ++
+ src/internal/poll/fd_unix.go         |  6 +++---
+ src/internal/poll/fd_windows.go      | 15 ++++++++++++++-
+ src/internal/poll/sockopt_linux.go   |  2 +-
+ src/internal/poll/sockopt_windows.go |  4 ++--
+ src/internal/poll/sockoptip.go       |  4 ++--
+ src/net/fd_unix.go                   |  2 +-
+ src/net/fd_windows.go                |  2 +-
+ 8 files changed, 26 insertions(+), 11 deletions(-)

@@ -1,0 +1,16 @@
+commit aafc444b74ba2a4dc56e6d5d26f8242f0857856a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 21 17:01:39 2013 -0400
+
+    debug/elf: restore Go 1.0 semantics for (*File).Symbols
+    
+    Also adjust the implementation of applyRelocationsAMD64
+    so that the test added in CL 6848044 still passes.
+    
+    R=golang-dev, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7686049
+
+ doc/go1.1.html            | 22 ----------------------
+ src/pkg/debug/elf/file.go | 16 ++++++++++++++--
+ 2 files changed, 14 insertions(+), 24 deletions(-)

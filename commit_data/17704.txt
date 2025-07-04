@@ -1,0 +1,18 @@
+commit 1f7c8a9aeda6772fa3b33da2bf3b6ad3be6125ab
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Sep 27 09:46:36 2013 +1000
+
+    doc: update links to spec and memory model
+    
+    Fixes #6488.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14004043
+
+ doc/articles/wiki/index.html | 4 ++--
+ doc/docs.html                | 4 ++--
+ doc/effective_go.html        | 6 +++---
+ doc/go1.1.html               | 6 +++---
+ doc/go_faq.html              | 8 ++++----
+ 5 files changed, 14 insertions(+), 14 deletions(-)

@@ -1,0 +1,15 @@
+commit cf875b8af8fcb1f4bbc106c2d9cdb1a8ed46b878
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sat Feb 22 21:56:36 2025 +0100
+
+    syscall: use sync.OnceFunc for copyenv
+    
+    Change-Id: I64f658c1962878685ba7736f19d58e10fbdcb94a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651835
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/env_unix.go | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)

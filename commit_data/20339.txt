@@ -1,0 +1,19 @@
+commit ae47e044a8c2f1a4cf21ba2b02eba7304c2d157d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sun Sep 7 20:48:40 2014 -0700
+
+    net/http: add Transport.DialTLS hook
+    
+    Per discussions out of https://golang.org/cl/128930043/
+    and golang-nuts threads and with agl.
+    
+    Fixes #8522
+    
+    LGTM=agl, adg
+    R=agl, c, adg
+    CC=c, golang-codereviews
+    https://golang.org/cl/137940043
+
+ src/pkg/net/http/transport.go      | 63 ++++++++++++++++++++++++++------------
+ src/pkg/net/http/transport_test.go | 40 ++++++++++++++++++++++++
+ 2 files changed, 83 insertions(+), 20 deletions(-)

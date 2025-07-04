@@ -1,0 +1,12 @@
+commit 62a296cd5482312cc656a4ead421acef00538cc1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 23:02:08 2016 -0700
+
+    cmd/compile: use printer in sconv, symfmt
+    
+    Change-Id: Iec33775ff5a786f6c52024d592f634231acf91c0
+    Reviewed-on: https://go-review.googlesource.com/27918
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/fmt.go | 137 +++++++++++++++++++------------------
+ 1 file changed, 70 insertions(+), 67 deletions(-)

@@ -1,0 +1,25 @@
+commit 4f36f7e4dd921be455810cc925ca122d71381156
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Jun 22 11:10:18 2023 -0700
+
+    encoding: document that base32 and base64 do not use UTF-8
+    
+    The invention of base32 and base64 predates the invention of UTF-8
+    and was never meant to output valid UTF-8.
+    By default, the output is always valid ASCII (and thus valid UTF-8)
+    except when the user specifies an alphabet or padding value
+    that is larger than '\x7f'. If that is done,
+    then the exact byte symbol is used rather than the UTF-8 encoding.
+    
+    Fixes #60689
+    
+    Change-Id: I4ec88d974ec0658ad1a578bbd65a809e27c73ea7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505237
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/encoding/base32/base32.go | 5 ++++-
+ src/encoding/base64/base64.go | 5 ++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)

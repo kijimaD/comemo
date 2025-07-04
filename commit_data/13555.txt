@@ -1,0 +1,16 @@
+commit 2f39a33b6a34cbc71ded902053cbd10447b073dc
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Aug 3 09:31:45 2012 +1000
+
+    exp/html: in parse tests, discard only one trailing newline
+    
+    Pass 2 additional tests.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6454090
+
+ src/pkg/exp/html/parse_test.go            | 5 ++++-
+ src/pkg/exp/html/testlogs/tests16.dat.log | 2 +-
+ src/pkg/exp/html/testlogs/tests26.dat.log | 2 +-
+ 3 files changed, 6 insertions(+), 3 deletions(-)

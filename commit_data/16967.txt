@@ -1,0 +1,18 @@
+commit cba880e04a074806f0e948fbdee8e2fe31705f14
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 1 00:16:31 2013 -0400
+
+    runtime: fix arm preemption
+    
+    Preemption during the software floating point code
+    could cause m (R9) to change, so that when the
+    original registers were restored at the end of the
+    floating point handler, the changed and correct m
+    would be replaced by the old and incorrect m.
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/11883045
+
+ src/pkg/runtime/vlop_arm.s | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,24 @@
+commit f62c608abb7a2fd44f634b58cf24aa0d2e1d42d4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Jun 27 12:58:32 2017 -0700
+
+    cmd/compile: suppress errors after "cannot assign to X"
+    
+    If the LHS is unassignable, there's no point in trying to make sure
+    the RHS can be assigned to it or making sure they're realizable
+    types. This is consistent with go/types.
+    
+    In particular, this prevents "1 = 2" from causing a panic when "1"
+    still ends up with the type "untyped int", which is not realizable.
+    
+    Fixes #20813.
+    
+    Change-Id: I4710bdaac2e375ef12ec29b888b8ac84fb640e56
+    Reviewed-on: https://go-review.googlesource.com/46835
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  6 +++---
+ test/fixedbugs/issue20813.go             | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

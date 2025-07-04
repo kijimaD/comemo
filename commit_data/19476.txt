@@ -1,0 +1,14 @@
+commit aa92b3e5d4b649f630a161a50b86c456b8f40277
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jun 1 00:15:23 2014 +0000
+
+    lib/timezone: update to IANA 2014d
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/102040045
+
+ lib/time/update.bash  |   4 ++--
+ lib/time/zoneinfo.zip | Bin 358933 -> 358933 bytes
+ 2 files changed, 2 insertions(+), 2 deletions(-)

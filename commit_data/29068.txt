@@ -1,0 +1,14 @@
+commit 263a825b0534a55916d472ba17feff7d1ed47569
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Oct 26 00:07:27 2016 +0200
+
+    syscall: use name+(NN)FP on plan9/amd64
+    
+    Generated from go vet.
+    
+    Change-Id: Ie775c29b505166e0bd511826ef20eeb153a0424c
+    Reviewed-on: https://go-review.googlesource.com/32071
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/asm_plan9_amd64.s | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

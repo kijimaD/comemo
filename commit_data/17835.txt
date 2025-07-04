@@ -1,0 +1,14 @@
+commit 17a03d86508fea470d4d55d64e3936cc44e5ed1b
+Author: Matthew Cottingham <mattcottingham@gmail.com>
+Date:   Thu Oct 24 10:13:23 2013 -0700
+
+    database/sql: link to wiki in package docs
+    
+    Update #5886
+    
+    R=golang-dev, kamil.kisiel, adg, r, rsc, dave, arnehormann, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/14087043
+
+ src/pkg/database/sql/sql.go | 3 +++
+ 1 file changed, 3 insertions(+)

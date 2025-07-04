@@ -1,0 +1,16 @@
+commit 52e5d061c792750bc37bb43e1f1dbcf3d8dcfb85
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 4 15:00:15 2009 -0700
+
+    bytes.Copy
+    
+    R=rsc
+    DELTA=38  (38 added, 0 deleted, 0 changed)
+    OCL=29895
+    CL=29895
+
+ src/lib/Make.deps           |  1 +
+ src/lib/Makefile            |  1 +
+ src/lib/bytes/bytes.go      |  9 +++++++++
+ src/lib/bytes/bytes_test.go | 27 +++++++++++++++++++++++++++
+ 4 files changed, 38 insertions(+)

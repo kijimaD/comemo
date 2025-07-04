@@ -1,0 +1,18 @@
+commit cec08794ef325e84f141e1a7b4deca0bedaeab34
+Author: Clément Chigot <chigot.c@gmail.com>
+Date:   Tue Mar 3 16:24:32 2020 +0100
+
+    misc/cgo/test: fix sigaltstack test on AIX
+    
+    Increase the size of the signal stack as the value given by SIGSTKSZ
+    is too small for the Go signal handler.
+    
+    Fixes #37609
+    
+    Change-Id: I56f1006bc69a2a9fb43f9e0da00061964290a690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221804
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ misc/cgo/test/sigaltstack.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

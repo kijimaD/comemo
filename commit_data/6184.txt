@@ -1,0 +1,14 @@
+commit 2eb00d57b40a7f806fd611c2303289bb11f77d15
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 7 09:54:20 2010 -0400
+
+    cgo: silence warning for C call returning const pointer
+    
+    Fix suggested by Albert Strasheim.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2154041
+
+ src/cmd/cgo/out.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

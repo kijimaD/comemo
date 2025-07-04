@@ -1,0 +1,16 @@
+commit 08a87938bb95ae8859600be20a998fbb4b904915
+Author: David Chase <drchase@google.com>
+Date:   Mon Sep 30 11:10:36 2019 -0400
+
+    cmd/compile: make nilcheck more careful about statement relocations
+    
+    The earlier code was picking nodes that were "poor choices" and
+    thus sometimes losing statements altogether.
+    
+    Change-Id: Ibe5ed800ffbd3c926c0ab1bc10c77d72d3042e45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/198478
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/ssa/nilcheck.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

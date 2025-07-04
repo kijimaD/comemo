@@ -1,0 +1,12 @@
+commit e974fb949ebbab60fad023b396d86eba40b21020
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Sun May 23 11:12:00 2010 -0700
+
+    When making images, allocate one big buffer instead of many small ones.
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/1267041
+
+ src/pkg/image/image.go | 54 ++++++++++++++++++++++++++++----------------------
+ 1 file changed, 30 insertions(+), 24 deletions(-)

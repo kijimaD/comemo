@@ -1,0 +1,22 @@
+commit d89a73837878fa16697e98ff1adf249eef5eaa05
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Mar 26 19:05:48 2014 +0400
+
+    runtime: support channel-based mutex in race detector
+    Update channel race annotations to support change in
+    cl/75130045: doc: allow buffered channel as semaphore without initialization
+    The new annotations are added only for channels with capacity 1.
+    Strictly saying it's possible to construct a counter-example that
+    will produce a false positive with capacity > 1. But it's hardly can
+    lead to false positives in real programs, at least I would like to see such programs first.
+    Any additional annotations also increase probability of false negatives,
+    so I would prefer to add them lazily.
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, iant, khr, rsc
+    https://golang.org/cl/76970043
+
+ src/pkg/runtime/chan.goc                   | 14 ++++++-
+ src/pkg/runtime/race/testdata/chan_test.go | 65 +++++++++++++++++++++++++++++-
+ 2 files changed, 76 insertions(+), 3 deletions(-)

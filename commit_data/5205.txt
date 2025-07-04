@@ -1,0 +1,23 @@
+commit 69fd2a4ab74f1e11111f67a04ebd9cd4b31ea6d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 31 19:48:33 2010 -0700
+
+    build script tweaks
+    
+    factor out environment variable checks.
+    infer $GOROOT etc during build if not set.
+    it's still necessary to set them for yourself
+    to use the standard Makefiles.
+    
+    when running all.bash, don't recompile all the
+    go packages in run.bash, since make.bash already did.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/609042
+
+ src/all.bash  |  2 +-
+ src/env.bash  | 55 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/make.bash | 39 +--------------------------------------
+ src/run.bash  | 37 +++++++++++++++++++++++++++----------
+ 4 files changed, 84 insertions(+), 49 deletions(-)

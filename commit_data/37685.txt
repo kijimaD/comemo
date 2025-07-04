@@ -1,0 +1,12 @@
+commit 01eb1d045963a554a39b40c964e9411183dcc42e
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Dec 5 14:54:33 2018 -0500
+
+    doc: 1.12 release notes for regexp, runtime, and runtime/debug packages
+    
+    Change-Id: I30686cbeda34f42d5b1848b884588a76a9fb28b9
+    Reviewed-on: https://go-review.googlesource.com/c/152741
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.12.html | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

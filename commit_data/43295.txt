@@ -1,0 +1,16 @@
+commit 52669c4a689a15c4f307e11609d6237ac506a3df
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 12 23:35:25 2020 -0400
+
+    cmd/go: update go list docs for IgnoredOtherFiles
+    
+    Change-Id: I8eb7f34754c7be899d389fe807af65aa5fd5bbc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261957
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go            | 31 ++++++++++++++++---------------
+ src/cmd/go/internal/list/list.go | 31 ++++++++++++++++---------------
+ 2 files changed, 32 insertions(+), 30 deletions(-)

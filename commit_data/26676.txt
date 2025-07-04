@@ -1,0 +1,20 @@
+commit 29a6149e67a9c382938ffb40102fb989a0a6db48
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sat Mar 19 00:23:17 2016 -0400
+
+    cmd/link/internal/s390x: add s390x support
+    
+    Supports basic internal linking, external linking and shared library
+    linking.
+    
+    Change-Id: Ic9693dd94df561b0f9df9880009b1e8ab9d59b92
+    Reviewed-on: https://go-review.googlesource.com/20879
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+
+ src/cmd/dist/buildtool.go          |   1 +
+ src/cmd/link/internal/s390x/asm.go | 598 +++++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/s390x/l.go   |  79 +++++
+ src/cmd/link/internal/s390x/obj.go | 119 ++++++++
+ 4 files changed, 797 insertions(+)

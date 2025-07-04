@@ -1,0 +1,38 @@
+commit 1295b745d13fe1402d5b645c9c20cc3adf85d563
+Author: Kenny Grant <kennygrant@gmail.com>
+Date:   Sun Mar 12 10:02:47 2017 +0000
+
+    net/http: improve speed of default mux
+    
+    The DefaultServeMux included in net/http uses a map to store routes,
+    but iterates all keys for every request to allow longer paths.
+    
+    This change checks the map for an exact match first.
+    
+    To check performance was better, BenchmarkServeMux has been added -
+    this adds >100 routes and checks the matches.
+    
+    Exact matches are faster and more predictable on this benchmark
+    and on most existing package benchmarks.
+    
+    https://perf.golang.org/search?q=upload:20170312.1
+    
+    ServeMux-4  2.02ms ± 2% 0.04ms ± 2%  −98.08%  (p=0.004 n=5+6)
+    
+    https://perf.golang.org/search?q=upload:20170312.2
+    
+    ReadRequestChrome-4     184MB/s  ± 8%   186MB/s  ± 1%   ~
+    ReadRequestCurl-4       45.0MB/s ± 1%   46.2MB/s ± 1%   +2.71%
+    Read...Apachebench-4    45.8MB/s ±13%   48.7MB/s ± 1%   ~
+    ReadRequestSiege-4      63.6MB/s ± 5%   69.2MB/s ± 1%   +8.75%
+    ReadRequestWrk-4        30.9MB/s ± 9%   34.4MB/s ± 2%   +11.25%
+    
+    Change-Id: I8afafcb956f07197419d545a9f1c03ecaa307384
+    Reviewed-on: https://go-review.googlesource.com/38057
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 11 +++++++++--
+ 2 files changed, 50 insertions(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 312ff5b58eea06f2dabb9ba3d28e50d12c64c7d1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 8 11:31:52 2012 -0800
+
+    cmd/go: document import path meta tag discovery in go help remote
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5787059
+
+ src/cmd/go/doc.go  | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/help.go | 43 ++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 84 insertions(+), 2 deletions(-)

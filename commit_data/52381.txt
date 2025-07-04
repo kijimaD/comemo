@@ -1,0 +1,27 @@
+commit 11c40e349760792d0a2016633dc809025ee24b2f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Mar 20 16:19:45 2023 -0400
+
+    net/http: in the IdleConnStrsForTesting_h2 helper, omit conns that cannot be reused
+    
+    In #59155, we observed that the IdleConnStrsForTesting_h2 helper
+    function sometimes reported extra connections after a
+    "client conn not usable" failure and retry. It turns out that that
+    state corresponds exactly to the
+    http2clientConnIdleState.canTakeNewRequest field, so (with a bit of
+    extra nethttpomithttp2 plumbing) we can use that field in the helper
+    to filter out the unusable connections.
+    
+    Fixes #59155.
+    
+    Change-Id: Ief6283c9c8c5ec47dd9f378beb0ddf720832484e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477856
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/net/http/export_test.go    |  8 +++++---
+ src/net/http/omithttp2.go      | 10 +++++++++-
+ src/net/http/transport_test.go |  4 ++--
+ 3 files changed, 16 insertions(+), 6 deletions(-)

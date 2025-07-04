@@ -1,0 +1,27 @@
+commit a101b85e00f302706d8b1de1d2173a154d5f54cc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun May 15 17:24:51 2016 +0900
+
+    syscall: fix missing use of use function in sysctl
+    
+    Updates #13372.
+    
+    Change-Id: Id2402a781474e9d0bb0901c5844adbd899f76cbd
+    Reviewed-on: https://go-review.googlesource.com/23123
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/zsyscall_darwin_386.go      | 1 +
+ src/syscall/zsyscall_darwin_amd64.go    | 1 +
+ src/syscall/zsyscall_darwin_arm.go      | 1 +
+ src/syscall/zsyscall_dragonfly_amd64.go | 1 +
+ src/syscall/zsyscall_freebsd_386.go     | 1 +
+ src/syscall/zsyscall_freebsd_amd64.go   | 1 +
+ src/syscall/zsyscall_freebsd_arm.go     | 1 +
+ src/syscall/zsyscall_netbsd_386.go      | 1 +
+ src/syscall/zsyscall_netbsd_amd64.go    | 1 +
+ src/syscall/zsyscall_netbsd_arm.go      | 1 +
+ src/syscall/zsyscall_openbsd_386.go     | 1 +
+ src/syscall/zsyscall_openbsd_amd64.go   | 1 +
+ 12 files changed, 12 insertions(+)

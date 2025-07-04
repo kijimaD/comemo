@@ -1,0 +1,20 @@
+commit cb83924d5b42a7918ddac1ee2c0d2bf2032c3ab6
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Wed May 10 11:00:03 2017 -0400
+
+    cmd/compile/internal/ssa: fix generation of ppc64x rules
+    
+    The files PPC64.rules and rewritePPC64.go were out of sync due to
+    conflicts between CL 41630 and CL 42145 (i.e. running 'go run *.go'
+    in the gen directory resulted in unexpected changes).
+    
+    Change-Id: I1d409656b66afeab6cb9c6df9b3dcab7859caa75
+    Reviewed-on: https://go-review.googlesource.com/43091
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Carlos Eduardo Seo <cseo@linux.vnet.ibm.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  8 ++--
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 60 ++++++++++++++--------------
+ 2 files changed, 34 insertions(+), 34 deletions(-)

@@ -1,0 +1,15 @@
+commit 133966d3d8c173909874efe211a37e6d88cae02c
+Author: Dmitry Savintsev <dsavints@gmail.com>
+Date:   Fri Apr 17 21:58:22 2015 +0200
+
+    doc/faq: replace reference to goven with gomvpkg
+    
+    github.com/kr/goven says it's deprecated and anyway
+    it would be preferable to point users to a standard Go tool.
+    
+    Change-Id: Iac4a0d13233604a36538748d498f5770b2afce19
+    Reviewed-on: https://go-review.googlesource.com/8969
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ doc/go_faq.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 33563d1cfc7939d99d18e58cea7eedd6fb1c6ed6
+Author: Austin Clements <austin@google.com>
+Date:   Thu Aug 17 11:31:03 2017 -0400
+
+    internal/trace: support for mutator utilization distributions
+    
+    This adds support for computing the quantiles of a mutator utilization
+    distribution.
+    
+    Change-Id: Ia8b3ed14bf415c234e2f567360fd1b361d28bd40
+    Reviewed-on: https://go-review.googlesource.com/c/60799
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/internal/traceparser/gc.go       | 143 ++++++++++++++++++++--
+ src/internal/traceparser/gc_test.go  |  22 +++-
+ src/internal/traceparser/mud.go      | 223 +++++++++++++++++++++++++++++++++++
+ src/internal/traceparser/mud_test.go |  87 ++++++++++++++
+ 4 files changed, 467 insertions(+), 8 deletions(-)

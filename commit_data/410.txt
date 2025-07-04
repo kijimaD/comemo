@@ -1,0 +1,11 @@
+commit 84c8d85fe6b597a586a1cf4621647e3c23903524
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 23 11:22:30 2008 -0700
+
+    slices and string/array concatenation
+    
+    OCL=13382
+    CL=13382
+
+ doc/go_lang.txt | 50 ++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 44 insertions(+), 6 deletions(-)

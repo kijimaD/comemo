@@ -1,0 +1,15 @@
+commit 18d527b3f09521a21e4068917f9b4513fcfcc2ef
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 16 21:30:46 2018 -0800
+
+    spec: mention that special case for integer division is due to overflow
+    
+    Fixes #23443.
+    
+    Change-Id: If60c39b582ee5308e9fa902f93c1b6ae7890346c
+    Reviewed-on: https://go-review.googlesource.com/87975
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

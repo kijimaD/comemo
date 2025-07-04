@@ -1,0 +1,16 @@
+commit f8c25b62b8a154a523d48410096e07f80eec7e6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 31 16:39:41 2014 -0400
+
+    benchcmp: leave a forwarding script
+    
+    People (like me!) will still try to run misc/benchcmp
+    and wonder where it went. Tell them.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz, dave
+    CC=adg, golang-codereviews, r
+    https://golang.org/cl/82710043
+
+ misc/benchcmp | 5 +++++
+ 1 file changed, 5 insertions(+)

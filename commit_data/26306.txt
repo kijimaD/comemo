@@ -1,0 +1,22 @@
+commit 20de705b711778864f285f06e42393c9ea2dad36
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Mar 3 06:22:11 2016 +0900
+
+    net: deduplicate UDP socket code
+    
+    This change consolidates functions and methods related to UDPAddr and
+    UDPConn for maintenance purpose, especially for documentation.
+    
+    The followup changes will update comments and examples.
+    
+    Updates #10624.
+    
+    Change-Id: Idfe9be8ea46ade1111b0ae176862b2048eafc7be
+    Reviewed-on: https://go-review.googlesource.com/20120
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/udpsock.go       | 178 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/udpsock_plan9.go | 139 +++++-------------------------------
+ src/net/udpsock_posix.go | 176 ++++++----------------------------------------
+ 3 files changed, 216 insertions(+), 277 deletions(-)

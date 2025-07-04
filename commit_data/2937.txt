@@ -1,0 +1,17 @@
+commit 7732f79daa92fc5d5a677db397fd92910899fa29
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 10 18:19:32 2009 -0700
+
+    fix indirect error
+    x.go:3: invalid indirect of X (type int)
+    
+    was
+    x.go:3: invalid indirect of nil
+    
+    R=ken
+    OCL=33008
+    CL=33008
+
+ src/cmd/gc/subr.c      | 4 +++-
+ src/cmd/gc/typecheck.c | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

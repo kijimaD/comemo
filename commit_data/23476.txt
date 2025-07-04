@@ -1,0 +1,21 @@
+commit 222b23aae9213e0ccd442fc4be51b0a27b5621be
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 24 08:39:44 2015 -0400
+
+    net: make LookupIP("1.2.3.4") behavior consistent
+    
+    To date, the behavior has depended on whether we're using cgo and
+    in turn what the host resolver does. Most host resolvers will "resolve"
+    IP addresses, but the non-cgo pure Go path has not.
+    This CL makes resolution of IP addresses always work, even if we're not using cgo
+    and even if the host resolver does not "resolve" IP addresses.
+    
+    Fixes #11335.
+    
+    Change-Id: I19e82be968154d94904bb2f72e9c17893019a909
+    Reviewed-on: https://go-review.googlesource.com/11420
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/ip_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup.go  | 16 ++++++++++++++++
+ 2 files changed, 57 insertions(+)

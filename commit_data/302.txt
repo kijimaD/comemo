@@ -1,0 +1,19 @@
+commit 1d31a25d836f15f7297996ae6778e1dd8c4cdaef
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jul 7 17:59:32 2008 -0700
+
+    more coroutine
+    fixed a,b,c := x,x,x
+    
+    SVN=126250
+
+ src/cmd/6g/cgen.c       |  12 ++--
+ src/cmd/6g/gen.c        |  81 ++++++++++++++++-----
+ src/cmd/6g/gg.h         |   7 +-
+ src/cmd/6g/gsubr.c      |   1 -
+ src/cmd/gc/go.h         |   1 -
+ src/cmd/gc/sys.go       |   5 --
+ src/cmd/gc/sysimport.c  | 183 +++++++++++++++++++++++-------------------------
+ src/cmd/gc/walk.c       |  25 +------
+ src/runtime/rt0_amd64.s |   7 +-
+ 9 files changed, 173 insertions(+), 149 deletions(-)

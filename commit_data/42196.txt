@@ -1,0 +1,24 @@
+commit 5a550b695117f07a4f2454039a4871250cd3ed09
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 21 08:23:13 2020 -0400
+
+    go/ast: drop //directive comments from doc.Text
+    
+    This allows writing
+    
+            // F does a thing.
+            //go:noinline
+            func F()
+    
+    without the //go:noinline or other directive (such as //line)
+    ending up looking like extra words in the doc comment.
+    
+    Fixes #37974.
+    
+    Change-Id: Ic738d72802cc2fa448f7633915e7126d2f76d8ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224737
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/ast/ast.go      | 47 +++++++++++++++++++++++++++++++++++++++++------
+ src/go/ast/ast_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit ef01ebf4035063442d93ab4aadd0b56dc8ef05b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 7 15:50:07 2011 -0400
+
+    net: sync CIDRMask code, doc
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4961069
+
+ src/pkg/net/ip.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

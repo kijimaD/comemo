@@ -1,0 +1,40 @@
+commit 73e0c302b2bcf26c009f682c2c11ef3567854d46
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Wed Apr 4 13:15:22 2018 +0800
+
+    runtime: implement aeshash for arm64 platform
+    
+    Fix #10109
+    
+    name                  old time/op    new time/op    delta
+    Hash5                   72.3ns ± 0%    51.5ns ± 0%   -28.71%  (p=0.000 n=4+5)
+    Hash16                  78.8ns ± 0%    48.7ns ± 0%      ~     (p=0.079 n=4+5)
+    Hash64                   196ns ±25%      73ns ±16%   -62.68%  (p=0.008 n=5+5)
+    Hash1024                1.57µs ± 0%    0.27µs ± 1%   -82.90%  (p=0.000 n=5+4)
+    Hash65536               96.5µs ± 0%    14.3µs ± 0%   -85.14%  (p=0.016 n=5+4)
+    HashStringSpeed          156ns ± 6%     129ns ± 3%   -17.56%  (p=0.008 n=5+5)
+    HashBytesSpeed           227ns ± 1%     200ns ± 1%   -11.98%  (p=0.008 n=5+5)
+    HashInt32Speed           116ns ± 2%     102ns ± 0%   -11.92%  (p=0.016 n=5+4)
+    HashInt64Speed           120ns ± 3%     101ns ± 2%   -15.55%  (p=0.008 n=5+5)
+    HashStringArraySpeed     342ns ± 0%     306ns ± 2%   -10.58%  (p=0.008 n=5+5)
+    FastrandHashiter         217ns ± 1%     217ns ± 1%      ~     (p=1.000 n=5+5)
+    
+    name                  old speed      new speed      delta
+    Hash5                 69.1MB/s ± 0%  97.0MB/s ± 0%   +40.32%  (p=0.008 n=5+5)
+    Hash16                 203MB/s ± 0%   329MB/s ± 0%   +61.76%  (p=0.016 n=4+5)
+    Hash64                 332MB/s ±21%   881MB/s ±14%  +165.66%  (p=0.008 n=5+5)
+    Hash1024               651MB/s ± 0%  3652MB/s ±17%  +460.73%  (p=0.008 n=5+5)
+    Hash65536              679MB/s ± 0%  4570MB/s ± 0%  +572.85%  (p=0.016 n=5+4)
+    
+    Change-Id: I573028979f84cf2e0e087951271d5de8865dbf04
+    Reviewed-on: https://go-review.googlesource.com/89755
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/alg.go            |  24 ++-
+ src/runtime/asm_arm64.s       | 393 ++++++++++++++++++++++++++++++++++++++++--
+ src/runtime/hash64.go         |   3 +-
+ src/runtime/os_linux_arm64.go |   4 +-
+ src/runtime/runtime2.go       |   2 +
+ 5 files changed, 402 insertions(+), 24 deletions(-)

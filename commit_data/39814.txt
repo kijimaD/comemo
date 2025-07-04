@@ -1,0 +1,21 @@
+commit e3d3e115e878a70af06c09960a924c5d0fa2710c
+Author: Sjoerd Siebinga <sjoerd.siebinga@gmail.com>
+Date:   Thu Aug 22 16:36:20 2019 +0200
+
+    cmd/go: add a test for -sectcreate in LDFLAGS
+    
+    It was already covered by a regex pattern, but it didn't have a test.
+    
+    To fix the issue for good, added regression test.
+    
+    Fixes #28832.
+    
+    Change-Id: I861e3bed92d3b9484fd8671270dbd2e264b10d2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/191311
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/work/security_test.go | 1 +
+ 1 file changed, 1 insertion(+)

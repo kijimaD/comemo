@@ -1,0 +1,17 @@
+commit 71983af4a10d427c52a3851b3e0c7889853eb83a
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 8 23:22:06 2009 -0800
+
+    bug212, bug213.
+    
+    R=ken
+    http://go/go-review/1026032
+
+ src/cmd/gc/print.c                 |  7 +++++++
+ src/cmd/gc/subr.c                  | 19 ++++++++++++-------
+ src/cmd/gc/swt.c                   | 10 +++++++---
+ src/pkg/debug/dwarf/open.go        |  2 +-
+ test/{bugs => fixedbugs}/bug212.go |  2 +-
+ test/{bugs => fixedbugs}/bug213.go |  0
+ test/golden.out                    |  6 ------
+ 7 files changed, 28 insertions(+), 18 deletions(-)

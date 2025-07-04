@@ -1,0 +1,19 @@
+commit 0cf7331391ba9ceb7ae755ca9172ba90f6ac516b
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Sep 9 10:57:40 2015 +1000
+
+    image/png: reject zero-width and zero-height images.
+    
+    http://www.w3.org/TR/PNG/#11IHDR says that "Zero is an invalid value".
+    
+    This change only affects the decoder. The encoder already checks
+    non-positive instead of negative.
+    
+    Fixes #12545.
+    
+    Change-Id: Iba40e1a2f4e0eec8b2fbcd3bbdae886311434da7
+    Reviewed-on: https://go-review.googlesource.com/14411
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/png/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

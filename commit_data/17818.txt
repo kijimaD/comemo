@@ -1,0 +1,15 @@
+commit 66f49f78a5a8f8e6832e8b66eea56387b0c72a52
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 18 15:35:45 2013 -0400
+
+    net: make sure failed Dial returns nil Conn
+    
+    Fixes #6614.
+    
+    R=golang-dev, bradfitz, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/14950045
+
+ src/pkg/net/dial.go     | 34 ++++++++++++++++++++++++----------
+ src/pkg/net/net_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 10 deletions(-)

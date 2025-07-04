@@ -1,0 +1,14 @@
+commit ea9eddb3e77f69bc559b8d8e647cb6d3b0562b80
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 28 02:09:32 2019 +0000
+
+    net/http: fix typo in Response.Body field docs
+    
+    Fixes #31096
+    
+    Change-Id: I5b36bfc6d18eb8c1bbf15abcd92b0e6559cda3c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169683
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/response.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

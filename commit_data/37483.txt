@@ -1,0 +1,19 @@
+commit 63ac89bfb15b2036741e40b2167d1d2f70af3e40
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Nov 2 13:50:59 2018 +0100
+
+    cmd/link/internal/ld: remove R_ADDR relocations inside XCOFF text sections
+    
+    On XCOFF, it is forbidden relocation of a DATA pointer to a text
+    section. It happens when a RODATA symbol needs a DATA symbol's address.
+    This commit moves every RODATA symbols with a R_ADDR on a data symbol to
+    .data sections to avoid these relocations.
+    
+    Change-Id: I7f34d8e0ebdc8352a74e6b40e4c893d8d9419f4d
+    Reviewed-on: https://go-review.googlesource.com/c/146977
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/data.go  |  3 +--
+ src/cmd/link/internal/ld/xcoff.go | 32 ++++++++++++++++++++++++++++++++
+ src/runtime/alg.go                |  4 ++++
+ 3 files changed, 37 insertions(+), 2 deletions(-)

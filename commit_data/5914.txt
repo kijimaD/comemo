@@ -1,0 +1,36 @@
+commit 07cc6440dc2ec35e2a216e13dd8aed9208649a77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 29 18:13:41 2010 -0700
+
+    go_spec: don't allow parens around the literal type of composite literals
+    
+    Background: The current spec is imprecise with respect to the parsing ambiguity
+    for composite literals: It says that the ambiguity arises when the TypeName form
+    of the LiteralType is used. The following code:
+    
+        if (B) {} ...
+    
+    is not using the TypeName form (but the parenthesized TypeName form) and thus
+    could be interpreted as:
+    
+        if ((B){}) ...
+    
+    instead of
+    
+        if B {} ...
+    
+    Both compilers and gofmt choose the latter interpretation. One could fix the
+    spec by making the clause regarding the parsing ambiguity more precise ("...using
+    the _possibly parenthesized_ TypeName form of the LiteralType..."). The alternative
+    (chosen here) is to simply disallow parenthesized literal types. Except for a single
+    test case (test/parentype.go) there appears to be no Go code under $GOROOT containing
+    parenthesized literal types. Furthermore, parentheses are never needed around a
+    literal type for correct parsing.
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/1913041
+
+ doc/go_spec.html  | 9 +++++----
+ test/parentype.go | 4 +---
+ 2 files changed, 6 insertions(+), 7 deletions(-)

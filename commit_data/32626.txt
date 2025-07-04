@@ -1,0 +1,29 @@
+commit ec0e2edd3b8e92ca003416a4cdbd9b7345d9d38f
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Sep 6 08:36:10 2017 +0200
+
+    runtime: avoid extra tophash check in mapassign when key comparison is cheap
+    
+    mapaccess and mapdelete functions are already optimized to prefer direct
+    key comparison instead of tophash checks when key comparison is cheap.
+    
+    Extended version of golang.org/cl/55235.
+    
+    AMD64:
+    name                old time/op    new time/op    delta
+    MapPopulate/1         42.5ns ± 2%    40.3ns ± 2%  -5.37%  (p=0.000 n=9+10)
+    MapPopulate/10         558ns ± 1%     556ns ± 1%    ~     (p=0.157 n=10+10)
+    MapPopulate/100       7.75µs ± 1%    7.66µs ± 2%  -1.19%  (p=0.001 n=10+10)
+    MapPopulate/1000      92.6µs ± 1%    92.0µs ± 1%  -0.61%  (p=0.016 n=10+8)
+    MapPopulate/10000      817µs ± 1%     814µs ± 1%    ~     (p=0.247 n=10+10)
+    MapPopulate/100000    8.02ms ± 1%    7.90ms ± 2%  -1.47%  (p=0.007 n=10+10)
+    
+    Change-Id: If0eca9931379cbbd37eb753e9bcd2888d8272153
+    Reviewed-on: https://go-review.googlesource.com/62050
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/hashmap_fast.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

@@ -1,0 +1,37 @@
+commit 7b31af0eae8ce369d5ffd16be1de0b2f0121e7c2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 22 23:33:16 2022 -0400
+
+    os/exec: use a TestMain to avoid hijacking stdout for helper commands
+    
+    The previous implementation of helperCommand relied on running a
+    well-known Test function which implemented all known commands.
+    
+    That not only added Skip noise in the test's output, but also (and
+    more importantly) meant that the commands could not write directly to
+    stdout in the usual way, since the testing package hijacks os.Stdout
+    for its own use.
+    
+    The new implementation addresses the above issues, and also ensures
+    that all registered commands are actually used, reducing the risk of
+    an unused command sticking around after refactoring.
+    
+    It also sets the subprocess environment variable directly in the test
+    process, instead of on each individual helper command's Env field,
+    allowing helper commands to be used without an explicit Env.
+    
+    Updates #50599.
+    (Also for #50436.)
+    
+    Change-Id: I189c7bed9a07cfe47a084b657b88575b1ee370b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401934
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/os/exec/exec_linux_test.go   |   2 +-
+ src/os/exec/exec_posix_test.go   |  45 ++--
+ src/os/exec/exec_test.go         | 470 +++++++++++++++++++++------------------
+ src/os/exec/exec_windows_test.go |  42 ++++
+ src/os/exec/lp_windows_test.go   |  50 +++--
+ src/os/exec/read3.go             |   2 +-
+ 6 files changed, 359 insertions(+), 252 deletions(-)

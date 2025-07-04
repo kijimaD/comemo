@@ -1,0 +1,14 @@
+commit 721d5893d7fbc6b1791ee067e95dab3ae8d7d13e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 3 17:37:01 2015 -0800
+
+    math/big: first version of Float %e, %f, %g, %G formatting working
+    
+    Change-Id: I10efa3bc8bc7f41100feabe17837f805a42d7eb6
+    Reviewed-on: https://go-review.googlesource.com/3842
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/floatconv.go      |   9 +-
+ src/math/big/floatconv_test.go | 165 ++++++++++++++++++++++++++++++++-----
+ src/math/big/ftoa.go           | 181 +++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 329 insertions(+), 26 deletions(-)

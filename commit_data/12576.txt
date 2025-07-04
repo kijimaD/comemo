@@ -1,0 +1,17 @@
+commit a7c9f2490769e29696b64c3e4027b1bca64d44f1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Mar 12 13:25:48 2012 -0700
+
+    cmd/fix: add rules for net/http -> net/http/httputil renames
+    
+    And merge the httputil fix into go1rename.
+    
+    R=golang-dev, r, dsymonds, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5696084
+
+ src/cmd/fix/go1rename.go      |  90 +++++++++++++++++++++++++++++
+ src/cmd/fix/go1rename_test.go | 130 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/fix/httputil.go       |  63 --------------------
+ src/cmd/fix/httputil_test.go  | 122 ---------------------------------------
+ 4 files changed, 220 insertions(+), 185 deletions(-)

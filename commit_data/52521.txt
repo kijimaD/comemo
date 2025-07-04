@@ -1,0 +1,20 @@
+commit 19409663a09ffc65a7ff193a23a75763a4b5befd
+Author: Lasse Folger <lassefolger@google.com>
+Date:   Mon Apr 3 13:52:56 2023 +0200
+
+    go/internal/gcimporter: use saferio.ReadData instead of io.ReadAll when possible
+    
+    saferio.ReadData avoids unnecessary allocations because the buffer can be
+    preallocated with the right size (up to a limit) instead of having to resize
+    and copy it step by step.
+    
+    Change-Id: Id70f6908971d4f126c601a9571ac3c67ea0accdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481616
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/internal/gcimporter/gcimporter.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)

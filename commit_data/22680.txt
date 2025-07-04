@@ -1,0 +1,18 @@
+commit e5e52f4f2c6f67e41b97fd539c1963f85536c985
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 22 12:18:01 2015 -0400
+
+    runtime: factor checking if P run queue is empty
+    
+    There are a variety of places where we check if a P's run queue is
+    empty. This test is about to get slightly more complicated, so factor
+    it out into a new function, runqempty. This function is inlinable, so
+    this has no effect on performance.
+    
+    Change-Id: If4a0b01ffbd004937de90d8d686f6ded4aad2c6b
+    Reviewed-on: https://go-review.googlesource.com/9287
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/proc1.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

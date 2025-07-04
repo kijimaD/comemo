@@ -1,0 +1,12 @@
+commit a034e478a7067db7ec0f3b549436bf6fbee3f4a0
+Author: Jan Mercl <0xjnml@gmail.com>
+Date:   Thu Dec 18 12:24:16 2014 +0100
+
+    cmd/yacc: Prevent index out of range. Fixes #9099.
+    
+    Change-Id: I7ef01a738b6ca49af1c148146d439c81b0a33b16
+    Reviewed-on: https://go-review.googlesource.com/1785
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/yacc/yacc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

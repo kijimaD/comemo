@@ -1,0 +1,59 @@
+commit c2d10243688194346f660591fe4159e30a8d20ec
+Author: Hana Kim <hakim@google.com>
+Date:   Thu Apr 19 14:58:42 2018 -0400
+
+    runtime/trace: rename "Span" with "Region"
+    
+    "Span" is a commonly used term in many distributed tracing systems
+    (Dapper, OpenCensus, OpenTracing, ...). They use it to refer to a
+    period of time, not necessarily tied into execution of underlying
+    processor, thread, or goroutine, unlike the "Span" of runtime/trace
+    package.
+    
+    Since distributed tracing and go runtime execution tracing are
+    already similar enough to cause confusion, this CL attempts to avoid
+    using the same word if possible.
+    
+    "Region" is being used in a certain tracing system to refer to a code
+    region which is pretty close to what runtime/trace.Span currently
+    refers to. So, replace that.
+    https://software.intel.com/en-us/itc-user-and-reference-guide-defining-and-recording-functions-or-regions
+    
+    This CL also tweaks APIs a bit based on jbd and heschi's comments:
+    
+      NewContext -> NewTask
+        and it now returns a Task object that exports End method.
+    
+      StartSpan -> StartRegion
+        and it now returns a Region object that exports End method.
+    
+    Also, changed WithSpan to WithRegion and it now takes func() with no
+    context. Another thought is to get rid of WithRegion. It is a nice
+    concept but in practice, it seems problematic (a lot of code churn,
+    and polluting stack trace). Already, the tracing concept is very low
+    level, and we hope this API to be used with great care.
+    
+    Recommended usage will be
+       defer trace.StartRegion(ctx, "someRegion").End()
+    
+    Left old APIs untouched in this CL. Once the usage of them are cleaned
+    up, they will be removed in a separate CL.
+    
+    Change-Id: I73880635e437f3aad51314331a035dd1459b9f3a
+    Reviewed-on: https://go-review.googlesource.com/108296
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: JBD <jbd@google.com>
+
+ src/cmd/trace/annotations.go         | 204 +++++++++++++++++------------------
+ src/cmd/trace/annotations_test.go    | 110 +++++++++----------
+ src/cmd/trace/main.go                |   2 +-
+ src/cmd/trace/pprof.go               |  34 +++---
+ src/cmd/trace/trace.go               |  24 ++---
+ src/internal/trace/goroutines.go     |  72 ++++++-------
+ src/internal/trace/parser.go         |  48 ++++-----
+ src/runtime/trace.go                 |  10 +-
+ src/runtime/trace/annotation.go      | 124 +++++++++++++--------
+ src/runtime/trace/annotation_test.go |  46 ++++----
+ src/runtime/trace/trace.go           |  30 +++---
+ 11 files changed, 369 insertions(+), 335 deletions(-)

@@ -1,0 +1,12 @@
+commit 55b56d2b2f88b7c3ee0f0475b3744a470a30b190
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Apr 12 19:17:11 2017 +0200
+
+    cmd/compile: remove last c-isms from typecheck.go comments
+    
+    Change-Id: I0b1ae9d296115000fb30aab39f9eac1200ae68d0
+    Reviewed-on: https://go-review.googlesource.com/40451
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 20 +++++++-------------
+ 1 file changed, 7 insertions(+), 13 deletions(-)

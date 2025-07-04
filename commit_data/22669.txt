@@ -1,0 +1,15 @@
+commit aef54d40ac514cc3dac4b24d0c9a89e0ab027a44
+Author: Hyang-Ah Hana Kim <hyangah@gmail.com>
+Date:   Thu Apr 23 13:55:56 2015 -0400
+
+    runtime: disable TestNewOSProc0 on android/arm.
+    
+    newosproc0 does not work on android/arm.
+    See issue #10548.
+    
+    Change-Id: Ieaf6f5d0b77cddf5bf0b6c89fd12b1c1b8723f9b
+    Reviewed-on: https://go-review.googlesource.com/9293
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/runtime/norace_linux_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

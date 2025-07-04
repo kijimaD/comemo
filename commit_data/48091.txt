@@ -1,0 +1,22 @@
+commit 7c9885def52a408532085a566eea107f31ad1556
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 3 17:34:43 2022 -0800
+
+    go/types, types2: use identical missingMethod in both type checkers
+    
+    Further simplify and regularize Checker.missingMethod and use the
+    same code in both type checkers.
+    
+    This enables case-folding lookup for go/types.
+    
+    Adjusted test case that looks for alternative methods.
+    
+    Change-Id: I5b8cc598c295c329ff93b1c65787cc6140f0900e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382858
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/lookup.go      | 36 ++++++++++--------------
+ src/go/types/lookup.go                         | 38 ++++++++++----------------
+ src/go/types/testdata/fixedbugs/issue50816.go2 |  4 +--
+ 3 files changed, 30 insertions(+), 48 deletions(-)

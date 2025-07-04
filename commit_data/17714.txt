@@ -1,0 +1,12 @@
+commit 6ffd70e7f04e90301ddd8224a90859acb44aed83
+Author: Carl Shapiro <cshapiro@google.com>
+Date:   Mon Sep 30 15:54:21 2013 -0700
+
+    encoding/gob: do not hide pointer argument for the garbage collector
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/14154043
+
+ src/pkg/encoding/gob/decode.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

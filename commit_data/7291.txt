@@ -1,0 +1,16 @@
+commit d93b2f384da9ce32d66b672de53453572ad1706a
+Author: Eric Eisner <eric.d.eisner@gmail.com>
+Date:   Mon Jan 31 13:13:02 2011 -0800
+
+    suffixarray: fix construction bug
+    
+    Previously, group numbers were updated while being read,
+    sometimes leading to inconsistencies.
+    
+    R=gri, gri1
+    CC=golang-dev
+    https://golang.org/cl/4121045
+
+ src/pkg/index/suffixarray/qsufsort.go         | 28 ++++++++++++++++-----------
+ src/pkg/index/suffixarray/suffixarray_test.go |  6 ++++++
+ 2 files changed, 23 insertions(+), 11 deletions(-)

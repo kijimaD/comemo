@@ -1,0 +1,38 @@
+commit cea29c4a358004d84d8711a07628c2f856b381e8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jun 9 22:24:40 2016 -0700
+
+    os: on GNU/Linux use waitid to avoid wait/kill race
+    
+    On systems that support the POSIX.1-2008 waitid function, we can use it
+    to block until a wait will succeed. This avoids a possible race
+    condition: if a program calls p.Kill/p.Signal and p.Wait from two
+    different goroutines, then it is possible for the wait to complete just
+    before the signal is sent. In that case, it is possible that the system
+    will start a new process using the same PID between the wait and the
+    signal, causing the signal to be sent to the wrong process. The
+    Process.isdone field attempts to avoid that race, but there is a small
+    gap of time between when wait returns and isdone is set when the race
+    can occur.
+    
+    This CL avoids that race by using waitid to wait until the process has
+    exited without actually collecting the PID. Then it sets isdone, then
+    waits for any active signals to complete, and only then collects the PID.
+    
+    No test because any plausible test would require starting enough
+    processes to recycle all the process IDs.
+    
+    Update #13987.
+    Update #16028.
+    
+    Change-Id: Id2939431991d3b355dfb22f08793585fc0568ce8
+    Reviewed-on: https://go-review.googlesource.com/23967
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/exec.go       |  6 ++++--
+ src/os/exec_unix.go  | 18 ++++++++++++++++++
+ src/os/wait_linux.go | 29 +++++++++++++++++++++++++++++
+ src/os/wait_unimp.go | 16 ++++++++++++++++
+ 4 files changed, 67 insertions(+), 2 deletions(-)

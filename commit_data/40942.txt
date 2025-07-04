@@ -1,0 +1,23 @@
+commit 7673884a7fe831ab8b8cf43a3ae74e12c9a44fbf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Dec 5 18:56:54 2019 -0500
+
+    cmd/compile: don't fuse branches with side effects
+    
+    Count Values with side effects but no use as live, and don't fuse
+    branches that contain such Values. (This can happen e.g. when it
+    is followed by an infinite loop.) Otherwise this may lead to
+    miscompilation (side effect fired at wrong condition) or ICE (two
+    stores live simultaneously).
+    
+    Fixes #36005.
+    
+    Change-Id: If202eae4b37cb7f0311d6ca120ffa46609925157
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210179
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/fuse.go      |  2 +-
+ src/cmd/compile/internal/ssa/fuse_test.go | 38 +++++++++++++++++++++++++++++--
+ src/cmd/compile/internal/ssa/gen/main.go  |  1 +
+ src/cmd/compile/internal/ssa/opGen.go     |  1 +
+ 4 files changed, 39 insertions(+), 3 deletions(-)

@@ -1,0 +1,18 @@
+commit 55dfdb64abe97a838cef38442182ae95199a5714
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 26 00:30:39 2011 -0400
+
+    build: remove rm dreg
+    
+    Undo CL 4254056 now that enough time has elapsed
+    that people with old trees have all built and removed
+    those files (which are no longer generated in that location).
+    
+    Fixes #1581.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4802059
+
+ src/Make.pkg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

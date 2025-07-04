@@ -1,0 +1,12 @@
+commit 188ddaa4872f70e2859331655442fca3bfd5128a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 24 16:39:38 2013 -0700
+
+    C: add Kevin Klues (Google CLA)
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/11797043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

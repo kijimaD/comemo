@@ -1,0 +1,12 @@
+commit 2b3508425e5aa94851958ded12f1153456209f8f
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Fri Jul 23 11:33:17 2010 +1000
+
+    misc/vim: updated syntax file to recognize constants of the form 1e9
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/1864042
+
+ misc/vim/syntax/go.vim | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

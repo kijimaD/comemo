@@ -1,0 +1,12 @@
+commit 2e8be52ff77f33b49531c08e7a62e36a16bd8ca7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 16 13:25:41 2010 -0800
+
+    time: explain the formats a little better.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/3719042
+
+ src/pkg/time/format.go | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)

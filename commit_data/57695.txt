@@ -1,0 +1,25 @@
+commit 6686edc0e71c31de2e959058693e95e335a14000
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 3 18:30:15 2024 +0000
+
+    runtime: move debug checks behind constant flag in mallocgc
+    
+    These debug checks are very occasionally helpful, but they do cost real
+    time. The biggest issue seems to be the bloat of mallocgc due to the
+    "throw" paths. Overall, after some follow-ups, this change cuts about
+    1ns off of the mallocgc fast path.
+    
+    This is a microoptimization that on its own changes very little, but
+    together with other optimizations and a breaking up of the various
+    malloc paths will matter all together ("death by a thousand cuts").
+    
+    Change-Id: I07c4547ad724b9f94281320846677fb558957721
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617878
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/malloc.go  | 26 +++++++++++++++++++-------
+ src/runtime/mgcmark.go |  3 +++
+ 2 files changed, 22 insertions(+), 7 deletions(-)

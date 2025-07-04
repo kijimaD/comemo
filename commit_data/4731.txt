@@ -1,0 +1,16 @@
+commit 8653acb191473126baa409d929841fe9fed3c734
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 29 16:37:20 2010 -0800
+
+    The gccgo frontend has moved to a new repository.
+    
+    Update the documents accordingly.  Also document gccgo
+    specific options.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/196070
+
+ doc/gccgo_contribute.html | 70 ++++++++++++++++++++++++++---------------------
+ doc/gccgo_install.html    | 41 +++++++++++++++++++++++++--
+ 2 files changed, 78 insertions(+), 33 deletions(-)

@@ -1,0 +1,17 @@
+commit f030043e37c4038e8a169feaf814ccbe3ae55cda
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Aug 23 21:32:30 2021 +1000
+
+    cmd/internal/obj/riscv: simplify machine code output
+    
+    Use cursym.WriteInt rather than building up a slice of bytes and then writing them
+    out via PutUint32. This also allows for variable instruction sizes, which will be
+    needed when support for compressed (2 byte length) instructions is added.
+    
+    Change-Id: I17c9ffa52d27c91a24e161317e3db28e224804ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344460
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)

@@ -1,0 +1,22 @@
+commit cc276a768feddf6ae1d82b581e0d975a8990d18a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 20 15:40:44 2024 -0800
+
+    go/types: generate conversions.go from types2 source
+    
+    This CL reduces the amount of code that needs to be maintained
+    manually by about 300 LOC.
+    
+    Change-Id: I749e47668e90e77e99109005fbe19045d4a5ad29
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565437
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/conversions.go | 13 +++++++------
+ src/cmd/compile/internal/types2/util.go        |  2 ++
+ src/go/types/conversions.go                    | 11 ++++++++---
+ src/go/types/generate_test.go                  |  1 +
+ src/go/types/util.go                           |  2 ++
+ 5 files changed, 20 insertions(+), 9 deletions(-)

@@ -1,0 +1,25 @@
+commit 56d3e84bb0195913e1d932d6fe8251047091076b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 31 15:18:12 2023 -0700
+
+    encoding/json: use reflect.TypeFor for known types
+    
+    For #60088
+    
+    Change-Id: I2e471c76de62944b14472966b63f5778124b9b8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514655
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/encoding/json/bench_test.go  |  2 +-
+ src/encoding/json/decode.go      |  6 +++---
+ src/encoding/json/decode_test.go | 40 ++++++++++++++++++++--------------------
+ src/encoding/json/encode.go      |  4 ++--
+ 4 files changed, 26 insertions(+), 26 deletions(-)

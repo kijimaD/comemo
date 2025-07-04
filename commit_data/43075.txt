@@ -1,0 +1,21 @@
+commit d2bd93a01096ac6dc8061112e7a9ac62ec239627
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Fri May 15 20:35:00 2020 +0200
+
+    cmd/compile: enforce strongly typed rules for ARM (6)
+    
+    End of "constant folding in *shift ops" until EOF
+    (L1070-)
+    Toolstash-check is successful.
+    
+    Change-Id: I55846a459aca5238f831750f04132e13a0baeed7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234198
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Giovanni Bajo <rasky@develer.com>
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  704 +++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM.go | 1386 ++++++++++++++--------------
+ 2 files changed, 1045 insertions(+), 1045 deletions(-)

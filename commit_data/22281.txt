@@ -1,0 +1,33 @@
+commit 24ee948269580391dda0e3ec50136d25a5778280
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 26 18:48:42 2015 -0400
+
+    runtime: update gctrace line for new garbage collector
+    
+    GODEBUG=gctrace=1 turns on a per-GC cycle trace line. The current line
+    is left over from the STW garbage collector and includes a lot of
+    information that is no longer meaningful for the concurrent GC and
+    doesn't include a lot of information that is important.
+    
+    Replace this line with a new line designed for the new garbage
+    collector.
+    
+    This new line is focused more on helping the user understand the
+    impact of the garbage collector on their program and less on telling
+    us, the runtime developers, everything that's happening inside
+    GC. It's designed to fit in 80 columns and intentionally omit some
+    potentially useful things that were in the old line. We might want a
+    "verbose" mode that adds information for us.
+    
+    We'll be able to further simplify the line once we eliminate the STW
+    around enabling the write barrier. Then we'll have just one STW phase,
+    one concurrent phase, and one more STW phase, so we'll be able to
+    reduce the number of times from five to three.
+    
+    Change-Id: Icc30939fe4576fb4491b4eac811649395727aa2a
+    Reviewed-on: https://go-review.googlesource.com/8208
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mgc.go  | 125 ++++++++++++++++++++++++++++++++--------------------
+ src/runtime/proc.go |   6 +++
+ 2 files changed, 84 insertions(+), 47 deletions(-)

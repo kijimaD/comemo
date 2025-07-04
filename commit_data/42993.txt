@@ -1,0 +1,24 @@
+commit 790fa1c546a05936406f6bbf24f6a6ddeb6ec6ad
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Mon Sep 14 16:30:43 2020 +0200
+
+    cmd/compile: unify reflect, string and slice copy runtime functions
+    
+    Use a common runtime slicecopy function to copy strings or slices
+    into slices. This deduplicates similar code previously used in
+    reflect.slicecopy and runtime.stringslicecopy.
+    
+    Change-Id: I09572ff0647a9e12bb5c6989689ce1c43f16b7f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/254658
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 408 ++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   3 +-
+ src/cmd/compile/internal/gc/subr.go            |  12 +-
+ src/cmd/compile/internal/gc/walk.go            |  60 ++--
+ src/runtime/mbarrier.go                        |  23 +-
+ src/runtime/slice.go                           |  44 +--
+ 6 files changed, 247 insertions(+), 303 deletions(-)

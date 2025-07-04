@@ -1,0 +1,25 @@
+commit 844a86317d509ca49e4723deb99dfd05e5dc6784
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 6 17:37:45 2010 -0700
+
+    net/textproto: new package, with example net/dict
+    
+    Generic text-based network protcol library for SMTP-like protocols.
+    HTTP and NNTP should be changed to use this package,
+    and I expect that SMTP and POP3 will be able to use it too.
+    
+    R=cemeyer, nigeltao_golang, r
+    CC=golang-dev, petar-m
+    https://golang.org/cl/889041
+
+ src/pkg/Makefile                     |   3 +
+ src/pkg/net/dict/Makefile            |   7 +
+ src/pkg/net/dict/dict.go             | 205 ++++++++++++++++
+ src/pkg/net/textproto/Makefile       |  14 ++
+ src/pkg/net/textproto/pipeline.go    | 117 +++++++++
+ src/pkg/net/textproto/reader.go      | 452 +++++++++++++++++++++++++++++++++++
+ src/pkg/net/textproto/reader_test.go | 140 +++++++++++
+ src/pkg/net/textproto/textproto.go   | 122 ++++++++++
+ src/pkg/net/textproto/writer.go      | 119 +++++++++
+ src/pkg/net/textproto/writer_test.go |  35 +++
+ 10 files changed, 1214 insertions(+)

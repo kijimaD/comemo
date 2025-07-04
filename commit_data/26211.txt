@@ -1,0 +1,19 @@
+commit c7917de0bb9c280ffb4d80c8551f8b790c30259e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Mar 10 19:05:45 2016 -0800
+
+    cmd/compile: simplify transformclosure
+    
+    Use idiomatic slicing operations instead of incrementally building a
+    linked list.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Idb0e40c7b4d7d1110d23828afa8ae1d157ba905f
+    Reviewed-on: https://go-review.googlesource.com/20556
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go | 27 +++++++++++----------------
+ 1 file changed, 11 insertions(+), 16 deletions(-)

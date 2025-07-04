@@ -1,0 +1,20 @@
+commit 51114a3fa58b196ec5ab4b5205617f98e2cdc5ff
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 31 09:38:29 2023 -0400
+
+    cmd/go: clean up handling of go mod tidy -go=v during modload
+    
+    Slight cleanup of the special case for "mod tidy" during modload
+    of a module with no go version. Now it's clearer what is special.
+    
+    For #57001.
+    
+    Change-Id: I4a3ad0a948ccb5c62365f2a7f7f7de5582cc57c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499535
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modload/init.go | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)

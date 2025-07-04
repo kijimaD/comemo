@@ -1,0 +1,37 @@
+commit d49719b1f75ea745937bdbc09ae5927c5378780b
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 1 14:18:09 2022 -0700
+
+    cmd/compile: move raw writes out of write barrier code
+    
+    Previously, the write barrier calls themselves did the actual
+    writes to memory. Instead, move those writes out to a common location
+    that both the wb-enabled and wb-disabled code paths share.
+    
+    This enables us to optimize the write barrier path without having
+    to worry about performing the actual writes.
+    
+    Change-Id: Ia71ab651908ec124cc33141afb52e4ca19733ac6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/447780
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ir/symtab.go        |   3 +-
+ src/cmd/compile/internal/liveness/plive.go   |   4 +-
+ src/cmd/compile/internal/ssa/writebarrier.go | 254 +++++++++++++--------------
+ src/cmd/compile/internal/ssagen/ssa.go       |  13 +-
+ src/runtime/asm_386.s                        |   2 -
+ src/runtime/asm_amd64.s                      |   2 -
+ src/runtime/asm_arm.s                        |   2 -
+ src/runtime/asm_arm64.s                      |   2 -
+ src/runtime/asm_loong64.s                    |   2 -
+ src/runtime/asm_mips64x.s                    |   2 -
+ src/runtime/asm_mipsx.s                      |   2 -
+ src/runtime/asm_ppc64x.s                     |   2 -
+ src/runtime/asm_riscv64.s                    |   2 -
+ src/runtime/asm_s390x.s                      |   2 -
+ src/runtime/asm_wasm.s                       |   3 -
+ src/runtime/mbarrier.go                      |  18 ++
+ 16 files changed, 149 insertions(+), 166 deletions(-)

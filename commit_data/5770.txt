@@ -1,0 +1,17 @@
+commit d49c0d71f657c765676f084043cee31a16afa31e
+Author: Markus Duft <markus.duft@salomon.at>
+Date:   Thu Jul 8 00:15:47 2010 +1000
+
+                    runtime/tiny: add destroyLock stub, and docs for additional VMs
+    
+                updated thread.c to provide destroylock, which seems to be
+                  required to link.
+            updated README with different virtualization programs.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/1746047
+
+ src/pkg/runtime/tiny/README   | 28 +++++++++++++++++++++++++---
+ src/pkg/runtime/tiny/thread.c |  5 +++++
+ 2 files changed, 30 insertions(+), 3 deletions(-)

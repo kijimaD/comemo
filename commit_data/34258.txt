@@ -1,0 +1,19 @@
+commit bb355ed5ebb24179be4e1093c3dce12e23f21d56
+Author: Ahmet Soormally <ahmet@mangomm.co.uk>
+Date:   Mon Jan 15 12:12:46 2018 +0000
+
+    regexp: dont use builtin type as variable name
+    
+    The existing implementation declares a variable error which collides
+    with builting type error.
+    
+    This change simply renames error variable to err.
+    
+    Change-Id: Ib56c2530f37f53ec70fdebb825a432d4c550cd04
+    Reviewed-on: https://go-review.googlesource.com/87775
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/regexp/regexp.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit 3928915ec74029269f8dacb46c627cbdbd295c2b
+Author: Carlo Alberto Ferraris <cafxx@strayorange.com>
+Date:   Sat Aug 10 13:11:26 2019 +0000
+
+    doc/go1.13: mention faster sync.Mutex/RWMutex/Once
+    
+    Mention faster sync.Mutex/RWMutex/Once in the 1.13 release notes.
+    
+    Change-Id: I29d8a5004a0af42542e8db82a8c9e2e06a15dbb0
+    GitHub-Last-Rev: 2995401dab563ea5af98c0f5351f51a6116f105e
+    GitHub-Pull-Request: golang/go#33404
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188479
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/go1.13.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

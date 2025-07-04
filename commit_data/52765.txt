@@ -1,0 +1,19 @@
+commit a5297f59a73aef5e965cd29b3e666836d6863243
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 21 15:28:19 2023 -0700
+
+    runtime: use platform.RaceDetectorSupported for -race tests
+    
+    Don't try to duplicate the list of targets that support -race.
+    
+    Change-Id: I889d5c2f4884de89d88f8efdc89608aa73584a8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/487575
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/crash_cgo_test.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

@@ -1,0 +1,12 @@
+commit fa0c53da602ceff27378be1ca3d3f51519b31e03
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 10 23:10:28 2010 -0700
+
+    arm build: try to fix it by removing reference to deleted file syntax/slice.go
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2127046
+
+ test/arm-pass.txt | 1 -
+ 1 file changed, 1 deletion(-)

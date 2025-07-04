@@ -1,0 +1,12 @@
+commit f25a3873b74bf48c6f0e41e9091e8beba087a1f2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 3 17:36:48 2012 -0800
+
+    test: fix copyright year in new test case
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5631044
+
+ test/fixedbugs/bug405.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

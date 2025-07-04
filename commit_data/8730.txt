@@ -1,0 +1,13 @@
+commit 4a8de67058742b2df9bee046859efb0d7e6a321f
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jun 15 14:29:26 2011 +1000
+
+    go/build: record all cgo intermediate files (fix build)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4613045
+
+ src/pkg/go/build/build.go      | 32 ++++++++++++++++++++------------
+ src/pkg/go/build/build_test.go |  4 ++++
+ 2 files changed, 24 insertions(+), 12 deletions(-)

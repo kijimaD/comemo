@@ -1,0 +1,20 @@
+commit 11884db3d76a7e91521bb63cff3cc701c0c07826
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 14 15:00:51 2013 -0500
+
+    cmd/go: fix vet
+    
+    The IgnoredGoFiles are already listed in allgofiles,
+    so they were being run twice. Worse, the ones in
+    IgnoredGoFiles are not fully qualified paths, so they
+    weren't being found when executed outside the
+    package directory.
+    
+    Fixes #4764.
+    
+    R=golang-dev, minux.ma, franciscossouza
+    CC=golang-dev
+    https://golang.org/cl/7308049
+
+ src/cmd/go/vet.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

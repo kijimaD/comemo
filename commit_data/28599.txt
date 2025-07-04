@@ -1,0 +1,25 @@
+commit 962dc4b44d5260e72dad8d636cb09bcf7f4aa6bb
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Tue Sep 27 20:30:01 2016 -0400
+
+    cmd/compile: improve load/store merging on s390x
+    
+    This commit makes the process of load/store merging more incremental
+    for both big and little endian operations. It also adds support for
+    32-bit shifts (needed to merge 16- and 32-bit loads/stores).
+    
+    In addition, the merging of little endian stores is now supported.
+    Little endian stores are now up to 30 times faster.
+    
+    Change-Id: Iefdd81eda4a65b335f23c3ff222146540083ad9c
+    Reviewed-on: https://go-review.googlesource.com/29956
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/s390x/ssa.go        |    2 +
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  330 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go |   37 +-
+ src/cmd/compile/internal/ssa/opGen.go        |   90 +
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 4891 +++++++++++++++++---------
+ 5 files changed, 3488 insertions(+), 1862 deletions(-)

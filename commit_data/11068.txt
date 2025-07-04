@@ -1,0 +1,21 @@
+commit 146a703cd1ecf096d270873090c8eeef6438b5f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 9 16:44:01 2012 -0800
+
+    cmd/go: add -v flag to build and install
+    
+    The -v flag prints the names of packages as they are built/installed.
+    
+    Use -v in make.bash/run.bash to avoid a silent pause during
+    the build while Go code is being compiled.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5532055
+
+ src/cmd/go/build.go | 20 +++++++++++++++-----
+ src/cmd/go/run.go   |  2 +-
+ src/cmd/go/test.go  |  2 +-
+ src/make.bash       |  2 +-
+ src/run.bash        |  2 +-
+ 5 files changed, 19 insertions(+), 9 deletions(-)

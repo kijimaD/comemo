@@ -1,0 +1,14 @@
+commit 2c12b81739ec2cb85073e125748fcbf5d2febb2c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 26 18:55:35 2016 +0000
+
+    net/http: document TimeFormat more
+    
+    Fixes #14103
+    
+    Change-Id: I89963643eccc902b809e04b7a14153acb0d242e1
+    Reviewed-on: https://go-review.googlesource.com/18933
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/server.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

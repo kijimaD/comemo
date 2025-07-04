@@ -1,0 +1,16 @@
+commit 0cc4c2971da80d010af5a3336ad2e7fda06f06a8
+Author: Alexandre Maari <draeron@gmail.com>
+Date:   Mon Oct 15 13:23:09 2018 -0400
+
+    text/template: removed truncation of context in error message
+    
+    Fixes #27930
+    
+    Change-Id: I31ad3fdb74d74152268c59ae4c651cc4c8c1716d
+    Reviewed-on: https://go-review.googlesource.com/c/142217
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/text/template/parse/parse.go | 3 ---
+ 1 file changed, 3 deletions(-)

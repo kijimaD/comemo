@@ -1,0 +1,12 @@
+commit 4ae2b43ef23ef0e187a923fdf1ca61c33e7faef2
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 26 17:06:36 2010 -0400
+
+    codereview: fix hang on standard hg commands
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/1950045
+
+ lib/codereview/codereview.py | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

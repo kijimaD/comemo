@@ -1,0 +1,19 @@
+commit 484586c81a0196e42ac52f651bc56017ca454280
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 9 18:08:43 2018 +0000
+
+    strings: prevent copyCheck from forcing Builder to escape and allocate
+    
+    All credit and blame goes to Ian for this suggestion, copied from the
+    runtime.
+    
+    Fixes #23382
+    Updates #7921
+    
+    Change-Id: I3d5a9ee4ab730c87e0f3feff3e7fceff9bcf9e18
+    Reviewed-on: https://go-review.googlesource.com/86976
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/strings/builder.go      | 19 ++++++++++++++++++-
+ src/strings/builder_test.go | 12 ++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

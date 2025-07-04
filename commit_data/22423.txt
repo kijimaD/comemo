@@ -1,0 +1,12 @@
+commit 399b3e32304928dded379c14d08b0da52ae8d3ed
+Author: Shenghou Ma <minux@golang.org>
+Date:   Fri Apr 10 03:28:40 2015 -0400
+
+    test: add gccgo test case for #10407
+    
+    Change-Id: I8d17e2b0fbc529ca7958c75222964a5e419aa3db
+    Reviewed-on: https://go-review.googlesource.com/8717
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/fixedbugs/issue10407.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

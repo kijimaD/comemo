@@ -1,0 +1,19 @@
+commit 5e48d2b62a4bf6f9ee11905f1c5f93da648df42f
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 5 16:31:24 2017 -0500
+
+    cmd/go: ignore stderr from tool version checks
+    
+    There are multiple valid reasons a tool might print to stderr.
+    As long as we get the expected output on stdout, that's fine.
+    
+    Fixes #22588.
+    
+    Change-Id: I9c5d32da08288cb26dd575530a8257cd5f375367
+    Reviewed-on: https://go-review.googlesource.com/76017
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/go/go_test.go               | 15 +++++++++++++++
+ src/cmd/go/internal/work/buildid.go | 11 +++++++----
+ 2 files changed, 22 insertions(+), 4 deletions(-)

@@ -1,0 +1,18 @@
+commit 300d9a21583e7cf0149a778a0611e76ff7c6680f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jun 30 14:21:15 2015 -0700
+
+    net/http: harden Server against request smuggling
+    
+    See RFC 7230.
+    
+    Thanks to Régis Leroy for the report.
+    
+    Change-Id: Ic1779bc2180900430d4d7a4938cac04ed73c304c
+    Reviewed-on: https://go-review.googlesource.com/11810
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/readrequest_test.go | 65 ++++++++++++++++++++++++++++++++++++----
+ src/net/http/transfer.go         | 50 ++++++++++++++++++++++++-------
+ 2 files changed, 99 insertions(+), 16 deletions(-)

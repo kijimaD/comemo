@@ -1,0 +1,18 @@
+commit 70deaa33ebd91944484526ab368fa19c499ff29f
+Author: David Chase <drchase@google.com>
+Date:   Wed Apr 21 10:30:25 2021 -0400
+
+    cmd/compile: extend GOSSAFUNC match to well-formed package suffix match.
+    
+    e.g., LeadingZeros, bits.LeadingZeros, math/bits.LeadingZeros
+    but not its.LeadingZeros
+    
+    Change-Id: Ib9a57e4db0af03c55bf5b5027aa6f8a5a84f2134
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312291
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

@@ -1,0 +1,22 @@
+commit 1cb3044c9fcd88e1557eca1bf35845a4108bc1db
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Fri Apr 1 03:49:43 2016 +0200
+
+    all: use bytes.Equal, bytes.Contains and strings.Contains
+    
+    Change-Id: Iba82a5bd3846f7ab038cc10ec72ff6bcd2c0b484
+    Reviewed-on: https://go-review.googlesource.com/21377
+    Run-TryBot: Dave Cheney <dave@cheney.net>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/global_test.go | 2 +-
+ src/cmd/gofmt/gofmt_test.go                | 4 ++--
+ src/compress/flate/writer_test.go          | 2 +-
+ src/crypto/cipher/xor_test.go              | 2 +-
+ src/crypto/x509/verify_test.go             | 2 +-
+ src/crypto/x509/x509_test.go               | 2 +-
+ src/encoding/xml/marshal.go                | 2 +-
+ src/html/template/css.go                   | 2 +-
+ src/html/template/escape_test.go           | 2 +-
+ src/internal/trace/parser.go               | 2 +-
+ 10 files changed, 11 insertions(+), 11 deletions(-)

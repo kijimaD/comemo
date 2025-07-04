@@ -1,0 +1,20 @@
+commit 898f9db81f112ca33aa2102633f957f9669c062d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 15 13:44:22 2019 -0700
+
+    math/big: make Rat accessors safe for concurrent use
+    
+    Do not modify the underlying Rat denominator when calling
+    one of the accessors Float32, Float64; verify that we don't
+    modify the Rat denominator when calling Inv, Sign, IsInt, Num.
+    
+    Fixes #34919.
+    Reopens #33792.
+    
+    Change-Id: Ife6d1252373f493a597398ee51e7b5695b708df5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201205
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/big/rat.go      |  8 ++++----
+ src/math/big/rat_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 4 deletions(-)

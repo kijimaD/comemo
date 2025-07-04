@@ -1,0 +1,17 @@
+commit add334986778a09dce559f4d8b7ee69534abd47d
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Mar 5 09:46:52 2013 +0200
+
+    runtime: add atomic xchg64
+    It will be handy for network poller.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7429048
+
+ src/pkg/runtime/asm_amd64.s  |  6 ++++++
+ src/pkg/runtime/atomic_386.c | 13 +++++++++++++
+ src/pkg/runtime/atomic_arm.c | 13 +++++++++++++
+ src/pkg/runtime/runtime.c    |  4 ++++
+ src/pkg/runtime/runtime.h    |  1 +
+ 5 files changed, 37 insertions(+)

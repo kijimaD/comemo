@@ -1,0 +1,20 @@
+commit 3ed5a53f9d1c9713c7d2748f7744534e404b80de
+Author: Daniel Cormier <danielc@knowbe4.com>
+Date:   Wed Jun 19 12:32:30 2019 -0400
+
+    bufio: Reader.Read may return io.EOF even when it has data buffered
+    
+    If reading 0 bytes, don't return the error from the underlying
+    io.Reader if there is still data buffered.
+    
+    Fixes #32693
+    
+    Change-Id: I12a97bd6003c638c15d41028942f27edf88340e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182997
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/bufio/bufio.go      |  3 +++
+ src/bufio/bufio_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)

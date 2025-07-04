@@ -1,0 +1,14 @@
+commit a99deed39bb945cba922bd312435fdf309b42a13
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jan 8 16:01:52 2018 +0000
+
+    container/list: document nil values more
+    
+    Fixes #23372
+    
+    Change-Id: Ie99fb4d84cb49efa66c0ff480d2656c33ef11e6d
+    Reviewed-on: https://go-review.googlesource.com/86676
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/container/list/list.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

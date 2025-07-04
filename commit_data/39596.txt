@@ -1,0 +1,94 @@
+commit 61bb56ad63992a3199acc55b2537c8355ef887b6
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 6 19:32:16 2019 -0400
+
+    net/url: make Hostname and Port predictable for invalid Host values
+    
+    When Host is not valid per RFC 3986, the behavior of Hostname and Port
+    was wildly unpredictable, to the point that Host could have a suffix
+    that didn't appear in neither Hostname nor Port.
+    
+    This is a security issue when applications are applying checks to Host
+    and expecting them to be meaningful for the contents of Hostname.
+    
+    To reduce disruption, this change only aims to guarantee the following
+    two security-relevant invariants.
+    
+    * Host is either Hostname or [Hostname] with Port empty, or
+      Hostname:Port or [Hostname]:Port.
+    
+    * Port is only decimals.
+    
+    The second invariant is the one that's most likely to cause disruption,
+    but I believe it's important, as it's conceivable an application might
+    do a suffix check on Host and expect it to be meaningful for the
+    contents of Hostname (if the suffix is not a valid port).
+    
+    There are three ways to ensure it.
+    
+    1) Reject invalid ports in Parse. Note that non-numeric ports are
+       already rejected if and only if the host starts with "[".
+    
+    2) Consider non-numeric ports as part of Hostname, not Port.
+    
+    3) Allow non-numeric ports, and hope they only flow down to net/http,
+       which will reject them (#14353).
+    
+    This change adopts both 1 and 2. We could do only the latter, but then
+    these invalid hosts would flow past port checks, like in
+    http_test.TestTransportRejectsAlphaPort. Non-numeric ports weren't fully
+    supported anyway, because they were rejected after IPv6 literals, so
+    this restores consistency. We could do only the former, but at this
+    point 2) is free and might help with manually constructed Host values
+    (or if we get something wrong in Parse).
+    
+    Note that net.SplitHostPort and net.Dial explicitly accept service names
+    in place of port numbers, but this is an URL package, and RFC 3986,
+    Section 3.2.3, clearly specifies ports as a number in decimal.
+    
+    net/http uses a mix of net.SplitHostPort and url.Parse that would
+    deserve looking into, but in general it seems that it will still accept
+    service names in Addr fields as they are passed to net.Listen, while
+    rejecting them in URLs, which feels correct.
+    
+    This leaves a number of invalid URLs to reject, which however are not
+    security relevant once the two invariants above hold, so can be done in
+    Go 1.14: IPv6 literals without brackets (#31024), invalid IPv6 literals,
+    hostnames with invalid characters, and more.
+    
+    Tested with 200M executions of go-fuzz and the following Fuzz function.
+    
+            u, err := url.Parse(string(data))
+            if err != nil {
+                    return 0
+            }
+            h := u.Hostname()
+            p := u.Port()
+    
+            switch u.Host {
+            case h + ":" + p:
+                    return 1
+            case "[" + h + "]:" + p:
+                    return 1
+            case h:
+                    fallthrough
+            case "[" + h + "]":
+                    if p != "" {
+                            panic("unexpected Port()")
+                    }
+                    return 1
+            }
+            panic("Host is not a variant of [Hostname]:Port")
+    
+    Fixes CVE-2019-14809
+    Updates #29098
+    
+    Change-Id: I7ef40823dab28f29511329fa2d5a7fb10c3ec895
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/189258
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transport.go      |  2 ++
+ src/net/http/transport_test.go |  2 +-
+ src/net/url/url.go             | 54 ++++++++++++++--------------
+ src/net/url/url_test.go        | 82 ++++++++++++++++++++----------------------
+ 4 files changed, 69 insertions(+), 71 deletions(-)

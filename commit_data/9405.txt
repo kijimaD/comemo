@@ -1,0 +1,18 @@
+commit e4a89d7ccaa4e5d3ccd6552cc2d8e108fe0bcd9a
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Thu Aug 18 10:40:29 2011 +1000
+
+    exp/template/html: defines a parse context for a subset of HTML.
+    
+    This defines just enough context to distinguish HTML URI attributes
+    from parsed character data.
+    
+    It does not affect any public module API as I thought I would get
+    early comment on style for defining enumerations and tables.
+    
+    R=rsc, r, nigeltao, r
+    CC=golang-dev
+    https://golang.org/cl/4906043
+
+ src/pkg/exp/template/html/context.go | 98 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 98 insertions(+)

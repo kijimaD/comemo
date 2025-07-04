@@ -1,0 +1,42 @@
+commit 48d3c32ba9c2cbe4cfded44a150540f15fdf517c
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Mar 10 11:55:49 2019 -0700
+
+    cmd/compile: teach rulegen to |-expand multiple |s in a single op
+    
+    I want to be able to write
+    
+    MOV(Q|Q|L|L|L|W|W|B)loadidx(1|8|1|4|8|1|2|1)
+    
+    instead of
+    
+    MOV(Qloadidx1|Qloadidx8|Lloadidx1|Lloadidx4|Lloadidx8|Wloadidx1|Wloadidx2|Bloadidx1)
+    
+    in rewrite rules.
+    
+    Both are fairly cryptic and hard to review, but the former
+    is at least compact, which helps to not obscure the structure
+    of the rest of the rule.
+    
+    Support that by adjusting rulegen's expansion.
+    
+    Instead of looking for an op that begins with "(", ends with " ",
+    and has exactly one set of parens in it, look for everything of the
+    form "(...|...)".
+    
+    That has false positives: Go code in the && conditions and AuxInt expressions.
+    Those are easily checked for syntactically: && conditions are between && and ->,
+    and AuxInt expressions are inside square brackets.
+    After ruling out those false positives, we can keep everything else,
+    regardless of where it is.
+    
+    No change to the generated code for existing rules.
+    
+    Change-Id: I5b70a190e268989504f53cb2cce2f9a50170d8a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166737
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 53 +++++++++++++++++++++--------
+ 1 file changed, 39 insertions(+), 14 deletions(-)

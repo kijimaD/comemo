@@ -1,0 +1,19 @@
+commit 5d0e5a78670d71115075228b4d8e52d296e35bbd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 20 15:03:40 2008 -0700
+
+    - use stringtorune library function for faster rune scanning
+    - converted 2 right-recursive parsing functions into iterative versions
+    - renamed node.go -> ast.go (clearer)
+    
+    R=r
+    OCL=17496
+    CL=17498
+
+ usr/gri/pretty/Makefile            |   6 +-
+ usr/gri/pretty/Makefile.iant       |   6 +-
+ usr/gri/pretty/{node.go => ast.go} |   4 +-
+ usr/gri/pretty/parser.go           | 376 +++++++++++++++++++------------------
+ usr/gri/pretty/printer.go          |  56 +++---
+ usr/gri/pretty/scanner.go          |  16 ++
+ 6 files changed, 248 insertions(+), 216 deletions(-)

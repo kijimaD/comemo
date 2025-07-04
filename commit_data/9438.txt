@@ -1,0 +1,13 @@
+commit 8b614b421398ad27e958364ee0a74e5dccd9078f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 22 17:09:00 2011 +1000
+
+    template/parse: give if, range, and with a common representation.
+    No external changes.
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/4940042
+
+ src/pkg/template/parse/node.go | 74 +++++++++++++++++++-----------------------
+ 1 file changed, 34 insertions(+), 40 deletions(-)

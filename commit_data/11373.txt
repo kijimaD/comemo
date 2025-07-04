@@ -1,0 +1,13 @@
+commit dd442a556e5d9457caf318cd9b77e0a58041ab72
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jan 24 17:02:06 2012 -0800
+
+    doc/go1: mime, filepath.Walk
+    
+    R=golang-dev, gri, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/5571060
+
+ doc/go1.html | 50 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ doc/go1.tmpl | 50 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 98 insertions(+), 2 deletions(-)

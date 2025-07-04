@@ -1,0 +1,36 @@
+commit b0dfcb74651b82123746273bbf6bb9988cd96e18
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Mar 23 14:18:19 2023 -0400
+
+    all: replace leading spaces with tabs in assembly
+    
+    Most of these are one-off mistakes. Only one file was all spaces.
+    
+    Change-Id: I277c3ce4a4811aa4248c90676f66bc775ae8d062
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478976
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/amd64error.s     |    2 +-
+ src/cmd/asm/internal/asm/testdata/arm64enc.s       | 1504 ++++++++++----------
+ src/cmd/asm/internal/asm/testdata/ppc64_p10.s      |    2 +-
+ .../link/internal/ld/testdata/issue38192/oneline.s |    2 +-
+ src/crypto/aes/asm_arm64.s                         |    2 +-
+ src/crypto/aes/gcm_arm64.s                         |    2 +-
+ src/crypto/internal/nistec/p256_asm_ppc64le.s      |    2 +-
+ src/crypto/sha1/sha1block_amd64.s                  |    2 +-
+ src/hash/crc32/crc32_ppc64le.s                     |    4 +-
+ src/hash/crc32/crc32_table_ppc64le.s               |    6 +-
+ src/math/atanh_s390x.s                             |  206 +--
+ src/math/log_amd64.s                               |    2 +-
+ src/runtime/asm_loong64.s                          |    4 +-
+ src/runtime/asm_mips64x.s                          |    2 +-
+ src/runtime/memmove_ppc64x.s                       |    2 +-
+ src/runtime/sys_freebsd_amd64.s                    |    2 +-
+ src/runtime/sys_linux_amd64.s                      |    2 +-
+ src/runtime/sys_linux_ppc64x.s                     |    4 +-
+ src/runtime/sys_netbsd_amd64.s                     |    2 +-
+ src/runtime/sys_windows_386.s                      |    2 +-
+ src/runtime/sys_windows_amd64.s                    |   10 +-
+ 21 files changed, 883 insertions(+), 883 deletions(-)

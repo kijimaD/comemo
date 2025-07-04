@@ -1,0 +1,13 @@
+commit 5103fbfdb29278533c666163a9d56f85408224d9
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 6 02:51:55 2016 +0000
+
+    runtime: merge os_linux.go into os1_linux.go
+    
+    Change-Id: I791c47014fe69e8529c7b2f0b9a554e47902d46c
+    Reviewed-on: https://go-review.googlesource.com/21566
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/os1_linux.go | 29 +++++++++++++++++++++++++++++
+ src/runtime/os_linux.go  | 36 ------------------------------------
+ 2 files changed, 29 insertions(+), 36 deletions(-)

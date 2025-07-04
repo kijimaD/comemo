@@ -1,0 +1,64 @@
+commit 51fed7165b99413b457f41217d968540cd4eeef1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Nov 12 12:06:14 2015 +0000
+
+    A+C: automated updates
+    
+    Add Alberto Bertogli (individual CLA)
+    Add Alexander Demakin (individual CLA)
+    Add Angelo Bulfone (individual CLA)
+    Add Anthony Canino (individual CLA)
+    Add Arnout Engelen (individual CLA)
+    Add Cedric Staub (corporate CLA for Square, Inc.)
+    Add Dan Caddigan (individual CLA)
+    Add Dan Jacques (corporate CLA for Google Inc.)
+    Add Daniel Skinner (individual CLA)
+    Add David Howden (individual CLA)
+    Add Dmitry Yakunin (individual CLA)
+    Add Emmanuel Odeke (individual CLA)
+    Add Eric Koleda (corporate CLA for Google Inc.)
+    Add Erik Dubbelboer (individual CLA)
+    Add Evan Broder (corporate CLA for Stripe, Inc.)
+    Add Ford Hurley (individual CLA)
+    Add Francisco Claude (individual CLA)
+    Add Gaurish Sharma (individual CLA)
+    Add Hsin-Ho Yeh (individual CLA)
+    Add Ian Gudger (individual CLA)
+    Add Ilya Tocar (corporate CLA for Intel Corporation)
+    Add John Jenkins (individual CLA)
+    Add Kenny Grant (individual CLA)
+    Add Kevin Malachowski (corporate CLA for Google Inc.)
+    Add Kim Shrier (corporate CLA for RackTop Systems Inc.)
+    Add Klaus Post (individual CLA)
+    Add Lewin Bormann (individual CLA)
+    Add Manu S Ajith (individual CLA)
+    Add Matt Drollette (individual CLA)
+    Add Meng Zhuo (individual CLA)
+    Add Mhd Sulhan (individual CLA)
+    Add Mohit Agarwal (individual CLA)
+    Add Nathan Otterness (individual CLA)
+    Add Nathan VanBenschoten (individual CLA)
+    Add Paul Hankin (corporate CLA for Google Inc.)
+    Add Paul Meyer (individual CLA)
+    Add Pavel Paulau (individual CLA)
+    Add Ralph Corderoy (individual CLA)
+    Add Rob Norman (individual CLA)
+    Add Seth Hoenig (individual CLA)
+    Add Spencer Nelson (individual CLA)
+    Add Steve Phillips (individual CLA)
+    Add Thorben Krueger (individual CLA)
+    Add Tormod Erevik Lea (individual CLA)
+    Add Will Chan (corporate CLA for Google Inc.)
+    Add Yao Zhang (individual CLA)
+    Add Yasuharu Goto (individual CLA)
+    Add Yuki Yugui Sonoda (corporate CLA for Google Inc.)
+    
+    Updates #12042
+    
+    Change-Id: Ia5f8e184fdbe8b135b2c29bb75f20bf72042abae
+    Reviewed-on: https://go-review.googlesource.com/16825
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ AUTHORS      | 39 +++++++++++++++++++++++++++++++++++++++
+ CONTRIBUTORS | 48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+)

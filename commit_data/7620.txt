@@ -1,0 +1,12 @@
+commit da833474f57150a98d73c10df214a6364d475c5c
+Author: Roger Peppe <rogpeppe@gmail.com>
+Date:   Thu Mar 3 11:26:53 2011 -0800
+
+    testing: run GC before each benchmark run.
+    
+    R=r, rh, gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/4237055
+
+ src/pkg/testing/benchmark.go | 4 ++++
+ 1 file changed, 4 insertions(+)

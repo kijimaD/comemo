@@ -1,0 +1,14 @@
+commit e2fe2f3f23a1029d185fd2fe360f10946fed1c0e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 4 11:37:19 2008 -0800
+
+    - better support for string conversions
+    - removed trailing tabs
+    
+    R=r
+    OCL=18458
+    CL=18458
+
+ usr/gri/bignum/bignum.go      |  78 ++++++++++++++++++--------------
+ usr/gri/bignum/bignum_test.go | 102 +++++++++++++++++++++++++-----------------
+ 2 files changed, 107 insertions(+), 73 deletions(-)

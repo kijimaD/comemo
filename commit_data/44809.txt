@@ -1,0 +1,23 @@
+commit dec3d00b28657ce9e2fe725c858a46c3dd3fd594
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 23 12:30:18 2021 -0700
+
+    cmd/compile/internal/types2: review of stdlib_test.go
+    
+    The changes between (equivalent, and reviewed) go/types/stdlib_test.go
+    and stdlib_test.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker, using the os package
+    instead of ioutil, and some comment adjustments. Also, bug251.go passes
+    because of recent changes.
+    
+    The primary difference is in the firstComment function which
+    doesn't have access to a scanner and instead uses the syntax
+    package's CommentsDu function.
+    
+    Change-Id: I946ffadc97e87c692f76f369a1b16cceee528477
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304130
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/stdlib_test.go | 33 ++++++++++++--------------
+ 1 file changed, 15 insertions(+), 18 deletions(-)

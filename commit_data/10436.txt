@@ -1,0 +1,22 @@
+commit ac17fd4cd2daba25471c07d25d618171e905fd2d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Nov 18 10:07:36 2011 +1100
+
+    mime: implement TypeByExtension for windows
+    
+    Fixes #2071.
+    
+    R=golang-dev, hcwfrichter, pascal, rsc
+    CC=golang-dev
+    https://golang.org/cl/5369056
+
+ src/pkg/mime/Makefile                     | 20 ++++++++++
+ src/pkg/mime/type.go                      | 45 ++--------------------
+ src/pkg/mime/type_test.go                 |  8 +---
+ src/pkg/mime/type_unix.go                 | 59 +++++++++++++++++++++++++++++
+ src/pkg/mime/type_windows.go              | 62 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/syscall_windows.go        |  5 +++
+ src/pkg/syscall/zsyscall_windows_386.go   | 35 +++++++++++++++++
+ src/pkg/syscall/zsyscall_windows_amd64.go | 35 +++++++++++++++++
+ src/pkg/syscall/ztypes_windows.go         | 40 ++++++++++++++++++++
+ 9 files changed, 260 insertions(+), 49 deletions(-)

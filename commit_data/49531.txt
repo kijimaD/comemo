@@ -1,0 +1,21 @@
+commit 4f45ec5963a4b72e0c4ddbdfa84f9cb374692eea
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Jan 20 12:46:38 2022 +0100
+
+    cmd/go: prepend builtin prolog when checking for preamble errors
+    
+    Fixes #50710
+    
+    Change-Id: I62feddbe3eaae9605d196bec60d378614436603a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379754
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ misc/cgo/errors/errors_test.go         |  1 +
+ misc/cgo/errors/testdata/issue50710.go | 14 ++++++++++++++
+ src/cmd/cgo/gcc.go                     |  2 +-
+ 3 files changed, 16 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 735c65fa9c8569a8d40411056f6cfa7dbe28a689
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Sat Oct 10 04:15:48 2015 +0000
+
+    os: make IsPermission, IsExist, and IsNotExist unwrap SyscallError too
+    
+    Fixes #12674
+    
+    Change-Id: I82f53026dd2fc27bd7999d43c27932d683d92af6
+    Reviewed-on: https://go-review.googlesource.com/15730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/error_plan9.go   |  6 ++++++
+ src/os/error_test.go    | 19 +++++++++++++++++++
+ src/os/error_unix.go    |  6 ++++++
+ src/os/error_windows.go |  6 ++++++
+ 4 files changed, 37 insertions(+)

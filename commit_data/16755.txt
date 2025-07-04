@@ -1,0 +1,19 @@
+commit 64054a40ad0d85e82f77a4982ea4ee08c3cea40a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 12 17:37:10 2013 -0400
+
+    encoding/json: coerce invalid UTF-8 to valid UTF-8 during Marshal
+    
+    In practice, rejecting an entire structure due to a single invalid byte
+    in a string is just too picky, and too hard to track down.
+    Be consistent with the bulk of the standard library by converting
+    invalid UTF-8 into UTF-8 with replacement runes.
+    
+    R=golang-dev, crawshaw
+    CC=golang-dev
+    https://golang.org/cl/11211045
+
+ doc/go1.2.txt                        |  1 +
+ src/pkg/encoding/json/decode_test.go | 11 +++--------
+ src/pkg/encoding/json/encode.go      | 16 +++++++++++++---
+ 3 files changed, 17 insertions(+), 11 deletions(-)

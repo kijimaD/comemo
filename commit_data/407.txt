@@ -1,0 +1,11 @@
+commit febbf82e8dbf042a998c46e38a54d52741860961
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 22 15:25:09 2008 -0700
+
+    fix some bad spaces
+    
+    OCL=13363
+    CL=13363
+
+ doc/go_lang.txt | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

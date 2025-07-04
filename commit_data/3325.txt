@@ -1,0 +1,12 @@
+commit f0536598b180514b2351b892718f2199b644b3f1
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 18 21:17:16 2009 -0700
+
+    fix build
+    
+    R=kaib
+    OCL=34823
+    CL=34823
+
+ test/run | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

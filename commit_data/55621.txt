@@ -1,0 +1,24 @@
+commit 7ecef2e3448db347901826c2b58049e73391d631
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Feb 10 18:52:27 2024 +0000
+
+    net: move go/cgo resolver forcing functions to one file
+    
+    The forceGoDNS/forceCgoDNS functions currently return nil
+    or an empty func on plan9, but they don't have to, because
+    we already support go resolver there (Dial field required).
+    
+    Change-Id: Iba6211ca0235874f39e5fcacb3932bb16768c702
+    GitHub-Last-Rev: 4072ad4a05366a03749e8cfcf27efb9f198aacec
+    GitHub-Pull-Request: golang/go#63545
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/534938
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_test.go      | 16 ---------------
+ src/net/main_conf_test.go   | 48 ++++++++++++++++++++++++++++++++++++++++-----
+ src/net/main_noconf_test.go | 22 ---------------------
+ 3 files changed, 43 insertions(+), 43 deletions(-)

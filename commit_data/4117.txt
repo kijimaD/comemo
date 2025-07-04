@@ -1,0 +1,11 @@
+commit 744d5ae48a74e689ad0863cc723f4ce17841c13a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 22:54:20 2009 -0800
+
+    runtime: add ARM memmove
+    
+    R=ken2
+    https://golang.org/cl/156063
+
+ src/pkg/runtime/arm/memmove.s | 248 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 248 insertions(+)

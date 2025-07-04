@@ -1,0 +1,22 @@
+commit c40bb874862b703bf4b3a207dca504989077c180
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 7 11:08:26 2024 +0200
+
+    internal/sysinfo: rename osCpuInfoName to osCPUInfoName
+    
+    Follow https://go.dev/wiki/CodeReviewComments#initialisms
+    
+    Change-Id: Ie7418cebb0eda130e7db5bc91475a4a4012192dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583716
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/sysinfo/cpuinfo_bsd.go   | 2 +-
+ src/internal/sysinfo/cpuinfo_linux.go | 2 +-
+ src/internal/sysinfo/cpuinfo_stub.go  | 2 +-
+ src/internal/sysinfo/export_test.go   | 2 +-
+ src/internal/sysinfo/sysinfo.go       | 2 +-
+ src/internal/sysinfo/sysinfo_test.go  | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)

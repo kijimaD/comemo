@@ -1,0 +1,12 @@
+commit 05f734c8b4e24363fd1b39a41b153179a6aee8d3
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Mon Aug 1 11:12:50 2011 +1000
+
+    cmd/ld/pe.c: Corrected mismatched print formats and variables.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev, rsc
+    https://golang.org/cl/4839041
+
+ src/cmd/ld/pe.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

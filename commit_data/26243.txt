@@ -1,0 +1,16 @@
+commit ab5cbc672b988a1cf656a27c2d5d8182cd660cc6
+Author: Dominik Honnef <dominik@honnef.co>
+Date:   Sat Mar 12 18:52:08 2016 +0100
+
+    net/http: delete unused type readClose
+    
+    readClose hasn't been used in years.
+    
+    Change-Id: Ia963c082e049ef856c2a637fec15204efe48b3b6
+    Reviewed-on: https://go-review.googlesource.com/20631
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go | 8 --------
+ 1 file changed, 8 deletions(-)

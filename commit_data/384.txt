@@ -1,0 +1,10 @@
+commit 41861ca7bb35ac9d73f68e724bdc09a53ac66ed1
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jul 17 16:22:40 2008 -0700
+
+    one more time for divide
+    
+    SVN=127911
+
+ src/cmd/6g/gen.c | 86 +++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 42 insertions(+), 44 deletions(-)

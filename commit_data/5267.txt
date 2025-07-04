@@ -1,0 +1,12 @@
+commit 094732f7eb51544b80b762bc59e92e90b735d934
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Sun Apr 11 10:17:45 2010 -0700
+
+    godoc: change od.Dir -> os.FileInfo in comments
+    
+    R=gri, r
+    CC=golang-dev, rsc
+    https://golang.org/cl/819042
+
+ src/cmd/godoc/godoc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

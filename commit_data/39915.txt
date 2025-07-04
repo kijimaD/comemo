@@ -1,0 +1,36 @@
+commit 357e8f83f868bd028df7f2f1c373b4d0c57d1408
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Sep 13 14:42:05 2019 +0100
+
+    cmd/compile: parallelize another big chunk of rulegen
+    
+    rulegen has a sanity check that ensures all the arch-specific opcodes
+    are handled by each of the gen files.
+    
+    This is an expensive chunk of work, particularly since there are a lot
+    of opcodes in total, and each one of them compiles and runs a regular
+    expression.
+    
+    Parallelize that for each architecture, which greatly speeds up 'go run
+    *.go' on my laptop with four real CPU cores.
+    
+            name     old time/op         new time/op         delta
+            Rulegen          3.39s ± 1%          2.53s ± 2%  -25.34%  (p=0.008 n=5+5)
+    
+            name     old user-time/op    new user-time/op    delta
+            Rulegen          10.6s ± 1%          11.2s ± 1%   +6.09%  (p=0.008 n=5+5)
+    
+            name     old sys-time/op     new sys-time/op     delta
+            Rulegen          201ms ± 7%          218ms ±17%     ~     (p=0.548 n=5+5)
+    
+            name     old peak-RSS-bytes  new peak-RSS-bytes  delta
+            Rulegen          182MB ± 3%          184MB ± 3%     ~     (p=0.690 n=5+5)
+    
+    Change-Id: Iec538ed0fa7eb867eeeeaab3da1e2615ce32cbb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195218
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/main.go | 31 +++++++++++++++++++------------
+ 1 file changed, 19 insertions(+), 12 deletions(-)

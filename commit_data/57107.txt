@@ -1,0 +1,20 @@
+commit 5925cd3d15c7e1eb71125964e681c4b4c2db750d
+Author: khr@golang.org <khr@golang.org>
+Date:   Sun Jul 7 14:58:47 2024 -0700
+
+    cmd/compile: handle boolean and pointer relations
+    
+    The constant lattice for these types is pretty simple.
+    We no longer need the old-style facts table, as the ordering
+    table now has all that information.
+    
+    Change-Id: If0e118c27a4de8e9bfd727b78942185c2eb50c4b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599097
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 365 ++++++++++++++++++++++------------
+ test/fuse.go                          |   8 +-
+ test/prove.go                         |  22 ++
+ 3 files changed, 263 insertions(+), 132 deletions(-)

@@ -1,0 +1,20 @@
+commit 762eda346a9f4062feaa8a9fc0d17d72b11586f0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 23 15:48:37 2020 -0800
+
+    go/types: fix incorrect string(int) conversion (regression)
+    
+    The bug was introduced by https://golang.org/cl/220844.
+    
+    Fixes #42790.
+    
+    Change-Id: I44d619a1a4d3f2aee1c5575d5cfddcc4ba10895f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/272666
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/types/conversions.go  | 16 ++++++++--------
+ test/fixedbugs/issue42790.go |  9 +++++++++
+ 2 files changed, 17 insertions(+), 8 deletions(-)

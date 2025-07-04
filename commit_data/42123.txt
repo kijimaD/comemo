@@ -1,0 +1,56 @@
+commit 4a7e363288a055f97d2db4d96d7776e506aebcd5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 13:28:14 2020 -0700
+
+    cmd/compile: optimize Move with all-zero ro sym src to Zero
+    
+    We set up static symbols during walk that
+    we later make copies of to initialize local variables.
+    It is difficult to ascertain at that time exactly
+    when copying a symbol is profitable vs locally
+    initializing an autotmp.
+    
+    During SSA, we are much better placed to optimize.
+    This change recognizes when we are copying from a
+    global readonly all-zero symbol and replaces it with
+    direct zeroing.
+    
+    This often allows the all-zero symbol to be
+    deadcode eliminated at link time.
+    This is not ideal--it makes for large object files,
+    and longer link times--but it is the cleanest fix I could find.
+    
+    This makes the final binary for the program in #38554
+    shrink from >500mb to ~2.2mb.
+    
+    It also shrinks the standard binaries:
+    
+    file      before    after     Δ       %
+    addr2line 4412496   4404304   -8192   -0.186%
+    buildid   2893816   2889720   -4096   -0.142%
+    cgo       4841048   4832856   -8192   -0.169%
+    compile   19926480  19922432  -4048   -0.020%
+    cover     5281816   5277720   -4096   -0.078%
+    link      6734648   6730552   -4096   -0.061%
+    nm        4366240   4358048   -8192   -0.188%
+    objdump   4755968   4747776   -8192   -0.172%
+    pprof     14653060  14612100  -40960  -0.280%
+    trace     11805940  11777268  -28672  -0.243%
+    vet       7185560   7181416   -4144   -0.058%
+    total     113588440 113465560 -122880 -0.108%
+    
+    And not just by removing unnecessary symbols;
+    the program text shrinks a bit as well.
+    
+    Fixes #38554
+    
+    Change-Id: I8381ae6084ae145a5e0cd9410c451e52c0dc51c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229704
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
+ src/cmd/compile/internal/ssa/rewrite.go        | 14 ++++++++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 25 +++++++++++++++++++++++++
+ test/codegen/issue38554.go                     | 15 +++++++++++++++
+ 4 files changed, 55 insertions(+)

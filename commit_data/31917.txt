@@ -1,0 +1,14 @@
+commit eab99a8d548f8ba864647ab171a44f0a5376a6b3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 26 21:08:05 2017 +0000
+
+    cmd/go: add more info in t.Fatal message
+    
+    Updates #20284
+    
+    Change-Id: I4d55d6adec4e8efb54285ca27bb4fa39c76582c3
+    Reviewed-on: https://go-review.googlesource.com/46719
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+
+ src/cmd/go/go_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

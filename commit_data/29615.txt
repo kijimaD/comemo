@@ -1,0 +1,17 @@
+commit aeaa4c3c1da9e7a4afd4152913d6f2bfcf4fad2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Nov 22 01:43:38 2016 +0000
+
+    net/http: skip TestLinuxSendfile on mips64 for now
+    
+    See issues for details. We can expand this test during the Go 1.9
+    cycle.
+    
+    Updates #18008
+    
+    Change-Id: I78b6b7e8dede414769be97898e29f969bc2a9651
+    Reviewed-on: https://go-review.googlesource.com/33430
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/net/http/fs_test.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

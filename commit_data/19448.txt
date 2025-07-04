@@ -1,0 +1,16 @@
+commit eeb87c3660932cb0dcc6db2e3784a66b6d06a82a
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Tue May 27 23:58:03 2014 -0400
+
+    cmd/go: do not miss an error if import path contains "cmd/something"
+    
+    Fixes #7638
+    
+    LGTM=rsc
+    R=rsc, adg, robert.hencke, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/89280043
+
+ src/cmd/go/get.go | 4 ++++
+ src/cmd/go/pkg.go | 2 ++
+ 2 files changed, 6 insertions(+)

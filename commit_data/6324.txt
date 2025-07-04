@@ -1,0 +1,13 @@
+commit bd77a889e687f0ddf4c6c40c25ab45b7e9c797f9
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Sep 21 16:13:19 2010 +1000
+
+    exp/nacl/av: update color to max out at 1<<16-1 instead of 1<<32-1.
+    Fix missing return in Set(x, y, color).
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2256042
+
+ src/pkg/exp/nacl/av/image.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

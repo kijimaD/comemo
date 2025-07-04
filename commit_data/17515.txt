@@ -1,0 +1,39 @@
+commit 7d734d9252febfd91cb0ff5fc54f11defc5f4daa
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 9 15:07:23 2013 -0400
+
+    build: remove various uses of C undefined behavior
+    
+    If you thought gcc -ansi -pedantic was pedantic, just wait
+    until you meet clang -fsanitize=undefined.
+    
+    I think this addresses all the reported "errors", but we'll
+    need another run to be sure.
+    
+    all.bash still passes.
+    
+    Update #5764
+    
+    Dave, can you please try again?
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13334049
+
+ include/bio.h         |  2 +-
+ src/cmd/cc/com.c      |  6 +++---
+ src/cmd/cc/lex.c      |  2 +-
+ src/cmd/cc/lexbody    |  8 ++++----
+ src/cmd/gc/bv.c       |  2 +-
+ src/cmd/gc/go.h       |  2 +-
+ src/cmd/gc/md5.c      |  2 +-
+ src/cmd/gc/mparith2.c | 10 +++++-----
+ src/cmd/gc/subr.c     |  6 +++---
+ src/cmd/ld/go.c       |  3 +--
+ src/cmd/ld/lib.c      |  6 +++---
+ src/cmd/pack/ar.c     | 11 +----------
+ src/libmach/5obj.c    |  2 +-
+ src/libmach/6obj.c    |  2 +-
+ src/libmach/8obj.c    |  2 +-
+ src/libmach/obj.c     |  2 +-
+ 16 files changed, 29 insertions(+), 39 deletions(-)

@@ -1,0 +1,14 @@
+commit 031b389ac1456981f34f70b3cfd1ccc10b5f3d49
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 24 12:30:32 2012 -0400
+
+    cmd/gc: fix comment for caninl
+    
+    Was describing an old implementation.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6553066
+
+ src/cmd/gc/inl.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

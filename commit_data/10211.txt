@@ -1,0 +1,13 @@
+commit 7db617b4747342e48d2f6586dacecd31511f365a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 2 12:06:36 2011 -0700
+
+    builtin: document the basic types
+    The recursive definitions are illegal Go, but godoc doesn't mind.
+    
+    R=bradfitz, r, n13m3y3r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5322067
+
+ src/pkg/builtin/builtin.go | 80 ++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 78 insertions(+), 2 deletions(-)

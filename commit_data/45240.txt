@@ -1,0 +1,19 @@
+commit fbb600b28349a41742d35f1d2417c5843c6ba6e4
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Thu Apr 15 00:04:17 2021 +0800
+
+    runtime: implement runqdrain() for GC mark worker goroutines
+    
+    Change-Id: Ida44a2e07f277bee8806538ecee4beee3474cf3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/310149
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Michael Pratt <mpratt@google.com>
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/mgc.go      | 12 ++++--------
+ src/runtime/proc.go     | 38 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/runtime2.go |  3 +++
+ 3 files changed, 45 insertions(+), 8 deletions(-)

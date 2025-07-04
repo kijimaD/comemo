@@ -1,0 +1,23 @@
+commit 6c6089b3fdba9eb0cff863a03074dbac47c92f63
+Author: Alexandru Moșoi <mosoi@google.com>
+Date:   Fri Apr 1 15:09:19 2016 +0200
+
+    cmd/compile: bce when max and limit are consts
+    
+    Removes 49 more bound checks in make.bash. For example:
+    
+    var a[100]int
+    for i := 0; i < 50; i++ {
+      use a[i+25]
+    }
+    
+    Change-Id: I85e0130ee5d07f0ece9b17044bba1a2047414ce7
+    Reviewed-on: https://go-review.googlesource.com/21379
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/loopbce.go | 41 ++++++++++++++++++
+ test/checkbce.go                        | 15 ++++++-
+ test/loopbce.go                         | 77 +++++++++++++++++++++++++++++++++
+ 3 files changed, 132 insertions(+), 1 deletion(-)

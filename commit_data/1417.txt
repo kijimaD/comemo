@@ -1,0 +1,124 @@
+commit 5564504507c9b307840a5d13d9700d46e2a8524d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 6 15:19:02 2009 -0800
+
+    new new & make
+    
+    R=r
+    OCL=22166
+    CL=22166
+
+ src/lib/bignum.go                   | 26 +++++++++----------
+ src/lib/bufio.go                    | 16 ++++++------
+ src/lib/bufio_test.go               | 16 ++++++------
+ src/lib/container/array/array.go    |  6 ++---
+ src/lib/container/array/intarray.go |  2 +-
+ src/lib/flag.go                     |  8 +++---
+ src/lib/fmt/format.go               |  4 +--
+ src/lib/fmt/print.go                |  4 +--
+ src/lib/hash/adler32.go             |  2 +-
+ src/lib/hash/crc32.go               |  4 +--
+ src/lib/hash/md5.go                 |  4 +--
+ src/lib/hash/sha1.go                |  4 +--
+ src/lib/http/conn.go                |  2 +-
+ src/lib/http/request.go             |  4 +--
+ src/lib/http/url.go                 |  4 +--
+ src/lib/io/bytebuffer.go            |  6 ++---
+ src/lib/io/io.go                    |  8 +++---
+ src/lib/json/generic.go             |  8 +++---
+ src/lib/json/generic_test.go        |  2 +-
+ src/lib/json/parse.go               |  8 +++---
+ src/lib/net/dialgoogle_test.go      |  2 +-
+ src/lib/net/dnsclient.go            |  8 +++---
+ src/lib/net/dnsconfig.go            | 12 ++++-----
+ src/lib/net/dnsmsg.go               | 36 +++++++++++++-------------
+ src/lib/net/fd.go                   | 14 +++++------
+ src/lib/net/fd_darwin.go            |  2 +-
+ src/lib/net/fd_linux.go             |  4 +--
+ src/lib/net/ip.go                   | 10 ++++----
+ src/lib/net/net.go                  |  6 ++---
+ src/lib/net/net_darwin.go           |  4 +--
+ src/lib/net/net_linux.go            |  4 +--
+ src/lib/net/parse.go                |  4 +--
+ src/lib/net/port.go                 |  4 +--
+ src/lib/net/tcpserver_test.go       |  6 ++---
+ src/lib/once.go                     | 10 ++++----
+ src/lib/os/os_error.go              |  2 +-
+ src/lib/os/os_file.go               |  2 +-
+ src/lib/rand.go                     |  2 +-
+ src/lib/reflect/all_test.go         |  2 +-
+ src/lib/reflect/type.go             | 16 ++++++------
+ src/lib/reflect/value.go            | 18 ++++++-------
+ src/lib/regexp/all_test.go          |  2 +-
+ src/lib/regexp/regexp.go            | 50 ++++++++++++++++++-------------------
+ src/lib/sort_test.go                |  2 +-
+ src/lib/strconv/atof.go             |  2 +-
+ src/lib/strconv/decimal.go          |  4 +--
+ src/lib/strconv/ftoa.go             |  4 +--
+ src/lib/strings.go                  |  6 ++---
+ src/lib/sync/mutex_test.go          |  8 +++---
+ src/lib/tabwriter/tabwriter.go      |  6 ++---
+ src/lib/tabwriter/tabwriter_test.go |  2 +-
+ src/lib/testing.go                  |  4 +--
+ src/lib/time/tick.go                |  2 +-
+ src/lib/time/time.go                |  4 +--
+ src/lib/time/zoneinfo.go            |  6 ++---
+ src/run.bash                        | 10 ++++----
+ test/235.go                         | 10 ++++----
+ test/bigalg.go                      | 14 +++++------
+ test/bugs/bug121.go                 |  2 +-
+ test/bugs/bug122.go                 |  2 +-
+ test/bugs/bug130.go                 |  2 +-
+ test/chan/fifo.go                   |  8 +++---
+ test/chan/goroutines.go             |  4 +--
+ test/chan/nonblock.go               |  8 +++---
+ test/chan/powser1.go                | 24 +++++++++---------
+ test/chan/powser2.go                | 24 +++++++++---------
+ test/chan/select.go                 |  4 +--
+ test/chan/sieve.go                  |  6 ++---
+ test/complit.go                     |  4 +--
+ test/fixedbugs/bug011.go            |  2 +-
+ test/fixedbugs/bug026.go            |  4 +--
+ test/fixedbugs/bug027.go            | 14 +++++------
+ test/fixedbugs/bug038.go            |  2 +-
+ test/fixedbugs/bug045.go            |  2 +-
+ test/fixedbugs/bug054.go            |  8 +++---
+ test/fixedbugs/bug058.go            |  2 +-
+ test/fixedbugs/bug059.go            |  4 +--
+ test/fixedbugs/bug060.go            |  2 +-
+ test/fixedbugs/bug067.go            |  2 +-
+ test/fixedbugs/bug069.go            |  4 +--
+ test/fixedbugs/bug075.go            |  4 +--
+ test/fixedbugs/bug084.go            |  4 +--
+ test/{bugs => fixedbugs}/bug098.go  |  0
+ test/fixedbugs/bug099.go            |  2 +-
+ test/fixedbugs/bug102.go            |  2 +-
+ test/fixedbugs/bug111.go            |  2 +-
+ test/func.go                        |  2 +-
+ test/golden.out                     |  6 -----
+ test/hashmap.go                     |  6 ++---
+ test/hilbert.go                     |  4 +--
+ test/interface1.go                  |  4 +--
+ test/ken/array.go                   |  6 ++---
+ test/ken/chan.go                    |  8 +++---
+ test/ken/embed.go                   |  8 +++---
+ test/ken/interfun.go                |  2 +-
+ test/ken/intervar.go                |  6 ++---
+ test/ken/ptrfun.go                  |  2 +-
+ test/ken/range.go                   |  4 +--
+ test/ken/rob1.go                    |  6 ++---
+ test/ken/rob2.go                    |  6 ++---
+ test/ken/robfunc.go                 |  2 +-
+ test/ken/simparray.go               |  2 +-
+ test/ken/simpbool.go                |  2 +-
+ test/ken/string.go                  |  2 +-
+ test/mallocrep1.go                  |  2 +-
+ test/map.go                         | 41 +++++++++++++++++-------------
+ test/newfn.go                       |  2 +-
+ test/nil.go                         |  2 +-
+ test/peano.go                       |  2 +-
+ test/sieve.go                       |  4 +--
+ test/test0.go                       |  2 +-
+ test/utf.go                         |  2 +-
+ test/vectors.go                     |  2 +-
+ 113 files changed, 363 insertions(+), 364 deletions(-)

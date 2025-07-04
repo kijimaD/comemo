@@ -1,0 +1,14 @@
+commit d6f8c751deaeab8ce173a230aa5160b52407560f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 20 13:42:37 2012 +1100
+
+    all: rewrite references to old tool names
+    
+    R=golang-dev, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5683045
+
+ src/cmd/cov/doc.go                   |  5 ++---
+ src/pkg/go/doc/testdata/benchmark.go |  6 +++---
+ src/pkg/go/doc/testdata/testing.go   | 10 +++++-----
+ 3 files changed, 10 insertions(+), 11 deletions(-)

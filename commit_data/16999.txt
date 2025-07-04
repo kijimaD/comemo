@@ -1,0 +1,12 @@
+commit e6ddddadda8e578838c7d8f692791ea74423b161
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 2 15:13:06 2013 -0400
+
+    cmd/dist: fix build
+    
+    TBR=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12369043
+
+ src/cmd/dist/build.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

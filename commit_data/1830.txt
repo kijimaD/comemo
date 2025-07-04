@@ -1,0 +1,14 @@
+commit 5a27079801c60e773a5007841ddcab48aa8c51fb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 16 11:21:58 2009 -0700
+
+    spec and implementation disagree with respect to label declarations
+    
+    R=rsc
+    DELTA=19  (19 added, 0 deleted, 0 changed)
+    OCL=26284
+    CL=26336
+
+ test/bugs/bug140.go | 18 ++++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 23 insertions(+)

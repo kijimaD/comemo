@@ -1,0 +1,16 @@
+commit 3f83c83bd681861802ac07ec285cef28fd5766cb
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Jun 25 09:17:28 2019 -0400
+
+    cmd/go: ensure that runtime/cgo is not stale in TestExecBuildX
+    
+    Fixes #29004
+    
+    Change-Id: Ifc8330b47fbec6f902057cb9b6db44f2c0082056
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183838
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)

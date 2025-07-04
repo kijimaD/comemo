@@ -1,0 +1,15 @@
+commit 93b8438e597602cdfb6742246cd406bd1e479535
+Author: Paul Borman <borman@google.com>
+Date:   Tue Oct 4 12:52:30 2011 -0700
+
+    time: make month/day name comparisons case insenstive
+    
+    Fixes #2324.
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/5180044
+
+ src/pkg/time/format.go    | 20 +++++++++++++++++++-
+ src/pkg/time/time_test.go |  3 +++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

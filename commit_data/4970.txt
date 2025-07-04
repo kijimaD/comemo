@@ -1,0 +1,13 @@
+commit 36ea8bb7bfcd6f450574fc0118df6725e76a3f03
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 1 16:22:22 2010 -0800
+
+    Minor mistake in docs.
+    Fixes #633.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/224090
+
+ doc/contribute.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

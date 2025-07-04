@@ -1,0 +1,15 @@
+commit 8458a387e3a0aa29449767f633514747a1ee7e72
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 8 21:39:33 2016 -0700
+
+    cmd/compile: make fmt_test work on entire compiler
+    
+    - process all directories recursively
+    
+    Change-Id: I27a737013d17fd3c2cc8ae9de4722dcbe989e6e5
+    Reviewed-on: https://go-review.googlesource.com/28789
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/fmt_test.go             | 780 ++++++++++++++++++++++++++++++++
+ src/cmd/compile/internal/gc/fmt_test.go | 600 ------------------------
+ 2 files changed, 780 insertions(+), 600 deletions(-)

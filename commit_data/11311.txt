@@ -1,0 +1,16 @@
+commit b0d2713b77f80986f688d18bd0df03ed56d6e7b5
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 21 09:46:59 2012 -0800
+
+    bytes.Buffer: restore panic on out-of-memory
+    Make the panic detectable, and use that in ioutil.ReadFile to
+    give an error if the file is too big.
+    
+    R=golang-dev, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5563045
+
+ src/pkg/bytes/buffer.go      | 25 ++++++++++---------------
+ src/pkg/bytes/buffer_test.go | 15 ++++++++++-----
+ src/pkg/io/ioutil/ioutil.go  | 17 +++++++++++++++--
+ 3 files changed, 35 insertions(+), 22 deletions(-)

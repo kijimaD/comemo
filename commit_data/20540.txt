@@ -1,0 +1,15 @@
+commit 74c0de8fb6ef26deece0541a7bf9337ce30c1878
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 25 12:45:21 2014 -0700
+
+    bufio: fix handling of empty tokens at end of line/file
+    Fixes #8672.
+    
+    LGTM=rsc
+    R=golang-codereviews, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/145390043
+
+ src/bufio/scan.go      |  4 +++-
+ src/bufio/scan_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 1 deletion(-)

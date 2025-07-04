@@ -1,0 +1,12 @@
+commit eb40f0621f37e247597020e316febe701e377b51
+Author: xufei_Alex <badgangkiller@gmail.com>
+Date:   Mon Apr 17 01:57:59 2017 +0000
+
+    go/format: quote bytes in comments for readability
+    
+    Change-Id: I8e90012b3498c51aaeb2f70182debab52549afb4
+    Reviewed-on: https://go-review.googlesource.com/40930
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/format/internal.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

@@ -1,0 +1,28 @@
+commit 5030177ea3a216f2b333920f423cfff3d33805fc
+Author: Christopher Nielsen <m4dh4tt3r@gmail.com>
+Date:   Sun Dec 18 02:29:18 2011 +1100
+
+    os: Add NetBSD support for recent signal changes.
+    
+    Add NetBSD to mksignals.sh and generate files.
+    While we're here, also add netbsd to the +build list where appropriate.
+    
+    R=golang-dev, jsing
+    CC=golang-dev
+    https://golang.org/cl/5492064
+
+ src/pkg/os/dir_unix.go             |  2 +-
+ src/pkg/os/error_posix.go          |  2 +-
+ src/pkg/os/exec/lp_unix.go         |  2 +-
+ src/pkg/os/exec_posix.go           |  2 +-
+ src/pkg/os/exec_unix.go            |  2 +-
+ src/pkg/os/file_posix.go           |  2 +-
+ src/pkg/os/file_unix.go            |  2 +-
+ src/pkg/os/mksignals.sh            |  2 ++
+ src/pkg/os/os_unix_test.go         |  2 +-
+ src/pkg/os/path_unix.go            |  2 +-
+ src/pkg/os/sys_bsd.go              |  2 +-
+ src/pkg/os/user/lookup_stubs.go    |  2 +-
+ src/pkg/os/zsignal_netbsd_386.go   | 49 ++++++++++++++++++++++++++++++++++++++
+ src/pkg/os/zsignal_netbsd_amd64.go | 49 ++++++++++++++++++++++++++++++++++++++
+ 14 files changed, 111 insertions(+), 11 deletions(-)

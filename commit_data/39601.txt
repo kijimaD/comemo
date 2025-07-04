@@ -1,0 +1,21 @@
+commit 4983a0b75b40448d3245811ddcf682a9c86fc975
+Author: Joe Tsai <thebrokentoaster@gmail.com>
+Date:   Fri Aug 16 03:16:34 2019 +0000
+
+    Revert "time: optimize Sub"
+    
+    This reverts commit CL 131196 because there is a bug
+    in the calculation of nanoseconds.
+    
+    Fixes #33677
+    
+    Change-Id: Ic8e94c547ee29b8aeda1b9a5cb9764dbf47b14b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190497
+    Run-TryBot: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/time/time.go      | 33 ++++++++-------------------------
+ src/time/time_test.go | 10 +---------
+ 2 files changed, 9 insertions(+), 34 deletions(-)

@@ -1,0 +1,17 @@
+commit 165ebe65585ec7ae63695fab9e7aabaaad1af57c
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Mon Mar 26 18:58:53 2018 -0400
+
+    database/sql: fix docs to correctly refer to time.RFC3339Nano
+    
+    It mentions time.Format3339Nano, which isn’t defined. The
+    underlying code uses time.RFC3339Nano.
+    
+    Updates golang/go#24542
+    
+    Change-Id: Ia34ae8b66427139d9005f902c2eb60aac4bfa8c6
+    Reviewed-on: https://go-review.googlesource.com/102607
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

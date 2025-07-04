@@ -1,0 +1,18 @@
+commit 584233608941dc579d8a4b90f463a8653f38de3a
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Oct 31 11:47:44 2011 -0400
+
+    net: Plan 9 fixes
+    
+    Makes all tests pass.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5320041
+
+ src/pkg/net/lookup_plan9.go  | 13 +++++++++++--
+ src/pkg/net/lookup_test.go   |  4 ++--
+ src/pkg/net/net_test.go      |  4 ++++
+ src/pkg/net/tcpsock_plan9.go | 18 ++++++++++++++++++
+ src/pkg/net/timeout_test.go  |  7 +++++++
+ 5 files changed, 42 insertions(+), 4 deletions(-)

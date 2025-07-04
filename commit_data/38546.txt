@@ -1,0 +1,12 @@
+commit a591fd08dd30de0e22e759df0fcff961fb3d32d8
+Author: Caleb Spare <cespare@gmail.com>
+Date:   Mon Mar 25 13:27:34 2019 -0700
+
+    testing: correct two spelling/grammar issues
+    
+    Change-Id: Ic7f7a34e12cc2845e0385a5a872e694d5dca7372
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169158
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/testing/benchmark.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

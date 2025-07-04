@@ -1,0 +1,12 @@
+commit f3c351982fc2a9940f7ec831db48569b56f0a035
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Jun 2 09:57:24 2011 -0700
+
+    exec: missing docs, errors
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4550111
+
+ src/pkg/exec/exec.go | 27 ++++++++++++++++++++++++++-
+ 1 file changed, 26 insertions(+), 1 deletion(-)

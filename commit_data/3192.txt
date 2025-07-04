@@ -1,0 +1,14 @@
+commit a03764aa50dcdb0e0a60008bd7ae04381f512831
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 2 13:13:40 2009 -0700
+
+    fix build
+    
+    TBR=gri
+    OCL=34264
+    CL=34264
+
+ src/pkg/debug/gosym/Makefile     | 13 +++++++++++++
+ src/pkg/debug/proc/proc.go       | 10 ++++++++++
+ src/pkg/debug/proc/proc_linux.go |  2 ++
+ 3 files changed, 25 insertions(+)

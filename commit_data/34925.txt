@@ -1,0 +1,17 @@
+commit 338ac2af6f8ec2a0db6dc51552be4d59a3978e01
+Author: Jeremy Schlatter <jeremy.schlatter@gmail.com>
+Date:   Wed Apr 11 03:22:59 2018 +0000
+
+    doc: switch from spaces to tabs for indentation in example code
+    
+    This is the standard that gofmt uses.
+    
+    Change-Id: I30e70611ccd0d3bbaa500fa84e9d1ba75970f0bc
+    GitHub-Last-Rev: b2b7af0df9759ad447b6fd3551ea356804d136b2
+    GitHub-Pull-Request: golang/go#24802
+    Reviewed-on: https://go-review.googlesource.com/106123
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/install-source.html | 2 +-
+ doc/install.html        | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit 633f9e206045176a12c301eb2c249c1c1d9a5d2e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Nov 2 12:01:33 2020 +0100
+
+    internal/poll: treat copy_file_range EIO as not-handled
+    
+    Fixes #42334
+    
+    Change-Id: Ife51df4e7d2539a04393abfdec45e3f902975fca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266940
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/poll/copy_file_range_linux.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

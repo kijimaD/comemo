@@ -1,0 +1,13 @@
+commit f228ed1a90ad22680a57df85c4796c83e636ef71
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 17 20:35:18 2012 -0800
+
+    test: remove a couple of bad tests that duplicate declbad.go
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5673089
+
+ test/fixedbugs/bug036.go | 13 -------------
+ test/fixedbugs/bug038.go | 13 -------------
+ 2 files changed, 26 deletions(-)

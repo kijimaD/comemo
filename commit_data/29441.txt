@@ -1,0 +1,23 @@
+commit 247fc4a98ee7e41bc317ba2245516f279927ae65
+Author: Vladimir Stefanovic <vladimir.stefanovic@imgtec.com>
+Date:   Tue Oct 18 23:50:42 2016 +0200
+
+    cmd/compile/internal/ssa: add support for GOARCH=mips{,le}
+    
+    Change-Id: I632d4aef7295778ba5018d98bcb06a68bcf07ce1
+    Reviewed-on: https://go-review.googlesource.com/31478
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/config.go       |   25 +-
+ src/cmd/compile/internal/ssa/gen/MIPS.rules  |  739 ++
+ src/cmd/compile/internal/ssa/gen/MIPSOps.go  |  413 ++
+ src/cmd/compile/internal/ssa/gen/dec64.rules |   38 +-
+ src/cmd/compile/internal/ssa/gen/main.go     |    4 +-
+ src/cmd/compile/internal/ssa/nilcheck.go     |    2 +
+ src/cmd/compile/internal/ssa/opGen.go        | 1889 ++++-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go  | 9831 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritedec64.go |  142 +-
+ src/cmd/compile/internal/ssa/schedule.go     |    4 +-
+ 10 files changed, 12892 insertions(+), 195 deletions(-)

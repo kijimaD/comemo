@@ -1,0 +1,22 @@
+commit 56bdf7f7d91cc5fa40e9e6ec0e3da3733f0e2e4e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 24 20:52:51 2022 +0000
+
+    runtime: update gctrace docs and print lastStackScan instead of max
+    
+    This change updates the gctrace docs to include stacks and globals in
+    the format line, and prints lastStackScan for "# MB stacks" instead of
+    maxStackScan, which is more accurate.
+    
+    Fixes #54649.
+    
+    Change-Id: Ibff2c390c9c9bf2b24b5b4e98ca346cc98d7cb2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425366
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/extern.go | 2 +-
+ src/runtime/mgc.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

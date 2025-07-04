@@ -1,0 +1,12 @@
+commit 029d62f5c0c13caae47a9d9ab294fb5dba0884ef
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 26 13:25:53 2012 -0700
+
+    misc/dist: drop repetition in filenames, default to release tag
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6117066
+
+ misc/dist/bindist.go | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

@@ -1,0 +1,22 @@
+commit 1080cece5af840349df06d651b9d5d5fa6925fed
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 21 16:32:19 2017 -0400
+
+    cmd/go: read URL not Repository Root from svn info
+    
+    This makes custom import path checks work even when the
+    custom import metadata directs checking out a subtree
+    of the subversion repository.
+    
+    (Git and Mercurial allow no such thing, so they are unaffected.)
+    
+    Fixes #20731.
+    
+    Change-Id: I635f3a2037d69a87c6dac7b08b0a0d8266abd250
+    Reviewed-on: https://go-review.googlesource.com/46417
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/get/vcs.go | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)

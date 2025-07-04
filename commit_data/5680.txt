@@ -1,0 +1,36 @@
+commit a212d174ac706a87615452d1a6a490f70e93cfa9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jun 20 11:45:53 2010 -0700
+
+    gc: better error messages for interface failures, conversions
+    
+    x.go:13: cannot use t (type T) as type Reader in assignment:
+            T does not implement Reader (Read method requires pointer receiver)
+    x.go:19: cannot use q (type Q) as type Reader in assignment:
+            Q does not implement Reader (missing Read method)
+                    have read()
+                    want Read()
+    x.go:22: cannot use z (type int) as type Reader in assignment:
+            int does not implement Reader (missing Read method)
+    
+    x.go:24: too many arguments to conversion to complex: complex(1, 3)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1736041
+
+ src/cmd/5g/gobj.c               |  2 +-
+ src/cmd/6g/gobj.c               |  2 +-
+ src/cmd/8g/gobj.c               |  2 +-
+ src/cmd/gc/go.h                 |  4 +--
+ src/cmd/gc/print.c              |  5 ++-
+ src/cmd/gc/subr.c               | 74 +++++++++++++++++++++++++++++++----------
+ src/cmd/gc/typecheck.c          | 36 ++++++++++++--------
+ src/cmd/prof/gopprof            |  6 ++--
+ src/pkg/image/png/reader.go     |  3 +-
+ src/pkg/rpc/client.go           |  6 ++++
+ src/pkg/rpc/jsonrpc/all_test.go |  6 ++--
+ src/pkg/rpc/jsonrpc/server.go   |  4 +--
+ src/pkg/rpc/server.go           | 45 +++++++++++++++++++------
+ test/arm-pass.txt               |  2 --
+ 14 files changed, 139 insertions(+), 58 deletions(-)

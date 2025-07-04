@@ -1,0 +1,18 @@
+commit cab7ba0b28d65bcb1d2a02ec945f43625869172e
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Feb 20 21:27:28 2018 +0100
+
+    cmd/compile: use | in the most repetitive arm rules
+    
+    For now, limited to the most repetitive rules that are also short and
+    simple, so that we can have a substantial conciseness win without
+    compromising rules readability.
+    
+    Ran rulegen, no change in the actual compiler code (as expected).
+    
+    Change-Id: Ib1d2b9fbc787379105ec9baf10d2c1e2ff3c4c5c
+    Reviewed-on: https://go-review.googlesource.com/95615
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules | 79 ++++++++----------------------
+ 1 file changed, 21 insertions(+), 58 deletions(-)

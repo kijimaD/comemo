@@ -1,0 +1,19 @@
+commit d85d11f101dd08496124185b3fb3236ead30308d
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sun Mar 10 20:36:44 2024 +0800
+
+    all.bash: allow spaces in $GOTOOLDIR to print build info
+    
+    For consistency with all.bat: "%GOTOOLDIR%/dist" banner
+    
+    Fixes #66061
+    
+    Change-Id: I3387003a77a5fe82fe132e7aba472b06dd9068f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570395
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/all.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit df46b3342ce54129af59e30ff6d9708347f61c75
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 8 11:21:25 2009 -0700
+
+    update tutorial text to refer to io.Reader etc.
+    
+    R=rsc
+    DELTA=15  (0 added, 5 deleted, 10 changed)
+    OCL=28526
+    CL=28532
+
+ doc/go_tutorial.txt | 25 ++++++++++---------------
+ 1 file changed, 10 insertions(+), 15 deletions(-)

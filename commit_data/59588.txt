@@ -1,0 +1,18 @@
+commit fa42585dadb8d70191820549435820cb70691cf6
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon May 19 16:06:42 2025 -0400
+
+    internal/pkgbits: rename RelocEnt to RefTableEntry
+    
+    Change-Id: I9b1c9a0499ad3444e8cb3e4be187f9fab816c90c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674159
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/noder/doc.go    | 32 ++++++++++++++------------------
+ src/cmd/compile/internal/noder/linker.go |  4 ++--
+ src/internal/pkgbits/decoder.go          | 12 ++++++------
+ src/internal/pkgbits/encoder.go          |  8 ++++----
+ src/internal/pkgbits/reloc.go            |  8 ++++----
+ 5 files changed, 30 insertions(+), 34 deletions(-)

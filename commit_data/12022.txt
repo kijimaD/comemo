@@ -1,0 +1,15 @@
+commit 7737e19b15151f5a8578c77c5df99ce364b7d281
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 17 17:52:05 2012 -0800
+
+    test: add some tests that gccgo failed to handle correctly
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5671090
+
+ test/fixedbugs/bug419.go | 17 +++++++++++++++++
+ test/fixedbugs/bug420.go | 14 ++++++++++++++
+ test/fixedbugs/bug421.go | 17 +++++++++++++++++
+ test/fixedbugs/bug422.go | 11 +++++++++++
+ 4 files changed, 59 insertions(+)

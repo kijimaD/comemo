@@ -1,0 +1,16 @@
+commit c810c6db101b53154b06f9ef1ff7455aaff16c36
+Author: Chirag Sukhala <cchirag77@gmail.com>
+Date:   Sun Aug 16 21:49:53 2020 +0000
+
+     doc/articles/wiki: add missing log import to net/http tutorial
+    
+    The log package is used with the net/http but was not in the import clause.
+    
+    Change-Id: Ic45b987633adf0ee15defd4d136b5d37027e22b0
+    GitHub-Last-Rev: e74aff53370569864b7ec8c18617a5d992d34bf2
+    GitHub-Pull-Request: golang/go#36674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215618
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ doc/articles/wiki/index.html | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,15 @@
+commit ccec93481483f03ad51005b48d6962a52f0ab359
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Jun 18 14:45:38 2015 +1000
+
+    compress/lzw: reject writing bytes that don't fit into litWidth.
+    
+    Fixes #11142.
+    
+    Change-Id: Id772c4364c47776d6afe86b0939b9c6281e85edc
+    Reviewed-on: https://go-review.googlesource.com/11227
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/compress/lzw/writer.go      | 13 ++++++++++---
+ src/compress/lzw/writer_test.go | 10 ++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

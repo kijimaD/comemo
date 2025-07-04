@@ -1,0 +1,18 @@
+commit a889aaf8bfcf803eaed411ebae672cc6c52252bc
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Nov 17 10:00:14 2018 +0100
+
+    runtime: don't use thread local storage before it is set up on iOS
+    
+    CL 138675 added a call to runtime.save_g which uses thread local
+    storage to store g. On iOS however, that storage was not initialized
+     yet. Move the call to below _cgo_init where it is set up.
+    
+    Change-Id: I14538d3e7d56ff35a6fa02c47bca306d24c38010
+    Reviewed-on: https://go-review.googlesource.com/c/150157
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/asm_arm64.s | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

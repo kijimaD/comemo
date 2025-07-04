@@ -1,0 +1,14 @@
+commit 5e77b9d33470cd1faf4450880b4ebc543122f74f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 20 12:36:14 2011 +1000
+
+    doc/GoCourseDay1: shrink the PDF by rewriting it using ps2pdf.
+    No difference in content or appearance.
+    Forgot to do this when I updated this file a few days ago.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4626056
+
+ doc/GoCourseDay1.pdf | Bin 904237 -> 287552 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

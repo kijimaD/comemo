@@ -1,0 +1,12 @@
+commit bcdb7926dd5f020e0cc67ca8cbec872dd666f172
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Oct 20 17:23:48 2012 +0800
+
+    codereview: protect against read-only upstream repository
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6742053
+
+ lib/codereview/codereview.py | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

@@ -1,0 +1,29 @@
+commit 53bc19442d570802c0966d9b0c623151e78e5875
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 29 15:08:08 2012 -0700
+
+    fmt: speed up 10-20%
+    
+    The check for Stringer etc. can only fire if the test is not a builtin, so avoid
+    the expensive check if we know there's no chance.
+    Also put in a fast path for pad, which saves a more modest amount.
+    
+    benchmark                      old ns/op    new ns/op    delta
+    BenchmarkSprintfEmpty                148          152   +2.70%
+    BenchmarkSprintfString               585          497  -15.04%
+    BenchmarkSprintfInt                  441          396  -10.20%
+    BenchmarkSprintfIntInt               718          603  -16.02%
+    BenchmarkSprintfPrefixedInt          676          621   -8.14%
+    BenchmarkSprintfFloat               1003          953   -4.99%
+    BenchmarkManyArgs                   2945         2312  -21.49%
+    BenchmarkScanInts                1704152      1734441   +1.78%
+    BenchmarkScanRecursiveInt        1837397      1828920   -0.46%
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6245068
+
+ src/pkg/fmt/fmt_test.go |  8 ++++++++
+ src/pkg/fmt/format.go   | 16 ++++++++--------
+ src/pkg/fmt/print.go    |  8 ++++----
+ 3 files changed, 20 insertions(+), 12 deletions(-)

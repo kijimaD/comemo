@@ -1,0 +1,22 @@
+commit 16544b83f8b4ef36fb9f93af7adb4b7135bdcc2d
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Mar 23 00:29:08 2023 -0700
+
+    log/slog: use Infinity instead of Inf
+    
+    JSON is derived from Javascript, so we should use Javascript-inspired
+    literals instead of ones more common to Go.
+    
+    In Javascript, infinity is declared as Infinity rather than Inf.
+    
+    Change-Id: I6c81353d0c677640f3f11961a37d792408ac03fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478758
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/log/slog/json_handler.go      | 6 +++---
+ src/log/slog/json_handler_test.go | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)

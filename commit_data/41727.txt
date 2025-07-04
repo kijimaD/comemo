@@ -1,0 +1,17 @@
+commit 9ef61d58c015e7bc297ed4404e34af5f3d514257
+Author: nao20010128nao <nao20010128@gmail.com>
+Date:   Sat Mar 21 06:52:58 2020 +0000
+
+    syscall/js: make wasm_exec.js compatible with Webpack
+    
+    In Webpack, require("fs") will always be empty. This behavior throws an error: "fs.writeSync is not function". It happens when you did "fmt.Println".
+    This PR avoids such problem and use polyfill in wasm_exec.js on Webpack.
+    
+    Change-Id: I55f2c75ce86b7f84d2d92e8e217b5decfbe3c8a1
+    GitHub-Last-Rev: aecc847e3f9d5617ea4b00196ef2810c2458f085
+    GitHub-Pull-Request: golang/go#35805
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208600
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ misc/wasm/wasm_exec.js | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

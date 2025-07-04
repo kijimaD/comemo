@@ -1,0 +1,35 @@
+commit d2101e54908dc6899863be0772658dbd7e0bbc71
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 23 09:47:53 2019 -0400
+
+    runtime/internal/atomic: add Store8
+    
+    We already have Load8, And8, and Or8.
+    
+    For #10958, #24543, but makes sense on its own.
+    
+    Change-Id: I478529fc643edc57efdeccaae413c99edd19b2eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203283
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/runtime/internal/atomic/asm_386.s          |  6 ++++++
+ src/runtime/internal/atomic/asm_amd64.s        |  6 ++++++
+ src/runtime/internal/atomic/asm_mips64x.s      |  8 ++++++++
+ src/runtime/internal/atomic/asm_mipsx.s        |  8 ++++++++
+ src/runtime/internal/atomic/asm_ppc64x.s       |  7 +++++++
+ src/runtime/internal/atomic/asm_s390x.s        |  8 ++++++++
+ src/runtime/internal/atomic/atomic_386.go      |  3 +++
+ src/runtime/internal/atomic/atomic_amd64.go    |  3 +++
+ src/runtime/internal/atomic/atomic_arm.go      |  3 +++
+ src/runtime/internal/atomic/atomic_arm64.go    |  3 +++
+ src/runtime/internal/atomic/atomic_arm64.s     |  6 ++++++
+ src/runtime/internal/atomic/atomic_mips64x.go  |  3 +++
+ src/runtime/internal/atomic/atomic_mipsx.go    |  3 +++
+ src/runtime/internal/atomic/atomic_ppc64x.go   |  3 +++
+ src/runtime/internal/atomic/atomic_s390x.go    |  3 +++
+ src/runtime/internal/atomic/atomic_wasm.go     |  6 ++++++
+ src/runtime/internal/atomic/sys_linux_arm.s    | 22 ++++++++++++++++++++++
+ src/runtime/internal/atomic/sys_nonlinux_arm.s | 17 +++++++++++++++++
+ 18 files changed, 118 insertions(+)

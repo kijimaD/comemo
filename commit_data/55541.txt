@@ -1,0 +1,17 @@
+commit cde38c966dad075c4c24694d4f02d71de3ab957a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 7 13:36:46 2024 -0800
+
+    slices: document that BinarySearch[Func] return earliest position
+    
+    Fixes #65446
+    
+    Change-Id: I08dc512fb1f0101eb8aac8767cdf582360699559
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562345
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/slices/sort.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

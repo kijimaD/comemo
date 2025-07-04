@@ -1,0 +1,17 @@
+commit 4e00b4c366f06036509201d3bf19ee2c8fd767c8
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 28 20:54:31 2020 -0400
+
+    runtime: move condition into wakep
+    
+    All five calls to wakep are protected by the same check of nmidle and
+    nmspinning. Move this check into wakep.
+    
+    Change-Id: I2094eec211ce551e462e87614578f37f1896ba38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230757
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/proc.go | 23 +++++++++--------------
+ 1 file changed, 9 insertions(+), 14 deletions(-)

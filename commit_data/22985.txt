@@ -1,0 +1,28 @@
+commit f8d14fc3a00052727c717f62908a9db661483093
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 6 12:28:19 2015 -0400
+
+    cmd/internal/gc: add backend ginscmp function to emit a comparison
+    
+    This lets us abstract away which arguments can be constants and so on
+    and lets the back ends reverse the order of arguments if that helps.
+    
+    Change-Id: I283ec1d694f2dd84eba22e5eb4aad78a2d2d9eb0
+    Reviewed-on: https://go-review.googlesource.com/9810
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/5g/cgen.go          | 22 -------------
+ src/cmd/5g/galign.go        |  1 +
+ src/cmd/5g/ggen.go          | 18 +++++++++++
+ src/cmd/6g/galign.go        |  1 +
+ src/cmd/6g/gsubr.go         | 36 +++++++++++++++++++++
+ src/cmd/7g/galign.go        |  1 +
+ src/cmd/7g/gsubr.go         | 28 ++++++++++++++++
+ src/cmd/8g/galign.go        |  1 +
+ src/cmd/8g/gsubr.go         | 39 ++++++++++++++++++++++
+ src/cmd/9g/galign.go        |  1 +
+ src/cmd/9g/gsubr.go         | 28 ++++++++++++++++
+ src/cmd/internal/gc/cgen.go | 79 +++++++--------------------------------------
+ src/cmd/internal/gc/gen.go  | 12 +++----
+ src/cmd/internal/gc/go.go   | 15 ++++++++-
+ 14 files changed, 183 insertions(+), 99 deletions(-)

@@ -1,0 +1,18 @@
+commit cbf4f4b8d03493c112b472b8fcf3d499dc4e6bc9
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon Jan 9 19:55:18 2012 -0500
+
+    strconv: return ErrSyntax when unquoting illegal octal sequences.  This
+    is consistent with what the Go compiler returns when such sequences
+    appear in string literals.
+    
+    Fixes #2658.
+    
+    R=golang-dev, rsc, r, r, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5530051
+
+ src/pkg/html/template/escape_test.go | 22 ++++++++++++----------
+ src/pkg/strconv/quote.go             |  1 +
+ src/pkg/strconv/quote_test.go        |  6 ++++++
+ 3 files changed, 19 insertions(+), 10 deletions(-)

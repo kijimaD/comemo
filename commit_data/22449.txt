@@ -1,0 +1,27 @@
+commit 7d3f81a9f330330fbfc50c3a511e95febb080194
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Apr 11 14:58:42 2015 +0200
+
+    syscall: ignore getwd errors when fixing working directory on Plan 9
+    
+    In Plan 9, goroutines can run in different processes,
+    which don't share their working directory. However,
+    Go expects the working directory to be program-wide.
+    
+    We use a Fixwd function to fix the working directory
+    before calling system calls which depend on the
+    working directory.
+    
+    In fixwdLocked, the working directory is not fixed
+    when getwd returns an error. However, an error can
+    happen is some cases, notably when the directory
+    has been previously removed in another process.
+    
+    Fixes #10422.
+    
+    Change-Id: Ie0c36f97c4b5ebe27ff0ead360987c5b35f825e4
+    Reviewed-on: https://go-review.googlesource.com/8800
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/pwd_plan9.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)

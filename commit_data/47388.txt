@@ -1,0 +1,28 @@
+commit 8a3be150775f80850e179bd1860b286be27ca407
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 08:12:21 2021 -0800
+
+    cmd/compile/internal/types2: rename structure to structuralType
+    
+    And rename structureString to structuralString.
+    
+    Now that we have an updated definition for structural types in
+    the (forthcoming) spec, name the corresponding function accordingly.
+    
+    No semantic changes.
+    
+    Change-Id: Iab838f01a37075bedf2d8bc4f166b0217672b85f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362994
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/types2/builtins.go   | 24 ++++++++++++------------
+ src/cmd/compile/internal/types2/call.go       |  2 +-
+ src/cmd/compile/internal/types2/expr.go       |  2 +-
+ src/cmd/compile/internal/types2/index.go      |  2 +-
+ src/cmd/compile/internal/types2/infer.go      |  2 +-
+ src/cmd/compile/internal/types2/predicates.go |  4 ++--
+ src/cmd/compile/internal/types2/stmt.go       |  2 +-
+ 7 files changed, 19 insertions(+), 19 deletions(-)

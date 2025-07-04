@@ -1,0 +1,22 @@
+commit 40f82f8a092ac1f23eb3af86f34b7436a6fc19e0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Oct 12 15:38:52 2021 -0700
+
+    unsafe: optimize Slice bounds checking
+    
+    This reduces the number of branches to bounds check non-empty slices
+    from 5 to 3. It does also increase the number of branches to handle
+    empty slices from 1 to 3; but for non-panicking calls, they should all
+    be predictable.
+    
+    Updates #48798.
+    
+    Change-Id: I3ffa66857096486f4dee417e1a66eb8fdf7a3777
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355490
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/slice.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)

@@ -1,0 +1,20 @@
+commit c92e73b70253f5d88c473a7ad6c5b8d61b2debb7
+Author: Milan Knezevic <milan.knezevic@mips.com>
+Date:   Fri Nov 9 18:30:46 2018 +0100
+
+    cmd/compile/internal/gc: OMUL should be evaluated when using soft-float
+    
+    When using soft-float, OMUL might be rewritten to function call
+    so we should ensure it was evaluated first.
+    
+    Fixes #28688
+    
+    Change-Id: I30b87501782fff62d35151f394a1c22b0d490c6c
+    Reviewed-on: https://go-review.googlesource.com/c/148837
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/subr.go |  2 +-
+ test/fixedbugs/issue28688.go        | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 689a2ec8c3896b122907fcb5e3d1399ca4598099
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 13 17:41:33 2011 -0700
+
+    json: allow using '$' and '-' as the struct field's tag
+    
+    R=adg, rsc, bradfitz, mattn.jp, gustavo
+    CC=golang-dev
+    https://golang.org/cl/4625081
+
+ src/pkg/json/decode_test.go | 10 -----
+ src/pkg/json/encode.go      | 12 +++---
+ src/pkg/json/tagkey_test.go | 95 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 101 insertions(+), 16 deletions(-)

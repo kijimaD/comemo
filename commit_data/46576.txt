@@ -1,0 +1,20 @@
+commit 4e308d73ba3610838305997b6f4793c4f4dcfc4e
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Sep 22 14:59:42 2021 +0100
+
+    cmd/go: refer to the right package in a test
+    
+    The test checks that two packages aren't non-test dependencies.
+    There's a copy-paste typo, however.
+    When net/http is unexpectedly found as a dependendency,
+    we instead mention the other package in the error message.
+    
+    Change-Id: I3232c6252255c839e08efa048f2232c192d0fb85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351372
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/imports/scan_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

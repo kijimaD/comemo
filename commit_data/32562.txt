@@ -1,0 +1,24 @@
+commit 4c9989a3608d410d1408ce26958c6388da24e553
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Aug 29 21:16:28 2017 +0200
+
+    cmd/compile: avoid padding for indirect map key or value on amd64p32
+    
+    Padding needed for map buckets is dependent on the types used to
+    construct the map bucket. In case of indirect keys or values pointers
+    are used in the map bucket to the keys or values.
+    
+    Change the map bucket padding calculation to take the alignment of
+    the key and value types used to construct the map bucket into account
+    instead of the original key and value type.
+    
+    Since pointers are always 32bit aligned on amd64p32 this prevents
+    adding unneeded padding in case the key or value would have needed
+    64bit alignment without indirect referencing.
+    
+    Change-Id: I7943448e882d269b5cff7e921a2a6f3430c50878
+    Reviewed-on: https://go-review.googlesource.com/60030
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/reflect.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

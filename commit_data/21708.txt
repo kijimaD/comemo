@@ -1,0 +1,15 @@
+commit 90590a0cd210686a34bd4b645e0ef3ae468795e4
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 24 11:00:07 2015 -0800
+
+    cmd/asm: add alias for MOVOA=MOVO on amd64
+    
+    The alias should exist for both 386 and amd64.
+    There were a few others missing as well. Add them.
+    
+    Change-Id: Ia0c3e71abc79f67a7a66941c0d932a8d5d6e9989
+    Reviewed-on: https://go-review.googlesource.com/5800
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/asm/internal/arch/arch.go | 45 +++++++++++++++++++++++----------------
+ 1 file changed, 27 insertions(+), 18 deletions(-)

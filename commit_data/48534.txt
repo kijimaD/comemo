@@ -1,0 +1,19 @@
+commit 79e051ad33992cb50e689b0dff2c6fc6f8b4c94f
+Author: Baokun Lee <bk@golangcn.org>
+Date:   Mon Dec 20 14:12:02 2021 +0800
+
+    cmd/go/internal/modfetch: remove unused FileRev struct
+    
+    In CL 367756 we remove ReadFileRevs function, We simplified
+    the implementation of the interface Repo. and the type FileRev
+    is no longer used.
+    
+    Change-Id: Iec9e2f0d6bb227f4d0d0f565e897137dcf392a3a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/373375
+    Trust: Lee Baokun <bk@golangcn.org>
+    Run-TryBot: Lee Baokun <bk@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 7 -------
+ 1 file changed, 7 deletions(-)

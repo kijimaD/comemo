@@ -1,0 +1,20 @@
+commit 5844fc1b21cbab3201b081055f3b106ffc6b69d3
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Oct 5 10:44:11 2011 -0700
+
+    exp/norm: introduced input interface to implement string versions
+    of methods.
+    
+    R=r, mpvl
+    CC=golang-dev
+    https://golang.org/cl/5166045
+
+ src/pkg/exp/norm/Makefile            |   1 +
+ src/pkg/exp/norm/composition.go      |  64 ++++++-------
+ src/pkg/exp/norm/composition_test.go |  39 +++-----
+ src/pkg/exp/norm/forminfo.go         |  60 +++---------
+ src/pkg/exp/norm/input.go            | 107 +++++++++++++++++++++
+ src/pkg/exp/norm/normalize.go        | 177 +++++++++++++++++++++--------------
+ src/pkg/exp/norm/normalize_test.go   |  42 +++++++--
+ src/pkg/exp/norm/readwriter.go       |  18 +++-
+ 8 files changed, 318 insertions(+), 190 deletions(-)

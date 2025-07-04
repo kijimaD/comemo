@@ -1,0 +1,14 @@
+commit d29ed92dedb4fb4317d189aebd7cd0b4f2c00082
+Author: Samuel Tan <samueltan@google.com>
+Date:   Wed Mar 28 11:42:28 2018 -0700
+
+    html/template: fix lint errors
+    
+    Change-Id: If56bd72917a9cbf5920ae8b5a36dc67f10959b94
+    Reviewed-on: https://go-review.googlesource.com/103175
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/html/template/url.go | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

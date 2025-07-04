@@ -1,0 +1,20 @@
+commit 2b39d86344608423138b648b98157470d3809ee7
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Jan 5 12:25:28 2022 -0800
+
+    cmd/go: add fuzzing coverage test
+    
+    Adds a test script for fuzzing coverage instrumentation.
+    
+    Fixes #48654
+    
+    Change-Id: Ieea7b4146bd5581baae869441cc1c652dd7485f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/375736
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_cov.txt | 33 ++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

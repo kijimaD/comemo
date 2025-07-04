@@ -1,0 +1,19 @@
+commit 6c6ad08eb920d02947410919889229bbfa8c9915
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Aug 29 16:19:23 2016 -0700
+
+    go/types: fix bad variable shadowing in offsetsof
+    
+    Introduced in CL 26995.
+    
+    Fixes #16902
+    
+    Change-Id: I8e749f598167e1f8b82cd5e735a7eb5291362e5e
+    Reviewed-on: https://go-review.googlesource.com/28070
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/sizes.go      |  2 +-
+ src/go/types/sizes_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)

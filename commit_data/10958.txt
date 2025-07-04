@@ -1,0 +1,14 @@
+commit 1cf45e388d723d02b073a5ea7d27abf8b45f02a1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Dec 22 09:53:52 2011 +1100
+
+    dashboard: delete old build dashboard code
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5502063
+
+ misc/dashboard/godashboard/app.yaml   |   7 +-
+ misc/dashboard/godashboard/gobuild.py | 576 ----------------------------------
+ misc/dashboard/godashboard/main.html  |  42 ---
+ 3 files changed, 4 insertions(+), 621 deletions(-)

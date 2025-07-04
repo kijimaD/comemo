@@ -1,0 +1,36 @@
+commit 3922c006ad57f042238e48bb2cd13e5d88499a6c
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Nov 20 14:39:19 2019 -0500
+
+    misc/cgo/testcshared: avoid writing to GOROOT in tests
+    
+    The tests in this package invoked 'go install -i -buildmode=c-shared'
+    in order to generate an archive as well as multiple C header files.
+    
+    Unfortunately, the behavior of the '-i' flag is inappropriately broad
+    for this use-case: it not only generates the library and header files
+    (as desired), but also attempts to install a number of (unnecessary)
+    archive files for transitive dependencies to
+    GOROOT/pkg/$GOOS_$GOARCH_testcshared_shared, which may not be writable
+    — for example, if GOROOT is owned by the root user but the test is
+    being run by a non-root user.
+    
+    Instead, for now we generate the header files for transitive dependencies
+    separately by running 'go tool cgo -exportheader'.
+    
+    In the future, we should consider how to improve the ergonomics for
+    generating transitive header files without coupling that to
+    unnecessary library installation.
+    
+    Updates #28387
+    Updates #30316
+    Updates #35715
+    
+    Change-Id: I622426a860828020d98f7040636f374e5c766d28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/208119
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testcshared/cshared_test.go | 43 +++++++++++++++++++++++-------------
+ 1 file changed, 28 insertions(+), 15 deletions(-)

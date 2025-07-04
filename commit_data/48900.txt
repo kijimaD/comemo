@@ -1,0 +1,24 @@
+commit 892cd0b63638ec856e6fef1bdaaa20a177695fea
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Mon Apr 25 05:21:35 2022 +0000
+
+    reflect: support Len and Cap on pointer-to-array Value
+    
+    Fixes #52411
+    
+    Change-Id: I2fd13a453622992c52d49aade7cd058cfc8a77ca
+    GitHub-Last-Rev: d5987c2ec817ebd01d9e1adb3bd2e75274dbbabd
+    GitHub-Pull-Request: golang/go#52423
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400954
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/all_test.go | 66 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 14 +++++++++--
+ 2 files changed, 78 insertions(+), 2 deletions(-)

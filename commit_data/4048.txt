@@ -1,0 +1,12 @@
+commit 98811f41b8cc65c54d59e8cef8f6eac013dc5a00
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 14 19:28:13 2009 -0800
+
+    test/interface/receiver.go: expand to do dynamic
+            versions of static checks in receiver1.go
+    
+    R=r
+    https://golang.org/cl/155045
+
+ test/interface/receiver.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

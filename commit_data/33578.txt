@@ -1,0 +1,18 @@
+commit 3a181dc7bc8fd0c61d6090a85f87c934f1874802
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 15 11:47:31 2017 -0500
+
+    archive/zip: fix handling of replacement rune in UTF8 check
+    
+    The replacement rune is a valid rune and can appear as itself in valid UTF8
+    (it encodes as three bytes). To check for invalid UTF8 it is necessary to
+    look for utf8.DecodeRune returning the replacement rune and size==1.
+    
+    Change-Id: I169be8d1fe61605c921ac13cc2fde94f80f3463c
+    Reviewed-on: https://go-review.googlesource.com/78126
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/archive/zip/writer.go      |  6 ++++--
+ src/archive/zip/writer_test.go | 26 +++++++++++++++-----------
+ 2 files changed, 19 insertions(+), 13 deletions(-)

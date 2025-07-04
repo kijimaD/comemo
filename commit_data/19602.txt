@@ -1,0 +1,15 @@
+commit b08a9e3978f9232c8e687b04312f920ad3ca9d49
+Author: Glenn Lewis <gmlewis@google.com>
+Date:   Wed Jun 25 05:52:48 2014 +1000
+
+    C: add Glenn Lewis (Google CLA)
+    
+    For work on goauth2.
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/110150043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,13 @@
+commit a14ae4451700a690a2ca075d585d55d60f0d46e3
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Oct 30 14:08:55 2014 -0400
+
+    misc/cgo/test: fix bad C test code that fails on some configurations
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169800043
+
+ misc/cgo/test/issue9026.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

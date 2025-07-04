@@ -1,0 +1,21 @@
+commit 92ecd7893308ad222bfdd33b10be1cce769a3cdf
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Jan 13 15:42:50 2017 -0500
+
+    cmd/compile: add ZeroWB case in writebarrier
+    
+    It looks like it should be there, although I couldn't find a test
+    case that fails without it. ZeroWB is probably never generated now:
+    zeroing an initialized heap object is done by making an autotmp on
+    stack, zeroing it, and copying (typedmemmove) to heap.
+    
+    Passes "toolstash -cmp" on std.
+    
+    Change-Id: I702a59759e33fb8cc2a34a3b3029e7540aca080a
+    Reviewed-on: https://go-review.googlesource.com/35250
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit 0bb0b61d6a85b2a1a33dcbc418089656f2754d32
+Author: Brian Kernighan <bwk>
+Date:   Sun Jan 20 01:02:03 1974 -0400
+
+    convert to C
+    
+    R=dmr
+    DELTA=6  (0 added, 3 deleted, 3 changed)
+
+ src/pkg/debug/macho/testdata/hello.b | 7 -------
+ src/pkg/debug/macho/testdata/hello.c | 3 +++
+ 2 files changed, 3 insertions(+), 7 deletions(-)

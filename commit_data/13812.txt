@@ -1,0 +1,29 @@
+commit 6ee91ced92fc27f8c93b0589484923593cad240f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 13 10:26:21 2012 -0400
+
+    cmd/pack: rename __.SYMDEF to __.GOSYMDEF
+    
+    This fixes a problem with ELF tools thinking they know the
+    format of the symbol table, as we do not use any of the
+    standard formats for that table.
+    
+    This change will probably annoy the Plan 9 users, but I
+    believe there are other incompatibilities already that mean
+    they have to use a Go-specific nm.
+    
+    Fixes #3473.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6500117
+
+ src/cmd/5l/5.out.h              | 2 +-
+ src/cmd/6l/6.out.h              | 2 +-
+ src/cmd/8l/8.out.h              | 2 +-
+ src/cmd/gc/lex.c                | 2 +-
+ src/cmd/ld/lib.c                | 4 ++--
+ src/cmd/nm/nm.c                 | 2 +-
+ src/cmd/pack/ar.c               | 2 +-
+ src/pkg/exp/types/exportdata.go | 7 ++++---
+ 8 files changed, 12 insertions(+), 11 deletions(-)

@@ -1,0 +1,16 @@
+commit f4717a902e54d1e532fd21f1676a225523c67649
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 29 09:31:12 2016 -0800
+
+    misc/cgo/testsanitizers: test that tsan links
+    
+    Update #14559.
+    
+    Change-Id: I92603602e5d0a5fcae43f3084f234ff606447190
+    Reviewed-on: https://go-review.googlesource.com/20056
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/cgo/testsanitizers/test.bash | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

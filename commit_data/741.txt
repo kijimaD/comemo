@@ -1,0 +1,20 @@
+commit c3d841f5d4d365f531e0a56a0fa2ad55925d2ddb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 26 11:44:20 2008 -0700
+
+    handle negative numeric constants in import.
+    (fixes bugs/bug106)
+    
+    package bug0
+    export const A = -1
+    
+    package bug1
+    import "bug0"
+    
+    R=ken
+    DELTA=21  (19 added, 0 deleted, 2 changed)
+    OCL=15901
+    CL=15968
+
+ src/cmd/gc/go.y | 23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)

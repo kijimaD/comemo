@@ -1,0 +1,22 @@
+commit 509592d188f6a30bb65b27a24f4c6f68716ea063
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jan 9 11:19:16 2020 -0500
+
+    cmd/go: explicitly reject 'list -u' and 'list -versions' when '-mod=vendor' is set
+    
+    The information requested by these flags is not available from the
+    vendor directory.
+    
+    Noticed while diagnosing #36478.
+    
+    Updates #33848
+    
+    Change-Id: I2b181ba5c27f01fdd6277d8d0ab1003c05774ff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214081
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/list/list.go          | 13 +++++++++++--
+ src/cmd/go/testdata/script/mod_vendor.txt |  6 ++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)

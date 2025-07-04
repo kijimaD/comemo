@@ -1,0 +1,18 @@
+commit 677cdb800d85025b01173e44925189c822869168
+Author: Benny Siegert <bsiegert@gmail.com>
+Date:   Tue Jun 5 01:29:34 2012 +1000
+
+    syscall: use pipe instead of pipe2 on NetBSD
+    
+    pipe2 is equivalent to pipe with flags set to 0.
+    However, pipe2 was only added recently. Using pipe
+    instead improves compatibility with NetBSD 5.
+    
+    R=jsing
+    CC=golang-dev
+    https://golang.org/cl/6268045
+
+ src/pkg/syscall/syscall_netbsd.go        | 7 ++-----
+ src/pkg/syscall/zsyscall_netbsd_386.go   | 6 ++++--
+ src/pkg/syscall/zsyscall_netbsd_amd64.go | 6 ++++--
+ 3 files changed, 10 insertions(+), 9 deletions(-)

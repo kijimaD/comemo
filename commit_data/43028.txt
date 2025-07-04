@@ -1,0 +1,21 @@
+commit dc59469f5178a0715a582cbfcc4cf9c06a2c9e82
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 17 22:53:39 2020 +0700
+
+    cmd/compile: move validation from unary/binaryOp to typecheck
+    
+    CL 254400 makes typecheck set untyped type correctly. We now have enough
+    information to check valid operators for a type in typecheck.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I01a7606ee6ce9964ec52430d53eaa886442bd17f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/255617
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/const.go     | 19 +-------------
+ src/cmd/compile/internal/gc/typecheck.go | 44 +++++++++++++-------------------
+ 2 files changed, 19 insertions(+), 44 deletions(-)

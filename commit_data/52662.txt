@@ -1,0 +1,48 @@
+commit 2b92c39fe08101ed8c9f032d577df4cc882d08d7
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 12 20:25:39 2023 -0800
+
+    cmd/link: establish dependable package initialization order
+    
+    (This is a retry of CL 462035 which was reverted at 474976.
+    The only change from that CL is the aix fix SRODATA->SNOPTRDATA
+    at inittask.go:141)
+    
+    As described here:
+    
+    https://github.com/golang/go/issues/31636#issuecomment-493271830
+    
+    "Find the lexically earliest package that is not initialized yet,
+    but has had all its dependencies initialized, initialize that package,
+     and repeat."
+    
+    Simplify the runtime a bit, by just computing the ordering required
+    in the linker and giving a list to the runtime.
+    
+    Update #31636
+    Fixes #57411
+    
+    RELNOTE=yes
+    
+    Change-Id: I28c09451d6aa677d7394c179d23c2c02c503fc56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/478916
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/pkginit/init.go |  18 ++--
+ src/cmd/internal/objabi/reloctype.go     |   6 ++
+ src/cmd/link/internal/ld/deadcode.go     |   8 ++
+ src/cmd/link/internal/ld/heap.go         |  47 +++++++++
+ src/cmd/link/internal/ld/inittask.go     | 175 +++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go          |   4 +
+ src/cmd/link/internal/ld/main.go         |   3 +
+ src/cmd/link/internal/ld/symtab.go       |  16 +++
+ src/plugin/plugin_dlopen.go              |  20 ++--
+ src/runtime/plugin.go                    |  10 +-
+ src/runtime/proc.go                      |  60 ++++++-----
+ src/runtime/symtab.go                    |   4 +
+ test/fixedbugs/issue31636.out            |   4 +-
+ test/noinit.go                           |   5 +-
+ 14 files changed, 324 insertions(+), 56 deletions(-)

@@ -1,0 +1,22 @@
+commit 86d66784297f83f67088cea768611621048160da
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Feb 25 11:10:57 2021 -0800
+
+    testing/fstest: clarify TestFS docs
+    
+    The sentence starts "fsys must only contain",
+    which leads the reader to believe that fsys must not contain others.
+    The rapid reversal leads to confusion.
+    I had to read it several times to be sure I'd parsed it correctly.
+    
+    Remove "only"; rely on the rest of the sentence to clarify.
+    
+    Change-Id: I9fb7935aed4f9839344d3a00b761d20981fba864
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296529
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/fstest/testfs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

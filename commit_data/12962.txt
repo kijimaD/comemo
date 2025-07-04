@@ -1,0 +1,20 @@
+commit 689d5b91631ccfaee9b85aa25a06df55769e299e
+Author: Joel Sing <jsing@google.com>
+Date:   Thu Apr 26 00:08:02 2012 +1000
+
+    runtime: use __tfork() syscall on openbsd
+    
+    Switch from using the rfork() syscall on OpenBSD, to the __tfork()
+    syscall.  The __tfork() syscall is the preferred way of creating
+    system threads and the rfork() syscall has recently been removed.
+    
+    Note: this will break compatibility with OpenBSD releases prior to 5.1.
+    
+    R=golang-dev, bradfitz, devon.odell, rsc
+    CC=golang-dev
+    https://golang.org/cl/6037048
+
+ src/pkg/runtime/sys_openbsd_386.s   | 47 +++++++++++++++++--------------------
+ src/pkg/runtime/sys_openbsd_amd64.s | 29 ++++++++++-------------
+ src/pkg/runtime/thread_openbsd.c    | 20 +++++++---------
+ 3 files changed, 42 insertions(+), 54 deletions(-)

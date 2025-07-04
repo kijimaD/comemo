@@ -1,0 +1,14 @@
+commit 42f5ee4cbf15ff02803863d1002259565da0f071
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 16 11:28:45 2016 -0700
+
+    testing: mention in docs for Logf that a final newline is added if needed
+    
+    Fixes #16423
+    
+    Change-Id: I9635db295be4d356d427adadd309084e16c4582f
+    Reviewed-on: https://go-review.googlesource.com/31255
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/testing/testing.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

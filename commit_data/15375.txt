@@ -1,0 +1,19 @@
+commit 9c7aa5fea983fe58d126542013861a022adefa70
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Feb 22 10:40:23 2013 -0800
+
+    mime/multipart: allow unescaped newlines through in quoted-printable
+    
+    This makes Go's quoted-printable decoder more like other
+    popular ones, allowing through a bare \r or \n, and also
+    passes through \r\n which looked like a real bug before.
+    
+    Fixes #4771
+    
+    R=minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7300092
+
+ src/pkg/mime/multipart/quotedprintable.go      |  58 ++++++++--
+ src/pkg/mime/multipart/quotedprintable_test.go | 149 ++++++++++++++++++++++++-
+ 2 files changed, 196 insertions(+), 11 deletions(-)

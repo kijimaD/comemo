@@ -1,0 +1,15 @@
+commit 214b82f2e0eaadc9d15384538d3b3787867a675a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 26 12:32:59 2011 -0700
+
+    http: new tests + panic hunting issue 1725
+    
+    No bugs found yet, though.
+    
+    R=rsc, bradfitzwork
+    CC=golang-dev
+    https://golang.org/cl/4436058
+
+ src/pkg/http/response_test.go | 93 ++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/http/transport.go     | 11 +++--
+ 2 files changed, 99 insertions(+), 5 deletions(-)

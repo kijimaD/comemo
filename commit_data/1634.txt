@@ -1,0 +1,18 @@
+commit 9acd2a973153cd98888429191c7c6ee5497efbab
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 6 15:26:30 2009 -0800
+
+    snapshot:
+    - first stab at a Go Documentation Server (gds)
+    - various fixes to make initial version of gds work
+    
+    R=r
+    OCL=24588
+    CL=24588
+
+ usr/gri/pretty/Makefile       |  9 +++--
+ usr/gri/pretty/compilation.go | 10 ++----
+ usr/gri/pretty/gds.go         | 83 +++++++++++++++++++++++++++++++++++++++++++
+ usr/gri/pretty/pretty.go      | 28 ++++++++-------
+ usr/gri/pretty/printer.go     | 67 ++++++++++++++++++++++------------
+ 5 files changed, 152 insertions(+), 45 deletions(-)

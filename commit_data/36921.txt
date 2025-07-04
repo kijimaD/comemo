@@ -1,0 +1,20 @@
+commit 1c88ce5f7bae4698b39cb7dbbb200f59c5b22a91
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:32:52 2018 +0200
+
+    time: add AIX operating system
+    
+    This commit adds AIX operating system to time package for ppc64
+    architecture.
+    
+    Updates: #25893
+    
+    Change-Id: I4fb6fb47eae7671bf4e22729d6d160f557083c44
+    Reviewed-on: https://go-review.googlesource.com/c/138721
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/time/sys_unix.go      | 2 +-
+ src/time/zoneinfo_unix.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

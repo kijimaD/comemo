@@ -1,0 +1,22 @@
+commit 903f313d8b6e85c031fc5918273ff4800fa9f952
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Oct 29 17:58:42 2021 +0000
+
+    runtime: fix unclosed GCSweepStart trace event
+    
+    CL 333389 erroneously moved traceGCSweepDone inside the sl.valid block
+    that it introduced in mcentral.cacheSpan, when it should have left it
+    outside that scope, because the trace event is created unconditionally
+    at the top of the method.
+    
+    Fixes #49231.
+    
+    Change-Id: If719c05063d4f4d330a320da6dc00d1e9d8102e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359775
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/mcentral.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

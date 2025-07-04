@@ -1,0 +1,20 @@
+commit 6d2db0986faef807e8538db6f3d32adb0dfd78c5
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Jul 9 13:59:36 2016 -0700
+
+    crypto/tls: fix WriteTo method signature
+    
+    Give *recordingConn the correct WriteTo signature
+    to be an io.WriterTo. This makes vet happy.
+    It also means that it'll report errors,
+    which were previously being ignored.
+    
+    Updates #11041
+    
+    Change-Id: I13f171407d63f4b62427679bff362eb74faddca5
+    Reviewed-on: https://go-review.googlesource.com/27121
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/tls/handshake_test.go | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)

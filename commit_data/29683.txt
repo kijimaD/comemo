@@ -1,0 +1,20 @@
+commit 2b1abf75945508a602daa29a87b7a45e0b6b04af
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Nov 29 09:57:17 2016 -0800
+
+    database/sql: rename NamedParam to NamedArg and Param to Named
+    
+    Be consistent with the argument names already provided. Also
+    parameter is the variable, argument is the value.
+    
+    Fixes #18099
+    
+    Change-Id: Idb3f4e9ffc214036c721ddb4f614ec6c95bb7778
+    Reviewed-on: https://go-review.googlesource.com/33660
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/database/sql/convert.go  |  4 ++--
+ src/database/sql/sql.go      | 25 ++++++++++++++++++-------
+ src/database/sql/sql_test.go |  6 +++---
+ 3 files changed, 23 insertions(+), 12 deletions(-)

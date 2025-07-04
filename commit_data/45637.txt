@@ -1,0 +1,21 @@
+commit c925e1546ee72e40ca5351f3773379e99a6b8cdf
+Author: eric fang <eric.fang@arm.com>
+Date:   Fri May 7 05:48:18 2021 +0000
+
+    cmd/internal/obj/arm64: disable AL and NV for some condition operation instructions
+    
+    According to the armv8-a reference manual, conditions AL and NV are not allowed
+    for instructions CINC, CINV, CNEG, CSET and CSETM. This CL adds this check and
+    the corresponding test cases.
+    
+    Change-Id: Icb496b7b13a353f41491f2de4d939a5cd88abb04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/317912
+    Reviewed-by: eric fang <eric.fang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Trust: eric fang <eric.fang@arm.com>
+    Run-TryBot: eric fang <eric.fang@arm.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm64error.s | 10 ++++++++++
+ src/cmd/internal/obj/arm64/asm7.go             | 24 +++++++++++-------------
+ 2 files changed, 21 insertions(+), 13 deletions(-)

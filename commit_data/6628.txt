@@ -1,0 +1,14 @@
+commit c97146608aa733fd137d4cd78ce2290d41311250
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 25 18:11:00 2010 -0700
+
+    godoc: show page title in browser title bar
+    
+    Fixes #1158.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/2736041
+
+ lib/godoc/godoc.html | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

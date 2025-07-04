@@ -1,0 +1,18 @@
+commit 84152d57692fc21ad5ee4bcf8eb0a5ec2a958790
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jun 29 14:32:22 2020 +0200
+
+    doc: add riscv64 to ports list
+    
+    Mention support for the 64-bit RISC-V instruction set (GOARCH=riscv64)
+    in the "Installing Go from source" document. Also sort the list of
+    supported instruction sets alphabetically.
+    
+    Updates #27532
+    
+    Change-Id: I07a443044a41a803853978dd7f7446de89ecceb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/240377
+    Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ doc/install-source.html | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

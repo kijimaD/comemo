@@ -1,0 +1,52 @@
+commit b8babed7c23a38e4267f432c54909dd89c5f6c30
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 3 16:15:55 2008 -0700
+
+    new import/export format
+    
+        package flag
+            export type flag.Flag struct { name flag.string; usage flag.string; \
+                    value flag.Value; next *flag.Flag }
+            type flag.string string
+            type flag.Value interface { AsBool () (? *flag.BoolValue); \
+                    AsInt () (? *flag.IntValue); AsString () (? *flag.StringValue); \
+                    IsBool () (? flag.bool); IsInt () (? flag.bool); IsString () (? flag.bool); \
+                    Str () (? flag.string); ValidValue (str flag.string) (? flag.bool) }
+            type flag.BoolValue struct { val flag.bool; p *flag.bool }
+            type flag.IntValue struct { val flag.int64; p *flag.int64 }
+            type flag.StringValue struct { val flag.string; p *flag.string }
+            type flag.bool bool
+            func (e *flag.StringValue) AsBool () (? *flag.BoolValue)
+            func (e *flag.StringValue) AsInt () (? *flag.IntValue)
+            ...
+    
+    the \ continuations are for this message, not real.
+    
+    changed delimiter for import from (( )) to $$ $$.
+    
+    replaced mksys.bash with mksys.c
+    
+    changed sys.go to use leading export,
+            fake package name is now SYS not foop
+    
+    don't always require ; on forward func decls
+    
+    R=ken,r
+    DELTA=1827  (446 added, 1083 deleted, 298 changed)
+    OCL=16433
+    CL=16463
+
+ src/cmd/ar/ar.c        |  24 +-
+ src/cmd/gc/Makefile    |   8 +-
+ src/cmd/gc/dcl.c       |  80 +-----
+ src/cmd/gc/export.c    | 726 ++++++++++++-------------------------------------
+ src/cmd/gc/go.h        |  10 +
+ src/cmd/gc/go.y        | 276 ++++++++++++-------
+ src/cmd/gc/lex.c       |  12 +-
+ src/cmd/gc/mksys.bash  |  22 --
+ src/cmd/gc/mksys.c     |  66 +++++
+ src/cmd/gc/subr.c      | 104 +++++--
+ src/cmd/gc/sys.go      | 242 ++++++-----------
+ src/cmd/gc/sysimport.c | 441 +++++-------------------------
+ test/golden.out        |  27 +-
+ 13 files changed, 699 insertions(+), 1339 deletions(-)

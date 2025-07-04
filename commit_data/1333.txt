@@ -1,0 +1,14 @@
+commit c9859e7bc6ba501e35c684d2fd407a3bcbb3478c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 11 17:45:45 2008 -0800
+
+    - support for range clauses
+    
+    R=r
+    OCL=21030
+    CL=21030
+
+ usr/gri/pretty/parser.go    | 54 +++++++++++++++++++++++++++++++++++++--------
+ usr/gri/pretty/printer.go   |  3 +++
+ usr/gri/pretty/selftest2.go | 47 +++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 93 insertions(+), 11 deletions(-)

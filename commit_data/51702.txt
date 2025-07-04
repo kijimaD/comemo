@@ -1,0 +1,21 @@
+commit 8b79c41dd581cebc645c4c330cb325f7f74d9929
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 19 19:18:20 2023 -0800
+
+    cmd/go: update test for change in panic(nil) behavior
+    
+    panic(nil) now panics with runtime.PanicNilError.
+    
+    For #25448
+    
+    Change-Id: I58994aa80d4d11f0c5fcd988714f7b4b45c6b5ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/462293
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

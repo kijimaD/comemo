@@ -1,0 +1,12 @@
+commit 7af032b87bd6673904e5f717a978897afd1d0ac2
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 18:05:11 2009 -0700
+
+    fix forward struct declarations
+    
+    R=ken
+    OCL=31230
+    CL=31230
+
+ src/cmd/gc/go.y | 1 -
+ 1 file changed, 1 deletion(-)

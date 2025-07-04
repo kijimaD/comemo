@@ -1,0 +1,15 @@
+commit 3e50372f1ff0229aa8c42cde8f5cd0b6357b605d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 8 15:43:28 2012 -0800
+
+    test: change index.go to test size of int, not GOARCH == "amd64"
+    
+    Fixes the test to work correctly on other platforms with
+    64-bit ints, like Alpha.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6822099
+
+ test/index.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

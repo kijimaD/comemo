@@ -1,0 +1,14 @@
+commit fc1e298ba1dfa404e2036d7461110511fdc28422
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 21 15:09:04 2013 -0700
+
+    go/parser: always provide a non-nil path for imports
+    
+    The go/ast ImportSpec always requires a non-nil path.
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/10402047
+
+ src/pkg/go/parser/parser.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)

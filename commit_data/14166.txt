@@ -1,0 +1,12 @@
+commit c5ebeff3aacb6a9f2460d4bc90a50ab6deb926ec
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Thu Oct 18 08:12:44 2012 +1100
+
+    doc/codewalk/markov: fix the highlight range of the step "The NewChain constructor function".
+    
+    R=r, minux.ma, adg
+    CC=golang-dev
+    https://golang.org/cl/6710044
+
+ doc/codewalk/markov.xml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

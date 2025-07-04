@@ -1,0 +1,12 @@
+commit 25787acb3ca692d951395f1d5b9b67a64d5becdc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 2 14:43:55 2012 -0800
+
+    math/big: document Word type
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5615050
+
+ src/pkg/math/big/arith.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

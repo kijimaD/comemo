@@ -1,0 +1,25 @@
+commit 2e4b6599541a92b76857ca546679a8d304730b10
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jul 14 22:17:41 2015 -0700
+
+    cmd/compile: recognize embedded field in inlined function
+    
+    There was already special code to recognize "?" in hidden_structdcl,
+    which is used for inlined types and variables.  This recognizes "?" in
+    structdcl as well, a case that arises when a struct type appears
+    within an inlined function body.
+    
+    Fixes #10219.
+    
+    Change-Id: Ic5257ae54f817e0d4a189c2294dcd633c9f2101a
+    Reviewed-on: https://go-review.googlesource.com/12241
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/go.y   |  2 +-
+ src/cmd/compile/internal/gc/y.go   |  2 +-
+ test/fixedbugs/issue10219.dir/a.go | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue10219.dir/b.go | 11 +++++++++++
+ test/fixedbugs/issue10219.dir/c.go | 12 ++++++++++++
+ test/fixedbugs/issue10219.go       | 10 ++++++++++
+ 6 files changed, 59 insertions(+), 2 deletions(-)

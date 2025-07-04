@@ -1,0 +1,17 @@
+commit 787dd4d3f358a3f9373b692a7493e4ef191b7513
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 20 17:09:59 2009 -0700
+
+    semi-weekly snapshot:
+    - format.go implementation complete
+    - lots of documentation added (not quite complete)
+    
+    TBR=r
+    OCL=29130
+    CL=29130
+
+ usr/gri/pretty/ast.txt        |  20 +-
+ usr/gri/pretty/format.go      | 773 ++++++++++++++++++++++++++----------------
+ usr/gri/pretty/format_test.go |   7 +-
+ usr/gri/pretty/pretty.go      |   2 +-
+ 4 files changed, 488 insertions(+), 314 deletions(-)

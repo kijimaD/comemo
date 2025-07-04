@@ -1,0 +1,22 @@
+commit 4b7bf73c4b4f46603d4d89a103d1f797f90bc09e
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 30 15:21:22 2013 +0900
+
+    net: avoid use of listener socket options on active open sockets
+    
+    This CL ensures we use the correct socket options for
+    passive and active open sockets.
+    
+    For the passive open sockets created by Listen functions,
+    additional SO_REUSEADDR, SO_REUSEPORT options are required
+    for the quick service restart and/or multicasting.
+    
+    For the active open sockets created by Dial functions, no
+    additional options are required.
+    
+    R=golang-dev, dave, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/7795050
+
+ src/pkg/net/sock_posix.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

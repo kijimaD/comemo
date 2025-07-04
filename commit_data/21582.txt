@@ -1,0 +1,13 @@
+commit 9e9ddb004f6d33305765b446b0425f19ea6e12bf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 11 11:22:45 2015 -0800
+
+    math/big: implemented Float.Int64, simplified Float.Uint64
+    
+    Change-Id: Ic270ffa7ec6f6dd4b0a951c64ad965447cce1417
+    Reviewed-on: https://go-review.googlesource.com/4571
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/float.go      | 165 +++++++++++++++++++++++++++------------------
+ src/math/big/float_test.go |  66 +++++++++++++++---
+ 2 files changed, 156 insertions(+), 75 deletions(-)

@@ -1,0 +1,28 @@
+commit bf2ef26be3593d24487311576d85ec601185fbf4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jul 11 15:12:06 2022 -0400
+
+    cmd/go: in script tests, avoid checking non-main packages for staleness
+    
+    Non-main packages in module mode should not be installed to
+    GOPATH/pkg, but due to #37015 they were installed there anyway.
+    Lacking a proper install location, 'go install' becomes a no-op
+    for non-main packages in module mode.
+    
+    This change switches the 'go install' commands in the test_fuzz_cache
+    and build_overlay tests to instead use 'go build', using the '-x' flag
+    to check for compile commands instead of querying 'go list' about
+    staleness.
+    
+    For #37015.
+    
+    Change-Id: I56d80cf2a43efb6163c62082c86cd3e4f0ff73c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417095
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/testdata/script/build_overlay.txt   | 20 ++++++++++++--------
+ src/cmd/go/testdata/script/test_fuzz_cache.txt | 11 ++++-------
+ 2 files changed, 16 insertions(+), 15 deletions(-)

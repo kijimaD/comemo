@@ -1,0 +1,19 @@
+commit 2f8b555de27198775f9606e001ef19b76efdb415
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sat Sep 23 00:57:51 2017 +0200
+
+    archive/tar: fix sparse files support on Darwin
+    
+    Apple defined the SEEK_HOLE/SEEK_DATA constants in unistd.h
+    with swapped values, compared to all other UNIX systems.
+    
+    Fixes #21970
+    
+    Change-Id: I84a33e0741f0f33a2e04898e96b788b87aa9890f
+    Reviewed-on: https://go-review.googlesource.com/65570
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/sparse_unix.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

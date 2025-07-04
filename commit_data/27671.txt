@@ -1,0 +1,31 @@
+commit c83e6f50d983d81166d21736ff9ab0ad2182f0fa
+Author: Keith Randall <khr@golang.org>
+Date:   Thu May 26 08:56:49 2016 -0700
+
+    runtime: aeshash, xor seed in earlier
+    
+    Instead of doing:
+    
+    x = input
+    one round of aes on x
+    x ^= seed
+    two rounds of aes on x
+    
+    Do:
+    
+    x = input
+    x ^= seed
+    three rounds of aes on x
+    
+    This change provides some additional seed-dependent scrambling
+    which should help prevent collisions.
+    
+    Change-Id: I02c774d09c2eb6917cf861513816a1024a9b65d7
+    Reviewed-on: https://go-review.googlesource.com/23577
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/asm_amd64.s  | 97 +++++++++++++++++++++++++++++++-----------------
+ src/runtime/hash_test.go | 20 ++++++++++
+ 2 files changed, 82 insertions(+), 35 deletions(-)

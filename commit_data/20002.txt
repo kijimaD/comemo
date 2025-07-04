@@ -1,0 +1,13 @@
+commit e9bbcea81d90890a04155d81300b59a71a47472d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 13 12:53:50 2014 -0700
+
+    text/scanner: improve documentation
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/123390043
+
+ src/pkg/text/scanner/scanner.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

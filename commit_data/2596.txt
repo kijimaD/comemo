@@ -1,0 +1,13 @@
+commit d3a2925bb28d387d57961654d817d155173c8d7d
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 6 10:58:55 2009 -0700
+
+    catch corruption - avoid crash
+    
+    R=rsc
+    DELTA=4  (4 added, 0 deleted, 0 changed)
+    OCL=31192
+    CL=31198
+
+ src/pkg/gob/decode.go | 4 ++++
+ 1 file changed, 4 insertions(+)

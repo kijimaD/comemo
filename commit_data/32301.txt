@@ -1,0 +1,12 @@
+commit babc5b1dd668cf4e8970d7ab8938b0687896ba36
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 14:21:35 2017 +1000
+
+    cmd/link: use peSection everywhere
+    
+    Change-Id: I4d4e8452b9b9e628f3ea8b2b727ad63ec2a1dd31
+    Reviewed-on: https://go-review.googlesource.com/55259
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 82 ++++++++++++------------------------------
+ 1 file changed, 22 insertions(+), 60 deletions(-)

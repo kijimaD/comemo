@@ -1,0 +1,22 @@
+commit d68c01fa1d770b0646f9819bc9ce86c14cb1e1b5
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Oct 27 09:38:52 2020 +0100
+
+    cmd/compile: clean up ValAndOff funcs after untyped aux removal
+    
+    Changes:
+    - makeValAndOff is deleted in favour of MakeValAndOff{32,64}
+    - canAdd is renamed to canAdd64 to uniform with existing canAdd32
+    - addOffset{32,64} is simplified by directly using MakeValAndOff{32,64}
+    - ValAndOff.Int64 is removed
+    
+    Change-Id: Ic01db7fa31ddfe0aaaf1d1d77af823d48a7bee84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265357
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+
+ src/cmd/compile/internal/ssa/addressingmodes.go |  8 +++---
+ src/cmd/compile/internal/ssa/op.go              | 36 ++++++-------------------
+ 2 files changed, 12 insertions(+), 32 deletions(-)

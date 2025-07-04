@@ -1,0 +1,41 @@
+commit 1a13f9b810bc5ba43aa9786d06a0d06a58f1e110
+Author: Rob Pike <r@golang.org>
+Date:   Thu Sep 29 09:54:20 2011 -0700
+
+    math: remove the leading F from Fabs etc.
+    The letter is a holdover from C and unnecessary in Go.
+    Gofix module included.
+    Fixes #2306.
+    
+    R=golang-dev, gri, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5158043
+
+ src/cmd/gofix/Makefile                     |  1 +
+ src/cmd/gofix/math.go                      | 57 ++++++++++++++++++++++
+ src/cmd/gofix/math_test.go                 | 47 ++++++++++++++++++
+ src/pkg/cmath/asin.go                      |  4 +-
+ src/pkg/cmath/sin.go                       |  2 +-
+ src/pkg/cmath/sqrt.go                      |  6 +--
+ src/pkg/cmath/tan.go                       | 10 ++--
+ src/pkg/json/scanner_test.go               |  8 +--
+ src/pkg/math/Makefile                      | 14 +++---
+ src/pkg/math/{fabs.go => abs.go}           | 12 ++---
+ src/pkg/math/{fabs_386.s => abs_386.s}     |  4 +-
+ src/pkg/math/{fabs_amd64.s => abs_amd64.s} |  4 +-
+ src/pkg/math/{fabs_decl.go => abs_decl.go} |  2 +-
+ src/pkg/math/all_test.go                   | 78 +++++++++++++++---------------
+ src/pkg/math/bits.go                       |  2 +-
+ src/pkg/math/{fdim.go => dim.go}           | 12 ++---
+ src/pkg/math/{fdim_amd64.s => dim_amd64.s} | 12 ++---
+ src/pkg/math/{fdim_decl.go => dim_decl.go} |  6 +--
+ src/pkg/math/gamma.go                      |  4 +-
+ src/pkg/math/jn.go                         |  2 +-
+ src/pkg/math/lgamma.go                     |  4 +-
+ src/pkg/math/{fmod.go => mod.go}           |  8 +--
+ src/pkg/math/{fmod_386.s => mod_386.s}     |  4 +-
+ src/pkg/math/{fmod_decl.go => mod_decl.go} |  2 +-
+ src/pkg/math/pow.go                        |  2 +-
+ src/pkg/math/remainder.go                  |  4 +-
+ src/pkg/rand/rand_test.go                  |  4 +-
+ 27 files changed, 210 insertions(+), 105 deletions(-)

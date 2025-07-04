@@ -1,0 +1,125 @@
+commit 79a990b845f358d11f725a574bdc2c80339282ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 30 00:17:09 2015 -0400
+
+    runtime: schedule GC work more aggressively
+    
+    Schedule the work as early as possible, while still respecting the
+    utilization percentage on average. The old code tried never to
+    go above the utilization percentage. The new code is willing
+    to go above the utilization percentage by one time slice
+    (but of course after doing that it must wait until the percentage
+    drops back down to the target before it gets another time slice).
+    
+    The effect is that for concurrent GCs that can run in a small number
+    of time slices, the time during which write barriers are enabled is
+    reduced by one mutator + GC time slice round (possibly 30 ms per GC).
+    
+    This only affects the fractional GC processor (the remainder of GOMAXPROCS/4),
+    so it matters most in GOMAXPROCS=1, a bit in GOMAXPROCS=2, and not at
+    all in GOMAXPROCS=4.
+    
+    GOMAXPROCS=1
+    name                                      old mean                new mean        delta
+    BenchmarkBinaryTree17                12.4s × (0.98,1.03)     13.5s × (0.97,1.04)  +8.84% (p=0.000)
+    BenchmarkFannkuch11                  4.38s × (1.00,1.01)     4.38s × (1.00,1.01)  ~ (p=0.343)
+    BenchmarkFmtFprintfEmpty            88.9ns × (0.97,1.10)    90.1ns × (0.93,1.14)  ~ (p=0.224)
+    BenchmarkFmtFprintfString            356ns × (0.94,1.05)     321ns × (0.94,1.12)  -9.77% (p=0.000)
+    BenchmarkFmtFprintfInt               344ns × (0.98,1.03)     325ns × (0.96,1.03)  -5.46% (p=0.000)
+    BenchmarkFmtFprintfIntInt            622ns × (0.97,1.03)     571ns × (0.95,1.05)  -8.09% (p=0.000)
+    BenchmarkFmtFprintfPrefixedInt       462ns × (0.96,1.04)     431ns × (0.95,1.05)  -6.81% (p=0.000)
+    BenchmarkFmtFprintfFloat             653ns × (0.98,1.03)     621ns × (0.99,1.03)  -4.90% (p=0.000)
+    BenchmarkFmtManyArgs                2.32µs × (0.97,1.03)    2.19µs × (0.98,1.02)  -5.43% (p=0.000)
+    BenchmarkGobDecode                  27.0ms × (0.96,1.04)    20.0ms × (0.97,1.04)  -26.06% (p=0.000)
+    BenchmarkGobEncode                  26.6ms × (0.99,1.01)    17.8ms × (0.95,1.05)  -33.19% (p=0.000)
+    BenchmarkGzip                        659ms × (0.98,1.03)     650ms × (0.99,1.01)  -1.34% (p=0.000)
+    BenchmarkGunzip                      145ms × (0.98,1.04)     143ms × (1.00,1.01)  -1.47% (p=0.000)
+    BenchmarkHTTPClientServer            111µs × (0.97,1.04)     110µs × (0.96,1.03)  -1.30% (p=0.000)
+    BenchmarkJSONEncode                 52.0ms × (0.97,1.03)    40.8ms × (0.97,1.03)  -21.47% (p=0.000)
+    BenchmarkJSONDecode                  127ms × (0.98,1.04)     120ms × (0.98,1.02)  -5.55% (p=0.000)
+    BenchmarkMandelbrot200              6.04ms × (0.99,1.04)    6.02ms × (1.00,1.01)  ~ (p=0.176)
+    BenchmarkGoParse                    8.62ms × (0.96,1.08)    8.55ms × (0.93,1.09)  ~ (p=0.302)
+    BenchmarkRegexpMatchEasy0_32         164ns × (0.98,1.05)     165ns × (0.98,1.07)  ~ (p=0.293)
+    BenchmarkRegexpMatchEasy0_1K         546ns × (0.98,1.06)     547ns × (0.97,1.07)  ~ (p=0.741)
+    BenchmarkRegexpMatchEasy1_32         142ns × (0.97,1.09)     141ns × (0.97,1.05)  ~ (p=0.231)
+    BenchmarkRegexpMatchEasy1_1K         904ns × (0.97,1.07)     900ns × (0.98,1.04)  ~ (p=0.294)
+    BenchmarkRegexpMatchMedium_32        256ns × (0.98,1.06)     256ns × (0.97,1.04)  ~ (p=0.530)
+    BenchmarkRegexpMatchMedium_1K       74.2µs × (0.98,1.05)    73.8µs × (0.98,1.04)  ~ (p=0.334)
+    BenchmarkRegexpMatchHard_32         3.94µs × (0.98,1.07)    3.92µs × (0.98,1.05)  ~ (p=0.356)
+    BenchmarkRegexpMatchHard_1K          119µs × (0.98,1.07)     119µs × (0.98,1.06)  ~ (p=0.467)
+    BenchmarkRevcomp                     978ms × (0.96,1.09)     984ms × (0.95,1.07)  ~ (p=0.448)
+    BenchmarkTemplate                    151ms × (0.96,1.03)     142ms × (0.95,1.04)  -5.55% (p=0.000)
+    BenchmarkTimeParse                   628ns × (0.99,1.01)     628ns × (0.99,1.01)  ~ (p=0.855)
+    BenchmarkTimeFormat                  729ns × (0.98,1.06)     734ns × (0.97,1.05)  ~ (p=0.149)
+    
+    GOMAXPROCS=2
+    name                                      old mean                new mean        delta
+    BenchmarkBinaryTree17-2              9.80s × (0.97,1.03)     9.85s × (0.99,1.02)  ~ (p=0.444)
+    BenchmarkFannkuch11-2                4.35s × (0.99,1.01)     4.40s × (0.98,1.05)  ~ (p=0.099)
+    BenchmarkFmtFprintfEmpty-2          86.7ns × (0.97,1.05)    85.9ns × (0.98,1.04)  ~ (p=0.409)
+    BenchmarkFmtFprintfString-2          297ns × (0.98,1.01)     297ns × (0.99,1.01)  ~ (p=0.743)
+    BenchmarkFmtFprintfInt-2             309ns × (0.98,1.02)     310ns × (0.99,1.01)  ~ (p=0.464)
+    BenchmarkFmtFprintfIntInt-2          525ns × (0.97,1.05)     518ns × (0.99,1.01)  ~ (p=0.151)
+    BenchmarkFmtFprintfPrefixedInt-2     408ns × (0.98,1.02)     408ns × (0.98,1.03)  ~ (p=0.797)
+    BenchmarkFmtFprintfFloat-2           603ns × (0.99,1.01)     604ns × (0.98,1.02)  ~ (p=0.588)
+    BenchmarkFmtManyArgs-2              2.07µs × (0.98,1.02)    2.05µs × (0.99,1.01)  ~ (p=0.091)
+    BenchmarkGobDecode-2                19.1ms × (0.97,1.01)    19.3ms × (0.97,1.04)  ~ (p=0.195)
+    BenchmarkGobEncode-2                16.2ms × (0.97,1.03)    16.4ms × (0.99,1.01)  ~ (p=0.069)
+    BenchmarkGzip-2                      652ms × (0.99,1.01)     651ms × (0.99,1.01)  ~ (p=0.705)
+    BenchmarkGunzip-2                    143ms × (1.00,1.01)     143ms × (1.00,1.00)  ~ (p=0.665)
+    BenchmarkHTTPClientServer-2          149µs × (0.92,1.11)     149µs × (0.91,1.08)  ~ (p=0.862)
+    BenchmarkJSONEncode-2               34.6ms × (0.98,1.02)    37.2ms × (0.99,1.01)  +7.56% (p=0.000)
+    BenchmarkJSONDecode-2                117ms × (0.99,1.01)     117ms × (0.99,1.01)  ~ (p=0.858)
+    BenchmarkMandelbrot200-2            6.10ms × (0.99,1.03)    6.03ms × (1.00,1.00)  ~ (p=0.083)
+    BenchmarkGoParse-2                  8.25ms × (0.98,1.01)    8.21ms × (0.99,1.02)  ~ (p=0.307)
+    BenchmarkRegexpMatchEasy0_32-2       162ns × (0.99,1.02)     162ns × (0.99,1.01)  ~ (p=0.857)
+    BenchmarkRegexpMatchEasy0_1K-2       541ns × (0.99,1.01)     540ns × (1.00,1.00)  ~ (p=0.530)
+    BenchmarkRegexpMatchEasy1_32-2       138ns × (1.00,1.00)     141ns × (0.98,1.04)  +1.88% (p=0.038)
+    BenchmarkRegexpMatchEasy1_1K-2       887ns × (0.99,1.01)     894ns × (0.99,1.01)  ~ (p=0.087)
+    BenchmarkRegexpMatchMedium_32-2      252ns × (0.99,1.01)     252ns × (0.99,1.01)  ~ (p=0.954)
+    BenchmarkRegexpMatchMedium_1K-2     73.4µs × (0.99,1.02)    72.8µs × (1.00,1.01)  -0.87% (p=0.029)
+    BenchmarkRegexpMatchHard_32-2       3.95µs × (0.97,1.05)    3.87µs × (1.00,1.01)  -2.11% (p=0.035)
+    BenchmarkRegexpMatchHard_1K-2        117µs × (0.99,1.01)     117µs × (0.99,1.01)  ~ (p=0.669)
+    BenchmarkRevcomp-2                   980ms × (0.95,1.03)     993ms × (0.94,1.09)  ~ (p=0.527)
+    BenchmarkTemplate-2                  136ms × (0.98,1.01)     135ms × (0.99,1.01)  ~ (p=0.200)
+    BenchmarkTimeParse-2                 630ns × (1.00,1.01)     630ns × (1.00,1.00)  ~ (p=0.634)
+    BenchmarkTimeFormat-2                705ns × (0.99,1.01)     710ns × (0.98,1.02)  ~ (p=0.174)
+    
+    GOMAXPROCS=4
+    BenchmarkBinaryTree17-4              9.87s × (0.96,1.04)     9.75s × (0.96,1.03)  ~ (p=0.178)
+    BenchmarkFannkuch11-4                4.35s × (1.00,1.01)     4.40s × (0.99,1.04)  ~ (p=0.071)
+    BenchmarkFmtFprintfEmpty-4          85.8ns × (0.98,1.06)    85.6ns × (0.98,1.04)  ~ (p=0.858)
+    BenchmarkFmtFprintfString-4          306ns × (0.99,1.03)     304ns × (0.97,1.02)  ~ (p=0.470)
+    BenchmarkFmtFprintfInt-4             317ns × (0.98,1.01)     315ns × (0.98,1.02)  -0.92% (p=0.044)
+    BenchmarkFmtFprintfIntInt-4          527ns × (0.99,1.01)     525ns × (0.98,1.01)  ~ (p=0.164)
+    BenchmarkFmtFprintfPrefixedInt-4     421ns × (0.98,1.03)     417ns × (0.99,1.02)  ~ (p=0.092)
+    BenchmarkFmtFprintfFloat-4           623ns × (0.98,1.02)     618ns × (0.98,1.03)  ~ (p=0.172)
+    BenchmarkFmtManyArgs-4              2.09µs × (0.98,1.02)    2.09µs × (0.98,1.02)  ~ (p=0.679)
+    BenchmarkGobDecode-4                18.6ms × (0.99,1.01)    18.6ms × (0.98,1.03)  ~ (p=0.595)
+    BenchmarkGobEncode-4                15.0ms × (0.98,1.02)    15.1ms × (0.99,1.01)  ~ (p=0.301)
+    BenchmarkGzip-4                      659ms × (0.98,1.04)     660ms × (0.97,1.02)  ~ (p=0.724)
+    BenchmarkGunzip-4                    145ms × (0.98,1.04)     144ms × (0.99,1.04)  ~ (p=0.671)
+    BenchmarkHTTPClientServer-4          139µs × (0.97,1.02)     138µs × (0.99,1.02)  ~ (p=0.392)
+    BenchmarkJSONEncode-4               35.0ms × (0.99,1.02)    35.1ms × (0.98,1.02)  ~ (p=0.777)
+    BenchmarkJSONDecode-4                119ms × (0.98,1.01)     118ms × (0.98,1.02)  ~ (p=0.710)
+    BenchmarkMandelbrot200-4            6.02ms × (1.00,1.00)    6.02ms × (1.00,1.00)  ~ (p=0.289)
+    BenchmarkGoParse-4                  7.96ms × (0.99,1.01)    7.96ms × (0.99,1.01)  ~ (p=0.884)
+    BenchmarkRegexpMatchEasy0_32-4       164ns × (0.98,1.04)     166ns × (0.97,1.04)  ~ (p=0.221)
+    BenchmarkRegexpMatchEasy0_1K-4       540ns × (0.99,1.01)     552ns × (0.97,1.04)  +2.10% (p=0.018)
+    BenchmarkRegexpMatchEasy1_32-4       140ns × (0.99,1.04)     142ns × (0.97,1.04)  ~ (p=0.226)
+    BenchmarkRegexpMatchEasy1_1K-4       896ns × (0.99,1.03)     907ns × (0.97,1.04)  ~ (p=0.155)
+    BenchmarkRegexpMatchMedium_32-4      255ns × (0.99,1.04)     255ns × (0.98,1.04)  ~ (p=0.904)
+    BenchmarkRegexpMatchMedium_1K-4     73.4µs × (0.99,1.04)    73.8µs × (0.98,1.04)  ~ (p=0.560)
+    BenchmarkRegexpMatchHard_32-4       3.93µs × (0.98,1.04)    3.95µs × (0.98,1.04)  ~ (p=0.571)
+    BenchmarkRegexpMatchHard_1K-4        117µs × (1.00,1.01)     119µs × (0.98,1.04)  +1.48% (p=0.048)
+    BenchmarkRevcomp-4                   990ms × (0.94,1.08)     989ms × (0.94,1.10)  ~ (p=0.957)
+    BenchmarkTemplate-4                  137ms × (0.98,1.02)     137ms × (0.99,1.01)  ~ (p=0.996)
+    BenchmarkTimeParse-4                 629ns × (1.00,1.00)     629ns × (0.99,1.01)  ~ (p=0.924)
+    BenchmarkTimeFormat-4                710ns × (0.99,1.01)     716ns × (0.98,1.02)  +0.84% (p=0.033)
+    
+    Change-Id: I43a04e0f6ad5e3ba9847dddf12e13222561f9cf4
+    Reviewed-on: https://go-review.googlesource.com/9543
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mgc.go | 44 +++++++++++++++++++++++++++++---------------
+ 1 file changed, 29 insertions(+), 15 deletions(-)

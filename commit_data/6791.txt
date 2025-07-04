@@ -1,0 +1,13 @@
+commit 5b4319f332f5fc806e0db2051a6da13ef98e9eb7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 26 16:16:47 2010 -0800
+
+    A+C: Add Harley Laue (individual CLA)
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/3316041
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

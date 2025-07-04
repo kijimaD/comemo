@@ -1,0 +1,16 @@
+commit 165ebaf97bc4c4863a756775d75ddc750c55b8f2
+Author: ludweeg <mursalimovemeel@gmail.com>
+Date:   Sat Oct 6 18:38:37 2018 +0300
+
+    net: simplify bool expression
+    
+    Simplify `!(x <= y)` to `x > y` and `!(x >= y)` to `x < y` where x,y are not defined as float.
+    
+    Change-Id: Id1e5b518395d97e75f96aa4ac5d6c0ee990c0e7d
+    Reviewed-on: https://go-review.googlesource.com/c/140337
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+
+ src/net/dial_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

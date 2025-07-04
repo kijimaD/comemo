@@ -1,0 +1,20 @@
+commit b7f0580274cf90e5c7488e0aa17600b5fdb4eb9d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 22:04:50 2009 -0700
+
+    move src/runtime -> src/lib/runtime;
+    hand-edited files.
+    
+    R=r
+    DELTA=125  (77 added, 16 deleted, 32 changed)
+    OCL=30001
+    CL=30008
+
+ src/clean.bash               |   2 +-
+ src/cmd/5l/obj.c             |   4 +-
+ src/cmd/6l/obj.c             |   2 +-
+ src/cmd/8l/obj.c             |   2 +-
+ src/lib/reflect/typestring.c |   5 +-
+ src/lib/runtime/Makefile     | 148 +++++++++++++++++++++++++++++++------------
+ src/make.bash                |   2 +-
+ 7 files changed, 113 insertions(+), 52 deletions(-)

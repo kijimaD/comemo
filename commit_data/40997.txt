@@ -1,0 +1,14 @@
+commit 001fe7f33f1d7aed9e3a047bd8e784bdc103c28c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 19 16:14:50 2019 -0800
+
+    time: further clarifications to the (*Timer).Stop docs
+    
+    Fixes #35627
+    
+    Change-Id: I0c5fed46a69a9663e46a9414468ec610063ea05a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207849
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/time/sleep.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

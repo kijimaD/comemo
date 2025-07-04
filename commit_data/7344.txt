@@ -1,0 +1,15 @@
+commit 6b93a92ac0ef864466254c58ffd1cbc9bc590ebc
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 2 22:53:10 2011 -0500
+
+    windows: fix build?
+    
+    Shot in the dark.
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/4126054
+
+ src/pkg/runtime/386/asm.s       | 8 ++++++++
+ src/pkg/runtime/linux/386/rt0.s | 8 --------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

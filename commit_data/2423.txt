@@ -1,0 +1,14 @@
+commit 63c2d52117afc9a7b4fd21ab47c0e4f6d4f0eb95
+Author: Kai Backman <kaib@golang.org>
+Date:   Mon Jun 8 10:38:49 2009 -0700
+
+    Fix Makefile in runtime to create proper /pkg subdir.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=2  (1 added, 0 deleted, 1 changed)
+    OCL=30043
+    CL=30043
+
+ src/lib/runtime/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

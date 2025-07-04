@@ -1,0 +1,20 @@
+commit d6891bd480b664afe4e2f4a0a0a72324943859f3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 12 09:25:46 2019 -0400
+
+    cmd/go: search the target for patterns when -mod=vendor is set
+    
+    This fixes the root cause of the bootstrap failure reported in
+    https://groups.google.com/d/msg/golang-dev/xcVJDj5GJ84/U0pVnUOnBwAJ.
+    
+    Updates #30228
+    
+    Change-Id: I9ce0898922a5aac1f61ceff30319cf88031676c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167079
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modload/search.go           | 9 ++++++++-
+ src/cmd/go/testdata/script/mod_vendor_build.txt | 4 ++++
+ 2 files changed, 12 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 9a11b7363589a20b8ba78a1fc02027198811b109
+Author: Julie Qiu <julie@golang.org>
+Date:   Tue Nov 20 17:42:59 2018 -0500
+
+    cmd/go: link to the FAQ for errors that indicate private VCS repos.
+    
+    Updates #25982
+    
+    Change-Id: I5a284e3844e944f9bfae31fa65b242060d4139c7
+    Reviewed-on: https://go-review.googlesource.com/c/150777
+    Run-TryBot: Julie Qiu <julie@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modfetch/codehost/codehost.go  | 10 +++++++---
+ src/cmd/go/internal/modfetch/codehost/git.go       |  5 +++++
+ src/cmd/go/testdata/script/mod_get_private_vcs.txt | 10 ++++++++++
+ 3 files changed, 22 insertions(+), 3 deletions(-)

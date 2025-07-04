@@ -1,0 +1,18 @@
+commit 38723f2b3881ea71039c1d475cab001113adc83d
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Mar 9 13:41:24 2024 -0500
+
+    runtime: add minimal debug tracing of runtime timers
+    
+    Toggled by a compile-time const, so there should be no
+    runtime footprint in ordinary builds.
+    
+    Change-Id: I7751847524f4fda3853388d3e5a18188bd737c27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570336
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/time.go | 49 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 48 insertions(+), 1 deletion(-)

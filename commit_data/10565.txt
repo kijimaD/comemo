@@ -1,0 +1,17 @@
+commit d38cc47c0c2d830fd745b49bf6be1b0ff0e17b14
+Author: Rob Pike <r@golang.org>
+Date:   Thu Dec 1 09:19:53 2011 -0800
+
+    text/template: replace Add with AddParseTree
+    Makes it clear we're adding exactly one tree and creating a
+    new template for it.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5448077
+
+ src/pkg/html/template/escape.go     |  4 +++-
+ src/pkg/html/template/template.go   | 19 ++++++++++++-------
+ src/pkg/text/template/multi_test.go | 28 ++++++++++++++++++++++++++++
+ src/pkg/text/template/template.go   | 23 +++++++++--------------
+ 4 files changed, 52 insertions(+), 22 deletions(-)

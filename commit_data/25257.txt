@@ -1,0 +1,17 @@
+commit 6094dad0842dd6d233123c175eec830d140e4865
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 14 13:05:25 2015 -0800
+
+    cmd/cgo: use _Complex in rewritten Go code too
+    
+    Followup to CL 17716, which updated cgo's boilerplate prologue code to
+    use standard C's _Complex instead of GCC's __complex extension.
+    
+    Change-Id: I74f29b0cc3d13cab2853441cafbfe77853bba4f9
+    Reviewed-on: https://go-review.googlesource.com/17820
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

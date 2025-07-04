@@ -1,0 +1,12 @@
+commit c5444a89373c492b819d41c9d0047089e0bc04be
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Sep 2 04:50:58 2012 +0800
+
+    cmd/ld: support zero-filled section for Mach-O files
+    
+    R=golang-dev, r, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6492069
+
+ src/cmd/ld/ldmacho.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

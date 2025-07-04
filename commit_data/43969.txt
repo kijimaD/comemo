@@ -1,0 +1,25 @@
+commit 31496cfde50a490639ce0723f75de0f16a8291dd
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Dec 8 14:07:19 2020 -0800
+
+    cmd/vet: vendor in x/tools, enable framepointer vet check
+    
+    Vendor in latest x/tools.
+    Add framepointer vet check to vet.
+    
+    Fixes #43014
+    
+    Change-Id: Ife72f85b1261aa60c0028041c58040d60a40918a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/276372
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +-
+ .../analysis/passes/framepointer/framepointer.go   | 91 ++++++++++++++++++++++
+ .../go/analysis/passes/ifaceassert/ifaceassert.go  |  4 +
+ src/cmd/vendor/modules.txt                         |  3 +-
+ src/cmd/vet/main.go                                |  2 +
+ 6 files changed, 102 insertions(+), 4 deletions(-)

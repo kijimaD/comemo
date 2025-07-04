@@ -1,0 +1,16 @@
+commit 2ac8555d57f7317590e0b0ff709c2be2674e70cc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 11 11:58:06 2016 -0800
+
+    cmd/link: tidy up rdsym
+    
+    Use an early return. Check errors. Deduplicate.
+    
+    Change-Id: Iabefd563b5ef82a16fab4791277630804fd09003
+    Reviewed-on: https://go-review.googlesource.com/20597
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/objfile.go | 38 +++++++++++++++++++++----------------
+ 1 file changed, 22 insertions(+), 16 deletions(-)

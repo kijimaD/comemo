@@ -1,0 +1,23 @@
+commit a915b999c915eb7827396013bcb334747863e66e
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Aug 1 13:33:37 2023 -0700
+
+    crypto/tls: change SendSessionTicket to take an options struct
+    
+    To allow for future evolution of the API, make
+    QUICConn.SendSessionTicket take a QUICSessionTicketOptions
+    rather than a single bool.
+    
+    For #60107
+    
+    Change-Id: I798fd0feec5c7581e3c3574e2de99611c81df47f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/514997
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+
+ api/go1.21.txt              | 4 +++-
+ src/crypto/tls/quic.go      | 9 +++++++--
+ src/crypto/tls/quic_test.go | 3 ++-
+ 3 files changed, 12 insertions(+), 4 deletions(-)

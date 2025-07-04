@@ -1,0 +1,12 @@
+commit 81a38fbb771d1282e5092dfc831ff225b60e2f13
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat Mar 10 19:02:52 2012 +1100
+
+    net/mail: close minor TODO that was waiting on a 6g bug fix.
+    
+    R=golang-dev, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/5796050
+
+ src/pkg/net/mail/message.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

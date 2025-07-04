@@ -1,0 +1,15 @@
+commit f0c971954091903622ebd2c5432cbcc08d3e937f
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Nov 30 11:57:21 2009 -0800
+
+    Minimise bitrot: bytes.Copy -> copy
+    (compile tested only)
+    
+    R=r, rsc
+    https://golang.org/cl/161069
+
+ src/pkg/exp/nacl/av/av.go        |  3 +--
+ src/pkg/exp/nacl/av/event.go     |  5 ++---
+ src/pkg/exp/nacl/srpc/msg.go     |  7 +++----
+ src/pkg/syscall/syscall_linux.go | 19 ++++---------------
+ 4 files changed, 10 insertions(+), 24 deletions(-)

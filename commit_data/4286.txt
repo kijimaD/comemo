@@ -1,0 +1,12 @@
+commit acf4dd4d56245edea2708dbffb959f8fb18d2506
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 2 13:46:02 2009 -0800
+
+    change the naming example from Vector to Ring due to loss of vector.New()
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/164082
+
+ doc/effective_go.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,13 @@
+commit 7734ad517905167451446042fb5954cf4936c8e9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 29 10:54:03 2010 -0700
+
+    bug299: parenthesized receiver types/anonymous fields are illegal
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1846051
+
+ test/bugs/bug299.go | 27 +++++++++++++++++++++++++++
+ test/golden.out     |  9 +++++++++
+ 2 files changed, 36 insertions(+)

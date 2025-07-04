@@ -1,0 +1,14 @@
+commit 5fad09016b172cd70a8e47b0f1ed0db07d1ebd17
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 26 06:40:26 2018 -0700
+
+    cmd/cgo: mention character restrictions on #cgo lines
+    
+    Fixes #26025
+    
+    Change-Id: I43b3c9019ca8d2844e4d664c2090e506b2171077
+    Reviewed-on: https://go-review.googlesource.com/120975
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/doc.go | 5 +++++
+ 1 file changed, 5 insertions(+)

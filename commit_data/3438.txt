@@ -1,0 +1,13 @@
+commit 7d85cebb1cc7b7ef01b9766f321f4ac5b950e010
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 5 11:24:01 2009 -0700
+
+    preserve blank lines in // comments
+    
+    R=gri
+    DELTA=32  (13 added, 12 deleted, 7 changed)
+    OCL=35317
+    CL=35332
+
+ src/pkg/go/doc/comment.go | 37 +++++++++++++++++++------------------
+ 1 file changed, 19 insertions(+), 18 deletions(-)

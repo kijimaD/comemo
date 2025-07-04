@@ -1,0 +1,25 @@
+commit adcad7bea9f6933a219c7b05d8173cf8a4586092
+Author: Damien Neil <dneil@google.com>
+Date:   Tue May 13 15:35:19 2025 -0700
+
+    os: don't follow symlinks on Windows when O_CREATE|O_EXCL
+    
+    Match standard Unix behavior: Symlinks are not followed when
+    O_CREATE|O_EXCL is passed to open.
+    
+    Thanks to Junyoung Park and Dong-uk Kim of KAIST Hacking Lab
+    for discovering this issue.
+    
+    Fixes #73702
+    Fixes CVE-2025-0913
+    
+    Change-Id: Ieb46a6780c5e9a6090b09cd34290f04a8e3b0ca5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672396
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/internal/syscall/windows/at_windows.go |  1 +
+ src/os/os_test.go                          | 25 +++++++++++++++++++++++++
+ src/syscall/syscall_windows.go             |  3 ++-
+ 3 files changed, 28 insertions(+), 1 deletion(-)

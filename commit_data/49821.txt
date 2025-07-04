@@ -1,0 +1,22 @@
+commit d4280fda462e06819a416a2e298b7896bdc1654c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Aug 9 00:30:15 2022 -0700
+
+    test: more robust detection of GOEXPERIMENT=unified
+    
+    `go env GOEXPERIMENT` prints what experiments are enabled relative to
+    the baseline configuration, so it's not a very robust way to detect
+    what experiments have been statically enabled at bootstrap time.
+    
+    Instead, we can check build.Default.ToolTags, which has goexperiment.*
+    for all currently enabled experiments, independent of baseline.
+    
+    Change-Id: I6132deaa73b1e79ac24176ef4de5af67a507ee26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422234
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ test/run.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

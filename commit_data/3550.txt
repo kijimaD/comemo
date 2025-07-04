@@ -1,0 +1,15 @@
+commit b55e6d1ba5a7db27bde0c8de81213cb33ec52e92
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 15 09:28:52 2009 -0700
+
+    permit escaped text segments which pass through tabwriter
+    undisturbed and uninterpreted
+    
+    R=rsc
+    DELTA=141  (82 added, 23 deleted, 36 changed)
+    OCL=35747
+    CL=35769
+
+ src/pkg/tabwriter/tabwriter.go      | 127 ++++++++++++++++++++++--------------
+ src/pkg/tabwriter/tabwriter_test.go |  32 ++++++++-
+ 2 files changed, 109 insertions(+), 50 deletions(-)

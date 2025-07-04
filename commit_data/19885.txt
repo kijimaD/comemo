@@ -1,0 +1,16 @@
+commit 22e08d1a3b6fba51df3bcad9a5f0d70fefd0412d
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Tue Aug 5 13:43:12 2014 -0700
+
+    mime/multipart: fix Writer data race test
+    
+    If the process exits before the spawned goroutine
+    completes, it'll miss the data race.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=dvyukov, golang-codereviews
+    https://golang.org/cl/122120043
+
+ src/pkg/mime/multipart/writer_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

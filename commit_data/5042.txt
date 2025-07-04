@@ -1,0 +1,20 @@
+commit ee0c35be854ed2f21d3c3bdbcc4a9e5a7bdb4ed2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 12 14:01:52 2010 -0800
+
+    go/printer: fix a couple of hidden crashes that become
+    visible only when enabling internal debug mode:
+    - in rare cases expression depth can underflow
+    - when printing a single labeled statement, indentation
+      may underflow if not setup correctly
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/484041
+
+ src/pkg/go/printer/nodes.go                    | 15 ++++++++++++---
+ src/pkg/go/printer/printer.go                  |  5 +++++
+ src/pkg/go/printer/testdata/expressions.golden |  1 +
+ src/pkg/go/printer/testdata/expressions.input  |  1 +
+ src/pkg/go/printer/testdata/expressions.raw    |  1 +
+ 5 files changed, 20 insertions(+), 3 deletions(-)

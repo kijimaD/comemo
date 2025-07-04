@@ -1,0 +1,13 @@
+commit eea6b0d8d5b060e5114beb173efa6aba3a9e0577
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 3 10:53:27 2009 -0700
+
+    simplify extractEBNF code
+    
+    R=rsc
+    DELTA=15  (3 added, 2 deleted, 10 changed)
+    OCL=34307
+    CL=34314
+
+ src/cmd/ebnflint/ebnflint.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)

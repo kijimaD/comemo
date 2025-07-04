@@ -1,0 +1,17 @@
+commit 670cb7603a02f4955d2b53176f9114a13b778062
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 09:38:56 2018 -0400
+
+    cmd/go: remove import path debugging hooks
+    
+    These are no longer needed.
+    
+    Change-Id: Ie42a84f2bd24d2f59324bb66551c46e6af60c302
+    Reviewed-on: https://go-review.googlesource.com/109339
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/load/icfg.go  | 78 ---------------------------------------
+ src/cmd/go/internal/load/pkg.go   | 36 ++++--------------
+ src/cmd/go/internal/work/build.go |  1 -
+ 3 files changed, 7 insertions(+), 108 deletions(-)

@@ -1,0 +1,14 @@
+commit 4d429c7fe5d4218dcffedba7991754cd001ea50e
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Fri Nov 5 13:59:53 2010 -0400
+
+    6l: More SSE instruction fixes
+    
+    PSADBW and PSHUFL had the wrong prefixes.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2836041
+
+ src/cmd/6l/optab.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

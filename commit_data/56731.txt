@@ -1,0 +1,19 @@
+commit 535f81e74ebd52ac595af42917cd2afb99b1c6b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 30 16:49:21 2024 -0700
+
+    spec: document for range loop over functions
+    
+    For #61405.
+    Fixes #65237.
+    
+    Change-Id: Ia7820c0ef089c828ea7ed3d2802c5185c945290e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589397
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 44 +++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 37 insertions(+), 7 deletions(-)

@@ -1,0 +1,20 @@
+commit fd44d872dea87af38228f8e50803b319017268b4
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 6 20:57:46 2017 -0700
+
+    cmd/compile: factor out dcl stack ops into package types
+    
+    Change-Id: I000bb530e00d0f0bc59e0f1366b5fb586adf4f37
+    Reviewed-on: https://go-review.googlesource.com/39912
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/alg.go      |   8 +--
+ src/cmd/compile/internal/gc/bimport.go  |  26 ++++----
+ src/cmd/compile/internal/gc/dcl.go      | 107 +++-----------------------------
+ src/cmd/compile/internal/gc/main.go     |   3 +-
+ src/cmd/compile/internal/gc/noder.go    |  36 +++++------
+ src/cmd/compile/internal/gc/subr.go     |   4 +-
+ src/cmd/compile/internal/types/scope.go | 105 +++++++++++++++++++++++++++++++
+ 7 files changed, 153 insertions(+), 136 deletions(-)

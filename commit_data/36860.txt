@@ -1,0 +1,19 @@
+commit 497d24178fdc321a037150656d51bec40f93e6d6
+Author: Plekhanov Maxim <kishtatix@gmail.com>
+Date:   Thu Dec 21 02:14:55 2017 +0300
+
+    math: use Abs in Mod rather than if x < 0 { x = -x}
+    
+    goos: linux
+    goarch: amd64
+    pkg: math
+    
+    name  old time/op  new time/op  delta
+    Mod   64.7ns ± 2%  63.7ns ± 2%  -1.52%  (p=0.003 n=8+10)
+    
+    Change-Id: I851bec0fd6c223dab73e4a680b7393d49e81a0e8
+    Reviewed-on: https://go-review.googlesource.com/c/85095
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/math/mod.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

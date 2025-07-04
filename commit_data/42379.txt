@@ -1,0 +1,19 @@
+commit aeab40317415468323ef45095f2090ff90c3ecd2
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu May 14 18:17:49 2020 +0900
+
+    cmd/go: use temporary file for output of gcc command on Windows
+    
+    On Windows, some of gcc command (like msys2 native) output NUL as a file.
+    
+    Fixes #36000
+    
+    Change-Id: I02c632fa2d710a011d79f24d5beee4bc57ad994e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/233977
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/exec.go          | 14 +++++++++++++-
+ src/cmd/go/testdata/script/issue36000.txt |  6 ++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

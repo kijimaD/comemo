@@ -1,0 +1,11 @@
+commit feb1c77f9c9911ab25aa8826744da99ba109fc6a
+Author: Ken Thompson <ken@golang.org>
+Date:   Fri Jun 6 19:16:18 2008 -0700
+
+    cafebabe
+    
+    SVN=121574
+
+ src/cmd/gc/go.h  |  2 +-
+ src/cmd/gc/lex.c | 64 ++++++++++++++++++++++++++++++--------------------------
+ 2 files changed, 35 insertions(+), 31 deletions(-)

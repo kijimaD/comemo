@@ -1,0 +1,22 @@
+commit 6027b2183d9a63a11f92d392fd2296e7b88402fc
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Nov 16 12:33:03 2021 -0800
+
+    crypto/x509/internal/macos: use APIs available on ios
+    
+    Use SecCertificateCopyData instead of SecItemExport, which is only
+    available on macOS.
+    
+    Updates #49616
+    
+    Change-Id: Ieda33894930d23c6dab6112ee18120f8a440083b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364554
+    Trust: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/x509/internal/macos/security.go | 27 +++++++++++++--------------
+ src/crypto/x509/internal/macos/security.s  |  4 ++--
+ src/crypto/x509/root_darwin.go             |  7 ++-----
+ 3 files changed, 17 insertions(+), 21 deletions(-)

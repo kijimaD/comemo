@@ -1,0 +1,22 @@
+commit aeab76f0befcd6ab1257eae9adb27ac2cb2b7ff8
+Author: cui fliter <imcusg@gmail.com>
+Date:   Fri Sep 30 06:11:15 2022 +0000
+
+    encoding: fix a few function names on comments
+    
+    Change-Id: I17a311afb94a056b3d35bfa241f5d0d206db602d
+    GitHub-Last-Rev: 42129464c9e17fae9b61ea60940e193fcefc5760
+    GitHub-Pull-Request: golang/go#55962
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436882
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/encoding/asn1/asn1.go | 2 +-
+ src/encoding/gob/error.go | 2 +-
+ src/encoding/gob/type.go  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

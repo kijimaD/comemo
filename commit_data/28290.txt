@@ -1,0 +1,13 @@
+commit ca993d679729dbf312530d15f0489a45d1b61eaa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 8 09:12:50 2016 -0700
+
+    builtin: clarify that make(map[K]V, n) allocates space for n elements
+    
+    Change-Id: Id6265b6093edaa4be2c59e4799351082f7228b5d
+    Reviewed-on: https://go-review.googlesource.com/28815
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/builtin/builtin.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

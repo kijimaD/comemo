@@ -1,0 +1,16 @@
+commit 6eb8076961310649ce02604edaec6d161d25c88f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 31 15:15:22 2017 -0400
+
+    cmd/dist: reach fixed point in rebuild during run.bash
+    
+    This is basically a mini-bootstrap, to reach a fixed point.
+    
+    Change-Id: I88abad3d3ac961c3d11a48cb64d625d458684ef7
+    Reviewed-on: https://go-review.googlesource.com/74792
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/build.go | 15 ++++++++-------
+ src/cmd/dist/test.go  | 12 ++++++------
+ 2 files changed, 14 insertions(+), 13 deletions(-)

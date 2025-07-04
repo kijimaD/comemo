@@ -1,0 +1,33 @@
+commit 364ced625593b7e48a3d4f211634228222ef0ed1
+Author: David Chase <drchase@google.com>
+Date:   Fri May 13 13:16:58 2022 -0400
+
+    runtime: tweak js and plan9 to avoid/disable write barrier & gc problems
+    
+    runtime code for js contains possible write barriers that fail
+    the nowritebarrierrec check when internal local package naming
+    conventions are changed.  The problem was there all already; this
+    allows the code to compile, and it seems to work anyway in the
+    (single-threaded) js/wasm environment.  The offending operations
+    are noted with TODO, which is an improvement.
+    
+    runtime code for plan9 contained an apparent allocation that was
+    not really an allocation; rewrite to remove the potential allocation
+    to avoid nowritebarrierrec problems.
+    
+    This CL is a prerequisite for a pending code cleanup,
+    https://go-review.googlesource.com/c/go/+/393715
+    
+    Updates #51734.
+    
+    Change-Id: I93f31831ff9b92632137dd7b0055eaa721c81556
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/405901
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/runtime/lock_js.go  | 8 ++++++++
+ src/runtime/os_js.go    | 2 +-
+ src/runtime/os_plan9.go | 4 +++-
+ 3 files changed, 12 insertions(+), 2 deletions(-)

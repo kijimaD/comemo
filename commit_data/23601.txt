@@ -1,0 +1,12 @@
+commit d5994f4f5e3288593de54198b3c61c9eb608e087
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Sat Jul 4 18:33:21 2015 +0200
+
+    doc/go1.5.html: fix typo
+    
+    Change-Id: If33ffe1da23a8463fc5479f453422d280b736372
+    Reviewed-on: https://go-review.googlesource.com/11865
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.5.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 2e9b67afa67cc8f7aca058997fe84a92e5c33962
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 24 15:25:30 2010 -0700
+
+    gc: bug277 - new conversion syntax
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1220046
+
+ src/cmd/gc/go.y                    | 31 ++++++++++---------------------
+ test/{bugs => fixedbugs}/bug277.go |  0
+ 2 files changed, 10 insertions(+), 21 deletions(-)

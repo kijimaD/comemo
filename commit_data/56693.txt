@@ -1,0 +1,23 @@
+commit 377646589d5fb0224014683e0d1f1db35e60c3ac
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri May 24 17:56:31 2024 -0400
+
+    text/template: clarify error when too few or too many return values
+    
+    Prior to CL 561115, calling a function without any return values would
+    print "function called with 0 args; should be 1 or 2". Afterwards, the
+    error message became "too many return values".
+    
+    Keep the improvement of referring to return values rather than args,
+    and bring back clarity about their actual and permitted numbers.
+    
+    Change-Id: I2c014e4633208cc7052fac265a995a8f2fe68151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588355
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/text/template/exec_test.go | 20 ++++++++++++++------
+ src/text/template/funcs.go     |  8 +++-----
+ 2 files changed, 17 insertions(+), 11 deletions(-)

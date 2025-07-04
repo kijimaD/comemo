@@ -1,0 +1,19 @@
+commit e4cae432d6185b75d45fcf0c3f9c6d49591c128a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 3 17:21:32 2016 -0700
+
+    cmd/compile: add inline explainer
+    
+    When compiling with -m -m, this adds output
+    for every non-inlined function explaining why
+    it was not inlined.
+    
+    Change-Id: Icb59ae912a835c996e6b3475b163ee5125113001
+    Reviewed-on: https://go-review.googlesource.com/22782
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go  | 33 ++++++++++++++++++++++++++++-----
+ src/cmd/compile/internal/gc/main.go |  4 ++++
+ 2 files changed, 32 insertions(+), 5 deletions(-)

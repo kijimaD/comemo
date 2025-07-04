@@ -1,0 +1,12 @@
+commit b4840366ffbd0dd1124d1be3153145416aea7250
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 11 14:13:49 2012 +1000
+
+    C: spell Brian's name correctly
+    
+    R=iant, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6492102
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

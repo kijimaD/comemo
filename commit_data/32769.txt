@@ -1,0 +1,30 @@
+commit 88ced021907fb96d5609a3c63db0d9738bf0ac2b
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Fri Sep 1 18:17:10 2017 +0200
+
+    cmd/dist: use bytes.Buffer for code generation
+    
+    This belongs to a series of clean-up changes (see below) for cmd/dist.
+    This is change (8).
+    
+    These changes include:
+    (1)  apply minor fixes
+    (2)  restore behavior of branchtag
+    (3)  unleash bootstrap optimization for windows
+    (4)  use standard generated code header
+    (5)  remove trivial variables + functions
+    (6)  move functions for the better
+    (7)  simplify code segments
+    (8)  use bytes.Buffer for code generation
+    (9)  rename variables + functions
+    (10) remove doc.go
+    
+    Change-Id: I2d5a071eb8e14690325612271432fdc5f43b108b
+    Reviewed-on: https://go-review.googlesource.com/61014
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/buildgo.go      | 55 ++++++++++++++++++++----------------------
+ src/cmd/dist/buildruntime.go | 57 ++++++++++++++++++++++----------------------
+ 2 files changed, 55 insertions(+), 57 deletions(-)

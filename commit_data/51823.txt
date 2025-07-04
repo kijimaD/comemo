@@ -1,0 +1,23 @@
+commit 87860873efdcc3fde7327eb4c3a9d3e6ea33d245
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Dec 15 17:17:01 2022 -0500
+
+    cmd/link/internal/ld: add dwarf testing helpers
+    
+    Many tests build a program just to analyze it with dwtest.Examiner. Add
+    gobuildAndExamine, a helper that returns Examiner directly to reduce
+    duplication in these tests.
+    
+    Many tests also lookup the DIE for a specific subprogram, which includes
+    several verification steps. Package those up in findSubprogramDIE.
+    
+    Change-Id: I72202ba289ae8389b682be525ff7e6cfbfc00ff3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458196
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 198 +++++++++++----------------------
+ 1 file changed, 63 insertions(+), 135 deletions(-)

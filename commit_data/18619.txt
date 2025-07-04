@@ -1,0 +1,16 @@
+commit 6e612ae0f5b527660f0e1ae497d0ad8fbb6953c2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 20:53:20 2014 +0400
+
+    runtime: fix potential memory corruption
+    Reinforce the guarantee that MSpan_EnsureSwept actually ensures that the span is swept.
+    I have not observed crashes related to this, but I do not see why it can't crash as well.
+    
+    LGTM=rsc
+    R=golang-codereviews
+    CC=golang-codereviews, khr, rsc
+    https://golang.org/cl/67990043
+
+ src/pkg/runtime/mgc0.c  | 9 ++++++---
+ src/pkg/runtime/mheap.c | 8 ++++++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)

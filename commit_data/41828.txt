@@ -1,0 +1,21 @@
+commit 888a0c8ef6afb752aafd147eda40d62796d87cb3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 1 10:43:57 2020 -0700
+
+    testing: add TB.TempDir
+    
+    Fixes #35998
+    
+    Change-Id: I87c6bf4e34e832be68862ca16ecfa6ea12048d31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226877
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/build/deps_test.go      |  2 +-
+ src/io/ioutil/export_test.go   |  7 ++++++
+ src/io/ioutil/ioutil_test.go   |  3 ++-
+ src/io/ioutil/tempfile_test.go | 11 +++++-----
+ src/testing/testing.go         | 30 ++++++++++++++++++++++++++
+ src/testing/testing_test.go    | 48 ++++++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 94 insertions(+), 7 deletions(-)

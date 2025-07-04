@@ -1,0 +1,15 @@
+commit fd5b8aa7999e6710e14f4798dcb9e9387247511d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 13 16:07:33 2015 -0700
+
+    text/scanner: avoid further reads after EOF
+    
+    Fixes #10735.
+    
+    Change-Id: I5c6e424653657c89da176136ac56597c7565abe5
+    Reviewed-on: https://go-review.googlesource.com/10039
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/text/scanner/scanner.go      |  6 +++++-
+ src/text/scanner/scanner_test.go | 36 ++++++++++++++++++++++++++++--------
+ 2 files changed, 33 insertions(+), 9 deletions(-)

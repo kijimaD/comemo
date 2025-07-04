@@ -1,0 +1,22 @@
+commit 8fedb2d3383c29a00c8b43dc456a0ac03f836b45
+Author: Agniva De Sarker <agnivade@yahoo.co.in>
+Date:   Sun Jun 16 16:07:55 2019 +0530
+
+    cmd/compile: optimize bounded shifts on wasm
+    
+    Use the shiftIsBounded function to generate more efficient
+    Shift instructions.
+    
+    Updates #25167
+    
+    Change-Id: Id350f8462dc3a7ed3bfed0bcbea2860b8f40048a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182558
+    Run-TryBot: Agniva De Sarker <agniva.quicksilver@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Richard Musiol <neelance@gmail.com>
+
+ src/cmd/compile/internal/ssa/gen/Wasm.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteWasm.go | 42 +++++++++++++++++++++++++++++
+ test/codegen/shift.go                       | 10 +++----
+ 3 files changed, 50 insertions(+), 5 deletions(-)

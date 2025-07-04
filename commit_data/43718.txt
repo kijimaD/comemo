@@ -1,0 +1,22 @@
+commit a19a4dcb987d010b5ed0cecc4b377382f42a6ecc
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Oct 30 22:13:51 2020 -0400
+
+    cmd/go/internal/mvs: in Upgrade, pass upgrades to buildList as upgrades
+    
+    This has no impact on the resulting build list, but provides clearer
+    diagnostics if reqs.Required returns an error for one of the upgraded
+    modules.
+    
+    For #37438
+    
+    Change-Id: I5cd8f72a9b7b9a0b185e1a728f46fefbd2f09b4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266897
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/mvs/mvs.go      | 51 ++++++++++++++++++++++++++-----------
+ src/cmd/go/internal/mvs/mvs_test.go |  4 +--
+ 2 files changed, 38 insertions(+), 17 deletions(-)

@@ -1,0 +1,17 @@
+commit e17405d7544d35cf87694f2abff36a2a906bd9d1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Fri Sep 18 14:30:15 2015 -0700
+
+    archive/tar: simplify bytediff logic
+    
+    The encoding/hex package provides a nice Dump formatter that
+    prints both hex and ASCII. Use that instead for better visual
+    debugging of binary diffs.
+    
+    Change-Id: Iad1084e8e52d7d523595e97ae20912657cea2ab5
+    Reviewed-on: https://go-review.googlesource.com/14729
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/archive/tar/writer_test.go | 46 +++++++++++++++---------------------------
+ 1 file changed, 16 insertions(+), 30 deletions(-)

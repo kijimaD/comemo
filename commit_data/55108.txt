@@ -1,0 +1,28 @@
+commit ff07b73faced25076548b8d916ff19de1844650a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun Nov 12 23:27:31 2023 +0000
+
+    internal/trace/traceviewer: make the mmu handler more self-contained
+    
+    The last change made the MMU rendering code common and introduced a new
+    API, but it was kind of messy. Part of the problem was that some of the
+    Javascript in the template for the main page referred to specific
+    endpoints on the server.
+    
+    Fix this by having the Javascript access the same endpoint but with a
+    different query variable. Now the Javascript code doesn't depend on
+    specific endpoints, just on query variables for the current endpoint.
+    
+    For #60773.
+    For #63960.
+    
+    Change-Id: I1c559d9859c3a0d62e2094c9d4ab117890b63b31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/541259
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/trace/main.go                 |  4 ++--
+ src/cmd/trace/v2/main.go              | 11 +++++------
+ src/internal/trace/traceviewer/mmu.go | 22 +++++++++++++---------
+ 3 files changed, 20 insertions(+), 17 deletions(-)

@@ -1,0 +1,15 @@
+commit c274ff6761ed8bdaea7d99fcaeb1116fff3763dd
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Apr 3 16:11:03 2014 -0400
+
+    fmt: fix go syntax formatting of []byte(nil)
+    Fixes #7639.
+    
+    LGTM=rsc
+    R=r, adg, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/81240043
+
+ src/pkg/fmt/fmt_test.go | 2 ++
+ src/pkg/fmt/print.go    | 9 +++++++++
+ 2 files changed, 11 insertions(+)

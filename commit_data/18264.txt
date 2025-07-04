@@ -1,0 +1,14 @@
+commit fbfb9430dc687d399ded22a38abab035e3fa462b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 16 10:11:06 2014 -0500
+
+    cmd/gc: fix race build
+    
+    Missed this case in CL 51010045.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/53200043
+
+ src/cmd/gc/sinit.c | 1 +
+ 1 file changed, 1 insertion(+)

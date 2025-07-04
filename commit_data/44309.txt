@@ -1,0 +1,18 @@
+commit 7764ee5614df2228e03326487af7670c7c5d268a
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Fri Feb 19 14:31:57 2021 +0800
+
+    runtime: fix invalid nil g check for for mips64x
+    
+    In CL 292109 we removed unnecessary writes to gp.sched.g
+    but put wrong register to save g (R4 saves pointer to g) on mips64x
+    
+    Change-Id: I9777846a7b0a46e1af83dcfc73b74649e0dba3c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/293989
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+
+ src/runtime/asm_mips64x.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

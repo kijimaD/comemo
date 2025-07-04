@@ -1,0 +1,11 @@
+commit 8c40900fc28a7dda33a491902c5545b9abb37f58
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 6 14:16:47 2009 -0800
+
+    Expand section on building gccgo.
+    
+    R=r
+    http://go/go-review/1026008
+
+ doc/go_gccgo_setup.html | 29 +++++++++++++++++++++++++----
+ 1 file changed, 25 insertions(+), 4 deletions(-)

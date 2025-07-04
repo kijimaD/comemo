@@ -1,0 +1,12 @@
+commit 0ef041cfa5d51d86c25b039d7ae8aef8a92c085e
+Author: Rob Pike <r@golang.org>
+Date:   Thu Apr 21 15:09:49 2016 -0700
+
+    doc/go1.7.txt: 0s for zero duration, go doc groups constructors with types
+    
+    Change-Id: I4fc35649ff5a3510f5667b62e7e84e113e95dffe
+    Reviewed-on: https://go-review.googlesource.com/22358
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.7.txt | 2 ++
+ 1 file changed, 2 insertions(+)

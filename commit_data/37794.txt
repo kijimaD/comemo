@@ -1,0 +1,28 @@
+commit 14bdcc76fd9aa3edda64ef07a526fbeeed8b4326
+Author: Keith Randall <khr@google.com>
+Date:   Fri Dec 28 12:43:48 2018 -0800
+
+    cmd/compile: fix racewalk{enter,exit} removal
+    
+    We can't remove race instrumentation unless there are no calls,
+    not just no static calls. Closure and interface calls also count.
+    
+    The problem in issue 29329 is that there was a racefuncenter, an
+    InterCall, and a racefuncexit.  The racefuncenter was removed, then
+    the InterCall was rewritten to a StaticCall. That prevented the
+    racefuncexit from being removed. That caused an imbalance in
+    racefuncenter/racefuncexit calls, which made the race detector barf.
+    
+    Bug introduced at CL 121235
+    
+    Fixes #29329
+    
+    Change-Id: I2c94ac6cf918dd910b74b2a0de5dc2480d236f16
+    Reviewed-on: https://go-review.googlesource.com/c/155917
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go |   6 +-
+ test/fixedbugs/issue29329.go            | 106 ++++++++++++++++++++++++++++++++
+ 2 files changed, 111 insertions(+), 1 deletion(-)

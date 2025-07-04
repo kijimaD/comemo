@@ -1,0 +1,44 @@
+commit 09408a5b454a4382cde223f6bfa6b5cde64ba026
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sat Mar 25 10:58:05 2023 +0000
+
+    encoding/gob: avoid filling userTypeCache at init time
+    
+    Doing this work at init time does make the first encode or decode call
+    slightly faster, but the cost is still paid upfront.
+    
+    However, not all programs which directly or indirectly import
+    encoding/gob end up encoding or decoding any values.
+    For example, a program might only be run with the -help flag,
+    or it might only use gob encoding when a specific mode is enabled.
+    
+    Moreover, any work done at init time needs to happen sequentially and
+    before the main function can start, blocking the entire program.
+    
+    Using benchinit, we see a moderate saving at init time:
+    
+            goos: linux
+            goarch: amd64
+            cpu: AMD Ryzen 7 PRO 5850U with Radeon Graphics
+                                    │     old     │                new                 │
+                                    │   sec/op    │   sec/op     vs base               │
+            EncodingGob   188.9µ ± 0%   175.4µ ± 0%  -7.15% (p=0.000 n=10)
+    
+                                    │     old      │                 new                 │
+                                    │     B/op     │     B/op      vs base               │
+            EncodingGob   39.78Ki ± 0%   38.46Ki ± 0%  -3.32% (p=0.000 n=10)
+    
+                                    │    old     │                new                │
+                                    │ allocs/op  │ allocs/op   vs base               │
+            EncodingGob   668.0 ± 0%   652.0 ± 0%  -2.40% (p=0.000 n=10)
+    
+    Change-Id: I75a5df18c9b1d02566e5885a966360d8a525913a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479396
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/encoding/gob/type.go | 1 -
+ 1 file changed, 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 1da96a30395b20cb4e2059c49bee05540e36aac6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 17 16:15:46 2013 -0700
+
+    runtime: disable preemption again to fix linux build
+    
+    Otherwise the tests in pkg/runtime fail:
+    
+    runtime: unknown argument frame size for runtime.deferreturn called from 0x48657b [runtime_test.func·022]
+    fatal error: invalid stack
+    ...
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/11483043
+
+ src/pkg/runtime/proc.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

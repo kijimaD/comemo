@@ -1,0 +1,28 @@
+commit c65a47f890e33eeed6ee9d8b6d965a5534fb6e0e
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Oct 3 10:36:54 2014 +1000
+
+    undo CL 138250043 / 4eda5e4001fd
+    
+    I will use different approach to solve this problem.
+    See CL 143160046 for details.
+    
+    ««« original CL description
+    syscall: keep Windows syscall pointers live too
+    
+    Like https://golang.org/cl/139360044
+    
+    LGTM=rsc, alex.brainman
+    R=alex.brainman, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/138250043
+    »»»
+    
+    LGTM=r
+    R=golang-codereviews, bradfitz, r
+    CC=golang-codereviews
+    https://golang.org/cl/147440043
+
+ src/syscall/mksyscall_windows.go | 24 ++----------------------
+ src/syscall/zsyscall_windows.go  | 15 ++++-----------
+ 2 files changed, 6 insertions(+), 33 deletions(-)

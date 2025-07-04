@@ -1,0 +1,25 @@
+commit bfb32dc6d1b8cbe6f4d2d52d3226e4c31e36b576
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sat Mar 23 22:32:19 2013 +0900
+
+    net: use original raddr if getpeername fails
+    
+    This CL updates CL 7511043;
+    - adds new test cases for both UDPConn and UnixConn,
+    - makes sure unnamed UnixAddr handling,
+    - replaces t.Errorf with t.Fatalf in sockname related test cases.
+    
+    Fixes #3721 (again).
+    Fixes #3838 (again).
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7627048
+
+ src/pkg/net/server_test.go    |   2 +-
+ src/pkg/net/sock_posix.go     |   6 +-
+ src/pkg/net/tcp_test.go       |   6 +-
+ src/pkg/net/udp_test.go       |  44 ++++++++++++--
+ src/pkg/net/unix_test.go      | 132 +++++++++++++++++++++++++++++++++++++-----
+ src/pkg/net/unixsock_posix.go |  25 +++++---
+ 6 files changed, 179 insertions(+), 36 deletions(-)

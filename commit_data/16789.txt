@@ -1,0 +1,12 @@
+commit cc8417610834f5518efe561235f3ed37031f4e59
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jul 16 16:44:24 2013 -0700
+
+    runtime: print g0 stack if we throw on it and GOTRACEBACK>=2.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11385045
+
+ src/pkg/runtime/panic.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

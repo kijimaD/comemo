@@ -1,0 +1,26 @@
+commit 4f07bb39539725dfff56b4f2a1b7ce05464a0e9b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Mar 11 16:35:45 2024 -0400
+
+    cmd/go: change some counter names
+    
+    Primarily, this change removes the cmd/ prefix on the go command
+    counter names. The 'error' counter is changed to 'errors' reflecting
+    that it's a bucket that contains multiple errors. the switch-exec and
+    select-exec counters are moved into a 'toolchain' grouping.
+    
+    For #58894
+    
+    Change-Id: Id6e0e7a0b4a5e42a0aef04b1210d2bb5256eb6c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570736
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/counters_test.go             |   14 +-
+ src/cmd/go/internal/help/help.go        |    4 +-
+ src/cmd/go/internal/modfetch/cache.go   |    4 +-
+ src/cmd/go/internal/toolchain/select.go |    6 +-
+ src/cmd/go/internal/toolchain/switch.go |    2 +-
+ src/cmd/go/main.go                      |   18 +-
+ src/cmd/go/testdata/counters.txt        | 1336 +++++++++++++++----------------
+ 7 files changed, 692 insertions(+), 692 deletions(-)

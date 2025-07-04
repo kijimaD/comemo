@@ -1,0 +1,12 @@
+commit 20832e6d4be0271eb6e3d05a0be9ec3f611b6ca4
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 1 17:33:15 2017 +1000
+
+    cmd/link: introduce and use peFile and peStringTable
+    
+    Change-Id: Icd13b32d35cde474c9292227471f916a64af88eb
+    Reviewed-on: https://go-review.googlesource.com/55257
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 57 ++++++++++++++++++++++++++++++------------
+ 1 file changed, 41 insertions(+), 16 deletions(-)

@@ -1,0 +1,17 @@
+commit 09ec523049e3f26cba9b431dcc8ea4820b5dcc89
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Aug 20 19:11:33 2018 +0000
+
+    Revert "cmd/dist: support windows/arm"
+    
+    This reverts commit def3280eb4e4bc7fb058f98fa2993cb077db3f95.
+    
+    Reason for revert: broke the vetall builder and I (Brad) forgot to run the trybots first. :(
+    
+    Change-Id: I255bedeb28d13e265f357060e57561e593145275
+    Reviewed-on: https://go-review.googlesource.com/130015
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go       | 1 -
+ src/cmd/dist/sys_windows.go | 3 ---
+ 2 files changed, 4 deletions(-)

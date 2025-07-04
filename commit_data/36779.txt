@@ -1,0 +1,19 @@
+commit 01e6cfc2a0b2f9e363c6e305b14f3393d06b13b8
+Author: Austin Clements <austin@google.com>
+Date:   Sun Sep 23 19:12:15 2018 -0400
+
+    runtime: don't call mcache.refill on systemstack
+    
+    mcache.refill doesn't need to run on the system stack; it just needs
+    to be non-preemptible. Its only caller, mcache.nextFree, also needs to
+    be non-preemptible, so we can remove the unnecessary systemstack
+    switch.
+    
+    Change-Id: Iba5b3f4444855f1dc134485ba588efff3b54c426
+    Reviewed-on: https://go-review.googlesource.com/138196
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/malloc.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

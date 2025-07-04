@@ -1,0 +1,15 @@
+commit 3b69efb010259b681cfd00b5dec9fe61d5be55a3
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Feb 28 13:46:26 2013 +1100
+
+    exp/cookiejar: eliminate some "."+str garbage.
+    
+    It's not a big deal, but it's easy to fix.
+    
+    R=dsymonds
+    CC=dr.volker.dobler, golang-dev
+    https://golang.org/cl/7425043
+
+ src/pkg/exp/cookiejar/jar.go      | 11 ++++--
+ src/pkg/exp/cookiejar/jar_test.go | 74 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 8720b4721f76c852c237fad28ce252dad07d785f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 23:12:07 2009 -0700
+
+    use cc provided xlog2 instead of system log2.
+    (on plan 9 cc calls it log2, but that conflicts here.)
+    the difference is that xlog2 returns -1 on non powers of 2.
+    8c was rewriting /10 into /8.
+    
+    R=ken
+    OCL=29968
+    CL=29968
+
+ src/cmd/8c/cgen.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

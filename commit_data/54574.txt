@@ -1,0 +1,26 @@
+commit a57658171fb6db2d3c3681d6173ffa59ab94fc65
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Wed Sep 27 23:53:37 2023 +0000
+
+    internal/zstd: allow zero dictionary id
+    
+    A value of 0 has same meaning as no Dictionary_ID,
+    in which case the frame may or may not need a dictionary to be decoded,
+    and the ID of such a dictionary is not specified.
+    
+    See https://github.com/facebook/zstd/issues/2172
+    
+    For #62513
+    
+    Change-Id: If0eafcbc5d2188576f0cb687234e30c9eb4037a6
+    GitHub-Last-Rev: 9cf12dcf194a90367a74b808bbe464815f71f42a
+    GitHub-Pull-Request: golang/go#63268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531515
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ .../zstd/testdata/fcf30b99.zero-dictionary-ids.zst | Bin 0 -> 64 bytes
+ src/internal/zstd/zstd.go                          |  23 ++++++++++++++++-----
+ 2 files changed, 18 insertions(+), 5 deletions(-)

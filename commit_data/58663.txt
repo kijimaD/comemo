@@ -1,0 +1,25 @@
+commit 035d3c8f530cadfb89654e27065c0e5230e36f69
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Sat Oct 19 14:10:28 2024 -0400
+
+    crypto/internal/fips140test: add SHAKE-* ACVP tests
+    
+    This commit adds ACVP test coverage for SHAKE-128 and SHAKE-256
+    based on the NIST spec:
+    
+      https://pages.nist.gov/ACVP/draft-celi-acvp-sha3.html
+    
+    Updates #69642
+    
+    Change-Id: Ia6899def452fcb63a03603b7919fcb0c3576474b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622395
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ .../internal/fips140test/acvp_capabilities.json    |  3 +
+ .../internal/fips140test/acvp_test.config.json     |  3 +
+ src/crypto/internal/fips140test/acvp_test.go       | 77 ++++++++++++++++++++++
+ 3 files changed, 83 insertions(+)

@@ -1,0 +1,20 @@
+commit 5239c913510633ce9fdfaf993ab5f31d7ba7e83e
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Nov 3 14:04:57 2023 -0400
+
+    cmd/compile/internal/inline: minor compile time improvements in func flags
+    
+    Some small changes to help reduce compile time for function flags
+    computation. The current implementation of panic path detection adds
+    an entry to a map for every node in the function, which is wasteful
+    (and shows up in cpu profiles). Switch to only adding entries where
+    they are useful. This is especially important for functions with large
+    map literals and other constructs with many non-statement nodes.
+    
+    Change-Id: I9cfb2cd1cbf480f21298e6102aa99e2d77219f3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539696
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ .../internal/inline/inlheur/analyze_func_flags.go  | 32 +++++++---------------
+ 1 file changed, 10 insertions(+), 22 deletions(-)

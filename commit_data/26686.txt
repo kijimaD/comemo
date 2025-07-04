@@ -1,0 +1,38 @@
+commit 1f5b1b2b66ee530af8d86c190c74f49a2809ee92
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Mar 30 16:33:52 2016 +1100
+
+    runtime: change osyield to use Windows SwitchToThread
+    
+    It appears that windows osyield is just 15ms sleep on my computer
+    (see benchmarks below). Replace NtWaitForSingleObject in osyield
+    with SwitchToThread (as suggested by Dmitry).
+    
+    Also add issue #14790 related benchmarks, so we can track perfomance
+    changes in CL 20834 and CL 20835 and beyond.
+    
+    Update #14790
+    
+    benchmark                             old ns/op     new ns/op     delta
+    BenchmarkChanToSyscallPing1ms         1953200       1953000       -0.01%
+    BenchmarkChanToSyscallPing15ms        31562904      31248400      -1.00%
+    BenchmarkSyscallToSyscallPing1ms      5247          4202          -19.92%
+    BenchmarkSyscallToSyscallPing15ms     5260          4374          -16.84%
+    BenchmarkChanToChanPing1ms            474           494           +4.22%
+    BenchmarkChanToChanPing15ms           468           489           +4.49%
+    BenchmarkOsYield1ms                   980018        75.5          -99.99%
+    BenchmarkOsYield15ms                  15625200      75.8          -100.00%
+    
+    Change-Id: I1b4cc7caca784e2548ee3c846ca07ef152ebedce
+    Reviewed-on: https://go-review.googlesource.com/21294
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/export_windows_test.go  |   1 +
+ src/runtime/os1_windows.go          |  15 +++-
+ src/runtime/sys_windows_386.s       |  17 ++++-
+ src/runtime/sys_windows_amd64.s     |  20 ++++-
+ src/runtime/syscall_windows_test.go | 144 ++++++++++++++++++++++++++++++++++++
+ 5 files changed, 186 insertions(+), 11 deletions(-)

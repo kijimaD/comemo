@@ -1,0 +1,24 @@
+commit f639a81cd5e85ca9538c76e612867aa4c2ae241b
+Author: Ruixin Bao <ruixin.bao@ibm.com>
+Date:   Mon Apr 27 16:20:45 2020 -0700
+
+    cmd/compile: adopt strong aux typing for some s390x rules
+    
+    Convert some optimizations rules to strongly-typed versions. So far, I
+    have only converted the rules that need no additional changes (i.e: only
+    need to change '->' to "=>").
+    
+    This CL covers the rules from line 478 - line 800 in S390X.rules file.
+    Some compare and branch rules also fall in this range, but they were
+    already done previously in another CL.
+    
+    Passes toolstash-check.
+    Change-Id: I9167c5f1a32f4fd6c29bacc13fff95e83b0533e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230338
+    Reviewed-by: Michael Munday <mike.munday@ibm.com>
+    Run-TryBot: Michael Munday <mike.munday@ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules | 224 ++++++++---------
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 358 +++++++++++++--------------
+ 2 files changed, 291 insertions(+), 291 deletions(-)

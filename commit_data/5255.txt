@@ -1,0 +1,16 @@
+commit 2d0ff3f1a638b1a90bc89619f23dd932ce5dd2b1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Apr 9 13:30:11 2010 -0700
+
+    Support cgo export on amd64.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/857045
+
+ src/libcgo/amd64.S          | 36 ++++++++++++++++++++++++++++++++++
+ src/libcgo/darwin_amd64.c   | 32 ++++++++++++++++++++++++++++++
+ src/libcgo/freebsd_amd64.c  | 25 +++++++++++++++++++++++
+ src/libcgo/linux_amd64.c    | 25 +++++++++++++++++++++++
+ src/pkg/runtime/amd64/asm.s | 48 +++++++++++++++++++++++++++++++++++++++------
+ 5 files changed, 160 insertions(+), 6 deletions(-)

@@ -1,0 +1,20 @@
+commit 4f89dcdf9941e4a0652d34ed81cfff8afd1fb74e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 8 14:19:28 2010 -0800
+
+    5g/6g/8g: fix double function call in slice
+    
+    Fixes #654.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/310041
+
+ src/cmd/5g/ggen.c        | 56 +++++++++++++++++++++---------------------------
+ src/cmd/6g/ggen.c        | 56 +++++++++++++++++++++---------------------------
+ src/cmd/8g/gg.h          |  2 ++
+ src/cmd/8g/ggen.c        | 55 ++++++++++++++++++++---------------------------
+ src/cmd/gc/subr.c        |  3 +++
+ src/cmd/gc/walk.c        |  6 ++++++
+ test/fixedbugs/bug261.go | 23 ++++++++++++++++++++
+ 7 files changed, 105 insertions(+), 96 deletions(-)

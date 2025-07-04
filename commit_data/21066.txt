@@ -1,0 +1,22 @@
+commit 209dd4cdc1e9180d819b1217f065a63b94e82ff9
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Dec 22 15:26:21 2014 -0800
+
+    test: fix windows build
+    
+    Broken by e7173dfdfd1c74b1d301da9b6f295ef99b9cc11c
+    
+    Fix by simply disabling the relevant tests.
+    
+    * bug248 and bug345 require errchk, but we can't
+      rely on perl being available.
+    * bug369 is disabled anyway.
+    
+    Change-Id: Idf73ebccb066943e3fe17c2f662b37238ec74dfe
+    Reviewed-on: https://go-review.googlesource.com/2052
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ test/fixedbugs/bug248.go | 3 ++-
+ test/fixedbugs/bug345.go | 3 ++-
+ test/fixedbugs/bug369.go | 2 +-
+ 3 files changed, 5 insertions(+), 3 deletions(-)

@@ -1,0 +1,13 @@
+commit 4a524311f4d538a2c5a45d56286fdefbd2cf1c7a
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Feb 13 18:29:59 2013 +0400
+
+    runtime: instrument slicebytetostring for race detection
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/7322068
+
+ src/pkg/runtime/race/testdata/slice_test.go | 20 ++++++++++++++++++++
+ src/pkg/runtime/string.goc                  | 12 ++++++++++++
+ 2 files changed, 32 insertions(+)

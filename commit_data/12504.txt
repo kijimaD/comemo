@@ -1,0 +1,14 @@
+commit 43d71e7d7d1ace38e6518335ff39b7848700b9ca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 22:40:32 2012 -0500
+
+    cmd/cgo: silence const warnings
+    
+    Fixes #3152.
+    
+    R=golang-dev, dsymonds, r
+    CC=golang-dev
+    https://golang.org/cl/5786047
+
+ src/cmd/cgo/out.go | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)

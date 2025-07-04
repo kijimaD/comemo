@@ -1,0 +1,15 @@
+commit 23c9db657ea7c7552cb8e00debce945b97d61116
+Author: Awn <awn@cryptolosophy.io>
+Date:   Mon Jul 3 01:36:52 2017 +0100
+
+    archive/tar: remove useless type conversions
+    
+    Change-Id: I259a6ed6a1abc63d2dc39eca7e85f94cf38001cc
+    Reviewed-on: https://go-review.googlesource.com/47342
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/archive/tar/format.go  | 2 +-
+ src/archive/tar/strconv.go | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

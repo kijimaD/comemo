@@ -1,0 +1,13 @@
+commit bab56ecb4dc9a2e03d3121c8a2c3582981b79175
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Jan 5 09:44:25 2012 -0800
+
+    net: fix incorrect mode on ListenIP, ListenUDP
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/5523044
+
+ src/pkg/net/iprawsock_posix.go | 2 +-
+ src/pkg/net/udpsock_posix.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

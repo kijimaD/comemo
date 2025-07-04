@@ -1,0 +1,30 @@
+commit 59a6ba56347cb83c7e84e8d1eb9fbcd98ec99b59
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 23 10:05:44 2015 -0700
+
+    math/big: factored out an internal accessor method (cleanup), added benchmark
+    
+    Current result of DecimalConversion benchmark (for future reference):
+    
+    BenchmarkDecimalConversion-8       10000            204770 ns/op
+    
+    Measured on Mac Mini (late 2012) running OS X 10.10.5,
+    2.3 GHz Intel Core i7, 8 GB 1333 MHz DDR3.
+    
+    Also: Removed comment suggesting to implement decimal by representing
+    digits as numbers 0..9 rather than ASCII chars '0'..'9' to avoid
+    repeated +/-'0' operations. Tried and it appears (per above benchmark)
+    that the +/-'0' operations are neglibile but the addition conversion
+    passes around it are not and that it makes things significantly slower.
+    
+    Change-Id: I6ee033b1172043248093cc5d02abff5fc54c2e7a
+    Reviewed-on: https://go-review.googlesource.com/14857
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/decimal.go      | 14 ++++++++------
+ src/math/big/decimal_test.go | 10 ++++++++++
+ src/math/big/ftoa.go         | 16 +++-------------
+ 3 files changed, 21 insertions(+), 19 deletions(-)

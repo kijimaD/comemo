@@ -1,0 +1,15 @@
+commit 2a0fdf6ea05dc31526e95990aadc2b327933cce1
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 11 17:52:09 2012 -0400
+
+    fmt.Fscanf: don't read past newline
+    Makes interactive uses work line-by-line.
+    Fixes #3481.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/6297075
+
+ src/pkg/fmt/scan.go      |  3 ++-
+ src/pkg/fmt/scan_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

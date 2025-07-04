@@ -1,0 +1,19 @@
+commit c70a7849af56828462ed7d2a5051d917ef6432dc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Apr 12 12:02:49 2019 -0700
+
+    cmd/internal/obj: stop plist flushing early on error
+    
+    If preprocessing or assembling has failed, we should not proceed.
+    First, there's no point.
+    Second, I will shortly add some sanity checks to linkpcln
+    that will fail on malformed input.
+    
+    Change-Id: I055eeab1c2f3a66b4b2cadb551bbf4ab55d176f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171886
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/internal/obj/plist.go | 3 +++
+ 1 file changed, 3 insertions(+)

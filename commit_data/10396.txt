@@ -1,0 +1,26 @@
+commit b91d82258fdab9568f2ccef9f80669c764d4c7ac
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Tue Nov 15 15:31:22 2011 +1100
+
+    html: auto-close <p> elements when starting <form> element.
+    
+    Pass tests2.dat, test 26:
+    <!doctypehtml><p><form>
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <p>
+    |     <form>
+    
+    Also pass tests through test 32:
+    <!DOCTYPE html><!-- X
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5369114
+
+ src/pkg/html/parse.go      | 6 ++++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)

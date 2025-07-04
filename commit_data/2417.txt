@@ -1,0 +1,17 @@
+commit 3c06bd6201e2364e50b568d0321be48e2b8dd6b9
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jun 6 19:28:16 2009 -0700
+
+    an 8g checkpoint.
+    needs cleanup, optimizer,
+    but all.bash works.
+    
+    R=ken
+    OCL=29974
+    CL=30000
+
+ src/cmd/8g/cgen.c   | 35 ++++++++++++++++++-------------
+ src/cmd/8g/cgen64.c |  2 +-
+ src/cmd/8g/ggen.c   | 37 ++++++++++++++++++++++++++++++++-
+ src/cmd/8g/gsubr.c  | 60 ++++++++++++++++++++---------------------------------
+ 4 files changed, 81 insertions(+), 53 deletions(-)

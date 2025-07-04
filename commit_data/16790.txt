@@ -1,0 +1,14 @@
+commit deee03f17eee3bf8c8d6a607d413b8141c0f0714
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Jul 17 18:48:55 2013 +1000
+
+    doc/effective_go: stamp out stray GOROOT reference
+    
+    Replaced with something more appropriate.
+    
+    R=adg, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/11421043
+
+ doc/effective_go.html | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,25 @@
+commit 78bea702cd38ac5004a97f110e7f659336a04d57
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 14 15:04:34 2022 -0700
+
+    cmd/compile: turn jump tables off with -N
+    
+    The noopt builder is broken, because with -N we get two OpSB opcodes
+    (one for the function as a whole, one introduced by the jumptable
+    rewrite rule), and they fight each other for a register.
+    
+    Without -N, the two OpSB get CSEd, so optimized builds are ok.
+    
+    Maybe we fix regalloc to deal with this case, but it's simpler
+    (and maybe more correct?) to disable jump tables with -N.
+    
+    Change-Id: I75c87f12de6262955d1df787f47c53de976f8a5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400455
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/compile/internal/walk/switch.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 3fe9d4c1c89f2a10e78780c421a2f5d93f218061
+Author: hearot <gabriel@hearot.it>
+Date:   Sat Oct 27 20:43:21 2018 +0200
+
+    encoding/json: add example to Valid
+    
+    Change-Id: I411483d76a2ca91cd15ff42ae1adb9134486d183
+    Reviewed-on: https://go-review.googlesource.com/c/145278
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/json/example_test.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

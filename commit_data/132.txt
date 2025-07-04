@@ -1,0 +1,10 @@
+commit b6eca3534c9d2901ac1001d98ac6af0ee3547a6d
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Jun 8 17:46:28 2008 -0700
+
+    bug in len
+    
+    SVN=121618
+
+ src/cmd/6g/cgen.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

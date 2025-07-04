@@ -1,0 +1,25 @@
+commit d8ae2156fe08f31f9b20a79b6971638c5bf203b5
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sat Sep 2 12:05:35 2017 -0400
+
+    runtime, plugin: error not throw on duplicate open
+    
+    Along the way, track bad modules. Make sure they don't end up on
+    the active modules list, and aren't accidentally reprocessed as
+    new plugins.
+    
+    Fixes #19004
+    
+    Change-Id: I8a5e7bb11f572f7b657a97d521a7f84822a35c07
+    Reviewed-on: https://go-review.googlesource.com/61171
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/host/host.go | 17 +++++++++++++++++
+ misc/cgo/testplugin/test.bash        |  1 +
+ src/plugin/plugin.go                 |  1 +
+ src/plugin/plugin_dlopen.go          | 26 ++++++++++++++++----------
+ src/runtime/plugin.go                | 24 ++++++++++++++++--------
+ src/runtime/symtab.go                |  9 +++++++--
+ 6 files changed, 58 insertions(+), 20 deletions(-)

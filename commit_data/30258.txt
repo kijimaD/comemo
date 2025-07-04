@@ -1,0 +1,26 @@
+commit a610957f2e48c5b917126b1d0b5f930f05ca8841
+Author: Nathan Caza <mastercactapus@gmail.com>
+Date:   Fri Feb 10 21:09:21 2017 -0600
+
+    net/http: handle absolute paths in mapDirOpenError
+    
+    The current implementation does not account for Dir being
+    initialized with an absolute path on systems that start
+    paths with filepath.Separator. In this scenario, the
+    original error is returned, and not checked for file
+    segments.
+    
+    This change adds a test for this case, and corrects the
+    behavior by ignoring blank path segments in the loop.
+    
+    Refs #18984
+    
+    Change-Id: I9b79fd0a73a46976c8e2feda0283ef0bb2b62ea1
+    Reviewed-on: https://go-review.googlesource.com/36804
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/fs.go      |  3 +++
+ src/net/http/fs_test.go | 37 ++++++++++++++++++++++++-------------
+ 2 files changed, 27 insertions(+), 13 deletions(-)

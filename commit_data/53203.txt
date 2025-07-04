@@ -1,0 +1,23 @@
+commit c99d966c176a604b8ac2081fec0ecf9ab04b3745
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon May 15 13:22:39 2023 -0400
+
+    runtime/coverage: add support for "auxiliary" meta-data files
+    
+    Enhance the functions called by _testmain.go during "go test -cover"
+    test binary runs to allow for injection of extra or "auxiliary"
+    meta-data files when reporting coverage statistics. There are unit
+    tests for this functionality, but it is not yet wired up to be used by
+    the Go command yet, that will appear in a subsequent patch.
+    
+    Change-Id: I10b79ca003fd7a875727dc1a86f23f58d6bf630c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495451
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/go/build/deps_test.go           |   1 +
+ src/internal/coverage/cmddefs.go    |  14 +++++
+ src/runtime/coverage/testsupport.go |  46 +++++++++++++-
+ src/runtime/coverage/ts_test.go     | 116 +++++++++++++++++++++++++++++++++++-
+ 4 files changed, 173 insertions(+), 4 deletions(-)

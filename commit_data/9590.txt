@@ -1,0 +1,14 @@
+commit 8ede0a67a20a3cdb4d584c784f8b9de9629d050b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 5 09:50:22 2011 +1000
+
+    misc/goplay: Fix template output
+    
+    Fixes #2219.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4960052
+
+ misc/goplay/goplay.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

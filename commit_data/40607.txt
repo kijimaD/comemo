@@ -1,0 +1,35 @@
+commit 14a133fe7791cdad14dc55332a506801fa8ea5f9
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Oct 28 16:32:24 2019 -0400
+
+    cmd/go/internal/modfetch: prune +incompatible versions more aggressively
+    
+    codeRepo.Versions previously checked every possible +incompatible
+    version for a 'go.mod' file. That is wasteful and counterproductive.
+    
+    It is wasteful because typically, a project will adopt modules at some
+    major version, after which they will (be required to) use semantic
+    import paths for future major versions.
+    
+    It is counterproductive because it causes an accidental
+    '+incompatible' tag to exist, and no compatible tag can have higher
+    semantic precedence.
+    
+    This change prunes out some of the +incompatible versions in
+    codeRepo.Versions, eliminating the “wasteful” part but not all of the
+    “counterproductive” part: the extraneous versions can still be fetched
+    explicitly, and proxies may include them in the @v/list endpoint.
+    
+    Updates #34165
+    Updates #34189
+    Updates #34533
+    
+    Change-Id: Ifc52c725aa396f7fde2afc727d0d5950acd06946
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/204439
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/modfetch/coderepo.go      | 109 ++++++++++++++++++++++----
+ src/cmd/go/internal/modfetch/coderepo_test.go |   2 +-
+ src/cmd/go/internal/modfetch/repo.go          |   2 +-
+ 3 files changed, 96 insertions(+), 17 deletions(-)

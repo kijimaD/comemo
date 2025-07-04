@@ -1,0 +1,19 @@
+commit 5fc4604aa8b593d8d9e93c98a1380114633b7c6a
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Fri Oct 26 16:34:27 2018 -0500
+
+    bytes, strings: fix Reader.UnreadRune returning without error on a zero Reader
+    
+    Fixes #28269
+    
+    Change-Id: I878dff43c0b6bdb98702d8e73f2ecd984fb2350f
+    Reviewed-on: https://go-review.googlesource.com/c/145098
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/reader.go        |  6 +++++-
+ src/bytes/reader_test.go   | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/strings/reader.go      |  6 +++++-
+ src/strings/reader_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 94 insertions(+), 2 deletions(-)

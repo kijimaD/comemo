@@ -1,0 +1,20 @@
+commit 9cf671106721451af4a556dc0bf56c133836d008
+Author: Zvonimir Pavlinovic <zpavlinovic@google.com>
+Date:   Wed Nov 3 16:31:11 2021 -0700
+
+    cmd/cover: use fmt.Print for newline-ending fixed string
+    
+    This redundancy is now caught by the improved printf vet checker
+    (golang/go#30436).
+    
+    Updates #49322
+    
+    Change-Id: Id450247adc6fa28a9244c019be3c1b52c2d17f49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/361263
+    Run-TryBot: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Zvonimir Pavlinovic <zpavlinovic@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/cover/cover.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,18 @@
+commit 5df1fe52fe7b909c925738e516feb54be712f2c1
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 23 06:58:47 2017 -0700
+
+    runtime: always rebuild in TestIntendedInlining
+    
+    This is necessary when you aren't actively changing the runtime. Oops.
+    
+    Also, run the tests on the builders, to avoid silent failures (#17472).
+    
+    Change-Id: I1fc03790cdbddddb07026a772137a79919dcaac7
+    Reviewed-on: https://go-review.googlesource.com/58050
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

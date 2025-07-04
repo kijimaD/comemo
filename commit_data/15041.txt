@@ -1,0 +1,16 @@
+commit f5154edc539e2405e206105617ef7f6188b7e6a6
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Jan 30 21:19:03 2013 +0100
+
+    exp/locale/collate/tools/colcmp: fixes some discrepancies between
+    ICU and collate package: ICU requires strings to be in FCD form.
+    Not all NFC strings are in this form, leading to incorrect results.
+    Change to NFD instead.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/7201043
+
+ src/pkg/exp/locale/collate/tools/colcmp/colcmp.go | 2 +-
+ src/pkg/exp/locale/collate/tools/colcmp/gen.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

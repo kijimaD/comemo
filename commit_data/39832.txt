@@ -1,0 +1,96 @@
+commit 0efbd1015774a2d894138519f1efcf7704bb2d95
+Author: Ainar Garipov <gugl.zadolbal@gmail.com>
+Date:   Sun Sep 8 19:36:13 2019 +0300
+
+    all: fix typos
+    
+    Use the following (suboptimal) script to obtain a list of possible
+    typos:
+    
+      #!/usr/bin/env sh
+    
+      set -x
+    
+      git ls-files |\
+        grep -e '\.\(c\|cc\|go\)$' |\
+        xargs -n 1\
+        awk\
+        '/\/\// { gsub(/.*\/\//, ""); print; } /\/\*/, /\*\// { gsub(/.*\/\*/, ""); gsub(/\*\/.*/, ""); }' |\
+        hunspell -d en_US -l |\
+        grep '^[[:upper:]]\{0,1\}[[:lower:]]\{1,\}$' |\
+        grep -v -e '^.\{1,4\}$' -e '^.\{16,\}$' |\
+        sort -f |\
+        uniq -c |\
+        awk '$1 == 1 { print $2; }'
+    
+    Then, go through the results manually and fix the most obvious typos in
+    the non-vendored code.
+    
+    Change-Id: I3cb5830a176850e1a0584b8a40b47bde7b260eae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193848
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/const.go           | 2 +-
+ src/cmd/compile/internal/gc/escape.go          | 6 +++---
+ src/cmd/compile/internal/gc/main.go            | 2 +-
+ src/cmd/compile/internal/gc/sinit.go           | 2 +-
+ src/cmd/compile/internal/gc/ssa.go             | 2 +-
+ src/cmd/compile/internal/gc/syntax.go          | 2 +-
+ src/cmd/compile/internal/gc/walk.go            | 2 +-
+ src/cmd/compile/internal/ssa/branchelim.go     | 2 +-
+ src/cmd/compile/internal/ssa/deadstore.go      | 2 +-
+ src/cmd/compile/internal/ssa/debug_test.go     | 2 +-
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go   | 2 +-
+ src/cmd/compile/internal/ssa/gen/S390XOps.go   | 2 +-
+ src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
+ src/cmd/compile/internal/ssa/gen/main.go       | 4 ++--
+ src/cmd/compile/internal/ssa/gen/rulegen.go    | 2 +-
+ src/cmd/compile/internal/ssa/loopbce.go        | 2 +-
+ src/cmd/compile/internal/ssa/regalloc.go       | 4 ++--
+ src/cmd/compile/internal/ssa/sparsetree.go     | 2 +-
+ src/cmd/go/go_test.go                          | 2 +-
+ src/cmd/go/internal/modfetch/coderepo.go       | 2 +-
+ src/cmd/go/internal/search/search.go           | 2 +-
+ src/cmd/go/internal/search/search_test.go      | 2 +-
+ src/cmd/go/internal/sumweb/client.go           | 2 +-
+ src/cmd/go/internal/tlog/tlog.go               | 4 ++--
+ src/cmd/go/internal/work/action.go             | 2 +-
+ src/cmd/go/internal/work/gccgo.go              | 2 +-
+ src/cmd/internal/obj/arm64/asm7.go             | 2 +-
+ src/cmd/internal/obj/objfile.go                | 2 +-
+ src/cmd/internal/obj/x86/asm6.go               | 2 +-
+ src/cmd/link/internal/ld/pe.go                 | 2 +-
+ src/cmd/link/internal/ld/xcoff.go              | 6 +++---
+ src/crypto/tls/handshake_client.go             | 2 +-
+ src/crypto/tls/prf.go                          | 2 +-
+ src/crypto/x509/name_constraints_test.go       | 6 +++---
+ src/database/sql/convert.go                    | 2 +-
+ src/database/sql/convert_test.go               | 4 ++--
+ src/database/sql/sql.go                        | 2 +-
+ src/database/sql/sql_test.go                   | 2 +-
+ src/debug/pe/file_test.go                      | 2 +-
+ src/encoding/base32/base32.go                  | 2 +-
+ src/go/build/build.go                          | 2 +-
+ src/go/types/builtins.go                       | 2 +-
+ src/go/types/call.go                           | 2 +-
+ src/image/gif/writer_test.go                   | 2 +-
+ src/internal/bytealg/count_ppc64x.s            | 2 +-
+ src/internal/cpu/cpu.go                        | 2 +-
+ src/math/big/int.go                            | 2 +-
+ src/net/http/transport.go                      | 4 ++--
+ src/net/interface_unix_test.go                 | 4 ++--
+ src/net/url/url.go                             | 2 +-
+ src/os/file.go                                 | 2 +-
+ src/runtime/map_benchmark_test.go              | 2 +-
+ src/runtime/mgcscavenge.go                     | 2 +-
+ src/runtime/os2_aix.go                         | 2 +-
+ src/runtime/os_windows.go                      | 2 +-
+ src/runtime/pprof/label_test.go                | 2 +-
+ test/closure2.go                               | 6 +++---
+ test/finprofiled.go                            | 4 ++--
+ test/fixedbugs/issue24339.go                   | 2 +-
+ test/index.go                                  | 2 +-
+ test/ken/modconst.go                           | 2 +-
+ test/opt_branchlikely.go                       | 2 +-
+ test/strength.go                               | 2 +-
+ 63 files changed, 78 insertions(+), 78 deletions(-)

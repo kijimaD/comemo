@@ -1,0 +1,14 @@
+commit 5fc583854f1ce1c95487e5b4e170ca5f32bfca36
+Author: Carlos Cirello <uldericofilho@gmail.com>
+Date:   Tue Dec 1 19:17:49 2015 +0100
+
+    net/http/httputil: add package level examples
+    
+    Change-Id: I5be18b68602a7ebb740cf05924236ce17e386e55
+    Reviewed-on: https://go-review.googlesource.com/17295
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/example_test.go | 123 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 123 insertions(+)

@@ -1,0 +1,13 @@
+commit 44dffd92fc03917868105eb405c6f4bbe0fccadd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 7 17:57:19 2008 -0700
+
+    - accept new semicolon syntax (at the moment,
+    the parser accepts a bit more then it should)
+    
+    R=r
+    OCL=16694
+    CL=16694
+
+ usr/gri/pretty/parser.go | 89 +++++++++++++++++++++++++++---------------------
+ 1 file changed, 50 insertions(+), 39 deletions(-)

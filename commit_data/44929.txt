@@ -1,0 +1,22 @@
+commit 4230a6ebdd88f3f9202e1a55f993f6ac62f8f8e7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Apr 4 13:44:21 2021 +0200
+
+    os: don't use T.Cleanup in TestRemoveAllLongPath
+    
+    Revert CL 306290 changes to TestRemoveAllLongPath. This breaks the test
+    on aix, illumos and solaris. We need to chdir out of startPath before
+    attempting to remove it.
+    
+    Updates #45182
+    
+    Change-Id: Ic14fa1962d6f2cc83238f6fc2c6932fd9a6e52a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307189
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ src/os/os_windows_test.go | 19 +++++++++++++++++++
+ src/os/removeall_test.go  | 35 +++++++++++++++--------------------
+ 2 files changed, 34 insertions(+), 20 deletions(-)

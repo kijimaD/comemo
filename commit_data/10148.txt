@@ -1,0 +1,13 @@
+commit eef78091932aafec2b8030bc1927699b551d119b
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Oct 31 10:58:04 2011 +0100
+
+    exp/norm: fixed bug that creeped in with moving to the new
+    regexp, which caused the last line of a test block to be ignored.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/5177052
+
+ src/pkg/exp/norm/maketables.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

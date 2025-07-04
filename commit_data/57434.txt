@@ -1,0 +1,19 @@
+commit 1dfb33e8612d20f41cf4e034d9d0838abf75e04b
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Sep 11 15:48:56 2024 +0000
+
+    html/template: use maps.Copy in escaper.escapeListConditionally
+    
+    To make it a little simpler.
+    
+    Change-Id: I0d7f015e8f245fbdd8c5cf5c10e8d2bd44b91021
+    GitHub-Last-Rev: 2eae47fe8bc5704de86a91ac87c76e49f51d2fe7
+    GitHub-Pull-Request: golang/go#69396
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612397
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/html/template/escape.go | 17 +++++------------
+ 1 file changed, 5 insertions(+), 12 deletions(-)

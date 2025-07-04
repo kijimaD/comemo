@@ -1,0 +1,31 @@
+commit ca1e509552cab36072016de44234f30072b9e703
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Mar 18 20:15:15 2022 -0400
+
+    cmd/dist: delete special case for release branches without VERSION
+    
+    findgoversion has some logic from before the go1 release that only
+    has effect when on a release branch without a VERSION file.
+    
+    Starting with release-branch.go1 and the go1 tag a decade ago,
+    release branch have always had a VERSION file checked in.
+    (The commit that adds/updates the VERSION file is what is tagged.)
+    
+    Since we have no need to support old branches like release-branch.r60,
+    and such scenarios don't come up in modern Go, delete it to simplify
+    this code a bit. Should the VERSION file situation change, we'd need
+    to rework this code anyway.
+    
+    Fixes #42345.
+    
+    Change-Id: I13f27babd37aaa5cec30fefde1b8e6ccce816461
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393954
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go | 78 +++++++++++----------------------------------------
+ 1 file changed, 17 insertions(+), 61 deletions(-)

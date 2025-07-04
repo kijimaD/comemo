@@ -1,0 +1,23 @@
+commit 70f4717e96cf9d8ca8a5f439d7d6487ec822ce49
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Oct 14 15:30:13 2024 -0700
+
+    os: use relative paths in a test dir in TestOpenError
+    
+    Refactor TestOpenError to use relative paths in test cases,
+    in preparation for extending it to test os.Root.
+    
+    Use a test temporary directory instead of system directory
+    with presumed-known contents.
+    
+    Move the testcase type and case definitions inline with the test.
+    
+    For #67002
+    
+    Change-Id: Idc53dd9fcecf763d3e4eb3b4643032e3003d7ef4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620157
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/os/os_test.go | 45 +++++++++++++++++++++++----------------------
+ 1 file changed, 23 insertions(+), 22 deletions(-)

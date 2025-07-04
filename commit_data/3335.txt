@@ -1,0 +1,14 @@
+commit eae0906bed1c882a90b6627fc82b4ca72906e9b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 21 15:48:22 2009 -0700
+
+    rewrite RET, indirect CALL, indirect JMP for nacl.
+    can JMP or CALL indirect through a register R
+    provided the preceding instruction is AND $~31, R.
+    
+    R=ken
+    OCL=34863
+    CL=34867
+
+ src/cmd/8l/span.c | 69 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 66 insertions(+), 3 deletions(-)

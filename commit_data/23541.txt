@@ -1,0 +1,33 @@
+commit 214c7a2c43a43fd05e3b94dbc67e7d0082460986
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Jun 27 12:57:06 2015 -0700
+
+    cmd/link/internal/ld: exclude only real container symbols from symtab
+    
+    It looks like the test for whether symbols contain subsymbols is wrong.
+    In particular, symbols in C libraries are mistakenly considered container
+    symbols.
+    
+    Fix the test so only symbols which actually have a subsymbol
+    are excluded from the symtab.  When linking cgo programs the list
+    of containers is small, something like:
+    
+    container _/home/khr/sandbox/symtab/misc/cgo/test(.text)<74>
+    container _/home/khr/sandbox/symtab/misc/cgo/test/issue8828(.text)<75>
+    container _/home/khr/sandbox/symtab/misc/cgo/test/issue9026(.text)<76>
+    container runtime/cgo(.text)<77>
+    
+    I'm not sure this is the right fix.  In particular I can't reproduce
+    the original problem.  Anyone have a repro they can try and see if
+    this fix works?
+    
+    Fixes #10747
+    Fixes #11396
+    
+    Change-Id: Id8b016389d33348b4a791fdcba0f9db8ae71ebf3
+    Reviewed-on: https://go-review.googlesource.com/11652
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/obj/link.go     | 7 ++++---
+ src/cmd/link/internal/ld/pcln.go | 9 ++++++++-
+ 2 files changed, 12 insertions(+), 4 deletions(-)

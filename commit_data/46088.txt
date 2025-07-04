@@ -1,0 +1,19 @@
+commit 65074a40867d9c42a6b89f96b9eeef5a39234846
+Author: Manlio Perillo <manlio.perillo@gmail.com>
+Date:   Fri May 21 22:21:09 2021 +0200
+
+    cmd/dist: remove unused variables
+    
+    Remove the unused defaultcflags and defaultldflags variables.
+    
+    Reported by staticcheck.
+    
+    Change-Id: Icc42f2e670496dbe2ffb26abe25128d8e53e2a6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321931
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/cmd/dist/build.go | 5 -----
+ 1 file changed, 5 deletions(-)

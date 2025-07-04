@@ -1,0 +1,15 @@
+commit a44009ca78b26ffc7ecda006131c424b3e7d9075
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 3 11:56:02 2013 +1000
+
+    cmd/go: git checkout the correct default branch.
+    
+    origin/master is always a remote branch, and it doesn't make sense to
+    switch to a remote branch. master is the default branch that tracks it.
+    
+    R=adg
+    CC=golang-dev, matt.jibson
+    https://golang.org/cl/10869046
+
+ src/cmd/go/vcs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit affcfe5a750db21c40d6fb62c7f2ac9add818564
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Nov 16 13:39:59 2009 -0800
+
+    Add some primitive type aliases to exp/iterable and define Iter on them.
+    
+    R=rsc
+    https://golang.org/cl/155065
+
+ src/pkg/exp/iterable/Makefile         |  1 +
+ src/pkg/exp/iterable/array.go         | 59 +++++++++++++++++++++++++++++++++++
+ src/pkg/exp/iterable/iterable_test.go | 29 ++++++++++-------
+ 3 files changed, 78 insertions(+), 11 deletions(-)

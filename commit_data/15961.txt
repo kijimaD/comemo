@@ -1,0 +1,14 @@
+commit 8eaa94293388848485093c3f0c65b1188dccaaea
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 26 23:08:08 2013 -0700
+
+    net/textproto: add "Cookie" to the common headers list
+    
+    Seems to have been omitted before.
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7749049
+
+ src/pkg/net/textproto/reader.go | 1 +
+ 1 file changed, 1 insertion(+)

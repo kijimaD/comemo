@@ -1,0 +1,13 @@
+commit c4d0ac0e2f7a12cf44f4711b47bbc5737c14ce9c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Dec 1 08:30:16 2011 -0200
+
+    exp/ssh: add Std{in,out,err}Pipe methods to Session
+    
+    R=gustav.paul, cw, agl, rsc, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5433080
+
+ src/pkg/exp/ssh/session.go      |  87 +++++++++++++++++++----
+ src/pkg/exp/ssh/session_test.go | 149 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 224 insertions(+), 12 deletions(-)

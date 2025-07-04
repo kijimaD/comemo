@@ -1,0 +1,18 @@
+commit b72636cbde8e241ae216748ad915a9f9cf620988
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Mar 28 15:16:30 2017 -0700
+
+    cmd/compile/internal/gc: cleanup selecttype
+    
+    Use namedfield consistently.
+    
+    Passes toolstash-check.
+    
+    Change-Id: Ic5a3acb4bfaa1f60dd2eac94612160509e8d7f94
+    Reviewed-on: https://go-review.googlesource.com/38741
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/select.go | 55 +++++++++++++++++------------------
+ 1 file changed, 26 insertions(+), 29 deletions(-)

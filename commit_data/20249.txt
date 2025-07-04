@@ -1,0 +1,17 @@
+commit ac49e6735bb3757a16816f7400ce823cd6fc8508
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Sep 2 00:14:22 2014 -0400
+
+    runtime: convert cpuprof from C to Go
+    
+    LGTM=dvyukov, rsc
+    R=golang-codereviews, dvyukov, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/132440043
+
+ src/pkg/runtime/cpuprof.go  | 424 +++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/cpuprof.goc | 433 --------------------------------------------
+ src/pkg/runtime/debug.go    |  19 --
+ src/pkg/runtime/proc.c      |  17 +-
+ src/pkg/runtime/runtime.h   |   2 +-
+ 5 files changed, 431 insertions(+), 464 deletions(-)

@@ -1,0 +1,18 @@
+commit a608377545e95200a94040eff7b62b95c9ab41ed
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 21 19:43:18 2015 +0000
+
+    Revert "go/internal/gcimporter: populate (*types.Package).Imports"
+    
+    This reverts commit 8d7d02f14525874eafb6b0a00916bdb0bc24bc03.
+    
+    Reverted because it breaks go/build's "deps" test.
+    
+    Change-Id: I61db6b2431b3ba0d2b3ece5bab7a04194239c34b
+    Reviewed-on: https://go-review.googlesource.com/9174
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/gcimporter/gcimporter.go      | 90 +++++++++------------------
+ src/go/internal/gcimporter/gcimporter_test.go | 22 ++-----
+ src/go/types/package.go                       |  6 +-
+ 3 files changed, 35 insertions(+), 83 deletions(-)

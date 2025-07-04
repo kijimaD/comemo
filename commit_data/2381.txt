@@ -1,0 +1,16 @@
+commit 4be7067f42af0fd716c9fb5495ceaa2ff0c4f46d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 4 13:33:48 2009 -0700
+
+    machine-generated files for CL 29882
+    
+    R=r
+    DELTA=1652  (1652 added, 0 deleted, 0 changed)
+    OCL=29883
+    CL=29887
+
+ src/lib/syscall/zerrors_linux_386.go  | 316 +++++++++++++++
+ src/lib/syscall/zsyscall_linux_386.go | 720 ++++++++++++++++++++++++++++++++++
+ src/lib/syscall/zsysnum_linux_386.go  | 319 +++++++++++++++
+ src/lib/syscall/ztypes_linux_386.go   | 297 ++++++++++++++
+ 4 files changed, 1652 insertions(+)

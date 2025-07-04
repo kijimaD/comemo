@@ -1,0 +1,16 @@
+commit 12a4d84371d6d60b715d2fca3fe9bb45d5ca7454
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 28 17:11:54 2010 -0700
+
+    gob: add DecodeValue and EncodeValue
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1698045
+
+ src/pkg/gob/codec_test.go |  2 +-
+ src/pkg/gob/decode.go     |  8 ++++----
+ src/pkg/gob/decoder.go    | 13 ++++++++++---
+ src/pkg/gob/encode.go     | 13 ++++++-------
+ src/pkg/gob/encoder.go    | 12 +++++++++---
+ 5 files changed, 30 insertions(+), 18 deletions(-)

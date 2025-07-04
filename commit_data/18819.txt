@@ -1,0 +1,27 @@
+commit 6431be3fe414a73c84da6ef0777e04b4afadede0
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 11 14:43:10 2014 +1100
+
+    runtime: more Native Client fixes
+    
+    Thanks to Ian for spotting these.
+    
+    runtime.h: define uintreg correctly.
+    stack.c: address warning caused by the type of uintreg being 32 bits on amd64p32.
+    
+    Commentary (mainly for my own use)
+    
+    nacl/amd64p32 defines a machine with 64bit registers, but address space is limited to a 4gb window (the window is placed randomly inside the full 48 bit virtual address space of a process). To cope with this 6c defines _64BIT and _64BITREG.
+    
+    _64BITREG is always defined by 6c, so both GOARCH=amd64 and GOARCH=amd64p32 use 64bit wide registers.
+    
+    However _64BIT itself is only defined when 6c is compiling for amd64 targets. The definition is elided for amd64p32 environments causing int, uint and other arch specific types to revert to their 32bit definitions.
+    
+    LGTM=iant
+    R=iant, rsc, remyoudompheng
+    CC=golang-codereviews
+    https://golang.org/cl/72860046
+
+ src/pkg/runtime/runtime.h | 6 ++----
+ src/pkg/runtime/stack.c   | 2 +-
+ 2 files changed, 3 insertions(+), 5 deletions(-)

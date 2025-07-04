@@ -1,0 +1,23 @@
+commit 28ed2b0cd9ad6e2015f073931c05c08e8bf7b247
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Sep 9 12:04:22 2016 -0400
+
+    cmd/link: skip arch-specific main function
+    
+    Add some notes to main.go on what happens where.
+    
+    Change-Id: I4fb0b6c280e5f990ddc5d749267372b86870af6d
+    Reviewed-on: https://go-review.googlesource.com/28970
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/amd64/obj.go  |  9 +--------
+ src/cmd/link/internal/arm/obj.go    |  9 +--------
+ src/cmd/link/internal/arm64/obj.go  |  9 +--------
+ src/cmd/link/internal/mips64/obj.go |  9 +--------
+ src/cmd/link/internal/ppc64/obj.go  |  9 +--------
+ src/cmd/link/internal/s390x/obj.go  |  9 +--------
+ src/cmd/link/internal/x86/obj.go    |  9 +--------
+ src/cmd/link/main.go                | 30 +++++++++++++++++++++++-------
+ 8 files changed, 30 insertions(+), 63 deletions(-)

@@ -1,0 +1,32 @@
+commit 2f6e7f0ed16004e1ac40e7108878fd4ec99bb15d
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Wed Sep 30 00:47:48 2020 -0700
+
+    src/go.mod, net/http: update bundled and latest golang.org/x/net
+    
+    Updates x/net/http2 to git rev 5d4f7005572804eaf7f5ecdd2473a62557f733ba
+    
+        http2: send WINDOW_UPDATE on a body's write failure
+        https://golang.org/cl/245158 (fixes #40423)
+    
+    also updates the vendored version of golang.org/x/net as per
+    
+    $ go get golang.org/x/net@5d4f700557
+    $ go mod tidy
+    $ go mod vendor
+    $ go generate -run bundle std
+    
+    For #40423.
+    
+    Change-Id: I3270d0fb6f28889266596f7365d36d30ef2bb368
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258359
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go.mod                | 2 +-
+ src/go.sum                | 4 ++--
+ src/net/http/h2_bundle.go | 1 +
+ src/vendor/modules.txt    | 2 +-
+ 4 files changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,21 @@
+commit 6ffd135256fddc4963a91ee0f6cd7f08ed43e43e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu May 18 17:12:26 2023 +0000
+
+    Revert "cmd/compile: build compiler with PGO"
+    
+    This reverts CL 495596.
+    
+    Reason for revert: duplicate symbol failures in x/tools and random PPC crashes.
+    
+    Change-Id: I57305f8e72ee1567dc5a6a829c2d70fb5719028a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496185
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/default.pgo | Bin 355761 -> 0 bytes
+ src/cmd/compile/profile.sh  |  21 ---------------------
+ src/cmd/dist/buildtool.go   |   4 ----
+ 3 files changed, 25 deletions(-)

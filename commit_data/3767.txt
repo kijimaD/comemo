@@ -1,0 +1,12 @@
+commit 56cba8855ec4439c7e929e3368ed160bd8f0eaaf
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 4 15:13:16 2009 -0800
+
+    panic can't print interfaces well so use  err.String()
+    
+    R=rsc
+    http://go/go-review/1016041
+
+ src/pkg/regexp/regexp.go     | 2 +-
+ src/pkg/template/template.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,41 @@
+commit cc158403d618eafc476b0727f44e4468c61060f6
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Mar 10 16:15:26 2016 -0500
+
+    cmd/compile: track reflect.Type.Method in deadcode
+    
+    In addition to reflect.Value.Call, exported methods can be invoked
+    by the Func value in the reflect.Method struct. This CL has the
+    compiler track what functions get access to a legitimate reflect.Method
+    struct by looking for interface calls to either of:
+    
+            Method(int) reflect.Method
+            MethodByName(string) (reflect.Method, bool)
+    
+    This is a little overly conservative. If a user implements a type
+    with one of these methods without using the underlying calls on
+    reflect.Type, the linker will assume the worst and include all
+    exported methods. But it's cheap.
+    
+    No change to any of the binary sizes reported in cl/20483.
+    
+    For #14740
+    
+    Change-Id: Ie17786395d0453ce0384d8b240ecb043b7726137
+    Reviewed-on: https://go-review.googlesource.com/20489
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/pgen.go   |  3 +++
+ src/cmd/compile/internal/gc/syntax.go |  9 ++++----
+ src/cmd/compile/internal/gc/walk.go   | 43 +++++++++++++++++++++++++++++++++++
+ src/cmd/internal/obj/link.go          |  9 ++++++++
+ src/cmd/internal/obj/objfile.go       |  9 +++++++-
+ src/cmd/internal/obj/textflag.go      |  3 +++
+ src/cmd/link/internal/ld/deadcode.go  | 14 ++++++++----
+ src/cmd/link/internal/ld/link.go      |  2 ++
+ src/cmd/link/internal/ld/objfile.go   | 10 +++++---
+ src/runtime/textflag.h                |  4 ++++
+ test/reflectmethod1.go                | 30 ++++++++++++++++++++++++
+ test/reflectmethod2.go                | 36 +++++++++++++++++++++++++++++
+ test/reflectmethod3.go                | 35 ++++++++++++++++++++++++++++
+ 13 files changed, 195 insertions(+), 12 deletions(-)

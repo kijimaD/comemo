@@ -1,0 +1,22 @@
+commit bd8977be0c429a6eec8a99bfefc4e41c74891865
+Author: j2gg0s <j2gg0s@gmail.com>
+Date:   Thu Aug 15 02:11:44 2024 +0000
+
+    encoding/json: merge FieldStack if the error's Field exists.
+    
+    When people return UnmarshalTypeError in UnmarshalJSON, we should append error's Field to FieldStack.
+    
+    Fixes #68750
+    
+    Change-Id: I0a5a9b259a1b569de1bebc815ec936c913e10469
+    GitHub-Last-Rev: 18796addc3fa0d367ba1a3f4bd268ca246890fe0
+    GitHub-Pull-Request: golang/go#68870
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605455
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/encoding/json/decode.go      |  6 +++++-
+ src/encoding/json/decode_test.go | 16 ++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)

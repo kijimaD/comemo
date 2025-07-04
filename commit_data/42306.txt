@@ -1,0 +1,99 @@
+commit 6f52790a20a2432ae61e0ec9852a3df823a16d40
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Apr 2 17:10:13 2020 -0400
+
+    crypto/x509: use Security.framework without cgo for roots on macOS
+    
+    +----------------------------------------------------------------------+
+    | Hello, if you are reading this and run macOS, please test this code: |
+    |                                                                      |
+    | $ GO111MODULE=on go get golang.org/dl/gotip@latest                   |
+    | $ gotip download                                              |
+    | $ GODEBUG=x509roots=1 gotip test crypto/x509 -v -run TestSystemRoots |
+    +----------------------------------------------------------------------+
+    
+    We currently have two code paths to extract system roots on macOS: one
+    uses cgo to invoke a maze of Security.framework APIs; the other is a
+    horrible fallback that runs "/usr/bin/security verify-cert" on every
+    root that has custom policies to check if it's trusted for SSL.
+    
+    The fallback is not only terrifying because it shells out to a binary,
+    but also because it lets in certificates that are not trusted roots but
+    are signed by trusted roots, and because it applies some filters (EKUs
+    and expiration) only to roots with custom policies, as the others are
+    not passed to verify-cert. The other code path, of course, requires cgo,
+    so can't be used when cross-compiling and involves a large ball of C.
+    
+    It's all a mess, and it broke oh-so-many times (#14514, #16532, #19436,
+     #20990, #21416, #24437, #24652, #25649, #26073, #27958, #28025, #28092,
+     #29497, #30471, #30672, #30763, #30889, #32891, #38215, #38365, ...).
+    
+    Since macOS does not have a stable syscall ABI, we already dynamically
+    link and invoke libSystem.dylib regardless of cgo availability (#17490).
+    
+    How that works is that functions in package syscall (like syscall.Open)
+    take the address of assembly trampolines (like libc_open_trampoline)
+    that jump to symbols imported with cgo_import_dynamic (like libc_open),
+    and pass them along with arguments to syscall.syscall (which is
+    implemented as runtime.syscall_syscall). syscall_syscall informs the
+    scheduler and profiler, and then uses asmcgocall to switch to a system
+    stack and invoke runtime.syscall. The latter is an assembly trampoline
+    that unpacks the Go ABI arguments passed to syscall.syscall, finally
+    calls the remote function, and puts the return value on the Go stack.
+    (This last bit is the part that cgo compiles from a C wrapper.)
+    
+    We can do something similar to link and invoke Security.framework!
+    
+    The one difference is that runtime.syscall and friends check errors
+    based on the errno convention, which Security doesn't follow, so I added
+    runtime.syscallNoErr which just skips interpreting the return value.
+    We only need a variant with six arguments because the calling convention
+    is register-based, and extra arguments simply zero out some registers.
+    
+    That's plumbed through as crypto/x509/internal/macOS.syscall. The rest
+    of that package is a set of wrappers for Security.framework and Core
+    Foundation functions, like syscall is for libSystem. In theory, as long
+    as macOS respects ABI backwards compatibility (a.k.a. as long as
+    binaries built for a previous OS version keep running) this should be
+    stable, as the final result is not different from what a C compiler
+    would make. (One exception might be dictionary key strings, which we
+    make our own copy of instead of using the dynamic symbol. If they change
+    the value of those strings things might break. But why would they.)
+    
+    Finally, I rewrote the crypto/x509 cgo logic in Go using those wrappers.
+    It works! I tried to make it match 1:1 the old logic, so that
+    root_darwin_amd64.go can be reviewed by comparing it to
+    root_cgo_darwin_amd64.go. The only difference is that we do proper error
+    handling now, and assume that if there is no error the return values are
+    there, while before we'd just check for nil pointers and move on.
+    
+    I kept the cgo logic to help with review and testing, but we should
+    delete it once we are confident the new code works.
+    
+    The nocgo logic is gone and we shall never speak of it again.
+    
+    Fixes #32604
+    Fixes #19561
+    Fixes #38365
+    Awakens Cthulhu
+    
+    Change-Id: Id850962bad667f71e3af594bdfebbbb1edfbcbb4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/227037
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/crypto/x509/internal/macOS/corefoundation.go   | 141 ++++++++++
+ src/crypto/x509/internal/macOS/corefoundation.s    |  26 ++
+ src/crypto/x509/internal/macOS/security.go         | 116 +++++++++
+ src/crypto/x509/internal/macOS/security.s          |  16 ++
+ ...root_cgo_darwin.go => root_cgo_darwin_amd64.go} |  12 +-
+ src/crypto/x509/root_darwin.go                     | 288 ---------------------
+ src/crypto/x509/root_darwin_amd64.go               | 222 ++++++++++++++++
+ src/crypto/x509/root_darwin_arm64.go               |  13 +-
+ ..._darwin_arm_gen.go => root_darwin_arm64_gen.go} |  16 +-
+ src/crypto/x509/root_darwin_test.go                |  98 ++-----
+ src/crypto/x509/root_nocgo_darwin.go               |  11 -
+ src/crypto/x509/root_omit.go                       |   7 +
+ src/go/build/deps_test.go                          |   5 +-
+ src/runtime/sys_darwin.go                          |  17 +-
+ src/runtime/sys_darwin_amd64.s                     |  26 ++
+ 15 files changed, 620 insertions(+), 394 deletions(-)

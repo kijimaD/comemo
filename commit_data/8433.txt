@@ -1,0 +1,14 @@
+commit 82ddf970947dd4502ac966d5d90d5e3f1dd3d99a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 18 11:02:08 2011 -0700
+
+    big: support %v and # modifier, better handling of unknown formats
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4536065
+
+ src/pkg/big/int.go      | 40 +++++++++++++++++++++++++-------
+ src/pkg/big/int_test.go | 61 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/big/nat.go      |  5 ++--
+ 3 files changed, 96 insertions(+), 10 deletions(-)

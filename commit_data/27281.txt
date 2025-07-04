@@ -1,0 +1,31 @@
+commit 57be1607d975ebec2f5faecea068f2db31abc041
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue May 3 16:37:33 2016 +1000
+
+    debug/pe: unexport newly introduced identifiers
+    
+    CLs 22181, 22332 and 22336 intorduced new functionality to be used
+    in cmd/link (see issue #15345 for details). But we didn't have chance
+    to use new functionality yet. Unexport newly introduced identifiers,
+    so we don't have to commit to the API until we actually tried it.
+    
+    Rename File.COFFSymbols into File._COFFSymbols,
+    COFFSymbol.FullName into COFFSymbol._FullName,
+    Section.Relocs into Section._Relocs,
+    Reloc into _Relocs,
+    File.StringTable into File._StringTable and
+    StringTable into _StringTable.
+    
+    Updates #15345
+    
+    Change-Id: I770eeb61f855de85e0c175225d5d1c006869b9ec
+    Reviewed-on: https://go-review.googlesource.com/22720
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/debug/pe/file.go    | 14 +++++++-------
+ src/debug/pe/section.go | 12 ++++++------
+ src/debug/pe/string.go  | 10 +++++-----
+ src/debug/pe/symbol.go  |  8 ++++----
+ 4 files changed, 22 insertions(+), 22 deletions(-)

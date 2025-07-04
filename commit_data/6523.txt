@@ -1,0 +1,12 @@
+commit 9b15ad8c228c51ba70ffea24434a337956799067
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 14 10:45:32 2010 -0400
+
+    arm: adjust recover for new reflect.call
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2471043
+
+ src/pkg/runtime/proc.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit 32e459a09cd2da967fc2c0accf197fecc7b658d5
+Author: Mostyn Bramley-Moore <mostyn@antipode.se>
+Date:   Mon Mar 5 22:04:47 2018 +0000
+
+    path/filepath: use a temp dir in path_test.go
+    
+    We should avoid writing temp files to GOROOT, since it might be readonly.
+    
+    Fixes #23881
+    
+    Change-Id: Iaa38ec404b303f0cf27fdfb7daf1ddd60fd5d1c9
+    GitHub-Last-Rev: de0211df8474cc3bbef40f792e2f85b3b6ee259c
+    GitHub-Pull-Request: golang/go#24238
+    Reviewed-on: https://go-review.googlesource.com/98517
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/filepath/path_test.go | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

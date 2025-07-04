@@ -1,0 +1,23 @@
+commit 957255f5ab1ca4aff3195a20b80fe2aa4eb9e336
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jan 21 19:27:34 2015 +0900
+
+    net/http: don't send IPv6 zone identifier in outbound request, per RFC 6874
+    
+    When making a request to an IPv6 address with a zone identifier, for
+    exmaple [fe80::1%en0], RFC 6874 says HTTP clients must remove the zone
+    identifier "%en0" before writing the request for security reason.
+    
+    This change removes any IPv6 zone identifer attached to URI in the Host
+    header field in requests.
+    
+    Fixes #9544.
+    
+    Change-Id: I7406bd0aa961d260d96f1f887c2e45854e921452
+    Reviewed-on: https://go-review.googlesource.com/3111
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/request.go           | 24 ++++++++++++++++++++++--
+ src/net/http/request_test.go      | 30 ++++++++++++++++++++++++------
+ src/net/http/requestwrite_test.go | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 77 insertions(+), 8 deletions(-)

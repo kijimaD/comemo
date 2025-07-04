@@ -1,0 +1,21 @@
+commit e48cf0db4edb139901946fcee1497bd539229d71
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Sep 29 13:05:37 2021 -0400
+
+    cmd/compile: rename some types2.Context variables from env to ctxt
+    
+    Rename some variables in the compiler that were missed in CL 353089.
+    
+    Change-Id: Ie748fe9b64e584a841d08ff60c439c93aae412d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353149
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/importer/iimport.go | 2 +-
+ src/cmd/compile/internal/noder/import.go     | 4 ++--
+ src/cmd/compile/internal/noder/irgen.go      | 6 +++---
+ src/cmd/compile/internal/noder/reader2.go    | 8 ++++----
+ src/cmd/compile/internal/noder/unified.go    | 4 ++--
+ src/go/internal/gcimporter/iimport.go        | 2 +-
+ 6 files changed, 13 insertions(+), 13 deletions(-)

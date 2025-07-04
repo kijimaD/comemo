@@ -1,0 +1,25 @@
+commit 231f290e51e130a1699d5c29d28133d68f43d2e9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Apr 4 12:49:39 2023 +0700
+
+    runtime: mark map bucket slots as empty during map clear
+    
+    So iterators that are in progress can know entries have been deleted and
+    terminate the iterator properly.
+    
+    Update #55002
+    Update #56351
+    Fixes #59411
+    
+    Change-Id: I924f16a00fe4ed6564f730a677348a6011d3fb67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481935
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/map.go           | 16 +++++++++
+ test/fixedbugs/issue59411.go | 77 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 93 insertions(+)

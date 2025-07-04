@@ -1,0 +1,29 @@
+commit 59ce067da8d9e7d968e51f31fb532ed2369f205a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 23 15:42:13 2011 -0500
+
+    runtime: omit breakpoint during terminal panic
+    
+    A terminal panic (one that prints a stack trace and exits)
+    has been calling runtime.breakpoint before calling exit,
+    so that if running under a debugger, the debugger can
+    take control.  When not running under a debugger, though,
+    this causes an additional SIGTRAP on Unix and pop-up
+    dialogs on Windows.
+    
+    Support for debugging Go programs has gotten good
+    enough that we can rely on the debugger to set its own
+    breakpoint on runtime.exit if it wants to look around.
+    
+    R=r, r2
+    CC=golang-dev
+    https://golang.org/cl/4222043
+
+ src/pkg/runtime/darwin/386/signal.c    | 1 -
+ src/pkg/runtime/darwin/amd64/signal.c  | 1 -
+ src/pkg/runtime/freebsd/386/signal.c   | 1 -
+ src/pkg/runtime/freebsd/amd64/signal.c | 1 -
+ src/pkg/runtime/linux/386/signal.c     | 1 -
+ src/pkg/runtime/linux/amd64/signal.c   | 1 -
+ src/pkg/runtime/windows/386/signal.c   | 1 -
+ 7 files changed, 7 deletions(-)

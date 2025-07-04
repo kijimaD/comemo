@@ -1,0 +1,12 @@
+commit 5d6ea6f70ee340f13beeee9af0b326d302cabfe7
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 30 15:32:51 2013 +1000
+
+    doc/go1.2.txt: compress/flate changes
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13324046
+
+ doc/go1.2.txt | 1 +
+ 1 file changed, 1 insertion(+)

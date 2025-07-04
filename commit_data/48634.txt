@@ -1,0 +1,20 @@
+commit c4efe7fb2777fca05a904b0c62bee8915e13b03f
+Author: Olivier Szika <olivier.szika@vadesecure.com>
+Date:   Fri Jul 30 12:02:51 2021 +0200
+
+    mime/multipart: allow nested boundary with outer boundary+dash prefix
+    
+    Fixes #46042
+    
+    Change-Id: Icd243eb12c6e260aeead04710f12340048a0e859
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/338549
+    Trust: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/mime/multipart/multipart.go      | 21 ++++++++-
+ src/mime/multipart/multipart_test.go | 84 ++++++++++++++++++++++++++++++------
+ 2 files changed, 91 insertions(+), 14 deletions(-)

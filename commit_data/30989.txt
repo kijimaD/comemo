@@ -1,0 +1,27 @@
+commit 094498c9a13cd711ed45a65b153393eb8ae1566b
+Author: Eric Lagergren <ericscottlagergren@gmail.com>
+Date:   Mon Apr 3 15:54:20 2017 -0700
+
+    all: fix minor misspellings
+    
+    Change-Id: I1f1cfb161640eb8756fb1a283892d06b30b7a8fa
+    Reviewed-on: https://go-review.googlesource.com/39356
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/bytes/bytes.go                            | 2 +-
+ src/bytes/bytes_amd64.s                       | 2 +-
+ src/cmd/compile/internal/syntax/nodes_test.go | 2 +-
+ src/context/context_test.go                   | 2 +-
+ src/go/types/object.go                        | 2 +-
+ src/hash/crc32/crc32_ppc64le.s                | 2 +-
+ src/hash/crc32/crc32_s390x.s                  | 2 +-
+ src/math/big/int_test.go                      | 2 +-
+ src/net/http/request.go                       | 2 +-
+ src/os/os_windows_test.go                     | 2 +-
+ src/runtime/memmove_amd64.s                   | 2 +-
+ src/runtime/pprof/label_test.go               | 2 +-
+ src/runtime/rt0_linux_mips64x.s               | 2 +-
+ src/runtime/syscall_windows_test.go           | 2 +-
+ 14 files changed, 14 insertions(+), 14 deletions(-)

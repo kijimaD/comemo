@@ -1,0 +1,15 @@
+commit a1778ec1462c2f3f8865e02e5fd7e72ee25c2b64
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Jul 9 23:55:35 2014 -0400
+
+    runtime: ignore exceptions from foreign threads.
+    Fixes #8224.
+    
+    LGTM=alex.brainman, rsc
+    R=alex.brainman, rsc, dave
+    CC=golang-codereviews
+    https://golang.org/cl/104200046
+
+ src/pkg/runtime/sys_windows_386.s   | 5 +++++
+ src/pkg/runtime/sys_windows_amd64.s | 5 +++++
+ 2 files changed, 10 insertions(+)

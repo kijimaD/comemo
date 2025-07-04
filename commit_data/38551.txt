@@ -1,0 +1,18 @@
+commit b7b7b4d6d4304758c15de940c36ab7d063249ef2
+Author: Keith Randall <keithr@alum.mit.edu>
+Date:   Mon Mar 25 20:29:18 2019 -0700
+
+    reflect: initialize ptrdata earlier in StructOf
+    
+    It needs to be set before addTypeBits is called.
+    
+    Fixes #31043
+    
+    Change-Id: I692b4047dc17bd68202d45da41dd55d432383e59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169318
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

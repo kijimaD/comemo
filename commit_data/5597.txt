@@ -1,0 +1,19 @@
+commit aae02a1855b162bdd0a1cce7707f0bc8054834d1
+Author: Kyle Consalus <consalus@gmail.com>
+Date:   Wed Jun 2 23:04:44 2010 -0700
+
+            Optimization to regexp _CharClass: keep track of overall range of
+        charclass to avoid unnecessarily iterating over ranges.
+        Also, use the fact that IntVector is an []int to avoid method calls.
+        On my machine, this brings us from ~27500 ns/op to ~17500 ns/op in the benchmark I've added (it is also faster in the case where a range check
+        doesn't help, added a benchmark for this too.)
+    
+        I'd also like to propose that "[]", and "[^]" be disallowed. They aren't useful as far as I can tell, they aren't widely supported, and they make reasoning about character classes a bit more complicated.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/1495041
+
+ src/pkg/regexp/all_test.go | 36 ++++++++++++++++++++++++++++++++----
+ src/pkg/regexp/regexp.go   | 22 ++++++++++++++++------
+ 2 files changed, 48 insertions(+), 10 deletions(-)

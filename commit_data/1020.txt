@@ -1,0 +1,15 @@
+commit 613a5c8bc6f766269a1073511b88f3e517e8aa4d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 31 15:26:14 2008 -0700
+
+    \x00 for NUL in type string.
+    
+    R=rsc
+    DELTA=14  (9 added, 0 deleted, 5 changed)
+    OCL=18281
+    CL=18281
+
+ src/lib/reflect/test.go     |  2 +-
+ src/lib/reflect/tostring.go |  2 +-
+ src/lib/reflect/type.go     | 15 ++++++++++++---
+ 3 files changed, 14 insertions(+), 5 deletions(-)

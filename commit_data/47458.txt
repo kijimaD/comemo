@@ -1,0 +1,18 @@
+commit 2fd720b78086eaa57559e38f6ad4fe51c09c3a17
+Author: Robert Findley <rfindley@google.com>
+Date:   Fri Nov 12 20:15:49 2021 -0500
+
+    test: fix longtest failures on fixedbugs/issue48471.go
+    
+    This test is failing with -G=0, so specify -G=3.
+    
+    Change-Id: I4c74707d0a43f8191cb0b156204604458ba85136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363699
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ test/fixedbugs/issue48471.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

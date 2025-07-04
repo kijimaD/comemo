@@ -1,0 +1,16 @@
+commit 3218b1aa6fffef560147bcbbcb313a5c8a5e0d76
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Apr 13 10:42:16 2017 +0200
+
+    cmd/compile: only print one error for bad-type literal in assignment
+    
+    Fixes #8438
+    
+    Change-Id: Ib43cdcdc962a8d9e14faf984bc859a92ba1eb517
+    Reviewed-on: https://go-review.googlesource.com/40531
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go |  4 +++-
+ test/fixedbugs/issue8438.go         | 17 +++++++++++++++++
+ test/interface/explicit.go          |  3 +--
+ 3 files changed, 21 insertions(+), 3 deletions(-)

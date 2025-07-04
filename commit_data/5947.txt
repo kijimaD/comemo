@@ -1,0 +1,15 @@
+commit 27e249049e9f303c994927a7ecb837cd5e85c512
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Aug 4 09:44:02 2010 +1000
+
+    bufio: introduce Peek.
+    
+    I'll leave whether or not this obsoletes UnreadByte for a future CL.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/1912042
+
+ src/pkg/bufio/bufio.go      | 40 ++++++++++++++++++++++++++++++++--------
+ src/pkg/bufio/bufio_test.go | 38 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 8 deletions(-)

@@ -1,0 +1,15 @@
+commit 13960ae8aef652bfd853c8311531b50f3d7f58c6
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jul 15 23:24:27 2009 -0700
+
+    exvar: new Timer var type.
+    
+    R=rsc
+    APPROVED=r
+    DELTA=146  (142 added, 0 deleted, 4 changed)
+    OCL=31654
+    CL=31716
+
+ src/pkg/Make.deps      | 2 +-
+ src/pkg/exvar/exvar.go | 8 ++++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

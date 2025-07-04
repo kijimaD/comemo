@@ -1,0 +1,16 @@
+commit b91a043d024ae027397abc1bca3fb7f7bb206861
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon May 18 22:11:22 2009 -0700
+
+    static initialization of slices
+    
+    R=r
+    OCL=29016
+    CL=29016
+
+ src/cmd/6g/gen.c  | 30 +++++++++++++++++--
+ src/cmd/gc/dcl.c  | 88 +++++++++++++++++++++++++++++++++++++++++--------------
+ src/cmd/gc/go.h   |  6 ++--
+ src/cmd/gc/subr.c | 14 +++++++++
+ src/cmd/gc/walk.c |  4 +++
+ 5 files changed, 115 insertions(+), 27 deletions(-)

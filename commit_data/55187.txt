@@ -1,0 +1,16 @@
+commit 58bfef82fcafdb13c6f456313d2972c4530a8193
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Dec 1 16:27:43 2023 -0500
+
+    net/http: avoid leaking io.Copy goroutines (and hijacked connections) in TestTransportNoReuseAfterEarlyResponse
+    
+    Fixes #64252 (maybe).
+    
+    Change-Id: Iba2a403a9347be4206f14acb11591dc2eb7f9fb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546616
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+
+ src/net/http/transport_test.go | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

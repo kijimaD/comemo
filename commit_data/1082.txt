@@ -1,0 +1,15 @@
+commit 175dd773e6808d755e276c13427c7d448dfa29a7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Nov 6 16:32:28 2008 -0800
+
+    simpleminded ascii to floating point conversion
+    
+    R=rsc
+    DELTA=111  (107 added, 0 deleted, 4 changed)
+    OCL=18720
+    CL=18725
+
+ src/lib/reflect/tostring.go |   2 +-
+ src/lib/strings.go          | 106 +++++++++++++++++++++++++++++++++++++++++++-
+ test/stringslib.go          |   5 +++
+ 3 files changed, 110 insertions(+), 3 deletions(-)

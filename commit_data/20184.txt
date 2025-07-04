@@ -1,0 +1,15 @@
+commit b50dd6090d2f6f12a8115fea354d384225574eaf
+Author: ChaiShushan <chaishushan@gmail.com>
+Date:   Thu Aug 28 15:04:03 2014 -0700
+
+    compress/flate: use go generate to create fixedhuff.go
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/137750043
+
+ src/pkg/compress/flate/fixedhuff.go |  2 +-
+ src/pkg/compress/flate/gen.go       | 55 +++++++++++++++++++++++++++----------
+ src/pkg/compress/flate/inflate.go   |  2 ++
+ 3 files changed, 43 insertions(+), 16 deletions(-)

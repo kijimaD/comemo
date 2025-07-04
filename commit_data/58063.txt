@@ -1,0 +1,22 @@
+commit f705cf8f96bef3f61ba65e62b0b9123d718d0d12
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 4 13:05:46 2024 +0100
+
+    crypto/rand: replace crypto/aes with internal/chacha8rand for plan9
+    
+    We will need to import this functionality from the FIPS module, and we
+    can't import AES from there. Plan 9 is not going to be FIPS validated
+    anyway, so we can use non-approved cryptography.
+    
+    For #69536
+    
+    Change-Id: I7921ec0829b576de2e80f3a7d0a9a776ff387684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624975
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/crypto/rand/rand_plan9.go | 64 +++++++++++++++++++------------------------
+ 1 file changed, 28 insertions(+), 36 deletions(-)

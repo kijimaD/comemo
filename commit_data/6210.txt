@@ -1,0 +1,13 @@
+commit dfb2af609919c0905a5229aa2d472858b8549d44
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Thu Sep 9 01:42:43 2010 -0400
+
+    path: add IsAbs
+    
+    R=rsc, imkrasin, r
+    CC=golang-dev
+    https://golang.org/cl/1969042
+
+ src/pkg/path/path.go      |  6 ++++++
+ src/pkg/path/path_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

@@ -1,0 +1,20 @@
+commit 57058327c837fbfe64f2c4e4422b82a25c123eda
+Author: Rob Pike <r@golang.org>
+Date:   Mon Apr 13 12:41:11 2015 -0700
+
+    fmt: empty byte slices should print nothing in hex
+    
+    The documentation is clear that formats like %02x applied to a
+    byte slice are per-element, so the result should be nothing if the
+    slice is empty. It's not, because the top-level padding routine is called.
+    It shouldn't be: the loop does the padding for us.
+    
+    Fixes #10430.
+    
+    Change-Id: I04ea0e804c0f2e70fff3701e5bf22acc90e890da
+    Reviewed-on: https://go-review.googlesource.com/8864
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/fmt_test.go | 8 ++++++++
+ src/fmt/format.go   | 2 +-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

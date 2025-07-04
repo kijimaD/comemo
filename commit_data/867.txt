@@ -1,0 +1,17 @@
+commit 6b49713df5fb89ad0946f28a559ac4c88b588a1d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 15 17:06:28 2008 -0700
+
+    snapshot of pretty printer:
+    - almost there, receivers, labels, composites, comments are not yet printed
+    - runs through 18KLOC of Go code and prints it again
+    
+    R=r
+    OCL=17237
+    CL=17237
+
+ usr/gri/pretty/Makefile   |  22 +++--
+ usr/gri/pretty/node.go    |  14 ++-
+ usr/gri/pretty/parser.go  | 101 ++++++++++++--------
+ usr/gri/pretty/printer.go | 231 ++++++++++++++++++++++++++++------------------
+ 4 files changed, 233 insertions(+), 135 deletions(-)

@@ -1,0 +1,30 @@
+commit c83b1a7013784098c2061ae7be832b2ab7241424
+Author: Rodrigo Orselli <97564847+orsll@users.noreply.github.com>
+Date:   Fri Jun 7 19:51:10 2024 +0000
+
+    sync: include links to the Go memory model in package documentation
+    
+    The lack of links to https://go.dev/ref/mem in the sync package
+    documentation makes it difficult to read for people who have no previous
+    knowledge of that page.  This PR includes the links where needed.
+    
+    Fixes #67891
+    
+    Change-Id: I0e1344cc6d7b702f4cb2e55fe0fcee3eb089391a
+    GitHub-Last-Rev: 427cf58aaeaae2e4b060248dd592e5fe8c6b7df4
+    GitHub-Pull-Request: golang/go#67892
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591395
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/sync/atomic/doc.go | 4 +++-
+ src/sync/cond.go       | 3 ++-
+ src/sync/map.go        | 4 +++-
+ src/sync/mutex.go      | 4 +++-
+ src/sync/once.go       | 4 +++-
+ src/sync/pool.go       | 4 +++-
+ src/sync/rwmutex.go    | 4 +++-
+ src/sync/waitgroup.go  | 4 +++-
+ 8 files changed, 23 insertions(+), 8 deletions(-)

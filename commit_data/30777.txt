@@ -1,0 +1,12 @@
+commit 19040ac871bb6873b7fa4747f0ffe479a2ce0ef9
+Author: Jason Travis <infomaniac7@gmail.com>
+Date:   Tue Mar 21 20:12:47 2017 -0700
+
+    test/bench/go1: fix typo in parserdata_test.go comment
+    
+    Change-Id: Iaca02660bdc8262db2b003a94aca661b5cec5576
+    Reviewed-on: https://go-review.googlesource.com/38437
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/bench/go1/parserdata_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit 363a5da3b86c2f90c0b2055c37617e8b3bc85fd8
+Author: Laurent Voisin <lpvoisin@gmail.com>
+Date:   Sun Nov 19 19:25:47 2017 +0100
+
+    cmd/go: fix typo in error message
+    
+    Change-Id: I9b618de68a5f2c89caae06d35a153cda2f466b6a
+    Reviewed-on: https://go-review.googlesource.com/78678
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/generate/generate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

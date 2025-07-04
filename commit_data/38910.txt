@@ -1,0 +1,22 @@
+commit f61353f2d9fda9b5d8ae3026f815986d749d530e
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Apr 26 16:40:01 2019 +0200
+
+    runtime: enable runtime_mmap_test.go on AIX
+    
+    AIX doesn't allow to mmap an address range which is already mmap.
+    Therefore, once the region has been allocated, it must munmap before
+    being able to play with it.
+    
+    Change-Id: I1547782f0379024f57869f1dda8c1c9bb12d831f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174059
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/defs_aix.go          | 2 +-
+ src/runtime/defs_aix_ppc64.go    | 2 +-
+ src/runtime/export_mmap_test.go  | 2 +-
+ src/runtime/mem_aix.go           | 8 ++++----
+ src/runtime/runtime_mmap_test.go | 7 ++++++-
+ 5 files changed, 13 insertions(+), 8 deletions(-)

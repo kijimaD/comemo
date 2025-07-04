@@ -1,0 +1,27 @@
+commit ba2e8f65ab36f145177419c56cc03adf67f0e167
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Nov 27 08:50:28 2018 -0500
+
+    cmd/go/internal/modfetch: make Repo.Zip write to an io.Writer instead of a temporary file
+    
+    This will be used to eliminate a redundant copy in CL 145178.
+    
+    (It also decouples two design points that were previously coupled: the
+    destination of the zip output and the program logic to write that
+    output.)
+    
+    Updates #26794
+    
+    Change-Id: I6cfd5a33c162c0016a1b83a278003684560a3772
+    Reviewed-on: https://go-review.googlesource.com/c/151341
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/modfetch/cache.go         |  5 +-
+ src/cmd/go/internal/modfetch/coderepo.go      | 67 +++++++++++----------------
+ src/cmd/go/internal/modfetch/coderepo_test.go |  8 +++-
+ src/cmd/go/internal/modfetch/fetch.go         | 26 +++++++----
+ src/cmd/go/internal/modfetch/proxy.go         | 30 ++++--------
+ src/cmd/go/internal/modfetch/repo.go          | 19 ++++----
+ 6 files changed, 71 insertions(+), 84 deletions(-)

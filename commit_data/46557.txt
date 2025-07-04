@@ -1,0 +1,16 @@
+commit 5b75a9b2c3078ab2ef8398c47be5b30ea02c03d3
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Sep 22 13:23:47 2021 -0400
+
+    cmd/compile: update comments with ABI aliases/wrappers
+    
+    ABI aliases are gone.
+    
+    Change-Id: I0f5676d8730cac14b7495dd6c0c1e08ca85a1c77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/351531
+    Trust: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/internal/ssagen/abi.go      | 9 +++------
+ src/cmd/compile/internal/staticdata/data.go | 2 +-
+ 2 files changed, 4 insertions(+), 7 deletions(-)

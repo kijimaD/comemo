@@ -1,0 +1,19 @@
+commit 1e308fbc1a5cc07c2a587bb56a175a0e2980f2e8
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Feb 27 18:54:50 2018 +0000
+
+    cmd/compile: improved error message when calling a shadowed builtin
+    
+    Otherwise, the error can be confusing if one forgets or doesn't know
+    that the builtin is being shadowed, which is not common practice.
+    
+    Fixes #22822.
+    
+    Change-Id: I735393b5ce28cb83815a1c3f7cd2e7bb5080a32d
+    Reviewed-on: https://go-review.googlesource.com/97455
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 10 +++++++++-
+ src/cmd/compile/internal/gc/universe.go  | 11 +++++++++++
+ test/fixedbugs/issue22822.go             | 16 ++++++++++++++++
+ 3 files changed, 36 insertions(+), 1 deletion(-)

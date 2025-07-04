@@ -1,0 +1,21 @@
+commit df6396fc22823e9ab666d2d06c86f219d5129926
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Fri Apr 7 18:41:10 2023 +0100
+
+    reflect: remove typedmemmovepartial as it is unused
+    
+    It appears to have been unused since https://go.dev/cl/298670
+    in April 2021, as that change removed its only use.
+    It is always in the git history if it is needed again.
+    
+    Change-Id: Ie55d059c102dfaa75bd253e09d48a4b30f45e941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/483136
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+
+ src/reflect/value.go    |  6 ------
+ src/runtime/mbarrier.go | 23 -----------------------
+ 2 files changed, 29 deletions(-)

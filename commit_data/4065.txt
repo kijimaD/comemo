@@ -1,0 +1,12 @@
+commit dc3b4932d887eb9a105b7f6f084d0fd930ba6fc3
+Author: Rob Pike <r@golang.org>
+Date:   Sun Nov 15 13:09:43 2009 -0800
+
+    add a paragraph about GOMAXPROCS
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/154153
+
+ doc/effective_go.html | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

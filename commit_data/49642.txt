@@ -1,0 +1,21 @@
+commit 783ff7dfc49d207114bb80e565e50ea6ff079326
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Jul 14 12:09:19 2022 -0700
+
+    encoding/xml: skip TestCVE202230633 for short tests
+    
+    TestCVE202230633 uses a bunch of memory, and the input cannot be
+    feasibly reduced while maintaining the behavior hasn't regressed. This
+    test could be reasonably removed, but I'd rather keep it around if we
+    can.
+    
+    Fixes #53814
+    
+    Change-Id: Ie8b3f306efd20b2d9c0fb73122c26351a55694c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/417655
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/encoding/xml/read_test.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

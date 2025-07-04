@@ -1,0 +1,36 @@
+commit d6dbf3a0d38773b37bd8fa8d64a3f192102e388b
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 21 19:35:26 2016 -0700
+
+    cmd/compile: use List instead of OKEY for OSLICE*
+    
+    Performance changes are negligible, but that's expected.
+    This is a part of a general effort to eliminate OKEY nodes.
+    
+    Passes toolstash -cmp.
+    
+    Updates #15350
+    
+    name       old alloc/op     new alloc/op     delta
+    Template       40.6MB ± 0%      40.6MB ± 0%  -0.04%         (p=0.000 n=9+10)
+    Unicode        33.4MB ± 0%      33.4MB ± 0%    ~           (p=0.853 n=10+10)
+    GoTypes         120MB ± 0%       120MB ± 0%  -0.03%         (p=0.000 n=9+10)
+    Compiler        470MB ± 0%       469MB ± 0%  -0.06%        (p=0.000 n=10+10)
+    
+    name       old allocs/op    new allocs/op    delta
+    Template         404k ± 0%        404k ± 0%    ~           (p=0.165 n=10+10)
+    Unicode          350k ± 0%        350k ± 0%    ~            (p=0.211 n=9+10)
+    GoTypes         1.21M ± 0%       1.21M ± 0%    ~           (p=0.315 n=10+10)
+    Compiler        4.35M ± 0%       4.35M ± 0%  -0.03%        (p=0.001 n=10+10)
+    
+    Change-Id: I17d547bf9568b1ee2514a7ffab930424617f995e
+    Reviewed-on: https://go-review.googlesource.com/32213
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/inl.go       | 12 ++++++---
+ src/cmd/compile/internal/gc/subr.go      | 46 ++++++++++++++++++--------------
+ src/cmd/compile/internal/gc/syntax.go    | 10 +++----
+ src/cmd/compile/internal/gc/typecheck.go |  3 +++
+ 4 files changed, 43 insertions(+), 28 deletions(-)

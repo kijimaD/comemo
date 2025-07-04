@@ -1,0 +1,21 @@
+commit 7a634034c89c653bccd451e417db7034b34402b7
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Oct 25 09:18:48 2018 -0700
+
+    cmd/compile: fix Mul->Mul64 intrinsic alias
+    
+    The alias declaration needs to come after the function it is aliasing.
+    
+    It isn't a big deal in this case, as bits.Mul inlines and has as its
+    body bits.Mul64, so the desired code gets generated regardless.
+    The alias should only have an effect on inlining cost estimates
+    (for functions that call bits.Mul).
+    
+    Change-Id: I0d814899ce7049a0fb36e8ce1ad5ababbaf6265f
+    Reviewed-on: https://go-review.googlesource.com/c/144597
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

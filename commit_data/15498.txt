@@ -1,0 +1,12 @@
+commit f82ea304f067249c435e1bf78be458f3ff44fa43
+Author: Robin Eklind <r.eklind.87@gmail.com>
+Date:   Thu Feb 28 11:31:52 2013 -0800
+
+    cgo: fix reference to puts in implementation comment.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7431046
+
+ src/cmd/cgo/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

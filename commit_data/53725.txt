@@ -1,0 +1,20 @@
+commit 5f9412911b7ba96b31f0924d66190b242cff334d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 7 22:28:20 2023 -0400
+
+    cmd/internal/obj: print relocation type by name in -S output
+    
+    The compiler/assembler's -S output prints relocation type
+    numerically, which is hard to understand. Every time I need to
+    count the relocation type constants to figure out which relocation
+    it actually is. Print the symbolic name instead.
+    
+    Change-Id: I4866873bbae8b3dc0ee212609cb00280f9164243
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501856
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/objfile.go | 4 ++--
+ test/fixedbugs/issue9355.go     | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

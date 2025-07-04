@@ -1,0 +1,14 @@
+commit 4324a31376c30aea31bba688bbc674dcc24c7413
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 10 11:32:48 2010 -0800
+
+    nm: silently ignore .o files in .a files
+    
+    Update #1334.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3553041
+
+ src/cmd/nm/nm.c | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

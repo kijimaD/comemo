@@ -1,0 +1,12 @@
+commit 95117d30a22962d5de9bfcef338e9e7851ff9154
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jul 18 17:54:32 2011 -0700
+
+    time: typo in documentation
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4763048
+
+ src/pkg/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

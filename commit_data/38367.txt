@@ -1,0 +1,37 @@
+commit a083648165a7facfeca6f37c023b4b069585acb0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 4 15:33:19 2019 -0800
+
+    spec: document new Go2 number literals
+    
+    This CL documents the new binary and octal integer literals,
+    hexadecimal floats, generalized imaginary literals and digit
+    separators for all number literals in the spec.
+    
+    Added empty lines between abutting paragraphs in some places
+    (a more thorough cleanup can be done in a separate CL).
+    
+    A minor detail: A single 0 was considered an octal zero per the
+    syntax (decimal integer literals always started with a non-zero
+    digit). The new octal literal syntax allows 0o and 0O prefixes
+    and when keeping the respective octal_lit syntax symmetric with
+    all the others (binary_lit, hex_lit), a single 0 is not automatically
+    part of it anymore. Rather than complicating the new octal_lit syntax
+    to include 0 as before, it is simpler (and more natural) to accept
+    a single 0 as part of a decimal_lit. This is purely a notational
+    change.
+    
+    R=Go1.13
+    
+    Updates #12711.
+    Updates #19308.
+    Updates #28493.
+    Updates #29008.
+    
+    Change-Id: Ib9fdc6e781f6031cceeed37aaed9d05c7141adec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161098
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_spec.html | 154 +++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 126 insertions(+), 28 deletions(-)

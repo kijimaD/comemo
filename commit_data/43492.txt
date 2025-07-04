@@ -1,0 +1,23 @@
+commit 404899f6b56800c1d8e0521fc9ce0c856e459d94
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Oct 24 13:05:31 2020 -0400
+
+    cmd/link: preserve alignment for stackmap symbols
+    
+    Stackmap symbols are content-addressable, so it may be dedup'd
+    with another symbol with same content. We want stackmap symbols
+    4-byte aligned. But if it dedup's with another symbol with larger
+    alignment, preserve that alignment.
+    
+    Fixes #42071.
+    
+    Change-Id: I1616dd2b0c175b2aac8f68782a5c7a62053c0b57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/264897
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/ld/symtab.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

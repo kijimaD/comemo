@@ -1,0 +1,14 @@
+commit 091d7210c7bbcc7497a48a41be091e1957d17717
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 8 11:25:21 2013 -0500
+
+    runtime: make TestStackMem a little less flaky
+    
+    Have seen failures with GOMAXPROCS=4 on Windows.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/7626043
+
+ src/pkg/runtime/stack_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

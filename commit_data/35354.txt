@@ -1,0 +1,15 @@
+commit f95ef94ad5f58aef9a17bae407bf7b154caabe11
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed May 9 04:11:12 2018 +0000
+
+    misc/android: add more information to README
+    
+    Add more information to misc/android/README for developing
+    arm and arm64 with an Android environment.
+    
+    Change-Id: I0c88996b6ab0c41946a2c7e69e9c92ec7bb3be27
+    Reviewed-on: https://go-review.googlesource.com/112276
+    Reviewed-by: Elias Naur <elias.naur@gmail.com>
+
+ misc/android/README | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)

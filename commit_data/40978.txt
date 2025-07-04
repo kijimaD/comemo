@@ -1,0 +1,21 @@
+commit 9641acd6537bc0bf6717ae523956bae94bfc38fe
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Dec 10 15:31:47 2019 -0500
+
+    doc: remove Release History pages (moved to x/website)
+    
+    These pages were moved to the x/website repo in CL 210797 (commit
+    golang/website@9aef1eefbbe663d448b04b7cc1b2b995f4cf4c0b).
+    Remove the old copies in this repo since they're no longer used.
+    
+    Updates #36075
+    Updates #29206
+    
+    Change-Id: I6e3ffaebd92fa753cb5f3b21e4238edfb7f5f0e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210798
+    Reviewed-by: Alexander Rakoczy <alex@golang.org>
+
+ doc/devel/pre_go1.html |  455 ----
+ doc/devel/release.html |  758 ------
+ doc/devel/weekly.html  | 6200 ------------------------------------------------
+ 3 files changed, 7413 deletions(-)

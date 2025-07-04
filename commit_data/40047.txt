@@ -1,0 +1,27 @@
+commit 87e2b34f7bdd997b09f926ccbef6bfd2794d8e2a
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Sep 22 15:39:16 2019 +0200
+
+    cmd/compile: in prove, learn facts from OpSliceMake
+    
+    Now that OpSliceMake is called by runtime.makeslice callers,
+    prove can see and record the actual length and cap of each
+    slice being constructed.
+    
+    This small patch is enough to remove 260 additional bound checks
+    from cmd+std.
+    
+    Thanks to Martin Möhrmann for pointing me to CL141822 that
+    I had missed.
+    
+    Updates #24660
+    
+    Change-Id: I14556850f285392051f3f07d13b456b608b64eb9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196784
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/prove.go | 27 +++++++++++++++++++++++
+ test/prove.go                         | 40 ++++++++++++++++++++++++++++-------
+ 2 files changed, 59 insertions(+), 8 deletions(-)

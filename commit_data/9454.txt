@@ -1,0 +1,14 @@
+commit 6731d47f99d993522aa41990b46498d20ba646f1
+Author: Rob Pike <r@golang.org>
+Date:   Tue Aug 23 13:54:29 2011 +1000
+
+    effective go: fix erroneous quoting of ampersands that cropped up
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4937047
+
+ doc/effective_go.html | 5 ++---
+ doc/effective_go.tmpl | 2 +-
+ doc/progs/eff_qr.go   | 3 +--
+ 3 files changed, 4 insertions(+), 6 deletions(-)

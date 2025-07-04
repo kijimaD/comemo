@@ -1,0 +1,15 @@
+commit 78c20c81aaa7d8d8a4aa2132806f51fb68f33a1e
+Author: Austin Clements <austin@google.com>
+Date:   Thu Jul 16 15:34:29 2020 -0400
+
+    doc/go1.15: announce GO386=387 deprecation
+    
+    For #40255.
+    Updates #37419.
+    
+    Change-Id: If9210c855cc2eea079e7e469463d4203888748f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/243137
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.15.html | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

@@ -1,0 +1,18 @@
+commit cb34026a95f0637a0f9eadb5e1d7aa301635f943
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 26 22:08:06 2021 -0700
+
+    cmd/compile: tighten exportWriter.qualifiedIdent signature
+    
+    It always takes an *ir.Name and would panic given anything else
+    anyway, so tighten the signature to match.
+    
+    Change-Id: I44fec5c5cc6d7f0b9c59eb91c9f9633137485360
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314009
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/iexport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

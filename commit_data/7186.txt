@@ -1,0 +1,32 @@
+commit 0849944694543a3446da4b1fa0c3d314781ced14
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 19 23:08:11 2011 -0500
+
+    gc: delete float, complex
+    rename cmplx -> complex
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4071041
+
+ src/cmd/5g/cgen.c      |  3 +--
+ src/cmd/5g/galign.c    |  2 --
+ src/cmd/5g/reg.c       |  1 -
+ src/cmd/6g/galign.c    |  2 --
+ src/cmd/6g/reg.c       |  2 --
+ src/cmd/8g/cgen.c      |  2 +-
+ src/cmd/8g/galign.c    |  2 --
+ src/cmd/8g/reg.c       |  1 -
+ src/cmd/gc/align.c     |  2 --
+ src/cmd/gc/const.c     | 12 ++++++------
+ src/cmd/gc/cplx.c      |  6 +++---
+ src/cmd/gc/go.h        |  4 +---
+ src/cmd/gc/lex.c       |  2 +-
+ src/cmd/gc/print.c     |  4 ++--
+ src/cmd/gc/reflect.c   |  7 -------
+ src/cmd/gc/sinit.c     |  2 --
+ src/cmd/gc/subr.c      |  8 +-------
+ src/cmd/gc/typecheck.c |  7 ++-----
+ src/cmd/gc/walk.c      |  2 +-
+ src/cmd/ld/dwarf.c     |  4 ----
+ 20 files changed, 19 insertions(+), 56 deletions(-)

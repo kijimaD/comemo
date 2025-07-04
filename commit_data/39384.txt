@@ -1,0 +1,16 @@
+commit 7a4d02387fa16cd2a88c30357346e5cf0ae282b1
+Author: Elias Naur <mail@eliasnaur.com>
+Date:   Sun Jun 16 17:05:11 2019 +0200
+
+    syscall: accept permission errors in TestExecPtrace
+    
+    Fixes the test on the linux-arm64-packet builder.
+    
+    Change-Id: Icaf9edf9542f4f6e3791ca43298a1e7051eaa576
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182378
+    Run-TryBot: Elias Naur <mail@eliasnaur.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_ptrace_test.go | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

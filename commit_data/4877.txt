@@ -1,0 +1,12 @@
+commit f42e8833b30748c0f564fa384cc9ebd9b9ef9e8c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 17 15:50:34 2010 -0800
+
+    language spec: make NUL byte rule an implementation restriction
+    
+    R=rsc, r, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/211041
+
+ doc/go_spec.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

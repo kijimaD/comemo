@@ -1,0 +1,12 @@
+commit 9b6009b651188b0fe20719a76e5ce4e6606f4dff
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Apr 25 16:52:30 2009 -0700
+
+    - minor formatting and capitalization (export) changes
+    
+    TBR=rsc
+    OCL=27861
+    CL=27861
+
+ usr/gri/pretty/doc.go | 39 ++++++++++++++++++++++++++++-----------
+ 1 file changed, 28 insertions(+), 11 deletions(-)

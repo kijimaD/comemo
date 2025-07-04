@@ -1,0 +1,15 @@
+commit 4c2df76b7dd9439566a71f8bb339295a5ef57be6
+Author: Rob Pike <r@golang.org>
+Date:   Wed May 22 11:03:10 2013 -0700
+
+    log/syslog: report errors from Fprintf
+    Thanks to chiparus for identifying this.
+    
+    Fixes #5541.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/9658043
+
+ src/pkg/log/syslog/syslog.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

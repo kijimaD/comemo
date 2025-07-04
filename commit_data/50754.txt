@@ -1,0 +1,27 @@
+commit aeedb5ab13a677367be8e526cc43aeecc3734c86
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 29 11:45:33 2022 +0700
+
+    internal/singleflight: avoid race between multiple Do calls
+    
+    When the first call to Do finished, it calls c.wg.Done() to signal
+    others that the call was done. However, that happens without holding
+    a lock, so if others call to Do complete and be followed by a call to
+    ForgotUnshared, that then returns false.
+    
+    Fixing this by moving c.wg.Done() inside the section guarded by g.mu, so
+    the two operations won't be interrupted.
+    
+    Thanks bcmills@ for finding and suggesting fix.
+    
+    Change-Id: I850f5eb3f9751a0aaa65624d4109aeeb59dee42c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436437
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/internal/singleflight/singleflight.go      |  2 +-
+ src/internal/singleflight/singleflight_test.go | 43 ++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)

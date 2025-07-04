@@ -1,0 +1,20 @@
+commit b565476e2c812f65385595717fff191ac174cab7
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Aug 15 10:52:48 2022 +0200
+
+    cmd/go/internal/mmap: use syscall.Mmap on solaris
+    
+    Now that syscall.Mmap is defined on solaris (see CL 413374), use it in
+    mmapFile like on other Unix ports.
+    
+    For #52875
+    
+    Change-Id: Ic5c5a84da8613f0c6dc947a52b7fcca50af43d79
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413375
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/mmap/{mmap_other.go => mmap_plan9.go} | 2 --
+ src/cmd/go/internal/mmap/mmap_unix.go                     | 2 +-
+ 2 files changed, 1 insertion(+), 3 deletions(-)

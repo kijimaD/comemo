@@ -1,0 +1,22 @@
+commit 6da300b196df5fc3b33dd3bc87c477d46473abde
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Oct 15 17:48:25 2019 +0000
+
+    net/http: remove references to old NPN support
+    
+    We now only support ALPN.
+    
+    Updates #28362
+    
+    Change-Id: I8d9461c7a91315ee92e712448d0bf5c4070d09ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/201202
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/{npn_test.go => alpn_test.go} |  0
+ src/net/http/server.go                     | 27 +++++++++++++--------------
+ src/net/http/transport.go                  |  2 +-
+ 3 files changed, 14 insertions(+), 15 deletions(-)

@@ -1,0 +1,12 @@
+commit f4322a848d651a8cc8bf5ec9a762e3dbca7ed784
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Mar 20 10:22:09 2010 +1100
+
+    http: add Error helper function
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/626042
+
+ src/pkg/http/server.go | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

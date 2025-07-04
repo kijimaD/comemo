@@ -1,0 +1,24 @@
+commit d60e51e3539986fcca331cc27f4730a4fe266149
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 8 17:17:55 2022 -0700
+
+    go/build: remove unnecessary copies of package variables
+    
+    These variables never change, we don't need second copies of them.
+    
+    Also rename bPlusBuild to plusBuild, since it is the only remaining
+    variable with a "b" prefix.
+    
+    Change-Id: I97089b001d23e9b0f2096e19d9ceed7a9bbb377d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/429636
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/build/build.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

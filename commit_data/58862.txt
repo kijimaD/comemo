@@ -1,0 +1,29 @@
+commit b47ebb229fba8748366d52b6894a572da7c3ccfd
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Feb 24 10:21:01 2025 +0100
+
+    all: use testenv.GoToolPath instead of hardcoding go
+    
+    Change-Id: I84ec73d3ddef913a87cb9b48147c44ac3e7c8a8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651957
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/internal/swig/swig_test.go             |  5 ++--
+ src/cmd/cgo/internal/testcarchive/carchive_test.go | 28 +++++++++++-----------
+ src/cmd/cgo/internal/testcshared/cshared_test.go   |  2 +-
+ .../cgo/internal/testerrors/argposition_test.go    |  2 +-
+ src/cmd/cgo/internal/testerrors/badsym_test.go     |  2 +-
+ src/cmd/cgo/internal/testerrors/errors_test.go     |  8 +++----
+ src/cmd/cgo/internal/testerrors/ptr_test.go        |  2 +-
+ src/cmd/cgo/internal/testfortran/fortran_test.go   |  2 +-
+ src/cmd/cgo/internal/testgodefs/testgodefs_test.go |  4 ++--
+ src/cmd/cgo/internal/testlife/life_test.go         |  2 +-
+ src/cmd/cgo/internal/testso/so_test.go             |  2 +-
+ src/cmd/cgo/internal/teststdio/stdio_test.go       |  2 +-
+ .../compile/internal/importer/gcimporter_test.go   |  2 +-
+ src/internal/godebug/godebug_test.go               |  4 ++--
+ src/runtime/internal/wasitest/nonblock_test.go     |  5 +++-
+ src/runtime/internal/wasitest/tcpecho_test.go      |  5 +++-
+ 16 files changed, 42 insertions(+), 35 deletions(-)

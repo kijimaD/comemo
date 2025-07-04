@@ -1,0 +1,18 @@
+commit 8a4d05cf07cddb724422d24e57c18c1bd8d8ad02
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Feb 5 13:36:53 2020 -0500
+
+    cmd/go/internal/vet: only set work.VetExplicit if the list of explicit flags is non-empty
+    
+    Updates #35837
+    Fixes #37030
+    
+    Change-Id: Ifd3435803622a8624bab55a0f3fbc8855025282f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217897
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/vet/vet.go           |  4 +++-
+ src/cmd/go/testdata/script/vet_flags.txt | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 1 deletion(-)

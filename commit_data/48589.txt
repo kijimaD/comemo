@@ -1,0 +1,20 @@
+commit ea858734be6e711fa2d41fdeb6038ff09e3c7841
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 30 14:13:39 2022 -0700
+
+    spec: clarify type term restriction for type parameters
+    
+    Be clear that the type of a term (not the term itself, which may
+    be of the form ~P) cannot be a type parameter.
+    
+    For #50420.
+    
+    Change-Id: I388d57be0618393d7ebe2c74ec04c1ebe3f33f7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/396915
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ doc/go_spec.html | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

@@ -1,0 +1,24 @@
+commit 1cd724acb6304d30d8998d14a5469fbab24dd3b1
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 18 10:03:22 2020 -0500
+
+    doc/go1.14: highlight the addition of hash/maphash package
+    
+    Given that it's a package that did not exist before, was a proposal
+    in issue #28322, got accepted and implemented for 1.14, it seems to
+    be more than a minor change to the library. Highlight it accordingly.
+    
+    Also specify the results are 64-bit integers, as done in CL 219340.
+    
+    Updates #36878
+    Updates #28322
+    
+    Change-Id: Idefe63d4c47a02cdcf8be8ab08c40cdb94ff2098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219877
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ doc/go1.14.html | 34 +++++++++++++++-------------------
+ 1 file changed, 15 insertions(+), 19 deletions(-)

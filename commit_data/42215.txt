@@ -1,0 +1,39 @@
+commit 4f7053c87f9ebf3acab7669d380f53bdfba0566b
+Author: Emmanuel T Odeke <emmanuel@orijtech.com>
+Date:   Tue Apr 21 23:31:59 2020 -0700
+
+    cmd/compile: omit file:pos for non-existent, permission errors
+    
+    Omits printing the file:line:column when trying to open either
+    * non-existent files
+    * files without permission
+    
+    Given:
+        go tool compile x.go
+    
+    For either of x.go not existing, or if no read permissions:
+    
+    * Before:
+        x.go:0: open x.go: no such file or directory
+        x.go:0: open x.go: permission denied
+    
+    * After:
+        open x.go: no such file or directory
+        open x.go: permission denied
+    
+    While here, noticed an oddity with the Linux builders, that appear
+    to always be running under root, hence the test for permission errors
+    with 0222 -W-*-W-*-W- can't pass on linux-amd64 builders.
+    The filed bug is #38608.
+    
+    Fixes #36437
+    
+    Change-Id: I9645ef73177c286c99547e3a0f3719fa07b35cb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229357
+    Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go |  8 ++++-
+ test/fixedbugs/issue36437.go        | 69 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 76 insertions(+), 1 deletion(-)

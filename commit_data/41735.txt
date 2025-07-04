@@ -1,0 +1,19 @@
+commit 355f53f0a0a5d79032068d4914d7aea3435084ec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 23 11:38:49 2020 -0700
+
+    runtime: don't call wakeNetPoller during timerModifying
+    
+    Reduce the length of time that other timer functions can see timerModifying.
+    In particular avoid system calls.
+    
+    Fixes #38023
+    
+    Change-Id: I1b61229c668e6085d9ee6dca9488a90055386c36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224902
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/time.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)

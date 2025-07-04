@@ -1,0 +1,14 @@
+commit ff191dd7268937902e9181495765a61497fcf5ca
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Nov 21 21:51:01 2016 +0000
+
+    net/http: maybe fix TestLinuxSendfile on mips64
+    
+    Updates #18008
+    
+    Change-Id: I8fde0d71d15b416db4d262f6db8ef32a209a192f
+    Reviewed-on: https://go-review.googlesource.com/33426
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/fs_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

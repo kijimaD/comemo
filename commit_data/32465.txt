@@ -1,0 +1,52 @@
+commit 25bbb695c87213ae3a609a76362975188f6be4a7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Aug 24 14:50:35 2017 -0700
+
+    runtime: optimize storing new keys in mapassign_fastNN
+    
+    Prior to this change, we use typedmemmove to write the key
+    value to its new location in mapassign_fast32 and mapassign_fast64.
+    (The use of typedmemmove was a last-minute fix in the 1.9 cycle;
+    see #21297 and CL 53414.)
+    
+    This is significantly less inefficient than direct assignment or
+    calling writebarrierptr directly.
+    
+    Fortunately, there aren't many cases to consider.
+    
+    On systems with 32 bit pointers:
+    
+    * A 32 bit AMEM value either is a single pointer or has no pointers.
+    * A 64 bit AMEM value may contain a pointer at the beginning,
+      a pointer at 32 bits, or two pointers.
+    
+    On systems with 64 bit pointers:
+    
+    * A 32 bit AMEM value contains no pointers.
+    * A 64 bit AMEM value either is a single pointer or has no pointers.
+    
+    All combinations except the 32 bit pointers / 64 bit AMEM value are
+    cheap and easy to handle, and the problematic case is likely rare.
+    The most popular map keys appear to be ints and pointers.
+    
+    So we handle them exhaustively. The sys.PtrSize checks are constant branches
+    and are eliminated by the compiler.
+    
+    An alternative fix would be to return a pointer to the key,
+    and have the calling code do the assignment, at which point the compiler
+    would have full type information.
+    
+    Initial tests suggest that the performance difference between these
+    strategies is negligible, and this fix is considerably simpler,
+    and has much less impact on binary size.
+    
+    Fixes #21321
+    
+    Change-Id: Ib03200e89e2324dd3c76d041131447df66f22bfe
+    Reviewed-on: https://go-review.googlesource.com/59110
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/hashmap_fast.go | 25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)

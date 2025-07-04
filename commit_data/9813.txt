@@ -1,0 +1,17 @@
+commit 0287647b1377e3d403e8b38f5c2bd4435bc21b64
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Tue Sep 27 13:22:01 2011 -0700
+
+    exp/template/html: add doc comments for undocumented Err... constants.
+    
+    Does some TODOs and changes the term "div" in an error message
+    to "division" to avoid confusion with "<div>".
+    
+    R=nigeltao, r
+    CC=golang-dev
+    https://golang.org/cl/5141047
+
+ src/pkg/exp/template/html/error.go       | 44 +++++++++++++++++++++++++++-----
+ src/pkg/exp/template/html/escape_test.go |  2 +-
+ src/pkg/exp/template/html/transition.go  |  2 +-
+ 3 files changed, 40 insertions(+), 8 deletions(-)

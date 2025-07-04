@@ -1,0 +1,16 @@
+commit 5b56053371a73b2a06869bc77152766eb76e96e4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 8 14:44:44 2018 -0400
+
+    cmd/go: test package patterns with multiple modules
+    
+    This change replaces https://golang.org/cl/125835.
+    
+    Updates #26317.
+    
+    Change-Id: I38ae1f93e5f5c86737a4b489df498c18b179781d
+    Reviewed-on: https://go-review.googlesource.com/128637
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/testdata/script/mod_patterns.txt | 77 +++++++++++++++++++++++++++++
+ 1 file changed, 77 insertions(+)

@@ -1,0 +1,16 @@
+commit 7f09b0177faa4da9f881068827b6d92b3e551001
+Author: Bill Neubauer <wcn@golang.org>
+Date:   Mon Aug 17 22:21:48 2009 -0700
+
+    Removing dead tests from chan.c
+    Since pres != nil was already checked and the routine sets *pres to false
+    and returns, the subsequent tests are unneeded.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=4  (0 added, 4 deleted, 0 changed)
+    OCL=33439
+    CL=33441
+
+ src/pkg/runtime/chan.c | 4 ----
+ 1 file changed, 4 deletions(-)

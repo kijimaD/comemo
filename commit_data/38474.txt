@@ -1,0 +1,22 @@
+commit 834d229eb6cec7d5b2c4b645985921266e645cb1
+Author: Austin Clements <austin@google.com>
+Date:   Mon Mar 11 10:27:11 2019 -0400
+
+    testing: add B.ReportMetric for custom benchmark metrics
+    
+    This adds a ReportMetric method to testing.B that lets the user report
+    custom benchmark metrics and override built-in metrics.
+    
+    Fixes #26037.
+    
+    Change-Id: I8236fbde3683fc27bbe45cbbedfd377b435edf64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166717
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/testing/benchmark.go      | 134 ++++++++++++++++++++++++++++++++++++------
+ src/testing/benchmark_test.go |  63 ++++++++++++++++++++
+ src/testing/export_test.go    |   1 +
+ 3 files changed, 179 insertions(+), 19 deletions(-)

@@ -1,0 +1,12 @@
+commit f340b3de5a19c310aa38abc6f474c366a7b7d89b
+Author: Wei Guangjing <vcc.163@gmail.com>
+Date:   Tue Jul 12 11:29:38 2011 -0700
+
+    debug/pe: fixes ImportedSymbols for Win64.
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4639086
+
+ src/pkg/debug/pe/file.go | 37 ++++++++++++++++++++++++++-----------
+ 1 file changed, 26 insertions(+), 11 deletions(-)

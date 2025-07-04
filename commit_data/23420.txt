@@ -1,0 +1,14 @@
+commit 2e7831a1d192ef0cbcb0caf9331b6cf3fa05e3d3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 18 11:55:19 2015 -0700
+
+    go/parser: document that parser accepts a wider language than specified
+    
+    See also issue #11271.
+    
+    Change-Id: I34175f46ce137b14ca483500f673b0f8ee1f2108
+    Reviewed-on: https://go-review.googlesource.com/11262
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/parser/parser.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

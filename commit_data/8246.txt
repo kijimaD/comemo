@@ -1,0 +1,12 @@
+commit ec3fe2a5b6aed7fc875cb34825f464c48803965c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 27 15:36:39 2011 -0700
+
+    http: put a limit on POST size
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4432076
+
+ src/pkg/http/request.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit c8224ce9ff7c537195b40bf8b76531f68754cbc9
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Jan 31 02:19:50 2015 +1100
+
+    include: fix arm build one more time
+    
+    Fourth time's the charm.
+    
+    Actually this doesn't fix the build, there is a
+    crash after go_bootstrap is compiled which looks
+    like it is related to auxv parsing.
+    
+    Change-Id: Id00e2dfbe7bae42856f996065d3fb90b820e29a8
+    Reviewed-on: https://go-review.googlesource.com/3610
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ include/u.h | 4 ----
+ 1 file changed, 4 deletions(-)

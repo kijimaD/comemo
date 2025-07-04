@@ -1,0 +1,14 @@
+commit 15790204768b9cbea056150e530d4c39d2e62b47
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Jun 26 21:20:53 2013 +0400
+
+    misc/dashboard: show all race builders as "race"
+    race is more important than arch (moreover race implies x64)
+    don't know how to test it
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/10484046
+
+ misc/dashboard/app/build/ui.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

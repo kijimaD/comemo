@@ -1,0 +1,16 @@
+commit 6e71e1ca76616bcda23860233c957705bf7685ed
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Apr 27 14:23:25 2011 -0700
+
+    http: keep gzip reader inside eofsignaler
+    
+    Fixes #1725
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4442086
+
+ src/pkg/http/response_test.go  | 102 ++++++++++++++++++++++++++++-------------
+ src/pkg/http/transport.go      |   6 ++-
+ src/pkg/http/transport_test.go |  89 +++++++++++++++++++++++++++--------
+ 3 files changed, 144 insertions(+), 53 deletions(-)

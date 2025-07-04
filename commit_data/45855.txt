@@ -1,0 +1,31 @@
+commit 63daa774b566d7fe58b3aa82cda9e595929bb777
+Author: Rob Findley <rfindley@google.com>
+Date:   Mon Jun 21 20:16:37 2021 -0400
+
+    go/types: guard against checking instantiation when generics is disabled
+    
+    When type checking t[_], where t is a type name, it was possible to leak
+    an error message related to generics. Fix this by guarding on
+    typeparams.Enabled.
+    
+    In order to test this fix, we need to be able to run the new go/types
+    test only if type parameters are disabled. Introduce the .go1 test data
+    suffix (similar to .go2) to control this behavior.
+    
+    Originally found via fuzzing, though the test case was manually
+    simplified.
+    
+    Updates #46404
+    
+    Change-Id: Ib1e2c27cf974c2a5ca5b9d6d01b84a30ba4d583b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/329793
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check_test.go                     | 13 ++++++++-----
+ src/go/types/testdata/fixedbugs/issue46404.go1 |  8 ++++++++
+ src/go/types/typexpr.go                        |  8 ++++++--
+ 3 files changed, 22 insertions(+), 7 deletions(-)

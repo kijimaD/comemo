@@ -1,0 +1,26 @@
+commit c95464f0ea3f87232b1f3937d1b37da6f335f336
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Jun 25 13:24:10 2021 -0700
+
+    internal/buildcfg: refactor GOEXPERIMENT parsing code somewhat
+    
+    This CL extracts out a ParseGOEXPERIMENT helper function that parses
+    GOOS/GOARCH/GOEXPERIMENT values and returns active and baseline
+    experiment flag sets and an error value, without affecting any global
+    state. This will be used in the subsequent CL for 'go env' support for
+    GOEXPERIMENT to validate configuration changes.
+    
+    The existing package initialization for Experiment and
+    experimentBaseline and also UpdateExperiments are updated to use it as
+    well.
+    
+    Change-Id: Ic2ed3fd36d2a6f7f3d8172fccb865e02505c0052
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/331109
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/go/internal/cfg/cfg.go |  2 +-
+ src/internal/buildcfg/exp.go   | 65 ++++++++++++++++++++++++++----------------
+ 2 files changed, 41 insertions(+), 26 deletions(-)

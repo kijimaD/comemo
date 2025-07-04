@@ -1,0 +1,26 @@
+commit b48e52b4282631ecda45ac985d398e19eca1e745
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Apr 24 20:48:10 2025 -0400
+
+    cmd/dist: move "devel" substring in git-inferred development version
+    
+    Keep the property that the "devel" substring is always present in these
+    development versions of Go, but also gain the property that it's viable
+    to use functions in the go/version package such as Lang, Compare, and
+    get the expected results without needing to trim the "devel " prefix.
+    
+    For #73369.
+    For #41116.
+    Fixes #73372.
+    
+    Change-Id: Ieea4692e8c6cf0135e010f49f85300f6b038d6b1
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668015
+    Reviewed-by: Funda Secgin <fundasecgin30@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/cmd/dist/build.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

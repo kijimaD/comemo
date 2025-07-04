@@ -1,0 +1,51 @@
+commit 8ebc58452af3a586a3da1f68725bc83c78d4b073
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jul 29 20:25:05 2020 +0000
+
+    runtime: delineate which memstats are system stats with a type
+    
+    This change modifies the type of several mstats fields to be a new type:
+    sysMemStat. This type has the same structure as the fields used to have.
+    
+    The purpose of this change is to make it very clear which stats may be
+    used in various functions for accounting (usually the platform-specific
+    sys* functions, but there are others). Currently there's an implicit
+    understanding that the *uint64 value passed to these functions is some
+    kind of statistic whose value is atomically managed. This understanding
+    isn't inherently problematic, but we're about to change how some stats
+    (which currently use mSysStatInc and mSysStatDec) work, so we want to
+    make it very clear what the various requirements are around "sysStat".
+    
+    This change also removes mSysStatInc and mSysStatDec in favor of a
+    method on sysMemStat. Note that those two functions were originally
+    written the way they were because atomic 64-bit adds required a valid G
+    on ARM, but this hasn't been the case for a very long time (since
+    golang.org/cl/14204, but even before then it wasn't clear if mutexes
+    required a valid G anymore). Today we implement 64-bit adds on ARM with
+    a spinlock table.
+    
+    Change-Id: I4e9b37cf14afc2ae20cf736e874eb0064af086d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/246971
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/export_test.go |  4 +--
+ src/runtime/heapdump.go    | 14 ++++----
+ src/runtime/malloc.go      | 10 +++---
+ src/runtime/mem_aix.go     | 12 +++----
+ src/runtime/mem_bsd.go     | 12 +++----
+ src/runtime/mem_darwin.go  | 12 +++----
+ src/runtime/mem_js.go      | 10 +++---
+ src/runtime/mem_linux.go   | 12 +++----
+ src/runtime/mem_plan9.go   | 12 +++----
+ src/runtime/mem_windows.go | 12 +++----
+ src/runtime/mfixalloc.go   |  4 +--
+ src/runtime/mgcscavenge.go |  4 +--
+ src/runtime/mheap.go       | 28 ++++++++--------
+ src/runtime/mpagealloc.go  |  4 +--
+ src/runtime/mranges.go     |  4 +--
+ src/runtime/mstats.go      | 82 +++++++++++++++++-----------------------------
+ src/runtime/os_darwin.go   |  3 +-
+ 17 files changed, 109 insertions(+), 130 deletions(-)

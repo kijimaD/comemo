@@ -1,0 +1,20 @@
+commit 7602d4119663b234f655e3bb282b7127a048a5cd
+Author: ananya saxena <ananyasaxena1@gmail.com>
+Date:   Thu Oct 15 17:08:50 2020 +0000
+
+    net/http: remove DualStack in DefaultTransport
+    
+    Removing `DualStack` from `http.DefaultTransport` since it is deprecated
+    https://github.com/golang/go/blob/master/src/net/dial.go#L61
+    
+    Change-Id: Id8ea1e68796ef8a8d49f7a04d0c4815aa92a1804
+    GitHub-Last-Rev: 0907b59fa793dafc764188c70487a61a720bbc7c
+    GitHub-Pull-Request: golang/go#41233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/253198
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/transport.go | 1 -
+ 1 file changed, 1 deletion(-)

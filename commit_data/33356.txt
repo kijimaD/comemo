@@ -1,0 +1,17 @@
+commit 85c32c3744d879392c43a4ec4772199b28c9b34e
+Author: griesemer <gri@golang.org>
+Date:   Tue Oct 31 23:01:31 2017 -0700
+
+    math/big: implement CmpAbs
+    
+    Fixes #22473.
+    
+    Change-Id: Ie886dfc8b5510970d6d63ca6472c73325f6f2276
+    Reviewed-on: https://go-review.googlesource.com/74971
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+
+ src/math/big/int.go      | 10 +++++++++
+ src/math/big/int_test.go | 57 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+)

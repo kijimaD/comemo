@@ -1,0 +1,16 @@
+commit 29dbd988b83e3cb43ca034916e52d030f150c7e1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jan 27 08:19:43 2012 +1100
+
+    cmd/go: update doc.go with text generated from the usage strings
+    
+    Fixes #2783.
+    
+    R=bsiegert, rsc
+    CC=golang-dev
+    https://golang.org/cl/5570069
+
+ src/cmd/go/doc.go   | 574 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/main.go  |  47 ++++-
+ src/cmd/go/mkdoc.sh |   8 +
+ 3 files changed, 622 insertions(+), 7 deletions(-)

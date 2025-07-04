@@ -1,0 +1,20 @@
+commit 169203f3ee022abf66647abc99fd483fd10f9a54
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Feb 18 05:45:34 2023 +1100
+
+    runtime/cgo: restore correct build tags for linux/mips*
+    
+    The linux build tags were incorrectly removed from these files by CL 460538.
+    Restore the correct build tags so that they are only included in builds
+    for linux/mips* platforms.
+    
+    Change-Id: I21d8802b0252688d8e2228cf904b47d90b253485
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/469175
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/cgo/gcc_linux_mips64x.c | 2 +-
+ src/runtime/cgo/gcc_linux_mipsx.c   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

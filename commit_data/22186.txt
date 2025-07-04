@@ -1,0 +1,20 @@
+commit e9d9d0befc634f6e9f906b5ef7476fbd7ebd25e3
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Wed Mar 25 07:10:45 2015 -0400
+
+    runtime, runtime/cgo: make needextram a bool
+    
+    Also invert it, which means it no longer needs to cross the cgo
+    package boundary.
+    
+    Change-Id: I393cd073bda02b591a55d6bc6b8bb94970ea71cd
+    Reviewed-on: https://go-review.googlesource.com/8082
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo.go       | 7 +++++++
+ src/runtime/cgo/iscgo.go | 3 ---
+ src/runtime/proc1.go     | 6 +++---
+ src/runtime/runtime2.go  | 2 --
+ 4 files changed, 10 insertions(+), 8 deletions(-)

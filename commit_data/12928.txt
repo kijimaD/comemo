@@ -1,0 +1,13 @@
+commit dd963ddf05ff84db489bf462c8ad500b84e72dcb
+Author: Quan Yong Zhai <qyzhai@gmail.com>
+Date:   Sat Apr 21 14:34:42 2012 +1000
+
+    compress/zlib: minor fixes
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/6058043
+
+ src/pkg/compress/zlib/example_test.go | 37 +++++++++++++++++++++++++++++++++++
+ src/pkg/compress/zlib/reader.go       |  2 +-
+ 2 files changed, 38 insertions(+), 1 deletion(-)

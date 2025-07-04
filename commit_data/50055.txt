@@ -1,0 +1,18 @@
+commit 48da729e8468b630ee003ac51cbaac595d53bec8
+Author: Abirdcfly <fp544037857@gmail.com>
+Date:   Wed Aug 17 09:54:14 2022 +0000
+
+    net/http/cookiejar: remove duplicate words from comments
+    
+    Change-Id: Id44f587199683fd8018865af1c2442f9f74e0dad
+    GitHub-Last-Rev: 35b1ab88677586c79918d363f22e05bc0c3c6479
+    GitHub-Pull-Request: golang/go#54495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424434
+    Reviewed-by: hopehook <hopehook@qq.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: hopehook <hopehook@qq.com>
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+
+ src/net/http/cookiejar/jar.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

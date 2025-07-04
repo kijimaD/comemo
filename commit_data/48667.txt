@@ -1,0 +1,18 @@
+commit efbe17d6f1f016616453d43208200ebf4a45d87c
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Apr 4 14:07:36 2022 +0700
+
+    cmd/compile: support reading union type for compiler backend in unified IR
+    
+    Fixes #52124
+    
+    Change-Id: I5749822d41d8e51f476bceb277b1d2cf7350dcc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397874
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/reader.go | 12 ++++++++++++
+ test/typeparam/issue52124.go             |  9 +++++++++
+ 2 files changed, 21 insertions(+)

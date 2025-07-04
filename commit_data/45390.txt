@@ -1,0 +1,22 @@
+commit 11052d77a307a417a4de94991303949bf697b8ee
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Apr 27 17:05:36 2021 -0400
+
+    cmd/link: use R12 as trampoline scratch register on ARM
+    
+    The external linker uses R12. Do the same. We previously use R11,
+    the temp register in Go ABI. This does not really matter if the
+    caller is Go code, because all registers are clobbered at call.
+    But it the caller is C code, it may assume R11 live across a call.
+    Using R11 may clobber live value. On the callee side, R12 is not
+    an argument register in both Go and C calling convention.
+    
+    Change-Id: I958c5dad52aa51bb282a7ad420f5423863e69c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/314454
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/link/internal/arm/asm.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

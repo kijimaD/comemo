@@ -1,0 +1,13 @@
+commit 62af04c0bc86959f1d0da5cdadfd5eec141d4f52
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Jul 10 15:14:58 2014 -0400
+
+    sync/atomic: nacl/arm support.
+    
+    LGTM=dave, rsc
+    R=rsc, iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/110330044
+
+ src/pkg/sync/atomic/asm_nacl_arm.s | 109 +++++++++++++++++++++++++++++++++++++
+ 1 file changed, 109 insertions(+)

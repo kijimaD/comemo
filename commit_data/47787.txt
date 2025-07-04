@@ -1,0 +1,36 @@
+commit 006d4e627812816123a5bb86ebf5a2fa57af8b4a
+Author: Dan Scales <danscales@google.com>
+Date:   Mon Dec 13 16:15:52 2021 -0800
+
+    cmd/compile: fix case where we didn't delay transformAssign in varDecl
+    
+    We delay all transformations on generic functions, and only do them on
+    instantiated functions, for several reasons, of which one is that
+    otherwise the compiler won't understand the relationship between
+    constrained type parameters. In an instantiation with shape arguments,
+    the underlying relationship between the type arguments are clear and
+    don't lead to compiler errors.
+    
+    This issue is because I missed delaying assignment transformations for
+    variable declarations. So, we were trying to transform an assignment,
+    and the compiler doesn't understand the relationship between the T and U
+    type parameters.
+    
+    The fix is to delay assignment transformations for variable declarations
+    of generic functions, just as we do already for normal assignment
+    statements.
+    
+    A work-around for this issue would be to just separate the assignment
+    from the variable declaration in the generic function (for this case of
+    an assignment involving both of the constrained type parameters).
+    
+    Fixes #50147
+    
+    Change-Id: Icdbcda147e5c4b386e4715811761cbe73d0d837e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/371534
+    Trust: Dan Scales <danscales@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/noder/decl.go | 24 ++++++++++++++----------
+ test/typeparam/issue50147.go           | 11 +++++++++++
+ 2 files changed, 25 insertions(+), 10 deletions(-)

@@ -1,0 +1,17 @@
+commit 9ac67f56f776ccf1708d25ce3f4f02ac771551de
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Wed Aug 17 17:31:12 2016 +0200
+
+    doc: improve issue template
+    
+    The previous template used an ordered list, but the formatting always
+    breaks when users paste quoted snippets of code or command outputs.
+    It is also harder to visually parse because items in ordered lists
+    are only indented but not highlighted in any way.
+    
+    Change-Id: I73c89e9f0465aef41093f5c54d11bb0d12ff8c8d
+    Reviewed-on: https://go-review.googlesource.com/27252
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ .github/ISSUE_TEMPLATE | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

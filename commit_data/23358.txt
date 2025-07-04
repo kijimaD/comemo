@@ -1,0 +1,18 @@
+commit 1f9026c0bd489e96a04541d2f65ecfdc3bc53720
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 15 10:59:00 2015 -0700
+
+    testing: don't print CPU count for tests, only benchmarks
+    
+    The number of CPUs is of value when benchmarking but mostly
+    noise when testing. The recent change to default to the number
+    of CPUs available has made the tests noisier and confusing.
+    
+    Fixes #11200
+    
+    Change-Id: Ifc87d9ccb4177d73e304fb7ffcef4367bd163c9e
+    Reviewed-on: https://go-review.googlesource.com/11121
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/testing/testing.go | 3 ---
+ 1 file changed, 3 deletions(-)

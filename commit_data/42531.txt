@@ -1,0 +1,16 @@
+commit e25aa4fcea5a3ee5cfaf3e566c83d8a71166d4ab
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 16 14:54:57 2020 -0400
+
+    doc/go1.15: enumerate ELF-based OSes
+    
+    Users don't necessarily know if their OS is ELF-based.
+    
+    For #37419.
+    
+    Change-Id: I4a4256c5f5eb34211729e1311582bb0e210f1f8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238240
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ doc/go1.15.html | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

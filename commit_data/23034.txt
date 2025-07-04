@@ -1,0 +1,46 @@
+commit 65c4d7beabd4a49aa77a9dddf1b7cdde55c47bb4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 13 14:44:48 2015 -0400
+
+    runtime: optimize heapBitsBulkBarrier a tiny amount
+    
+    This may be mostly noise but:
+    
+    name                   old mean              new mean              delta
+    BinaryTree17            6.03s × (0.98,1.02)   5.98s × (0.97,1.03)    ~    (p=0.306)
+    Fannkuch11              4.42s × (0.99,1.01)   4.34s × (0.99,1.02)  -1.83% (p=0.000)
+    FmtFprintfEmpty        84.7ns × (0.99,1.01)  84.4ns × (1.00,1.00)    ~    (p=0.138)
+    FmtFprintfString        289ns × (0.98,1.02)   289ns × (1.00,1.01)    ~    (p=0.509)
+    FmtFprintfInt           280ns × (0.97,1.03)   272ns × (0.98,1.03)  -2.64% (p=0.003)
+    FmtFprintfIntInt        484ns × (0.98,1.02)   482ns × (0.98,1.03)    ~    (p=0.606)
+    FmtFprintfPrefixedInt   397ns × (0.98,1.03)   393ns × (0.99,1.02)    ~    (p=0.064)
+    FmtFprintfFloat         573ns × (0.99,1.01)   569ns × (0.99,1.01)  -0.69% (p=0.023)
+    FmtManyArgs            1.89µs × (0.99,1.02)  1.91µs × (0.98,1.02)    ~    (p=0.219)
+    GobDecode              15.4ms × (0.99,1.02)  15.1ms × (0.99,1.01)  -2.05% (p=0.000)
+    GobEncode              12.0ms × (0.97,1.04)  11.9ms × (0.97,1.03)    ~    (p=0.458)
+    Gzip                    652ms × (0.99,1.01)   653ms × (0.99,1.01)    ~    (p=0.743)
+    Gunzip                  144ms × (0.99,1.01)   143ms × (0.99,1.01)    ~    (p=0.134)
+    HTTPClientServer       91.6µs × (0.99,1.01)  91.8µs × (0.99,1.03)    ~    (p=0.678)
+    JSONEncode             31.9ms × (1.00,1.00)  32.0ms × (0.99,1.01)    ~    (p=0.334)
+    JSONDecode              110ms × (0.99,1.01)   110ms × (0.99,1.01)    ~    (p=0.315)
+    Mandelbrot200          6.04ms × (0.99,1.01)  6.04ms × (1.00,1.01)    ~    (p=0.596)
+    GoParse                6.72ms × (0.98,1.03)  6.74ms × (0.99,1.03)    ~    (p=0.577)
+    RegexpMatchEasy0_32     161ns × (0.99,1.01)   160ns × (1.00,1.00)  -0.83% (p=0.002)
+    RegexpMatchEasy0_1K     542ns × (0.99,1.02)   541ns × (0.99,1.01)    ~    (p=0.396)
+    RegexpMatchEasy1_32     140ns × (0.98,1.01)   137ns × (1.00,1.00)  -2.12% (p=0.000)
+    RegexpMatchEasy1_1K     892ns × (0.99,1.01)   891ns × (1.00,1.01)    ~    (p=0.631)
+    RegexpMatchMedium_32    255ns × (0.99,1.01)   253ns × (0.99,1.01)  -0.76% (p=0.008)
+    RegexpMatchMedium_1K   73.1µs × (1.00,1.01)  72.9µs × (1.00,1.00)    ~    (p=0.229)
+    RegexpMatchHard_32     3.86µs × (1.00,1.01)  3.85µs × (1.00,1.00)    ~    (p=0.341)
+    RegexpMatchHard_1K      117µs × (1.00,1.01)   117µs × (0.99,1.00)    ~    (p=0.955)
+    Revcomp                 954ms × (0.97,1.03)   955ms × (0.98,1.02)    ~    (p=0.894)
+    Template                133ms × (0.97,1.05)   129ms × (0.99,1.02)  -2.50% (p=0.014)
+    TimeParse               629ns × (0.99,1.01)   626ns × (0.99,1.01)    ~    (p=0.106)
+    TimeFormat              663ns × (0.99,1.01)   660ns × (0.99,1.02)    ~    (p=0.231)
+    
+    Change-Id: I580e03ed01b0629cb5eae4c4637618f20127f924
+    Reviewed-on: https://go-review.googlesource.com/9994
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mbitmap.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

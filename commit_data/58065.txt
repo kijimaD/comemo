@@ -1,0 +1,20 @@
+commit e67037fb27e63dab4af4ef462ba724f0f2691d2a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 4 14:02:58 2024 +0100
+
+    crypto/internal/fips/drbg: implement CTR_DRBG
+    
+    For #69536
+    
+    Change-Id: I016bb723841acbda50f013db46f9d2dda200e1fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624977
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/internal/fips/aes/ctr.go           |  12 +++
+ src/crypto/internal/fips/drbg/ctrdrbg.go      | 130 ++++++++++++++++++++++++++
+ src/crypto/internal/fips/drbg/ctrdrbg_test.go |  49 ++++++++++
+ src/go/build/deps_test.go                     |   1 +
+ 4 files changed, 192 insertions(+)

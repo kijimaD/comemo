@@ -1,0 +1,15 @@
+commit cfe9211753fb7dbd78c3b89a061590d509df29d7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 18 13:29:40 2009 -0700
+
+    - removed duplicate definition of StringLit
+    - fixed nonsense sentence in numeric basic type section
+    - hlinted
+    
+    R=r,rsc
+    DELTA=50  (10 added, 22 deleted, 18 changed)
+    OCL=30484
+    CL=30490
+
+ doc/go_spec.html | 56 ++++++++++++++++++++++----------------------------------
+ 1 file changed, 22 insertions(+), 34 deletions(-)

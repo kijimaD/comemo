@@ -1,0 +1,14 @@
+commit 59e2e54eab72be5d4207f294e17ed615b9c4c761
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 21 18:07:11 2009 -0700
+
+    fix bug195
+    
+    R=ken
+    OCL=33700
+    CL=33700
+
+ src/cmd/gc/dcl.c                   | 2 +-
+ test/{bugs => fixedbugs}/bug195.go | 0
+ test/golden.out                    | 3 ---
+ 3 files changed, 1 insertion(+), 4 deletions(-)

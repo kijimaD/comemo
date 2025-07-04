@@ -1,0 +1,15 @@
+commit f0a862ee4d148249e1b2290eebdf36e67b41b0db
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Dec 8 17:03:46 2023 -0500
+
+    runtime/debug: add Example of SetCrashOutput in a crash monitor
+    
+    Updates #42888
+    
+    Change-Id: I72e408301e17b1579bbea189bed6b1a0154bd55f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548121
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/debug/example_monitor_test.go | 99 +++++++++++++++++++++++++++++++
+ 1 file changed, 99 insertions(+)

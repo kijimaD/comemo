@@ -1,0 +1,15 @@
+commit 5f1e0fa538991cf2d2f0f48c8e15a3bca3f52918
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 4 08:56:52 2014 -0800
+
+    net/http: disable an alloc test under the race detector
+    
+    LGTM=dvyukov
+    R=dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/70200052
+
+ src/pkg/net/http/header.go      |  2 ++
+ src/pkg/net/http/header_test.go |  9 ++++++---
+ src/pkg/net/http/race.go        | 11 +++++++++++
+ 3 files changed, 19 insertions(+), 3 deletions(-)

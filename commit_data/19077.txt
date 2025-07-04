@@ -1,0 +1,13 @@
+commit 8f8ada008c7b614dea948728ffd69aea22f64ebd
+Author: Jan Ziak <0xe2.0x9a.0x9b@gmail.com>
+Date:   Wed Apr 9 15:39:28 2014 +0200
+
+    cmd/gc: drop { } around single-line if-statement body
+    
+    LGTM=rsc
+    R=rsc
+    CC=golang-codereviews
+    https://golang.org/cl/85890043
+
+ src/cmd/gc/gen.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

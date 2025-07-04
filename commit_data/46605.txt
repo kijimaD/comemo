@@ -1,0 +1,21 @@
+commit d5cfba087f4947ac25714f925e610d0d3575d05e
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Mon Sep 27 04:20:34 2021 +0000
+
+    cmd/go: remove references to 'go help fuzz'
+    
+    Fixes: #48623
+    
+    Change-Id: Idab917b90ceb332cf49b6ca2a6b79be97ac56e18
+    GitHub-Last-Rev: 3143ce8b95e70a0466c836ce9be3e13a3e85c12e
+    GitHub-Pull-Request: golang/go#48640
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352313
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go            | 2 --
+ src/cmd/go/internal/test/test.go | 2 --
+ 2 files changed, 4 deletions(-)

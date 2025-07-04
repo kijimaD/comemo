@@ -1,0 +1,14 @@
+commit 6b795e77dfbaed05f0607ac14a3db3f62d905e70
+Author: Nick Craig-Wood <nick@craig-wood.com>
+Date:   Tue Oct 4 14:04:18 2016 +0100
+
+    runtime: correct function name in throw message
+    
+    Change-Id: I8fd271066925734c3f7196f64db04f27c4ce27cb
+    Reviewed-on: https://go-review.googlesource.com/30274
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mbitmap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

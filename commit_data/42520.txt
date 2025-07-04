@@ -1,0 +1,42 @@
+commit 11389baf2ea0b5e920959b0aa8d406d8090a0a93
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Jun 14 22:09:18 2020 +0100
+
+    encoding/json: revert "avoid work when unquoting strings, take 2"
+    
+    This reverts golang.org/cl/190659 and golang.org/cl/226218, minus the
+    regression tests in the latter.
+    
+    The original work happened in golang.org/cl/151157, which was reverted
+    in golang.org/cl/190909 due to a crash found by fuzzing.
+    
+    We tried a second time in golang.org/cl/190659, which shipped with Go
+    1.14. A bug was found, where strings would be mangled in certain edge
+    cases. The fix for that was golang.org/cl/226218, which was backported
+    into Go 1.14.4.
+    
+    Unfortunately, a second regression was just reported in #39555, which is
+    a similar case of strings getting mangled when decoding under certain
+    conditions. It would be possible to come up with another small patch to
+    fix that edge case, but instead, let's just revert the entire
+    optimization, as it has proved to do more harm than good. Moreover, it's
+    hard to argue or prove that there will be no more such regressions.
+    
+    However, all the work wasn't for nothing. First, we learned that the way
+    the decoder unquotes tokenized strings isn't simple; initially, we had
+    wrongly assumed that each string was unquoted exactly once and in order.
+    Second, we have gained a number of regression tests which will be useful
+    to prevent the same mistakes in the future, including the test cases we
+    add in this CL.
+    
+    Fixes #39555.
+    
+    Change-Id: I66a6919c2dd6d9789232482ba6cf3814eaa70f61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/237838
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ src/encoding/json/decode.go      | 74 +++++++++++++++++-----------------------
+ src/encoding/json/decode_test.go | 16 +++++++++
+ 2 files changed, 48 insertions(+), 42 deletions(-)

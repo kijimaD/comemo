@@ -1,0 +1,23 @@
+commit 9fa153b729969855fcb694e12c16e20b1407ed9c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Feb 9 13:49:21 2024 -0500
+
+    runtime: don't call traceReadCPU on the system stack
+    
+    traceReadCPU calls profBuf.read, which does a raceacquire. g0 does not
+    have a race context, so this crashes when running on the system stack.
+    
+    We could borrow a race context, but it is simpler to just move
+    traceReadCPU off of the system stack.
+    
+    Fixes #65607.
+    
+    Change-Id: I335155b96d683aebb92b2f4e1eea063dd139f2d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562996
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/trace2.go    | 3 +++
+ src/runtime/trace2cpu.go | 6 +++---
+ 2 files changed, 6 insertions(+), 3 deletions(-)

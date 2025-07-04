@@ -1,0 +1,18 @@
+commit 421c01706fbcb4519d0a00215120e8ebd591d9e8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 19 18:17:02 2014 -0800
+
+    misc/cgo/test: skip test7978 when using gccgo
+    
+    Gccgo can only get a backtrace for the currently running thread, which
+    means that it can only get a backtrace for goroutines currently running
+    Go code.  When a goroutine is running C code, gccgo has no way to stop
+    it and get the backtrace.  This test is all about getting a backtrace
+    of goroutines running C code, so it can't work for gccgo.
+    
+    Change-Id: I2dff4403841fb544da7396562ab1193875fc14c3
+    Reviewed-on: https://go-review.googlesource.com/1904
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ misc/cgo/test/issue7978.go | 3 +++
+ 1 file changed, 3 insertions(+)

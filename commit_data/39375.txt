@@ -1,0 +1,12 @@
+commit f83c44e031ebf1c85d4179cf7174fe89162d654a
+Author: Katie Hockman <katie@golang.org>
+Date:   Wed Jun 12 17:50:55 2019 -0400
+
+    doc: clarify default go command behavior in the release notes
+    
+    Change-Id: I2a0bd295ad9737581d149a7165191b878ae2acda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/181880
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.13.html | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)

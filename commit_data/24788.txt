@@ -1,0 +1,17 @@
+commit d841860f43ded5b1f3663d2d5fe9034c65ee7b6b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 10 10:39:38 2015 -0800
+
+    misc/cgo/test: disable Test10303 for gccgo
+    
+    When using gccgo it's OK if a pointer passed to C remains on the stack.
+    Gccgo does not have the clear distinction between C and Go stacks.
+    
+    Change-Id: I3af9dd6fe078214ab16d9d8dad2d206608d7891d
+    Reviewed-on: https://go-review.googlesource.com/16774
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ misc/cgo/test/issue10303.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

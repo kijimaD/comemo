@@ -1,0 +1,18 @@
+commit bc8e129366ebc4244026884319c68c31c3127853
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 15 09:30:45 2015 -0700
+
+    encoding/gob: fix infinite recursion caused by ignoring recursive type
+    
+    This was a simple oversight: the algorithm to handle recursive types
+    needed to be applied to the ignore-item case as well.
+    
+    Fixes #10415.
+    
+    Change-Id: I39ef31cad680ab8334e141f60d2f8707896785d1
+    Reviewed-on: https://go-review.googlesource.com/8942
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/encoding/gob/decode.go       | 34 ++++++++++++++++++++--------------
+ src/encoding/gob/encoder_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 14 deletions(-)

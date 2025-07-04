@@ -1,0 +1,16 @@
+commit 33ff63da4ec9cd456cab65b034b80a2fde4ebdea
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 13 17:47:47 2020 -0700
+
+    cmd/cgo: use consistent tag for a particular struct
+    
+    For #31891
+    Fixes #38408
+    
+    Change-Id: Ie7498c2cab728ae798e66e7168425e16b063520e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228102
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+
+ misc/cgo/test/testx.go | 10 ++++++++++
+ src/cmd/cgo/gcc.go     | 12 ++++++++++--
+ 2 files changed, 20 insertions(+), 2 deletions(-)

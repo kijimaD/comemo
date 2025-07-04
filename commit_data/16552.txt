@@ -1,0 +1,15 @@
+commit e5cbebc1ad3f1a6372bd1a0ac6032c6236f38f6b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jun 12 09:41:29 2013 -0400
+
+    runtime: fix plan9, windows builds
+    
+    TBR=dvyukov
+    CC=golang-dev
+    https://golang.org/cl/10229043
+
+ src/pkg/runtime/os_plan9_386.c     | 2 +-
+ src/pkg/runtime/os_plan9_amd64.c   | 2 +-
+ src/pkg/runtime/os_windows_386.c   | 2 +-
+ src/pkg/runtime/os_windows_amd64.c | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)

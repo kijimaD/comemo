@@ -1,0 +1,19 @@
+commit 2b063bdff1a61961936db7ef1e963aecf1ae3db7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 14 19:33:31 2015 -0700
+
+    cmd/internal/gc: make all Node depths int32
+    
+    Funcdepth was already int32. Make Escloopdepth
+    and Decldepth also int32 instead of int.
+    
+    No functional changes for non-absurd code. Passes toolstash -cmp.
+    
+    Change-Id: I47e145dd732b6a73cfcc6d45956df0dbccdcd999
+    Reviewed-on: https://go-review.googlesource.com/10129
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/internal/gc/esc.go    | 2 +-
+ src/cmd/internal/gc/go.go     | 2 +-
+ src/cmd/internal/gc/syntax.go | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

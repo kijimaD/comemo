@@ -1,0 +1,22 @@
+commit 3a89065c6c72162ac9c5f7b268c3e46ebee3cc7f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 24 15:57:12 2017 -0700
+
+    cmd/compile: replace nod(ONAME) with newname
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ib9f969e5ecc1537b7eab186dc4fd504a50f800f2
+    Reviewed-on: https://go-review.googlesource.com/38586
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go  |  5 +---
+ src/cmd/compile/internal/gc/dcl.go      | 16 +-----------
+ src/cmd/compile/internal/gc/esc.go      |  4 +--
+ src/cmd/compile/internal/gc/gen.go      |  9 +++----
+ src/cmd/compile/internal/gc/gsubr.go    |  8 ++----
+ src/cmd/compile/internal/gc/subr.go     | 43 ++++++++++++++++++++++++---------
+ src/cmd/compile/internal/gc/universe.go | 16 ++++--------
+ 7 files changed, 45 insertions(+), 56 deletions(-)

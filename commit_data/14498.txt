@@ -1,0 +1,15 @@
+commit 178c8578d5794aee6b111c6831e9a04e8a9d51ae
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Nov 26 16:02:08 2012 -0800
+
+    os/user: update stub documentation
+    
+    R=golang-dev, minux.ma, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6844088
+
+ src/pkg/os/user/lookup.go         | 22 ++++++++++++++++++++++
+ src/pkg/os/user/lookup_stubs.go   |  6 +++---
+ src/pkg/os/user/lookup_unix.go    | 19 +++++++------------
+ src/pkg/os/user/lookup_windows.go |  9 +++------
+ 4 files changed, 35 insertions(+), 21 deletions(-)

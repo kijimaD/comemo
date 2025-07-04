@@ -1,0 +1,22 @@
+commit f852034eb0e3f1397d5510b900d8c8dbf8b18746
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 28 08:53:25 2014 -0700
+
+    spec: move Method expr/value section near selectors
+    
+    Preparation for fixing issue 5769 (method selectors
+    do not auto-dereference): The actual fix may require
+    some cleanups in all these sections, and syntactically,
+    method expressions and method values are selector
+    expressions. Moving them next to each other so that
+    it's easy to see the actual changes (next CL).
+    
+    No content changes besides the section moves.
+    
+    LGTM=iant, rsc
+    R=r, rsc, iant, ken
+    CC=golang-codereviews
+    https://golang.org/cl/132300043
+
+ doc/go_spec.html | 455 ++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 228 insertions(+), 227 deletions(-)

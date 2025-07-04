@@ -1,0 +1,24 @@
+commit 92c35824710e001b8a6b19cddf739c0b6b05306a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 14 10:57:14 2017 -0500
+
+    cmd/go/internal/work: do not write trivial.c when testing gcc flags
+    
+    CL 61111 disabled the writing of trivial.c in -n mode, which
+    made -n mode at least inconsistent with regular mode in
+    how it was testing for flags. We think that both were getting
+    the same answer, so avoid creating the file in both modes
+    to make sure.
+    
+    If this CL turns out to be wrong, then when we revert it we
+    should make sure that the empty file is written even in -n mode,
+    because this check affects the command-line flags printed
+    by other commands in that mode.
+    
+    Change-Id: I0a050bfc148fe5a9d430a153d7816b2821277f0d
+    Reviewed-on: https://go-review.googlesource.com/78115
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 27 ++++++++++++++-------------
+ 1 file changed, 14 insertions(+), 13 deletions(-)

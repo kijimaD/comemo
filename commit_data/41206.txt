@@ -1,0 +1,15 @@
+commit b7689f5aa38b41c8fbd75d64aa463b898c81fca5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 30 17:32:23 2020 -0800
+
+    doc/go1.14: mention new log.Lmsgprefix flag
+    
+    Updates #32062
+    Updates #36878
+    
+    Change-Id: I06c7c9a9d253177155a6d46d58231ce26e659757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/217126
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.14.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

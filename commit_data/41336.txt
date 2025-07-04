@@ -1,0 +1,20 @@
+commit 8484d409ac8c4cf9d6c159d9bfbd1d00d908a66d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jan 7 17:18:33 2020 -0800
+
+    cmd/compile: add ellipsis syntax for op-only rewrite rules
+    
+    This change introduces a new syntax for rewrite rules
+    that only change a Value's Op. See #36380 for more discussion.
+    
+    Updating rewrite rules to use ellipses will happen
+    in follow-up CLs.
+    
+    Change-Id: I8c56e85de24607579d79729575c89ca80805ba5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213898
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 41 ++++++++++++++++++++++++++++-
+ 1 file changed, 40 insertions(+), 1 deletion(-)

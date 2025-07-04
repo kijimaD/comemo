@@ -1,0 +1,19 @@
+commit 23c22ca42c60194c32cf9692604fb25ca38d6f30
+Author: Jason LeBrun <jblebrun@gmail.com>
+Date:   Fri Jan 4 00:21:15 2019 +0000
+
+    crypto/sha512: fix casting of d.nx in UnmarshalBinary
+    
+    Fixes #29541
+    
+    Change-Id: I006915b020b6e710298c32c05e3de77a7f9b54f3
+    GitHub-Last-Rev: c7a90a4bbe17fd1904c0942e8b343264fb85cba1
+    GitHub-Pull-Request: golang/go#29542
+    Reviewed-on: https://go-review.googlesource.com/c/156277
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/sha512/sha512.go      |  2 +-
+ src/crypto/sha512/sha512_test.go | 57 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+), 1 deletion(-)

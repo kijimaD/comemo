@@ -1,0 +1,31 @@
+commit 38e7177c949016c3d74411fa7ea1c300ae85c0fa
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Thu Dec 13 17:55:52 2018 +0100
+
+    cmd/compile: fix length overflow when appending elements to a slice
+    
+    Instead of testing len(slice)+numNewElements > cap(slice) use
+    uint(len(slice)+numNewElements) > uint(cap(slice)) to test
+    if a slice needs to be grown in an append operation.
+    
+    This prevents a possible overflow when len(slice) is near the maximum
+    int value and the addition of a constant number of new elements
+    makes it overflow and wrap around to a negative number which is
+    smaller than the capacity of the slice.
+    
+    Appending a slice to a slice with append(s1, s2...) already used
+    a uint comparison to test slice capacity and therefore was not
+    vulnerable to the same overflow issue.
+    
+    Fixes: #29190
+    
+    Change-Id: I41733895838b4f80a44f827bf900ce931d8be5ca
+    Reviewed-on: https://go-review.googlesource.com/c/154037
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go |  4 ++--
+ test/fixedbugs/issue29190.go       | 37 +++++++++++++++++++++++++++++++++++++
+ test/prove.go                      |  2 +-
+ 3 files changed, 40 insertions(+), 3 deletions(-)

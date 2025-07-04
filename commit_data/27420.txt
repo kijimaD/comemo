@@ -1,0 +1,17 @@
+commit 7b597f4d92a844e30694095485c335baa93a1ad1
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Fri May 13 05:02:00 2016 +0900
+
+    net: deflake TestLookupPort for embedded, security-hardened platforms
+    
+    Fixes #14576.
+    
+    Change-Id: I760907c67c97cb827cf48ba7eb0bb2f4f8d4d790
+    Reviewed-on: https://go-review.googlesource.com/23111
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/error_test.go  | 14 ++++++++++++++
+ src/net/lookup_test.go | 41 +++++++++++++++++------------------------
+ 2 files changed, 31 insertions(+), 24 deletions(-)

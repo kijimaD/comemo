@@ -1,0 +1,21 @@
+commit ca886e0673ab1e199b722d4828b35f6a9c995cbf
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 16 11:49:33 2017 -0500
+
+    cmd/go/internal/cache: fix build failure introduced in CL 78176
+    
+    Maybe a bad git merge - not sure.
+    In any event, I do miss the trybots.
+    
+    Noticed while fixing: change print-to-stderr+panic
+    to pure panic, just so that the test (which catches the panic)
+    does not print any errors before passing.
+    
+    Change-Id: If25153ea64e81066455401110ae7a79c36f2f712
+    Reviewed-on: https://go-review.googlesource.com/78316
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/cache/cache.go      |  4 ++--
+ src/cmd/go/internal/cache/cache_test.go | 24 ++++++++++++------------
+ 2 files changed, 14 insertions(+), 14 deletions(-)

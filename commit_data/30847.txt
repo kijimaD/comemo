@@ -1,0 +1,21 @@
+commit 0b647ffb98fa40077b521ea0b4aa1dfa5dcb7912
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Mar 24 16:22:08 2017 -0700
+
+    cmd/compile: combine walkexpr cases
+    
+    The type switch in walkexpr is giant.
+    Shrink it a little by coalescing identical cases
+    and removing some vertical whitespace.
+    
+    No functional changes.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I7f7efb4faae1f8657dfafac04585172f99d8b37d
+    Reviewed-on: https://go-review.googlesource.com/38652
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/walk.go | 55 +++++--------------------------------
+ 1 file changed, 7 insertions(+), 48 deletions(-)

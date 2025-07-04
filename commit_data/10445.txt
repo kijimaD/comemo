@@ -1,0 +1,23 @@
+commit 5ca38eda49119804d790b70a11f884f72a9e26bd
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 18 21:33:04 2011 +1100
+
+    undo CL 5395044 / d88e746d3785
+    
+    Breaks with hg 1.6.4. Roll back until it's fixed.
+    
+    ««« original CL description
+    codereview: cleanup + basic tests
+    
+    R=adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5395044
+    »»»
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5410047
+
+ lib/codereview/codereview.py | 1296 +++++++++++++++++++-----------------------
+ lib/codereview/test.sh       |  198 -------
+ 2 files changed, 597 insertions(+), 897 deletions(-)

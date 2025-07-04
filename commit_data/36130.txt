@@ -1,0 +1,21 @@
+commit 9dab3847785fe16bd050dc53c96f9d2312e51c68
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Thu Jul 26 16:01:34 2018 +0200
+
+    cmd/link: added test of availability of gcc
+    
+    The test RuntimeTypeAttr always failed when gcc
+    was unavailable. The test is duplicated for internal
+    and external linking. The usual verification
+    of host linker is added at the beginning of the
+    external link test.
+    
+    Fixes #26621
+    
+    Change-Id: I076d661f854c8a6de8fa5e7b069942a471445047
+    Reviewed-on: https://go-review.googlesource.com/126075
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/cmd/link/internal/ld/dwarf_test.go | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)

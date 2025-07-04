@@ -1,0 +1,20 @@
+commit 6e8524be1895a9b313f324700ad373e4f70144d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Aug 30 18:47:48 2009 -0700
+
+    array index bug
+    
+    x[i]
+    x not addressable, i >= UINF
+    double evaluated i
+    second eval killed live registers
+    
+    manifested as gob instability
+    
+    R=ken
+    OCL=34097
+    CL=34099
+
+ src/cmd/6g/cgen.c        |  6 +++---
+ test/fixedbugs/bug199.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 3 deletions(-)

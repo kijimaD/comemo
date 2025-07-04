@@ -1,0 +1,14 @@
+commit 3e48c0381fd1beb78e993e940c3b46ca9898ce6d
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Wed Jul 21 11:59:45 2021 +0800
+
+    reflect: add missing copyright header
+    
+    Change-Id: I5a2f7203f83be02b03aa7be5fe386e485bf68ca3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/336189
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Findley <rfindley@google.com>
+
+ src/reflect/visiblefields.go      | 4 ++++
+ src/reflect/visiblefields_test.go | 4 ++++
+ 2 files changed, 8 insertions(+)

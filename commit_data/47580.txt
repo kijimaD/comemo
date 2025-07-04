@@ -1,0 +1,23 @@
+commit f13fcd9e6839978b883016a50a4e61d4ba843335
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Nov 22 14:37:41 2021 -0500
+
+    runtime: execute TestSpuriousWakeupsNeverHangSemasleep in parallel
+    
+    This test spends most of its time sleeping and waiting on a subprocess
+    to sleep. It seems like a prime candidate to run in parallel, although
+    we may need to relax its hard-coded 2s timeout on the sleep(1)
+    subprocess.
+    
+    For #48770
+    
+    Change-Id: I4e839739fe82446615f9894c1904c87e5f3cf386
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/366256
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/semasleep_test.go | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,23 @@
+commit 1664ff96f76e4f2cfdbaabfe286cdeff0426a013
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Mar 25 15:40:44 2016 +0100
+
+    misc/ios: fix exec wrapper locking
+    
+    The exec wrapper lock file was opened, locked and then never used
+    again, assuming it would close and unlock at process exit.
+    However, the garbage collector could collect and run the *os.File
+    finalizer that closes the file prematurely, rendering the lock
+    ineffective.
+    
+    Make the lock global so that the lock is live during the entire
+    execution.
+    
+    (Hopefully) fix the iOS builders.
+    
+    Change-Id: I62429e92042a0a49c4f1ea553fdb32b6ea53a43e
+    Reviewed-on: https://go-review.googlesource.com/21137
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit bab5536af6bbf197bbf54ff2c92b4462af1a82c3
+Author: Rob Pike <r@golang.org>
+Date:   Sat Feb 12 18:03:16 2011 -0800
+
+    code.html: update to reflect that package names need not be unique
+    
+    Fixes #1507.
+    
+    R=golang-dev, ehog.hedge, rsc
+    CC=golang-dev
+    https://golang.org/cl/4160049
+
+ doc/code.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

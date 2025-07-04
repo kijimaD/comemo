@@ -1,0 +1,16 @@
+commit 91238c5bfe29d71f6b605e2102f663d80084277d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 2 21:59:37 2009 -0700
+
+    - moved functions before types in doc output (per rsc)
+    - use /src and /doc prefix in URL to distinguish output type (per rsc)
+    - fixed a bug in an internal string function
+    - ignore files ending in _test.go (consider them test files)
+    
+    R=rsc
+    OCL=27054
+    CL=27054
+
+ usr/gri/pretty/docprinter.go | 12 ++++----
+ usr/gri/pretty/godoc.go      | 66 +++++++++++++++++++++++++++++---------------
+ 2 files changed, 50 insertions(+), 28 deletions(-)

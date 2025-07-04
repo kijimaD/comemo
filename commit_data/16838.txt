@@ -1,0 +1,13 @@
+commit 10d1e55103c17f4b379729f2d6b40327cefea6be
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Jul 22 20:47:39 2013 +0400
+
+    runtime: allow stack split in body of closechan
+    This gives more space during the call to runtime.lock.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/11679043
+
+ src/pkg/runtime/chan.c | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

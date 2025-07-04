@@ -1,0 +1,19 @@
+commit f83a47cbb9eae6d609019c1ac1a1950f63629e0d
+Author: Matthew William Jibson <matt.jibson@gmail.com>
+Date:   Sun Jul 8 11:57:04 2012 +1000
+
+    doc: various "the the" and other typos
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/6355076
+
+ doc/articles/json_and_go.html           | 4 ++--
+ doc/go_spec.html                        | 2 +-
+ src/pkg/go/doc/testdata/error2.1.golden | 2 +-
+ src/pkg/go/doc/testdata/error2.go       | 2 +-
+ src/pkg/math/remainder.go               | 2 +-
+ src/pkg/net/http/fs.go                  | 2 +-
+ src/pkg/text/tabwriter/tabwriter.go     | 2 +-
+ src/pkg/text/template/funcs.go          | 2 +-
+ 8 files changed, 9 insertions(+), 9 deletions(-)

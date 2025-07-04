@@ -1,0 +1,12 @@
+commit c4aa0217334afb137270c1f3220b971bdad8fc7c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 9 10:47:13 2009 -0700
+
+    bring over deps.bash
+    
+    TBR=r
+    OCL=30106
+    CL=30106
+
+ src/{lib => pkg}/deps.bash | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

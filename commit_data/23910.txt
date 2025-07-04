@@ -1,0 +1,32 @@
+commit 7904946eeb35faece61bbf6f5b3cc8be2f519c17
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 29 22:04:09 2015 -0700
+
+    cmd/cgo: discard trailing zero-sized fields in a non-empty C struct
+    
+    In order to fix issue #9401 the compiler was changed to add a padding
+    byte to any non-empty Go struct that ends in a zero-sized field.  That
+    causes the Go version of such a C struct to have a different size than
+    the C struct, which can considerable confusion.  Change cgo so that it
+    discards any such zero-sized fields, so that the Go and C structs are
+    the same size.
+    
+    This is a change from previous releases, in that it used to be
+    possible to refer to a zero-sized trailing field (by taking its
+    address), and with this change it no longer is.  That is unfortunate,
+    but something has to change.  It seems better to visibly break
+    programs that do this rather than to silently break programs that rely
+    on the struct sizes being the same.
+    
+    Update #9401.
+    Fixes #11925.
+    
+    Change-Id: I3fba3f02f11265b3c41d68616f79dedb05b81225
+    Reviewed-on: https://go-review.googlesource.com/12864
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue11925.go | 37 +++++++++++++++++++++++++++++++++++++
+ misc/cgo/test/issue8428.go  |  7 +++++--
+ src/cmd/cgo/gcc.go          | 26 ++++++++++++++++++++++----
+ 4 files changed, 65 insertions(+), 6 deletions(-)

@@ -1,0 +1,16 @@
+commit 5bb19e3454b91b0b8be53958a0f1b98f8b7b2c6b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Sep 5 12:47:07 2019 -0400
+
+    cmd/go/internal/module: document Version usage for filesystem replacements
+    
+    Updates #34085
+    
+    Change-Id: I57250d0c51a27f0bd3e223588dde9d6d955e0fcf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/193618
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/module/module.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

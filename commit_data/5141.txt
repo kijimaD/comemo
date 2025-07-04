@@ -1,0 +1,12 @@
+commit 5bb29fb1160ed9c727a2b83aa9cf7c082ac5de26
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 25 17:59:59 2010 -0700
+
+    spec changes for panic and recover.
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/763041
+
+ doc/go_spec.html | 186 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 178 insertions(+), 8 deletions(-)

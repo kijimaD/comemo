@@ -1,0 +1,15 @@
+commit 1f46cb0ba26b392e19be34d74db51bc32b9b1b92
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 23 16:12:45 2012 -0700
+
+    go/parser: resolve all parameter types
+    
+    Fixes #3655.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6213065
+
+ src/pkg/go/parser/parser.go      | 30 ++++++++++++--------
+ src/pkg/go/parser/parser_test.go | 61 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 12 deletions(-)

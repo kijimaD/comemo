@@ -1,0 +1,18 @@
+commit bdf8bf6adc956719a3a224f32c1ca6e6df77dbac
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 13 14:36:42 2013 -0400
+
+    encoding/xml: predefine xml name space prefix
+    
+    Also change prefix generation to use more human-friendly prefixes.
+    
+    Fixes #5040.
+    
+    R=golang-dev, r, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7777047
+
+ src/pkg/encoding/xml/marshal.go   | 78 ++++++++++++++++++++++++++++++++++-----
+ src/pkg/encoding/xml/read_test.go | 36 ++++++++++++------
+ src/pkg/encoding/xml/xml.go       |  4 ++
+ 3 files changed, 97 insertions(+), 21 deletions(-)

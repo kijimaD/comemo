@@ -1,0 +1,24 @@
+commit c8aba85e4a83c2023bed4e1e8ae3c480ecf835ec
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Apr 16 22:01:20 2015 -0400
+
+    runtime: export main.main for android
+    
+    Previously we started the Go runtime from a JNI function call, which
+    eventually called the program's main function. Now the runtime is
+    initialized by an ELF initialization function as a c-shared library,
+    and the program's main function is not called. So now we export main
+    so it can be called from JNI.
+    
+    This is necessary for all-Go apps because unlike a normal shared
+    library, the program loading the library is not written by or known
+    to the programmer. As far as they are concerned, the .so is
+    everything. In fact the same code is compiled for iOS as a normal Go
+    program.
+    
+    Change-Id: I61c6a92243240ed229342362231b1bfc7ca526ba
+    Reviewed-on: https://go-review.googlesource.com/9015
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/os_android_arm.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

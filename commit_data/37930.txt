@@ -1,0 +1,17 @@
+commit 56c9f8e8cfecafda3bd9f58c6421cd253a770d54
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 29 15:57:41 2019 -0800
+
+    os: treat EACCES as a permission error in RemoveAll
+    
+    Fixes #29983
+    
+    Change-Id: I24077bde991e621c23d00973b2a77bb3a18e4ae7
+    Reviewed-on: https://go-review.googlesource.com/c/160180
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/os/removeall_at.go   | 17 ++++++----
+ src/os/removeall_test.go | 80 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 91 insertions(+), 6 deletions(-)

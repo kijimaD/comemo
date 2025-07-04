@@ -1,0 +1,17 @@
+commit 6e788e0f0f71129082f6918cfbaf5b7c4b8ebd9f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 17 08:39:17 2009 -0800
+
+    net: enforce timeouts for ReadFrom/WriteTo
+    
+    Fixes #153.
+    
+    R=r
+    https://golang.org/cl/154177
+
+ src/pkg/net/fd.go           | 56 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/net/server_test.go  |  2 +-
+ src/pkg/net/timeout_test.go | 26 ++++++++++++++++-----
+ src/pkg/net/udpsock.go      | 10 ++------
+ src/pkg/net/unixsock.go     | 10 ++------
+ 5 files changed, 81 insertions(+), 23 deletions(-)

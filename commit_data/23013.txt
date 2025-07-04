@@ -1,0 +1,12 @@
+commit b83b01110090c41fc24750ecabf0b87c5fbff233
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu May 14 12:26:27 2015 +0900
+
+    net: fix vet missed format error in test
+    
+    Change-Id: I73c0aeb4b27fec84149c8e89753b27ff2190eabf
+    Reviewed-on: https://go-review.googlesource.com/10074
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/net/error_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

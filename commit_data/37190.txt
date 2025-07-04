@@ -1,0 +1,24 @@
+commit 4d1e95bb63c4d43369ea335680aa65000e3f3866
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 30 00:40:24 2018 +0000
+
+    os: add support for long path names on solaris RemoveAll
+    
+    Follow CL 146020 and enable RemoveAll based on Unlinkat and Openat on
+    solaris.
+    
+    Updates #27029
+    
+    Change-Id: I0b0e92f4422fa960a13dcd3e9adb57cd23f09ed4
+    Reviewed-on: https://go-review.googlesource.com/c/145839
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/syscall/unix/asm_solaris.s | 10 +++++
+ src/internal/syscall/unix/at_solaris.go | 75 +++++++++++++++++++++++++++++++++
+ src/os/removeall_at.go                  |  2 +-
+ src/os/removeall_noat.go                |  2 +-
+ src/os/removeall_test.go                |  4 +-
+ 5 files changed, 89 insertions(+), 4 deletions(-)

@@ -1,0 +1,13 @@
+commit d7660143b6fb99073614b60269f57d9e47f07c2c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 28 12:11:34 2014 -0700
+
+    doc/go1.4.html: new ports
+    
+    LGTM=rsc, aram, minux
+    R=golang-codereviews, aram, minux, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/162370045
+
+ doc/go1.4.html | 39 +++++++++++++++++++++++++++++++--------
+ 1 file changed, 31 insertions(+), 8 deletions(-)

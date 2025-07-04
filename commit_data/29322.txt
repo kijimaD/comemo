@@ -1,0 +1,21 @@
+commit 761443edd56832cc1b62f9193f157ca822dfa09e
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Oct 31 21:18:00 2016 -0700
+
+    cmd/compile: On a runtime.KeepAlive call, keep whole variable alive
+    
+    We generate an OpKeepAlive for the idata portion of the interface
+    for a runtime.KeepAlive call.  But given such an op, we need to keep
+    the entire containing variable alive, not just the range that was
+    passed to the OpKeepAlive operation.
+    
+    Fixes #17710
+    
+    Change-Id: I90de66ec8065e22fb09bcf9722999ddda289ae6e
+    Reviewed-on: https://go-review.googlesource.com/32477
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go |  9 +++++----
+ test/fixedbugs/issue17710.go       | 13 +++++++++++++
+ 2 files changed, 18 insertions(+), 4 deletions(-)

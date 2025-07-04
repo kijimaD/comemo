@@ -1,0 +1,30 @@
+commit 69756b38f25bf72f1040dd7fd243febba89017e6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Apr 5 14:25:34 2022 -0400
+
+    cmd/dist: move more environment logic into cmd/dist from make and run scripts
+    
+    'go tool dist env' outputs different (and fewer) environment variables
+    than 'go env'. The 'go tool dist env' variables should be
+    authoritative, whereas many printed by 'go env' are merely
+    informational (and not intended to be overridden in the actual
+    environment).
+    
+    Fixes #52009
+    
+    Change-Id: Ic0590153875183135cebf7ca55ead7c2b4038569
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398061
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/build.go | 59 +++++++++++++++++++++++++--------------------------
+ src/cmd/dist/test.go  |  4 ++--
+ src/make.bash         |  8 +------
+ src/make.bat          |  6 ++----
+ src/make.rc           |  6 +-----
+ src/run.bash          |  7 ++----
+ src/run.bat           | 11 +++-------
+ src/run.rc            |  6 +-----
+ 8 files changed, 41 insertions(+), 66 deletions(-)

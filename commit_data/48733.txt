@@ -1,0 +1,40 @@
+commit 910a33a0eed723696dc808d7801032cd3c035a6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 5 14:12:41 2022 -0400
+
+    go/doc/comment: parse and print doc links
+    
+    [This CL is part of a sequence implementing the proposal #51082.
+    The design doc is at https://go.dev/s/godocfmt-design.]
+    
+    Implement parsing and printing of documentation links,
+    like [math.Sqrt] or [*golang.org/x/text/runes.Set].
+    
+    For #51082.
+    
+    Change-Id: I1cc73afbac1c6568773f921ce4b73e52f17acef6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/397281
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/51082.txt                       |   2 +
+ src/go/doc/comment/html.go               |  11 ++
+ src/go/doc/comment/markdown.go           |  14 ++
+ src/go/doc/comment/mkstd.sh              |  24 +++
+ src/go/doc/comment/parse.go              | 247 ++++++++++++++++++++++++++++++-
+ src/go/doc/comment/print.go              |  52 +++++++
+ src/go/doc/comment/std.go                |  44 ++++++
+ src/go/doc/comment/std_test.go           |  35 +++++
+ src/go/doc/comment/testdata/README.md    |  42 ++++++
+ src/go/doc/comment/testdata/doclink.txt  |  19 +++
+ src/go/doc/comment/testdata/doclink2.txt |   8 +
+ src/go/doc/comment/testdata/doclink3.txt |   8 +
+ src/go/doc/comment/testdata/doclink4.txt |   7 +
+ src/go/doc/comment/testdata/doclink5.txt |   5 +
+ src/go/doc/comment/testdata/doclink6.txt |   5 +
+ src/go/doc/comment/testdata/doclink7.txt |   4 +
+ src/go/doc/comment/testdata_test.go      |  14 ++
+ src/go/doc/comment/text.go               |   3 +
+ 18 files changed, 538 insertions(+), 6 deletions(-)

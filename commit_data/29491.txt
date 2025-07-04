@@ -1,0 +1,18 @@
+commit 8f215d8c1f90f2841df2ae319799e0bc22320751
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Nov 11 07:39:17 2016 -0800
+
+    cmd/vet/all: add bitwidths for mips and mipsle
+    
+    cmd/vet/all still doesn't run for mips/mipsle,
+    because the rest of the toolchain doesn't yet
+    fully support it.
+    
+    Change-Id: I1a86b0edddbdcd5f43e752208508d99da7aabbb3
+    Reviewed-on: https://go-review.googlesource.com/33134
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/all/main.go | 2 ++
+ 1 file changed, 2 insertions(+)

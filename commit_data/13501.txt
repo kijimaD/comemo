@@ -1,0 +1,18 @@
+commit d399b681a4d307fa5a09dd15c8cf96adeccb6db4
+Author: Andrew Wilkins <axwalk@gmail.com>
+Date:   Thu Jul 26 11:47:46 2012 -0700
+
+    exp/types: process ast.Fun in checkObj; fix variadic function building
+    
+    Fixed creation of Func's, taking IsVariadic from parameter list rather
+    than results.
+    
+    Updated checkObj to process ast.Fun objects.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/6402046
+
+ src/pkg/exp/types/check.go      | 20 ++++++++++--
+ src/pkg/exp/types/types_test.go | 67 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+), 3 deletions(-)

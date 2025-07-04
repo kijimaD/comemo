@@ -1,0 +1,12 @@
+commit aff7ea9458d9010aec816e451fa557a3fd3a7d68
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Aug 28 09:40:08 2013 +1000
+
+    C: add Asim Shankar (Google CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/13313043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

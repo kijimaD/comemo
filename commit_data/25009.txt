@@ -1,0 +1,15 @@
+commit 91977d07fe461712dc86b397074e589151b76763
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Nov 1 14:29:45 2015 +0900
+
+    net: move TestLookupPort into lookup_test.go
+    
+    No code changes.
+    
+    Change-Id: Ibbba7c86007d74b853fb59aa742f87783bd69503
+    Reviewed-on: https://go-review.googlesource.com/16541
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_test.go | 54 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/port_test.go   | 63 --------------------------------------------------
+ 2 files changed, 54 insertions(+), 63 deletions(-)

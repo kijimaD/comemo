@@ -1,0 +1,12 @@
+commit 40d10a34dbc9e52a034b999b1f212aa5420f8cc3
+Author: Eric Clark <zerohp@gmail.com>
+Date:   Fri Nov 5 11:21:54 2010 -0700
+
+    gc: doc nit
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/2918042
+
+ src/cmd/gc/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

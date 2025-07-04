@@ -1,0 +1,72 @@
+commit 85fc76534169b61c4797d792e2593288daa987c5
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Sep 13 16:02:23 2019 -0700
+
+    cmd/compile: optimize switch on strings
+    
+    When compiling expression switches, we try to optimize runs of
+    constants into binary searches. The ordering used isn't visible to the
+    application, so it's unimportant as long as we're consistent between
+    sorting and searching.
+    
+    For strings, it's much cheaper to compare string lengths than strings
+    themselves, so instead of ordering strings by "si <= sj", we currently
+    order them by "len(si) < len(sj) || len(si) == len(sj) && si <= sj"
+    (i.e., the lexicographical ordering on the 2-tuple (len(s), s)).
+    
+    However, it's also somewhat cheaper to compare strings for equality
+    (i.e., ==) than for ordering (i.e., <=). And if there were two or
+    three string constants of the same length in a switch statement, we
+    might unnecessarily emit ordering comparisons.
+    
+    For example, given:
+    
+        switch s {
+        case "", "1", "2", "3": // ordered by length then content
+            goto L
+        }
+    
+    we currently compile this as:
+    
+        if len(s) < 1 || len(s) == 1 && s <= "1" {
+            if s == "" { goto L }
+            else if s == "1" { goto L }
+        } else {
+            if s == "2" { goto L }
+            else if s == "3" { goto L }
+        }
+    
+    This CL switches to using a 2-level binary search---first on len(s),
+    then on s itself---so that string ordering comparisons are only needed
+    when there are 4 or more strings of the same length. (4 being the
+    cut-off for when using binary search is actually worthwhile.)
+    
+    So the above switch instead now compiles to:
+    
+        if len(s) == 0 {
+            if s == "" { goto L }
+        } else if len(s) == 1 {
+            if s == "1" { goto L }
+            else if s == "2" { goto L }
+            else if s == "3" { goto L }
+        }
+    
+    which is better optimized by walk and SSA. (Notably, because there are
+    only two distinct lengths and no more than three strings of any
+    particular length, this example ends up falling back to simply using
+    linear search.)
+    
+    Test case by khr@ from CL 195138.
+    
+    Fixes #33934.
+    
+    Change-Id: I8eeebcaf7e26343223be5f443d6a97a0daf84f07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/195340
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/swt.go | 70 +++++++++++++++++++++++++-------------
+ test/codegen/switch.go             | 22 ++++++++++++
+ 2 files changed, 68 insertions(+), 24 deletions(-)

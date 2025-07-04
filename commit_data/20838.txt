@@ -1,0 +1,13 @@
+commit 692ad844b632074d9e71b6e59fab227c82da77b5
+Author: Nathan P Finch <nate.finch@gmail.com>
+Date:   Thu Oct 30 13:20:43 2014 -0700
+
+    cmd/go: fix minor typo
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/170770043
+
+ src/cmd/go/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

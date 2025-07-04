@@ -1,0 +1,14 @@
+commit 90c0fefe51b59f854f4eb7a8bc29348ae478b673
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 2 16:20:30 2015 -0400
+
+    cmd/internal/obj/x86: remove NOP that crept into framepointer fix
+    
+    Followup to CL 7728.
+    
+    Change-Id: Ibb0fed7816aab459a94720b139a7737fad65bea2
+    Reviewed-on: https://go-review.googlesource.com/8425
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/obj/x86/asm6.go | 1 -
+ 1 file changed, 1 deletion(-)

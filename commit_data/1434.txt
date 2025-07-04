@@ -1,0 +1,18 @@
+commit a3ddf4cfd12cc36178caba427c706b83f8c30a83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 7 13:58:56 2009 -0800
+
+    - enabling tracking of declarations
+    - removed dead code
+    - snapshot before making a lareger structural change
+    
+    R=r
+    OCL=22226
+    CL=22226
+
+ usr/gri/pretty/ast.go         | 28 ++++++++++++++++++++++++++--
+ usr/gri/pretty/globals.go     | 14 --------------
+ usr/gri/pretty/parser.go      |  7 +------
+ usr/gri/pretty/test.sh        |  4 ++--
+ usr/gri/pretty/typechecker.go | 11 ++++++++---
+ 5 files changed, 37 insertions(+), 27 deletions(-)

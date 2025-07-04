@@ -1,0 +1,17 @@
+commit 05ddb879c73bc0c84ed1a80864aaf27b4a3d032f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 2 12:56:29 2020 -0500
+
+    cmd/go: fix TestNewReleaseRebuildsStalePackagesInGOPATH
+    
+    Broken during CL 267719.
+    
+    Change-Id: If5acb8231d3053c0e714a79c02cb56eaba6e74e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/274854
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

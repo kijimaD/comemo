@@ -1,0 +1,48 @@
+commit b2b5e779f51fa37cb241417887decf4be38240d6
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 11 14:38:16 2016 -0800
+
+    cmd/compile: ignore receiver parameters in Eqtype
+    
+    Receiver parameters generally aren't relevant to the function
+    signature type. In particular:
+    
+      1. When checking whether a type's method implements an interface's
+         method, we specifically want to ignore the receiver parameters,
+         because they'll be different.
+    
+      2. When checking interface type equality, interface methods always
+         use the same "fakethis" *struct{} type as their receiver.
+    
+      3. Finally, method expressions and method values degenerate into
+         receiver-less function types.
+    
+    The only case where we care about receiver types matching is in
+    addmethod, which is easily handled by adding an extra Eqtype check of
+    the receiver parameters. Also, added a test for this, since
+    (surprisingly) there weren't any.
+    
+    As precedence, go/types.Identical ignores receiver parameters when
+    comparing go/types.Signature values.
+    
+    Notably, this allows us to slightly simplify the "implements"
+    function, which is used for checking whether type/interface t
+    implements interface iface. Currently, cmd/compile actually works
+    around Eqtype's receiver parameter checking by creating new throwaway
+    TFUNC Types without the receiver parameter.
+    
+    (Worse, the compiler currently only provides APIs to build TFUNC Types
+    from Nod syntax trees, so building those throwaway types also involves
+    first building throwaway syntax trees.)
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ib07289c66feacee284e016bc312e8c5ff674714f
+    Reviewed-on: https://go-review.googlesource.com/20602
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go  |  4 +++-
+ src/cmd/compile/internal/gc/subr.go |  9 +++++----
+ src/cmd/compile/internal/gc/type.go |  5 +++++
+ test/method1.go                     | 18 +++++++++++-------
+ 4 files changed, 24 insertions(+), 12 deletions(-)

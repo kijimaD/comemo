@@ -1,0 +1,20 @@
+commit 5197fa80405a470eef7cd2540380172aea6d60af
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Mon Jul 30 09:02:24 2012 +1000
+
+    syscall: workaround accept() bug on Darwin
+    
+    Darwin kernels have a bug in accept() where error result from
+    an internal call is not checked and socket is accepted instead
+    of ECONNABORTED error. However, such sockets have no sockaddr,
+    which results in EAFNOSUPPORT error from anyToSockaddr, making
+    Go http servers running on Mac OS X easily susceptible to
+    denial of service from simple port scans with nmap.
+    Fixes #3849.
+    
+    R=golang-dev, adg, mikioh.mikioh
+    CC=golang-dev
+    https://golang.org/cl/6456045
+
+ src/pkg/syscall/syscall_bsd.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

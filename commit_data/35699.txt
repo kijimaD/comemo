@@ -1,0 +1,24 @@
+commit 5eb98b3c3016c7dd10d71ee15bb6fc5d3128bec9
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Fri Jun 8 00:25:12 2018 +0300
+
+    cmd/compile: use expandable columns in ssa.html
+    
+    Display just a few columns in ssa.html, other
+    columns can be expanded by clicking on collapsed column.
+    
+    Use sans serif font for the text, slightly smaller font size
+    for non program text.
+    
+    Fixes #25286
+    
+    Change-Id: I1094695135401602d90b97b69e42f6dda05871a2
+    Reviewed-on: https://go-review.googlesource.com/117275
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go      |  2 +-
+ src/cmd/compile/internal/ssa/compile.go |  4 +-
+ src/cmd/compile/internal/ssa/html.go    | 95 +++++++++++++++++++++++++++++++--
+ 3 files changed, 93 insertions(+), 8 deletions(-)

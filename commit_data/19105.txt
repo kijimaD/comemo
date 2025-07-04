@@ -1,0 +1,13 @@
+commit 62bda120efd143b0dc9aaeccab898836ae44e0cf
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Thu Apr 10 21:14:51 2014 -0700
+
+    fmt: fix typo in help doc
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/86600045
+
+ src/pkg/fmt/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

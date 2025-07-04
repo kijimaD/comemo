@@ -1,0 +1,15 @@
+commit 5405df09afff46d065da1d73d56347f7c859ab6f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 3 10:36:35 2022 +0700
+
+    reflect: use doc links to refer to package "unsafe"
+    
+    Change-Id: Ide465c4276424f2c437691d440dd100c4db2f091
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420974
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/reflect/value.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

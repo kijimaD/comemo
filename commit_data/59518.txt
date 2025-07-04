@@ -1,0 +1,18 @@
+commit a88f093aaa35ae18aa02389624822101cbf231c0
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 14 12:46:28 2025 -0700
+
+    strings,bytes: make benchmark work deterministic
+    
+    It's hard to compare two different runs of a benchmark if they
+    are doing different amounts of work.
+    
+    Change-Id: I5d6845f3d11bb10136f745e6207d5f683612276d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672895
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/bytes/bytes_test.go     | 9 ++++++---
+ src/strings/strings_test.go | 9 ++++++---
+ 2 files changed, 12 insertions(+), 6 deletions(-)

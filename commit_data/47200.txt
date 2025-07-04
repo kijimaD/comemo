@@ -1,0 +1,19 @@
+commit 42e6b5bce2d027d4fcc4a7358b97a468494855d8
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 11:46:25 2021 -0400
+
+    go/types: differently named types are not assignable
+    
+    This is a clean port of CL 360274 to go/types.
+    
+    Change-Id: Idfa584fab95f7226e10b1a7c5b06d56a0bf9d757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360759
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/operand.go                        | 66 ++++++++++++--------------
+ src/go/types/testdata/fixedbugs/issue49242.go2 | 27 +++++++++++
+ src/go/types/testdata/spec/assignability.go2   | 46 ++++++++++++++----
+ 3 files changed, 94 insertions(+), 45 deletions(-)

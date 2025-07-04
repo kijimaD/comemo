@@ -1,0 +1,15 @@
+commit 353ce60f6e8e5898efec62945fbafd33bc28a37b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Feb 23 08:48:02 2013 +0400
+
+    runtime: implement local work queues (in preparation for new scheduler)
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7402047
+
+ src/pkg/runtime/export_test.go |   6 ++
+ src/pkg/runtime/proc.c         | 217 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/proc_test.go   |   8 ++
+ src/pkg/runtime/runtime.h      |  12 +++
+ 4 files changed, 243 insertions(+)

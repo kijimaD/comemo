@@ -1,0 +1,11 @@
+commit cbf351a0f29338ed2ff307729a1b3acacbb110db
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 24 11:33:32 2014 -0700
+
+    doc/go1.4.txt: go generate
+    
+    CC=golang-codereviews
+    https://golang.org/cl/132890043
+
+ doc/go1.4.txt | 1 +
+ 1 file changed, 1 insertion(+)

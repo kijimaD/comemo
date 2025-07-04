@@ -1,0 +1,19 @@
+commit 291636b99bcb581301faa14de61cde4c9093c335
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 7 14:54:31 2012 -0500
+
+    testing: do not print 'no tests' when there are examples
+    
+    I am not sure why RunTests and RunExamples are
+    exported, but I assume that because they are we
+    should not change the signature, so I added an
+    unexported global shared by Main and RunTests.
+    
+    Fixes #3237.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5779043
+
+ src/pkg/testing/testing.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

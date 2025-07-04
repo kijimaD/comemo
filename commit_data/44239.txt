@@ -1,0 +1,36 @@
+commit 852ce7c2125ef7d59a24facc2b6c3df30d7f730d
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 14 13:22:15 2021 +1100
+
+    cmd/go: provide a more helpful suggestion for "go vet -?"
+    
+    For the command
+    
+            go vet -?
+    
+    the output was,
+    
+            usage: go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
+            Run 'go help vet' for details.
+            Run 'go tool vet -help' for the vet tool's flags.
+    
+    but "go help vet" is perfunctory at best. (That's another issue I'm
+    working on—see https://go-review.googlesource.com/c/tools/+/291909—
+    but vendoring is required to sort that out.) Add another line and rewrite
+    a bit to make it actually helpful:
+    
+            usage: go vet [-n] [-x] [-vettool prog] [build flags] [vet flags] [packages]
+            Run 'go help vet' for details.
+            Run 'go tool vet help' for a full list of flags and analyzers.
+            Run 'go tool vet -help' for an overview.
+    
+    Change-Id: I9d8580f0573321a57d55875ac3185988ce3eaf64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291929
+    Trust: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/vet/vetflag.go  | 3 ++-
+ src/cmd/go/testdata/script/help.txt | 7 ++++---
+ 2 files changed, 6 insertions(+), 4 deletions(-)

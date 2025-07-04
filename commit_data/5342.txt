@@ -1,0 +1,13 @@
+commit 13bb28a40a4745fa9961a9ca69a342d99b61bd2c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 26 10:01:13 2010 -0700
+
+    template: fix handling of pointer inside interface
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/982043
+
+ src/pkg/template/template.go      | 2 +-
+ src/pkg/template/template_test.go | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)

@@ -1,0 +1,28 @@
+commit b05f18e3f7c3bb01b2faa7a52054883b0cc3a98a
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 15 13:28:41 2016 -0500
+
+    runtime: fix sleep/wakeup race for GC assists
+    
+    GC assists check gcBlackenEnabled under the assist queue lock to avoid
+    going to sleep after gcWakeAllAssists has already woken all assists.
+    However, currently we clear gcBlackenEnabled shortly *after* waking
+    all assists, which opens a window where this exact race can happen.
+    
+    Fix this by clearing gcBlackenEnabled before waking blocked assists.
+    However, it's unlikely this actually matters because the world is
+    stopped between waking assists and clearing gcBlackenEnabled and there
+    aren't any obvious allocations during this window, so I don't think an
+    assist could actually slip in to this race window.
+    
+    Updates #13645.
+    
+    Change-Id: I7571f059530481dc781d8fd96a1a40aadebecb0d
+    Reviewed-on: https://go-review.googlesource.com/18682
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mgc.go     | 4 ++++
+ src/runtime/mgcmark.go | 3 ++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

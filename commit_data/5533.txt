@@ -1,0 +1,14 @@
+commit 934a520d7586db9cf4f6c89470f41d0d06377425
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon May 24 14:58:26 2010 -0700
+
+    go spec: fix and clarify syntax of conversions
+    
+    Fixes #803.
+    
+    R=rsc, r, iant, ken2
+    CC=golang-dev
+    https://golang.org/cl/1281041
+
+ doc/go_spec.html | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

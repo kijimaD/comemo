@@ -1,0 +1,19 @@
+commit 5930cff093c44b86a299c1841ab4e6a2c7a239d2
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 29 10:16:47 2021 -0700
+
+    debug/gosym: add benchmark
+    
+    Use a Go 1.15 executable for the benchmark, because it is handy.
+    Most of the code paths are shared for Go 1.2+.
+    
+    Change-Id: Id7ddc76a05d76335108c58ff9f1ab2ff837b7227
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353131
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/debug/gosym/pclntab_test.go | 91 +++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 84 insertions(+), 7 deletions(-)

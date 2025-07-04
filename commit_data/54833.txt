@@ -1,0 +1,22 @@
+commit b11defeaed46a56e2d8a32f16ce3e22a93c3a825
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 31 09:54:54 2023 -0700
+
+    runtime: make select fairness test less picky
+    
+    Allow up to 10 standard deviations from the mean, instead of
+    ~5 that the current test allows.
+    
+    10 standard deviations allows up to a 4500/5500 split.
+    
+    Fixes #52465
+    
+    Change-Id: Icb21c1d31fafbcf4723b75435ba5e98863e812c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538815
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/chan_test.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)

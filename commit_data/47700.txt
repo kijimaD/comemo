@@ -1,0 +1,17 @@
+commit 3396878af43752a7c25406dabd525754f80a1c40
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Dec 4 06:34:08 2021 -0800
+
+    doc/go1.18: use correct link for reflect.PointerTo
+    
+    For #47694
+    
+    Change-Id: Iee4fda069a56ea4436b8aa32e2605f3349d7c154
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/369334
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+
+ doc/go1.18.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

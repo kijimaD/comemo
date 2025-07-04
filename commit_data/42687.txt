@@ -1,0 +1,18 @@
+commit d30363062283dcdca4392ef61f13f9b332ca8bc3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon May 25 03:23:30 2020 +1000
+
+    syscall: support rawVforkSyscall on linux/riscv64
+    
+    Updates #31936
+    
+    Change-Id: I7dcb8987d4c306ccc97704b9c1b12313ba8bf242
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234960
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/asm_linux_riscv64.s      | 22 ++++++++++++++++++++++
+ src/syscall/exec_linux.go            |  6 +++++-
+ src/syscall/syscall_linux_riscv64.go |  4 +---
+ 3 files changed, 28 insertions(+), 4 deletions(-)

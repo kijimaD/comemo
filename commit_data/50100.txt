@@ -1,0 +1,17 @@
+commit b5a9459cd08ec2a74ee4fdabfa4bc1eba0e87e49
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Aug 19 16:39:38 2022 +1000
+
+    image/png: have DecodeConfig read tRNS chunks
+    
+    Fixes #54325
+    
+    Change-Id: Ie468180c4d6f21db7672dd71bd2a40f3a5881b7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424917
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Nigel Tao (INACTIVE; USE @golang.org INSTEAD) <nigeltao@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/image/png/reader.go      | 26 ++++++++++++++--------
+ src/image/png/reader_test.go | 53 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 70 insertions(+), 9 deletions(-)

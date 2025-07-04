@@ -1,0 +1,13 @@
+commit e18516352a85e4236d979588d06b7de4d66ccf5a
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Feb 10 17:21:34 2010 -0800
+
+    arm: take out fixedbugs/bug120 - gives inconsistent errors
+    
+    R=kaib
+    CC=golang-dev
+    https://golang.org/cl/207062
+
+ test/arm-pass.txt   | 1 -
+ test/golden-arm.out | 5 -----
+ 2 files changed, 6 deletions(-)

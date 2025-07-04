@@ -1,0 +1,34 @@
+commit 457418b47556520d73148a9a5672ee380bd0b5a4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 23 09:31:54 2021 +0700
+
+    cmd/go: fix long test builders
+    
+    CL 343732 enabled -G=3 by default. The types2 typechecker uses slighly
+    different error message format for language feature constraint.
+    
+    The old typechecker format:
+    
+            vendor/example.net/need117/need117.go:5:16: cannot convert s (type []byte) to type *[4]byte:
+                    conversion of slices to array pointers only supported as of -lang=go1.17
+    
+    The new format:
+    
+            vendor/example.net/need117/need117.go:5:17: conversion of slices to array pointers only supported as of -lang=go1.17
+    
+    caused the long test builders failed.
+    
+    This CL fixes the test by relaxing the regext pattern a bit, so it can
+    match both the format.
+    
+    Change-Id: I1c4acaa9e34b6c08dccbbc3ce7a99d4cd79f748a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344212
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/go/testdata/script/mod_vendor_goversion.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,20 @@
+commit d5ba58216643cf13ab6e67219a66187f3f8ae891
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 27 17:42:57 2015 -0400
+
+    runtime: remove background GC goroutine and mark barriers
+    
+    These are now unused.
+    
+    Updates #11970.
+    
+    Change-Id: I43e5c4e5bcda9581bacc63364f96bb4855ab779f
+    Reviewed-on: https://go-review.googlesource.com/16393
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mgc.go       | 107 -----------------------------------------------
+ src/runtime/proc.go      |   2 +-
+ src/runtime/traceback.go |   3 --
+ 3 files changed, 1 insertion(+), 111 deletions(-)

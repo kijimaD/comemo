@@ -1,0 +1,20 @@
+commit b29d641b3a379b2fb0f88ceed066f043acab7c33
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 10 14:54:52 2012 -0700
+
+    exp/types/staging: typechecker API
+    
+    First set of type checker files for review.
+    The primary concern here is the typechecker
+    API (types.go).
+    
+    R=rsc, adonovan, r, rogpeppe
+    CC=golang-dev
+    https://golang.org/cl/6490089
+
+ src/pkg/exp/types/staging/exprstring.go |  98 +++++++++++++
+ src/pkg/exp/types/staging/predicates.go | 210 ++++++++++++++++++++++++++++
+ src/pkg/exp/types/staging/types.go      | 239 ++++++++++++++++++++++++++++++++
+ src/pkg/exp/types/staging/typestring.go | 148 ++++++++++++++++++++
+ src/pkg/exp/types/staging/universe.go   | 159 +++++++++++++++++++++
+ 5 files changed, 854 insertions(+)

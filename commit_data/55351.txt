@@ -1,0 +1,18 @@
+commit 10a66d681672a8600705a7540e3b0477d4c43c4a
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Thu Sep 28 07:08:51 2023 +0900
+
+    sync: use map[any]any instead of map[interface{}]interface{} in the godoc
+    
+    It's shorter and clearer.
+    
+    Change-Id: Ibfbe5a7f8d70fa884691ba9858a2c9b2122d9c50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531475
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/sync/map.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

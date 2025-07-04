@@ -1,0 +1,40 @@
+commit 3bac5faa4af2f5c454b2cebaa8be5cde9b8e2add
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Mon Oct 19 11:31:10 2020 +0200
+
+    cmd/compile: make gc debug flags collector a struct
+    
+    gc debug flags are currently stored in a 256-long array, that is then
+    addressed using the ASCII numeric value of the flag itself (a quirk
+    inherited from the old C compiler). It is also a little wasteful,
+    since we only define 16 flags, and the other 240 array elements are
+    always empty.
+    
+    This change makes Debug a struct, which also provides static checking
+    that we're not referencing flags that does not exist.
+    
+    Change-Id: I2f0dfef2529325514b3398cf78635543cdf48fe0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/263539
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/alg.go     |  8 +--
+ src/cmd/compile/internal/gc/closure.go |  2 +-
+ src/cmd/compile/internal/gc/esc.go     | 16 +++---
+ src/cmd/compile/internal/gc/escape.go  | 32 +++++------
+ src/cmd/compile/internal/gc/export.go  | 10 ++--
+ src/cmd/compile/internal/gc/go.go      | 10 +++-
+ src/cmd/compile/internal/gc/gsubr.go   |  2 +-
+ src/cmd/compile/internal/gc/iimport.go |  4 +-
+ src/cmd/compile/internal/gc/inl.go     | 38 ++++++-------
+ src/cmd/compile/internal/gc/main.go    | 97 ++++++++++++++++++----------------
+ src/cmd/compile/internal/gc/order.go   |  4 +-
+ src/cmd/compile/internal/gc/range.go   |  4 +-
+ src/cmd/compile/internal/gc/sinit.go   |  2 +-
+ src/cmd/compile/internal/gc/ssa.go     | 16 +++---
+ src/cmd/compile/internal/gc/subr.go    | 16 +++---
+ src/cmd/compile/internal/gc/syntax.go  |  4 +-
+ src/cmd/compile/internal/gc/walk.go    | 18 +++----
+ 17 files changed, 149 insertions(+), 134 deletions(-)

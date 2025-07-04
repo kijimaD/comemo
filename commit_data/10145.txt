@@ -1,0 +1,26 @@
+commit 03f163c7f22bfaab69a56d48160b0a184ce6bf54
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Oct 28 16:04:58 2011 +1100
+
+    html: don't run "adoption agency" on elements that aren't in scope.
+    
+    Pass tests1.dat, test 55:
+    <!DOCTYPE html><font><table></font></table></font>
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |   <body>
+    |     <font>
+    |       <table>
+    
+    Also pass tests through test 69:
+    <DIV> abc <B> def <I> ghi <P> jkl
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5309074
+
+ src/pkg/html/parse.go      | 4 ++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

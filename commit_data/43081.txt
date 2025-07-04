@@ -1,0 +1,19 @@
+commit 4d7abd7ae6711d1bc453da368cbf153b0f42a211
+Author: David Chase <drchase@google.com>
+Date:   Mon Jul 27 16:40:35 2020 -0400
+
+    cmd/compile: enable late call expansion for multiple results
+    
+    This does not work yet for SSA-able aggregates.
+    
+    Change-Id: Ib16b9c6158b25bb957145c5f934040b2bab9babd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/245132
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go           | 31 +++++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/expand_calls.go |  1 -
+ src/cmd/compile/internal/ssa/op.go           | 13 ++++++++++++
+ 3 files changed, 41 insertions(+), 4 deletions(-)

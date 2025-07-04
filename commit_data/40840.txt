@@ -1,0 +1,20 @@
+commit 580337e268a0581bc537e67ca4005b7682be5d66
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 11 20:23:35 2019 -0700
+
+    runtime, time: remove old timer code
+    
+    Updates #6239
+    Updates #27707
+    
+    Change-Id: I65e6471829c9de4677d3ac78ef6cd7aa0a1fc4cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171884
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/proc.go  |  49 ++-----
+ src/runtime/time.go  | 364 +--------------------------------------------------
+ src/runtime/trace.go |   9 +-
+ src/time/sleep.go    |   5 +-
+ 4 files changed, 19 insertions(+), 408 deletions(-)

@@ -1,0 +1,19 @@
+commit c7d352c9412de57ac5c9f5d7895540336ebaab5c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Aug 13 14:48:08 2013 -0700
+
+    archive/zip: remove an allocation, speed up a test
+    
+    Update #6138
+    
+    TestOver65kFiles spends all its time garbage collecting.
+    Removing the 1.4 MB of allocations per each of the 65k
+    files brings this from 34 seconds to 0.23 seconds.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/12894043
+
+ src/pkg/archive/zip/reader.go   | 3 +--
+ src/pkg/archive/zip/zip_test.go | 8 ++++----
+ 2 files changed, 5 insertions(+), 6 deletions(-)

@@ -1,0 +1,12 @@
+commit 514c9243f21fb8ec1df73ac63717d10e3136afa2
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Wed Sep 14 11:52:03 2011 -0700
+
+    exp/template/html: check that modified nodes are not shared by templates
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5012044
+
+ src/pkg/exp/template/html/escape.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)

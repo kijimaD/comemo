@@ -1,0 +1,20 @@
+commit 09d852ceac9da5cf879b3a2f8146c5d0dd4b26fa
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Dec 2 13:40:49 2022 -0500
+
+    cmd/dist: remove hardcoded timeout scale for arm and mips{,le,64,64le}
+    
+    Fixes #57117.
+    
+    Change-Id: If36da5b138a5e92e27688719ffc1c4dafd590957
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/455518
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 6 ------
+ src/run.bash         | 3 +--
+ 2 files changed, 1 insertion(+), 8 deletions(-)

@@ -1,0 +1,16 @@
+commit cf506f6eacbe50661380f8d1e483b6375e423f06
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Dec 23 16:29:38 2011 +1100
+
+    flag: add Duration flag type.
+    
+    This works in the expected way: flag.Duration returns a *time.Duration,
+    and uses time.ParseDuration for parsing the input.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5489113
+
+ src/pkg/flag/flag.go      | 55 +++++++++++++++++++++++++++++++++++++++++------
+ src/pkg/flag/flag_test.go | 28 ++++++++++++++++--------
+ 2 files changed, 68 insertions(+), 15 deletions(-)

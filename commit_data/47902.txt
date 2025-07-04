@@ -1,0 +1,20 @@
+commit 2639f2f79bda2c3a4e9ef7381ca7de14935e2a4a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 15 21:25:50 2021 -0800
+
+    go/types, types2: better error message for invalid == on type parameters
+    
+    Fixes #48712.
+    
+    Change-Id: I6f214cdfdd1815493f2a04828e8f0097f1d8c124
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372734
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/expr.go            | 18 +++++++---
+ .../types2/testdata/fixedbugs/issue48712.go2       | 41 ++++++++++++++++++++++
+ src/go/types/expr.go                               | 18 +++++++---
+ src/go/types/testdata/fixedbugs/issue48712.go2     | 41 ++++++++++++++++++++++
+ 4 files changed, 110 insertions(+), 8 deletions(-)

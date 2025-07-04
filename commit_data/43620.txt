@@ -1,0 +1,27 @@
+commit f2c0c2b90200b470c39a2db821b7c707604fe083
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Oct 24 02:08:06 2020 -0700
+
+    cmd/compile: improve inlining and static analysis
+    
+    When inlining a function call "f()", if "f" contains exactly 1
+    "return" statement and doesn't name its result parameters, it's
+    inlined to declare+initialize the result value using the AST
+    representation that's compatible with staticValue.
+    
+    Also, extend staticValue to skip over OCONVNOP nodes (often introduced
+    by inlining), and fix various bits of code related to handling method
+    expressions.
+    
+    Updates #33160.
+    
+    Change-Id: If8652e319f0a5700cf9d40a7a62e369a2a359229
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266199
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/inl.go | 104 +++++++++++++++++++++++++++++--------
+ src/cmd/compile/internal/gc/scc.go |  15 +++++-
+ 2 files changed, 94 insertions(+), 25 deletions(-)

@@ -1,0 +1,12 @@
+commit 6d2d4ba94fb94dd5a9f581a1606d720bed8131dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 1 21:44:14 2013 -0400
+
+    sort: fix 32-bit build
+    
+    TBR=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/10856043
+
+ src/pkg/sort/sort_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

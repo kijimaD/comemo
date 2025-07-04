@@ -1,0 +1,13 @@
+commit 799609e0b4798e0f8babe61a693041c76dec2785
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Mar 10 15:41:36 2010 -0800
+
+    godoc: change -x to -src, update doc.go (missed in previous CL)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/384044
+
+ src/cmd/godoc/doc.go  | 2 ++
+ src/cmd/godoc/main.go | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

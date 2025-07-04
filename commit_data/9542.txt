@@ -1,0 +1,13 @@
+commit d8333d41f20218389081aca5bcae75f8d0995c6d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 29 14:25:29 2011 -0400
+
+    A+C: Mateusz Czapliński (individual CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4967043
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

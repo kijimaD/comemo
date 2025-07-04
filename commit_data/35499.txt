@@ -1,0 +1,18 @@
+commit e52c1c0289b41513e5da01c83eef7e2f7bcf89ee
+Author: Zhou Peng <p@ctriple.cn>
+Date:   Fri May 25 07:38:54 2018 +0000
+
+    logs.txt: remove accidentally added file
+    
+    This file was checked in CL 103535.
+    
+    Change-Id: I03e36ba36e30444c4f8e394caef9224ecd6dd728
+    GitHub-Last-Rev: 6b7fb62f824c5c68be800aa98cf10241b48b1cc4
+    GitHub-Pull-Request: golang/go#25559
+    Reviewed-on: https://go-review.googlesource.com/114521
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ logs.txt | 0
+ 1 file changed, 0 insertions(+), 0 deletions(-)

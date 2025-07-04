@@ -1,0 +1,15 @@
+commit a5318bf5d676b3dfc10a1843668e3593cbdc87c5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 9 10:04:58 2019 -0800
+
+    os: always treat files as unpollable on FreeBSD
+    
+    Fixes #29633
+    Updates #27619
+    
+    Change-Id: I1e38569ea2a02423b028331f2ed987d3ae47fd2e
+    Reviewed-on: https://go-review.googlesource.com/c/157099
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/file_unix.go | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)

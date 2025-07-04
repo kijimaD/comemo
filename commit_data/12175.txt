@@ -1,0 +1,14 @@
+commit 7ae6872fc02557c46f8b9550a0697db3b9f19207
+Author: Scott Lawrence <bytbox@gmail.com>
+Date:   Thu Feb 23 15:38:07 2012 -0500
+
+    dist: treat CC as one unit
+    
+    Fixes #3112.
+    
+    R=golang-dev, 0xe2.0x9a.0x9b, ality, rsc, rsc
+    CC=golang-dev
+    https://golang.org/cl/5700044
+
+ src/cmd/dist/build.c | 19 ++++++++++---------
+ 1 file changed, 10 insertions(+), 9 deletions(-)

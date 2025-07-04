@@ -1,0 +1,23 @@
+commit b9a4eaa62b043fdb91f1f4a1e4b5ccfd3bdca36f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Nov 29 11:15:54 2023 +0100
+
+    cmd/cgo/internal/test: only test specific frames in testCallbackCallersSEH
+    
+    testCallbackCallersSEH will break if anything in this call chain is
+    refactored to have a different number of function calls.
+    
+    This change makes the test more robust by only testing the frames
+    that are actually relevant to the test.
+    
+    Change-Id: Idb51514d7079f55da6e6ddc52ad43b1ffe32c8c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545755
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/cgo/internal/test/callback_windows.go | 38 +++++----------------------
+ 1 file changed, 7 insertions(+), 31 deletions(-)

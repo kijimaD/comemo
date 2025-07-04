@@ -1,0 +1,14 @@
+commit dc42ffff594b12455b4e419bdae4cb707f602f4a
+Author: jaredculp <jculp14@gmail.com>
+Date:   Thu Aug 10 17:00:59 2017 -0400
+
+    math: add examples for trig functions
+    
+    Change-Id: Ic3ce2f3c055f2636ec8fc9cec8592e596b18dc05
+    Reviewed-on: https://go-review.googlesource.com/54771
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/example_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 71 insertions(+)

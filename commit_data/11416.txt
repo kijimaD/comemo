@@ -1,0 +1,12 @@
+commit 93e547a0c2aec056027558bca5dcfa706d9f6eda
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Thu Jan 26 17:20:48 2012 +0100
+
+    gc: softer criteria for inlinability.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5555072
+
+ src/cmd/gc/inl.c | 168 +++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 95 insertions(+), 73 deletions(-)

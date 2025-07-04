@@ -1,0 +1,43 @@
+commit bf1098273923e897184e70ab2488cecf15a4c8c1
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jul 1 12:18:35 2010 -0700
+
+    6l: implement MOVLQZX as "mov", not "movsxd"
+    
+    (Here, quoted strings are the official AMD names.)
+    
+    The amd64 "movsxd" instruction, when invoked
+    with a 64-bit REX prefix, moves and sign extends
+    a 32-bit value from register or memory into a
+    64-bit register.  6.out.h spells this MOVLQSX.
+    
+    6.out.h also includes MOVLQZX, the zero extending
+    version, which it implements as "movsxd" without
+    the REX prefix.  Without the REX prefix it's only sign
+    extending 32 bits to 32 bits (i.e., not doing anything
+    to the bits) and then storing in a 32-bit register.
+    Any write to a 32-bit register zeros the top half of the
+    corresponding 64-bit register, giving the advertised effect.
+    This particular implementation of the functionality is
+    non-standard, because an ordinary 32-bit "mov" would
+    do the same thing.
+    
+    Because it is non-standard, it is often mishandled or
+    not handled by binary translation tools like valgrind.
+    Switching to the standard "mov" makes the binaries
+    work better with those tools.
+    
+    It's probably useful in 6c and 6g to have an explicit
+    instruction, though, so that the intent of the size
+    change is clear.  Thus we leave the concept of MOVLQZX
+    and just implement it by the standard "mov" instead of
+    the non-standard 32-bit "movsxd".
+    
+    Fixes #896.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/1733046
+
+ src/cmd/6l/optab.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

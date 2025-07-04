@@ -1,0 +1,15 @@
+commit b0e71f46b54577cada943d9354298d684c696b60
+Author: Aram Hăvărneanu <aram@mgk.ro>
+Date:   Mon Mar 23 13:52:46 2015 +0100
+
+    net: link with networking libraries when net package is in use
+    
+    Fixes #10221.
+    
+    Change-Id: Ib23805494d8af1946360bfea767f9727e2504dc5
+    Reviewed-on: https://go-review.googlesource.com/7941
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/net/sendfile_solaris.go | 4 ++++
+ 1 file changed, 4 insertions(+)

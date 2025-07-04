@@ -1,0 +1,14 @@
+commit bcccad40202ba895d237d9d0a921b33bc2c5601f
+Author: Rob Pike <r@golang.org>
+Date:   Sun Oct 7 09:26:59 2012 +1100
+
+    text/template: fix nil crash on Templates
+    Fixes #3872.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6612060
+
+ src/pkg/text/template/exec_test.go | 5 +++++
+ src/pkg/text/template/template.go  | 3 +++
+ 2 files changed, 8 insertions(+)

@@ -1,0 +1,13 @@
+commit c560a0742b2b91d6cb7bb890cf33d55beb68680d
+Author: Rob Pike <r@golang.org>
+Date:   Fri Feb 17 09:56:14 2012 +1100
+
+    path/filepath: fix test on darwin
+    /tmp being itself a symlink causes problems for the test, so use / as the absolute path.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5675070
+
+ src/pkg/path/filepath/path_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

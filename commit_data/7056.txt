@@ -1,0 +1,14 @@
+commit 9d634e50c7d9a132897805a8604e15ce7db3de7b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 7 13:33:29 2011 -0800
+
+    gofmt: rewriter matches apply to expressions only
+    
+    Fixes #1384.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/3912041
+
+ src/cmd/gofmt/rewrite.go | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

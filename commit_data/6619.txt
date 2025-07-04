@@ -1,0 +1,12 @@
+commit 07e983a965094cbc377e794ea67feb5ecc6040ea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 25 16:50:31 2010 -0700
+
+    go spec: append built-in
+    
+    R=iant, ken2, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/2627043
+
+ doc/go_spec.html | 36 ++++++++++++++++++++++++++++++++----
+ 1 file changed, 32 insertions(+), 4 deletions(-)

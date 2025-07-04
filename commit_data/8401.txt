@@ -1,0 +1,19 @@
+commit 4da5cd4cd6d2caaa42996f0e5dd91fee036aa4d4
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon May 16 09:26:16 2011 -0700
+
+    os: make Readdir & Readdirnames return os.EOF at end
+    
+    Fixes #678
+    
+    R=rsc, r, alex.brainman, bsiegert, jdpoirier
+    CC=golang-dev
+    https://golang.org/cl/4536058
+
+ src/pkg/os/dir_unix.go     | 43 ++++++++++++++++++++++++++++---------------
+ src/pkg/os/dir_windows.go  | 12 +++++++-----
+ src/pkg/os/file_unix.go    | 27 ++++++++++++++++++++-------
+ src/pkg/os/file_windows.go | 33 +++++++++++++++++++++++++--------
+ src/pkg/os/os_test.go      |  7 +++++--
+ src/pkg/os/path.go         |  3 +++
+ 6 files changed, 88 insertions(+), 37 deletions(-)

@@ -1,0 +1,15 @@
+commit bb29c5a1ed872b770ff5203d8a0109a49e6d1dba
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 25 12:49:42 2014 -0700
+
+    spec: clarify embedding of interfaces
+    
+    Fixes #7886.
+    
+    LGTM=iant, r, rsc
+    R=r, iant, rsc, ken
+    CC=golang-codereviews
+    https://golang.org/cl/149010043
+
+ doc/go_spec.html | 31 +++++++++++++++++++------------
+ 1 file changed, 19 insertions(+), 12 deletions(-)

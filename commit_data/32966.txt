@@ -1,0 +1,32 @@
+commit 69b0b3ad22c0127e199c94f2866577346efa1287
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 5 11:11:29 2017 -0400
+
+    cmd/go, runtime/cgo: rewrite darwin/arm panicmem setup to avoid init function
+    
+    Init functions are problematic because we want cmd/link to be
+    able to insert an import of runtime/cgo for external linking.
+    For all the other systems that just means putting runtime/cgo into
+    the binary. The linker is not set up to generate calls to init functions,
+    and luckily this one can be avoided entirely.
+    
+    This means people don't have to import _ "runtime/cgo" in their
+    iOS programs anymore. The linker's default import is now enough.
+    
+    This CL also adjusts cmd/go to record the linker's default import,
+    now that the explicit import is gone.
+    
+    Change-Id: I81d23476663e03664f90d531c24db2e4f2e6c66b
+    Reviewed-on: https://go-review.googlesource.com/68490
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/cfg/cfg.go            | 20 +++++++++++++++++++-
+ src/cmd/go/internal/load/pkg.go           |  2 +-
+ src/cmd/go/internal/test/test.go          | 17 ++---------------
+ src/runtime/cgo/gcc_signal2_darwin_armx.c | 13 +++++++++++++
+ src/runtime/cgo/gcc_signal_darwin_armx.c  |  3 ++-
+ src/runtime/cgo/gcc_signal_darwin_lldb.c  |  2 --
+ src/runtime/cgo/signal_darwin_armx.go     | 26 ++------------------------
+ 7 files changed, 39 insertions(+), 44 deletions(-)

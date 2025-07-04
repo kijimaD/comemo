@@ -1,0 +1,26 @@
+commit c3fa32c7478754021558e99b39e634dcda34ba48
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Thu Feb 18 23:33:15 2010 -0800
+
+    math: add Cbrt and Sincos; x87 versions of Sincos, Frexp, Ldexp
+    
+    Added special condition and benchmarks for Cbrt, Sincos. Took Frexp and Ldexp out of bits.go.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/206084
+
+ src/pkg/math/Makefile       |  7 ++++
+ src/pkg/math/all_test.go    | 77 ++++++++++++++++++++++++++++++++++++++++---
+ src/pkg/math/bits.go        | 48 ---------------------------
+ src/pkg/math/cbrt.go        | 79 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/frexp.go       | 28 ++++++++++++++++
+ src/pkg/math/frexp_386.s    | 23 +++++++++++++
+ src/pkg/math/frexp_decl.go  |  7 ++++
+ src/pkg/math/ldexp.go       | 30 +++++++++++++++++
+ src/pkg/math/ldexp_386.s    | 12 +++++++
+ src/pkg/math/ldexp_decl.go  |  7 ++++
+ src/pkg/math/sincos.go      | 13 ++++++++
+ src/pkg/math/sincos_386.s   | 26 +++++++++++++++
+ src/pkg/math/sincos_decl.go |  7 ++++
+ 13 files changed, 311 insertions(+), 53 deletions(-)

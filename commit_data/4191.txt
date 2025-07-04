@@ -1,0 +1,12 @@
+commit b90f67329031127a6cb0796022ff4d81054406db
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 23 14:22:56 2009 -0800
+
+    io.ReadWriter: fix doc comment (ReadWrite -> ReadWriter)
+    
+    R=r
+    CC=eds
+    https://golang.org/cl/160045
+
+ src/pkg/io/io.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

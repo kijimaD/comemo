@@ -1,0 +1,27 @@
+commit 1e3b535b6eb7f13eb6d903f7998c384a36e9bba8
+Author: Johan Knutzen <johan@senri.se>
+Date:   Wed Oct 21 18:45:03 2020 +0000
+
+    syscall: expose bInheritHandles of CreateProcess
+    
+    Certain use cases require this parameter to be false. This includes
+    spawning a child process in a different windows session than session 0.
+    
+    Docs regarding the behavior of this parameter to CreateProcess:
+    https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa
+    
+    Fixes #42098
+    
+    Change-Id: If998f57d6f2962824aacbee75e1b508b255ab293
+    GitHub-Last-Rev: 584eb13e36a3ef7e0cd959295e92fb129f21d1f8
+    GitHub-Pull-Request: golang/go#41957
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261917
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+
+ doc/go1.16.html             | 8 ++++++++
+ src/syscall/exec_windows.go | 5 +++--
+ 2 files changed, 11 insertions(+), 2 deletions(-)

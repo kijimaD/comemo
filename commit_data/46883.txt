@@ -1,0 +1,21 @@
+commit 2feb2cc450e1925b9359957c90bae27e01662171
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 13 16:30:12 2021 +0200
+
+    syscall: add support for SysProcAttr.Pdeathsig on FreeBSD
+    
+    Fixes #46258
+    
+    Change-Id: I63f70e67274a9df39c757243b99b12e50a9e4784
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/355570
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/exec_freebsd.go         |  38 +++++++++-
+ src/syscall/exec_linux.go           |   2 +-
+ src/syscall/exec_pdeathsig_test.go  | 135 ++++++++++++++++++++++++++++++++++++
+ src/syscall/syscall_freebsd_test.go |  11 +++
+ src/syscall/syscall_linux_test.go   | 117 -------------------------------
+ 5 files changed, 184 insertions(+), 119 deletions(-)

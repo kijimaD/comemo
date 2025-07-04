@@ -1,0 +1,12 @@
+commit ac4055b2c5a81047271d8a0b830b657820a29698
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 22 23:51:25 2012 -0800
+
+    go spec: import path implementation restriction
+    
+    R=rsc, r, r, adg
+    CC=golang-dev
+    https://golang.org/cl/5688074
+
+ doc/go_spec.html | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)

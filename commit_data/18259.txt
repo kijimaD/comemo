@@ -1,0 +1,15 @@
+commit fc80ce81946b009dd826e260fe4fc1fbcc19f133
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 15 09:50:55 2014 -0800
+
+    go/scanner: report too short escape sequences
+    
+    Generally improve error messages for escape sequences.
+    
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/49430046
+
+ src/pkg/go/scanner/scanner.go      | 62 +++++++++++++++++++++++++-------------
+ src/pkg/go/scanner/scanner_test.go | 30 ++++++++++++++----
+ 2 files changed, 65 insertions(+), 27 deletions(-)

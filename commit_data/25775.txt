@@ -1,0 +1,21 @@
+commit 51b624e6a29b135ce0fadb22b678acf4998ff16f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 22:50:03 2016 -0500
+
+    cmd/link: remove alternate -X flag spelling
+    
+    The Go 1.6 release notes say we'll remove the “-X name value” form
+    (in favor of the “-X name=value” form) in Go 1.7.
+    Do that.
+    
+    Also establish the doc/go1.7.txt file.
+    
+    Change-Id: Ie4565a6bc5dbcf155181754d8d92bfbb23c75338
+    Reviewed-on: https://go-review.googlesource.com/19614
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.txt                    | 13 +++++++++++++
+ src/cmd/go/go_test.go            |  4 ++--
+ src/cmd/link/internal/ld/pobj.go | 27 ---------------------------
+ test/linkx_run.go                |  2 +-
+ 4 files changed, 16 insertions(+), 30 deletions(-)

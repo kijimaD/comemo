@@ -1,0 +1,22 @@
+commit 333c80694c797b5540c959f33c710bc6eba0d141
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jul 10 19:04:57 2023 -0400
+
+    cmd/cgo/internal/test: don't pass -lm on darwin
+    
+    On darwin, -lm is not necessary as the math functions are included
+    in libSystem. Passing -lm multiple times results in linker
+    warnings. Don't pass it on darwin.
+    
+    For #61229.
+    
+    Change-Id: I72d8dab1f0eead68cbeb176ac97b8ed1a0cfddab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/508697
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/cgo/internal/test/issue8756.go           | 2 +-
+ src/cmd/cgo/internal/test/issue8756/issue8756.go | 2 +-
+ src/cmd/cgo/internal/test/test.go                | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,21 @@
+commit c61a55d831d8042e4af48442e3a0db7d80539e5d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 25 15:57:25 2016 -0700
+
+    misc/cgo/testcarchive: more robust TestSignalForwardingExternal
+    
+    Try to avoid a race condition in the test.  Passed 500 times on my
+    laptop.
+    
+    Fixes #14956.
+    
+    Change-Id: I5de2e1e3623832f0ab4f180149f7c57ce7cd23c0
+    Reviewed-on: https://go-review.googlesource.com/21171
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/testcarchive/carchive_test.go     | 78 +++++++++++++++++++-----------
+ misc/cgo/testcarchive/main5.c              | 23 +++++++--
+ misc/cgo/testcarchive/src/libgo2/libgo2.go |  5 ++
+ 3 files changed, 74 insertions(+), 32 deletions(-)

@@ -1,0 +1,20 @@
+commit 08b9640333af248316e168d5a8d3331200fec9e9
+Author: WANG Xuerui <git@xen0n.name>
+Date:   Tue Dec 13 16:51:02 2022 +0800
+
+    cmd/compile: teach regalloc to rightly do nothing on loong64 in case of dynlinking
+    
+    This is needed before actual support for buildmode=plugin is added.
+    Should not affect current behavior.
+    
+    Change-Id: I86371d7e373fd529cb8710850d7b0fbbf1eb52ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/480877
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: WANG Xuerui <git@xen0n.name>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 2 ++
+ 1 file changed, 2 insertions(+)

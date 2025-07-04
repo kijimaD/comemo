@@ -1,0 +1,23 @@
+commit c950a90d7240a6f2124ae38564c137b86866b191
+Author: Austin Clements <austin@google.com>
+Date:   Wed Jan 17 15:51:09 2018 -0500
+
+    runtime: call abort instead of raw INT $3 or bad MOV
+    
+    Everything except for amd64, amd64p32, and 386 currently defines and
+    uses an abort function. This CL makes these match. The next CL will
+    recognize the abort function to make this more useful.
+    
+    Change-Id: I7c155871ea48919a9220417df0630005b444f488
+    Reviewed-on: https://go-review.googlesource.com/93660
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/vet/all/whitelist/386.txt           |  2 ++
+ src/cmd/vet/all/whitelist/amd64.txt         |  1 +
+ src/cmd/vet/all/whitelist/nacl_amd64p32.txt |  2 ++
+ src/runtime/asm_386.s                       | 19 ++++++++++++-------
+ src/runtime/asm_amd64.s                     | 19 ++++++++++++-------
+ src/runtime/asm_amd64p32.s                  |  7 ++++++-
+ 6 files changed, 35 insertions(+), 15 deletions(-)

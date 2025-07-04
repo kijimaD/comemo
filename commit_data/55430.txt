@@ -1,0 +1,27 @@
+commit 5000b5168037d26a796da46a07088e834c3af1a0
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jan 24 15:00:47 2024 -0500
+
+    Revert "archive/tar: add FileInfoNames interface"
+    
+    This reverts CL 514235. Also reverts CL 518056 which is a followup
+    fix.
+    
+    Reason for revert: Proposal #50102 defined an interface that is
+    too specific to UNIX-y systems and also didn't make much sense.
+    The proposal is un-accepted, and we'll revisit in Go 1.23.
+    
+    Fixes (via backport) #65245.
+    Updates #50102.
+    
+    Change-Id: I41ba0ee286c1d893e6564a337e5d76418d19435d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558295
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ api/go1.22.txt               |  9 ------
+ src/archive/tar/common.go    | 32 ---------------------
+ src/archive/tar/stat_unix.go | 10 -------
+ src/archive/tar/tar_test.go  | 68 --------------------------------------------
+ 4 files changed, 119 deletions(-)

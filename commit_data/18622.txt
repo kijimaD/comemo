@@ -1,0 +1,15 @@
+commit cd13a57b0ade69b8c4c2e4fc4f1952abfa885929
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Feb 24 21:12:44 2014 +0400
+
+    testing: fix bogus benchmark
+    Fatal must not be called from secondary goroutines.
+    Fixes #7401.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/67820047
+
+ src/pkg/testing/benchmark_test.go | 1 -
+ 1 file changed, 1 deletion(-)

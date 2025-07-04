@@ -1,0 +1,24 @@
+commit 4da2bc2eebb480f1c2a726de05f4e085e97d3b6c
+Author: Zeke Lu <lvzecai@gmail.com>
+Date:   Mon Sep 26 14:53:54 2022 +0000
+
+    internal/saferio: handle potential total size overflow in SliceCap
+    
+    Before the change, "SliceCap((*int64)(nil), 1<<62)" returns 1<<62.
+    That's because "uintptr(c)*size" overflows and gives 0 which is less
+    than the "chunk". SliceCap should return -1 in this case.
+    
+    Change-Id: I4e99224c8ac0fc72032c6be86d7318d33d083cd8
+    GitHub-Last-Rev: ca30bcce456d20702e3699822cd4f1c963ef1cec
+    GitHub-Pull-Request: golang/go#55870
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/434335
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+
+ src/internal/saferio/io.go      | 7 +++++--
+ src/internal/saferio/io_test.go | 7 +++++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)

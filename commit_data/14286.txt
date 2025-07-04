@@ -1,0 +1,34 @@
+commit ce287933d65be61fa45a7633b90a044e2c0b31b2
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Nov 1 19:43:29 2012 +0100
+
+    cmd/gc, runtime: pass PC directly to racefuncenter.
+    
+    go test -race -run none -bench . encoding/json
+    benchmark                      old ns/op    new ns/op    delta
+    BenchmarkCodeEncoder          3207689000   1716149000  -46.50%
+    BenchmarkCodeMarshal          3206761000   1715677000  -46.50%
+    BenchmarkCodeDecoder          8647304000   4482709000  -48.16%
+    BenchmarkCodeUnmarshal        8032217000   3451248000  -57.03%
+    BenchmarkCodeUnmarshalReuse   8016722000   3480502000  -56.58%
+    BenchmarkSkipValue           10340453000   4560313000  -55.90%
+    
+    benchmark                       old MB/s     new MB/s  speedup
+    BenchmarkCodeEncoder                0.60         1.13    1.88x
+    BenchmarkCodeMarshal                0.61         1.13    1.85x
+    BenchmarkCodeDecoder                0.22         0.43    1.95x
+    BenchmarkCodeUnmarshal              0.24         0.56    2.33x
+    BenchmarkCodeUnmarshalReuse         0.24         0.56    2.33x
+    BenchmarkSkipValue                  0.19         0.44    2.32x
+    
+    Fixes #4248.
+    
+    R=dvyukov, golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6815066
+
+ src/cmd/gc/builtin.c   |  2 +-
+ src/cmd/gc/racewalk.c  | 13 +++++++++----
+ src/cmd/gc/runtime.go  |  2 +-
+ src/pkg/runtime/race.c |  8 +++++---
+ 4 files changed, 16 insertions(+), 9 deletions(-)

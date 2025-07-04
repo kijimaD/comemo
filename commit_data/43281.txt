@@ -1,0 +1,15 @@
+commit 6b66b59328f3178cceae624a6100cfe8e7944746
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Tue Oct 13 08:32:41 2020 +0200
+
+    internal/cpu: remove unused arm64 capabilities
+    
+    Change-Id: I038b0fe165931b8ec3ef59f08dc73c8128d56572
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/261365
+    Trust: Martin Möhrmann <moehrmann@google.com>
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/internal/cpu/cpu_arm64.go | 68 ++++---------------------------------------
+ 1 file changed, 6 insertions(+), 62 deletions(-)

@@ -1,0 +1,20 @@
+commit bf151cc2aa4094b4633a7e5f07a34227d58231fe
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu May 5 16:51:54 2016 -0700
+
+    cmd/compile/internal/mips64: fix large uint -> float conversion
+    
+    Re-enable TestFP in cmd/compile/internal/gc on mips64.
+    
+    Fixes #15552.
+    
+    Change-Id: I5c3a5564b94d28c723358f0862468fb6da371991
+    Reviewed-on: https://go-review.googlesource.com/22835
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa_test.go  |  7 +------
+ src/cmd/compile/internal/mips64/gsubr.go | 11 +++++++++--
+ 2 files changed, 10 insertions(+), 8 deletions(-)

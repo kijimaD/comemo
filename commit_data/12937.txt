@@ -1,0 +1,16 @@
+commit 426bf361316ab495a29c9e0a05da6236894dd392
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 23 15:46:54 2012 -0700
+
+    time: change float expression to ensure it is an integer
+    
+    When I increased the number of bits that gccgo uses for
+    untyped floats, the expression 0.52*1e9 was no longer
+    integral.  This patch fixes that.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6113043
+
+ src/pkg/time/time_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

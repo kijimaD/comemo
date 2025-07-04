@@ -1,0 +1,13 @@
+commit 7fb121aa479c96e32c1178d4c65e865ae5cb5144
+Author: Rob Pike <r@golang.org>
+Date:   Mon Aug 19 08:29:43 2013 +1000
+
+    cmd/dist: more informative error for mkdtemp failing
+    The Darwin builders are all failing here but strerror doesn't provide context.
+    
+    R=golang-dev, bradfitz, adg
+    CC=golang-dev
+    https://golang.org/cl/13095043
+
+ src/cmd/dist/unix.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

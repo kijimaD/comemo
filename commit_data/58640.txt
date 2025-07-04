@@ -1,0 +1,18 @@
+commit d9d87edc56e72808b004a80e8c6846bde690d6c1
+Author: Quim Muntal <quimmuntal@gmail.com>
+Date:   Thu Feb 6 13:16:34 2025 -0800
+
+    Revert "cmd/go: report gcc ld error message when linking fails"
+    
+    This reverts CL 646315.
+    
+    Reason for revert: broke cgo_undef test
+    
+    Change-Id: Ic992a1666a446736c605a8caefa77f791dceb64c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647415
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/work/exec.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

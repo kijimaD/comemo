@@ -1,0 +1,14 @@
+commit fb9706d3bed364276c075081fbab820719fc5965
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Nov 6 20:11:49 2012 +0400
+
+    cmd/go: use correct paths with race detector
+    Currently the build fails with -race if a package in GOPATH
+    imports another package in GOPATH.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6811083
+
+ src/cmd/go/build.go | 3 +++
+ 1 file changed, 3 insertions(+)

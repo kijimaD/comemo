@@ -1,0 +1,13 @@
+commit 71f19d66d4209d2b72e38e7b2504089be1b55e8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jun 22 14:44:07 2009 -0700
+
+    document requirements on Write method
+    
+    R=r
+    DELTA=7  (6 added, 0 deleted, 1 changed)
+    OCL=30596
+    CL=30605
+
+ src/pkg/io/io.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

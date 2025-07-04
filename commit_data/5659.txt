@@ -1,0 +1,14 @@
+commit dee4db0691f66d96b599b6c5089434ee0a3bd865
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 14 15:00:19 2010 -0700
+
+    Add test for division by zero.
+    It fails with 6g. Once 6g is fixed up I will extend the value tests.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/1677043
+
+ test/golden.out    |  12 ++++
+ test/zerodivide.go | 168 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 180 insertions(+)

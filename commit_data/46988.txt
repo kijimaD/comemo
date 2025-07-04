@@ -1,0 +1,23 @@
+commit 3beab0cd71e9e4fedba13d762ed35db04851f1be
+Author: Robert Findley <rfindley@google.com>
+Date:   Thu Oct 21 18:59:10 2021 -0400
+
+    go/types, types2: add the Interface.MarkImplicit method
+    
+    Add a new interface method, MarkImplicit, to allow marking interfaces as
+    implicit from outside the type-checker. This is necessary so that we can
+    capture the implicit bit in export data, and use it from importers.
+    
+    For #48424
+    For #49040
+    
+    Change-Id: I999aba2a298f92432326d7ccbd87fe133a2e1a72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357796
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types2/interface.go | 8 ++++++++
+ src/go/types/interface.go                    | 8 ++++++++
+ 2 files changed, 16 insertions(+)

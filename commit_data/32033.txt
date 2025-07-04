@@ -1,0 +1,13 @@
+commit 7390d2f2db23d93ff88d57d4b75d5e8b1ab8cf13
+Author: Pat Moroney <pat@pat.email>
+Date:   Sat Jul 15 14:39:00 2017 -0600
+
+    time: clarify documentation for Location.String
+    
+    Change-Id: I5c32a968303848304cbd6fe1e83bed0af11f6440
+    Reviewed-on: https://go-review.googlesource.com/48960
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/zoneinfo.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 8be0de1e7e1f1c3f0d2b4b1ab2b4bc96377a3772
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu May 14 15:03:26 2020 -0400
+
+    cmd/go/internal/modload: document mvsReqs.Max
+    
+    The version "" denotes the main module, which has no version. The
+    mvs.Reqs interface documentation hints this is allowed, but it's not
+    obvious from the implementation in modload.mvsReqs.Max.
+    
+    Also, replace a related TODO with a comment in mvs.Downgrade.
+    
+    Fixes #39042
+    
+    Change-Id: I11e10908c9b3d8c2283eaa5c04bd8e1b936851fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/234003
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modload/mvs.go |  6 ++++++
+ src/cmd/go/internal/mvs/mvs.go     | 23 ++++++++++++++++++-----
+ 2 files changed, 24 insertions(+), 5 deletions(-)

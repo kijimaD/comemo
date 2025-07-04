@@ -1,0 +1,13 @@
+commit c33289238e8e48f8163a3a9f44979975ad068a6b
+Author: Rob Pike <r@golang.org>
+Date:   Mon Nov 1 17:49:06 2010 -0700
+
+    test/ken/convert.go: add conversion torture test
+    (written by ken)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/2823042
+
+ test/ken/convert.go | 431 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 431 insertions(+)

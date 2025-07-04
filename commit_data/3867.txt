@@ -1,0 +1,15 @@
+commit 832ce7c1d21d934d6adcc29f80d386ff35bdea24
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 6 16:34:19 2009 -0800
+
+    format composite literal types that are "short" struct type literals
+    on one line for a more compact representation of some composite Literals
+    
+    R=rsc
+    http://go/go-review/1025008
+
+ src/pkg/go/printer/nodes.go                    | 106 ++++++++++++++++++++-----
+ src/pkg/go/printer/testdata/expressions.golden |  14 ++++
+ src/pkg/go/printer/testdata/expressions.input  |  10 +++
+ src/pkg/go/printer/testdata/expressions.raw    |  14 ++++
+ 4 files changed, 123 insertions(+), 21 deletions(-)

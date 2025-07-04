@@ -1,0 +1,15 @@
+commit 80a87a99cccc730980aae0b7b10c6e645869f755
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Jan 6 16:56:06 2013 -0800
+
+    spec: Use "non-negative" instead of "positive"
+    
+    Replacing division-by-power-of-2 with right-shift is valid for
+    zero too.
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/7027049
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

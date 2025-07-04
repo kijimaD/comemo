@@ -1,0 +1,67 @@
+commit 6c11e2710e96171e7c202940bf2b14aa859f5ca2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 28 12:43:12 2016 -0700
+
+    cmd/compile: use delta encoding for filenames in export data position info
+    
+    This reduces the export data size significantly (15%-25%) for some packages,
+    especially where the paths are very long or if there are many files involved.
+    Slight (2%) reduction on average, with virtually no increases in export data
+    size.
+    
+    Selected export data sizes for packages with |delta %| > 3%:
+    
+                         package   before    after   delta     %
+    
+            cmd/asm/internal/arch   11647    11088    -559   -4%
+       cmd/compile/internal/amd64     838      600    -238  -27%
+         cmd/compile/internal/arm    7323     6793    -530   -6%
+       cmd/compile/internal/arm64   19948    18971    -977   -4%
+         cmd/compile/internal/big    9043     8548    -495   -4%
+      cmd/compile/internal/mips64     645      482    -163  -24%
+       cmd/compile/internal/ppc64     695      497    -198  -27%
+       cmd/compile/internal/s390x     553      433    -120  -21%
+         cmd/compile/internal/x86     744      555    -189  -24%
+                         cmd/dist     145      121     -24  -16%
+             cmd/internal/objfile   17359    16474    -885   -4%
+       cmd/internal/pprof/symbolz    8346     7941    -405   -4%
+          cmd/link/internal/amd64   11178    10604    -574   -4%
+            cmd/link/internal/arm     204      171     -33  -15%
+          cmd/link/internal/arm64     210      175     -35  -16%
+         cmd/link/internal/mips64     213      177     -36  -16%
+          cmd/link/internal/ppc64     211      176     -35  -16%
+          cmd/link/internal/s390x     210      175     -35  -16%
+            cmd/link/internal/x86     203      170     -33  -15%
+                        cmd/trace     782      744     -38   -4%
+                     compress/lzw     402      383     -19   -4%
+                       crypto/aes     311      262     -49  -15%
+                    crypto/cipher    1138      959    -179  -15%
+                       crypto/des     315      288     -27   -8%
+                  crypto/elliptic    6063     5746    -317   -4%
+                       crypto/rc4     317      295     -22   -6%
+                    crypto/sha256     348      312     -36   -9%
+                    crypto/sha512     487      451     -36   -6%
+                           go/doc    3871     3649    -222   -5%
+        go/internal/gccgoimporter    2063     1949    -114   -5%
+           go/internal/gcimporter    3253     3096    -157   -4%
+                             math    4343     3572    -771  -17%
+                       math/cmplx    1580     1274    -306  -18%
+                        math/rand     982      926     -56   -5%
+            net/internal/socktest    2159     2049    -110   -4%
+                          os/exec    7928     7492    -436   -4%
+                        os/signal     237      208     -29  -11%
+                          os/user     717      682     -35   -4%
+          runtime/internal/atomic     728      693     -35   -4%
+             runtime/internal/sys    2287     2107    -180   -7%
+                             sync    1306     1214     -92   -6%
+    
+                     all packages 1509255  1465507  -43748   -2%
+    
+    Change-Id: I98a11521b552166b7f47f2039a29f106748bf5d4
+    Reviewed-on: https://go-review.googlesource.com/22580
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/cmd/compile/internal/gc/bexport.go | 53 +++++++++++++++++++++++++---------
+ src/cmd/compile/internal/gc/bimport.go |  9 +++---
+ src/go/internal/gcimporter/bimport.go  |  9 +++---
+ 3 files changed, 49 insertions(+), 22 deletions(-)

@@ -1,0 +1,14 @@
+commit fa615a3b303fdf10e9e3dcd21d372c0ed8e7351a
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jan 26 18:35:18 2009 -0800
+
+    f, ok := i.(Foo) does not compile if i already is equivalent to Foo
+    
+    R=rsc
+    DELTA=18  (18 added, 0 deleted, 0 changed)
+    OCL=23544
+    CL=23547
+
+ test/bugs/bug135.go | 18 ++++++++++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 22 insertions(+)

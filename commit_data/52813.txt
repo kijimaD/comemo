@@ -1,0 +1,45 @@
+commit c9b0d8b61ef222b151206546b5d56c1cbe0d3449
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Apr 19 15:34:49 2023 -0700
+
+    go/types, types2: extract package name from test sources automatically
+    
+    This simplifies explicit tests and ensures that the error messages
+    contain the package name instead of a generic file name like "p.go".
+    
+    Fixes #59736.
+    
+    Change-Id: I1b42e30f53ba88456e92f990d80ca68ffc987e20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/486617
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/api_test.go        | 103 ++++++++++----------
+ src/cmd/compile/internal/types2/builtins_test.go   |   2 +-
+ src/cmd/compile/internal/types2/example_test.go    |  30 +++---
+ src/cmd/compile/internal/types2/hilbert_test.go    |   2 +-
+ .../compile/internal/types2/instantiate_test.go    |  10 +-
+ src/cmd/compile/internal/types2/issues_test.go     |  55 +++++------
+ src/cmd/compile/internal/types2/mono_test.go       |   2 +-
+ src/cmd/compile/internal/types2/named_test.go      |   4 +-
+ src/cmd/compile/internal/types2/object_test.go     |   4 +-
+ src/cmd/compile/internal/types2/resolver_test.go   |   4 +-
+ src/cmd/compile/internal/types2/sizes_test.go      |   4 +-
+ src/cmd/compile/internal/types2/typestring_test.go |   6 +-
+ src/go/types/api_test.go                           | 105 +++++++++++----------
+ src/go/types/builtins_test.go                      |   2 +-
+ src/go/types/example_test.go                       |  30 +++---
+ src/go/types/hilbert_test.go                       |   2 +-
+ src/go/types/instantiate_test.go                   |  10 +-
+ src/go/types/issues_test.go                        |  51 +++++-----
+ src/go/types/methodset_test.go                     |   2 +-
+ src/go/types/mono_test.go                          |   2 +-
+ src/go/types/named_test.go                         |   4 +-
+ src/go/types/object_test.go                        |   4 +-
+ src/go/types/resolver_test.go                      |   4 +-
+ src/go/types/sizes_test.go                         |   4 +-
+ src/go/types/typestring_test.go                    |   6 +-
+ 25 files changed, 226 insertions(+), 226 deletions(-)

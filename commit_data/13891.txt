@@ -1,0 +1,16 @@
+commit b151af1f36b0e2274bbf4b816a80c940126f6b32
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Fri Sep 21 13:50:02 2012 +0800
+
+    runtime: fix mmap comments
+    We only pass lower 32 bits of file offset to asm routine.
+    
+    R=r, dave, rsc
+    CC=golang-dev
+    https://golang.org/cl/6499118
+
+ src/pkg/runtime/runtime.h         | 3 +++
+ src/pkg/runtime/sys_freebsd_386.s | 2 +-
+ src/pkg/runtime/sys_netbsd_386.s  | 2 +-
+ src/pkg/runtime/sys_openbsd_386.s | 2 +-
+ 4 files changed, 6 insertions(+), 3 deletions(-)

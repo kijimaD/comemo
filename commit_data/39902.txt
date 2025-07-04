@@ -1,0 +1,22 @@
+commit d12c62d12dc87a086815ca9d8beaa8f0c8e26b00
+Author: Ben Shi <powerman1st@163.com>
+Date:   Wed Sep 11 07:22:35 2019 +0000
+
+    go/parser: fix ignored errors in ParseExprFrom
+    
+    This CL fixes a bug in ParseExprFrom which makes
+    error messages ignored when there are 10+ errors
+    in a single expression.
+    
+    fixes #34241
+    fixes #34274
+    
+    Change-Id: I29a82d3e3e726279005eb6fbcd7ee3aebffaa679
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/194638
+    Run-TryBot: Ben Shi <powerman1st@163.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/parser/interface.go   |  2 +-
+ src/go/parser/parser_test.go | 16 ++++++++++++++++
+ 2 files changed, 17 insertions(+), 1 deletion(-)

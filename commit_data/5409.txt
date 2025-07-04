@@ -1,0 +1,14 @@
+commit 74a23646bcfc11262fd43737c7fcee0b9783e943
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 30 12:48:03 2010 -0700
+
+    8l: fix absolute path detection on Windows
+    
+    Fixes #755.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/965047
+
+ src/cmd/ld/lib.c | 4 ++++
+ 1 file changed, 4 insertions(+)

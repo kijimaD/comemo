@@ -1,0 +1,18 @@
+commit c6513bca5aeaa9f9b6fe552d60f5b6c700ce0772
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jan 6 16:30:41 2021 -0800
+
+    io/fs: minor corrections to Glob doc
+    
+    The documentation for Glob was copied from filepath.Glob, and needs a bit
+    of tweaking: paths are not rooted at slash; the separator is always '/'.
+    
+    Fixes #43537
+    
+    Change-Id: Id64daa137e2762b66a82a5b9e60bbe603f4e2f5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282173
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/io/fs/glob.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

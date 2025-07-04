@@ -1,0 +1,14 @@
+commit 497bb9c07d01bc4094d4831fe9211c64563643e4
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 15 15:40:27 2009 -0800
+
+    casify fmt and its dependents.
+    
+    R=rsc
+    DELTA=224  (0 added, 2 deleted, 222 changed)
+    OCL=22875
+    CL=22875
+
+ src/lib/fmt/format.go | 196 +++++++++++++++++++++++++-------------------------
+ src/lib/fmt/print.go  | 112 ++++++++++++++---------------
+ 2 files changed, 153 insertions(+), 155 deletions(-)

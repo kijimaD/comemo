@@ -1,0 +1,17 @@
+commit 8af4acf59dadaaf6649413ebf45fe40d70e3f992
+Author: Rob Pike <r@golang.org>
+Date:   Mon May 31 14:53:15 2010 -0700
+
+    fmt.Scan: refactor the implementation so format-driven and normal scanning use the same function.
+    simplifies the code significantly.
+    Still TODO:
+            - proper format handling
+            - strings
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1432041
+
+ src/pkg/fmt/scan.go      | 254 ++++++++++++++++++-----------------------------
+ src/pkg/fmt/scan_test.go |   6 +-
+ 2 files changed, 100 insertions(+), 160 deletions(-)

@@ -1,0 +1,31 @@
+commit 79d4e894ed9d31396c3e25e7b9a9e99a7c6537e7
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Mar 2 17:09:22 2023 -0500
+
+    all: move //go: function directives directly above functions
+    
+    These directives affect the next declaration, so the existing form is
+    valid, but can be confusing because it is easy to miss. Move then
+    directly above the declaration for improved readability.
+    
+    CL 69120 previously moved the Gosched nosplit away to hide it from
+    documentation. Since CL 224737, directives are automatically excluded
+    from documentation.
+    
+    Change-Id: I8ebf2d47fbb5e77c6f40ed8afdf79eaa4f4e335e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/472957
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/internal/notsha256/sha256block_decl.go |  1 -
+ src/crypto/md5/md5block_decl.go                |  1 -
+ src/crypto/sha1/sha1block_decl.go              |  1 -
+ src/crypto/sha256/sha256block_decl.go          |  1 -
+ src/crypto/sha512/sha512block_decl.go          |  1 -
+ src/internal/bytealg/index_native.go           |  8 ++++----
+ src/runtime/os_solaris.go                      |  4 ++--
+ src/runtime/proc.go                            | 12 ++++++------
+ src/runtime/race.go                            | 20 ++++++++++----------
+ src/syscall/dll_windows.go                     |  8 ++++----
+ 10 files changed, 26 insertions(+), 31 deletions(-)

@@ -1,0 +1,20 @@
+commit da094f19f1aea32d0469d01a4c5a53fc9379569f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 10:43:53 2015 -0400
+
+    cmd/compile: move OCASE/OXCASE Node.Nname into Node.Rlist (type switch variable)
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 168
+    $
+    
+    Change-Id: I22bcea8099f308298c9db75c937f35e7fca906f1
+    Reviewed-on: https://go-review.googlesource.com/10535
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/esc.go | 14 ++++++++------
+ src/cmd/compile/internal/gc/go.y   |  4 ++--
+ src/cmd/compile/internal/gc/swt.go | 19 ++++++++++---------
+ src/cmd/compile/internal/gc/y.go   |  4 ++--
+ 4 files changed, 22 insertions(+), 19 deletions(-)

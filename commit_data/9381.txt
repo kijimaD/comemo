@@ -1,0 +1,21 @@
+commit 1bc245181e8366edba72563737df2df0f599219e
+Author: Joel Sing <jsing@google.com>
+Date:   Tue Aug 16 17:26:51 2011 -0400
+
+    net, syscall: move multicast address handling
+    
+    Multicast address handling is not consistent across all BSDs. Move
+    the multicast address handling code into OS dependent files. This
+    will be needed for OpenBSD support.
+    
+    R=mikioh.mikioh, golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4809074
+
+ src/pkg/net/interface_bsd.go     | 31 -------------------------------
+ src/pkg/net/interface_darwin.go  | 31 +++++++++++++++++++++++++++++++
+ src/pkg/net/interface_freebsd.go | 31 +++++++++++++++++++++++++++++++
+ src/pkg/syscall/route_bsd.go     | 29 -----------------------------
+ src/pkg/syscall/route_darwin.go  | 29 +++++++++++++++++++++++++++++
+ src/pkg/syscall/route_freebsd.go | 29 +++++++++++++++++++++++++++++
+ 6 files changed, 120 insertions(+), 60 deletions(-)

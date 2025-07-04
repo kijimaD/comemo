@@ -1,0 +1,25 @@
+commit 1f465139170f6c5a0f593769f39e023cc3728976
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 30 17:36:03 2008 -0700
+
+    various fixes:
+    - missing return in import code
+    - proper propagation of flags to various components
+    - better error message when source position is missing
+    - cleanups
+    
+    R=r
+    OCL=13676
+    CL=13676
+
+ usr/gri/gosrc/compilation.go | 19 +++++---------
+ usr/gri/gosrc/decls.go       |  2 +-
+ usr/gri/gosrc/export.go      | 43 ++++++++++++-------------------
+ usr/gri/gosrc/globals.go     | 12 ++++++++-
+ usr/gri/gosrc/go.go          | 42 ++++++++++++++++++------------
+ usr/gri/gosrc/import.go      | 39 ++++++++++++++++++----------
+ usr/gri/gosrc/parser.go      | 47 ++++++++++++++++------------------
+ usr/gri/gosrc/scanner.go     | 61 +++++++++++++++++++++-----------------------
+ usr/gri/gosrc/universe.go    |  3 +--
+ usr/gri/gosrc/utils.go       | 13 ++++++++++
+ 10 files changed, 151 insertions(+), 130 deletions(-)

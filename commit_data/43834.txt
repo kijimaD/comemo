@@ -1,0 +1,29 @@
+commit 4d048194cd0323e1deffce96e88e8a672a08732d
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Wed Nov 18 21:38:57 2020 +0100
+
+    runtime: support new callbackasm1 calling convention on windows/arm
+    
+    This updates the callbacks implementation on windows/arm for the
+    changes made in CL 258938. At the time, that was left as a TODO.
+    
+    At the same time, it also extends the previous support for only 4
+    arguments to also support additional arguments on the stack. This is
+    required for functions like SetWinEventHook, which take 7 arguments. It
+    does this by pushing r0-r3 onto the stack before the normal prologue,
+    and then pointing the args struct to that location.
+    
+    This is derived from CL 270077 and CL 270078.
+    
+    Updates #40724.
+    Fixes #42591.
+    
+    Change-Id: Icc199e7f2c24205e41be4e00015283c7e2a9b797
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/271178
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/sys_windows_arm.s  | 72 +++++++++++++++++++-----------------------
+ src/runtime/syscall_windows.go | 29 +++++++++++++----
+ 2 files changed, 56 insertions(+), 45 deletions(-)

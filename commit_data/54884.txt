@@ -1,0 +1,27 @@
+commit 36f3ec59122136d5664fd4c5524b8d0370edffdf
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Wed Nov 1 02:36:36 2023 +0000
+
+    runtime/internal/atomic: add 386/amd64 And/Or operators
+    
+    This CL adds the atomic primitives for the And/Or operators on x86-64.
+    It also includes missing benchmarks for the ops.
+    
+    For #61395
+    
+    Change-Id: I23ef5192866d21fc3a479d0159edeafc3aeb5c47
+    GitHub-Last-Rev: df800be1925a9f3929456844b4e6d1524e627990
+    GitHub-Pull-Request: golang/go#62621
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528315
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ src/runtime/internal/atomic/atomic_386.go        | 18 ++++++
+ src/runtime/internal/atomic/atomic_386.s         | 81 +++++++++++++++++++++++
+ src/runtime/internal/atomic/atomic_amd64.go      | 18 ++++++
+ src/runtime/internal/atomic/atomic_amd64.s       | 64 ++++++++++++++++++
+ src/runtime/internal/atomic/atomic_andor_test.go | 82 +++++++++++++++++++++++-
+ 5 files changed, 262 insertions(+), 1 deletion(-)

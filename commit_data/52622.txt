@@ -1,0 +1,19 @@
+commit da879c6e6a89244c71e3cb9a3c1ace66ce3647f9
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Tue Apr 4 12:25:27 2023 -0700
+
+    cmd/dist: mark wasip1/wasm as working
+    
+    Now that all preceding CLs are merged, the port should
+    be working.
+    
+    Change-Id: Ic45eaf42564ea286d0a429aa992c5ec0166945e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482255
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+
+ src/cmd/dist/build.go | 1 -
+ 1 file changed, 1 deletion(-)

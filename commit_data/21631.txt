@@ -1,0 +1,14 @@
+commit 7b36227002b8b442a55dfb975490a861a8aa2ff2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 13 12:09:12 2015 +0900
+
+    runtime: remove C-style strcmp and strncmp helpers
+    
+    Change-Id: I4aa23e3a0e765651c91907507a0194fd528b6223
+    Reviewed-on: https://go-review.googlesource.com/4662
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/os3_plan9.go    | 15 +++++----------
+ src/runtime/signal_plan9.go | 30 +++++++++++++++---------------
+ src/runtime/string1.go      | 39 ---------------------------------------
+ 3 files changed, 20 insertions(+), 64 deletions(-)

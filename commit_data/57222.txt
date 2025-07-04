@@ -1,0 +1,17 @@
+commit c5a9c8d067d4695eaf5f6ce94a464f7fcdc07584
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 19 17:29:19 2024 -0700
+
+    syscall: add O_DIRECTORY for wasip1
+    
+    Change-Id: Iadd69360fb09714a280c4dae26639834df28a7dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606659
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/syscall/fs_wasip1.go      |  8 ++++++++
+ src/syscall/syscall_wasip1.go | 13 +++++++------
+ 2 files changed, 15 insertions(+), 6 deletions(-)

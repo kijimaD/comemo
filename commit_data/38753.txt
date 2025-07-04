@@ -1,0 +1,21 @@
+commit d3a23874affca830033dee2a7a5a816bedebf55a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Apr 15 09:25:23 2019 -0700
+
+    cmd/link: clean up pclntab
+    
+    More minor cleanup:
+    
+    * Code simplification
+    * Move variable declaration closer to use
+    * Add docs
+    * Refactor loop
+    
+    Change-Id: I6f662cb65038b6ad927eb83757b241ac1ef58943
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172078
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/pcln.go | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)

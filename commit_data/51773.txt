@@ -1,0 +1,35 @@
+commit 4a0e84a1be52d9a57574de0421d9aa38522a0b71
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 5 13:02:44 2023 -0800
+
+    cmd/compile: improve register overwrite decision for resultInArg0 ops
+    
+    When we're compiling a resultInArg0 op, we need to clobber the
+    register containing the input value. So we first make a register copy
+    of the input value. We can then clobber either of the two registers
+    the value is in and still have the original input value in a register
+    for future uses.
+    
+    Before this CL, we always clobbered the original, not the copy.
+    But that's not always the right decision - if the original is already
+    in a specific register that it needs to be in later (typically, a
+    return value register), clobber the copy instead.
+    
+    This optimization can remove a mov instruction. It saves 1376 bytes
+    of instructions in cmd/go.
+    
+    Redo of CL 460656, reverted at CL 463475, with a fix for s390x.
+    
+    The new code just ensures that the copied value is in a register
+    which is a valid input register for the instruction.
+    
+    Change-Id: Id570b8a60a6d2da9090de80a90b6bb0266e9e38a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463221
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)

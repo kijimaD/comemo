@@ -1,0 +1,23 @@
+commit f30044a03bc7cf107dbec03c02fb6d0072878252
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 25 19:11:28 2020 -0400
+
+    cmd/go/internal: remove some users of par.Work
+    
+    par.Work is used in a number of places as a parallel
+    work queue. This change replaces it with goroutines
+    and channels in a number of simpler places where it's
+    used.
+    
+    Change-Id: I0620eda46ec7b2c0599a8b9361639af7bb73a05a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248326
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/modcmd/download.go | 69 +++++++++++++++++++---------------
+ src/cmd/go/internal/modcmd/graph.go    | 19 +++++-----
+ src/cmd/go/internal/modconv/convert.go | 59 ++++++++++++++++-------------
+ src/cmd/go/internal/modget/get.go      | 41 +++++++++++++-------
+ src/cmd/go/internal/modload/list.go    | 37 +++++++++++-------
+ 5 files changed, 133 insertions(+), 92 deletions(-)

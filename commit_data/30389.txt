@@ -1,0 +1,40 @@
+commit cbab65fdfa1cf74f65a480de0447388286169f26
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 17 00:10:39 2017 -0500
+
+    runtime/pprof: add streaming protobuf encoder
+    
+    The existing code builds a full profile in memory.
+    Then it translates that profile into a data structure (in memory).
+    Then it marshals that data structure into a protocol buffer (in memory).
+    Then it gzips that marshaled form into the underlying writer.
+    So there are three copies of the full profile data in memory
+    at the same time before we're done. This is obviously dumb.
+    
+    This CL implements a fully streaming conversion from
+    the original in-memory profile to the underlying writer.
+    There is now only one copy of the profile in memory.
+    
+    For the non-CPU profiles, this is optimal, since we have to
+    have a full copy in memory to start with.
+    
+    For the CPU profiles, we could still try to bound the profile
+    size stored in memory and stream fragments out during
+    the actual profiling, as Go 1.7 did (with a simpler format),
+    but so far that hasn't been necessary.
+    
+    Change-Id: Ic36141021857791bf0cd1fce84178fb5e744b989
+    Reviewed-on: https://go-review.googlesource.com/37164
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/go/build/deps_test.go          |  13 +-
+ src/runtime/pprof/mprof_test.go    |  17 +-
+ src/runtime/pprof/pprof.go         |  50 ++--
+ src/runtime/pprof/pprof_test.go    |  44 ++--
+ src/runtime/pprof/proto.go         | 454 +++++++++++++++++++++++++++----------
+ src/runtime/pprof/proto_test.go    |  32 ++-
+ src/runtime/pprof/protobuf.go      | 141 ++++++++++++
+ src/runtime/pprof/protomem.go      |  86 +++----
+ src/runtime/pprof/protomem_test.go |  42 ++--
+ 9 files changed, 628 insertions(+), 251 deletions(-)

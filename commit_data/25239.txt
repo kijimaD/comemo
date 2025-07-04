@@ -1,0 +1,20 @@
+commit 38255cbd1b0b671dae1fa84863f2e63355c61459
+Author: David Chase <drchase@google.com>
+Date:   Wed Dec 9 11:45:36 2015 -0500
+
+    math/rand: improve uniformity of rand.Float64,Float32
+    
+    Replaced code that substituted 0 for rounded-up 1 with
+    code to try again.  This has minimal effect on the existing
+    stream of random numbers, but restores uniformity.
+    
+    Fixes #12290.
+    
+    Change-Id: Ib68f0b0a4a173339bcd0274cc16509f7b0977de8
+    Reviewed-on: https://go-review.googlesource.com/17670
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/rand/rand.go | 25 +++++++++++--------------
+ 1 file changed, 11 insertions(+), 14 deletions(-)

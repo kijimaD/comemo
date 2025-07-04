@@ -1,0 +1,14 @@
+commit ded941158042d8b09164a9f8049fd7108b715680
+Author: Eric Ponce <tricokun@gmail.com>
+Date:   Sun Aug 26 19:32:07 2018 +0200
+
+    math: add Round and RoundToEven examples
+    
+    Change-Id: Ibef5f96ea588d17eac1c96ee3992e01943ba0fef
+    Reviewed-on: https://go-review.googlesource.com/131496
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/math/example_test.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

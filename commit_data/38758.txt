@@ -1,0 +1,36 @@
+commit 6b7114b9e5d872fe981a5c988915e4440f8df59c
+Author: sergey <sngasuan@gmail.com>
+Date:   Sun Feb 24 14:26:55 2019 +0300
+
+    net/http: speed up parsing of Cookie headers
+    
+    Parse the headers without splitting them upfront to reduce
+    memory allocations.
+    
+    For non-pathological Cookie headers we can make
+    a good estimate of the number of cookies in there and preallocate
+    the slice of cookies
+    
+    name              old time/op    new time/op    delta
+    CookieString-4      1.73µs ± 2%    1.70µs ± 5%     ~     (p=0.841 n=5+5)
+    ReadSetCookies-4    6.09µs ± 3%    5.93µs ± 3%     ~     (p=0.095 n=5+5)
+    ReadCookies-4       7.63µs ± 1%    6.41µs ± 4%  -15.99%  (p=0.008 n=5+5)
+    
+    name              old alloc/op   new alloc/op   delta
+    CookieString-4        360B ± 0%      360B ± 0%     ~     (all equal)
+    ReadSetCookies-4      976B ± 0%      976B ± 0%     ~     (all equal)
+    ReadCookies-4       2.17kB ± 0%    1.84kB ± 0%  -15.13%  (p=0.008 n=5+5)
+    
+    name              old allocs/op  new allocs/op  delta
+    CookieString-4        5.00 ± 0%      5.00 ± 0%     ~     (all equal)
+    ReadSetCookies-4      15.0 ± 0%      15.0 ± 0%     ~     (all equal)
+    ReadCookies-4         16.0 ± 0%      11.0 ± 0%  -31.25%  (p=0.008 n=5+5)
+    
+    Change-Id: Ica1ca0d40c0d8d275134d1dfafb73f1082115826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/163617
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/cookie.go | 29 ++++++++++++++++-------------
+ 1 file changed, 16 insertions(+), 13 deletions(-)

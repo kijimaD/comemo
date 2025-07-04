@@ -1,0 +1,86 @@
+commit 54af9a3ba5f3e656077eab2e9305cbbb41d7b154
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 4 22:53:54 2015 -0400
+
+    runtime: reintroduce ``dead'' space during GC scan
+    
+    Reintroduce an optimization discarded during the initial conversion
+    from 4-bit heap bitmaps to 2-bit heap bitmaps: when we reach the
+    place in the bitmap where there are no more pointers, mark that position
+    for the GC so that it can avoid scanning past that place.
+    
+    During heapBitsSetType we can also avoid initializing heap bitmap
+    beyond that location, which gives a bit of a win compared to Go 1.4.
+    This particular optimization (not initializing the heap bitmap) may not last:
+    we might change typedmemmove to use the heap bitmap, in which
+    case it would all need to be initialized. The early stop in the GC scan
+    will stay no matter what.
+    
+    Compared to Go 1.4 (github.com/rsc/go, branch go14bench):
+    name                    old mean              new mean              delta
+    SetTypeNode64           80.7ns × (1.00,1.01)  57.4ns × (1.00,1.01)  -28.83% (p=0.000)
+    SetTypeNode64Dead       80.5ns × (1.00,1.01)  13.1ns × (0.99,1.02)  -83.77% (p=0.000)
+    SetTypeNode64Slice      2.16µs × (1.00,1.01)  1.54µs × (1.00,1.01)  -28.75% (p=0.000)
+    SetTypeNode64DeadSlice  2.16µs × (1.00,1.01)  1.52µs × (1.00,1.00)  -29.74% (p=0.000)
+    
+    Compared to previous CL:
+    name                    old mean              new mean              delta
+    SetTypeNode64           56.7ns × (1.00,1.00)  57.4ns × (1.00,1.01)   +1.19% (p=0.000)
+    SetTypeNode64Dead       57.2ns × (1.00,1.00)  13.1ns × (0.99,1.02)  -77.15% (p=0.000)
+    SetTypeNode64Slice      1.56µs × (1.00,1.01)  1.54µs × (1.00,1.01)   -0.89% (p=0.000)
+    SetTypeNode64DeadSlice  1.55µs × (1.00,1.01)  1.52µs × (1.00,1.00)   -2.23% (p=0.000)
+    
+    This is the last CL in the sequence converting from the 4-bit heap
+    to the 2-bit heap, with all the same optimizations reenabled.
+    Compared to before that process began (compared to CL 9701 patch set 1):
+    
+    name                    old mean              new mean              delta
+    BinaryTree17             5.87s × (0.94,1.09)   5.91s × (0.96,1.06)    ~    (p=0.578)
+    Fannkuch11               4.32s × (1.00,1.00)   4.32s × (1.00,1.00)    ~    (p=0.474)
+    FmtFprintfEmpty         89.1ns × (0.95,1.16)  89.0ns × (0.93,1.10)    ~    (p=0.942)
+    FmtFprintfString         283ns × (0.98,1.02)   298ns × (0.98,1.06)  +5.33% (p=0.000)
+    FmtFprintfInt            284ns × (0.98,1.04)   286ns × (0.98,1.03)    ~    (p=0.208)
+    FmtFprintfIntInt         486ns × (0.98,1.03)   498ns × (0.97,1.06)  +2.48% (p=0.000)
+    FmtFprintfPrefixedInt    400ns × (0.99,1.02)   408ns × (0.98,1.02)  +2.23% (p=0.000)
+    FmtFprintfFloat          566ns × (0.99,1.01)   587ns × (0.98,1.01)  +3.69% (p=0.000)
+    FmtManyArgs             1.91µs × (0.99,1.02)  1.94µs × (0.99,1.02)  +1.81% (p=0.000)
+    GobDecode               15.5ms × (0.98,1.05)  15.8ms × (0.98,1.03)  +1.94% (p=0.002)
+    GobEncode               11.9ms × (0.97,1.03)  12.0ms × (0.96,1.09)    ~    (p=0.263)
+    Gzip                     648ms × (0.99,1.01)   648ms × (0.99,1.01)    ~    (p=0.992)
+    Gunzip                   143ms × (1.00,1.00)   143ms × (1.00,1.01)    ~    (p=0.585)
+    HTTPClientServer        89.2µs × (0.99,1.02)  90.3µs × (0.98,1.01)  +1.24% (p=0.000)
+    JSONEncode              32.3ms × (0.97,1.06)  31.6ms × (0.99,1.01)  -2.29% (p=0.000)
+    JSONDecode               106ms × (0.99,1.01)   107ms × (1.00,1.01)  +0.62% (p=0.000)
+    Mandelbrot200           6.02ms × (1.00,1.00)  6.03ms × (1.00,1.01)    ~    (p=0.250)
+    GoParse                 6.57ms × (0.97,1.06)  6.53ms × (0.99,1.03)    ~    (p=0.243)
+    RegexpMatchEasy0_32      162ns × (1.00,1.00)   161ns × (1.00,1.01)  -0.80% (p=0.000)
+    RegexpMatchEasy0_1K      561ns × (0.99,1.02)   541ns × (0.99,1.01)  -3.67% (p=0.000)
+    RegexpMatchEasy1_32      145ns × (0.95,1.04)   138ns × (1.00,1.00)  -5.04% (p=0.000)
+    RegexpMatchEasy1_1K      864ns × (0.99,1.04)   887ns × (0.99,1.01)  +2.57% (p=0.000)
+    RegexpMatchMedium_32     255ns × (0.99,1.04)   253ns × (0.99,1.01)  -1.05% (p=0.012)
+    RegexpMatchMedium_1K    73.9µs × (0.98,1.04)  72.8µs × (1.00,1.00)  -1.51% (p=0.005)
+    RegexpMatchHard_32      3.92µs × (0.98,1.04)  3.85µs × (1.00,1.01)  -1.88% (p=0.002)
+    RegexpMatchHard_1K       120µs × (0.98,1.04)   117µs × (1.00,1.01)  -2.02% (p=0.001)
+    Revcomp                  936ms × (0.95,1.08)   922ms × (0.97,1.08)    ~    (p=0.234)
+    Template                 130ms × (0.98,1.04)   126ms × (0.99,1.01)  -2.99% (p=0.000)
+    TimeParse                638ns × (0.98,1.05)   628ns × (0.99,1.01)  -1.54% (p=0.004)
+    TimeFormat               674ns × (0.99,1.01)   668ns × (0.99,1.01)  -0.80% (p=0.001)
+    
+    The slowdown of the first few benchmarks seems to be due to the new
+    atomic operations for certain small size allocations. But the larger
+    benchmarks mostly improve, probably due to the decreased memory
+    pressure from having half as much heap bitmap.
+    
+    CL 9706, which removes the (never used anymore) wbshadow mode,
+    gets back what is lost in the early microbenchmarks.
+    
+    Change-Id: I37423a209e8ec2a2e92538b45cac5422a6acd32d
+    Reviewed-on: https://go-review.googlesource.com/9705
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/cmd/internal/gc/reflect.go   |  31 +++-----
+ src/cmd/internal/ld/data.go      |  20 +++--
+ src/cmd/internal/ld/decodesym.go |   5 ++
+ src/runtime/gcinfo_test.go       |  43 +++++-----
+ src/runtime/mbitmap.go           | 168 +++++++++++++++++++++++++++------------
+ 5 files changed, 163 insertions(+), 104 deletions(-)

@@ -1,0 +1,18 @@
+commit db7dbe32aa449d64194f811d532c9d3fcc5c3255
+Author: Christian Himpel <chressie@googlemail.com>
+Date:   Fri Aug 31 12:00:01 2012 -0400
+
+    net/http: fix inserting of implicit redirects in serve mux
+    
+    In serve mux, if pattern contains a host name, pass only the path to
+    the redirect handler.
+    
+    Add tests for serve mux redirections.
+    
+    R=rsc
+    CC=bradfitz, gobot, golang-dev
+    https://golang.org/cl/6329045
+
+ src/pkg/net/http/serve_test.go | 19 ++++++++++++++++---
+ src/pkg/net/http/server.go     | 10 +++++++++-
+ 2 files changed, 25 insertions(+), 4 deletions(-)

@@ -1,0 +1,12 @@
+commit 48535ae3f10e685f2385b67dbcc3037e8c297b5f
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 11 14:32:34 2011 -0500
+
+    runtime: check that SysReserve returns aligned memory
+    
+    R=iant, iant2
+    CC=golang-dev
+    https://golang.org/cl/4180043
+
+ src/pkg/runtime/malloc.goc | 3 +++
+ 1 file changed, 3 insertions(+)

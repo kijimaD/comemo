@@ -1,0 +1,14 @@
+commit 277ef8fa07411231761426298c8e489ddef8ef67
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Sep 5 17:00:32 2014 -0400
+
+    runtime: disable StackCopyAlways
+    
+    I forgot to clear this before submitting.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/132640044
+
+ src/pkg/runtime/stack.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

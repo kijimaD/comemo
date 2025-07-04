@@ -1,0 +1,17 @@
+commit 2001685ec01c240eda84762a3bc612ddd3ca93fe
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 28 22:25:39 2020 -0800
+
+    cmd/compile/internal/syntax: add -skip flag to exclude files from TestStdLib
+    
+    TestStdLib reports parsed lines and lines/s information. To make
+    it easier to compare apples to apples when making changes in the
+    std lib, a regular expression provided via the -skip flag filters
+    files we don't want to process.
+    
+    Change-Id: I27d9c32032eac4e78581205892e4f26947c91bd9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221600
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/compile/internal/syntax/parser_test.go | 25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)

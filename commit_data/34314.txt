@@ -1,0 +1,26 @@
+commit e2a86b6bd9d0b0a2be2d6de7259f50eae73ff7e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 20 20:14:51 2018 -0800
+
+    cmd/compile/internal/syntax: simpler position base update for line directives (cleanup)
+    
+    The existing code was somewhat convoluted and made several assumptions
+    about the encoding of position bases:
+    
+    1) The position's base for a file contained a position whose base
+       pointed to itself (which is true but an implementation detail
+       of src.Pos).
+    
+    2) Updating the position base for a line directive required finding
+       the base of the most recent's base position.
+    
+    This change simply stores the file's position base and keeps using it
+    directly for each line directive (instead of getting it from the most
+    recently updated base).
+    
+    Change-Id: I4d80da513bededb636eab0ce53257fda73f0dbc0
+    Reviewed-on: https://go-review.googlesource.com/95736
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/syntax/parser.go | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)

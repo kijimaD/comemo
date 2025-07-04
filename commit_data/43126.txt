@@ -1,0 +1,30 @@
+commit 1f4d035178d2d792a74b6b872f6a213bf5fd9326
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 28 10:11:06 2020 +0200
+
+    runtime: initialise cpu.HWCap on netbsd/arm64
+    
+    NetBSD does not supply AT_HWCAP, however we still need to initialise
+    cpu.HWCaps.  For now specify the bare minimum until we add some form of
+    capabilities detection. See
+    https://golang.org/issue/30824#issuecomment-494901591
+    
+    Follows CL 174129 which did the same for openbsd/arm64.
+    
+    Updates #30824
+    
+    Change-Id: I43a86b583bc60d259a66772703de06970124bb7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257998
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Trust: Benny Siegert <bsiegert@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Benny Siegert <bsiegert@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/os_netbsd.go       |  1 +
+ src/runtime/os_netbsd_386.go   |  3 +++
+ src/runtime/os_netbsd_amd64.go |  3 +++
+ src/runtime/os_netbsd_arm.go   |  3 +++
+ src/runtime/os_netbsd_arm64.go | 12 +++++++++++-
+ 5 files changed, 21 insertions(+), 1 deletion(-)

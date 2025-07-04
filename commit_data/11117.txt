@@ -1,0 +1,22 @@
+commit b1d6fa517cd99cbbad1523dddc6182da5a701122
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Wed Jan 11 18:47:03 2012 -0500
+
+    html/template: reenable testcases and fix mis-escaped sequences.
+    
+    Tighter octal parsing broke some tests and were disabled in
+    https://golang.org/cl/5530051
+    
+    Those tests were broken.  The CSS decoder was supposed to see CSS
+    hex escape sequences of the form '\' <hex>+, but those escape
+    sequences were instead being consumed by the template parser.
+    
+    This change properly escapes those escape sequences, and uses
+    proper escaping for NULs.
+    
+    R=golang-dev, rsc, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5529073
+
+ src/pkg/html/template/escape_test.go | 22 ++++++++++------------
+ 1 file changed, 10 insertions(+), 12 deletions(-)

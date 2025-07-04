@@ -1,0 +1,29 @@
+commit 38fbada5579823378217d57671de54fc5ebfa8c6
+Author: Ben Shi <powerman1st@163.com>
+Date:   Tue Apr 25 10:53:10 2017 +0000
+
+    cmd/compile/internal/ssa: more constant folding rules for ARM
+    
+    (ADDconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) -> (SUBconst [int64(int32(-c))] x)
+    (SUBconst [c] x) && !isARMImmRot(uint32(c)) && isARMImmRot(uint32(-c)) -> (ADDconst [int64(int32(-c))] x)
+    Currently
+    a = a + 0xfffffff1 is compiled to （variable a is in R0)
+    MVN $14, R11
+    ADD R11, R0, R0
+    After applying the above 2 rules, it becomes
+    SUB $15, R0, R0
+    
+    (BICconst [c] (BICconst [d] x)) -> (BICconst [int64(int32(c|d))] x)
+    This rule also optimizes the generated ARM code.
+    
+    The other rules are added to avoid to generate less optimized ARM code
+    when substitutions ADD->SUB happen.
+    
+    Change-Id: I3ead9aae2b446b674e2ab42d37259d38ceb93a4d
+    Reviewed-on: https://go-review.googlesource.com/41679
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM.rules |  16 ++
+ src/cmd/compile/internal/ssa/rewrite.go    |  12 ++
+ src/cmd/compile/internal/ssa/rewriteARM.go | 312 +++++++++++++++++++++++++++++
+ 3 files changed, 340 insertions(+)

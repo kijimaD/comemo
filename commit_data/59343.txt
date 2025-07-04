@@ -1,0 +1,22 @@
+commit 95611c0eb4436102ab0dad3a705acff5f5eb7aca
+Author: Prabhav Dogra <prabhavdogra1@gmail.com>
+Date:   Sun Apr 20 07:52:58 2025 +0000
+
+    sync: use atomic.Bool for Once.done
+    
+    Updated the use of atomic.Uint32 to atomic.Bool for sync package.
+    
+    Change-Id: Ib8da66fea86ef06e1427ac5118016b96fbcda6b1
+    GitHub-Last-Rev: d36e0f431fcde988f90badf86bbf04a18a411947
+    GitHub-Pull-Request: golang/go#73447
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666895
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+
+ src/sync/once.go    | 8 ++++----
+ test/inline_sync.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)

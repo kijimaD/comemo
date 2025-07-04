@@ -1,0 +1,28 @@
+commit ff7986d67029992b6a388a3797c4024d9a4856da
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Tue Oct 17 18:36:31 2023 +0000
+
+    go/printer: fix invalid output for empty decls
+    
+    The current output for empty declarations such as var, const, import
+    results in "var", "const", "import" respectively. These are not valid
+    and the parser will promptly reject them as invalid syntax.
+    
+    This CL updates this behavior by adding "()" to the output of empty
+    decls so the syntax becomes valid, e.g "var ()" instead of "var".
+    
+    Fixes #63566
+    
+    Change-Id: I571b182d9ccf71b159360c8de003ad55d0ff3443
+    GitHub-Last-Rev: 2720419e364938e9962be71d0e6ed51375fec404
+    GitHub-Pull-Request: golang/go#63593
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535995
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ src/go/printer/nodes.go        |  2 +-
+ src/go/printer/printer_test.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

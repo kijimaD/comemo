@@ -1,0 +1,17 @@
+commit a7c7ec5995b3901145f847c01f3e100b2b7e3421
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Mon Aug 5 03:14:45 2024 +0000
+
+    maps: add examples for All, Keys, Values, Insert, and Collect functions
+    
+    Change-Id: I4ee61bea9997b822aa1ec2cc3d01b4db5f101e4c
+    GitHub-Last-Rev: d88282a92ec86721356696108898e06924ec89c9
+    GitHub-Pull-Request: golang/go#68696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602315
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/maps/example_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 58 insertions(+)

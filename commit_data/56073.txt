@@ -1,0 +1,20 @@
+commit 33fd95b8203f1ac887f13e7381a7ff124d098258
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Mar 26 06:44:26 2024 +0000
+
+    encoding/asn1: simplify appendFourDigits
+    
+    The new code does not need a for-loop and is easier to read.
+    
+    Change-Id: Ic182d63c4779c2179b721fcfaec362681284cc16
+    GitHub-Last-Rev: b3ee265df7eb4d51c945bf5453eb1b09f91912d9
+    GitHub-Pull-Request: golang/go#63879
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/538721
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/encoding/asn1/marshal.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)

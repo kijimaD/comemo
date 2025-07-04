@@ -1,0 +1,16 @@
+commit eebf7d279bd2991d54f18a629d4f3c32d7a58f2b
+Author: Yao Zhang <lunaria21@gmail.com>
+Date:   Thu Sep 10 11:33:31 2015 -0400
+
+    net/http: fixed TestLinuxSendfile for mips64
+    
+    mips64 strace doesn't support sendfile64 and will error out if we
+    specify that with `-e trace='. So we use sendfile for mips64 here.
+    
+    Change-Id: If5e2bb39866ca3a77dcc40e4db338ba486921d89
+    Reviewed-on: https://go-review.googlesource.com/14455
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/fs_test.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

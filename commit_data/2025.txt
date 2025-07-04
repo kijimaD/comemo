@@ -1,0 +1,13 @@
+commit bafd1787fe683f33a893e558e57b1d005af2bbca
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 15 18:52:28 2009 -0700
+
+    fix traceback prints - %S was not advancing pointer enough
+    
+    R=r
+    DELTA=6  (5 added, 1 deleted, 0 changed)
+    OCL=27500
+    CL=27525
+
+ src/runtime/print.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

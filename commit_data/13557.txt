@@ -1,0 +1,12 @@
+commit c12a63f7d3d96c944fef1a77faf8ee58d889d81c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 2 17:10:41 2012 -0700
+
+    go/scanner: fix minor typo
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6442076
+
+ src/pkg/go/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

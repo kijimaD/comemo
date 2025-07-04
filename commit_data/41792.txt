@@ -1,0 +1,22 @@
+commit 14ad23d1f599199f89ba32cc4bc20049277ce9c1
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Sun Mar 29 14:21:12 2020 +0200
+
+    cmd/compile: avoid zero extensions after 32-bit shifts
+    
+    zeroUpper32Bits wasn't checking for shift-extension ops. This would not
+    check shifts that were marking as bounded by prove (normally, shifts
+    are wrapped in a sequence that ends with an ANDL, and zeroUpper32Bits
+    would see the ANDL).
+    
+    This produces no changes on generated output right now, but will be
+    important once CL196679 lands because many shifts will be marked
+    as bounded, and lower will stop generating the masking code sequence
+    around them.
+    
+    Change-Id: Iaea94acc5b60bb9a5021c9fb7e4a1e2e5244435e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226338
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/rewrite.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

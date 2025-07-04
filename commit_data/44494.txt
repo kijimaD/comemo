@@ -1,0 +1,25 @@
+commit b7f4307761c61d2d3f563c37b0c9ad0e64899d9f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Feb 19 12:42:57 2021 +0700
+
+    cmd/compile: graceful handle error in noder LoadPackage
+    
+    When syntax.Parse returns error, noder.file will be nil. Currently, we
+    continue accessing it regardlessly and depend on gc.hidePanic to hide
+    the panic from user.
+    
+    Instead, we should gracefully handle the error in LoadPackage, then exit
+    earlier if any error occurred.
+    
+    Updates #43311
+    
+    Change-Id: I0a108ef360bd4f0cc9f481071b8967355e1513af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294030
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/noder/noder.go | 3 +++
+ test/fixedbugs/bug050.go                | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

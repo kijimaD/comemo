@@ -1,0 +1,23 @@
+commit 0aa8a87b5d8f9425ed4c1b66b85e453bef8b7f29
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 18 16:42:30 2022 -0400
+
+    syscall: make //sys lines not doc comments
+    
+    If they are doc comments then gofmt will put a space between // and sys.
+    Most of syscall was already this way, following CL 7324056 (in 2013).
+    These were not.
+    
+    Change-Id: Ie6ebf82809c199d0d06b87c86045bbb62b687d5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407136
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ src/syscall/syscall_aix.go       |  9 +++++++++
+ src/syscall/syscall_dragonfly.go |  2 ++
+ src/syscall/syscall_netbsd.go    |  3 +++
+ src/syscall/syscall_openbsd.go   |  3 +++
+ src/syscall/syscall_plan9.go     | 10 ++++++++++
+ 5 files changed, 27 insertions(+)

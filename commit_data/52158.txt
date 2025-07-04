@@ -1,0 +1,21 @@
+commit d81ae7cfc746f9f1fe1d67a5d9f4e15dcddb306a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 23 18:04:54 2023 -0800
+
+    go/types, types2: remove code for infer1
+    
+    Fixes #58283.
+    
+    Change-Id: I4a82083cddfed1b1be7776464f926a4c69a35e10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470995
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/infer.go  | 398 ------------------------------
+ src/cmd/compile/internal/types2/infer2.go |  30 +--
+ src/go/types/infer.go                     | 398 ------------------------------
+ src/go/types/infer2.go                    |  30 +--
+ 4 files changed, 4 insertions(+), 852 deletions(-)

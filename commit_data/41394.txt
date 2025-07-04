@@ -1,0 +1,19 @@
+commit 90c71cec5bca21e8c7e984fffbd0ad62d7067f5d
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Jan 20 10:23:41 2020 +0100
+
+    runtime: remove unused _F_SETFL const on linux
+    
+    This constant is only used on libc-based platforms (aix, darwin,
+    solaris).
+    
+    Change-Id: Ic57d1fe3b1501c5b552eddb9aba11f1e02510082
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/220421
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/defs_linux_386.go   | 1 -
+ src/runtime/defs_linux_amd64.go | 1 -
+ src/runtime/defs_linux_arm.go   | 1 -
+ src/runtime/defs_linux_arm64.go | 1 -
+ 4 files changed, 4 deletions(-)

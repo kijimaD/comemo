@@ -1,0 +1,16 @@
+commit 7a481178990eabdfc74f171463967341a34fd30f
+Author: mattn <mattn.jp@gmail.com>
+Date:   Tue Feb 10 11:06:02 2015 +0900
+
+    os,internal/syscall/windows: use ReadFile/MultiByteToWideChar to read from console
+    
+    Fixes #6303
+    
+    Change-Id: Ib2cd15ac6106ef8e6b975943db8efc8d8ab21052
+    Reviewed-on: https://go-review.googlesource.com/4310
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/internal/syscall/windows/syscall_windows.go  |  3 ++
+ src/internal/syscall/windows/zsyscall_windows.go | 28 +++++++++++++++++
+ src/os/file_windows.go                           | 40 ++++++++++++++++--------
+ 3 files changed, 58 insertions(+), 13 deletions(-)

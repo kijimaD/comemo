@@ -1,0 +1,12 @@
+commit 3b3e63735eb8a00b7cabbbe223a116148a0635dd
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Feb 15 13:15:46 2009 -0800
+
+    bug fix for &x[0] when x is slice
+    
+    R=ken
+    OCL=25044
+    CL=25044
+
+ src/cmd/gc/walk.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)

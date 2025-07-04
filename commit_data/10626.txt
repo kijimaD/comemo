@@ -1,0 +1,14 @@
+commit 66410bac3d01253af9e1e1cbec65f7a90b2007ec
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 6 08:40:16 2011 -0800
+
+    fmt: benchmark floating point.
+    mallocs per Sprintf("%x"): 1
+    mallocs per Sprintf("%g"): 4
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5449106
+
+ src/pkg/fmt/fmt_test.go | 43 +++++++++++++++++++++++++++++--------------
+ 1 file changed, 29 insertions(+), 14 deletions(-)

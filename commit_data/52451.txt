@@ -1,0 +1,21 @@
+commit f46ea60f2b072885439d5b3b2f751b16d2b1f18e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 28 11:18:40 2023 -0700
+
+    go/types, types2: slightly tighter checks in Checker.use
+    
+    Checker.use is called to check expressions and "use" variables
+    in case of an error. Use Checker.exprOrType instead of just
+    rawExpr.
+    
+    Change-Id: I4da6fa51ef3b0c9b07c453494452836caced9b1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479897
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/call.go | 2 +-
+ src/go/types/call.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

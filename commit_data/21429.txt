@@ -1,0 +1,12 @@
+commit fa851b17a2fd2350043b3e56dce398a606692c23
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 2 11:02:09 2015 -0800
+
+    go/printer: clearer logic (clenaup)
+    
+    Change-Id: I278ce47b38ec5732d981aec06b71f9ee5747c3bb
+    Reviewed-on: https://go-review.googlesource.com/3730
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/printer/printer.go | 27 +++++++++++++--------------
+ 1 file changed, 13 insertions(+), 14 deletions(-)

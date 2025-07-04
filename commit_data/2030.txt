@@ -1,0 +1,13 @@
+commit 7aee71bd4f743973d104e081586a892ebdaeed67
+Author: Rob Pike <r@golang.org>
+Date:   Wed Apr 15 20:28:25 2009 -0700
+
+    spec for range on strings
+    
+    R=rsc,iant
+    DELTA=17  (11 added, 0 deleted, 6 changed)
+    OCL=27529
+    CL=27535
+
+ doc/go_spec.html | 23 +++++++++++++++++------
+ 1 file changed, 17 insertions(+), 6 deletions(-)

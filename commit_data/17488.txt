@@ -1,0 +1,22 @@
+commit 08925ce6ee16be5a3b937c0d55c2548bf30c5776
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri Sep 6 16:25:15 2013 -0400
+
+    cmd/gofmt: sort more, remove some duplicate imports
+    
+    * Sort imports by import path, then import name, then comment. Currently, gofmt sorts only by import path.
+    * If two imports have the same import path and import name, and one of them has no comment, remove the import with no comment. (See the discussion at issue 4414.)
+    
+    Based on @rsc's https://golang.org/cl/7231070/
+    
+    Fixes #4414.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/12837044
+
+ src/cmd/gofmt/testdata/import.golden | 18 +++++++
+ src/cmd/gofmt/testdata/import.input  | 23 +++++++++
+ src/pkg/go/ast/import.go             | 98 +++++++++++++++++++++++++++++-------
+ src/pkg/go/token/position.go         |  9 ++++
+ 4 files changed, 130 insertions(+), 18 deletions(-)

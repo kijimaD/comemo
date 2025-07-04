@@ -1,0 +1,13 @@
+commit 9fdcfb7c10b464ffab815892f5fc77d68ed35714
+Author: Kevin Burke <kevin@burke.dev>
+Date:   Thu Feb 10 20:44:03 2022 -0800
+
+    doc: fix spelling error in link ID
+    
+    Change-Id: I6de236442f213ab4b4f19ec881add4923d8bfd8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385054
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Kevin Burke <kevin@burke.dev>
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

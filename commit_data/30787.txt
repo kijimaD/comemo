@@ -1,0 +1,29 @@
+commit 0a94daa3789a52bea9856f9f8b3fa32477eab28a
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Mar 20 08:01:28 2017 -0700
+
+    cmd/compile: funnel SSA Prog creation through SSAGenState
+    
+    Step one in eliminating Prog-related globals.
+    
+    Passes toolstash-check -all.
+    
+    Updates #15756
+    
+    Change-Id: I3b777fb5a7716f2d9da3067fbd94c28ca894a465
+    Reviewed-on: https://go-review.googlesource.com/38450
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/amd64/ssa.go  | 204 ++++++++++++++--------------
+ src/cmd/compile/internal/arm/ssa.go    | 174 ++++++++++++------------
+ src/cmd/compile/internal/arm64/ssa.go  | 134 +++++++++----------
+ src/cmd/compile/internal/gc/ssa.go     |  30 +++--
+ src/cmd/compile/internal/mips/ssa.go   | 182 ++++++++++++-------------
+ src/cmd/compile/internal/mips64/ssa.go |  96 +++++++-------
+ src/cmd/compile/internal/ppc64/ssa.go  | 234 ++++++++++++++++-----------------
+ src/cmd/compile/internal/s390x/ssa.go  | 150 ++++++++++-----------
+ src/cmd/compile/internal/x86/387.go    |  60 ++++-----
+ src/cmd/compile/internal/x86/ssa.go    | 174 ++++++++++++------------
+ 10 files changed, 721 insertions(+), 717 deletions(-)

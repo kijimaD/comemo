@@ -1,0 +1,32 @@
+commit 4ee1d542eda8d8aab7ca2024a4a0a9068d3cad70
+Author: Yi Yang <qingfeng.yy@alibaba-inc.com>
+Date:   Thu Aug 31 02:48:34 2023 +0000
+
+    cmd/compile: sparse conditional constant propagation
+    
+    sparse conditional constant propagation can discover optimization
+    opportunities that cannot be found by just combining constant folding
+    and constant propagation and dead code elimination separately.
+    
+    This is a re-submit of PR#59575, which fix a broken dominance relationship caught by ssacheck
+    
+    Updates https://github.com/golang/go/issues/59399
+    
+    Change-Id: I57482dee38f8e80a610aed4f64295e60c38b7a47
+    GitHub-Last-Rev: 830016f24e3a5320c6c127a48ab7c84e2fc672eb
+    GitHub-Pull-Request: golang/go#60469
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |   2 +
+ src/cmd/compile/internal/ssa/block.go           |  10 +-
+ src/cmd/compile/internal/ssa/compile.go         |   1 +
+ src/cmd/compile/internal/ssa/sccp.go            | 578 ++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/sccp_test.go       |  95 ++++
+ test/checkbce.go                                |   4 +
+ test/codegen/compare_and_branch.go              |   4 +-
+ test/loopbce.go                                 |  33 +-
+ 8 files changed, 711 insertions(+), 16 deletions(-)

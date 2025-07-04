@@ -1,0 +1,12 @@
+commit 5cf803f438e1afd6ddd46c7536d45fd7a68731f1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Jan 11 15:44:20 2012 +1100
+
+    builder: pass through TMPDIR env var, drop DISABLE_NET_TESTS
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5530076
+
+ misc/dashboard/builder/main.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)

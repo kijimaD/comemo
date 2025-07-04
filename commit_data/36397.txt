@@ -1,0 +1,41 @@
+commit 45c7d80832dcb93239a1bd48ad7c8328ac6f0532
+Author: Michael Fraenkel <michael.fraenkel@gmail.com>
+Date:   Mon Jul 9 22:37:59 2018 -0400
+
+    strings: use Builder in Map
+    
+    Use a builder to avoid the copy when converting the []byte to a string.
+    
+    name                  old time/op    new time/op    delta
+    ByteByteMap-8            796ns ± 5%     700ns ± 1%  -12.00%  (p=0.000 n=9+8)
+    Map/identity/ASCII-8     123ns ± 8%     126ns ± 7%     ~     (p=0.194 n=10+10)
+    Map/identity/Greek-8     198ns ± 2%     204ns ± 5%   +2.99%  (p=0.008 n=9+10)
+    Map/change/ASCII-8       266ns ±10%     202ns ± 3%  -24.19%  (p=0.000 n=10+10)
+    Map/change/Greek-8       450ns ± 4%     406ns ± 1%   -9.73%  (p=0.000 n=9+10)
+    MapNoChanges-8          85.4ns ± 3%    90.2ns ±11%   +5.67%  (p=0.000 n=9+10)
+    
+    name                  old alloc/op   new alloc/op   delta
+    ByteByteMap-8             416B ± 0%      208B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Map/identity/ASCII-8     0.00B          0.00B          ~     (all equal)
+    Map/identity/Greek-8     0.00B          0.00B          ~     (all equal)
+    Map/change/ASCII-8        128B ± 0%       64B ± 0%  -50.00%  (p=0.000 n=10+10)
+    Map/change/Greek-8        160B ± 0%       80B ± 0%  -50.00%  (p=0.000 n=10+10)
+    MapNoChanges-8           0.00B          0.00B          ~     (all equal)
+    
+    name                  old allocs/op  new allocs/op  delta
+    ByteByteMap-8             2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    Map/identity/ASCII-8      0.00           0.00          ~     (all equal)
+    Map/identity/Greek-8      0.00           0.00          ~     (all equal)
+    Map/change/ASCII-8        2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    Map/change/Greek-8        2.00 ± 0%      1.00 ± 0%  -50.00%  (p=0.000 n=10+10)
+    MapNoChanges-8            0.00           0.00          ~     (all equal)
+    
+    Fixes #26304
+    
+    Change-Id: Ideec9dfc29b0b8107f34fc634247081d0031777d
+    Reviewed-on: https://go-review.googlesource.com/122875
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/strings/strings.go      | 42 +++++++++++++++---------------------------
+ src/strings/strings_test.go | 13 +++++++++++++
+ 2 files changed, 28 insertions(+), 27 deletions(-)

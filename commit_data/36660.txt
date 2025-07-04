@@ -1,0 +1,22 @@
+commit 7c95703c090757c4ca3f0792357e1595b03d6bca
+Author: David du Colombier <0intro@gmail.com>
+Date:   Thu Sep 13 21:15:34 2018 +0200
+
+    runtime: don't build semasleep_test on Plan 9
+    
+    CL 135015 added TestSpuriousWakeupsNeverHangSemasleep.
+    However, this test is failing on Plan 9 because
+    syscall.SIGIO is not defined.
+    
+    This change excludes semasleep_test.go on Plan 9
+    
+    Fixes #27662.
+    
+    Change-Id: I52f9f0fe9ec3c70da5d2f586a95debbc1fe568a1
+    Reviewed-on: https://go-review.googlesource.com/135315
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/semasleep_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 04b405c7fc99008b3cf90f4c067e81001af2de29
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Jun 27 10:11:30 2013 +1000
+
+    syscall: handle empty environment variable values properly on windows
+    
+    Setenv("AN_ENV_VAR", "") deletes AN_ENV_VAR instead of setting it
+    to "" at this moment. Also Getenv("AN_ENV_VAR") returns "not found",
+    if AN_ENV_VAR is "". Change it, so they behave like unix.
+    
+    Fixes #5610
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/10594043
+
+ src/pkg/syscall/env_windows.go  | 13 +++----------
+ src/pkg/syscall/syscall_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 33 insertions(+), 10 deletions(-)

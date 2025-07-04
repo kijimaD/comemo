@@ -1,0 +1,20 @@
+commit c90bc34d758400d4eea78025f55b53d1dfd83ce5
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Aug 28 18:03:03 2009 -0700
+
+    Implement cap, len, and make, as well as the general framework
+    for built-in functions and type conversions.  Extract out
+    common operations on expression nodes for converting them to
+    ints and implicitly dereferencing arrays.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=442  (365 added, 50 deleted, 27 changed)
+    OCL=34064
+    CL=34064
+
+ usr/austin/eval/abort.go |  18 ++-
+ usr/austin/eval/expr.go  | 392 +++++++++++++++++++++++++++++++++++++++--------
+ usr/austin/eval/type.go  |  57 +++++--
+ usr/austin/eval/typec.go |   2 +
+ 4 files changed, 392 insertions(+), 77 deletions(-)

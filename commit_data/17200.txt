@@ -1,0 +1,26 @@
+commit ba14974e070734b3eb1a2b58097675c13978c1af
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 13 23:33:49 2013 +0400
+
+    undo CL 12787044 / ed695cdf962b
+    
+    The NetBSD and OpenBSD failures are apparently real,
+    not due to the test bug fixed in 100b9fc0c46f.
+    
+    ««« original CL description
+    runtime/pprof: test netbsd and openbsd again
+    
+    Maybe these will work now.
+    
+    R=golang-dev, dvyukov, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12787044
+    »»»
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/12873043
+
+ src/pkg/runtime/pprof/pprof.go      | 2 +-
+ src/pkg/runtime/pprof/pprof_test.go | 6 +++---
+ 2 files changed, 4 insertions(+), 4 deletions(-)

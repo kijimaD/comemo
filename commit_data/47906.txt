@@ -1,0 +1,25 @@
+commit 9e7ea3566e662ba498d64cb63146575202a053ee
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Jan 7 16:35:31 2022 -0500
+
+    runtime: expand TestGdbPythonCgo skip to include mips64le
+    
+    The failure mode in #37794 does not match the failure mode described
+    in #18784. However, since the test is currently skipped on all other
+    MIPS variants, it may be that they suffer from the same underlying GDB
+    bug. Ideally one of the Go MIPS maintainers should file an upstream
+    bug and remove the skip once it is fixed; in the meantime, there is no
+    point in continuing to let the test fail on just one of the four MIPS
+    variants.
+    
+    For #37794
+    
+    Change-Id: I570f51cc04cbb7ef1ed7efd526e26886af53bfb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/376654
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

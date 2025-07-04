@@ -1,0 +1,22 @@
+commit 226346bb763233ed9341bc1d829752628479845f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 21 22:18:31 2022 +0000
+
+    runtime: yield instead of sleeping in runqgrab on OpenBSD
+    
+    OpenBSD has a coarse sleep granularity that rounds up to 10 ms
+    increments. This can cause significant STW delays, among other issues.
+    As far as I can tell, there's only 1 tightly timed sleep without an
+    explicit wakeup for which this actually matters.
+    
+    Fixes #52475.
+    
+    Change-Id: Ic69fc11096ddbbafd79b2dcdf3f912fde242db24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401638
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

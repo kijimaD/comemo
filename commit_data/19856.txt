@@ -1,0 +1,22 @@
+commit cc9ec52d739ec3c9f2a3e9bfdcc98643bee61cca
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jul 31 12:43:40 2014 -0700
+
+    runtime: convert slice operations to Go.
+    
+    LGTM=bradfitz, dvyukov
+    R=golang-codereviews, bradfitz, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/120190044
+
+ src/cmd/api/goapi.go      |   2 +-
+ src/cmd/gc/builtin.c      |   2 +-
+ src/cmd/gc/runtime.go     |   2 +-
+ src/cmd/gc/walk.c         |   4 +-
+ src/pkg/runtime/alg.goc   |   4 +-
+ src/pkg/runtime/malloc.go |   6 ++
+ src/pkg/runtime/slice.c   |  27 ++++++
+ src/pkg/runtime/slice.go  | 154 ++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/slice.goc | 208 ----------------------------------------------
+ src/pkg/runtime/stubs.go  |   3 +
+ 10 files changed, 197 insertions(+), 215 deletions(-)

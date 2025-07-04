@@ -1,0 +1,18 @@
+commit 107744e94c4e62272962eba9195bc14a7eb69a09
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 13 17:21:07 2017 -0400
+
+    misc/cgo/errors: test that the Go rune type is not identical to C.int
+    
+    rune has a well-defined size, but C.int is implementation-specified.
+    Using one as the other should require an explicit conversion.
+    
+    updates #13467
+    
+    Change-Id: I53ab2478427dca790efdcc197f6b8d9fbfbd1847
+    Reviewed-on: https://go-review.googlesource.com/63730
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/errors/errors_test.go    |  1 +
+ misc/cgo/errors/src/issue13467.go | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+)

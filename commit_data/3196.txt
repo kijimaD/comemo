@@ -1,0 +1,20 @@
+commit c9edbbd4d07e22e8f8ef9039fcb70b1c5c6b0480
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Sep 2 17:15:43 2009 -0700
+
+    convenience wrapper
+    
+    R=austin
+    DELTA=142  (128 added, 4 deleted, 10 changed)
+    OCL=34275
+    CL=34284
+
+ usr/austin/eval/Makefile    |  1 +
+ usr/austin/eval/compiler.go |  1 +
+ usr/austin/eval/expr.go     | 20 +++++++++++++-
+ usr/austin/eval/main.go     | 37 +++++++++++++++++++++++++
+ usr/austin/eval/scope.go    | 25 ++++++++++-------
+ usr/austin/eval/stmt.go     |  8 +++---
+ usr/austin/eval/typec.go    |  2 +-
+ usr/austin/eval/world.go    | 66 +++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 146 insertions(+), 14 deletions(-)

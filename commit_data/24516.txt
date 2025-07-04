@@ -1,0 +1,15 @@
+commit 7eb94db44c6ebaaf5f94629f66fddb4a78ebd34a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Oct 15 11:08:09 2015 -0700
+
+    cmd/compile/internal/gc: refactor range/memclr optimization
+    
+    No functional change and passes toolstash/buildall, but eliminates a
+    13-deep nesting of if statements.
+    
+    Change-Id: I32e63dcf358c6eb521935f4ee07fbe749278e5ef
+    Reviewed-on: https://go-review.googlesource.com/15901
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/range.go | 162 ++++++++++++++++++-----------------
+ 1 file changed, 82 insertions(+), 80 deletions(-)

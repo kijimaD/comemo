@@ -1,0 +1,20 @@
+commit 78e5288b5c720d996ea5132f1fa0348968ff0513
+Author: Andrew Medvedev <andrew.y.medvedev@gmail.com>
+Date:   Sat Sep 21 12:47:34 2019 +0000
+
+    strings, bytes: clarify usage of EqualFolds
+    
+    This clarifies meaning of "case folding" Unicode equality with more familiar "case insensitive" wording.
+    For case folding properties see ftp://ftp.unicode.org/Public/UNIDATA/CaseFolding.txt.
+    
+    Fixes #33447
+    
+    Change-Id: I6ee85ab398679bf2a0b7d18693985ff0979d6c5a
+    GitHub-Last-Rev: accc9159330c61e046d77f77beac62b38bf72c19
+    GitHub-Pull-Request: golang/go#34434
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196717
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/bytes/bytes.go     | 3 ++-
+ src/strings/strings.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

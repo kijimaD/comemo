@@ -1,0 +1,17 @@
+commit a51921fa5b1398227efd61ceb3991313f037d7fa
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 21 22:47:18 2021 -0800
+
+    doc/go1.16: mention new testing/iotest functions
+    
+    For #38781
+    For #40700
+    For #41190
+    
+    Change-Id: I72f1055e51edb517041d3861640734ba6ef5f342
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285673
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.16.html | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)

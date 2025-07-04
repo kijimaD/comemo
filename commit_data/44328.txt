@@ -1,0 +1,23 @@
+commit 0f66fb7b856b02497cf801ce72d80f375f53358b
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Feb 19 10:34:55 2021 -0500
+
+    go/internal/gccgoimporter: fix up gccgo installation test
+    
+    Change the TestInstallationImporter testpoint to query type
+    information for sort.Search instead of sort.Ints. The latter function
+    changed recently (1.16 timeframe), parameter "a" is now "x". A better
+    candidate for this sort of query is sort.Search, which has been stable
+    for a while.
+    
+    Fixes #44425.
+    
+    Change-Id: I314476eac0b0802f86f5cbce32195cab2926db83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294290
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/go/internal/gccgoimporter/gccgoinstallation_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

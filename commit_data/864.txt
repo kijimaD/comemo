@@ -1,0 +1,18 @@
+commit 84523402fc5dfa661dbef9c53c017d77a2349dcf
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 14 22:16:45 2008 -0700
+
+    Make regexp build and install officially
+    
+    R=rsc
+    DELTA=335  (172 added, 156 deleted, 7 changed)
+    OCL=17167
+    CL=17180
+
+ src/lib/clean.bash                  |  2 +-
+ src/lib/container/vector.go         |  4 ++++
+ src/lib/make.bash                   |  2 +-
+ src/lib/regexp/Makefile             | 16 +++++++++++-----
+ src/lib/regexp/{main.go => test.go} |  2 +-
+ src/run.bash                        |  6 ++++++
+ 6 files changed, 24 insertions(+), 8 deletions(-)

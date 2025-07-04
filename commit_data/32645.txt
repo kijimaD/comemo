@@ -1,0 +1,16 @@
+commit f58c48f83419941251b96389cd6ca1705e712e11
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Sat Sep 9 11:23:29 2017 +0900
+
+    cmd/link: extract windows-specific code from dynrelocsym
+    
+    No functional changes.
+    
+    Change-Id: Ib31bb3f01b515aac6428ec61e0ef02b269623890
+    Reviewed-on: https://go-review.googlesource.com/62470
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 77 +++++++++++++++++++++-------------------
+ 1 file changed, 40 insertions(+), 37 deletions(-)

@@ -1,0 +1,12 @@
+commit 64d85769dadfbe5f3f456bf079f912ee9d7e54e3
+Author: Evan Shaw <chickencha@gmail.com>
+Date:   Sun May 22 14:56:12 2011 +1000
+
+    doc: close paragraph tags in FAQ
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4532076
+
+ doc/go_faq.html | 64 +++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 49 insertions(+), 15 deletions(-)

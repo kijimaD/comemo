@@ -1,0 +1,17 @@
+commit b65091c11d711ff3b01cd25393305410e1b0b377
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 26 17:21:21 2021 -0500
+
+    cmd/go: add a test case that reproduces #44296
+    
+    For #44296
+    
+    Change-Id: I310f99ccd406622e39f3fbfa12f7a3bee39602db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/297149
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/testdata/script/mod_retract_versions.txt | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)

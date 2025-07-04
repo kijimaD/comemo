@@ -1,0 +1,16 @@
+commit 0c0094c893c6e7b81fdd2f7811101a536f525078
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jun 3 10:43:55 2025 -0400
+
+    go/token: tweak comment
+    
+    (accidentally omitted from CL 675736)
+    
+    Change-Id: I05ed8fcb7bb4109862a47701c427d8efc17b9f31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/678315
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+
+ src/go/token/tree.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

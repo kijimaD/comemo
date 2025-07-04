@@ -1,0 +1,14 @@
+commit e67b0e688565f4112983d983f76642cf20021fcd
+Author: Jeff Sickel <jas@corpus-callosum.com>
+Date:   Mon Oct 7 11:41:27 2013 -0400
+
+    codereview: move dotfiles out of user home director to something sane.
+    
+    See Rob Pike's lesson on shortcuts, https://plus.google.com/101960720994009339267/posts/R58WgWwN9jp
+    
+    R=golang-dev, r, rsc
+    CC=aram.h, golang-dev
+    https://golang.org/cl/14374045
+
+ lib/codereview/codereview.py | 8 ++++++++
+ 1 file changed, 8 insertions(+)

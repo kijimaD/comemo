@@ -1,0 +1,25 @@
+commit c4dda7e5a830e86b597d34483fd7787723b34f2f
+Author: Hiroshi Ioka <hirochachacha@gmail.com>
+Date:   Thu Mar 17 17:24:19 2016 +0900
+
+    path/filepath: normalize output of EvalSymlinks on windows
+    
+    Current implementation uses GetShortPathName and GetLongPathName
+    to get a normalized path. That approach sometimes fails because
+    user can disable short path name anytime. This CL provides
+    an alternative approach suggested by MSDN.
+    
+    https://msdn.microsoft.com/en-us/library/windows/desktop/aa364989(v=vs.85).aspx
+    
+    Fixes #13980
+    
+    Change-Id: Icf4afe4c9c4b507fc110c1483bf8db2c3f606b0a
+    Reviewed-on: https://go-review.googlesource.com/20860
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/path/filepath/export_windows_test.go |   7 +++
+ src/path/filepath/path_windows_test.go   |  56 +++++++++++++++++
+ src/path/filepath/symlink_windows.go     | 100 +++++++++++++++++++------------
+ 3 files changed, 124 insertions(+), 39 deletions(-)

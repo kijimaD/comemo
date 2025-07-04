@@ -1,0 +1,19 @@
+commit 4c69d0eeb869cdc987e35d09a052a0e0320c0c96
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Oct 28 12:33:49 2022 -0700
+
+    testing: change Error to Errorf in comment
+    
+    Fixes #56479
+    
+    Change-Id: I1d97eb3ea97304e429e178ad05cb9f861b2bce84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/446275
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/testing/testing.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit f89b5746fb809bef08eec46760ce429f420435fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 15 10:02:47 2011 -0800
+
+    json: some tests to demonstrate bad error messages
+    
+    Not a fix yet (help wanted), but part of Issue 2331
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5490043
+
+ src/pkg/encoding/json/decode_test.go | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)

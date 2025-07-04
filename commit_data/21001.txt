@@ -1,0 +1,13 @@
+commit 968f0df5d84956502e865ec04f529c3b921369b7
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Dec 12 13:53:29 2014 +1100
+
+    doc: update source install instructions
+    
+    Change-Id: I794a5773ed47d470ff91fcdd82f9747a91424eb4
+    Reviewed-on: https://go-review.googlesource.com/1402
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/contribute.html     | 13 ++---------
+ doc/install-source.html | 61 ++++++++++++++++++-------------------------------
+ 2 files changed, 24 insertions(+), 50 deletions(-)

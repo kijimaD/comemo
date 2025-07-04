@@ -1,0 +1,14 @@
+commit 1e7c61d8c3fc0916b73cb7411afa45e99b50aac4
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sun Mar 20 21:49:52 2016 -0400
+
+    math/big: add s390x function implementations
+    
+    Change-Id: I2aadc885d6330460e494c687757f07c5e006f3b0
+    Reviewed-on: https://go-review.googlesource.com/20937
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/math/big/arith_s390x.s | 565 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 565 insertions(+)

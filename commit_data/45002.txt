@@ -1,0 +1,50 @@
+commit b675e52e9592ba3db1a3cf2dc9c4bc02c89e03a8
+Author: Austin Clements <austin@google.com>
+Date:   Tue Apr 6 13:35:48 2021 -0400
+
+    internal/goexperiment: consolidate experiment-enabled constants
+    
+    Currently, we have boolean and integral constants for GOEXPERIMENTs in
+    various places. Consolidate these into automatically generated
+    constants in the internal/goexperiment package.
+    
+    Change-Id: I42a49aba2a3b4c722fedea23a613162cd8a67bee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/307818
+    Trust: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/go/build/deps_test.go                          |  4 +-
+ src/internal/goexperiment/exp_fieldtrack_off.go    |  9 +++
+ src/internal/goexperiment/exp_fieldtrack_on.go     |  9 +++
+ .../goexperiment/exp_preemptibleloops_off.go       |  9 +++
+ .../goexperiment/exp_preemptibleloops_on.go        |  9 +++
+ src/internal/goexperiment/exp_regabi_off.go        |  9 +++
+ src/internal/goexperiment/exp_regabi_on.go         |  9 +++
+ src/internal/goexperiment/exp_regabiargs_off.go    |  9 +++
+ src/internal/goexperiment/exp_regabiargs_on.go     |  9 +++
+ src/internal/goexperiment/exp_regabidefer_off.go   |  9 +++
+ src/internal/goexperiment/exp_regabidefer_on.go    |  9 +++
+ src/internal/goexperiment/exp_regabig_off.go       |  9 +++
+ src/internal/goexperiment/exp_regabig_on.go        |  9 +++
+ src/internal/goexperiment/exp_regabireflect_off.go |  9 +++
+ src/internal/goexperiment/exp_regabireflect_on.go  |  9 +++
+ .../goexperiment/exp_regabiwrappers_off.go         |  9 +++
+ src/internal/goexperiment/exp_regabiwrappers_on.go |  9 +++
+ .../goexperiment/exp_staticlockranking_off.go      |  9 +++
+ .../goexperiment/exp_staticlockranking_on.go       |  9 +++
+ src/internal/goexperiment/flags.go                 |  9 ++-
+ src/internal/goexperiment/mkconsts.go              | 74 ++++++++++++++++++++++
+ src/reflect/abi.go                                 |  7 +-
+ src/reflect/regabiargs_off.go                      | 10 ---
+ src/reflect/regabiargs_on.go                       | 10 ---
+ src/runtime/panic.go                               | 25 ++++----
+ src/runtime/proc.go                                |  5 +-
+ src/runtime/regabiargs_off.go                      | 10 ---
+ src/runtime/regabiargs_on.go                       | 10 ---
+ src/runtime/regabidefer_off.go                     | 10 ---
+ src/runtime/regabidefer_on.go                      | 10 ---
+ src/runtime/stubs.go                               |  3 +-
+ 31 files changed, 267 insertions(+), 82 deletions(-)

@@ -1,0 +1,41 @@
+commit 7f6eadb64fb16e73b15630dd3089edc568d047cb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 11 14:20:50 2016 -0700
+
+    syscall: unify TimespecToNsec and TimevalToNsec
+    
+    All implementations of these functions are identical.
+    
+    Change-Id: I7cbea53c02bb0cee75e30beed19d29ba0a7ef657
+    Reviewed-on: https://go-review.googlesource.com/30819
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/syscall_darwin_386.go      |  4 ----
+ src/syscall/syscall_darwin_amd64.go    |  4 ----
+ src/syscall/syscall_darwin_arm.go      |  4 ----
+ src/syscall/syscall_darwin_arm64.go    |  4 ----
+ src/syscall/syscall_dragonfly_amd64.go |  4 ----
+ src/syscall/syscall_freebsd_386.go     |  4 ----
+ src/syscall/syscall_freebsd_amd64.go   |  4 ----
+ src/syscall/syscall_freebsd_arm.go     |  4 ----
+ src/syscall/syscall_linux_386.go       |  4 ----
+ src/syscall/syscall_linux_amd64.go     |  4 ----
+ src/syscall/syscall_linux_arm.go       |  2 --
+ src/syscall/syscall_linux_arm64.go     |  4 ----
+ src/syscall/syscall_linux_mips64x.go   |  4 ----
+ src/syscall/syscall_linux_ppc64x.go    |  4 ----
+ src/syscall/syscall_linux_s390x.go     |  4 ----
+ src/syscall/syscall_nacl_386.go        |  4 ----
+ src/syscall/syscall_nacl_amd64p32.go   |  4 ----
+ src/syscall/syscall_nacl_arm.go        |  4 ----
+ src/syscall/syscall_netbsd_386.go      |  4 ----
+ src/syscall/syscall_netbsd_amd64.go    |  4 ----
+ src/syscall/syscall_netbsd_arm.go      |  4 ----
+ src/syscall/syscall_openbsd_386.go     |  4 ----
+ src/syscall/syscall_openbsd_amd64.go   |  4 ----
+ src/syscall/syscall_openbsd_arm.go     |  4 ----
+ src/syscall/syscall_solaris_amd64.go   |  4 ----
+ src/syscall/timestruct.go              | 11 +++++++++++
+ 26 files changed, 11 insertions(+), 98 deletions(-)

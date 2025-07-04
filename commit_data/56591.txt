@@ -1,0 +1,27 @@
+commit c96159c25217c84a252be5d74d48861af715ecf8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu May 16 12:40:31 2024 +0200
+
+    crypto/x509: cleanup signature generation
+    
+    Centralizing some repetitive code, which would have prevented #45990.
+    
+    This also fixes the deprecated Certificate.CreateCRL for RSA-PSS, not
+    that anyone cared, probably.
+    
+    This has two other minor observable behavior changes: MD2 is now treated
+    as a completely unknown algorithm (why did we even have that!? removing
+    lets us treat hash == 0 as always meaning no prehash); and we now do the
+    signature verification self-check for all signing operations.
+    
+    Change-Id: I3b34fe0c3b6eb6181d2145b0704834225cd45a27
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586015
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ doc/next/6-stdlib/99-minor/crypto/x509/45990.md |   3 +
+ src/crypto/x509/x509.go                         | 293 ++++++++++--------------
+ src/crypto/x509/x509_test.go                    |  25 +-
+ 3 files changed, 138 insertions(+), 183 deletions(-)

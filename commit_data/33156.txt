@@ -1,0 +1,18 @@
+commit 48754592e02719437c46f6d1900a313141e14fa6
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 17 15:38:13 2017 -0700
+
+    runtime: align stack in 386 lib startup before calling C function
+    
+    Fixes Darwin 386 build. It turns out that the Darwin pthread_create
+    function saves the SSE registers, and therefore requires an aligned stack.
+    This worked before https://golang.org/cl/70530 because the stack sizes
+    were chosen to leave the stack aligned.
+    
+    Change-Id: I911a9e8dcde4e41e595d5ef9b9a1ca733e154de6
+    Reviewed-on: https://go-review.googlesource.com/71432
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/asm_386.s | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)

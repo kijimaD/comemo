@@ -1,0 +1,15 @@
+commit 4105265c66b860244b9f17ae495f8cc27fcd5344
+Author: Michael Gehring <mg@ebfe.org>
+Date:   Thu Jun 11 11:51:54 2015 +0200
+
+    mime: add mime.types paths for BSDs
+    
+    Change-Id: I22ac23e7e180071de4443291e0a644675200d642
+    Reviewed-on: https://go-review.googlesource.com/10950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/mime/type_dragonfly.go | 9 +++++++++
+ src/mime/type_freebsd.go   | 9 +++++++++
+ src/mime/type_openbsd.go   | 9 +++++++++
+ 3 files changed, 27 insertions(+)

@@ -1,0 +1,20 @@
+commit 96e9e81b5f353636965fa6ba5e014c2bab13fadc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 28 11:35:00 2014 -0400
+
+    syscall: fix ParseRoutingSockaddr with unexpected submessages
+    
+    No easy way to test (would have to actually trigger some routing
+    events from kernel) but the code is clearly wrong as written.
+    If the header says there is a submessage, we need to at least
+    skip over its bytes, not just continue to the next iteration.
+    
+    Fixes #8203.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews, mikioh.mikioh, p
+    https://golang.org/cl/164140044
+
+ src/syscall/route_bsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

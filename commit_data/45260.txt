@@ -1,0 +1,20 @@
+commit 5f1df260a91183c605c08af7b00741d2761b84e4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 21 15:42:05 2021 +0700
+
+    cmd/compile: allow export/import OSLICE2ARRPTR
+    
+    Updates #395
+    Fixes #45665
+    
+    Change-Id: Iaf053c0439a573e9193d40942fbdb22ac3b4d3bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312070
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/typecheck/iexport.go |  2 +-
+ src/cmd/compile/internal/typecheck/iimport.go |  2 +-
+ test/fixedbugs/issue45665.go                  | 15 +++++++++++++++
+ 3 files changed, 17 insertions(+), 2 deletions(-)

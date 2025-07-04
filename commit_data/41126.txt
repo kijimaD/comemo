@@ -1,0 +1,33 @@
+commit 574c286607015297e35b7c02c793038fd827e59b
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Jan 15 16:29:46 2020 -0500
+
+    cmd/go: trim paths from vendored packages with -trimpath
+    
+    In CL 199821, we stopped setting the module directory for vendored
+    packages when -mod=vendor is used. This broke -trimpath, since we
+    replace the module directory with a string derived from the module
+    path and version. A comment in CL 202977 makes it clear that the
+    module directory should not be set.
+    
+    With this change, -trimpath falls back to replacing the package
+    directory with the package path if the module directory is not set. We
+    also fall back to replacing the package directory if the module
+    version is not set to avoid adding a meaningless @ only for the main
+    module.
+    
+    As a consequence of this change, file names in vendored packages will
+    not have module versions, so file names will be a little different
+    between -mod=mod and -mod=vendor.
+    
+    Fixes #36566
+    
+    Change-Id: I0e9cd76d36a2028a49d0b6697ea9a9b3140d7ff3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214945
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/work/gc.go                     |  2 +-
+ src/cmd/go/testdata/script/mod_vendor_trimpath.txt | 40 ++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 1 deletion(-)

@@ -1,0 +1,36 @@
+commit 7fdec6216c0a25c6dbcc8159b755da6682dd9080
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 25 14:37:43 2016 -0400
+
+    build: enable framepointer mode by default
+    
+    This has a minor performance cost, but far less than is being gained by SSA.
+    As an experiment, enable it during the Go 1.7 beta.
+    Having frame pointers on by default makes Linux's perf, Intel VTune,
+    and other profilers much more useful, because it lets them gather a
+    stack trace efficiently on profiling events.
+    (It doesn't help us that much, since when we walk the stack we usually
+    need to look up PC-specific information as well.)
+    
+    Fixes #15840.
+    
+    Change-Id: I4efd38412a0de4a9c87b1b6e5d11c301e63f1a2a
+    Reviewed-on: https://go-review.googlesource.com/23451
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/galign.go | 15 ++++++---------
+ src/cmd/compile/internal/amd64/reg.go    |  3 +--
+ src/cmd/compile/internal/ssa/regalloc.go |  3 +--
+ src/cmd/internal/obj/go.go               | 20 ++++++++++++++++----
+ src/cmd/internal/obj/link.go             |  2 ++
+ src/cmd/internal/obj/sym.go              |  1 +
+ src/cmd/internal/obj/x86/asm6.go         |  4 ++--
+ src/cmd/internal/obj/x86/obj6.go         |  2 +-
+ src/cmd/link/internal/ld/dwarf.go        |  2 +-
+ src/cmd/link/internal/ld/lib.go          |  8 +++++++-
+ src/runtime/proc.go                      |  9 ++++++---
+ src/runtime/runtime2.go                  |  3 ++-
+ src/runtime/stack.go                     |  3 ---
+ 13 files changed, 46 insertions(+), 29 deletions(-)

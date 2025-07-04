@@ -1,0 +1,14 @@
+commit 34a5537edbc154419822b96173101e9c774af5a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 24 18:02:24 2009 -0700
+
+    drop rt0 object from 8l (already dropped from 6l).
+    remove debugging print.
+    
+    R=r
+    DELTA=8  (0 added, 8 deleted, 0 changed)
+    OCL=26695
+    CL=26710
+
+ src/cmd/8l/obj.c | 8 --------
+ 1 file changed, 8 deletions(-)

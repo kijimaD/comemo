@@ -1,0 +1,23 @@
+commit 68f8e1af29ab12cfa97eb119a7d12a7ea2295e4d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 11 18:23:30 2021 -0800
+
+    cmd/compile/internal/types2: review of call.go
+    
+    The changes between (equivalent, and reviewed) go/types/call.go
+    and call.go can be seen by comparing patchset 1 and 2. The actual
+    changes are removing the "// UNREVIEWED" marker, renaming of
+    sig_params to sigParams, and a couple of comment adjustments.
+    These additional changes reduce the difference between this
+    file and the go/types version.
+    
+    Note that the verification pass using a MethodSet doesn't
+    exist because there's no MethodSet in types2.
+    
+    Change-Id: I4d49460e0457401ed705dff5cfd17c9ff259d89f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300998
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/call.go | 26 +++++++++++++-------------
+ 1 file changed, 13 insertions(+), 13 deletions(-)

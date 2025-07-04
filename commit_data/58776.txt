@@ -1,0 +1,19 @@
+commit 43d8b1e8fed9be5f61f864e0b185e918e3fadf2c
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Feb 17 11:45:51 2025 +0000
+
+    os: deal with chmod error for TestRootConsistencyChmod
+    
+    Previously the error returned by chmod has not actually been used.
+    
+    Change-Id: I97c947a2278a084c58784fd100630ce2a54bfb03
+    GitHub-Last-Rev: ddc60a044f641d264c9ee88d87b2da7e2f766741
+    GitHub-Pull-Request: golang/go#71744
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649418
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/os/root_test.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

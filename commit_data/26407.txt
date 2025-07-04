@@ -1,0 +1,22 @@
+commit 93098de0cc99dc5588477da9f5a9b09d3480677d
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Sun Mar 20 17:22:57 2016 +0200
+
+    cmd/link: patch up symbols only once per object file
+    
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.57 ± 5%  0.55 ± 6%  -2.37%  (p=0.000 n=97+98)
+    
+    GOGC=off:
+    
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.48 ± 3%  0.47 ± 3%  -2.90%  (p=0.000 n=100+100)
+    
+    Change-Id: I1a36dbf84914cacb79842bc0ddb1e26b4c5a5828
+    Reviewed-on: https://go-review.googlesource.com/20917
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/link/internal/ld/objfile.go | 65 +++++++++++++++++--------------------
+ 1 file changed, 30 insertions(+), 35 deletions(-)

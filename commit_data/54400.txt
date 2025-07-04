@@ -1,0 +1,23 @@
+commit 09465129bd9adc2713c16656ac614df396117355
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu Sep 7 20:14:47 2023 -0400
+
+    net/http: extended routing patterns
+    
+    This is the first of several CLs implementing the proposal
+    for enhanced ServeMux routing, https://go.dev/issue/61410.
+    
+    Define a type to represent extended routing patterns and a function to
+    parse a string into one.
+    
+    Updates #61410.
+    
+    Change-Id: I779689acf1f14b20d12c9264251f7dc002b68c49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526815
+    Run-TryBot: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/http/pattern.go      | 187 +++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/pattern_test.go | 167 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 354 insertions(+)

@@ -1,0 +1,12 @@
+commit 3522cd8a203d268e9c4a6753cd19f1c12814a593
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jul 18 16:20:49 2018 +0000
+
+    doc: fix a link in go1.11.html and flesh out a few sections
+    
+    Change-Id: Ic5b9ccb2772534cee77ffcaeee617c7d5edfb6fd
+    Reviewed-on: https://go-review.googlesource.com/124715
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.11.html | 26 ++++++++++++++++----------
+ 1 file changed, 16 insertions(+), 10 deletions(-)

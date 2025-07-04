@@ -1,0 +1,12 @@
+commit 0420eb3b656a7b0aeb04063df6d5989229cdb393
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue Dec 4 17:00:19 2012 +1100
+
+    net: report Accept error during TestVariousDeadlines1Proc test
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/6868057
+
+ src/pkg/net/timeout_test.go | 17 ++++-------------
+ 1 file changed, 4 insertions(+), 13 deletions(-)

@@ -1,0 +1,15 @@
+commit 8140cd9149493cffc797edafc60a230f1c9b5462
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 13 13:32:59 2012 -0700
+
+    godoc: show comments in various filtered views
+    
+    Fixes #3454.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6305069
+
+ src/cmd/godoc/godoc.go | 17 +++++++++++++++--
+ src/cmd/godoc/main.go  |  9 +++++++--
+ 2 files changed, 22 insertions(+), 4 deletions(-)

@@ -1,0 +1,64 @@
+commit af7eafd1505f9e150aa9fc21cd3f19da42a30333
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 24 13:39:44 2020 -0700
+
+    cmd/compile: convert 386 port to use addressing modes pass (take 2)
+    
+    Retrying CL 222782, with a fix that will hopefully stop the random crashing.
+    
+    The issue with the previous CL is that it does pointer arithmetic
+    in a way that may briefly generate an out-of-bounds pointer. If an
+    interrupt happens to occur in that state, the referenced object may
+    be collected incorrectly.
+    
+    Suppose there was code that did s[x+c].  The previous CL had a rule
+    to the effect of ptr + (x + c) -> c + (ptr + x).  But ptr+x is not
+    guaranteed to point to the same object as ptr. In contrast,
+    ptr+(x+c) is guaranteed to point to the same object as ptr, because
+    we would have already checked that x+c is in bounds.
+    
+    For example, strconv.trim used to have this code:
+      MOVZX -0x1(BX)(DX*1), BP
+      CMPL $0x30, AL
+    After CL 222782, it had this code:
+      LEAL 0(BX)(DX*1), BP
+      CMPB $0x30, -0x1(BP)
+    
+    An interrupt between those last two instructions could see BP pointing
+    outside the backing store of the slice involved.
+    
+    It's really hard to actually demonstrate a bug. First, you need to
+    have an interrupt occur at exactly the right time. Then, there must
+    be no other pointers to the object in question. Since the interrupted
+    frame will be scanned conservatively, there can't even be a dead
+    pointer in another register or on the stack. (In the example above,
+    a bug can't happen because BX still holds the original pointer.)
+    Then, the object in question needs to be collected (or at least
+    scanned?) before the interrupted code continues.
+    
+    This CL needs to handle load combining somewhat differently than CL 222782
+    because of the new restriction on arithmetic. That's the only real
+    difference (other than removing the bad rules) from that old CL.
+    
+    This bug is also present in the amd64 rewrite rules, and we haven't
+    seen any crashing as a result. I will fix up that code similarly to
+    this one in a separate CL.
+    
+    Update #37881
+    
+    Change-Id: I5f0d584d9bef4696bfe89a61ef0a27c8d507329f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/225798
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/addressingmodes.go |   83 +-
+ src/cmd/compile/internal/ssa/gen/386.rules      |  242 +-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules    |    1 +
+ src/cmd/compile/internal/ssa/gen/generic.rules  |    6 +-
+ src/cmd/compile/internal/ssa/gen/rulegen.go     |    5 +
+ src/cmd/compile/internal/ssa/rewrite.go         |   16 +
+ src/cmd/compile/internal/ssa/rewrite386.go      | 6156 ++++-------------------
+ src/cmd/compile/internal/ssa/rewritegeneric.go  |    8 +-
+ test/codegen/memops.go                          |   78 +-
+ 9 files changed, 1270 insertions(+), 5325 deletions(-)

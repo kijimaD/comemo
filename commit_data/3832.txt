@@ -1,0 +1,16 @@
+commit 6c13f8f10edcee50c99379945e94cb2c58006178
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 17:02:29 2009 -0800
+
+    fix a comment formatting bug:
+    - this ensures better comment formatting in template.go and codec_test.go
+    - it affects only 2 files of all files that have been gofmt'ed already,
+      see separate CL (it fixes the same issue in those files)
+    
+    R=rsc
+    http://go/go-review/1023002
+
+ src/pkg/go/printer/printer.go               | 18 ++++++++++++++++--
+ src/pkg/go/printer/testdata/comments.golden |  3 +++
+ src/pkg/go/printer/testdata/comments.input  |  3 +++
+ 3 files changed, 22 insertions(+), 2 deletions(-)

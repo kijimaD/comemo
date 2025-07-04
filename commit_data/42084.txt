@@ -1,0 +1,38 @@
+commit 681ba4307781a1f1581bda3c52255186e4b79546
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 21 15:59:11 2020 -0700
+
+    cmd/compile: move fixVariadicCall from walk to order
+    
+    This CL moves fixVariadicCall from mid-Walk of function calls to
+    early-Order, in preparation for moving it even earlier in the future.
+    
+    Notably, rewriting variadic calls this early introduces two
+    compilation output changes:
+    
+    1. Previously, Order visited the ODDDARG before the rest of the
+    arguments list, whereas the natural time to visit it is at the end of
+    the list (as we visit arguments left-to-right, and the ... argument is
+    the rightmost one). Changing this ordering permutes the autotmp
+    allocation order, which in turn permutes autotmp naming and stack
+    offsets.
+    
+    2. Previously, Walk separately walked all of the variadic arguments
+    before walking the entire slice literal, whereas the more natural
+    thing to do is just walk the entire slice literal. This triggers
+    slightly different code paths for composite literal construction in
+    some cases.
+    
+    Neither of these have semantic impact. They simply mean we're now
+    compiling f(a,b,c) the same way as we were already compiling
+    f([]T{a,b,c}...).
+    
+    Change-Id: I40ccc5725697a116370111ebe746b2639562fe87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229601
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/gc/order.go | 29 ++++++++++++++++-------------
+ src/cmd/compile/internal/gc/walk.go  | 15 +++++----------
+ 2 files changed, 21 insertions(+), 23 deletions(-)

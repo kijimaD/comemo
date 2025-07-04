@@ -1,0 +1,24 @@
+commit a21bb839cb86a94166f5248eca396bdaa0815522
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 6 16:53:39 2023 -0400
+
+    cmd/dist: disable PGO for toolchain2 build
+    
+    Toolchain2 is only used for building toolchain3. We don't need to
+    build it with PGO. And building with PGO causes packages to be
+    built twice (one with PGO for the compiler, one without for other
+    programs). Disable PGO for toolchain2.
+    
+    Also, I thought cmd/dist requires toolchain2 and toolchain3
+    compilers are identical binaries, so they need to be built in the
+    same way. But it doesn't.
+    
+    Change-Id: Iaf49816da3dd06db79b48482c0e2435e09b512d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501335
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/dist/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

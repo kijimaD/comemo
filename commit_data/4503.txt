@@ -1,0 +1,17 @@
+commit 2aefb8d930dd6c3878590dff727226130d836b8d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Dec 28 17:24:53 2009 -0800
+
+    Fix bug in godoc tab conversion filter:
+    tabs after an empty line where not converted.
+    
+    Also, made it more robust in the presence of
+    (unexpected) ' ' and '\v' chars in indentation
+    mode.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/181085
+
+ src/cmd/godoc/godoc.go | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)

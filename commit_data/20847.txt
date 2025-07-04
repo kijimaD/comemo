@@ -1,0 +1,19 @@
+commit 489ff75ab8310b678a955b37094d2c72a1c18b11
+Author: Austin Clements <austin@google.com>
+Date:   Mon Nov 3 13:26:46 2014 -0500
+
+    runtime: make Go and C mallocgc signatures match
+    
+    Previously, the flags argument to mallocgc was an int in Go,
+    but a uint32 in C.  Change the Go type to use uint32 so these
+    agree.  The largest flag value is 2 (and of course no flag
+    values are negative), so this won't change anything on little
+    endian architectures, but it matters on big endian.
+    
+    LGTM=rsc
+    R=khr, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/169920043
+
+ src/runtime/malloc.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

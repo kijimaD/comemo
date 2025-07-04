@@ -1,0 +1,13 @@
+commit d26e20451412f26c840156f8e9074ac97244bbdc
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Thu Feb 18 23:38:21 2010 -0800
+
+    http: persistent connection objects
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/203051
+
+ src/pkg/http/Makefile   |   1 +
+ src/pkg/http/persist.go | 285 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 286 insertions(+)

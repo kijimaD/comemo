@@ -1,0 +1,24 @@
+commit 3e58ef6cc7dfaf2cf3b593e728f7f62391030114
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jun 23 20:54:52 2022 -0700
+
+    go/types, types2: better errors for == when type sets are empty
+    
+    For #51525.
+    
+    Change-Id: I3762bc4a48a1aaab3b006b1ad1400f866892243c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/413934
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/predicates.go            | 12 +++++++++++-
+ .../internal/types2/testdata/fixedbugs/issue48712.go     | 14 +++++++-------
+ .../internal/types2/testdata/fixedbugs/issue51525.go     | 16 ++++++++++++++++
+ .../compile/internal/types2/testdata/spec/comparisons.go | 16 ++++++++--------
+ src/go/types/predicates.go                               | 12 +++++++++++-
+ src/go/types/testdata/fixedbugs/issue48712.go            | 14 +++++++-------
+ src/go/types/testdata/fixedbugs/issue51525.go            | 16 ++++++++++++++++
+ src/go/types/testdata/spec/comparisons.go                | 16 ++++++++--------
+ 8 files changed, 84 insertions(+), 32 deletions(-)

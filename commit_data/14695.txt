@@ -1,0 +1,21 @@
+commit a3677b5f223db6ccadf26f81a751c4f8c8c0eaf9
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 20 12:23:27 2012 -0500
+
+    math: handle exponent separately in Log2
+    
+    This guarantees that powers of two return exact answers.
+    
+    We could do a multiprecision approximation for the
+    rest of the answer too, but this seems like it should be
+    good enough.
+    
+    Fixes #4567.
+    
+    R=golang-dev, iant, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/6943074
+
+ src/pkg/math/all_test.go | 7 +++++++
+ src/pkg/math/log10.go    | 3 ++-
+ 2 files changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,19 @@
+commit 8232a09e3ed7d315a90ac059ee542ecaf0f6b4c2
+Author: csuzhang <csuzhang@tencent.com>
+Date:   Mon Jan 9 01:57:53 2023 +0000
+
+    sync/atomic: fix the note of atomic.Store
+    
+    Change-Id: Id485d0f1e06febe97d1a770bc26c138d9613a7dd
+    GitHub-Last-Rev: e57dd3e1abb58031b3d8bec8beace1560faad397
+    GitHub-Pull-Request: golang/go#57679
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461076
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/sync/atomic/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

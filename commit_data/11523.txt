@@ -1,0 +1,27 @@
+commit 0f1056667fb8952046e5360ebf9f3285b6f7de33
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 31 17:40:36 2012 -0500
+
+    cmd/go: improvements
+    
+    Do not treat $GOROOT/src/pkg, $GOROOT/src/cmd,
+    $GOPATH/src as package directories (only subdirectories
+    of those can be package directories).  Fixes issue 2602.
+    
+    Accept additional compiler and linker arguments during
+    cgo from $CGO_CFLAGS and $CGO_LDFLAGS, as the
+    Makefiles used to do.
+    
+    Show failed pkg-config output.  Fixes issue 2785.
+    
+    Use different (perhaps better) git commands.  Fixes issue 2109.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/5605045
+
+ src/cmd/go/build.go | 17 +++++++++++++----
+ src/cmd/go/get.go   |  6 +-----
+ src/cmd/go/main.go  |  6 +++---
+ src/cmd/go/vcs.go   | 25 ++++++++++++++-----------
+ 4 files changed, 31 insertions(+), 23 deletions(-)

@@ -1,0 +1,19 @@
+commit 91911e39f0fdfecc5453f9eca7ff74215ffb28a2
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 3 21:35:03 2016 +0000
+
+    net/http/httputil: also remove non-standard Proxy-Connection hop-by-hop header
+    
+    libcurl sends this (despite never being standardized), and the Google
+    GFE rejects it with a 400 bad request (but only when over http2?).
+    
+    So nuke it.
+    
+    Change-Id: I3fc95523d50f33a0e23bb26b9195f70ab0aed0f4
+    Reviewed-on: https://go-review.googlesource.com/19184
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      | 1 +
+ src/net/http/httputil/reverseproxy_test.go | 4 ++++
+ 2 files changed, 5 insertions(+)

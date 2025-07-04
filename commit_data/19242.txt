@@ -1,0 +1,13 @@
+commit 78fbe9020c3d281b46ddf3c0da766fd48a0cd8cb
+Author: Robert Hencke <robert.hencke@gmail.com>
+Date:   Sun Apr 27 17:39:13 2014 -0700
+
+    net/tcp: fix check for openbsd in test
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/98740045
+
+ src/pkg/net/tcp_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

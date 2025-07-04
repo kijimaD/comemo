@@ -1,0 +1,41 @@
+commit a3b3284ddc274ca0d6abd01cb6a6fef471d281dc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 2 15:20:49 2018 -0800
+
+    cmd/compile: prevent untyped types from reaching walk
+    
+    We already require expressions to have already been typechecked before
+    reaching walk. Moreover, all untyped expressions should have been
+    converted to their default type by walk.
+    
+    However, in practice, we've been somewhat sloppy and inconsistent
+    about ensuring this. In particular, a lot of AST rewrites ended up
+    leaving untyped bool expressions scattered around. These likely aren't
+    harmful in practice, but it seems worth cleaning up.
+    
+    The two most common cases addressed by this CL are:
+    
+    1) When generating OIF and OFOR nodes, we would often typecheck the
+    conditional expression, but not apply defaultlit to force it to the
+    expression's default type.
+    
+    2) When rewriting string comparisons into more fundamental primitives,
+    we were simply overwriting r.Type with the desired type, which didn't
+    propagate the type to nested subexpressions. These are fixed by
+    utilizing finishcompare, which correctly handles this (and is already
+    used by other comparison lowering rewrites).
+    
+    Lastly, walkexpr is extended to assert that it's not called on untyped
+    expressions.
+    
+    Fixes #23834.
+    
+    Change-Id: Icbd29648a293555e4015d3b06a95a24ccbd3f790
+    Reviewed-on: https://go-review.googlesource.com/98337
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/range.go  |  2 ++
+ src/cmd/compile/internal/gc/select.go |  1 +
+ src/cmd/compile/internal/gc/swt.go    | 13 ++++++-------
+ src/cmd/compile/internal/gc/walk.go   | 24 +++++++-----------------
+ 4 files changed, 16 insertions(+), 24 deletions(-)

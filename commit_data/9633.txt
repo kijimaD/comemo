@@ -1,0 +1,12 @@
+commit e7af22a64eec799ba9bfab2c1d269b99bee2fe5d
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 8 10:08:49 2011 -0400
+
+    codereview: Mercurial 1.9 fix for hg diff @nnn
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4969063
+
+ lib/codereview/codereview.py | 15 +++++++++------
+ 1 file changed, 9 insertions(+), 6 deletions(-)

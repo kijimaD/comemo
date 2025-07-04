@@ -1,0 +1,19 @@
+commit a90fc6d2d4b7a1a054de50841a8bebfc2c2668e9
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Wed Jan 17 21:00:26 2018 +0100
+
+    cmd/compile: replace range loop over list of nodes with orderexprlistinplace
+    
+    Replace explicit range loop that applies orderexprinplace on a
+    list of nodes with existing helper function orderexprlistinplace.
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: Ic8098ed08cf67f319de3faa83b00a5b73bbde95d
+    Reviewed-on: https://go-review.googlesource.com/88815
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/order.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

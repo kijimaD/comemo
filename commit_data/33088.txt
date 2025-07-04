@@ -1,0 +1,22 @@
+commit 56dec8dde2abca9b556719a66da908b1802f9956
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 12 10:25:25 2017 -0700
+
+    test: add test case that gccgo miscompiled
+    
+    Error was
+    
+    main.go:7:11: error: import error at 162: expected ‘<type ’
+    
+    Change-Id: Iacfe4bfa003d7708a21ebc89ad1ab2d4a3b041a8
+    Reviewed-on: https://go-review.googlesource.com/70290
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ test/fixedbugs/bug504.dir/a.go    |  7 +++++++
+ test/fixedbugs/bug504.dir/b.go    | 11 +++++++++++
+ test/fixedbugs/bug504.dir/c.go    |  9 +++++++++
+ test/fixedbugs/bug504.dir/main.go | 11 +++++++++++
+ test/fixedbugs/bug504.go          | 10 ++++++++++
+ 5 files changed, 48 insertions(+)

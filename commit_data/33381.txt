@@ -1,0 +1,46 @@
+commit fbfc2031a673c95700e46ddf56404a0f648fc8a9
+Author: Martin Möhrmann <moehrmann@google.com>
+Date:   Sat Sep 2 18:46:59 2017 +0200
+
+    cmd/compile: specialize map creation for small hint sizes
+    
+    Handle make(map[any]any) and make(map[any]any, hint) where
+    hint <= BUCKETSIZE special to allow for faster map initialization
+    and to improve binary size by using runtime calls with fewer arguments.
+    
+    Given hint is smaller or equal to BUCKETSIZE in which case
+    overLoadFactor(hint, 0)  is false and no buckets would be allocated by makemap:
+    * If hmap needs to be allocated on the stack then only hmap's hash0
+      field needs to be initialized and no call to makemap is needed.
+    * If hmap needs to be allocated on the heap then a new special
+      makehmap function will allocate hmap and intialize hmap's
+      hash0 field.
+    
+    Reduces size of the godoc by ~36kb.
+    
+    AMD64
+    name         old time/op    new time/op    delta
+    NewEmptyMap    16.6ns ± 2%     5.5ns ± 2%  -66.72%  (p=0.000 n=10+10)
+    NewSmallMap    64.8ns ± 1%    56.5ns ± 1%  -12.75%  (p=0.000 n=9+10)
+    
+    Updates #6853
+    
+    Change-Id: I624e90da6775afaa061178e95db8aca674f44e9b
+    Reviewed-on: https://go-review.googlesource.com/61190
+    Run-TryBot: Martin Möhrmann <moehrmann@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 250 +++++++++++++------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |   3 +
+ src/cmd/compile/internal/gc/reflect.go         |   4 +-
+ src/cmd/compile/internal/gc/ssa.go             |   6 +
+ src/cmd/compile/internal/gc/subr.go            |   8 +
+ src/cmd/compile/internal/gc/walk.go            |  71 +++++--
+ src/runtime/export_test.go                     |   7 +-
+ src/runtime/hashmap.go                         |  11 +-
+ src/runtime/map_test.go                        | 139 ++++++++++++--
+ src/runtime/runtime-gdb_test.go                |   8 +-
+ test/live.go                                   |   4 +-
+ test/live2.go                                  |   4 +-
+ 12 files changed, 343 insertions(+), 172 deletions(-)

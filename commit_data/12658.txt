@@ -1,0 +1,15 @@
+commit 86c7bc6e8bd80ef651a92e5103ade11ce159b9d1
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Mar 15 15:22:56 2012 -0700
+
+    misc/dist: don't ship cmd/cov or cmd/prof
+    
+    Fixes #3317
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5784083
+
+ misc/dist/bindist.go | 2 ++
+ src/cmd/dist/build.c | 2 ++
+ 2 files changed, 4 insertions(+)

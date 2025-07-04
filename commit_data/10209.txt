@@ -1,0 +1,13 @@
+commit cefee3c919221a38d6eb93c8199d3d88ad5ae0b7
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Wed Nov 2 14:01:21 2011 -0400
+
+    math: improved accuracy for Tan
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5298087
+
+ src/pkg/math/all_test.go |  13 +----
+ src/pkg/math/tan.go      | 140 ++++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 104 insertions(+), 49 deletions(-)

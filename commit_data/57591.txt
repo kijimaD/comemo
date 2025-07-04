@@ -1,0 +1,30 @@
+commit bb5339196f86057ffa6042d31f52a44bf7f13752
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Oct 2 13:00:17 2024 +0200
+
+    all: use slices.Sorted(maps.Keys(m))
+    
+    Use slices.Sorted(maps.Keys(m)) to get a sorted slices of the keys in
+    a map.
+    
+    Do not change packages built during bootstrap, as the bootstrap compiler
+    (currently 1.22.6) does not have the required maps and slices functions.
+    
+    Change-Id: Ie35565d241fa14aca56b730a69af010127b659ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617356
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/archive/tar/writer.go                     | 11 +++--------
+ src/database/sql/sql.go                       |  8 ++------
+ src/internal/coverage/cformat/format.go       | 16 +++-------------
+ src/internal/coverage/encodecounter/encode.go |  7 ++-----
+ src/mime/mediatype.go                         |  9 ++-------
+ src/mime/multipart/writer.go                  |  8 ++------
+ src/net/http/cgi/cgi_main.go                  | 15 +++------------
+ src/net/http/clientserver_test.go             |  8 ++------
+ src/net/url/url.go                            |  8 ++------
+ src/testing/fstest/testfs.go                  |  9 ++-------
+ 10 files changed, 23 insertions(+), 76 deletions(-)

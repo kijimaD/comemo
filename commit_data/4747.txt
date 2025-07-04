@@ -1,0 +1,12 @@
+commit 0d8797bf73977cb84042d59c9d76f3f58b4d7f46
+Author: Petar Maymounkov <petarm@gmail.com>
+Date:   Mon Feb 1 11:23:38 2010 -0800
+
+    http: test for ReadReqeust
+    
+    R=rsc, rsc1
+    CC=golang-dev
+    https://golang.org/cl/195068
+
+ src/pkg/http/readrequest_test.go | 96 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 96 insertions(+)

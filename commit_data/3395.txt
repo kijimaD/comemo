@@ -1,0 +1,17 @@
+commit 5c2c57e5dbfab67072cad83e7127035568ee3c8f
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 29 14:04:08 2009 -0700
+
+    toy draw implementation
+    
+    R=r
+    DELTA=471  (471 added, 0 deleted, 0 changed)
+    OCL=35090
+    CL=35099
+
+ usr/rsc/draw/Makefile |  14 +++++
+ usr/rsc/draw/arith.go | 168 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ usr/rsc/draw/color.go | 117 +++++++++++++++++++++++++++++++++++
+ usr/rsc/draw/draw.go  | 125 +++++++++++++++++++++++++++++++++++++
+ usr/rsc/draw/event.go |  47 ++++++++++++++
+ 5 files changed, 471 insertions(+)

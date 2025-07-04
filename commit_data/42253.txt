@@ -1,0 +1,12 @@
+commit 8be365f987821412dcea32d5d28336cd5cc7440e
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri May 1 11:44:31 2020 -0700
+
+    cmd/cgo: "not-type" means "is not a type", not "is a type"
+    
+    Change-Id: I87111f20a55a0b202b95a533ffb7e3aa666715dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231598
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/cgo/gcc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

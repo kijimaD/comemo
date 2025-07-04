@@ -1,0 +1,19 @@
+commit 1e96f42c2a80ca99c202409683ba5bd755bf3d85
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Sep 19 10:52:27 2022 +0200
+
+    syscall: drop compatibility for FreeBSD < 10.0
+    
+    Change-Id: Idd8cee84215e61817a86915160c91242670798af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/431663
+    Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
+    Reviewed-by: Dmitri Goutnik <dgoutnik@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+
+ src/syscall/route_freebsd_32bit.go | 11 ++++-------
+ src/syscall/syscall_freebsd.go     | 16 +---------------
+ 2 files changed, 5 insertions(+), 22 deletions(-)

@@ -1,0 +1,21 @@
+commit d138ee2cfbd2be3edde22ad8a69da7657d0b0b7a
+Author: David Chase <drchase@google.com>
+Date:   Fri Apr 9 09:49:15 2021 -0400
+
+    test/abi: disable test on windows for now
+    
+    This tickles some other bug, do this to clear builders.
+    
+    Updates #40724.
+    Updates #45465.
+    
+    Change-Id: Id51efbcf474865da231fcbc6216e5d604f99c296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308889
+    Trust: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ test/abi/bad_select_crash.go | 2 ++
+ 1 file changed, 2 insertions(+)

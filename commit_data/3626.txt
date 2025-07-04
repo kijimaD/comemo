@@ -1,0 +1,16 @@
+commit 79a63728eb229900f141ec4ae8efae68bbd1c79c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 22 11:12:39 2009 -0700
+
+    Initial checkin of codereview plugin.
+    The master copy is going to live elsewhere,
+    but weAPOSTROPHEll keep a copy in the Go tree so that
+    developers donAPOSTROPHEt have to check out two
+    different repositories.
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1012006
+
+ lib/codereview/codereview.py | 2575 ++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 2575 insertions(+)

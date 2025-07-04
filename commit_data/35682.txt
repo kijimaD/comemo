@@ -1,0 +1,21 @@
+commit 4f6b9ed5adffbfb38f10fd1843d5f6f731ece884
+Author: Nathan Cantelmo <n.cantelmo@gmail.com>
+Date:   Wed Sep 6 11:19:25 2017 -0400
+
+    doc: document the lack of support for symlinks under GOPATH
+    
+    In an effort to help others avoid the issues I've hit due to lack of
+    symlink support under GOPATH, I've added a note of warning to the
+    Workspaces section.
+    
+    I have not changed the contents of go help gopath, because on reflection
+    it seems this change alone may be sufficient.
+    
+    Fixes #21320
+    
+    Change-Id: Ib8969bf12cecad878e89ff66b5864bbf3caaf219
+    Reviewed-on: https://go-review.googlesource.com/61930
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/code.html | 4 ++++
+ 1 file changed, 4 insertions(+)

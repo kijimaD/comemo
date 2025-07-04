@@ -1,0 +1,17 @@
+commit dc8b4e65a7a68e102484020efbf80cecd2d515bd
+Author: sam boyer <tech@samboyer.org>
+Date:   Sat Jun 17 01:21:48 2017 -0400
+
+    doc: add qualified mention of dep to FAQ
+    
+    This adds a qualified mention of golang/dep to the FAQ.
+    
+    Fixes #19049
+    
+    Change-Id: I42a114a008a6ca1250d849872dd98fd6523fa659
+    Reviewed-on: https://go-review.googlesource.com/46005
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go_faq.html | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)

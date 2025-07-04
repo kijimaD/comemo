@@ -1,0 +1,18 @@
+commit 333cdd8f2ad42ebceaab3a56ee3ca031005983e2
+Author: Rob Pike <r@golang.org>
+Date:   Sat Mar 7 16:56:44 2009 -0800
+
+    document os
+    
+    R=rsc
+    DELTA=143  (96 added, 0 deleted, 47 changed)
+    OCL=25876
+    CL=25888
+
+ src/lib/os/env.go   | 15 ++++++---
+ src/lib/os/error.go | 16 +++++++---
+ src/lib/os/exec.go  | 28 +++++++++++++----
+ src/lib/os/file.go  | 88 ++++++++++++++++++++++++++++++++++++++++++-----------
+ src/lib/os/time.go  |  5 +++
+ src/lib/os/types.go | 38 ++++++++++++++---------
+ 6 files changed, 143 insertions(+), 47 deletions(-)

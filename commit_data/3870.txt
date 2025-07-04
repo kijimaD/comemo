@@ -1,0 +1,11 @@
+commit 05aab6f7101e7d753ad29b87ba4bd60e83479067
+Author: Vish Subramanian <vish@google.com>
+Date:   Fri Nov 6 17:05:42 2009 -0800
+
+    Add vish to contributors.
+    
+    R=r, rsc
+    http://go/go-review/1026012
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,25 @@
+commit 3cc8b532f9d561397dd0c66496e1e1a82667c926
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 2 17:37:34 2025 -0700
+
+    testing: add Attr
+    
+    Add a new Attr method to testing.TB that emits a test attribute.
+    An attribute is an arbitrary key/value pair.
+    
+    Fixes #43936
+    
+    Change-Id: I7ef299efae41f2cf39f2dc61ad4cdd4c3975cdb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662437
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+
+ api/next/43936.txt                            |  4 +++
+ doc/next/6-stdlib/99-minor/testing/43936.md   | 10 ++++++
+ src/cmd/internal/test2json/test2json.go       |  8 +++++
+ src/cmd/internal/test2json/testdata/attr.json | 15 +++++++++
+ src/cmd/internal/test2json/testdata/attr.test |  7 ++++
+ src/testing/testing.go                        | 26 +++++++++++++++
+ src/testing/testing_test.go                   | 47 +++++++++++++++++++++++++++
+ 7 files changed, 117 insertions(+)

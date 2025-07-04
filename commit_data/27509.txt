@@ -1,0 +1,20 @@
+commit 9f38796270a017de8d9e1f102b28576826e6a188
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue May 24 19:04:51 2016 -0400
+
+    reflect: remove type info for unexported methods
+    
+    Also remove some of the now unnecessary corner case handling and
+    tests I've been adding recently for unexported method data.
+    
+    For #15673
+    
+    Change-Id: Ie0c7b03f2370bbe8508cdc5be765028f08000bd7
+    Reviewed-on: https://go-review.googlesource.com/23410
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/reflect/all_test.go | 84 ++-----------------------------------------------
+ src/reflect/type.go     | 29 ++++++-----------
+ 2 files changed, 13 insertions(+), 100 deletions(-)

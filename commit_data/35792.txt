@@ -1,0 +1,15 @@
+commit 291e57f057c480889be3cc7abf83698f8c6646ba
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jun 20 19:23:24 2018 +0200
+
+    doc/contribute: fix typo and reword a few sentences
+    
+    This change fixes a typo in doc/contribute.html (afects -> affects)
+    and rewords a few slightly akward sentences.
+    
+    Change-Id: I6bfbacba0de29464fce134b0fdaf3898a97b8d57
+    Reviewed-on: https://go-review.googlesource.com/120105
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/contribute.html | 47 +++++++++++++++++++++++++----------------------
+ 1 file changed, 25 insertions(+), 22 deletions(-)

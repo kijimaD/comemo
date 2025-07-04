@@ -1,0 +1,29 @@
+commit 30cb30e596759279b487b835440269989bd08b04
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 10 15:11:05 2017 -0700
+
+    runtime: unify amd64 -buildmode=c-archive/c-shared entry point code
+    
+    This adds the _lib entry point to various GOOS_amd64.s files.
+    A future CL will enable c-archive/c-shared mode for those targets.
+    
+    As far as I can tell, the newosproc0 function in os_darwin.go was
+    passing the wrong arguments to bsdthread_create. The newosproc0
+    function is never called in the current testsuite.
+    
+    Change-Id: Ie7c1c2e326cec87013e0fea84f751091b0ea7f51
+    Reviewed-on: https://go-review.googlesource.com/69711
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/asm_amd64.s           | 62 ++++++++++++++++++++++++++++++++++++++
+ src/runtime/os_darwin.go          |  4 +--
+ src/runtime/rt0_android_amd64.s   |  3 +-
+ src/runtime/rt0_darwin_amd64.s    | 63 ++-------------------------------------
+ src/runtime/rt0_dragonfly_amd64.s |  3 ++
+ src/runtime/rt0_freebsd_amd64.s   |  3 ++
+ src/runtime/rt0_linux_amd64.s     | 60 ++-----------------------------------
+ src/runtime/rt0_netbsd_amd64.s    |  3 ++
+ src/runtime/rt0_openbsd_amd64.s   |  3 ++
+ src/runtime/rt0_solaris_amd64.s   |  3 ++
+ 10 files changed, 84 insertions(+), 123 deletions(-)

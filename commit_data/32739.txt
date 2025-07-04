@@ -1,0 +1,84 @@
+commit 8c67f210a181f4d3e003e46e544ae03ce231ca42
+Author: isharipo <iskander.sharipov@intel.com>
+Date:   Wed Sep 13 14:32:08 2017 +0300
+
+    cmd/internal/obj: change Prog.From3 to RestArgs ([]Addr)
+    
+    This change makes it easier to express instructions
+    with arbitrary number of operands.
+    
+    Rationale: previous approach with operand "hiding" does
+    not scale well, AVX and especially AVX512 have many
+    instructions with 3+ operands.
+    
+    x86 asm backend is updated to handle up to 6 explicit operands.
+    It also fixes issue with 4-th immediate operand type checks.
+    All `ytab` tables are updated accordingly.
+    
+    Changes to non-x86 backends only include these patterns:
+    `p.From3 = X` => `p.SetFrom3(X)`
+    `p.From3.X = Y` => `p.GetFrom3().X = Y`
+    
+    Over time, other backends can adapt Prog.RestArgs
+    and reduce the amount of workarounds.
+    
+    -- Performance --
+    
+    x/benchmark/build:
+    
+    $ benchstat upstream.bench patched.bench
+    name      old time/op                 new time/op                 delta
+    Build-48                  21.7s ± 2%                  21.8s ± 2%   ~     (p=0.218 n=10+10)
+    
+    name      old binary-size             new binary-size             delta
+    Build-48                  10.3M ± 0%                  10.3M ± 0%   ~     (all equal)
+    
+    name      old build-time/op           new build-time/op           delta
+    Build-48                  21.7s ± 2%                  21.8s ± 2%   ~     (p=0.218 n=10+10)
+    
+    name      old build-peak-RSS-bytes    new build-peak-RSS-bytes    delta
+    Build-48                  145MB ± 5%                  148MB ± 5%   ~     (p=0.218 n=10+10)
+    
+    name      old build-user+sys-time/op  new build-user+sys-time/op  delta
+    Build-48                  21.0s ± 2%                  21.2s ± 2%   ~     (p=0.075 n=10+10)
+    
+    Microbenchmark shows a slight slowdown.
+    
+    name        old time/op  new time/op  delta
+    AMD64asm-4  49.5ms ± 1%  49.9ms ± 1%  +0.67%  (p=0.001 n=23+15)
+    
+    func BenchmarkAMD64asm(b *testing.B) {
+      for i := 0; i < b.N; i++ {
+        TestAMD64EndToEnd(nil)
+        TestAMD64Encoder(nil)
+      }
+    }
+    
+    Change-Id: I4f1d37b5c2c966da3f2127705ccac9bff0038183
+    Reviewed-on: https://go-review.googlesource.com/63490
+    Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/asm/internal/arch/amd64.go    |  28 --
+ src/cmd/asm/internal/asm/asm.go       |  50 +--
+ src/cmd/compile/internal/arm64/ssa.go |   2 +-
+ src/cmd/compile/internal/ppc64/ssa.go |   6 +-
+ src/cmd/compile/internal/s390x/ssa.go |  17 +-
+ src/cmd/internal/obj/arm/asm5.go      |   8 +-
+ src/cmd/internal/obj/arm/obj5.go      |   2 +-
+ src/cmd/internal/obj/arm64/asm7.go    |  20 +-
+ src/cmd/internal/obj/arm64/obj7.go    |   2 +-
+ src/cmd/internal/obj/go.go            |   2 +-
+ src/cmd/internal/obj/link.go          |  84 +++--
+ src/cmd/internal/obj/pass.go          |   4 +-
+ src/cmd/internal/obj/ppc64/asm9.go    |  50 +--
+ src/cmd/internal/obj/ppc64/obj9.go    |   2 +-
+ src/cmd/internal/obj/s390x/asmz.go    |  46 +--
+ src/cmd/internal/obj/s390x/objz.go    |   2 +-
+ src/cmd/internal/obj/sizeof_test.go   |   2 +-
+ src/cmd/internal/obj/util.go          |  17 +-
+ src/cmd/internal/obj/x86/asm6.go      | 584 +++++++++++++++++-----------------
+ src/cmd/internal/obj/x86/obj6.go      |  26 +-
+ src/cmd/internal/obj/x86/ytab.go      |  40 +++
+ 21 files changed, 513 insertions(+), 481 deletions(-)

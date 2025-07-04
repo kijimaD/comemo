@@ -1,0 +1,10 @@
+commit bad8c3d5dd57086b5c971271fc049976748feb1f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 14 16:00:44 2008 -0700
+
+    stop traceback when pc leaves text segment
+    
+    SVN=127088
+
+ src/runtime/rt2_amd64.c | 4 ++++
+ 1 file changed, 4 insertions(+)

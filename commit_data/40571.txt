@@ -1,0 +1,34 @@
+commit 54e6ba6724dfde355070238f9abc16362cac2e3d
+Author: Richard Musiol <mail@richard-musiol.de>
+Date:   Sat Oct 26 21:01:32 2019 +0200
+
+    syscall/js: garbage collect references to JavaScript values
+    
+    The js.Value struct now contains a pointer, so a finalizer can
+    determine if the value is not referenced by Go any more.
+    
+    Unfortunately this breaks Go's == operator with js.Value. This change
+    adds a new Equal method to check for the equality of two Values.
+    This is a breaking change. The == operator is now disallowed to
+    not silently break code.
+    
+    Additionally the helper methods IsUndefined, IsNull and IsNaN got added.
+    
+    Fixes #35111
+    
+    Change-Id: I58a50ca18f477bf51a259c668a8ba15bfa76c955
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/203600
+    Run-TryBot: Richard Musiol <neelance@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ misc/wasm/wasm_exec.js        |  49 ++++++++++----
+ src/net/http/roundtrip_js.go  |  10 +--
+ src/syscall/fs_js.go          |   4 +-
+ src/syscall/js/export_test.go |   9 +++
+ src/syscall/js/func.go        |   2 +-
+ src/syscall/js/js.go          | 153 ++++++++++++++++++++++++++++++++----------
+ src/syscall/js/js_js.s        |   4 ++
+ src/syscall/js/js_test.go     |  91 +++++++++++++++++++------
+ 8 files changed, 244 insertions(+), 78 deletions(-)

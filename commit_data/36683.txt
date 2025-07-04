@@ -1,0 +1,18 @@
+commit bc529edc7f43e7e67598e66f4839e1aa6e971063
+Author: Eric Ponce <tricokun@gmail.com>
+Date:   Thu Aug 30 02:27:35 2018 +0200
+
+    cmd/go: display correct options in "go help get" using modules
+    
+    Fixes: #27298
+    
+    Change-Id: Icfc6992b470136bb25a77912f670a25883642316
+    Reviewed-on: https://go-review.googlesource.com/132095
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/main.go                      | 18 +++++++++---------
+ src/cmd/go/testdata/script/help.txt     |  5 +++++
+ src/cmd/go/testdata/script/mod_help.txt |  6 ++++++
+ 3 files changed, 20 insertions(+), 9 deletions(-)

@@ -1,0 +1,21 @@
+commit 9765325d4980b15c46b57663bdfd501a75b1f4e6
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Feb 23 06:26:31 2012 +0900
+
+    net: make parseProcNetIGMP more robust
+    
+    Suggested by Paul Borman.
+    
+    Fixes #2826.
+    
+    R=rsc, borman
+    CC=golang-dev
+    https://golang.org/cl/5689048
+
+ src/pkg/net/interface_linux.go      | 30 ++++++++++++---------
+ src/pkg/net/interface_linux_test.go | 54 +++++++++++++++++++++++++++++++++++++
+ src/pkg/net/interface_test.go       |  8 +++---
+ src/pkg/net/parse.go                |  2 +-
+ src/pkg/net/testdata/igmp           | 24 +++++++++++++++++
+ src/pkg/net/testdata/igmp6          | 18 +++++++++++++
+ 6 files changed, 119 insertions(+), 17 deletions(-)

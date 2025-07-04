@@ -1,0 +1,37 @@
+commit fd0c0db4a411eae0483d1cb141e801af401e43d3
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jul 29 09:27:16 2022 -0700
+
+    net/http: add ResponseController and per-handler timeouts
+    
+    The ResponseController type provides a discoverable interface
+    to optional methods implemented by ResponseWriters.
+    
+            c := http.NewResponseController(w)
+            c.Flush()
+    
+    vs.
+    
+            if f, ok := w.(http.Flusher); ok {
+                    f.Flush()
+            }
+    
+    Add the ability to control per-request read and write deadlines
+    via the ResponseController SetReadDeadline and SetWriteDeadline
+    methods.
+    
+    For #54136
+    
+    Change-Id: I3f97de60d4c9ff150cda559ef86c6620eee665d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/436890
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+
+ api/next/54136.txt                      |   6 +
+ src/net/http/request.go                 |   9 +-
+ src/net/http/responsecontroller.go      | 122 ++++++++++++++
+ src/net/http/responsecontroller_test.go | 277 ++++++++++++++++++++++++++++++++
+ src/net/http/server.go                  |  29 +++-
+ 5 files changed, 434 insertions(+), 9 deletions(-)

@@ -1,0 +1,18 @@
+commit e1f22bdcc56b52a163ecccfe6e95aaf75addcdce
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Mar 19 15:57:28 2012 -0700
+
+    gc: fix struct and array comparisons for new bool rules
+    
+    The two optimizations for small structs and arrays
+    were missing the implicit cast from ideal bool.
+    
+    Fixes #3351.
+    
+    R=rsc, lvd
+    CC=golang-dev
+    https://golang.org/cl/5848062
+
+ src/cmd/gc/walk.c        |  2 ++
+ test/fixedbugs/bug427.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)

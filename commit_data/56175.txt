@@ -1,0 +1,17 @@
+commit 7b3c38045b4c3cb7a4f1f451bdfab93f97dc5315
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Tue Apr 9 03:34:59 2024 +0000
+
+    cmd/link: close cpu profile
+    
+    Change-Id: Ieaf1c165307a98d58c40d4d970eecfd6d74b2411
+    GitHub-Last-Rev: bd7271097896a4003b08c28e8ea11c6ab74077d9
+    GitHub-Pull-Request: golang/go#66736
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577416
+    Auto-Submit: Than McIntosh <thanm@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/link/internal/ld/main.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

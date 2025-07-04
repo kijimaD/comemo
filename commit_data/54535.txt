@@ -1,0 +1,21 @@
+commit dd881027c3c556647d5d9f36eda4e9316680647b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Sep 20 11:50:17 2023 -0400
+
+    syscall: skip TestDeathSignalSetuid if exec fails with a permission error
+    
+    Also explicitly look up user "nobody" (or "gopher" on the Go builders)
+    if running as root, instead of hard-coding UID/GID 99.
+    
+    Fixes #62719.
+    
+    Change-Id: I9fa8955f2c239804fa775f2478a5274af9330822
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/exec_pdeathsig_test.go | 103 ++++++++++++++++++++++++++-----------
+ 1 file changed, 74 insertions(+), 29 deletions(-)

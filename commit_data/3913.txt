@@ -1,0 +1,13 @@
+commit c532940ecf612b59cb71901fbad7bdfbb8d63111
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Nov 8 21:48:51 2009 -0800
+
+    improved sentence extraction:
+    - don't forget first periods
+    - look at capitalization of last char before periods
+    
+    R=rsc
+    http://go/go-review/1024027
+
+ src/cmd/godoc/godoc.go | 38 ++++++++++++++++++++++++++++----------
+ 1 file changed, 28 insertions(+), 10 deletions(-)

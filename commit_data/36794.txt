@@ -1,0 +1,14 @@
+commit 9ec5d9c15b8dcb30d06805504477ac602f4e0385
+Author: Muhammad Falak R Wani <falakreyaz@gmail.com>
+Date:   Sun Sep 30 17:54:22 2018 +0530
+
+    net/http: document Header.Set canonicalizes the header key
+    
+    Fixes #27923
+    
+    Change-Id: Ia902a1966beeae56e43265fc5ed987555fa834b6
+    Reviewed-on: https://go-review.googlesource.com/138677
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/header.go | 24 +++++++++++++++---------
+ 1 file changed, 15 insertions(+), 9 deletions(-)

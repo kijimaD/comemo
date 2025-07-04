@@ -1,0 +1,19 @@
+commit 44b2ba721ba53efdc72fb2970d57ea75da6e0158
+Author: Austin Clements <austin@google.com>
+Date:   Sun Nov 17 22:18:02 2024 -0500
+
+    cmd/go: fix TestScript/build_json on Windows
+    
+    The file system directory separator affects this test's output.
+    
+    Fixes #70397.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-linux-amd64-longtest
+    Change-Id: Id8a3f3e1c26c94ea8f635df4e62e7b0cc2cd5515
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628916
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/testdata/script/build_json.txt      |  2 +-
+ src/cmd/go/testdata/script/test_json_build.txt | 13 ++++++++++---
+ 2 files changed, 11 insertions(+), 4 deletions(-)

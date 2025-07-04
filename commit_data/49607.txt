@@ -1,0 +1,63 @@
+commit f956941b0f5a5a841827bd3e84401d32916bb73e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 5 13:53:35 2022 -0400
+
+    cmd/go: use package index for std in load.loadPackageData
+    
+    load.loadPackageData was only using an index for modules,
+    not for standard library packages. Other parts of the code were
+    using the index, so there was some benefit, but not as much
+    as you'd hope.
+    
+    With the index disabled, the Script/work test takes 2.2s on my Mac.
+    With the index enabled before this CL, it took 2.0s.
+    With the index enabled after this CL, it takes 1.6s.
+    
+    Before this CL, the Script/work test issued:
+    
+             429 IsDir
+              19 IsDirWithGoFiles
+               7 Lstat
+            9072 Open
+             993 ReadDir
+             256 Stat
+               7 Walk
+               3 indexModule
+              24 openIndexModule
+             525 openIndexPackage
+    
+    After this CL, it issued:
+    
+              19 IsDirWithGoFiles
+               7 Lstat
+              60 Open
+             606 ReadDir
+             256 Stat
+               7 Walk
+               3 indexModule
+              24 openIndexModule
+             525 openIndexPackage
+    
+    This speedup helps the Dragonfly builder, which has very slow
+    file I/O and is timing out since a recent indexing change.
+    
+    Times for go test -run=Script/^work$ on the Dragonfly builder:
+    
+            50s before indexing changes
+            31s full module indexing of std
+            46s per-package indexing of std
+    
+    It cuts the time for go test -run=Script/^work$ from 44s to 20s.
+    
+    For #53577.
+    
+    Change-Id: I7189a77fc7fdf61de3ab3447efc4e84d1fc52c25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416134
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/fsys/fsys.go     | 65 +++++++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/load/pkg.go      |  9 ++++-
+ src/cmd/go/internal/modindex/read.go |  2 ++
+ src/cmd/go/internal/modindex/scan.go |  2 ++
+ src/cmd/go/testdata/script/index.txt |  6 ++++
+ 5 files changed, 82 insertions(+), 2 deletions(-)

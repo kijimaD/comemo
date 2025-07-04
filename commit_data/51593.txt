@@ -1,0 +1,20 @@
+commit bae7d772e800207ed764b70a9e5963f0c1e8f0aa
+Author: Piers <go.dev@hellopiers.io>
+Date:   Wed Jan 4 16:45:22 2023 +0000
+
+    doc/go1.20: fix links to new strings functions
+    
+    Links under strings package were linking to the bytes versions of the functions.
+    
+    Change-Id: If6ebe37fede8e417f8683695783aa767bc01e9c7
+    GitHub-Last-Rev: 8849285122cb58c17b5979144649075861d8a134
+    GitHub-Pull-Request: golang/go#57579
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/460458
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ doc/go1.20.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

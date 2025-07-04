@@ -1,0 +1,32 @@
+commit c2c07c798940f484eece7a57af568783f8a02839
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 17 14:18:49 2017 -0400
+
+    runtime: always use 2MB stacks on 64-bit Windows
+    
+    Currently, Windows stacks are either 128kB or 2MB depending on whether
+    the binary uses cgo. This is because we assume that Go system stacks
+    and the small amount of C code invoked by the standard library can
+    operate within smaller stacks, but general Windows C code assumes
+    larger stacks.
+    
+    However, it's easy to call into arbitrary C code using the syscall
+    package on Windows without ever importing cgo into a binary. Such
+    binaries need larger system stacks even though they don't use cgo.
+    
+    Fix this on 64-bit by increasing the system stack size to 2MB always.
+    This only costs address space, which is free enough on 64-bit to not
+    worry about. We keep (for now) the existing heuristic on 32-bit, where
+    address space comes at more of a premium.
+    
+    Updates #20975.
+    
+    Change-Id: Iaaaa9a2fcbadc825cddc797aaaea8d34ef8debf2
+    Reviewed-on: https://go-review.googlesource.com/49331
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/cmd/link/internal/ld/pe.go | 22 ++++++++++++----------
+ src/runtime/os_windows.go      |  4 +++-
+ 2 files changed, 15 insertions(+), 11 deletions(-)

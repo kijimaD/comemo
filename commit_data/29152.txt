@@ -1,0 +1,21 @@
+commit f357091a6d48c3a87db14338b321eca52af30dd7
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 30 14:59:34 2016 -0700
+
+    cmd/compile: combine some extensions with loads
+    
+    For cases where we already have the ops, combine
+    sign or zero extension with the previous load
+    (even if the load is larger width).
+    
+    Update #15105
+    
+    Change-Id: I76c5ddd69e1f900d2a17d35503083bd3b4978e48
+    Reviewed-on: https://go-review.googlesource.com/28190
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  12 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 300 +++++++++++++++++++++++++++
+ 2 files changed, 312 insertions(+)

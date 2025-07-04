@@ -1,0 +1,12 @@
+commit 47ae8a28cd09f821163dd76b5430b70ce57bcd04
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Sep 11 11:33:34 2012 +1000
+
+    C: add Brian Slesinsky (Google CLA)
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6496103
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

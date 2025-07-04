@@ -1,0 +1,23 @@
+commit e3f3a5411a3f60d8ab52fb335ee4eff6eb531fd9
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Mon Aug 15 00:22:28 2011 -0300
+
+    exp/template: don't panic on range of nil interface
+    
+    This avoids a non-obvious panic when range is used on a
+    nil interface, and fixes it by behaving as if the range
+    was empty.
+    
+    The new behavior is equivalent to the outcome of iterating
+    on a nil map or slice, and is useful because it allows
+    generic structures such as used in json (map[string]interface{})
+    to behave correctly if a key generally set to a list or map
+    isn't present.
+    
+    R=golang-dev, r, gustavo
+    CC=golang-dev
+    https://golang.org/cl/4876046
+
+ src/pkg/exp/template/exec.go      | 4 +++-
+ src/pkg/exp/template/exec_test.go | 1 +
+ 2 files changed, 4 insertions(+), 1 deletion(-)

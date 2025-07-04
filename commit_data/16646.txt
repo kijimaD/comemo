@@ -1,0 +1,25 @@
+commit 53a00e2812891b2a3c91aaa6a12ac89c74ad42ea
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 26 10:48:04 2013 -0700
+
+    cmd/go: log compilation errors when scanning directories and packages
+    Before, some packages disappear silently if the package cannot be imported,
+    such as if the import statement is unparseable.
+    Before:
+            % ls src
+            foo   issue
+            % go list ./...
+            _/home/r/bug/src/foo
+            %
+    After:
+            % go list ./...
+            src/issue/issue.go:3:5: expected 'STRING', found newline
+            _/home/r/bug/src/foo
+            %
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/10568043
+
+ src/cmd/go/main.go | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)

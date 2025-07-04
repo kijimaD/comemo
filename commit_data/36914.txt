@@ -1,0 +1,20 @@
+commit 45e668879d763dd6b312034c98f8c5ffa7228ce6
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Oct 9 10:21:53 2018 -0400
+
+    cmd/go: remove extraneous 'file' from usage message in script_test
+    
+    Previously, erroneous usage would produce error messages like:
+    
+            FAIL: testdata/script/mod_tidy_replace.txt:4: usage: stdout [-count=N] 'pattern' file
+    
+    where the “file” argument is not actually valid for the stdout command.
+    
+    Change-Id: I74100960f4d25da122faa6c82620995a3fbfc75f
+    Reviewed-on: https://go-review.googlesource.com/c/140858
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/script_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

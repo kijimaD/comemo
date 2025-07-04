@@ -1,0 +1,19 @@
+commit 63393faedf65b5b3719965cd4dead9a634be352f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Jun 17 09:07:18 2014 -0700
+
+    test: speed up chan/select5
+    
+    No functional changes.
+    
+    Generating shorter functions improves compilation time. On my laptop, this test's running time goes from 5.5s to 1.5s; the wall clock time to run all tests goes down 1s. On Raspberry Pi, this CL cuts 50s off the wall clock time to run all tests.
+    
+    Fixes #7503.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/72590045
+
+ test/chan/select5.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

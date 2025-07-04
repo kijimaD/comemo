@@ -1,0 +1,12 @@
+commit fa538114edce01d7556e61bcd96b1593a0c47d1a
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 13 15:44:17 2011 -0400
+
+    spec: define order of multiple assignment
+    
+    R=golang-dev, r, gri
+    CC=golang-dev
+    https://golang.org/cl/5240055
+
+ doc/go_spec.html | 28 +++++++++++++++++++++++-----
+ 1 file changed, 23 insertions(+), 5 deletions(-)

@@ -1,0 +1,15 @@
+commit 373dbcb37af7b8966fc6f3818701c9ca3e8693da
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Oct 7 22:08:06 2012 +0400
+
+    io/ioutil: fix data race under the race detector
+    See issue 3970 (it's already marked as Fixed).
+    
+    R=rsc, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/6624059
+
+ src/pkg/io/ioutil/blackhole.go      | 13 +++++++++++++
+ src/pkg/io/ioutil/blackhole_race.go | 13 +++++++++++++
+ src/pkg/io/ioutil/ioutil.go         |  5 ++---
+ 3 files changed, 28 insertions(+), 3 deletions(-)

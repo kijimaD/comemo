@@ -1,0 +1,13 @@
+commit c78710f53e8eb2532f690307d8a5a5650f6dfc63
+Author: Christopher Wedgwood <cw@f00f.org>
+Date:   Mon Nov 30 12:03:10 2009 -0800
+
+    Add trivial whitespace to CorruptInputError strings.
+    
+    R=r, rsc
+    https://golang.org/cl/161058
+
+ src/pkg/encoding/ascii85/ascii85.go | 2 +-
+ src/pkg/encoding/base64/base64.go   | 2 +-
+ src/pkg/encoding/git85/git.go       | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

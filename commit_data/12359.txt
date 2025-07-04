@@ -1,0 +1,18 @@
+commit 7e8ed8f616457de1eaff09462ab0d20e794e1211
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Mar 5 14:23:00 2012 +1100
+
+    cmd: update formatting of usage messages
+    
+    R=golang-dev, r, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/5738045
+
+ src/cmd/cgo/doc.go  |  3 ++-
+ src/cmd/cov/doc.go  |  4 +++-
+ src/cmd/go/doc.go   | 15 +++++++++++----
+ src/cmd/go/main.go  |  4 +++-
+ src/cmd/pack/doc.go |  3 ++-
+ src/cmd/prof/doc.go |  4 ++--
+ src/cmd/yacc/doc.go |  7 +++++--
+ 7 files changed, 28 insertions(+), 12 deletions(-)

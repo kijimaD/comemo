@@ -1,0 +1,17 @@
+commit b177d8802c00271ad0547b929ad2038aee70199d
+Author: David Chase <drchase@google.com>
+Date:   Mon Jul 29 16:26:40 2019 -0400
+
+    cmd/compile: print lines missing is_stmt if testing.Verbose()
+    
+    helpful for debugging failures to figure out which lines
+    disappeared to cause the failure.
+    
+    Change-Id: Id42b64a65f76eed47e01003f05346bc09cec27e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188019
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jeremy Faller <jeremy@golang.org>
+
+ src/cmd/compile/internal/ssa/stmtlines_test.go | 21 +++++++++++++++++----
+ 1 file changed, 17 insertions(+), 4 deletions(-)

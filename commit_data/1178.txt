@@ -1,0 +1,18 @@
+commit 9b8a6dc7da6e0ef2a3afe9094fcda4f645442702
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 19 09:35:36 2008 -0800
+
+    change array slice error to include bounds
+    
+    $ 6.out
+    slice[5:12] of [10] array
+    throw: array slice
+    SIGSEGV: segmentation violation
+    
+    R=r
+    DELTA=15  (13 added, 0 deleted, 2 changed)
+    OCL=19540
+    CL=19580
+
+ src/runtime/array.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

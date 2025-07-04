@@ -1,0 +1,25 @@
+commit 2d7cb295fdda94f3d62588b7bb01a4d8b445417a
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sat May 4 00:24:53 2019 +0700
+
+    cmd/compile: clarify the difference between types.Sym and obj.LSym
+    
+    Both types.Sym and obj.LSym have the field Name, and that field is
+    widely used in compiler source. It can lead to confusion that when to
+    use which one.
+    
+    So, adding documentation for clarifying the difference between them,
+    eliminate the confusion, or at least, make the code which use them
+    clearer for the reader.
+    
+    See https://github.com/golang/go/issues/31252#issuecomment-481929174
+    
+    Change-Id: I31f7fc6e4de4cf68f67ab2e3a385a7f451c796f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175019
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/syntax.go |  2 +-
+ src/cmd/compile/internal/types/sym.go | 12 +++++++++---
+ src/cmd/internal/obj/link.go          |  1 +
+ 3 files changed, 11 insertions(+), 4 deletions(-)

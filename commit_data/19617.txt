@@ -1,0 +1,13 @@
+commit 9e04ff79531201b43d1cc708e0308664fbbd8ef5
+Author: Evan Kroske <evankroske@google.com>
+Date:   Thu Jun 26 10:02:16 2014 -0700
+
+    cmd/gc: moved usefield to correct section of go.h, from "reflect.c" to "walk.c".
+    
+    LGTM=iant
+    R=golang-codereviews, gobot, iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/108990044
+
+ src/cmd/gc/go.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

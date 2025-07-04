@@ -1,0 +1,23 @@
+commit 5619dd08493c08f06b47cec9f9553bbda6d2cbbd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Oct 25 14:51:12 2022 -0700
+
+    cmd/go: add move test for goroot
+    
+    This  an end-to-end test that sets GOROOT to a symlink
+    to the distribution, approximating copying it to a new
+    location, and checks that packages in the standard library
+    are not stale, as they would be if paths were embedded
+    in artifacts.
+    
+    For #47257
+    
+    Change-Id: I4ed04df36656ad946a2f6f5ce3194e76e06372e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/445358
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ .../go/testdata/script/install_move_not_stale.txt  | 26 ++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)

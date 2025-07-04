@@ -1,0 +1,12 @@
+commit 27e93fbd00de218ba53a5b22333246abde88028c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Wed Oct 10 18:06:29 2012 +0400
+
+    runtime: fix race detector handling of stackalloc()
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6632051
+
+ src/pkg/runtime/race.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

@@ -1,0 +1,15 @@
+commit 28cb9fd5096b3714351cb0312dda37816b1d7d8d
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 19 16:55:21 2012 +1000
+
+    os: use small writes during console io
+    
+    Fixes #3767
+    
+    R=golang-dev, bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/6523043
+
+ src/pkg/os/file_windows.go | 14 ++++++++++++--
+ src/pkg/os/os_test.go      | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit f95a42e6ba1991b2bb79c119a5aefb624573cf84
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Jul 17 14:58:02 2009 -0700
+
+    Produce friendlier errors messages for malformed character
+    literals and when the parser hits an unexpected EOF.  Also,
+    disallow newlines in character literals.
+    
+    R=gri
+    APPROVED=gri
+    DELTA=23  (15 added, 1 deleted, 7 changed)
+    OCL=31790
+    CL=31797
+
+ src/pkg/go/scanner/scanner.go | 28 +++++++++++++++++++++-------
+ 1 file changed, 21 insertions(+), 7 deletions(-)

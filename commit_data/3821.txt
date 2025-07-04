@@ -1,0 +1,18 @@
+commit 6a4940ee23af1ebadf1835c2e308ea33a432d74a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 15:35:02 2009 -0800
+
+    gofmt'ed debug
+    (excluding debug/gosym/symtab.go which has a small issue)
+    
+    R=rsc
+    http://go/go-review/1019001
+
+ src/pkg/debug/dwarf/const.go           |   2 +-
+ src/pkg/debug/dwarf/type_test.go       |   8 +-
+ src/pkg/debug/elf/elf.go               |  96 ++++++++++-----------
+ src/pkg/debug/macho/file.go            |  48 +++++------
+ src/pkg/debug/proc/proc.go             |  18 ++--
+ src/pkg/debug/proc/regs_linux_amd64.go | 150 ++++++++++++++++++++++-----------
+ src/pkg/debug/proc/regs_linux_arm.go   |  19 ++---
+ 7 files changed, 194 insertions(+), 147 deletions(-)

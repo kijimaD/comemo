@@ -1,0 +1,19 @@
+commit 17a4e0475da1237168c4c14dd18af4ebe0d4b3d1
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Mon Jun 18 17:09:37 2018 -0400
+
+    runtime: skip gdb tests on mips after DWARF compression
+    
+    DWARF compression appears to break GDB on mips for reasons unknown. Skip
+    the GDB tests there.
+    
+    Fixes #25939.
+    
+    Change-Id: Id76860d3a2ff8055999ac12ea891c37565bb6685
+    Reviewed-on: https://go-review.googlesource.com/119539
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/runtime-gdb_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

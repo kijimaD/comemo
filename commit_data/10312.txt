@@ -1,0 +1,14 @@
+commit 7a6a9755a94c449b52ce4ff3961f5c59037ae2da
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 9 13:46:54 2011 -0500
+
+    regexp: fix doc comment
+    
+    Fixes #2432.
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/5376041
+
+ src/pkg/regexp/regexp.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

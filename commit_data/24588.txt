@@ -1,0 +1,24 @@
+commit 5174df908738ee7c6b5d27e94be4151f1fd56cf5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 21 09:45:27 2015 -0700
+
+    runtime, runtime/msan: add msan runtime support
+    
+    These are the runtime support functions for letting Go code interoperate
+    with the C/C++ memory sanitizer.  Calls to msanread/msanwrite are now
+    inserted by the compiler with the -msan option.  Calls to
+    msanmalloc/msanfree will be from other runtime functions in a subsequent
+    CL.
+    
+    Change-Id: I64fb061b38cc6519153face242eccd291c07d1f2
+    Reviewed-on: https://go-review.googlesource.com/16162
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/go/build/deps_test.go |  3 +-
+ src/runtime/msan.go       | 42 ++++++++++++++++++++++++++
+ src/runtime/msan/msan.go  | 32 ++++++++++++++++++++
+ src/runtime/msan0.go      | 22 ++++++++++++++
+ src/runtime/msan_amd64.s  | 76 +++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 174 insertions(+), 1 deletion(-)

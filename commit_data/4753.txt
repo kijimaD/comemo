@@ -1,0 +1,15 @@
+commit 45515011cc4edec7253c16d370b4b5a9a2c0d1fb
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Feb 1 16:22:16 2010 -0800
+
+    gc: final ...T bug for the day
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/199046
+
+ src/cmd/gc/gen.c       | 2 ++
+ src/cmd/gc/typecheck.c | 1 -
+ src/cmd/gc/walk.c      | 2 ++
+ test/ddd.go            | 4 ----
+ 4 files changed, 4 insertions(+), 5 deletions(-)

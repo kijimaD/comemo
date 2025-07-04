@@ -1,0 +1,18 @@
+commit 6ee27198544ce9ed7979839abff7248708168862
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Dec 4 17:31:58 2023 -0500
+
+    doc: add STW metrics to release notes
+    
+    For #63340.
+    For #61422.
+    
+    Change-Id: Ib74bb54b0450e96b7f4b7eb7ba2ae7ac2d40171a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547095
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+
+ doc/go1.22.html | 22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)

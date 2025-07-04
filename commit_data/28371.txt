@@ -1,0 +1,15 @@
+commit d72c2846f1fac679d6def717b4e9c83fbafdf908
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Sep 14 11:35:11 2016 -0700
+
+    cmd/vet/all: update whitelist
+    
+    CL 29110 brought the fix into the main tree.
+    
+    Change-Id: I7bf02670d40f22d35c63e05173419fdee9f93462
+    Reviewed-on: https://go-review.googlesource.com/29161
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/whitelist/all.txt | 4 ----
+ 1 file changed, 4 deletions(-)

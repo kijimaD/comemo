@@ -1,0 +1,16 @@
+commit bdc3db0b0c4044ed396238fb7e01574988a14aad
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Jan 19 20:47:59 2016 +0100
+
+    doc: update install from source instructions for go1.5.3
+    
+    Fixes #14020
+    
+    Change-Id: I454c2613912a7efcb464c6e6f3ac2e0ec89fb719
+    Reviewed-on: https://go-review.googlesource.com/18750
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/install-source.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

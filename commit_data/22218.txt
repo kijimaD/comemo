@@ -1,0 +1,14 @@
+commit 8a2545744b2662fc34c117e769f3dbd2f7167d19
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Thu Feb 19 15:57:03 2015 +0300
+
+    test: add tests for escape analysis of closure arguments
+    
+    10 false positives (var incorrectly escapes to heap) are marked with BAD.
+    
+    Change-Id: I773b13a18ff55aaa499a2a28a979118422cc5322
+    Reviewed-on: https://go-review.googlesource.com/5293
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ test/escape_closure.go | 147 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 147 insertions(+)

@@ -1,0 +1,13 @@
+commit 32d00e6cc6afa43c980329f8705efbb1d7f99f10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Oct 10 16:18:01 2008 -0700
+
+    - added missing ';' according to new rules
+    (no effect on the test, but now parseable)
+    
+    R=r
+    OCL=16936
+    CL=16936
+
+ test/bugs/bug107.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

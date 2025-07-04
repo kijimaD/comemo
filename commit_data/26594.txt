@@ -1,0 +1,16 @@
+commit 6b97dbf848d1019a9e8195e8914530a2cc518327
+Author: kortschak <dan.kortschak@adelaide.edu.au>
+Date:   Wed Mar 30 19:37:18 2016 +1030
+
+    cmd/dist: make fortran test conditional on bash existence
+    
+    Fixes #14929.
+    
+    Change-Id: I0391acf9f5f65389f73637533306a7c4240320b8
+    Reviewed-on: https://go-review.googlesource.com/21295
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

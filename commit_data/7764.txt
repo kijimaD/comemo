@@ -1,0 +1,22 @@
+commit e72156b316f158c3357856a94b5fc60564f78b50
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 15 14:05:07 2011 -0400
+
+    remove unused labels
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4274052
+
+ src/pkg/net/ip.go            | 109 +++++++++++++++++++++++++++++++++++++++----
+ src/pkg/template/template.go |   1 -
+ src/pkg/xml/xml.go           |   1 -
+ test/fixedbugs/bug055.go     |  29 +++++++-----
+ test/fixedbugs/bug076.go     |  10 ++--
+ test/fixedbugs/bug077.go     |   5 +-
+ test/fixedbugs/bug091.go     |  11 +++--
+ test/fixedbugs/bug137.go     |  19 +++++---
+ test/fixedbugs/bug140.go     |  13 +++++-
+ test/fixedbugs/bug178.go     |  18 ++++---
+ test/fixedbugs/bug179.go     |  14 +++---
+ 11 files changed, 177 insertions(+), 53 deletions(-)

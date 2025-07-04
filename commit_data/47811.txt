@@ -1,0 +1,17 @@
+commit 58e8e26924ed113a8d5f4187c36ca6ef13f29fb2
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Dec 15 11:39:18 2021 -0500
+
+    net: skip Lookup tests of external hosts on builders with flaky networks
+    
+    For #50191
+    
+    Change-Id: Ic1059127e756d69ea9b75cf5805669ec43fedd5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372216
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/lookup_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

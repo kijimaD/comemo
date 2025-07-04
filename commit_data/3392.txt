@@ -1,0 +1,16 @@
+commit 69d13b2332d6f4af91a8ac5571b39641f7e8aa3c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Sep 29 11:57:28 2009 -0700
+
+    make the sidebars consistent
+    add Effective Go to the set of links
+    
+    DELTA=166  (62 added, 57 deleted, 47 changed)
+    OCL=35085
+    CL=35089
+
+ doc/effective_go.html           | 60 +++++++++++++++++++++++++++++++++++++++++
+ doc/go_for_cpp_programmers.html | 12 ++++++---
+ doc/go_mem.html                 | 13 ++++++---
+ doc/go_spec.html                | 14 ++++++----
+ 4 files changed, 88 insertions(+), 11 deletions(-)

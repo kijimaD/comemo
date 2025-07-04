@@ -1,0 +1,24 @@
+commit 33b2b172014c50c42597785a60d9e98288fe737c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat May 5 17:03:21 2018 +1000
+
+    net: stop multiple sends into single capacity channel in lookupIP
+    
+    ch is of size 1, and has only one read. But current code can
+    write to ch more than once. This makes goroutines that do network
+    name lookups block forever. Only 500 goroutines are allowed, and
+    we eventually run out of goroutines.
+    
+    Rewrite the code to only write into ch once.
+    
+    Fixes #24178
+    
+    Change-Id: Ifbd37db377c8b05e69eca24cc9147e7f86f899d8
+    Reviewed-on: https://go-review.googlesource.com/111718
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/lookup_test.go    | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/net/lookup_windows.go | 25 ++++++++++++++++---------
+ 2 files changed, 56 insertions(+), 9 deletions(-)

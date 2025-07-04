@@ -1,0 +1,22 @@
+commit 4d1052b0d4e8916fefb542ba8a6f9d325db214f6
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 11 21:57:57 2022 -0500
+
+    cmd/dist: simplify old code
+    
+    Now that all uses of "go test" have been converted over to the new
+    abstraction, we can delete the old helpers for building "go test"
+    commands and simplify some code that's only used by the new
+    abstraction now.
+    
+    For #37486.
+    
+    Change-Id: I770cd457e018160d694abcc0b6ac80f7dc2e8425
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/450020
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+
+ src/cmd/dist/test.go | 141 +++++++++++----------------------------------------
+ 1 file changed, 29 insertions(+), 112 deletions(-)

@@ -1,0 +1,21 @@
+commit 92e925778eb59be4726be240f62b7aa13fe806d8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 10 16:32:26 2009 -0700
+
+    reflection for interface set
+    
+    rename map access methods to Elem, SetElem.
+    
+    R=r
+    DELTA=95  (66 added, 7 deleted, 22 changed)
+    OCL=31456
+    CL=31469
+
+ src/pkg/fmt/print.go         |  2 +-
+ src/pkg/reflect/all_test.go  | 33 +++++++++++++++++++++++++++++----
+ src/pkg/reflect/deepequal.go |  2 +-
+ src/pkg/reflect/value.go     | 23 ++++++++++++++---------
+ src/pkg/runtime/iface.c      | 16 +++++++++++-----
+ src/pkg/runtime/reflect.cgo  | 35 ++++++++++++++++++++++++++++-------
+ src/pkg/runtime/runtime.h    |  2 ++
+ 7 files changed, 86 insertions(+), 27 deletions(-)

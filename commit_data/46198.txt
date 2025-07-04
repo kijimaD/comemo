@@ -1,0 +1,32 @@
+commit 5fb177163bccb66a39516542e4b9e127ec771c1f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Aug 27 17:04:42 2021 -0700
+
+    go/types, types2: types in type switch cases must be instantiated
+    
+    We already have a function that does all the right checks and it's called
+    varType. The only reason it wasn't used for type switch cases was that we
+    also have to accept the nil value. That was handled with typeOrNil. But
+    that function (typeOrNil) was only used for this specific purpose and I long
+    wished to get rid of it. It turns out that there's only one way to write the
+    untyped value nil, which is to actually write "nil" (maybe with parentheses).
+    So looking for that turned out to be simpler than using typeOrNil.
+    
+    The new code does exactly that, and now we can just use varType and delete
+    typeOrNil. With this, there is now less code (excluding the test) and the code
+    is simpler and more correct.
+    
+    Fixes #48008.
+    
+    Change-Id: I8f2d80e61ae663c886924909f22bbfa634e7779c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345790
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/types2/stmt.go            | 26 +++++++---
+ .../types2/testdata/fixedbugs/issue48008.go2       | 60 ++++++++++++++++++++++
+ src/cmd/compile/internal/types2/typexpr.go         | 24 ---------
+ src/go/types/stmt.go                               | 26 +++++++---
+ src/go/types/testdata/fixedbugs/issue48008.go2     | 60 ++++++++++++++++++++++
+ src/go/types/typexpr.go                            | 27 ----------
+ 6 files changed, 160 insertions(+), 63 deletions(-)

@@ -1,0 +1,32 @@
+commit 021444007590da4c1f6e504904e2871a1012c0bf
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Thu May 13 13:19:14 2021 +0200
+
+    syscall: do not pass console handles to PROC_THREAD_ATTRIBUTE_HANDLE_LIST on Windows 7
+    
+    On Windows 7 (and below), console handles are not real kernel handles
+    but are rather userspace objects, with information passed via special
+    bits in the handle itself. That means they can't be passed in
+    PROC_THREAD_ATTRIBUTE_HANDLE_LIST, even though they can be inherited.
+    So, we filter the list passed to PROC_THREAD_ATTRIBUTE_HANDLE_LIST to
+    not have any console handles on Windows 7. At the same time, it turns
+    out that the presence of a NULL handle in the list is enough to render
+    PROC_THREAD_ATTRIBUTE_HANDLE_LIST completely useless, so filter these
+    out too. Console handles also can't be duplicated into parent processes,
+    as inhertance always happens from the present process, so duplicate
+    always into the present process even when a parent process is specified.
+    
+    Fixes #45914.
+    
+    Change-Id: I70b4ff4874dbf0507d9ec9278f63b9b4dd4f1999
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319310
+    Trust: Jason A. Donenfeld <Jason@zx2c4.com>
+    Trust: Alex Brainman <alex.brainman@gmail.com>
+    Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/syscall/exec_windows.go     | 54 +++++++++++++++++++++++++++++++++++------
+ src/syscall/syscall_windows.go  |  1 +
+ src/syscall/zsyscall_windows.go |  7 ++++++
+ 3 files changed, 55 insertions(+), 7 deletions(-)

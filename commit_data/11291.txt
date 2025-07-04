@@ -1,0 +1,14 @@
+commit 88010973aa4a2ed37d278ea99356d4ad149588cb
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 20 13:34:11 2012 -0500
+
+    go/doc: avoid the name 'a.out' in the testdata
+    
+    R=golang-dev, gri, r
+    CC=golang-dev
+    https://golang.org/cl/5561047
+
+ src/pkg/go/doc/testdata/a0.go                | 2 +-
+ src/pkg/go/doc/testdata/a1.go                | 2 +-
+ src/pkg/go/doc/testdata/{a.out => alpha.out} | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)

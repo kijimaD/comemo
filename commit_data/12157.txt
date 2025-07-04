@@ -1,0 +1,17 @@
+commit 6c20f5c0135483da1127d15e724b2bf1608833d7
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Thu Feb 23 01:35:50 2012 -0200
+
+    encoding/xml: add example and docs for anon fields
+    
+    Anonymous pointer fields is not yet supported.
+    The problem is documented in issue 3108.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5694043
+
+ src/pkg/encoding/xml/example_test.go | 34 ++++++++++++++++++++++++----------
+ src/pkg/encoding/xml/marshal.go      |  2 ++
+ src/pkg/encoding/xml/read.go         |  3 +++
+ 3 files changed, 29 insertions(+), 10 deletions(-)

@@ -1,0 +1,26 @@
+commit b851e51160bc8ed412e229152b430b75e7ce56f9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 11 21:51:09 2020 -0700
+
+    runtime: don't crash on mlock failure
+    
+    Instead, note that mlock has failed, start trying the mitigation of
+    touching the signal stack before sending a preemption signal, and,
+    if the program crashes, mention the possible problem and a wiki page
+    describing the issue (https://golang.org/wiki/LinuxKernelSignalVectorBug).
+    
+    Tested on a kernel in the buggy version range, but with the patch,
+    by using `ulimit -l 0`.
+    
+    Fixes #37436
+    
+    Change-Id: I072aadb2101496dffd655e442fa5c367dad46ce8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223121
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/os_linux.go     | 15 +++++++++++++++
+ src/runtime/os_linux_x86.go | 35 +++++++++++++++++++++++++++--------
+ src/runtime/panic.go        | 10 ++++++++++
+ 3 files changed, 52 insertions(+), 8 deletions(-)

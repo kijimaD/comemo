@@ -1,0 +1,15 @@
+commit 48bd5c501095acc4d9a7cc471906d99c984324f1
+Author: Akshat Kumar <seed@mail.nanosouffle.net>
+Date:   Mon Oct 1 15:04:52 2012 -0400
+
+    cmd/go/build: Add magic data for Plan 9 binaries.
+    
+    This change allows the Go build and install tools to
+    recognize Plan 9 i386 and amd64 binaries.
+    
+    R=rsc, r, rminnich
+    CC=golang-dev
+    https://golang.org/cl/6575064
+
+ src/cmd/go/build.go | 2 ++
+ 1 file changed, 2 insertions(+)

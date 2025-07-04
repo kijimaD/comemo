@@ -1,0 +1,18 @@
+commit ee31157e1603c9adb798c876313f97f50b67ef82
+Author: Kai Backman <kaib@golang.org>
+Date:   Fri Aug 28 07:23:24 2009 -0700
+
+    64 bit lsh, sub, and/or/eor. some placeholder files in syscall and os.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=204  (139 added, 0 deleted, 65 changed)
+    OCL=34009
+    CL=34025
+
+ src/cmd/5g/cgen64.c                 | 106 ++++++++++++++++++++----------------
+ src/pkg/os/dir_linux_arm.go         |  81 +++++++++++++++++++++++++++
+ src/pkg/os/stat_linux_arm.go        |  44 +++++++++++++++
+ src/pkg/syscall/asm_linux_arm.s     |   4 ++
+ src/pkg/syscall/ztypes_linux_arm.go |  28 +++++-----
+ 5 files changed, 203 insertions(+), 60 deletions(-)

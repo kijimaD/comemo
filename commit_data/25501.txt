@@ -1,0 +1,18 @@
+commit 6da608206c222c280078264f02135ffaa4e1aa26
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 8 15:31:09 2016 +0000
+
+    Revert "runtime: make NumGoroutine and Stack agree not to include system goroutines"
+    
+    This reverts commit c5bafc828126c8fa057e1accaa448583c7ec145f.
+    
+    Change-Id: Ie7030c978c6263b9e996d5aa0e490086796df26d
+    Reviewed-on: https://go-review.googlesource.com/18431
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/mprof.go                  |  5 -----
+ src/runtime/proc.go                   |  8 +-------
+ src/runtime/proc_test.go              | 18 ------------------
+ src/runtime/runtime2.go               |  2 --
+ src/runtime/testdata/testprog/misc.go | 15 ---------------
+ 5 files changed, 1 insertion(+), 47 deletions(-)

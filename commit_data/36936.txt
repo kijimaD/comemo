@@ -1,0 +1,17 @@
+commit 1d0e94b1e13d5e8a323a63cd1cc1ef95290c9c36
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Fri Sep 28 15:58:19 2018 +0200
+
+    path/filepath: add AIX operating system
+    
+    This commit adds AIX operating system to path/filepath package
+    for ppc64 architecture.
+    
+    Updates: #25893
+    
+    Change-Id: Iea551236d334705a58a446c8992b20adcfe4159b
+    Reviewed-on: https://go-review.googlesource.com/c/138726
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/filepath/path_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 1313e7982f44c24948e73c4795d9606265d36871
+Author: Dave Cheney <dave@cheney.net>
+Date:   Tue Mar 17 12:38:53 2015 +1100
+
+    test: disable recover4 test to fix ppc64 builds
+    
+    Updates #10180
+    
+    Temporarily disable this test on ppc64 systems as all our builders use 64k page size.
+    
+    We need a portable way to get the page size of the host so we can correctly size the mmap hole.
+    
+    Change-Id: Ibd36ebe2f54cf75a44667e2070c385f0daaca481
+    Reviewed-on: https://go-review.googlesource.com/7652
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ test/recover4.go | 1 +
+ 1 file changed, 1 insertion(+)

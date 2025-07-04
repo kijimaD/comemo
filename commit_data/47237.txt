@@ -1,0 +1,19 @@
+commit 5fd0c49a4d8cd3bfff3c06e17a0fd9c41bc2f64a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 2 21:31:50 2021 -0700
+
+    cmd/compile/internal/types2: minor cleanups in predicates.go
+    
+    - reordered some functions for better organization
+    - renamed single arguments typ to t for consistency
+    - updated some comments
+    
+    No functional changes.
+    
+    Change-Id: I4362ac48044595cdf5c3d9eb7b2f7b94e776d65b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360956
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/predicates.go | 87 +++++++++++++--------------
+ 1 file changed, 41 insertions(+), 46 deletions(-)

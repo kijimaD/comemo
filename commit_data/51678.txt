@@ -1,0 +1,44 @@
+commit 213495a4a67c318a1fab6e76093e6690c2141c0e
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 28 13:59:49 2022 -0500
+
+    internal/godebug: export non-default-behavior counters in runtime/metrics
+    
+    Allow GODEBUG users to report how many times a setting
+    resulted in non-default behavior.
+    
+    Record non-default-behaviors for all existing GODEBUGs.
+    
+    Also rework tests to ensure that runtime is in sync with runtime/metrics.All,
+    and generate docs mechanically from metrics.All.
+    
+    For #56986.
+    
+    Change-Id: Iefa1213e2a5c3f19ea16cd53298c487952ef05a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453618
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/archive/tar/reader.go               |   7 +-
+ src/archive/zip/reader.go               |   7 +-
+ src/crypto/x509/root.go                 |   9 +-
+ src/crypto/x509/x509.go                 |   7 +-
+ src/go/build/build.go                   |   3 +
+ src/internal/godebug/godebug.go         |  99 ++++++++++---
+ src/internal/godebug/godebug_test.go    |  25 ++++
+ src/math/rand/rand.go                   |   1 +
+ src/net/http/server.go                  |   6 +-
+ src/net/http/transport.go               |   1 +
+ src/os/exec/lp_plan9.go                 |   7 +-
+ src/os/exec/lp_unix.go                  |   7 +-
+ src/os/exec/lp_windows.go               |   8 +-
+ src/runtime/metrics.go                  |  65 +++++++++
+ src/runtime/metrics/description.go      |  70 +++++++++
+ src/runtime/metrics/description_test.go | 210 ++++++++++++++++-----------
+ src/runtime/metrics/doc.go              | 247 +++++++++++++++++++-------------
+ src/runtime/panic.go                    |  11 +-
+ src/runtime/panicnil_test.go            |  18 +++
+ src/runtime/runtime.go                  |  33 +++++
+ 20 files changed, 618 insertions(+), 223 deletions(-)

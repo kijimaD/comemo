@@ -1,0 +1,16 @@
+commit 13e9a55afd1e269504ac60143a67ffc8d0731bba
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 8 10:18:22 2024 +0200
+
+    cmd/go/internal/modload: use slices.Contains
+    
+    Change-Id: I9d39984b6b15d415189592b592de471f50b43d0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618495
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/modload/load.go | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)

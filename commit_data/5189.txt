@@ -1,0 +1,19 @@
+commit e8e4987ba3212fecf8fd936d55e212c247ba4026
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 30 17:37:42 2010 -0700
+
+    godoc: support for title and subtitle headers when serving .html docs
+    and use it to show version (date) of go spec
+    
+    Fixes #68.
+    
+    R=rsc
+    CC=golang-dev, r
+    https://golang.org/cl/848042
+
+ doc/go_spec.html       |  3 ++-
+ doc/style.css          |  5 +++++
+ lib/godoc/godoc.html   |  9 ++++++++-
+ src/cmd/godoc/godoc.go | 42 ++++++++++++++++++++++++++----------------
+ src/cmd/godoc/main.go  |  2 +-
+ 5 files changed, 42 insertions(+), 19 deletions(-)

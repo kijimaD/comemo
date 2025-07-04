@@ -1,0 +1,57 @@
+commit 4481042c4307f880b89e03c17e75420d5512135d
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Fri Mar 17 15:22:31 2023 -0500
+
+    cmd/compile: update rules to generate more prefixed instructions
+    
+    This modifies some existing rules to allow more prefixed instructions
+    to be generated when using GOPPC64=power10. Some rules also check
+    if PCRel is available, which is currently supported for linux/ppc64le
+    and linux/ppc64 (internal linking only).
+    
+    Prior to p10, DS-offset loads and stores had a 16 bit size limit for
+    the offset field. If the offset of the data for load or store was
+    beyond this range then an indexed load or store would be selected by
+    the rules.
+    
+    In p10 the assembler can generate prefixed instructions in this case,
+    but does not if an indexed instruction was selected during the lowering
+    pass.
+    
+    This allows many more cases to use prefixed loads or stores, reducing
+    function sizes and improving performance in some cases where the code
+    change happens in key loops.
+    
+    For example in strconv BenchmarkAppendQuoteRune before:
+    
+      12c5e4:       15 00 10 06     pla     r10,1425660
+      12c5e8:       fc c0 40 39
+      12c5ec:       00 00 6a e8     ld      r3,0(r10)
+      12c5f0:       10 00 aa e8     ld      r5,16(r10)
+    
+    After this change:
+    
+      12a828:       15 00 10 04     pld     r3,1433272
+      12a82c:       b8 de 60 e4
+      12a830:       15 00 10 04     pld     r5,1433280
+      12a834:       c0 de a0 e4
+    
+    Performs better in the second case.
+    
+    A testcase was added to verify that the rules correctly select a load or
+    store based on the offset and whether power10 or earlier.
+    
+    Change-Id: I4335fed0bd9b8aba8a4f84d69b89f819cc464846
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/477398
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Archana Ravindar <aravind5@in.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  69 ++++----
+ src/cmd/compile/internal/ssa/rewrite.go       |   7 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 224 +++++++++++++-------------
+ test/codegen/memops_bigoffset.go              |  71 ++++++++
+ 4 files changed, 230 insertions(+), 141 deletions(-)

@@ -1,0 +1,19 @@
+commit 9ea939be600df12fe51b201112cc12e741acef00
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 20:01:16 2021 -0500
+
+    go/types: implement Checker.implements
+    
+    This is a port of CL 363837 from types2 to go/types. As usual, test
+    error messages had to be repositioned on the operand.
+    
+    Change-Id: I2b53fae7aa30f9147f8d05f75b0ab252338320bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364934
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/instantiate.go                    | 121 +++++++++++++------------
+ src/go/types/testdata/fixedbugs/issue45920.go2 |   4 +-
+ 2 files changed, 67 insertions(+), 58 deletions(-)

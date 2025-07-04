@@ -1,0 +1,15 @@
+commit 0a5508c69238e9f68faff2747a1abe9cbdb10dd6
+Author: Rob Pike <r@golang.org>
+Date:   Mon Dec 5 19:40:52 2011 -0800
+
+    various: we don't cast, we convert
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5437142
+
+ src/pkg/compress/bzip2/bit_reader.go | 2 +-
+ src/pkg/exp/ssh/session_test.go      | 2 +-
+ src/pkg/fmt/doc.go                   | 2 +-
+ src/pkg/unicode/graphic.go           | 4 ++--
+ 4 files changed, 5 insertions(+), 5 deletions(-)

@@ -1,0 +1,16 @@
+commit ce837b308f1f05ff002fb3d2d869d7bf6a778799
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Feb 21 14:28:49 2012 +1100
+
+    test: rewrite test/run shell script + errchk (perl) in Go
+    
+    This doesn't run all ~750 of the tests, but most.
+    
+    Progress on issue 2833
+    
+    R=golang-dev, ality, rsc, r, r
+    CC=golang-dev
+    https://golang.org/cl/5625044
+
+ test/run.go | 454 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 454 insertions(+)

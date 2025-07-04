@@ -1,0 +1,25 @@
+commit 2d683807135d8179d292a4f6f03be3cf7e4d30d3
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 8 11:24:29 2019 -0500
+
+    cmd/go/internal/web2: make netrc parsing more robust
+    
+    - Respect the NETRC environment variable if set.
+    
+    - Ignore lines that contain macro definitions.
+    
+    - Associate the 'machine' token with only the tokens that follow (not
+      precede) it.
+    
+    Updates #29888
+    Updates #26232
+    
+    Change-Id: I3128b7d6da2d6492df7c864e165eea1a27384f0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/161698
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/web2/web.go      | 78 ++++++++++++++++++++++++++++--------
+ src/cmd/go/internal/web2/web_test.go | 25 +++++++++++-
+ 2 files changed, 86 insertions(+), 17 deletions(-)

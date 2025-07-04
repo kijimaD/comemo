@@ -1,0 +1,15 @@
+commit 4fb6064c1131f71b85a3d2aa1aea4f579884110d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 1 14:31:44 2008 -0700
+
+    - fixed Makefile, added more tests
+    - fixed parsing of parameter lists (sigh)
+    
+    R=r
+    DELTA=48  (22 added, 7 deleted, 19 changed)
+    OCL=16319
+    CL=16321
+
+ usr/gri/pretty/Makefile  | 23 ++++++++++++++++++++++-
+ usr/gri/pretty/parser.go | 46 ++++++++++++++++++++--------------------------
+ 2 files changed, 42 insertions(+), 27 deletions(-)

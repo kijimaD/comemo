@@ -1,0 +1,14 @@
+commit 36d9ee4aec46a08e859ce30715c5034ada90645f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Mar 2 14:07:26 2012 +1100
+
+    os: fix grammar in ProcessState comment
+    Asymptotic convergence.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5719045
+
+ src/pkg/os/exec_plan9.go | 2 +-
+ src/pkg/os/exec_posix.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit a3ed4e716a61ffc8cbaba6094b82832a37d74222
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jan 9 15:52:43 2009 -0800
+
+    add sys.caller
+    
+    R=r
+    DELTA=139  (101 added, 38 deleted, 0 changed)
+    OCL=22462
+    CL=22466
+
+ src/cmd/gc/sys.go       | 47 ++++++++++++++++++++++++------------------
+ src/cmd/gc/sysimport.c  | 37 +++++++++++++++++----------------
+ src/runtime/rt2_amd64.c | 55 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 101 insertions(+), 38 deletions(-)

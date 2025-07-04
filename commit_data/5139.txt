@@ -1,0 +1,13 @@
+commit c93273c0f594317914616aab2cc6ed42b8cff1ad
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 25 14:27:24 2010 -0700
+
+    bug264 didn't report BUG correctly, caused "fail" from test/run
+    
+    R=rsc, gri
+    CC=golang-dev
+    https://golang.org/cl/762041
+
+ test/bugs/bug264.go | 8 ++++----
+ test/golden.out     | 3 ++-
+ 2 files changed, 6 insertions(+), 5 deletions(-)

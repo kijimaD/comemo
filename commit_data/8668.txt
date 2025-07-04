@@ -1,0 +1,13 @@
+commit 17ca32e9db2f58a6ed431c4502f6ab031147673f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 9 11:44:28 2011 -0400
+
+    gc: nits
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4572052
+
+ src/cmd/gc/pgen.c  | 6 ++----
+ src/cmd/gc/print.c | 4 ++++
+ 2 files changed, 6 insertions(+), 4 deletions(-)

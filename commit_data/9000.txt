@@ -1,0 +1,17 @@
+commit bf9531f80bc11de82fe739b43156705b1816acf3
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jul 11 11:46:22 2011 +1000
+
+    exp/template: character constants.
+    Easier to implement than to justify leaving them out.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4662089
+
+ src/pkg/exp/template/doc.go        |  7 +++----
+ src/pkg/exp/template/lex.go        | 25 +++++++++++++++++++++++++
+ src/pkg/exp/template/lex_test.go   | 16 ++++++++++++++++
+ src/pkg/exp/template/parse.go      | 29 ++++++++++++++++++++++++-----
+ src/pkg/exp/template/parse_test.go | 35 ++++++++++++++++++++++++++++++-----
+ 5 files changed, 98 insertions(+), 14 deletions(-)

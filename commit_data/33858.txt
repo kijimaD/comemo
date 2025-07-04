@@ -1,0 +1,42 @@
+commit 3058d38632aea679c96cd41156b2751c97578a2d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 11 15:41:24 2017 +0000
+
+    strings: fix two Builder bugs allowing mutation of strings, remove ReadFrom
+    
+    The Builder's ReadFrom method allows the underlying unsafe slice to
+    escape, and for callers to subsequently modify memory that had been
+    unsafely converted into an immutable string.
+    
+    In the original proposal for Builder (#18990), I'd noted there should
+    be no Read methods:
+    
+    > There would be no Reset or Bytes or Truncate or Read methods.
+    > Nothing that could mutate the []byte once it was unsafely converted
+    > to a string.
+    
+    And in my prototype (https://golang.org/cl/37767), I handled ReadFrom
+    properly, but when https://golang.org/cl/74931 arrived, I missed that
+    it had a ReadFrom method and approved it.
+    
+    Because we're so close to the Go 1.10 release, just remove the
+    ReadFrom method rather than think about possible fixes. It has
+    marginal utility in a Builder anyway.
+    
+    Also, fix a separate bug that also allowed mutation of a slice's
+    backing array after it had been converted into a slice by disallowing
+    copies of the Builder by value.
+    
+    Updates #18990
+    Fixes #23083
+    Fixes #23084
+    
+    Change-Id: Id1f860f8a4f5f88b32213cf85108ebc609acb95f
+    Reviewed-on: https://go-review.googlesource.com/83255
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/go1.10.txt              |   1 -
+ src/strings/builder.go      |  56 +++++--------
+ src/strings/builder_test.go | 190 +++++++++++++++++++++++---------------------
+ 3 files changed, 120 insertions(+), 127 deletions(-)

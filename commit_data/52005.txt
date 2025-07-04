@@ -1,0 +1,36 @@
+commit 3348fd0ec9be0189f88e991db1d94f437ec04bd1
+Author: Akhil Indurti <aindurti@gmail.com>
+Date:   Fri Feb 10 19:08:14 2023 -0800
+
+    math: add Compare and Compare32
+    
+    This change introduces the Compare and Compare32 functions
+    based on the total-ordering predicate in IEEE-754, section 5.10.
+    
+    In particular,
+    * -NaN is ordered before any other value
+    * +NaN is ordered after any other value
+    * -0 is ordered before +0
+    * All other values are ordered the usual way
+    
+    Compare-8    0.4537n ± 1%
+    Compare32-8  0.3752n ± 1%
+    geomean      0.4126n
+    
+    Fixes #56491.
+    
+    Change-Id: I5c9c77430a2872f380688c1b0a66f2105b77d5ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467515
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/56491.txt   |  2 ++
+ src/math/all_test.go | 94 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/math/compare.go  | 53 +++++++++++++++++++++++++++++
+ 3 files changed, 149 insertions(+)

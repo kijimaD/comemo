@@ -1,0 +1,43 @@
+commit d611f092001f76942251f68023dba137b8a3e821
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 25 17:22:55 2021 -0700
+
+    cmd/compile/internal/types2: clean up asT converters (step 1 of 2)
+    
+    This CL changes the convenience converters asT to use under instead
+    of optype. To make sure the effect is well understood, in a first
+    step, all asT functions are renamed to toT so that we can see which
+    call sites are affected. In almost all places, the change is what we
+    want. In some places we may get more conservative behavior (which is
+    easy to relax if need be). In some places (function calls through a
+    type parameter, append built-in) we now use singleUnder instead, for
+    a more general behavior, matching other primary expressions or built-
+    ins.
+    
+    This change removes the last use of optype and thus also theTop and
+    top, all of which have been deleted from the code.
+    
+    The next CL renames the toT converters back to their asT form.
+    
+    Change-Id: I35d1ad866ce46de175a055b36ef577d99bb9de22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358597
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go     |   2 +-
+ src/cmd/compile/internal/types2/builtins.go        |  29 +++---
+ src/cmd/compile/internal/types2/call.go            |   7 +-
+ src/cmd/compile/internal/types2/conversions.go     |  24 ++---
+ src/cmd/compile/internal/types2/expr.go            |   8 +-
+ src/cmd/compile/internal/types2/index.go           |   6 +-
+ src/cmd/compile/internal/types2/infer.go           |   4 +-
+ src/cmd/compile/internal/types2/lookup.go          |   8 +-
+ src/cmd/compile/internal/types2/predicates.go      |  10 +--
+ src/cmd/compile/internal/types2/sizeof_test.go     |   1 -
+ src/cmd/compile/internal/types2/sizes.go           |   2 +-
+ src/cmd/compile/internal/types2/subst.go           |   2 +-
+ .../internal/types2/testdata/check/issues.go2      |   7 ++
+ src/cmd/compile/internal/types2/type.go            | 100 ++++++---------------
+ src/cmd/compile/internal/types2/typestring.go      |   5 +-
+ src/cmd/compile/internal/types2/typexpr.go         |   4 +-
+ 16 files changed, 90 insertions(+), 129 deletions(-)

@@ -1,0 +1,30 @@
+commit 632a2c59b12b525edac2fffa4ddd57b3de068707
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Nov 4 15:48:11 2011 +1100
+
+    html: properly close <tr> element when an new <tr> starts.
+    
+    Pass tests1.dat, test 87:
+    <table><tr><tr><td><td><span><th><span>X</table>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <table>
+    |       <tbody>
+    |         <tr>
+    |         <tr>
+    |           <td>
+    |           <td>
+    |             <span>
+    |           <th>
+    |             <span>
+    |               "X"
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5343041
+
+ src/pkg/html/parse.go      | 17 +++++++++++------
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 12 insertions(+), 7 deletions(-)

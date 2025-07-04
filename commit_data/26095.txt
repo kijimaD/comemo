@@ -1,0 +1,48 @@
+commit c3dfad5df990432cddc06d6e018b5b4f29ebb7bf
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 7 08:23:55 2016 -0800
+
+    cmd/compile: change Oconv to take an Op parameter
+    
+    Eliminates type conversions in a bunch of Oconv(int(n.Op), ...) calls.
+    
+    Notably, this identified a misuse of Oconv in amd64/gsubr.go to try to
+    print an assembly instruction op instead of a compiler node op.
+    
+    Change-Id: I93b5aa49fe14a5eaf868b05426d3b8cd8ab52bc5
+    Reviewed-on: https://go-review.googlesource.com/20298
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/amd64/gsubr.go  |  4 +--
+ src/cmd/compile/internal/arm/cgen64.go   |  6 ++--
+ src/cmd/compile/internal/arm/gsubr.go    |  4 +--
+ src/cmd/compile/internal/arm64/gsubr.go  |  6 ++--
+ src/cmd/compile/internal/gc/bexport.go   |  2 +-
+ src/cmd/compile/internal/gc/cgen.go      |  6 ++--
+ src/cmd/compile/internal/gc/const.go     |  4 +--
+ src/cmd/compile/internal/gc/cplx.go      |  4 +--
+ src/cmd/compile/internal/gc/dcl.go       |  8 ++---
+ src/cmd/compile/internal/gc/esc.go       |  6 ++--
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 60 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/gen.go       |  2 +-
+ src/cmd/compile/internal/gc/gsubr.go     |  6 ++--
+ src/cmd/compile/internal/gc/order.go     | 12 +++----
+ src/cmd/compile/internal/gc/pgen.go      |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go  |  6 ++--
+ src/cmd/compile/internal/gc/select.go    |  8 ++---
+ src/cmd/compile/internal/gc/ssa.go       |  4 +--
+ src/cmd/compile/internal/gc/subr.go      | 10 +++---
+ src/cmd/compile/internal/gc/swt.go       |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 30 ++++++++--------
+ src/cmd/compile/internal/gc/unsafe.go    |  2 +-
+ src/cmd/compile/internal/gc/walk.go      | 16 ++++-----
+ src/cmd/compile/internal/mips64/gsubr.go |  6 ++--
+ src/cmd/compile/internal/ppc64/gsubr.go  |  2 +-
+ src/cmd/compile/internal/x86/cgen64.go   |  6 ++--
+ src/cmd/compile/internal/x86/ggen.go     |  2 +-
+ src/cmd/compile/internal/x86/gsubr.go    |  6 ++--
+ 29 files changed, 117 insertions(+), 117 deletions(-)

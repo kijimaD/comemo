@@ -1,0 +1,13 @@
+commit b3f224b2801059bf6b2d1b4001ffd8d34c91d19e
+Author: David du Colombier <0intro@gmail.com>
+Date:   Wed Sep 3 00:56:31 2014 +0200
+
+    runtime: handle empty environment variables on Plan 9
+    
+    LGTM=bradfitz, rsc
+    R=rsc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/137920044
+
+ src/pkg/runtime/env_plan9.go | 4 ++++
+ 1 file changed, 4 insertions(+)

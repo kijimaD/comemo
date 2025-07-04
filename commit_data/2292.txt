@@ -1,0 +1,20 @@
+commit b112d42ad60551a075d0bf4c06667f11e7aa976d
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 22 22:40:26 2009 -0700
+
+    add hmac.NewSHA1 and hmac.NewMD5.
+    fix Reset bug in sha1.
+    add hmac, sha1, md5 tests.
+    document hmac.
+    
+    R=r
+    DELTA=146  (111 added, 6 deleted, 29 changed)
+    OCL=29294
+    CL=29299
+
+ src/lib/crypto/hmac/hmac.go      | 54 ++++++++++++++++-------
+ src/lib/crypto/hmac/hmac_test.go | 93 +++++++++++++++++++++++++++++++++++-----
+ src/lib/crypto/md5/md5_test.go   | 13 +++---
+ src/lib/crypto/sha1/sha1.go      |  2 +
+ src/lib/crypto/sha1/sha1_test.go | 13 +++---
+ 5 files changed, 140 insertions(+), 35 deletions(-)

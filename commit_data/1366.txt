@@ -1,0 +1,14 @@
+commit eaa2a364a784a0462d8a5a7132e255abf76d66f7
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 18 18:23:48 2008 -0800
+
+    libmach: always print 0x on hex numbers
+    
+    R=r
+    DELTA=3  (0 added, 0 deleted, 3 changed)
+    OCL=21558
+    CL=21558
+
+ src/libmach_amd64/8db.c      | 12 ++++++------
+ src/libmach_amd64/machdata.c |  4 ++--
+ 2 files changed, 8 insertions(+), 8 deletions(-)

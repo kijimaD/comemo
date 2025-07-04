@@ -1,0 +1,22 @@
+commit 37f046bac67053773d2ed34299a2e7e520c88037
+Author: Ivan Krasin <krasin@golang.org>
+Date:   Wed May 30 16:08:38 2012 -0400
+
+    compress/flate: fix overflow on 2GB input. Reset hashOffset every 16 MB.
+    
+    This bug has been introduced in the following revision:
+    
+    changeset:   11404:26dceba5c610
+    user:        Ivan Krasin <krasin@golang.org>
+    date:        Mon Jan 23 09:19:39 2012 -0500
+    summary:     compress/flate: reduce memory pressure at cost of additional arithmetic operation.
+    
+    This is the review page for that CL: https://golang.org/cl/5555070/
+    
+    R=rsc, imkrasin
+    CC=golang-dev
+    https://golang.org/cl/6249067
+
+ src/pkg/compress/flate/deflate.go      | 20 ++++++++++++++++
+ src/pkg/compress/flate/deflate_test.go | 44 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+)

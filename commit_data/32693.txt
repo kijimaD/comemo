@@ -1,0 +1,23 @@
+commit e9cbabb334b4f3d3502eb2c9b6ec68d23767eb4d
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Tue Aug 15 14:34:53 2017 -0400
+
+    cmd/link: enable -buildmode=plugin for ppc64le
+    
+    This enables support for the buildmode plugin on
+    ppc64le.
+    
+    Fixes #20756
+    
+    Change-Id: I83241ff63f9b5c366fe0496cf46a3f67d75d08ac
+    Reviewed-on: https://go-review.googlesource.com/55850
+    Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/test.go               |  2 +-
+ src/cmd/go/internal/work/build.go  |  2 +-
+ src/cmd/link/internal/ld/config.go |  2 +-
+ src/cmd/link/internal/ld/lib.go    |  8 ++++++--
+ src/cmd/link/internal/ppc64/asm.go | 14 ++++++++++++--
+ 5 files changed, 21 insertions(+), 7 deletions(-)

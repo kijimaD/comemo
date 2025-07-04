@@ -1,0 +1,17 @@
+commit 18aefe9c194dc1a649386def050c1e6a245f9115
+Author: Austin Clements <austin@google.com>
+Date:   Sun Feb 14 23:53:19 2016 -0500
+
+    doc: fix non-possessive "'s"
+    
+    Currently we use "Section's" as the plural of the debug/elf Section
+    struct. Change this to "Sections" because it's not possessive and
+    doesn't seem to fall in to any special cases were the apostrophe is
+    acceptable.
+    
+    Change-Id: Id5d3abbd748502a67ead3f483182ee7729db94a2
+    Reviewed-on: https://go-review.googlesource.com/19505
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ doc/go1.6.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

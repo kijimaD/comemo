@@ -1,0 +1,36 @@
+commit c7b1ef9918893ca58eb36f60c9e8a28371c5325e
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Dec 17 15:10:25 2015 -0500
+
+    cmd/link: reject non-package main toplevel.a file, remove dead code
+    
+    The test for non-package main top-level inputs is done while parsing
+    the export data. Issue #13468 happened because we were not parsing
+    the export data when using compiler-generated archives
+    (that is, when using go tool compile -pack).
+    
+    Fix this by parsing the export data even for archives.
+    
+    However, that turns up a different problem: the export data check
+    reports (one assumes spurious) skew errors now, because it has
+    not been run since Go 1.2.
+    (Go 1.3 was the first release to use go tool compile -pack.)
+    
+    Since the code hasn't run since Go 1.2, it can't be that important.
+    Since it doesn't work today, just delete it.
+    
+    Figuring out how to make this code work with Robert's export
+    format was one of the largest remaining TODOs for that format.
+    Now we don't have to.
+    
+    Fixes #13468 and makes the world a better place.
+    
+    Change-Id: I40a4b284cf140d49d48b714bd80762d6889acdb9
+    Reviewed-on: https://go-review.googlesource.com/17976
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/link/internal/ld/go.go  | 227 ++--------------------------------------
+ src/cmd/link/internal/ld/lib.go |   4 +-
+ test/linkmain.go                |  12 +++
+ test/linkmain_run.go            |  65 ++++++++++++
+ 4 files changed, 87 insertions(+), 221 deletions(-)

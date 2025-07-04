@@ -1,0 +1,27 @@
+commit 0ac72f8b96166c8aa3953d27f4fd3d33fb9e51cf
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 27 15:44:40 2022 -0400
+
+    reflect: allow Value be stack allocated
+    
+    Currently, reflect.ValueOf forces the referenced object to be heap
+    allocated. This CL makes it possible to be stack allocated. We
+    need to be careful to make sure the compiler's escape analysis can
+    do the right thing, e.g. channel send, map assignment, unsafe
+    pointer conversions.
+    
+    Tests will be added in a later CL.
+    
+    CL 408827 might help ensure the correctness.
+    
+    Change-Id: I8663651370c7c8108584902235062dd2b3f65954
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/408826
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/reflect/value.go | 79 +++++++++++++++++++++++++++++++++++++++++++---------
+ src/runtime/chan.go  |  2 +-
+ src/runtime/map.go   |  4 +--
+ 3 files changed, 69 insertions(+), 16 deletions(-)

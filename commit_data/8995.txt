@@ -1,0 +1,12 @@
+commit 4acddca41b8111817e73690eb1a8a9c874767806
+Author: Rob Pike <r@golang.org>
+Date:   Sun Jul 10 20:56:26 2011 +1000
+
+    exp/template: package documentation
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4675072
+
+ src/pkg/exp/template/doc.go | 260 ++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 260 insertions(+)

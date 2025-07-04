@@ -1,0 +1,24 @@
+commit b662e524e4d393f7c99fe281f8c95f7b2f7015a8
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Sep 28 11:20:58 2016 -0400
+
+    cmd/compile: use CBZ/CBNZ instrunctions on ARM64
+    
+    These are conditional branches that takes a register instead of
+    flags as control value.
+    
+    Reduce binary size by 0.7%, text size by 2.4% (cmd/go as an
+    exmaple).
+    
+    Change-Id: I0020cfde745f9eab680b8b949ad28c87fe183afd
+    Reviewed-on: https://go-review.googlesource.com/30030
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/arm64/prog.go       |  36 ++-
+ src/cmd/compile/internal/arm64/ssa.go        |  12 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  36 ++-
+ src/cmd/compile/internal/ssa/gen/ARM64Ops.go |   4 +
+ src/cmd/compile/internal/ssa/opGen.go        |   8 +
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 455 ++++++++++++++++++---------
+ src/cmd/internal/obj/arm64/obj7.go           |   4 +
+ 7 files changed, 385 insertions(+), 170 deletions(-)

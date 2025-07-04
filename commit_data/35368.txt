@@ -1,0 +1,21 @@
+commit d89ea4100632ccfc1e5dbaf0b95f9f1e9f5a29f9
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Fri Apr 20 14:22:18 2018 -0700
+
+    database/sql: add additional Stats to DBStats
+    
+    Provide better statistics for the database pool. Add counters
+    for waiting on the pool and closes. Too much waiting or too many
+    connection closes could indicate a problem.
+    
+    Fixes #24683
+    Fixes #22138
+    
+    Change-Id: I9e1e32a0487edf41c566b8d9c07cb55e04078fec
+    Reviewed-on: https://go-review.googlesource.com/108536
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 67 ++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 55 insertions(+), 12 deletions(-)

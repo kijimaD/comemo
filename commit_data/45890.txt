@@ -1,0 +1,25 @@
+commit ed56ea73e8aa60269bbb3d33af9e7614e6b3babf
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jun 30 09:44:30 2021 -0700
+
+    path/filepath: deflake TestEvalSymlinksAboveRoot on darwin
+    
+    On darwin, under load, it appears that the system occasionally
+    deletes the temp dir mid-test. Don't fail the test when that happens.
+    
+    It would be nice to fix this in a deeper way.
+    See golang.org/cl/332009 for some discussion.
+    
+    In the meantime, this will at least stop the flakiness.
+    
+    Updates #37910
+    
+    Change-Id: I6669e466fed9abda4a87ca88345c04cd7986b41e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332009
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/path/filepath/path_test.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)

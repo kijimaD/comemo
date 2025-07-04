@@ -1,0 +1,20 @@
+commit 524956f8b976be2b7be829a2d0d87c2951932ac6
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 24 09:42:33 2016 -0400
+
+    io: remove SizedReaderAt
+    
+    It's not clear we want to enshrine an io interface in which Size cannot
+    return an error. Because this requires more thought before committing
+    to the API, remove from Go 1.7.
+    
+    Fixes #15818.
+    
+    Change-Id: Ic4138ffb0e033030145a12d33f78078350a8381f
+    Reviewed-on: https://go-review.googlesource.com/23392
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+
+ api/next.txt |  3 ---
+ src/io/io.go | 10 ----------
+ 2 files changed, 13 deletions(-)

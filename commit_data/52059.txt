@@ -1,0 +1,31 @@
+commit d54aeeeea3327a760856fdc280c742b853684f47
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 29 15:43:08 2022 -0500
+
+    cmd/go: set default GODEBUG for main packages
+    
+    For #56986, change the go command to compute and set the
+    default GODEBUG settings for each main package, based on
+    the work module's go version and the //go:debug lines in the
+    main package.
+    
+    Change-Id: I2118cf0ae6d981138138661e02120c05af648872
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453605
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go                              |  71 ++++++------
+ src/cmd/go/internal/list/list.go                   |  71 ++++++------
+ src/cmd/go/internal/load/godebug.go                | 128 +++++++++++++++++++++
+ src/cmd/go/internal/load/pkg.go                    |  14 +--
+ src/cmd/go/internal/load/test.go                   |   8 +-
+ src/cmd/go/internal/modload/init.go                |  20 ++--
+ src/cmd/go/internal/work/exec.go                   |  36 ++++++
+ src/cmd/go/internal/work/gc.go                     |   5 +
+ src/cmd/go/testdata/mod/rsc.io_panicnil_v1.0.0.txt |  13 +++
+ src/cmd/go/testdata/mod/rsc.io_panicnil_v1.1.0.txt |  14 +++
+ src/cmd/go/testdata/script/godebug_default.txt     | 115 ++++++++++++++++++
+ .../go/testdata/script/test_fuzz_mutate_crash.txt  |   2 +-
+ src/cmd/go/testdata/script/work_use_issue55952.txt |   2 +-
+ 13 files changed, 411 insertions(+), 88 deletions(-)

@@ -1,0 +1,21 @@
+commit c7cdce13f55070383efd8251bce6e95118c32bb2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 13 09:32:35 2012 -0800
+
+    godoc: make ?m=src mode deterministic
+    
+    Merge package files in the go/ast MergePackageFiles
+    function always     in the same order (sorted by filename)
+    instead  of map iteration order to obtain the same
+    package  file each time.  This functionality is used
+    by godoc when displaying packages in ?m=src mode.
+    
+    Also: minor cleanup in godoc.go.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5540054
+
+ src/cmd/godoc/godoc.go   | 12 ++++++------
+ src/pkg/go/ast/filter.go | 31 +++++++++++++++++++++----------
+ 2 files changed, 27 insertions(+), 16 deletions(-)

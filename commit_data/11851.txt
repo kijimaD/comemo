@@ -1,0 +1,12 @@
+commit c11361e2536fad07bbeb78e19d4283a07fbc02da
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Feb 13 11:50:06 2012 -0800
+
+    exp/norm: fix typo
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5649086
+
+ src/pkg/exp/norm/maketables.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

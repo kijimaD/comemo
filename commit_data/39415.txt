@@ -1,0 +1,27 @@
+commit 1130cc745d45bc7248a2e133a609732a14486f01
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 19 17:48:33 2019 +0000
+
+    Revert "runtime: use dispatch semaphores on Darwin"
+    
+    This reverts https://golang.org/cl/182258.
+    
+    The new code caused unpredictable crashes that are not understood.  The old code was occasionally flaky but still better than this approach.
+    
+    Fixes #32655
+    Updates #31264
+    
+    Change-Id: I2e9d27d6052e84bf75106d8b844549ba4f571695
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/182880
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/os_darwin.go       | 60 +++++++++++++++++++++--------
+ src/runtime/sys_darwin.go      | 58 +++++++++++++++++++---------
+ src/runtime/sys_darwin_386.s   | 85 +++++++++++++++++++++++++++++-------------
+ src/runtime/sys_darwin_amd64.s | 62 +++++++++++++++++++-----------
+ src/runtime/sys_darwin_arm.s   | 54 ++++++++++++++++-----------
+ src/runtime/sys_darwin_arm64.s | 53 +++++++++++++++-----------
+ 6 files changed, 249 insertions(+), 123 deletions(-)

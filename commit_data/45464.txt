@@ -1,0 +1,21 @@
+commit 0e315ad79ae388eedb03dce27101c40b29292e2a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Apr 9 23:40:22 2021 -0400
+
+    cmd/go/internal/modload: avoid loading the full module graph when listing specific modules
+    
+    For #36460
+    For #41297
+    Updates #29666
+    
+    Change-Id: I5f324c0ef9a164f8043d2188101d141bb5fa7454
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309191
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/list.go          | 67 ++++++++++++++++++++--------
+ src/cmd/go/testdata/script/mod_list_sums.txt | 19 ++++----
+ 2 files changed, 57 insertions(+), 29 deletions(-)

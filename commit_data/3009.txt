@@ -1,0 +1,20 @@
+commit 88742ef0cc5634b2574e440e906be0a53c37262a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 18 10:06:15 2009 -0700
+
+    - implemented Multiplication
+    - changed Cmp to return -1, 0, +1
+    - added corresponding test cases
+    
+    R=rsc
+    DELTA=173  (136 added, 3 deleted, 34 changed)
+    OCL=33431
+    CL=33459
+
+ src/pkg/big/arith.go      | 15 +++++++++++
+ src/pkg/big/arith_amd64.s | 29 ++++++++++++++++++++-
+ src/pkg/big/int.go        | 16 ++++++------
+ src/pkg/big/int_test.go   | 56 ++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/big/nat.go        | 64 +++++++++++++++++++++++++++++------------------
+ src/pkg/big/nat_test.go   | 19 ++++++++++++++
+ 6 files changed, 166 insertions(+), 33 deletions(-)

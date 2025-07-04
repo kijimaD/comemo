@@ -1,0 +1,22 @@
+commit 68395a66f9fece387701e1450e3d7a8fa91fb76e
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Oct 10 10:26:21 2019 -0400
+
+    cmd/go: forbid module pattern 'all' when outside a module
+    
+    Also, in cmd/doc, avoid calling 'go list -m all' when in module mode
+    outside a module since it's now an error.
+    
+    Fixes #32027
+    
+    Change-Id: I7224c7fdf7e950bce6c058ab2a5837c27ba3b899
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/200297
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/doc/dirs.go                        | 10 +++++++++-
+ src/cmd/go/internal/modget/get.go          |  4 ++++
+ src/cmd/go/internal/modload/list.go        |  3 +++
+ src/cmd/go/testdata/script/mod_outside.txt | 22 +++++++++++++---------
+ 4 files changed, 29 insertions(+), 10 deletions(-)

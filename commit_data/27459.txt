@@ -1,0 +1,29 @@
+commit 0dcd330bc8ab19db15b4517b80e940cf154071bc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed May 18 23:39:23 2016 +1000
+
+    runtime/cgo: make cgo work with openbsd ABI changes
+    
+    OpenBSD 6.0 (due out November 2016) will support PT_TLS, which will
+    allow for the OpenBSD cgo pthread_create() workaround to be removed.
+    
+    However, in order for Go to continue working on supported OpenBSD
+    releases (the current release and the previous release - 5.9 and 6.0,
+    once 6.0 is released), we cannot enable PT_TLS immediately. Instead,
+    adjust the existing code so that it works with the previous TCB
+    allocation and the new TIB allocation. This allows the same Go
+    runtime to work on 5.8, 5.9 and later 6.0.
+    
+    Once OpenBSD 5.9 is no longer supported (May 2017, when 6.1 is
+    released), PT_TLS can be enabled and the additional cgo runtime
+    code removed.
+    
+    Change-Id: I3eed5ec593d80eea78c6656cb12557004b2c0c9a
+    Reviewed-on: https://go-review.googlesource.com/23197
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/cgo/gcc_openbsd_386.c   | 42 +++++++++++++++++++++++++++++--------
+ src/runtime/cgo/gcc_openbsd_amd64.c | 41 ++++++++++++++++++++++++++++--------
+ 2 files changed, 65 insertions(+), 18 deletions(-)

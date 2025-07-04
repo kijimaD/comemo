@@ -1,0 +1,18 @@
+commit 54b2a75406a4e347cff2825b698f910549d6bd04
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 1 16:35:02 2022 -0500
+
+    cmd/go/internal/modload: skip deleted entries in UpdateWorkFile
+    
+    Fixes #50958
+    
+    Change-Id: I25b4f34bea7705525217296471ce97e6a2ab99f6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382245
+    Trust: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/init.go                |  3 +++
+ src/cmd/go/testdata/script/work_use_issue50958.txt | 17 +++++++++++++++++
+ 2 files changed, 20 insertions(+)

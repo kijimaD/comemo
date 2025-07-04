@@ -1,0 +1,14 @@
+commit 173ca8a2d088992f5bde75f04af9358b25dbadd9
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 22 16:16:22 2008 -0700
+
+    re-fix bug067, update golden.out
+    
+    R=r
+    DELTA=9  (4 added, 3 deleted, 2 changed)
+    OCL=15655
+    CL=15655
+
+ test/fixedbugs/bug067.go | 6 +++++-
+ test/golden.out          | 5 +----
+ 2 files changed, 6 insertions(+), 5 deletions(-)

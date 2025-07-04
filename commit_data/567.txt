@@ -1,0 +1,15 @@
+commit 4539ced71432167b9acb1ba3292a2e7c9fab038e
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Sep 3 14:09:29 2008 -0700
+
+    array literals
+    
+    R=r
+    OCL=14756
+    CL=14756
+
+ src/cmd/gc/go.h   |  2 ++
+ src/cmd/gc/go.y   | 57 +++++++++++++++++++++++++++++--------------------------
+ src/cmd/gc/subr.c | 33 ++++++--------------------------
+ src/cmd/gc/walk.c | 51 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 89 insertions(+), 54 deletions(-)

@@ -1,0 +1,22 @@
+commit 07f623063ddf8216b03a4a17a27110d330e80c7e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Fri May 21 09:43:58 2021 -0700
+
+    reflect: add MapIter.Reset
+    
+    This allows callers to do (amortized) allocation-free iteration
+    over many maps.
+    
+    Fixes #46293
+    
+    Change-Id: I3aa6134dd00da35b508bd1e3b487332a871a3673
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/321891
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/reflect/all_test.go | 66 +++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 12 +++++++++
+ 2 files changed, 78 insertions(+)

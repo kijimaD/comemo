@@ -1,0 +1,19 @@
+commit 7b8e08617ea0d2b119766e0fd893fbf4502280e8
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Sat Apr 13 08:22:16 2013 +0200
+
+    cmd/gc: disable inlining of method values
+    
+    They caused internal compiler errors and they're expensive enough that inlining them doesn't make sense.
+    
+    Fixes #5259.
+    
+    R=golang-dev, r, iant, remyoudompheng
+    CC=golang-dev
+    https://golang.org/cl/8636043
+
+ src/cmd/gc/inl.c                     |  1 +
+ test/fixedbugs/issue5259.dir/bug.go  | 17 +++++++++++++++++
+ test/fixedbugs/issue5259.dir/main.go | 16 ++++++++++++++++
+ test/fixedbugs/issue5259.go          |  9 +++++++++
+ 4 files changed, 43 insertions(+)

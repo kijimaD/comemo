@@ -1,0 +1,26 @@
+commit 44a12e5f33bed2189735d8466b38fe455fe9b752
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Jun 23 15:28:37 2021 -0400
+
+    cmd/go: search breadth-first instead of depth-first for test dependency cycles
+    
+    When we are looking for a dependency cycle involving a specific
+    package, we need to keep track of visited packages in order to avoid
+    repeatedly traversing a cycle that does not involve that package.
+    
+    If we're keeping track of all visited packages anyway, we're already
+    spending O(N) memory on the traversal, so we may as well use
+    breadth-first search. That not only keeps the bookkeeping simple, but
+    also guarantees that we will find a shortest path (rather than a
+    completely arbitrary one).
+    
+    Fixes #45863
+    
+    Change-Id: I810c7337857e42dcb83630abbdea75021554be45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330430
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/load/test.go                   | 50 ++++++++++++++++------
+ src/cmd/go/testdata/script/mod_list_test_cycle.txt | 23 ++++++++++
+ 2 files changed, 59 insertions(+), 14 deletions(-)

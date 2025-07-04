@@ -1,0 +1,21 @@
+commit c433cf189354f0b3a5e50716df57a94af5f22718
+Author: kijimaD <norimaking777@gmail.com>
+Date:   Wed Oct 5 12:56:46 2022 +0000
+
+    all: fix some typos
+    
+    Change-Id: I6be77e7b7c919f26bed7b6690cce6741888ba78a
+    GitHub-Last-Rev: 4ef4a7b425d0b89adf398a1bee04e9f7495813bc
+    GitHub-Pull-Request: golang/go#56051
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/438991
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/go/scanner/scanner_test.go | 2 +-
+ src/os/str.go                  | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)

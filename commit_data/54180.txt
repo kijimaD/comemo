@@ -1,0 +1,25 @@
+commit 184540e9552f8244a0df3c1ff6a1ffbaa4449352
+Author: Alexander Yastrebov <yastrebov.alex@gmail.com>
+Date:   Wed Aug 23 15:39:26 2023 +0000
+
+    net/http: revert fix request canceler leak on connection close
+    
+    This reverts CL 515796 due to a flaking test.
+    
+    Updates #61708
+    Fixes #62224
+    
+    Change-Id: I53911a07677d08c3196daaaa2708269593baf472
+    GitHub-Last-Rev: 3544648ecc3783dcb10d54fc2b266797c02f9a75
+    GitHub-Pull-Request: golang/go#62233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/522097
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/net/http/transport.go      |  1 -
+ src/net/http/transport_test.go | 52 ------------------------------------------
+ 2 files changed, 53 deletions(-)

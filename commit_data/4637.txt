@@ -1,0 +1,12 @@
+commit 38430213f5206fddb865f712d00b35fd98654fd9
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 19 09:08:05 2010 -0800
+
+    libc: add goos, goarch, goroot.  fixes build
+    
+    TBR=r
+    CC=golang-dev
+    https://golang.org/cl/190059
+
+ include/libc.h | 4 ++++
+ 1 file changed, 4 insertions(+)

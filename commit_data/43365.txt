@@ -1,0 +1,32 @@
+commit 4d1cecdee8360ef12a817c124d7a04c9d29741c3
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Oct 14 08:06:54 2020 -0400
+
+    cmd/dist,cmd/go: broaden use of asm macro GOEXPERIMENT_REGABI
+    
+    This extends a change made in https://golang.org/cl/252258 to the go
+    command (to define an asm macro when GOEXPERIMENT=regabi is in
+    effect); we need this same macro during the bootstrap build in order
+    to build the runtime correctly.
+    
+    In addition, expand the set of packages where the macro is applied to
+    {runtime, reflect, syscall, runtime/internal/*}, and move the logic
+    for deciding when something is a "runtime package" out of the
+    assembler and into cmd/{go,dist}, introducing a new assembler command
+    line flag instead.
+    
+    Updates #27539, #40724.
+    
+    Change-Id: Ifcc7f029f56873584de1e543c55b0d3e54ad6c49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262317
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/asm/internal/flags/flags.go | 19 ++++++++++---------
+ src/cmd/asm/main.go                 |  4 ++--
+ src/cmd/dist/build.go               | 35 +++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/work/gc.go      | 22 ++++++++++++++--------
+ 4 files changed, 61 insertions(+), 19 deletions(-)

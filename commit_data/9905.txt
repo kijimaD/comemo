@@ -1,0 +1,13 @@
+commit c09af502131dd46f474c01eab6e8fc67ca3d02b1
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 7 14:15:16 2011 -0700
+
+    testing: fix time reported for failing tests.
+    t.ns was hanging after recent changes.
+    
+    R=gri, rsc
+    CC=golang-dev
+    https://golang.org/cl/5237044
+
+ src/pkg/testing/testing.go | 1 +
+ 1 file changed, 1 insertion(+)

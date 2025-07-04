@@ -1,0 +1,14 @@
+commit a257c753ac151d654d40258f11fdcda5dba7f779
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 12 11:33:03 2012 -0800
+
+    misc/dashboard: don't email about netbsd failures
+    
+    Too flaky.
+    
+    R=iant, rsc
+    CC=golang-dev
+    https://golang.org/cl/6925056
+
+ misc/dashboard/app/build/notify.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,26 @@
+commit bb2bbfa08630c65b8751159515f3a22ec5f933ee
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 16:22:43 2016 -0700
+
+    cmd/compile: split Addrconst out of Naddr
+    
+    There are only three Prog types that we were creating with an OLITERAL
+    Node: ATEXT, ATYPE, and AFUNCDATA. ATEXT's value we later overwrite in
+    defframe, and ATYPE's we don't even need. AFUNCDATA only needs integer
+    constants, so get rid of all the non-int constant logic and skip
+    creating a Node representation for the constant.
+    
+    While here, there are a few other Naddr code paths that are no longer
+    needed, so turn those into Fatalfs.
+    
+    Passes toolstash/buildall.
+    
+    Change-Id: I4cc9b92c3011890afd4f31ebeba8b1b42b753cab
+    Reviewed-on: https://go-review.googlesource.com/30074
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/gsubr.go | 83 ++++++++++++------------------------
+ src/cmd/compile/internal/gc/pgen.go  | 13 ++----
+ 2 files changed, 32 insertions(+), 64 deletions(-)

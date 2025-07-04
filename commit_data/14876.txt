@@ -1,0 +1,17 @@
+commit be2596471f352c41b02a57e96c963d16ecb56183
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Jan 14 09:35:04 2013 +1100
+
+    cmd/godoc: support m=text parameter for text files
+    
+    It's possible to view the package docs in plain text, eg:
+            http://golang.org/pkg/time/?m=text
+    and this CL introduces the ability to do the same for files:
+            http://golang.org/src/pkg/time/time.go?m=text
+    
+    R=golang-dev, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7085054
+
+ src/cmd/godoc/godoc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,12 @@
+commit 46468357a2f6fd28343e988190a1b381401fd016
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Sep 19 17:30:19 2011 +0200
+
+    exp/norm: Adopt regexp to exp/regexp semantics.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5046041
+
+ src/pkg/exp/norm/normregtest.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

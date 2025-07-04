@@ -1,0 +1,13 @@
+commit 87ef6e91568507e53b902c558f0cc4d8447e5dd7
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 20 11:57:21 2014 -0700
+
+    doc/install.html: fix duplicate id= tag
+    
+    LGTM=minux.ma
+    R=adg, minux.ma
+    CC=golang-codereviews
+    https://golang.org/cl/95540045
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

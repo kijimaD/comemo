@@ -1,0 +1,12 @@
+commit 3f485e14b2ca9d6e74471f2c3c9aa0b732971d51
+Author: Austin Clements <austin@google.com>
+Date:   Wed Oct 24 17:59:25 2018 -0400
+
+    cmd/compile: document Sym flags
+    
+    Change-Id: Id14b417095628c7a1dc7a8e47bc28cfa392b5262
+    Reviewed-on: https://go-review.googlesource.com/c/146498
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/types/sym.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

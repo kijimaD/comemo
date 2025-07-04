@@ -1,0 +1,20 @@
+commit ba97be4b58241bebbc4ff70574bd82152ab19ffe
+Author: liu-xuewen <liiuxuewen@gmail.com>
+Date:   Mon Jul 13 09:15:38 2020 +0000
+
+    runtime: remove tracebackinit and unused skipPC
+    
+    CL [152537](https://go-review.googlesource.com/c/go/+/152537/) changed the way inlined frames are represented in tracebacks to no longer use skipPC
+    
+    Change-Id: I42386fdcc5cf72f3c122e789b6af9cbd0c6bed4b
+    GitHub-Last-Rev: 79c26dcd532907eda4ffc30951845c1c01243501
+    GitHub-Pull-Request: golang/go#39829
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/239701
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/runtime/asm.s        | 21 ---------------------
+ src/runtime/proc.go      |  1 -
+ src/runtime/traceback.go | 13 -------------
+ 3 files changed, 35 deletions(-)

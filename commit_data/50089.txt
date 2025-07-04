@@ -1,0 +1,25 @@
+commit 790d60537e0888464a1c8a6f98c20baf2eeacdf2
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Aug 22 22:11:03 2022 +0100
+
+    all: append(bytes, str...) works out of the box
+    
+    From the append docs in the builtin package:
+    
+            As a special case, it is legal to append a string to a byte slice, like this:
+    
+            slice = append([]byte("hello "), "world"...)
+    
+    Change-Id: Ib14039a7476873b12a3aefccd8863e8d628b9249
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/425102
+    Reviewed-by: hopehook <hopehook@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/go/internal/modindex/write.go | 2 +-
+ src/cmd/internal/quoted/quoted.go     | 6 +++---
+ src/syscall/exec_linux.go             | 2 +-
+ src/time/format.go                    | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)

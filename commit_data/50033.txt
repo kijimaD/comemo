@@ -1,0 +1,22 @@
+commit dbc3b44f85e638c2247af02548d8b386996f4d37
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 18 20:16:15 2022 -0700
+
+    go/types: match types2 errors for incorrect method receiver count
+    
+    Use "method has no receiver" and "method has multiple receivers"
+    in error messages for invalid receiver counts, matching the
+    corresponding types2 errors.
+    
+    For #54511.
+    
+    Change-Id: I96fc99440d6206c74e9416069db052234baa8248
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424934
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/types/resolver.go                      |  2 +-
+ src/go/types/signature.go                     |  2 +-
+ src/go/types/testdata/check/decls2/decls2a.go | 10 +++++-----
+ 3 files changed, 7 insertions(+), 7 deletions(-)

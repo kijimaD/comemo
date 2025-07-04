@@ -1,0 +1,12 @@
+commit 80790ab740eb8aa11d07624c2e9cf1eab834992f
+Author: Sameer Ajmani <sameer@golang.org>
+Date:   Mon May 7 10:47:58 2012 -0400
+
+    C: Jeremy Ellington (Google CLA)
+    
+    R=golang-dev, rsc
+    CC=golang-dev, jme
+    https://golang.org/cl/6197058
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

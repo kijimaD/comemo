@@ -1,0 +1,12 @@
+commit ebf32c586845e8b1601dbb02a35c3af2a9da537a
+Author: Kai Backman <kaib@golang.org>
+Date:   Sat Feb 6 21:59:46 2010 -0800
+
+    fix comment
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/203053
+
+ src/pkg/runtime/runtime.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 916e861fd969e19e918e5b24c45a834c63dd8ee4
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 18 12:19:26 2019 -0700
+
+    cmd/compile: fix importing rewritten f(g()) calls
+    
+    golang.org/cl/166983 started serializing the Ninit field of OCALL
+    nodes within function inline bodies (necessary to fix a regression in
+    building crypto/ecdsa with -gcflags=-l=4), but this means the Ninit
+    field needs to be typechecked when the imported function body is used.
+    
+    It's unclear why this wasn't necessary for the crypto/ecdsa
+    regression.
+    
+    Fixes #30907.
+    
+    Change-Id: Id5f0bf3c4d17bbd6d5318913b859093c93a0a20c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/168199
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  1 +
+ test/fixedbugs/issue30907.dir/a.go       | 19 +++++++++++++++++++
+ test/fixedbugs/issue30907.dir/b.go       | 11 +++++++++++
+ test/fixedbugs/issue30907.go             |  7 +++++++
+ 4 files changed, 38 insertions(+)

@@ -1,0 +1,17 @@
+commit b7fa0f941f05fdf8420f15cd5ebe2f209da172e0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 21 14:30:39 2022 -0800
+
+    spec: minor formatting and link cleanups
+    
+    Mostly from CL 367954.
+    
+    Change-Id: Id003b0f785a286a1a649e4d6e8c87d0418a36545
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/379920
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ doc/go_spec.html | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)

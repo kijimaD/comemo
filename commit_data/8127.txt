@@ -1,0 +1,16 @@
+commit de5616fbb44e7674d7ae044a8143d2fd71413747
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 15 16:16:20 2011 -0400
+
+    gc: print of unsafe.Pointer
+    
+    Got lost when I introduced TUNSAFEPTR.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/4442046
+
+ src/cmd/gc/walk.c        |  2 +-
+ test/fixedbugs/bug328.go | 14 ++++++++++++++
+ test/golden.out          |  3 +++
+ 3 files changed, 18 insertions(+), 1 deletion(-)

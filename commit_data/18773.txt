@@ -1,0 +1,13 @@
+commit d957169cf841dcf120b1095abfdb9a8a3a7f55e1
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu Mar 6 01:19:16 2014 -0500
+
+    api: add NetBSD/ARM EABI exceptions.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/71940043
+
+ api/except.txt | 4 ++++
+ 1 file changed, 4 insertions(+)

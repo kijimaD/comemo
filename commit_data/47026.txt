@@ -1,0 +1,36 @@
+commit fd2f4b58b34effdbdacba41e0c36fa701c6dfa27
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Oct 19 13:28:54 2021 -0700
+
+    cmd/compile:  update the export version for generics
+    
+    Bump the export version to a new value iexportVersionGo1_18 (2). This
+    will give a better error message when old compilers/tools encounter the
+    new export format (that includes parameterized types and functions).
+    
+    We are also making a breaking change in the format:
+     - a 'kind' byte is added to constant values
+    
+    Also updated tinter() to pass the implicit bit through during type
+    substitution.
+    
+    Tested that all tests still pass if the iexportVersionCurrent is changed
+    back to 1 in typecheck/iexport.go, iimporter/iimport.go, and
+    gcimporter/iimport.go
+    
+    Updates #47654
+    
+    Change-Id: I1dbeb167a97f6c7e0b7e0c011d6bada5db312b36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/357049
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/importer/iimport.go  | 36 ++++++++++++++++---------
+ src/cmd/compile/internal/typecheck/iexport.go | 38 ++++++++++++++++++---------
+ src/cmd/compile/internal/typecheck/iimport.go | 32 ++++++++++++++--------
+ src/cmd/compile/internal/typecheck/subr.go    |  2 +-
+ src/cmd/compile/internal/types/type.go        |  6 +++++
+ src/go/internal/gcimporter/iimport.go         | 36 ++++++++++++++++---------
+ 6 files changed, 101 insertions(+), 49 deletions(-)

@@ -1,0 +1,27 @@
+commit 424b0654f8e6c72f69e096f69009096de16e30fa
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 8 17:16:46 2017 +0900
+
+    net: update documentation on Listen and ListenPacket
+    
+    This change clarifies the documentation on Listen and ListenPacket to
+    avoid unnecessary confusion about how the arguments for the connection
+    setup functions are used to make connections.
+    
+    Also replaces "name" or "hostname" with "host name" when the term
+    implies the use of DNS.
+    
+    Updates #17613.
+    Updates #17614.
+    Updates #17615.
+    Fixes #17616.
+    Updates #17738.
+    Updates #17956.
+    
+    Change-Id: I0bad2e143207666f2358d397fc076548ee6c3ae9
+    Reviewed-on: https://go-review.googlesource.com/34876
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/dial.go         | 86 +++++++++++++++++++++++++++----------------------
+ src/net/example_test.go |  3 +-
+ 2 files changed, 49 insertions(+), 40 deletions(-)

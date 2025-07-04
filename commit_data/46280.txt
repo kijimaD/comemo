@@ -1,0 +1,23 @@
+commit 90ed541149c781a96b86060a7618f73dcf347f28
+Author: Hans <hzb153@gmail.com>
+Date:   Wed Jul 28 05:57:25 2021 +0000
+
+    runtime: ensure the fixalloc object size is valid
+    
+    Usually, fixalloc is used to allocate small, persistent and reuseable
+    objects. The size is typically between range [sizeof(mlink), _FixAllocChunk].
+    
+    It's rare for being out of the range. But if it did happen, we got a
+    hard-to-discover memory corruption. This commit prevents that situation by limiting object's size.
+    
+    Change-Id: If6ef8b0831596464e0f55d09f79094b79ae08c66
+    GitHub-Last-Rev: cb8b1b01bbf452195f4f098d53cca74affc496ff
+    GitHub-Pull-Request: golang/go#47395
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/337429
+    Reviewed-by: Austin Clements <austin@google.com>
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/mfixalloc.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

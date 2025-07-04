@@ -1,0 +1,14 @@
+commit 8604e180934fc5e0dc1b4cdedfb2548787e460bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 5 16:48:20 2009 -0700
+
+    - added goroutine to automatically p4 sync the current workspace
+    - set "Updated" timestamp on served pages to p4 sync time
+    
+    R=rsc
+    DELTA=72  (66 added, 3 deleted, 3 changed)
+    OCL=29959
+    CL=29959
+
+ usr/gri/pretty/godoc.go | 75 +++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 69 insertions(+), 6 deletions(-)

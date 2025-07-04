@@ -1,0 +1,14 @@
+commit 9192ec2ea1d3c76d4346f3abbc092a248e574aab
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Thu May 20 17:13:50 2010 -0700
+
+    netFD: fix race between Close and Read/Write
+    
+    Fixes #783.
+    
+    R=rsc, cw
+    CC=golang-dev
+    https://golang.org/cl/1207043
+
+ src/pkg/net/fd.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)

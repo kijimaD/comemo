@@ -1,0 +1,13 @@
+commit 8707f31c0abc6b607014e843b7cc188b3019daa9
+Author: Chris Broadfoot <cbro@golang.org>
+Date:   Thu Jul 21 14:06:27 2016 -0700
+
+    go1.7rc3
+    
+    Change-Id: Iaef13003979c68926c260c415d6074a50ae137b2
+    Reviewed-on: https://go-review.googlesource.com/25142
+    Run-TryBot: Chris Broadfoot <cbro@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ VERSION | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

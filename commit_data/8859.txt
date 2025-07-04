@@ -1,0 +1,12 @@
+commit 10d0dffd7672ee27a5a1ed3451d9d9aa547075da
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Mon Jun 27 14:39:38 2011 -0400
+
+    ld: elide the Go symbol table when using -s
+    
+    R=rsc, n13m3y3r, gustavo
+    CC=golang-dev
+    https://golang.org/cl/4661050
+
+ src/cmd/ld/symtab.c | 2 ++
+ 1 file changed, 2 insertions(+)

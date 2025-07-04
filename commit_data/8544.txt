@@ -1,0 +1,18 @@
+commit 0de328edd63d8e85588309982ce86948548db96b
+Author: Rob Pike <r@golang.org>
+Date:   Tue May 31 09:58:07 2011 +1000
+
+    unicode: make the tables smaller.
+    By splitting the ranges into 16-bit values and 32-bit values,
+    we can reduce about 3000 entries by 48 bits per entry, or about
+    16KB, at the cost of a little more complexity in the code.
+    
+    R=iant, bradfitz, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4547066
+
+ src/pkg/unicode/letter.go     |   94 +-
+ src/pkg/unicode/maketables.go |   97 +-
+ src/pkg/unicode/tables.go     | 7879 ++++++++++++++++++++++-------------------
+ src/pkg/xml/xml.go            |  612 ++--
+ 4 files changed, 4597 insertions(+), 4085 deletions(-)

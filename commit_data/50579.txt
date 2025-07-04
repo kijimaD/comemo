@@ -1,0 +1,18 @@
+commit 68fa3696b6131082243273e57957ee22fe60eaa3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 23 11:36:26 2022 +0200
+
+    cmd/compile/internal/ir: add missing import to mknode.go
+    
+    CL 426257 changed ioutil.WriteFile to os.WriteFile but didn't add the
+    corresponding import for package os.
+    
+    Change-Id: I7be32138463b44aabc8e36ce353f6dc1376cbe60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/433415
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/ir/mknode.go | 1 +
+ 1 file changed, 1 insertion(+)

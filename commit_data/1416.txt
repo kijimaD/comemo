@@ -1,0 +1,15 @@
+commit 9662e7b2db0fa8c2bb4d8cf28940116763eedbc9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 6 15:01:04 2009 -0800
+
+    - adjusted pretty to use old new, make
+    
+    R=r
+    OCL=22160
+    CL=22160
+
+ usr/gri/pretty/ast.go         | 16 ++++++++--------
+ usr/gri/pretty/compilation.go |  4 ++--
+ usr/gri/pretty/globals.go     | 12 ++++++------
+ usr/gri/pretty/scanner.go     |  6 +++---
+ 4 files changed, 19 insertions(+), 19 deletions(-)

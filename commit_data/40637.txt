@@ -1,0 +1,17 @@
+commit e8f01d591f9be2653bfb13c0214c4c96b64aa028
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 4 20:36:21 2019 -0500
+
+    math: test portable FMA even on system with hardware FMA
+    
+    This makes it a little less likely the portable FMA will be
+    broken without realizing it.
+    
+    Change-Id: I7f7f4509b35160a9709f8b8a0e494c09ea6e410a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205337
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/math/all_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

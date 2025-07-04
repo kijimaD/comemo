@@ -1,0 +1,12 @@
+commit 523b3bc4347372a71ccc531af87c6b8724446f48
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Tue May 21 03:22:52 2013 +0800
+
+    misc/dashboard/builder: handle Plan 9 in defaultSuffix()
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/9495045
+
+ misc/dashboard/builder/main.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)

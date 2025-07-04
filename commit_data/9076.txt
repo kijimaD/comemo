@@ -1,0 +1,12 @@
+commit 8d73781f8b530ab27dd665314b2ca74e772a148e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jul 14 11:48:23 2011 -0700
+
+    godoc: fix build (add Makefile change)
+    
+    R=bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4733041
+
+ src/cmd/godoc/Makefile | 1 +
+ 1 file changed, 1 insertion(+)

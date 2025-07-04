@@ -1,0 +1,20 @@
+commit 7a92287a4812853e4591e7054dd9b1bcf25f2066
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jun 4 09:28:27 2011 +1000
+
+    unicode: for consistency with MaxRune, s/Latin1Max/MaxLatin1/ and
+    s/ASCIIMax/MaxASCII/
+    
+    R=golang-dev, r, gri
+    CC=golang-dev
+    https://golang.org/cl/4539109
+
+ src/pkg/unicode/digit.go        |  2 +-
+ src/pkg/unicode/digit_test.go   |  2 +-
+ src/pkg/unicode/graphic.go      | 16 ++++++++--------
+ src/pkg/unicode/graphic_test.go | 20 ++++++++++----------
+ src/pkg/unicode/letter.go       | 18 +++++++++---------
+ src/pkg/unicode/letter_test.go  |  2 +-
+ src/pkg/unicode/maketables.go   |  4 ++--
+ src/pkg/unicode/tables.go       |  2 +-
+ 8 files changed, 33 insertions(+), 33 deletions(-)

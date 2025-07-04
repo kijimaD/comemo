@@ -1,0 +1,29 @@
+commit 827044e7a629128d967e79e6b92fc17f3bc4870b
+Author: Udalov Max <re.udalov@gmail.com>
+Date:   Sat Apr 13 18:54:03 2019 +0300
+
+    crypto/sha512: use math/bits.RotateLeft64 instead of ad-hoc implementation
+    
+    This makes code more readable and idiomatic and slightly increase performance.
+    
+    Updates #31456
+    
+    Benchstat:
+    name          old time/op    new time/op    delta
+    Hash8Bytes-8     281ns ± 4%     280ns ± 3%    ~     (p=0.640 n=10+10)
+    Hash1K-8        2.01µs ± 6%    2.02µs ± 3%    ~     (p=0.481 n=10+10)
+    Hash8K-8        14.2µs ± 6%    13.5µs ± 1%  -4.90%  (p=0.001 n=10+10)
+    
+    name          old speed      new speed      delta
+    Hash8Bytes-8  28.5MB/s ± 4%  28.5MB/s ± 3%    ~     (p=0.516 n=10+10)
+    Hash1K-8       510MB/s ± 6%   507MB/s ± 4%    ~     (p=0.481 n=10+10)
+    Hash8K-8       576MB/s ± 6%   605MB/s ± 1%  +5.02%  (p=0.001 n=10+10)
+    
+    Tested on macbook pro 2018 Intel(R) Core(TM) i5-8259U CPU @ 2.30GHz
+    
+    Change-Id: I1f5b78096dd49d14ffcb9129142c4a4e05b81ff9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171736
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/sha512/sha512block.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

@@ -1,0 +1,14 @@
+commit ab9c25f2de06e74cade453876835b3c1533a39de
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Jun 30 15:35:01 2015 +1000
+
+    cmd/go: use GOOS and GOARCH from build context for "go generate"
+    
+    Fixes #11438
+    
+    Change-Id: Iedd31918aa5187fc3fdaed71c8dad82075559084
+    Reviewed-on: https://go-review.googlesource.com/11667
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/generate.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

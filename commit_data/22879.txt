@@ -1,0 +1,14 @@
+commit 96dad7ff3ea15327b386c6497e171b119db33ee3
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Wed May 6 12:35:19 2015 +1200
+
+    cmd/internal/ld: recompute resoff after changing elfreserve
+    
+    My last update to https://golang.org/cl/9710 missed this.
+    
+    Change-Id: Ie042032ca307e1065fcf6c402a166f9ff74027e7
+    Reviewed-on: https://go-review.googlesource.com/9771
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/internal/ld/elf.go | 1 +
+ 1 file changed, 1 insertion(+)

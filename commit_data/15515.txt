@@ -1,0 +1,15 @@
+commit 0bc38b7fe4715512908e9a50988aa382e423a3cd
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 28 16:58:26 2013 -0800
+
+    net/http: don't special-case multipart/byteranges responses
+    
+    Fixes #4767
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/7435046
+
+ src/pkg/net/http/response_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/net/http/transfer.go      |  7 -------
+ 2 files changed, 24 insertions(+), 7 deletions(-)

@@ -1,0 +1,14 @@
+commit dc606a20ceeb48d68616f46f6ed24b1f5f0afe78
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 27 19:04:22 2010 -0700
+
+    net: drop non-RHEL-4.6 ports from test
+    
+    Fixes #610.
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/1006044
+
+ src/pkg/net/port_test.go | 2 --
+ 1 file changed, 2 deletions(-)

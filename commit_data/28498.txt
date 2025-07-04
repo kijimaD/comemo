@@ -1,0 +1,36 @@
+commit cddddbc6231177c87b72f95209ab51abb74bcbc5
+Author: David Chase <drchase@google.com>
+Date:   Fri Sep 16 15:02:47 2016 -0700
+
+    cmd/compile: use ISEL, cleanup use of zero & extensions
+    
+    Abandoned earlier efforts to expose zero register,
+    but left it in numbering to decrease squirrelyness of
+    register allocator.
+    
+    ISELrelOp used in code generation of bool := x relOp y.
+    Some patterns added to better elide zero case and
+    some sign extension.
+    
+    Updates: #17109
+    
+    Change-Id: Ida7839f0023ca8f0ffddc0545f0ac269e65b05d9
+    Reviewed-on: https://go-review.googlesource.com/29380
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/go.go            |   3 +
+ src/cmd/compile/internal/gc/plive.go         |  14 +
+ src/cmd/compile/internal/ppc64/prog.go       |   2 +
+ src/cmd/compile/internal/ppc64/ssa.go        | 136 ++++--
+ src/cmd/compile/internal/ssa/config.go       |   8 +-
+ src/cmd/compile/internal/ssa/gen/PPC64.rules |  94 ++--
+ src/cmd/compile/internal/ssa/gen/PPC64Ops.go |   4 +-
+ src/cmd/compile/internal/ssa/opGen.go        | 626 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/regalloc.go     |  10 +-
+ src/cmd/compile/internal/ssa/rewrite.go      |   9 +
+ src/cmd/compile/internal/ssa/rewritePPC64.go | 455 ++++++++++++++-----
+ src/cmd/internal/obj/ppc64/a.out.go          |   6 +-
+ 12 files changed, 825 insertions(+), 542 deletions(-)

@@ -1,0 +1,16 @@
+commit 7eb45d3c4a0956fc2207001360472ad048e544bc
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Thu Dec 19 10:00:15 2013 +0900
+
+    net: don't return a nested error when happy eyeballs dialing
+    
+    Also removes an unused variable.
+    
+    Fixes #6795.
+    
+    R=adg, dave, bradfitz, gobot
+    CC=golang-dev
+    https://golang.org/cl/29440043
+
+ src/pkg/net/dial.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)

@@ -1,0 +1,35 @@
+commit dac514ea370d9a5e5129614c58082fe1905f6dcb
+Author: Achille Roussel <achille.roussel@gmail.com>
+Date:   Mon Mar 20 22:16:21 2023 +0000
+
+    runtime: reuse freed memory blocks on wasm
+    
+    When compiling Go programs to WebAssembly, the memory allocation
+    strategy was neither releasing memory to the OS nor reusing blocks freed
+    by calls to runtime.sysFreeOS.
+    
+    This CL unifies the plan9 and wasm memory management strategy
+    since both platforms use a linear memory space and do not have a
+    mechanism for returning memory blocks to the OS.
+    
+    Fixes #59061
+    
+    Change-Id: I282ba93c0fe1a0961a31c0825b2a7e0478b8713d
+    GitHub-Last-Rev: 1c485be4fb798679fde7db148392de558a6fa97c
+    GitHub-Pull-Request: golang/go#59065
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476717
+    Reviewed-by: Julien Fabre <ju.pryz@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Evan Phoenix <evan@phx.io>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/mem_js.go    |  71 ++----------------
+ src/runtime/mem_plan9.go | 174 --------------------------------------------
+ src/runtime/mem_sbrk.go  | 183 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/os_js.go     |   4 +-
+ src/runtime/os_plan9.go  |   2 +-
+ 5 files changed, 194 insertions(+), 240 deletions(-)

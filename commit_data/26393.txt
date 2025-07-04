@@ -1,0 +1,15 @@
+commit 3dd4f74e060b02031497ae839e698f3ddce5d73d
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 18 14:54:18 2016 -0700
+
+    cmd/compile: merge shifts into LEAs
+    
+    Change-Id: I5a43c354f36184ae64a52268023c3222da3026d8
+    Reviewed-on: https://go-review.googlesource.com/20880
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Todd Neal <todd@tneal.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |  14 +-
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 189 +++++++++++++++++++++++++++
+ 2 files changed, 202 insertions(+), 1 deletion(-)

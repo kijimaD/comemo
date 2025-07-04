@@ -1,0 +1,12 @@
+commit 080bd1ec8a726a0c8070432aef3c906edf051e9a
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 18 13:53:51 2008 -0700
+
+    a couple of bugs around nil are fixed
+    
+    SVN=123423
+
+ test/{bugs => fixedbugs}/bug045.go | 4 ++--
+ test/golden.out                    | 8 ++------
+ test/nil.go                        | 6 +++---
+ 3 files changed, 7 insertions(+), 11 deletions(-)

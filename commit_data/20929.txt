@@ -1,0 +1,16 @@
+commit 94151eb2799809ece7e44ce3212aa3cbb9520849
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 5 21:33:07 2014 -0500
+
+    encoding/xml: remove SyntaxError.Byte
+    
+    It is unused. It was introduced in the CL that added InputOffset.
+    I suspect it was an editing mistake.
+    
+    LGTM=bradfitz
+    R=bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/182580043
+
+ src/encoding/xml/xml.go | 1 -
+ 1 file changed, 1 deletion(-)

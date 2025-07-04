@@ -1,0 +1,12 @@
+commit 4230dd4c6c4c08f1559d85bc135991627fd89d92
+Author: Yves Junqueira <yves.junqueira@gmail.com>
+Date:   Wed Aug 8 12:04:54 2012 +1000
+
+    crypto/rand: Example for Read.
+    
+    R=adg, remyoudompheng, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/6457085
+
+ src/pkg/crypto/rand/example_test.go | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)

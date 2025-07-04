@@ -1,0 +1,15 @@
+commit cf78f96244ec8e3a69f10069fb43dd720f1556b0
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Tue May 6 11:40:43 2014 +1000
+
+    cmd/ld: correct pe section number in symbol table
+    
+    Update #7899
+    
+    LGTM=iant
+    R=golang-codereviews, rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/97920044
+
+ src/cmd/ld/pe.c | 35 +++++++++++++++++------------------
+ 1 file changed, 17 insertions(+), 18 deletions(-)

@@ -1,0 +1,21 @@
+commit 740a490f71d026bb7d2d13cb8fa2d6d6e0572b70
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Apr 15 17:42:17 2022 +0000
+
+    net/http: correctly show error types in transfer test
+    
+    actualReader and tc.expectedReader are reflect.Type instances,
+    not the actual objects.
+    
+    Change-Id: I7c9cfa489e3297b94c603b62bad1ed84bd207057
+    GitHub-Last-Rev: d581402375aea0c911fef663ec7e89a24c4e5524
+    GitHub-Pull-Request: golang/go#52339
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/400235
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/transfer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

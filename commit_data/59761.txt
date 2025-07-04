@@ -1,0 +1,33 @@
+commit cfb4e9bc4ae957dba63cb2ee5e020fcd25d553fd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 30 12:53:42 2025 -0400
+
+    cmd/dist: don't install tools that won't be shipped in distribution
+    
+    We shouldn't be installing these tools because we will remove them in
+    distpack. Installing the tools will also prevent us from testing what
+    happens when the tools are missing.
+    
+    The changes below this on the stack, CL 677775 (cmd/doc: build cmd/doc
+    directly into the go command) and CL 677636 (cmd/go/internal/cfg: fix
+    GOROOT setting when forcing host config) are needed for this change to
+    pass tests. The doc change is being done so we preserve the properties
+    in the tests that doc can be invoked without doing a build. It's not
+    strictly necessary (we could just remove the tests) but it's nice to
+    have. The GOROOT setting is a significant bug in switching the
+    configuration to host mode: the value of GOROOT wasn't being reset,
+    which caused issues for go commands built with trimpath, because
+    runtime.GOROOT wouldn't have the correct goroot value.
+    
+    For #71867
+    
+    Change-Id: I4181711ba117066b7d62d7d013ad4b186871cfb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677558
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+
+ src/cmd/dist/build.go    | 28 ++++++++++++++++++++--------
+ src/cmd/distpack/pack.go |  2 ++
+ 2 files changed, 22 insertions(+), 8 deletions(-)

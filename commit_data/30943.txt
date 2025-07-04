@@ -1,0 +1,20 @@
+commit 786eb5b754780d649f5d85481096d268728d383f
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 23 21:55:37 2017 -0500
+
+    runtime: make debug.FreeOSMemory call runtime.GC()
+    
+    Currently freeOSMemory calls gcStart directly, but we really just want
+    it to behave like runtime.GC() and then perform a scavenge, so make it
+    call runtime.GC() rather than gcStart.
+    
+    For #18216.
+    
+    Change-Id: I548ec007afc788e87d383532a443a10d92105937
+    Reviewed-on: https://go-review.googlesource.com/37518
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

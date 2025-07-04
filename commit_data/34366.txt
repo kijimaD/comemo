@@ -1,0 +1,46 @@
+commit 0c471dfae29b0759c6f12e32d2d5ca69ea79d5d8
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Sun Feb 25 20:08:22 2018 +0900
+
+    cmd: avoid unnecessary type conversions
+    
+    CL generated mechanically with github.com/mdempsky/unconvert.
+    
+    Also updated cmd/compile/internal/ssa/gen/*.rules manually.
+    
+    Change-Id: If721ef73cf0771ae83ce7e2d11623fc8d9155768
+    Reviewed-on: https://go-review.googlesource.com/97075
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/arch/arm64.go            | 16 +++----
+ src/cmd/asm/internal/asm/parse.go             |  2 +-
+ src/cmd/cgo/gcc.go                            |  2 +-
+ src/cmd/compile/internal/gc/dwinl.go          |  4 +-
+ src/cmd/compile/internal/gc/plive.go          |  2 +-
+ src/cmd/compile/internal/gc/ssa.go            |  6 +--
+ src/cmd/compile/internal/gc/walk.go           | 16 +++----
+ src/cmd/compile/internal/ssa/debug.go         |  4 +-
+ src/cmd/compile/internal/ssa/gen/ARM.rules    |  4 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules  | 34 +++++++-------
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules | 32 ++++++-------
+ src/cmd/compile/internal/ssa/gen/PPC64.rules  |  8 ++--
+ src/cmd/compile/internal/ssa/rewriteARM.go    |  8 ++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 68 +++++++++++++--------------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go | 64 ++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 16 +++----
+ src/cmd/doc/pkg.go                            |  2 +-
+ src/cmd/internal/buildid/note.go              |  2 +-
+ src/cmd/internal/dwarf/dwarf.go               |  4 +-
+ src/cmd/internal/goobj/read.go                |  2 +-
+ src/cmd/internal/obj/arm/obj5.go              |  2 +-
+ src/cmd/internal/obj/arm64/asm7.go            | 14 +++---
+ src/cmd/internal/obj/ppc64/obj9.go            |  2 +-
+ src/cmd/internal/obj/x86/asm6.go              |  2 +-
+ src/cmd/internal/objfile/goobj.go             |  2 +-
+ src/cmd/link/internal/arm/asm.go              |  6 +--
+ src/cmd/link/internal/ld/data.go              |  4 +-
+ src/cmd/link/internal/ld/dwarf.go             |  2 +-
+ src/cmd/link/internal/ppc64/asm.go            |  2 +-
+ 29 files changed, 166 insertions(+), 166 deletions(-)

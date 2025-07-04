@@ -1,0 +1,13 @@
+commit 5945b251587792e0f53d5510333f1a891adb5b67
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jul 14 10:45:57 2009 -0700
+
+    - adjust to new token.Position definition
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=31574
+    CL=31604
+
+ src/pkg/go/printer/printer.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

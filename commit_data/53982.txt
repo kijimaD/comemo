@@ -1,0 +1,18 @@
+commit 3378adc517f362793acec5adc6cc17f9a1841a4c
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Aug 9 09:21:56 2023 -0700
+
+    cmd/compile/internal/coverage: merge Fixup{Vars,Init} into Fixup
+    
+    There's no need for separate fixups phases anymore.
+    
+    Change-Id: Ie30a75bda4d326aa9811db3b3bd1dade0b242706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517858
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/coverage/cover.go | 31 +++++++++++++++---------------
+ src/cmd/compile/internal/gc/main.go        | 13 ++-----------
+ 2 files changed, 17 insertions(+), 27 deletions(-)

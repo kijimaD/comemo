@@ -1,0 +1,19 @@
+commit de50ea3cd848f187766825402f8d6c8109536443
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 12 11:36:12 2018 -0500
+
+    bufio: put notes about len(p) together
+    
+    CL 145577 added the part about io.ReadFull to read len(p)
+    but it should be next to the existing sentence about not
+    reading len(p) bytes.
+    
+    Change-Id: Idfa037c59a3085d44d5da6129188473db0e96d23
+    Reviewed-on: https://go-review.googlesource.com/c/148903
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/bufio/bufio.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

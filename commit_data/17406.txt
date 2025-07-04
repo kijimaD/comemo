@@ -1,0 +1,18 @@
+commit cbea724378e1586cd92f1fffddcad61af893ba1d
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Aug 28 12:53:59 2013 +1000
+
+    sync: improve once.Do documentation readability
+    
+    The previous wording, though accurate, was hard to parse.
+    In particular, it was tempting to interpret "the method"
+    as referring to "the function f" instead of "Do", and
+    required effort to find the correct antecedent for
+    "this receiver".
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/13307043
+
+ src/pkg/sync/once.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

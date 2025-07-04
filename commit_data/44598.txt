@@ -1,0 +1,27 @@
+commit f9ed8b3f1e180d3cd8534897103683e8165df5f0
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Oct 28 21:47:32 2020 -0400
+
+    cmd/go/internal/mvs: factor out an incremental implementation
+    
+    The new Graph type implements an incremental version of the MVS
+    algorithm, with requirements pushed in by the caller instead of pulled
+    by an internal MVS traversal.
+    
+    To avoid redundancy going forward (and to ensure adequate test
+    coverage of the incremental implementation), the existing buildList
+    function is reimplemented in terms of Graph.
+    
+    For #36460
+    
+    Change-Id: Idd0b6ab8f17cc41d83a2a4c25a95f82e9ce1eab0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/244760
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/mvs/errors.go |  10 +-
+ src/cmd/go/internal/mvs/graph.go  | 223 ++++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/mvs/mvs.go    | 167 +++++++++-------------------
+ 3 files changed, 282 insertions(+), 118 deletions(-)

@@ -1,0 +1,25 @@
+commit ddfe7b3dc00291862f33224b68ffdad0ef4001ab
+Author: Michael McConville <momcconville@gmail.com>
+Date:   Sat Jan 2 20:50:57 2016 -0500
+
+    crypto/rand: use the getentropy syscall on OpenBSD
+    
+    Go already supports Linux's getrandom, which is a slightly modified
+    version of getentropy.
+    
+    getentropy was added in OpenBSD 5.6. All supported versions of OpenBSD
+    include it so, unlike with Linux and getrandom, we don't need to test
+    for its presence.
+    
+    Fixes #13785.
+    
+    Change-Id: Ib536b96675f257cd8c5de1e3a36165e15c9abac9
+    Reviewed-on: https://go-review.googlesource.com/18219
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/crypto/rand/rand.go                         |  3 ++-
+ src/crypto/rand/rand_openbsd.go                 | 28 +++++++++++++++++++++++++
+ src/internal/syscall/unix/getentropy_openbsd.go | 25 ++++++++++++++++++++++
+ 3 files changed, 55 insertions(+), 1 deletion(-)

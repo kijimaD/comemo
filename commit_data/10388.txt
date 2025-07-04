@@ -1,0 +1,14 @@
+commit 53523f6a7d6ca6aa6ec4a1d20af773f333284371
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 14 16:03:23 2011 -0500
+
+    encoding/json: decode [] as empty slice, not nil slice
+    
+    Test was already present, but bug in reflect.DeepEqual hid this bug.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5375090
+
+ src/pkg/encoding/json/decode.go | 4 ++++
+ 1 file changed, 4 insertions(+)

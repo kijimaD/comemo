@@ -1,0 +1,22 @@
+commit 15b98e55d195bd876203506d5f513546dd4e3b36
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 18 11:58:46 2020 -0400
+
+    cmd/go: mark trace flows between actions
+    
+    This could help make it easier to identify blocking
+    dependencies when examining traces. Flows can be turned
+    off when viewing traces to remove potential distractions.
+    
+    Updates #38714
+    
+    Change-Id: Ibfd3f1a1861e3cac31addb053a2fca7ee796c4d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/248322
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/trace/trace.go | 51 +++++++++++++++++++++++++++++++++++---
+ src/cmd/go/internal/work/action.go | 10 +++++---
+ src/cmd/go/internal/work/exec.go   |  4 +++
+ 3 files changed, 58 insertions(+), 7 deletions(-)

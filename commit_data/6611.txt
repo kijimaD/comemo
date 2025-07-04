@@ -1,0 +1,14 @@
+commit ee065332dda70b12be42a52b12c1867529d62cec
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Mon Oct 25 13:13:00 2010 +1100
+
+    goinstall: don't wrongly error out with "multiple package names"
+    
+    Fixes #1215.
+    
+    R=adg, rsc
+    CC=golang-dev
+    https://golang.org/cl/2695042
+
+ src/cmd/goinstall/parse.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

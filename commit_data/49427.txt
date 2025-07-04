@@ -1,0 +1,32 @@
+commit a7551fe24524fb960fbe4cd74dae13afe9ca6a5c
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 6 15:52:19 2022 -0700
+
+    net: use synthetic network in TestDialParallel
+    
+    TestDialParallel is testing the Happy Eyeballs algorithm implementation,
+    which dials IPv4 and IPv6 addresses in parallel with the preferred
+    address family getting a head start. This test doesn't care about
+    the actual network operations, just the handling of the parallel
+    connections.
+    
+    Use testHookDialTCP to replace socket creation with a function that
+    returns successfully, with an error, or after context cancellation
+    as required.
+    
+    Limit tests of elapsed times to a check that the fallback deadline
+    has been exceeded in cases where this is expected.
+    
+    This should fix persistent test flakiness.
+    
+    Fixes #52173.
+    
+    Change-Id: Ic93f270fccb63b24a91105a4d541479fc33a2de4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410754
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/dial_test.go | 174 +++++++++++++++++++++------------------------------
+ 1 file changed, 71 insertions(+), 103 deletions(-)

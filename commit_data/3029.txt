@@ -1,0 +1,19 @@
+commit 8811896597d83fca02e5a6389908f5802e1f6aab
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Aug 19 20:17:09 2009 -0700
+
+    more work on adding in pieces. fixed my bad assumptions about
+    signed and unsigned integer conversions.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=398  (40 added, 230 deleted, 128 changed)
+    OCL=33546
+    CL=33569
+
+ src/cmd/5g/cgen.c  |  23 +----
+ src/cmd/5g/gg.h    |   3 -
+ src/cmd/5g/ggen.c  | 219 ++++++++-------------------------------------
+ src/cmd/5g/gobj.c  |   8 +-
+ src/cmd/5g/gsubr.c | 257 ++++++++++++++++++++++++-----------------------------
+ 5 files changed, 160 insertions(+), 350 deletions(-)

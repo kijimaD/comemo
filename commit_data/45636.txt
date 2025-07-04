@@ -1,0 +1,16 @@
+commit 12d383c7c7406dda2cb969a89ce3801c220614c5
+Author: itchyny <itchyny@hatena.ne.jp>
+Date:   Thu May 13 04:03:18 2021 +0000
+
+    debug/macho: fix a typo in macho.go
+    
+    Change-Id: Ica47b53decf6690fbd37e666e9de5098117b82de
+    GitHub-Last-Rev: 6aabb208a6499e29fe32a2f0d928c4e027d556b2
+    GitHub-Pull-Request: golang/go#46147
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/319592
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Heschi Kreinick <heschi@google.com>
+
+ src/debug/macho/macho.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

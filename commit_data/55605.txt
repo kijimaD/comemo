@@ -1,0 +1,17 @@
+commit 7f799f33b62320147391f43603e6d28a384865f1
+Author: sivchari <shibuuuu5@gmail.com>
+Date:   Wed Aug 2 02:55:17 2023 +0000
+
+    database/sql/driver: add a new test case for type t
+    
+    Change-Id: I38bb68570f7f097a6dfeef1c75896396992d81f7
+    GitHub-Last-Rev: 10ba48a546956fa2a5b602680fb312638aade92d
+    GitHub-Pull-Request: golang/go#53706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/416234
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/database/sql/driver/types_test.go | 1 +
+ 1 file changed, 1 insertion(+)

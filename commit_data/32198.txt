@@ -1,0 +1,17 @@
+commit 1d81251599fd1b8f9da888e10c1054c96d1e1fb1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Aug 10 14:41:44 2017 -0700
+
+    archive/tar: simplify toASCII and parseString
+    
+    Use a simple []byte instead of bytes.Buffer to create a string.
+    Use bytes.IndexByte instead of our own for loop.
+    
+    Change-Id: Ic4a1161d79017fd3af086a05c53d5f20a5f09326
+    Reviewed-on: https://go-review.googlesource.com/54752
+    Reviewed-by: Avelino <t@avelino.xxx>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/archive/tar/strconv.go | 15 +++++++--------
+ 1 file changed, 7 insertions(+), 8 deletions(-)

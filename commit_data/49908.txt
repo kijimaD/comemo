@@ -1,0 +1,22 @@
+commit 7ec0ec3645a481155728020c07685992444a9e4f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Aug 15 15:37:22 2022 -0700
+
+    go/types, types2: skip comparison for operands with invalid types
+    
+    Fixes #54405.
+    
+    Change-Id: Ia7b2709b83966fa080e41e3d4818527d1e8b49f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424054
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go                  |  6 ++++++
+ .../internal/types2/testdata/fixedbugs/issue54405.go     | 16 ++++++++++++++++
+ src/go/types/expr.go                                     |  6 ++++++
+ src/go/types/testdata/fixedbugs/issue54405.go            | 16 ++++++++++++++++
+ 4 files changed, 44 insertions(+)

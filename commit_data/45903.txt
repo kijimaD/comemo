@@ -1,0 +1,17 @@
+commit c96833e5badedb025761de6a74ed5f9c848059de
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jul 7 14:58:36 2021 +0000
+
+    doc: remove stale comment about arm64 port
+    
+    Fixes #47079.
+    
+    Change-Id: I8a671e3fdc13083e44e8d89064a5e7621e53bc4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/333075
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ doc/asm.html | 4 ----
+ 1 file changed, 4 deletions(-)

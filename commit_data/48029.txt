@@ -1,0 +1,52 @@
+commit 8314544bd6b3c5f0bee89a6bd411ced0aeba1a8c
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jan 25 09:34:35 2022 -0500
+
+    debug/dwarf: fix problems with handling of bit offsets for bitfields
+    
+    This patch reworks the handling of the DWARF DW_AT_bit_offset and
+    DW_AT_data_bit_offset attributes to resolve problems arising from
+    a previous related change (CL 328709).
+    
+    In CL 328709 the DWARF type reader was updated to look for and use
+    the DW_AT_data_bit_offset attribute for structure fields, handling
+    the value of the attribute in the same way as for DW_AT_bit_offset.
+    This caused problems for clients, since the two attributes have very
+    different semantics.
+    
+    This CL effectively reverts CL 328709 and moves to a scheme in which
+    we detect and report the two attributes separately/independently.
+    
+    This patch also corrects a problem in the DWARF type reader in the
+    code that detects and fixes up the type of struct fields corresponding
+    to zero-length arrays; the code in question was testing the
+    DW_AT_bit_offset attribute value but assuming DW_AT_data_bit_offset
+    semantics, meaning that it would fail to fix up cases such as
+    
+      typedef struct another_struct {
+        unsigned short quix;
+        int xyz[0];
+        unsigned  x:1;
+        long long array[40];
+      } t;
+    
+    The code in question has been changed to avoid using BitOffset and
+    instead consider only ByteOffset and BitSize.
+    
+    Fixes #50685.
+    Updates #46784.
+    
+    Change-Id: Ic15ce01c851af38ebd81af827973ec49badcab6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/380714
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ api/go1.18.txt                          |   2 +
+ src/debug/dwarf/testdata/bitfields.c    |  17 ++++
+ src/debug/dwarf/testdata/bitfields.elf4 | Bin 0 -> 2464 bytes
+ src/debug/dwarf/testdata/typedef.elf5   | Bin 0 -> 6016 bytes
+ src/debug/dwarf/type.go                 | 144 ++++++++++++++++++++++++++------
+ src/debug/dwarf/type_test.go            |  85 +++++++++++++++----
+ 6 files changed, 209 insertions(+), 39 deletions(-)

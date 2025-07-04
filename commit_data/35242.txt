@@ -1,0 +1,17 @@
+commit 73c7378e4d6e6b86505ac0fb2ce63d2a3a5be329
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Thu Apr 19 06:38:13 2018 +0000
+
+    cmd/asm/internal/asm: update the test cases in arm64enc.s file
+    
+    Uncomment the test cases in arm64enc.s because they can be handled
+    by current assembler. In addition, CL supplements more test cases.
+    
+    Change-Id: I583d45793b8227c6ec370868652dd8bcbfaa1ecf
+    Reviewed-on: https://go-review.googlesource.com/109275
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/testdata/arm64enc.s | 418 +++++++++++++++++++++------
+ 1 file changed, 331 insertions(+), 87 deletions(-)

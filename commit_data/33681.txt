@@ -1,0 +1,20 @@
+commit c866110689796c42ab379de1402462d03dfe23fa
+Author: Tom Lanyon <tomlanyon@google.com>
+Date:   Thu Nov 23 12:21:25 2017 +1100
+
+    os/exec: Stdout/Stderr doc cleanup.
+    
+    Following comments on CL 76320.
+    
+    Breaks Cmd.Std{out,err} doc into three paragraphs and updates Cmd.Stdin
+    formatting to match.
+    
+    Fixes an erroneous reference to Stdin in the output goroutine comment, while
+    keeping the wording consistent between Stdin and Stdout/Stderr.
+    
+    Change-Id: I186a0e2d4b85dfb939443a17e62a1eb2ef64b1bf
+    Reviewed-on: https://go-review.googlesource.com/79595
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/exec/exec.go | 18 ++++++++++--------
+ 1 file changed, 10 insertions(+), 8 deletions(-)

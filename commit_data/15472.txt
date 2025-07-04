@@ -1,0 +1,13 @@
+commit 029457aab54c8c8ae25aaf51725d002aaba8749c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 27 14:24:41 2013 -0800
+
+    go/types: don't crash when assigning to undefined variables
+    
+    R=adonovan
+    CC=golang-dev
+    https://golang.org/cl/7369059
+
+ src/pkg/go/types/stmt.go            | 4 ++++
+ src/pkg/go/types/testdata/stmt0.src | 2 ++
+ 2 files changed, 6 insertions(+)

@@ -1,0 +1,16 @@
+commit 2abaaefa729502740002fc9a87c012ea7d1a3e64
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Thu Oct 18 21:28:04 2012 +0200
+
+    image/jpeg: make TestDCT faster.
+    
+    The value of cosines are cached in a global array
+    instead of being recomputed each time.
+    The test was terribly slow on arm.
+    
+    R=golang-dev, dave, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/6733046
+
+ src/pkg/image/jpeg/dct_test.go | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)

@@ -1,0 +1,19 @@
+commit b32689f6c3156da19d469f35cc68fc155d401ef9
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Aug 17 14:52:45 2022 -0400
+
+    cmd/go: refactor package references in Builder.build
+    
+    Refactor references to "a.Package" in Builder.build to be consistent,
+    e.g. all via the "p" helper variable. No change in functionality, this
+    is just intended to make the code more readable/consistent (since
+    prior to this point we had a random mix of "p" and "a.Package").
+    
+    Change-Id: Ifea5ff9b314c39a0cf6e688511907d08cc56c603
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424819
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+
+ src/cmd/go/internal/work/exec.go | 64 ++++++++++++++++++++--------------------
+ 1 file changed, 32 insertions(+), 32 deletions(-)

@@ -1,0 +1,20 @@
+commit 844e642392e1586e6631aafeda5007f9f0f55145
+Author: Keisuke Kishimoto <keisuke.kishimoto@gmail.com>
+Date:   Sun Sep 8 16:39:46 2019 +0000
+
+    syscall: minor cleanup of duplicated code
+    
+    Call the Nano methods of Timespec and Timeval in TimespecToNsec and
+    TimevalToNsec respectively, instead of duplicating the implementation.
+    
+    Change-Id: I17551ea54c59c1e45ce472e029c625093a67251a
+    GitHub-Last-Rev: fecf43d163f4ebe72e8bb1d3854d4ad962c08b03
+    GitHub-Pull-Request: golang/go#33390
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188397
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/timestruct.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

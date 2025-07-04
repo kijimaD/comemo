@@ -1,0 +1,23 @@
+commit 8c30971da654a37a5f5f211e6dccf8d83e7ee463
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 20 19:08:13 2020 +0000
+
+    cmd/compile: panic if trying to alias an intrinsic with no definitions
+    
+    Currently if we try to alias an intrinsic which hasn't been defined for
+    any architecture (such as by accidentally creating the alias before the
+    intrinsic is created with addF), then we'll just silently not apply any
+    intrinsics to those aliases.
+    
+    Catch this particular case by panicking in alias if we try to apply the
+    alias and it did nothing.
+    
+    Change-Id: I98e75fc3f7206b08fc9267cedb8db3e109ec4f5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/224637
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go | 5 +++++
+ 1 file changed, 5 insertions(+)

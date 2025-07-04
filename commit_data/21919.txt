@@ -1,0 +1,15 @@
+commit b66a50999220ba2bd815ccc9d93234bb48cd3c40
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Mar 5 00:36:09 2015 -0500
+
+    cmd/internal/obj/x86: add CALL *name(SB)
+    
+    This was in i386 but not in x86 and was missed during the merge.
+    Needed for linux/386.
+    
+    Change-Id: Ia6e495c044f53bcb98f3bb03e20d8f6d35a8f8ff
+    Reviewed-on: https://go-review.googlesource.com/6902
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/x86/asm6.go | 50 +++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 44 insertions(+), 6 deletions(-)

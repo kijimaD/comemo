@@ -1,0 +1,14 @@
+commit d5337e9829e1a3a6b7a9b8cfc569a2a27940db64
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 23:57:04 2009 -0700
+
+    fix linux build:
+    i renamed sys to runtime but didn't remember this file.
+    (and the darwin build doesn't use it.)
+    
+    TBR=r
+    OCL=35826
+    CL=35826
+
+ src/pkg/debug/gosym/pclinetest.s | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

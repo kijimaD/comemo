@@ -1,0 +1,26 @@
+commit 041526c6ef669743afc6c4b757b95011f1475d1a
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Oct 1 09:58:40 2018 +0200
+
+    runtime: handle 64bits addresses for AIX
+    
+    This commit allows the runtime to handle 64bits addresses returned by
+    mmap syscall on AIX.
+    
+    Mmap syscall returns addresses on 59bits on AIX. But the Arena
+    implementation only allows addresses with less than 48 bits.
+    This commit increases the arena size up to 1<<60 for aix/ppc64.
+    
+    Update: #25893
+    
+    Change-Id: Iea72e8a944d10d4f00be915785e33ae82dd6329e
+    Reviewed-on: https://go-review.googlesource.com/c/138736
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/compile/internal/ppc64/galign.go |  2 +-
+ src/runtime/lfstack_64bit.go             | 14 +++++++++++++
+ src/runtime/malloc.go                    | 34 +++++++++++++++++++++++---------
+ test/chancap.go                          |  4 +++-
+ test/fixedbugs/bug273.go                 |  2 +-
+ test/fixedbugs/issue4085b.go             |  4 +++-
+ 6 files changed, 47 insertions(+), 13 deletions(-)

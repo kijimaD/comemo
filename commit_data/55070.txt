@@ -1,0 +1,37 @@
+commit 8be8bfeaa2e9fb9372d8507f076c6307e8237c54
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Nov 2 11:25:07 2023 -0400
+
+    cmd/compile/internal/ir: add batch-mode reassignment detection oracle
+    
+    Add a new helper type 'ReassignOracle', useful for doing "batch mode"
+    reassignment analysis, e.g. deciding whether a given ir.Name or (chain
+    of connected names) has a single definition and is never reassigned.
+    
+    The intended usage model is for clients to create/initialize a
+    ReassignOracle for a given function, then make a series of queries
+    using it (with the understanding that changing/mutating the func body
+    IR can invalidate the info cached in the oracle). This oracle is
+    intended to provide the same sort of analysis that ir.StaticValue and
+    ir.Reassigned carry out, but at a much reduced cost in compile
+    time.
+    
+    Notes:
+    - the new helper isn't actually used for anything useful in this
+      patch; it will be hooked into the inline heuristics code as part of
+      a subsequent CL.
+    - this is probably not an ideal long-term solution; it would be better
+      to switch to a scheme based a flag on ir.Name, as opposed to a
+      side table.
+    
+    Change-Id: I283e748e440a9f595df495f6aa48ee9c498702d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539319
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/ir/check_reassign_no.go   |   9 +
+ src/cmd/compile/internal/ir/check_reassign_yes.go  |   9 +
+ src/cmd/compile/internal/ir/expr.go                |   2 +
+ .../internal/ir/reassign_consistency_check.go      |  46 +++++
+ src/cmd/compile/internal/ir/reassignment.go        | 205 +++++++++++++++++++++
+ 5 files changed, 271 insertions(+)

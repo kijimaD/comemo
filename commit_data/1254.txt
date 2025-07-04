@@ -1,0 +1,12 @@
+commit d154f8a9e2eecff5221bfe02d78ef02a9a0f0e30
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 1 10:26:23 2008 -0800
+
+    add blank line (response to post-submit review of CL 19422)
+    
+    TBR=r
+    OCL=20127
+    CL=20127
+
+ src/lib/strconv/atof.go | 1 +
+ 1 file changed, 1 insertion(+)

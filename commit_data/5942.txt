@@ -1,0 +1,14 @@
+commit 12befd063b3be0b46e7385f4ad98e8effe87c0e7
+Author: Peter Mundy <go.peter.90@gmail.com>
+Date:   Tue Aug 3 13:03:50 2010 -0700
+
+    os: Null device
+    
+    R=rsc, cw
+    CC=golang-dev
+    https://golang.org/cl/1854042
+
+ src/pkg/exec/exec.go       | 2 +-
+ src/pkg/os/file_unix.go    | 4 ++++
+ src/pkg/os/file_windows.go | 2 ++
+ 3 files changed, 7 insertions(+), 1 deletion(-)

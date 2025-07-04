@@ -1,0 +1,15 @@
+commit a587d9a73faf5f4237e6675bb4a53d49c229fced
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 27 16:59:10 2009 -0700
+
+    multiple return in := bug
+    
+    R=ken
+    OCL=32253
+    CL=32253
+
+ src/cmd/gc/subr.c        |  9 +++++++++
+ src/cmd/gc/walk.c        |  4 ++++
+ test/fixedbugs/bug175.go | 14 ++++++++++++++
+ test/golden.out          |  6 ++++++
+ 4 files changed, 33 insertions(+)

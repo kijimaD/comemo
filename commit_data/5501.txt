@@ -1,0 +1,13 @@
+commit 09b2de77b5a05baebd43406229bc56933a6e22a0
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu May 20 20:56:28 2010 -0700
+
+    fix bug 275
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1198046
+
+ src/cmd/gc/cplx.c | 16 +++++++++++-----
+ test/golden.out   |  4 ----
+ 2 files changed, 11 insertions(+), 9 deletions(-)

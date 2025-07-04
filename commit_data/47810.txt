@@ -1,0 +1,25 @@
+commit 07ed86c57bb2aa5656ad7ab8df9c8b5faf089cbd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 15 11:42:58 2021 -0800
+
+    cmd/compile/internal/types2: record types for union subexpressions
+    
+    This is a port of CL 371757 from go/types to types2, with
+    minor adjustments for different error handling and AST.
+    
+    It also names the added API test cases more consistently.
+    The same renaming was applied to the respective go/types
+    file.
+    
+    Updates #50093
+    
+    Change-Id: Iaa132106a197a207f831525432e62e9d452b17c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/372475
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/api.go      |  6 ----
+ src/cmd/compile/internal/types2/api_test.go | 15 ++++++++
+ src/cmd/compile/internal/types2/union.go    | 55 ++++++++++++++++++++---------
+ src/go/types/api_test.go                    | 22 ++++++------
+ 4 files changed, 65 insertions(+), 33 deletions(-)

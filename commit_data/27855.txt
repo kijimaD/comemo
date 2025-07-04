@@ -1,0 +1,17 @@
+commit 64214792e214bbacb8c00ffea92a7131e30fa59e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 8 15:59:00 2016 -0700
+
+    cmd/compile: allow unsafe.Pointer(nil) as static data
+    
+    Fixes #16306
+    
+    Change-Id: If8e2f411fe9a5a5c198f10765fee7261ba8feaf2
+    Reviewed-on: https://go-review.googlesource.com/24836
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/sinit.go |  2 +-
+ test/fixedbugs/issue16306.go         | 15 +++++++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)

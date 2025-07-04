@@ -1,0 +1,27 @@
+commit a2f72cc80d3c8cbda793959c3186c76e004532af
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Jun 13 15:40:50 2018 +0200
+
+    syscall: support Linux syscalls without error return on mipsx/mips64x
+    
+    Like on other architectures, use rawSyscallNoError for Linux syscalls
+    that don't return an error and convert all applicable occurences of
+    RawSyscall to use it instead.
+    
+    This was missed in CL 84485 because mkall.sh doesn't support
+    mipsx/mips64x, so add the corresponding entries as well.
+    
+    Updates #22924
+    
+    Change-Id: I762cbee0827140b9890c4a10830e0b4cd33de92f
+    Reviewed-on: https://go-review.googlesource.com/118655
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/syscall/mkall.sh                   | 30 ++++++++++++++++++++++++++++++
+ src/syscall/zsyscall_linux_mips.go     | 16 ++++++++--------
+ src/syscall/zsyscall_linux_mips64.go   | 16 ++++++++--------
+ src/syscall/zsyscall_linux_mips64le.go | 16 ++++++++--------
+ src/syscall/zsyscall_linux_mipsle.go   | 16 ++++++++--------
+ 5 files changed, 62 insertions(+), 32 deletions(-)

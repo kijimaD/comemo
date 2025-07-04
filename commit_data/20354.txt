@@ -1,0 +1,16 @@
+commit 318294286a2d92b24dc98553ac3913cf80c98a7f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Sep 8 17:23:40 2014 -0400
+
+    runtime: enable StackCopyAlways
+    
+    Let's see how close we are to this being ready.
+    Will roll back if it breaks any builds in non-trivial ways.
+    
+    LGTM=r, khr
+    R=iant, khr, r
+    CC=golang-codereviews
+    https://golang.org/cl/138200043
+
+ src/runtime/stack.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

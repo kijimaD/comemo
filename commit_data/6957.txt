@@ -1,0 +1,13 @@
+commit 8b64cd9c5e13768828d1f5f979c62680b5e90ff0
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Wed Dec 15 08:50:08 2010 +1100
+
+    reflect: add Append and AppendSlice functions.
+    
+    R=r, nigeltao_gnome, rog, niemeyer
+    CC=golang-dev
+    https://golang.org/cl/3529042
+
+ src/pkg/reflect/all_test.go | 49 ++++++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/reflect/value.go    | 46 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 94 insertions(+), 1 deletion(-)

@@ -1,0 +1,27 @@
+commit 89c527007f75884a78ffede5d493ec021e7dfcdc
+Author: Martin Möhrmann <martin@golang.org>
+Date:   Sun Oct 31 17:58:07 2021 +0100
+
+    reflect: avoid stack copies of hiter
+    
+    Use a pointer reciever to avoid copying the hiter struct when
+    checking if it is intialized.
+    
+    Found through profiling that showed reflect map iteration spending
+    a good amount of time in duffcopy.
+    
+    This change will also help other MapIter methods checking hiter struct
+    initialization like Value() and Key().
+    
+    name            old time/op  new time/op  delta
+    MapIterNext-12  97.9ns ± 4%  83.8ns ± 2%  -14.37%  (p=0.000 n=10+10)
+    
+    Change-Id: I73ab964fa28061ee7e6d5c663a85048bd2e0274e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360254
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Trust: Martin Möhrmann <martin@golang.org>
+
+ src/reflect/all_test.go | 10 ++++++++++
+ src/reflect/value.go    |  2 +-
+ 2 files changed, 11 insertions(+), 1 deletion(-)

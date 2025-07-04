@@ -1,0 +1,14 @@
+commit 56f3c70111c8466fa65331e24dd4fdfe7311eb73
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 24 15:24:25 2010 -0700
+
+    fmt.Scan: fix handling of EOFs.
+    Fixes #876.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1675048
+
+ src/pkg/fmt/scan.go      | 13 +++++++++++--
+ src/pkg/fmt/scan_test.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+), 2 deletions(-)

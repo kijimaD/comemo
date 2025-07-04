@@ -1,0 +1,49 @@
+commit 47c58b46676af533a105fb10169522b958843a70
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Sat Oct 1 12:44:33 2016 -0400
+
+    bytes, strings: optimize multi-byte index operations on s390x
+    
+    Use vector instructions to speed up indexing operations for short
+    strings (64 bytes or less).
+    
+    bytes_s390x.go and strings_s390x.go are based on their amd64
+    equivalents in CL 31690.
+    
+    bytes package:
+    
+    name                   old time/op    new time/op    delta
+    Index/10                 40.3ns ± 7%    11.3ns ± 4%    -72.06%  (p=0.000 n=10+10)
+    Index/32                  196ns ± 1%      27ns ± 2%    -86.25%  (p=0.000 n=10+10)
+    Index/4K                 28.9µs ± 1%     1.5µs ± 2%    -94.94%    (p=0.000 n=9+9)
+    Index/4M                 30.1ms ± 2%     1.5ms ± 3%    -94.94%  (p=0.000 n=10+10)
+    Index/64M                 549ms ±13%      28ms ± 3%    -94.87%   (p=0.000 n=10+9)
+    IndexEasy/10             18.8ns ±11%    11.5ns ± 2%    -38.81%  (p=0.000 n=10+10)
+    IndexEasy/32             23.6ns ± 6%    28.1ns ± 3%    +19.29%  (p=0.000 n=10+10)
+    IndexEasy/4K              251ns ± 5%     223ns ± 8%    -11.04%  (p=0.000 n=10+10)
+    IndexEasy/4M              318µs ± 9%     266µs ± 8%    -16.42%  (p=0.000 n=10+10)
+    IndexEasy/64M            14.7ms ±16%    13.2ms ±11%    -10.22%  (p=0.001 n=10+10)
+    
+    strings package:
+    
+    name                   old time/op  new time/op  delta
+    IndexRune              88.1ns ±16%  28.9ns ± 4%  -67.20%  (p=0.000 n=10+10)
+    IndexRuneLongString     456ns ± 7%    34ns ± 3%  -92.50%  (p=0.000 n=10+10)
+    IndexRuneFastPath      12.9ns ±14%  11.1ns ± 6%  -13.84%  (p=0.000 n=10+10)
+    Index                  13.0ns ± 7%  11.3ns ± 4%  -13.31%  (p=0.000 n=10+10)
+    IndexHard1             3.38ms ± 9%  0.07ms ± 1%  -97.79%  (p=0.000 n=10+10)
+    IndexHard2             3.58ms ± 7%  0.37ms ± 2%  -89.78%  (p=0.000 n=10+10)
+    IndexHard3             3.47ms ± 7%  0.75ms ± 1%  -78.52%  (p=0.000 n=10+10)
+    IndexHard4             3.56ms ± 6%  1.34ms ± 0%  -62.39%    (p=0.000 n=9+9)
+    
+    Change-Id: If36c2afb8c02e80fcaa1cf5ec2abb0a2be08c7d1
+    Reviewed-on: https://go-review.googlesource.com/32447
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/bytes/bytes_generic.go     |   2 +-
+ src/bytes/bytes_s390x.go       | 118 ++++++++++++++++++++++
+ src/runtime/asm_s390x.s        | 224 +++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings_generic.go |   2 +-
+ src/strings/strings_s390x.go   |  98 ++++++++++++++++++
+ 5 files changed, 442 insertions(+), 2 deletions(-)

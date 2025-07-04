@@ -1,0 +1,13 @@
+commit bedee318d5e9fcde9d55bff24bc8090cef1e57dc
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Tue Jul 5 16:01:29 2011 +1000
+
+    os: fix build for Plan 9
+    
+    R=golang-dev, alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/4657074
+
+ src/pkg/os/file_plan9.go | 26 ++++++++++++++++++++++++++
+ src/pkg/os/file_unix.go  |  6 ++----
+ 2 files changed, 28 insertions(+), 4 deletions(-)

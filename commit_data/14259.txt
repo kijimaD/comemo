@@ -1,0 +1,12 @@
+commit 7ea65e5154deaed1ebe283a933f2a5a1a3b90625
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 31 10:32:15 2012 -0700
+
+    spec: we're now at Unicode 6.2.0
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6812060
+
+ doc/go_spec.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

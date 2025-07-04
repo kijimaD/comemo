@@ -1,0 +1,12 @@
+commit ef61a4cb1ec9ba332ee2d5a788c509d9ae851f19
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Jun 12 14:21:09 2008 -0700
+
+    better version of op=
+    fixed bugs in /= and %/
+    
+    SVN=122493
+
+ src/cmd/6g/gen.c | 46 +++++++++++++++++++++++-----------------------
+ src/cmd/6g/gg.h  |  2 +-
+ 2 files changed, 24 insertions(+), 24 deletions(-)

@@ -1,0 +1,12 @@
+commit 890e0e862f11c53a7a7a67655074cf360c6f940a
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Aug 4 12:13:33 2017 +0200
+
+    doc: fix bad link in go1.9 release notes
+    
+    Change-Id: I64ba37428f5cc560f0f20fe039feaecf5fcda93e
+    Reviewed-on: https://go-review.googlesource.com/53330
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

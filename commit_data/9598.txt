@@ -1,0 +1,15 @@
+commit d5e24b697521617f83b686656385a1ceb8844961
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Sep 5 19:09:20 2011 +0200
+
+    exp/norm: performance improvements of quickSpan
+    - fixed performance bug that could lead to O(n^2) behavior
+    - performance improvement for ASCII case
+    
+    R=r, r
+    CC=golang-dev
+    https://golang.org/cl/4956060
+
+ src/pkg/exp/norm/normalize.go      | 27 ++++++++++++++++++++-------
+ src/pkg/exp/norm/normalize_test.go |  5 +++++
+ 2 files changed, 25 insertions(+), 7 deletions(-)

@@ -1,0 +1,49 @@
+commit c6138efbcb3c69eb22be0e09740b4e74e6eff552
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 22 17:52:22 2010 -0700
+
+    runtime: closures, defer bug fix for Native Client
+    
+    Enable package tests for Native Client build.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/957042
+
+ misc/nacl/naclrun                  |  15 ++
+ src/all-nacl.bash                  |   8 +-
+ src/cmd/8g/ggen.c                  |  12 +-
+ src/cmd/8l/asm.c                   |  48 +++--
+ src/cmd/8l/l.h                     |   1 +
+ src/cmd/8l/obj.c                   |   7 +-
+ src/cmd/8l/span.c                  |   2 +-
+ src/cmd/gotest/gotest              |   6 +-
+ src/pkg/Makefile                   |  19 ++
+ src/pkg/os/stat_nacl.go            |  16 +-
+ src/pkg/runtime/Makefile           |   6 +-
+ src/pkg/runtime/malloc.h           |   4 +
+ src/pkg/runtime/mgc0.c             |  43 +++--
+ src/pkg/runtime/nacl/386/closure.c | 247 ++++++++++++++++++++++++++
+ src/pkg/runtime/nacl/386/sys.s     |  11 ++
+ src/pkg/runtime/nacl/thread.c      |   2 +-
+ src/pkg/syscall/syscall_nacl.go    |   2 +-
+ test/env.go                        |   1 +
+ test/fixedbugs/bug243.go           |   1 +
+ test/nacl-pass.txt                 | 355 -------------------------------------
+ test/nilptr/arrayindex.go          |   1 +
+ test/nilptr/arrayindex1.go         |   1 +
+ test/nilptr/arraytoslice.go        |   1 +
+ test/nilptr/arraytoslice1.go       |   1 +
+ test/nilptr/arraytoslice2.go       |   1 +
+ test/nilptr/slicearray.go          |   1 +
+ test/nilptr/structfield.go         |   1 +
+ test/nilptr/structfield1.go        |   1 +
+ test/nilptr/structfield2.go        |   1 +
+ test/nilptr/structfieldaddr.go     |   1 +
+ test/nul1.go                       |   1 +
+ test/recover3.go                   |   1 +
+ test/run                           |   2 +-
+ test/run-nacl                      |  84 ---------
+ test/sigchld.go                    |   1 +
+ test/stack.go                      |   2 +-
+ 36 files changed, 423 insertions(+), 484 deletions(-)

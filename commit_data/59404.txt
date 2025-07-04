@@ -1,0 +1,14 @@
+commit 8ec555931dc65f1cd0e7cf28d771615d8064a8ad
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat May 3 17:06:41 2025 -0400
+
+    go/types: fix typo in Info.Types doc comment
+    
+    Change-Id: Ib95b77ab3dc6e48158e25e70fabb2579f3706b5f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669755
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ src/go/types/api.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

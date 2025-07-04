@@ -1,0 +1,12 @@
+commit aed05446b4393aeabbae22472203f4f8291669f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 21 14:28:34 2013 -0500
+
+    doc: mention go fix in go1.1 release notes draft
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/7379045
+
+ doc/go1.1.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

@@ -1,0 +1,15 @@
+commit 697f4183e6815beacbd254942160e71a2e0cde60
+Author: Clément Chigot <clement.chigot@atos.net>
+Date:   Mon Mar 25 10:33:49 2019 +0100
+
+    cmd/link: allow buildmode c-archive for aix/ppc64
+    
+    Change-Id: Ia268b0d64dc89866aa09bfffcaa109741088a904
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/169119
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/config.go | 2 +-
+ src/cmd/link/internal/ld/data.go   | 9 ++++++++-
+ src/cmd/link/internal/ld/lib.go    | 6 +++++-
+ 3 files changed, 14 insertions(+), 3 deletions(-)

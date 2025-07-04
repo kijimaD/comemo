@@ -1,0 +1,16 @@
+commit 364e564e3d3a3b037d163b81f9a53b4ac3625f34
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 11 12:00:15 2009 -0800
+
+    use fully qualified names for hash interfaces
+    
+    Fixes #38.
+    
+    R=r1, r
+    https://golang.org/cl/152072
+
+ src/pkg/crypto/md5/md5.go       | 2 +-
+ src/pkg/crypto/sha1/sha1.go     | 2 +-
+ src/pkg/hash/adler32/adler32.go | 2 +-
+ src/pkg/hash/crc32/crc32.go     | 4 ++--
+ 4 files changed, 5 insertions(+), 5 deletions(-)

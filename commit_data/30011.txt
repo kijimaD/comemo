@@ -1,0 +1,17 @@
+commit ed8c62b7fb47b717dc2adc9f6d0c90c924c67712
+Author: Kyrylo Silin <silin@kyrylo.org>
+Date:   Sun Jan 22 17:56:03 2017 +0200
+
+    testing: delete unused stopAlarm()
+    
+    The function call was removed in:
+    ead08e91f6468ab1c35c250ec487935103c580f6
+    
+    Change-Id: I78fe563c9ea4554811c74130533d2186a65d3033
+    Reviewed-on: https://go-review.googlesource.com/35532
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/testing.go | 7 -------
+ 1 file changed, 7 deletions(-)

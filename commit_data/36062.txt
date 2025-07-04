@@ -1,0 +1,19 @@
+commit 3bb4be79bad3c8501274b0f4d8c6c6842216a81b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jul 18 15:10:04 2018 +1000
+
+    doc: update the Origins section of the FAQ
+    
+    Completely replace the opener, which had become not only stale
+    but bad, expand the discussion of the gopher, and generally provide
+    prose more connected to the present than to the programming world
+    of 2007.
+    
+    Fixes #26107
+    
+    Change-Id: I5e72f0c81e71d1237fe142dc26114991329a6996
+    Reviewed-on: https://go-review.googlesource.com/124616
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go_faq.html | 192 +++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 93 insertions(+), 99 deletions(-)

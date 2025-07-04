@@ -1,0 +1,19 @@
+commit e475cf2e705d4eda8647426e060898ab3f643610
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Mar 14 17:39:35 2022 -0700
+
+    syscall: add race annotations to Windows ReadFile and WriteFile
+    
+    For #51618
+    Fixes #51673
+    
+    Change-Id: Ie63408d62303293d80afed8d5cf1cb164a8abecc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392774
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/syscall_windows.go  | 54 ++++++++++++++++++++++++-----------------
+ src/syscall/zsyscall_windows.go |  4 +--
+ 2 files changed, 34 insertions(+), 24 deletions(-)

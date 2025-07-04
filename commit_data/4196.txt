@@ -1,0 +1,155 @@
+commit 6fc820729e96527cfbb6bdd48836edcc1d0e4215
+Author: Sergio Luis O. B. Correia <sergio@larces.uece.br>
+Date:   Mon Nov 23 17:32:51 2009 -0800
+
+    go: makes it build for the case $GOROOT has whitespaces
+    
+    the bash scripts and makefiles for building go didn't take into account
+    the fact $GOROOT / $GOBIN could both be directories containing whitespaces,
+    and was not possible to build it in such a situation.
+    
+    this commit adjusts the various makefiles/scripts to make it aware of that
+    possibility, and now it builds successfully when using a path with whitespaces
+    as well.
+    
+    Fixes #115.
+    
+    R=rsc, dsymonds1
+    https://golang.org/cl/157067
+
+ doc/progs/run                     |  2 +-
+ misc/cgo/gmp/Makefile             |  4 ++--
+ misc/cgo/stdio/Makefile           |  4 ++--
+ src/Make.cmd                      | 13 +++++++++----
+ src/Make.conf                     |  6 +++---
+ src/Make.pkg                      | 18 ++++++++++++------
+ src/clean.bash                    |  4 ++--
+ src/cmd/5a/Makefile               |  4 ++--
+ src/cmd/5c/Makefile               |  4 ++--
+ src/cmd/5g/Makefile               |  4 ++--
+ src/cmd/5l/Makefile               |  4 ++--
+ src/cmd/6a/Makefile               |  4 ++--
+ src/cmd/6c/Makefile               |  4 ++--
+ src/cmd/6g/Makefile               |  4 ++--
+ src/cmd/6l/Makefile               |  4 ++--
+ src/cmd/8a/Makefile               |  4 ++--
+ src/cmd/8c/Makefile               |  4 ++--
+ src/cmd/8g/Makefile               |  4 ++--
+ src/cmd/8l/Makefile               |  4 ++--
+ src/cmd/cgo/Makefile              |  4 ++--
+ src/cmd/cov/Makefile              |  4 ++--
+ src/cmd/ebnflint/Makefile         |  6 +++---
+ src/cmd/gc/mkbuiltin              |  2 +-
+ src/cmd/godefs/Makefile           |  4 ++--
+ src/cmd/godoc/Makefile            |  4 ++--
+ src/cmd/gofmt/Makefile            |  6 +++---
+ src/cmd/gofmt/test.sh             | 28 ++++++++++++++--------------
+ src/cmd/gopack/Makefile           |  4 ++--
+ src/cmd/gotest/Makefile           |  4 ++--
+ src/cmd/gotest/gotest             |  2 +-
+ src/cmd/goyacc/Makefile           |  4 ++--
+ src/cmd/hgpatch/Makefile          |  4 ++--
+ src/cmd/make.bash                 |  2 +-
+ src/cmd/nm/Makefile               |  4 ++--
+ src/cmd/prof/Makefile             |  4 ++--
+ src/lib9/Makefile                 |  8 ++++----
+ src/libbio/Makefile               |  6 +++---
+ src/libcgo/Makefile               | 11 ++++++++---
+ src/libmach/Makefile              |  6 +++---
+ src/make-arm.bash                 |  2 +-
+ src/make.bash                     | 16 ++++++++--------
+ src/pkg/Makefile                  |  2 +-
+ src/pkg/archive/tar/Makefile      |  4 ++--
+ src/pkg/asn1/Makefile             |  4 ++--
+ src/pkg/big/Makefile              |  4 ++--
+ src/pkg/bignum/Makefile           |  4 ++--
+ src/pkg/bufio/Makefile            |  4 ++--
+ src/pkg/bytes/Makefile            |  4 ++--
+ src/pkg/compress/flate/Makefile   |  4 ++--
+ src/pkg/compress/gzip/Makefile    |  4 ++--
+ src/pkg/compress/zlib/Makefile    |  4 ++--
+ src/pkg/container/heap/Makefile   |  4 ++--
+ src/pkg/container/list/Makefile   |  4 ++--
+ src/pkg/container/ring/Makefile   |  4 ++--
+ src/pkg/container/vector/Makefile |  4 ++--
+ src/pkg/crypto/aes/Makefile       |  4 ++--
+ src/pkg/crypto/block/Makefile     |  4 ++--
+ src/pkg/crypto/hmac/Makefile      |  4 ++--
+ src/pkg/crypto/md5/Makefile       |  4 ++--
+ src/pkg/crypto/rc4/Makefile       |  4 ++--
+ src/pkg/crypto/rsa/Makefile       |  4 ++--
+ src/pkg/crypto/sha1/Makefile      |  4 ++--
+ src/pkg/crypto/subtle/Makefile    |  4 ++--
+ src/pkg/crypto/tls/Makefile       |  4 ++--
+ src/pkg/crypto/x509/Makefile      |  4 ++--
+ src/pkg/debug/dwarf/Makefile      |  4 ++--
+ src/pkg/debug/elf/Makefile        |  4 ++--
+ src/pkg/debug/gosym/Makefile      |  4 ++--
+ src/pkg/debug/macho/Makefile      |  4 ++--
+ src/pkg/debug/proc/Makefile       |  4 ++--
+ src/pkg/ebnf/Makefile             |  4 ++--
+ src/pkg/encoding/ascii85/Makefile |  4 ++--
+ src/pkg/encoding/base64/Makefile  |  4 ++--
+ src/pkg/encoding/binary/Makefile  |  4 ++--
+ src/pkg/encoding/git85/Makefile   |  4 ++--
+ src/pkg/encoding/hex/Makefile     |  4 ++--
+ src/pkg/encoding/pem/Makefile     |  4 ++--
+ src/pkg/exec/Makefile             |  4 ++--
+ src/pkg/exp/datafmt/Makefile      |  4 ++--
+ src/pkg/exp/draw/Makefile         |  4 ++--
+ src/pkg/exp/eval/Makefile         |  4 ++--
+ src/pkg/exp/eval/test.bash        |  4 ++--
+ src/pkg/exp/exception/Makefile    |  4 ++--
+ src/pkg/exp/iterable/Makefile     |  4 ++--
+ src/pkg/exp/nacl/av/Makefile      |  4 ++--
+ src/pkg/exp/nacl/srpc/Makefile    |  4 ++--
+ src/pkg/exp/ogle/Makefile         |  4 ++--
+ src/pkg/expvar/Makefile           |  4 ++--
+ src/pkg/flag/Makefile             |  4 ++--
+ src/pkg/fmt/Makefile              |  4 ++--
+ src/pkg/go/ast/Makefile           |  4 ++--
+ src/pkg/go/doc/Makefile           |  4 ++--
+ src/pkg/go/parser/Makefile        |  4 ++--
+ src/pkg/go/printer/Makefile       |  4 ++--
+ src/pkg/go/scanner/Makefile       |  4 ++--
+ src/pkg/go/token/Makefile         |  4 ++--
+ src/pkg/gob/Makefile              |  4 ++--
+ src/pkg/hash/Makefile             |  4 ++--
+ src/pkg/hash/adler32/Makefile     |  4 ++--
+ src/pkg/hash/crc32/Makefile       |  4 ++--
+ src/pkg/http/Makefile             |  4 ++--
+ src/pkg/image/Makefile            |  4 ++--
+ src/pkg/image/png/Makefile        |  4 ++--
+ src/pkg/io/Makefile               |  4 ++--
+ src/pkg/json/Makefile             |  4 ++--
+ src/pkg/log/Makefile              |  4 ++--
+ src/pkg/malloc/Makefile           |  4 ++--
+ src/pkg/math/Makefile             |  4 ++--
+ src/pkg/net/Makefile              |  4 ++--
+ src/pkg/once/Makefile             |  4 ++--
+ src/pkg/os/Makefile               |  4 ++--
+ src/pkg/patch/Makefile            |  4 ++--
+ src/pkg/path/Makefile             |  4 ++--
+ src/pkg/rand/Makefile             |  4 ++--
+ src/pkg/reflect/Makefile          |  4 ++--
+ src/pkg/regexp/Makefile           |  4 ++--
+ src/pkg/rpc/Makefile              |  4 ++--
+ src/pkg/runtime/Makefile          |  4 ++--
+ src/pkg/sort/Makefile             |  4 ++--
+ src/pkg/strconv/Makefile          |  4 ++--
+ src/pkg/strings/Makefile          |  4 ++--
+ src/pkg/sync/Makefile             |  4 ++--
+ src/pkg/syscall/Makefile          |  4 ++--
+ src/pkg/tabwriter/Makefile        |  4 ++--
+ src/pkg/template/Makefile         |  4 ++--
+ src/pkg/testing/Makefile          |  4 ++--
+ src/pkg/testing/iotest/Makefile   |  4 ++--
+ src/pkg/testing/quick/Makefile    |  4 ++--
+ src/pkg/testing/script/Makefile   |  4 ++--
+ src/pkg/time/Makefile             |  4 ++--
+ src/pkg/unicode/Makefile          |  4 ++--
+ src/pkg/utf8/Makefile             |  4 ++--
+ src/pkg/xml/Makefile              |  4 ++--
+ src/sudo.bash                     |  2 +-
+ test/bench/timing.sh              |  2 +-
+ 135 files changed, 310 insertions(+), 294 deletions(-)

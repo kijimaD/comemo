@@ -1,0 +1,19 @@
+commit 2b9e7c1864c61c900b79deb9528fead33321a402
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Dec 4 10:59:39 2017 -0800
+
+    test: disable broken test for 1.10
+    
+    This test was added recently as a regress test for the spec relaxation
+    in #9060, but doesn't work correctly yet. Disable for now to fix noopt
+    builders.
+    
+    Updates #22444.
+    
+    Change-Id: I45c521ae0da7ffb0c6859d6f7220c59828ac6149
+    Reviewed-on: https://go-review.googlesource.com/81775
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/method7.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,25 @@
+commit e155bf0ce8543ebffb3b5a699861402f7abe08d7
+Author: Niko Dziemba <niko@dziemba.com>
+Date:   Wed Feb 10 15:57:16 2016 +0100
+
+    archive/zip: pool flate readers
+    
+    Similar to the flate Writer pools already used,
+    this adds pooling for flate Readers.
+    
+    compress/flate allows re-using of Readers, see
+    https://codereview.appspot.com/97140043/
+    
+    In a real-world scenario when reading ~ 500 small files from a ZIP
+    archive this gives a speedup of 1.5x-2x.
+    
+    Fixes #14289
+    
+    Change-Id: I2d98ad983e95ab7d97e06fd0145f619b4f47caa4
+    Reviewed-on: https://go-review.googlesource.com/19416
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/register.go | 40 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 39 insertions(+), 1 deletion(-)

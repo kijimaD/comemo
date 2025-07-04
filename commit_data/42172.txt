@@ -1,0 +1,15 @@
+commit ac211c037d7a39a0723420a4937205008e8ae86e
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Apr 22 10:03:00 2020 +0800
+
+    cmd/compile: rewrite some arm64 rules to use typed aux fields
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ibf8c2532b0de65901bf0dd9ef0d198dc54d56470
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229738
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go | 12 ++++++------
+ 2 files changed, 8 insertions(+), 8 deletions(-)

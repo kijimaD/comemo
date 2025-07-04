@@ -1,0 +1,21 @@
+commit f4412aee749e9ca50e37427d169ce1a5543d7f6f
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Fri Apr 6 11:06:03 2018 -0700
+
+    html/template: grow srcset buffer in proportion to need
+    
+    In particular, avoid exponential memory usage from growing it in
+    proportion to its current size.
+    
+    Fixes #24731
+    
+    Change-Id: I277d2fbac2ef7b00ae4b83d6d1dcd7f2e630a5cd
+    Reviewed-on: https://go-review.googlesource.com/105155
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/html/template/escape_test.go | 5 +++++
+ src/html/template/url.go         | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

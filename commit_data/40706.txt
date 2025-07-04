@@ -1,0 +1,15 @@
+commit 7a5e0fec099f19ae095609b08eb090b2e07998b5
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 8 19:18:17 2019 +0000
+
+    net/http: relax TestLinuxSendfile, trace all system calls, match n64:sendfile
+    
+    Fixes #35423
+    
+    Change-Id: Idb254d6a2c4b147d20e290411e4380df5cdcb306
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/206178
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/http/fs_test.go | 14 +++-----------
+ 1 file changed, 3 insertions(+), 11 deletions(-)

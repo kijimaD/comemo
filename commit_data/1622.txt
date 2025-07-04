@@ -1,0 +1,13 @@
+commit aab26a52487861b53c89102f248d6cff0f88a583
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Feb 5 14:49:53 2009 -0800
+
+    do not generate Init proto for sys and unsafe.
+    
+    R=ken
+    OCL=24455
+    CL=24455
+
+ src/cmd/gc/dcl.c       | 5 +++++
+ src/cmd/gc/sysimport.c | 2 --
+ 2 files changed, 5 insertions(+), 2 deletions(-)

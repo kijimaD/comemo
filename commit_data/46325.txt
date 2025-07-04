@@ -1,0 +1,25 @@
+commit 21de6bc463e52af01bcbfda478e2cb221e982e41
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Mon Aug 30 22:26:54 2021 +0800
+
+    cmd/compile: simplify less with non-negative number and constant 0 or 1
+    
+    The most common cases:
+    len(s) > 0
+    len(s) < 1
+    
+    and they can be simplified to:
+    len(s) != 0
+    len(s) == 0
+    
+    Fixes #48054
+    
+    Change-Id: I16e5b0cffcfab62a4acc2a09977a6cd3543dd000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/346050
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/generic.rules |   3 +
+ src/cmd/compile/internal/ssa/rewritegeneric.go | 160 +++++++++++++++++++++++++
+ test/codegen/issue48054.go                     |  31 +++++
+ 3 files changed, 194 insertions(+)

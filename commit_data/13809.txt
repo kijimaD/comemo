@@ -1,0 +1,31 @@
+commit e7d7ea21d4f0bcb9b90921f4a2d694657cbe4fff
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 13 11:14:20 2012 +1000
+
+          undo CL 6493071 / 56c7453d488f
+    
+    This change messes with anchor links. It obscures the item being linked to.
+    I don't see a way around it. Undoing for now.
+    
+          Fixes #4071.
+    
+          ««« original CL description
+          doc css: topbar sticks to the top of large windows.
+          Rationale: for large screens, the convenience of not having to scroll
+          to the top of the page to do a search outweighs having less vertical
+          space.
+          Tested with Chrome, Firefox, Safari with various window and text sizes.
+    
+          R=adg
+          CC=gobot, golang-dev
+          https://golang.org/cl/6493071
+    
+          Committer: Andrew Gerrand <adg@golang.org>
+          »»»
+    
+    R=golang-dev, r, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/6488121
+
+ doc/style.css | 18 ------------------
+ 1 file changed, 18 deletions(-)

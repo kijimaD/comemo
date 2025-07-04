@@ -1,0 +1,14 @@
+commit 77fbc310e4d9a44dc0c98561709793a2a0a59a15
+Author: Rob Pike <r@golang.org>
+Date:   Wed Dec 10 14:59:43 2008 -0800
+
+    another bug cleanup.
+    
+    R=rsc
+    DELTA=117  (54 added, 62 deleted, 1 changed)
+    OCL=20924
+    CL=20927
+
+ test/{bugs => fixedbugs}/bug120.go | 0
+ test/golden.out                    | 8 --------
+ 2 files changed, 8 deletions(-)

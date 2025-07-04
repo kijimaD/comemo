@@ -1,0 +1,22 @@
+commit 22a65ba7b7276b67237198db4609cf3e4bde34e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Feb 21 12:51:34 2023 -0800
+
+    go/types, types2: avoid unused variable error in invalid x.(type) expression
+    
+    This change removes one of the two follow-on errors in the issue below.
+    
+    For #58612.
+    
+    Change-Id: If1eec5031e524bad33caa4a914f52e6a1e273b60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/470015
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+
+ src/cmd/compile/internal/types2/expr.go             | 11 ++++++-----
+ src/go/types/expr.go                                | 14 +++++++-------
+ src/internal/types/testdata/fixedbugs/issue58612.go | 14 ++++++++++++++
+ 3 files changed, 27 insertions(+), 12 deletions(-)

@@ -1,0 +1,12 @@
+commit d0abe4cbb295f64a7d48ec395d58367c0008fc1f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 29 16:41:01 2008 -0700
+
+    ./6.out
+    
+    R=ken
+    OCL=18079
+    CL=18079
+
+ src/lib/reflect/test.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,22 @@
+commit d7ac5d148039822159601ebbf3512431d81e204f
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Mon Feb 6 21:21:52 2023 +0800
+
+    cmd/compile: intrinsify math/bits/ReverseBytes{32|64} for 386
+    
+    The BSWAPL instruction is supported in i486 and newer.
+    https://github.com/golang/go/wiki/MinimumRequirements#386 says we
+    support "All Pentium MMX or later". The Pentium is also referred to as
+    i586, so that we are safe with these instructions.
+    
+    Change-Id: I6dea1f9d864a45bb07c8f8f35a81cfe16cca216c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/465515
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 6 +++---
+ test/codegen/mathbits.go               | 3 +++
+ 2 files changed, 6 insertions(+), 3 deletions(-)

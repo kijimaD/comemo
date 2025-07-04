@@ -1,0 +1,15 @@
+commit 5b5b42ea841a9aa20848fab4407e486c8eecd0aa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 30 10:42:56 2012 -0700
+
+    godoc: replace servePage's positional argument list
+    
+    R=golang-dev, adg, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5869050
+
+ lib/godoc/godoc.html      |  4 +--
+ src/cmd/godoc/codewalk.go | 13 ++++---
+ src/cmd/godoc/godoc.go    | 86 +++++++++++++++++++++++++++--------------------
+ src/cmd/godoc/main.go     |  7 ++--
+ 4 files changed, 65 insertions(+), 45 deletions(-)

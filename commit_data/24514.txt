@@ -1,0 +1,24 @@
+commit 167a7123997c42e91d69de2203fc4c156897f0a2
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Tue Oct 13 19:09:32 2015 -0700
+
+    text/template: resolve non-empty interface
+    
+    Read what a non-empty interface points to.
+    
+    The deleted lines were added in https://codereview.appspot.com/4810060/,
+    which attempted to break an infinite loop. That was a long time ago.
+    If I just delete these lines with current codebase, the test "bug1"
+    (added in that CL) does not fail.
+    
+    All new tests fail without this fix.
+    
+    Fixes #12924
+    
+    Change-Id: I9370ca44facd6af3019850aa065b936e5a482d37
+    Reviewed-on: https://go-review.googlesource.com/15809
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/text/template/exec.go      |  5 -----
+ src/text/template/exec_test.go | 51 +++++++++++++++++++++++++++---------------
+ 2 files changed, 33 insertions(+), 23 deletions(-)

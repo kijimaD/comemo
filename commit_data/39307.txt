@@ -1,0 +1,14 @@
+commit 9ab9ca27bb035bccdeff57d513316e3c4b2d2029
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Wed Jun 5 11:45:01 2019 -0400
+
+    doc: update Go 1.13 release notes using relnote
+    
+    The additions were generated using golang.org/x/build/cmd/relnote.
+    
+    Change-Id: Ie7322f7d01a2dd4a7bca89b9ef9c1ce93bc2671a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/180778
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.13.html | 287 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 287 insertions(+)

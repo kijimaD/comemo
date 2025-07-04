@@ -1,0 +1,28 @@
+commit 67b9ecb23b16ed63f974e6741e1f229eab023ff5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Nov 17 12:28:40 2020 -0500
+
+    runtime: update paniclk ordering
+    
+    Now that allglock is no longer taken in throw, paniclk can move to the
+    bottom of the lock order where it belongs.
+    
+    There is no fundamental reason that we really need to skip checks on
+    paniclk in lockWithRank (despite the recursive throws that could be
+    caused by lock rank checking, startpanic_m would still allow the crash
+    to complete). However, the partial order of lockRankPanic should be
+    every single lock that may be held before a throw, nil dereference,
+    out-of-bounds access, which our partial order doesn't cover.
+    
+    Updates #42669
+    
+    Change-Id: Ic3efaea873dc2dd9fd5b0d6ccdd5319730b29a22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/270862
+    Trust: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/lockrank.go    |  8 ++++----
+ src/runtime/lockrank_on.go | 11 +++++------
+ 2 files changed, 9 insertions(+), 10 deletions(-)

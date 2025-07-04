@@ -1,0 +1,13 @@
+commit e3bfeec4747fb1d44d4fa5da33fb5d37d5085f16
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 20 23:10:51 2010 -0700
+
+    big: implemented Int.Binomial (to be used in test/hilbert.go with the
+         forthcoming implementation of big.Rat)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1229047
+
+ src/pkg/big/int.go | 27 ++++++++++++++++++---------
+ 1 file changed, 18 insertions(+), 9 deletions(-)

@@ -1,0 +1,16 @@
+commit 39eda0dac12a53f7f0c3189e5929d171e8e0b844
+Author: Cholerae Hu <choleraehyq@gmail.com>
+Date:   Fri Aug 3 14:49:47 2018 +0800
+
+    net/mail: lazily initialize dateLayouts
+    
+    Saves 6KB of memory in stdlib packages.
+    
+    Updates #26775
+    
+    Change-Id: I1a6184cefa78e9a3c034fa84506fdfe0fec27add
+    Reviewed-on: https://go-review.googlesource.com/127736
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/mail/message.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)

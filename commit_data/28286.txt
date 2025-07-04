@@ -1,0 +1,18 @@
+commit 1ff19201fd898c3e1a0ed5d3458c81c1f062570b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 9 19:29:25 2016 +0000
+
+    net/url: add URL.Hostname and URL.Port accessors
+    
+    Fixes #16142
+    
+    Change-Id: I7609faaf00c69646b0bd44a60a63a22d9265feb0
+    Reviewed-on: https://go-review.googlesource.com/28933
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Francesc Campoy Flores <campoy@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/url/url.go      | 41 +++++++++++++++++++++++++++++++++++++++++
+ src/net/url/url_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+)

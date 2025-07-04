@@ -1,0 +1,26 @@
+commit 85f4051731f9f2d0514301470d528db94ed5781c
+Author: Brian Kessler <brian.m.kessler@gmail.com>
+Date:   Wed Dec 6 09:53:14 2017 -0700
+
+    math/big: implement Atkin's ModSqrt for 5 mod 8 primes
+    
+    For primes congruent to 5 mod 8 there is a simple deterministic
+    method for calculating the modular square root due to Atkin,
+    using one exponentiation and 4 multiplications.
+    
+    A. Atkin.  Probabilistic primality testing, summary by F. Morain.
+    Research Report 1779, INRIA, pages 159–163, 1992.
+    
+    This increases the speed of modular square roots for these primes
+    considerably.
+    
+    name                old time/op  new time/op  delta
+    ModSqrt231_5Mod8-4  1.03ms ± 2%  0.36ms ± 5%  -65.06%  (p=0.008 n=5+5)
+    
+    Change-Id: I024f6e514bbca8d634218983117db2afffe615fe
+    Reviewed-on: https://go-review.googlesource.com/99615
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/math/big/int.go      | 37 +++++++++++++++++++++++++++++++++----
+ src/math/big/int_test.go | 30 ++++++++++++++----------------
+ 2 files changed, 47 insertions(+), 20 deletions(-)

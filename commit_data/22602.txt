@@ -1,0 +1,53 @@
+commit c776592a4ff17b2153492bf5b17ae3151a42abf0
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sun Apr 19 19:33:58 2015 -0700
+
+    cmd/internal/ld: prefer constants from cmd/internal/obj
+    
+    The majority of this CL was prepared via scripted invocations of
+    `gofmt -w -r "$SYM -> obj.$SYM" cmd/internal/ld/*.go` and `gofmt -w -r
+    "ld.$SYM -> obj.$SYM" cmd/?l/*.go`.
+    
+    Because of issue #7417, that was followed by repeatedly running an AWK
+    script to identify lines that differed other than whitespace changes
+    or "ld." or "obj." prefixes and manually restoring comments.
+    
+    Finally, the redundant constants from cmd/internal/ld/link.go were
+    removed, and "goimports -w" was used to cleanup import lines.
+    
+    Passes rsc.io/toolstash/buildall, even when modified to also build cmd.
+    
+    Fixes #10055.
+    
+    Change-Id: Icd5dbe819a3b6520ce883748e60017dc8e9a2e85
+    Reviewed-on: https://go-review.googlesource.com/9112
+    Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/5l/asm.go              | 110 +++++++++----------
+ src/cmd/5l/obj.go              |  24 ++--
+ src/cmd/6l/asm.go              | 186 +++++++++++++++----------------
+ src/cmd/6l/obj.go              |  40 +++----
+ src/cmd/7l/asm.go              |  56 +++++-----
+ src/cmd/7l/obj.go              |  12 +-
+ src/cmd/8l/asm.go              | 136 +++++++++++------------
+ src/cmd/8l/obj.go              |  28 ++---
+ src/cmd/9l/asm.go              |  72 ++++++------
+ src/cmd/9l/obj.go              |   6 +-
+ src/cmd/internal/ld/data.go    | 244 ++++++++++++++++++++---------------------
+ src/cmd/internal/ld/dwarf.go   |  10 +-
+ src/cmd/internal/ld/elf.go     |  77 ++++++-------
+ src/cmd/internal/ld/go.go      |  16 +--
+ src/cmd/internal/ld/ldelf.go   |  30 ++---
+ src/cmd/internal/ld/ldmacho.go |  17 +--
+ src/cmd/internal/ld/ldpe.go    |  28 ++---
+ src/cmd/internal/ld/lib.go     |  96 ++++++++--------
+ src/cmd/internal/ld/link.go    |  95 ----------------
+ src/cmd/internal/ld/macho.go   |  19 ++--
+ src/cmd/internal/ld/objfile.go |  21 ++--
+ src/cmd/internal/ld/pcln.go    |   8 +-
+ src/cmd/internal/ld/pe.go      |  23 ++--
+ src/cmd/internal/ld/pobj.go    |   6 +-
+ src/cmd/internal/ld/sym.go     |  46 ++++----
+ src/cmd/internal/ld/symtab.go  |  83 +++++++-------
+ 26 files changed, 701 insertions(+), 788 deletions(-)

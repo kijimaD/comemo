@@ -1,0 +1,45 @@
+commit 2cbab4e98c6091f5fb6cb73bdebfe328793da388
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 9 16:21:22 2023 -0800
+
+    cmd/compile: pass type checker error codes in the compiler
+    
+    Pass type checker error codes to base.ErrorfAt function calls
+    in the compiler (but don't do anything yet with the code).
+    
+    Also, provide error codes to base.ErrorfAt calls in the
+    compiler as needed.
+    
+    This opens the door towards reporting the error code and/or
+    providing a link/reference to more detailed explanations
+    (see internal/types/errors/codes.go).
+    
+    Change-Id: I0ff9368d8163499ffdac6adfe8331fdc4a19b4b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/475198
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/base/print.go          |  5 ++-
+ src/cmd/compile/internal/escape/escape.go       |  2 +-
+ src/cmd/compile/internal/escape/graph.go        |  2 +-
+ src/cmd/compile/internal/ir/func.go             |  2 +-
+ src/cmd/compile/internal/noder/irgen.go         |  7 ++--
+ src/cmd/compile/internal/noder/noder.go         |  2 +-
+ src/cmd/compile/internal/noder/writer.go        |  2 +-
+ src/cmd/compile/internal/pkginit/initorder.go   |  3 +-
+ src/cmd/compile/internal/ssagen/abi.go          |  4 +-
+ src/cmd/compile/internal/ssagen/nowb.go         |  4 +-
+ src/cmd/compile/internal/ssagen/pgen.go         |  4 +-
+ src/cmd/compile/internal/staticdata/data.go     |  2 +-
+ src/cmd/compile/internal/staticdata/embed.go    | 14 +++----
+ src/cmd/compile/internal/typecheck/const.go     |  3 +-
+ src/cmd/compile/internal/typecheck/dcl.go       |  9 ++--
+ src/cmd/compile/internal/typecheck/stmt.go      | 55 +++++++++++++------------
+ src/cmd/compile/internal/typecheck/typecheck.go |  5 ++-
+ src/cmd/compile/internal/types/size.go          |  7 ++--
+ src/cmd/compile/internal/types/type.go          |  3 +-
+ src/cmd/compile/internal/walk/expr.go           |  4 +-
+ 20 files changed, 74 insertions(+), 65 deletions(-)

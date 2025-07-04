@@ -1,0 +1,26 @@
+commit 31e5d83525acbba07b38106952834c9a44b855a7
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Mar 23 21:24:22 2016 +0100
+
+    testing: probe with N=1
+    
+    Change control flow to probe with N=1. This calls benchFunc
+    the same number of times as the old implementation in the
+    absence of subbenchmarks.
+    
+    To be compatible with existing tools, benchmarking only
+    prints a line for "leaf" benchmarks. This means, though, that
+    the name of a benchmark can only be printed after the first
+    iteration.
+    
+    Issue #14863
+    
+    Change-Id: Ic7b9b89b058f8ebb5287755f24f9e47df8c9537c
+    Reviewed-on: https://go-review.googlesource.com/21043
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/testing/benchmark.go | 50 ++++++++++++++++++++++++------------------------
+ src/testing/sub_test.go  |  2 +-
+ 2 files changed, 26 insertions(+), 26 deletions(-)

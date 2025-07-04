@@ -1,0 +1,12 @@
+commit 1063ed8f3baba0b07f37dc067e4bcd01b0f1f21c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 15 14:57:49 2010 -0800
+
+    5l: fix arm build
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/3701041
+
+ src/cmd/5l/asm.c | 6 ++++++
+ 1 file changed, 6 insertions(+)

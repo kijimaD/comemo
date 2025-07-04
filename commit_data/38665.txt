@@ -1,0 +1,22 @@
+commit 2b605670020fc637e20a609b1dc86c1f0e7afdd1
+Author: Austin Clements <austin@google.com>
+Date:   Fri Mar 1 13:16:37 2019 -0500
+
+    sync: internal fixed size lock-free queue for sync.Pool
+    
+    This is the first step toward fixing multiple issues with sync.Pool.
+    This adds a fixed size, lock-free, single-producer, multi-consumer
+    queue that will be used in the new Pool stealing implementation.
+    
+    For #22950, #22331.
+    
+    Change-Id: I50e85e3cb83a2ee71f611ada88e7f55996504bb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166957
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/sync/export_test.go |  25 +++++++
+ src/sync/pool_test.go   |  73 +++++++++++++++++++
+ src/sync/poolqueue.go   | 185 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 283 insertions(+)

@@ -1,0 +1,14 @@
+commit cf901a7240a37ec24d68c4da5b045fba7cf8bfd9
+Author: cch123 <buaa.cch@gmail.com>
+Date:   Thu Jun 7 10:08:48 2018 +0000
+
+    runtime: fix typo in runqput comment
+    
+    Change-Id: Idd88a1d9420545e3e326f8e3b57a38d8c7515555
+    GitHub-Last-Rev: 59528f552238eb4070cb9a66c1dbfafd6bc3808d
+    GitHub-Pull-Request: golang/go#25779
+    Reviewed-on: https://go-review.googlesource.com/116935
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

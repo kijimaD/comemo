@@ -1,0 +1,13 @@
+commit da648eac67dded869cfb6af2c0661f21af064f02
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 29 13:23:07 2019 -0800
+
+    doc: remove meaningless word from Go 1.12 release notes
+    
+    Change-Id: I744940e2bbde19ccec53af6c5469d46ba9161f01
+    Reviewed-on: https://go-review.googlesource.com/c/160179
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.12.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

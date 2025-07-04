@@ -1,0 +1,14 @@
+commit c55d0c4dd7947433a21171ccd4ad90592d8b04e7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 20 09:31:07 2011 -0700
+
+    test: match gccgo error message for bug337.go
+    
+    bug337.go:17:2: error: value computed is not used
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5094042
+
+ test/fixedbugs/bug337.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

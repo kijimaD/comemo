@@ -1,0 +1,15 @@
+commit 892b5074f521ae812b880808e0bd79ee2a02b1a1
+Author: Rob Pike <r@golang.org>
+Date:   Mon Sep 22 15:35:25 2014 -0700
+
+    fmt: document that self-recursive data structures can be fatal
+    
+    Fixes #8241.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/144420043
+
+ src/fmt/doc.go | 4 ++++
+ 1 file changed, 4 insertions(+)

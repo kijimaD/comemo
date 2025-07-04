@@ -1,0 +1,18 @@
+commit 07b3e629cedb518533407628b64fe6fc96f5a9e4
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Aug 2 16:24:45 2019 -0400
+
+    cmd/go: report loading errors from 'go mod tidy' and 'go mod vendor'
+    
+    Fixes #27063
+    
+    Change-Id: Iedd14fd614a3d79d1387b923a0f123c2bc9e0b33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188763
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modload/load.go           |  6 +++--
+ src/cmd/go/testdata/script/mod_tidy_error.txt | 39 +++++++++++++++++++++++++++
+ src/cmd/go/testdata/script/mod_vendor.txt     |  6 -----
+ 3 files changed, 43 insertions(+), 8 deletions(-)

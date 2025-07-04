@@ -1,0 +1,16 @@
+commit 05522cd51e9ca16bf915de279a1bf7ff98a3644c
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Thu Sep 3 17:41:25 2009 -0700
+
+    s/Thread/Goroutine/
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=328  (112 added, 110 deleted, 106 changed)
+    OCL=34356
+    CL=34356
+
+ usr/austin/ogle/event.go                    |  54 +++++++-------
+ usr/austin/ogle/{thread.go => goroutine.go} |  55 +++++++-------
+ usr/austin/ogle/process.go                  | 109 ++++++++++++++--------------
+ 3 files changed, 110 insertions(+), 108 deletions(-)

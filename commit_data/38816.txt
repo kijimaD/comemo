@@ -1,0 +1,16 @@
+commit bdd7bb5526d5ba6a3471ce03ae953bb6d793b501
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Fri Apr 19 16:35:24 2019 +0700
+
+    cmd/compile: remove unused func nodfltconst
+    
+    Its only usage was removed in golang.org/cl/103860
+    
+    Change-Id: I2a230b9475b0aadf3892b89f5e4ee6d4c5b70394
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/172917
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/subr.go | 6 ------
+ 1 file changed, 6 deletions(-)

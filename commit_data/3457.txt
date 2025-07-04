@@ -1,0 +1,49 @@
+commit 650bff6aa99c07f124268069fe8e7caa538110e5
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 6 14:55:39 2009 -0700
+
+    another round of gofmt applications
+    
+    R=gri
+    DELTA=900  (106 added, 31 deleted, 763 changed)
+    OCL=35384
+    CL=35396
+
+ doc/progs/cat.go                         |   4 +-
+ doc/progs/cat_rot13.go                   |  22 ++--
+ src/cmd/gc/unsafe.go                     |   1 +
+ src/pkg/archive/tar/common.go            |   1 +
+ src/pkg/archive/tar/reader.go            |   3 +-
+ src/pkg/archive/tar/reader_test.go       |  10 +-
+ src/pkg/archive/tar/writer.go            |  72 +++++-----
+ src/pkg/base64/base64.go                 |  72 +++++-----
+ src/pkg/big/int_test.go                  |  22 +++-
+ src/pkg/big/nat_test.go                  |   1 +
+ src/pkg/bignum/arith.go                  |  26 ++--
+ src/pkg/bignum/bignum.go                 | 218 +++++++++++++++++--------------
+ src/pkg/bignum/bignum_test.go            | 177 +++++++++++++------------
+ src/pkg/bignum/integer.go                |  26 ++--
+ src/pkg/bignum/nrdiv_test.go             |  18 +--
+ src/pkg/bignum/rational.go               |  14 +-
+ src/pkg/bytes/buffer_test.go             |  42 +++---
+ src/pkg/bytes/bytes.go                   |  97 +++++++-------
+ src/pkg/compress/flate/flate_test.go     |  47 ++++---
+ src/pkg/compress/flate/inflate.go        |  94 +++++++------
+ src/pkg/compress/flate/reverse_bits.go   |   5 +-
+ src/pkg/compress/flate/token.go          |  41 +++---
+ src/pkg/compress/flate/util.go           |   1 -
+ src/pkg/compress/gzip/gunzip.go          |  53 ++++----
+ src/pkg/compress/zlib/reader.go          |  17 ++-
+ src/pkg/compress/zlib/reader_test.go     |  48 +++----
+ src/pkg/compress/zlib/writer.go          |  19 ++-
+ src/pkg/compress/zlib/writer_test.go     |   2 +-
+ src/pkg/container/heap/heap.go           |   8 +-
+ src/pkg/container/list/list.go           |  72 +++++-----
+ src/pkg/container/list/list_test.go      |  62 ++++-----
+ src/pkg/container/ring/ring.go           |  12 +-
+ src/pkg/container/ring/ring_test.go      |  20 +--
+ src/pkg/container/vector/intvector.go    |  26 ++--
+ src/pkg/container/vector/stringvector.go |  26 ++--
+ src/pkg/container/vector/vector.go       |  76 +++++------
+ src/pkg/container/vector/vector_test.go  | 128 ++++++++++++------
+ 37 files changed, 829 insertions(+), 754 deletions(-)

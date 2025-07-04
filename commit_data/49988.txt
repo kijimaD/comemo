@@ -1,0 +1,34 @@
+commit 908499adec185a672b337c84ca4cea0755f0d5cf
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Jul 22 14:58:40 2022 -0700
+
+    cmd/compile: stop using VARKILL
+    
+    With the introduction of stack objects, VARKILL information is
+    no longer needed.
+    
+    With stack objects, an object is dead when there are no more static
+    references to it, and the stack scanner can't find any live pointers
+    to it. VARKILL information isn't used to establish live ranges for
+    address-taken variables any more. In effect, the last static reference
+    *is* the VARKILL, and there's an additional dynamic liveness check
+    during stack scanning.
+    
+    Next CL will actually rip out the VARKILL opcodes.
+    
+    Change-Id: I030a2ab867445cf4e0e69397911f8a2e2f0ed07b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419234
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/writebarrier.go |  6 --
+ src/cmd/compile/internal/ssagen/ssa.go       | 10 ----
+ src/cmd/compile/internal/walk/complit.go     |  4 +-
+ src/cmd/compile/internal/walk/order.go       | 87 +++++++---------------------
+ src/cmd/compile/internal/walk/select.go      |  7 +--
+ test/codegen/mapaccess.go                    | 50 ++++++++--------
+ test/live.go                                 |  4 +-
+ test/live_regabi.go                          |  4 +-
+ 8 files changed, 50 insertions(+), 122 deletions(-)

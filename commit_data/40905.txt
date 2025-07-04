@@ -1,0 +1,19 @@
+commit 0f251028585e052a3d34dcce83b05d8aa9ba170e
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Nov 14 21:34:35 2019 -0500
+
+    runtime: print more information on stack overflow
+    
+    Print the current SP and (old) stack bounds when the stack grows
+    too large. This helps to identify the problem: whether a large
+    stack is used, or something else goes wrong.
+    
+    For #35470.
+    
+    Change-Id: I34a4064d5c7280978391d835e171b90d06f87222
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207351
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/crash_test.go | 20 +++++++++++++++++---
+ src/runtime/stack.go      |  1 +
+ 2 files changed, 18 insertions(+), 3 deletions(-)

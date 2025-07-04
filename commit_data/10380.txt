@@ -1,0 +1,15 @@
+commit dc6726b37f54b0ae3db471de7f1631e6b5cf80e5
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Nov 14 21:59:48 2011 +0300
+
+    runtime: fix timers crash
+    Timer callbacks occasionally crash
+    with "sched while holding locks" message.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5381043
+
+ src/pkg/runtime/time.goc   |  8 +++++++-
+ src/pkg/time/sleep_test.go | 16 ++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

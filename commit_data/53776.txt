@@ -1,0 +1,20 @@
+commit af297c35555d75e43bcd58f868534bdd022767bd
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Apr 29 06:07:42 2023 +1000
+
+    cmd/internal/obj/arm64: factor out splitting of 24 bit unsigned scaled immediates
+    
+    Rather than duplicating this code, factor it out into a function and
+    add test coverage.
+    
+    Change-Id: I37ce568ded4659d98a4ff1361520c5fb2207e947
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/512537
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/asm/internal/asm/testdata/arm64.s    |  72 ++++++++----
+ src/cmd/internal/obj/arm64/asm7.go           |  53 +++++----
+ src/cmd/internal/obj/arm64/asm_arm64_test.go | 158 +++++++++++++++++++++++++++
+ 3 files changed, 231 insertions(+), 52 deletions(-)

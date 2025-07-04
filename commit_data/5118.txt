@@ -1,0 +1,26 @@
+commit 596c16e0458060aec0c81cccaef3070a1d6daf81
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 23 20:48:23 2010 -0700
+
+    runtime: add memory profiling, disabled.
+    no way to get the data out yet.
+    
+    add prototype for runtime.Callers,
+    missing from last CL.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/713041
+
+ src/pkg/runtime/Makefile   |   1 +
+ src/pkg/runtime/extern.go  |  26 +++++-
+ src/pkg/runtime/iface.c    |   6 +-
+ src/pkg/runtime/malloc.cgo |  60 ++++++++++--
+ src/pkg/runtime/malloc.h   |  18 +++-
+ src/pkg/runtime/mfinal.c   |   4 +-
+ src/pkg/runtime/mgc0.c     |  24 +++--
+ src/pkg/runtime/mprof.cgo  | 225 +++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/runtime/runtime.h  |   3 +-
+ src/pkg/runtime/slice.c    |   2 +-
+ src/pkg/runtime/string.cgo |   6 +-
+ 11 files changed, 344 insertions(+), 31 deletions(-)

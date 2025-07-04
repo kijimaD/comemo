@@ -1,0 +1,17 @@
+commit ba1018b4549f3edc257221cc8e49221255e03290
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Jan 9 21:33:54 2018 +0000
+
+    net/url: reject invalid userinfo values when parsing URLs
+    
+    Fixes #23392
+    
+    Change-Id: I5822b082b14d886b9c3b5ad7beebb2c01a77851b
+    Reviewed-on: https://go-review.googlesource.com/87038
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/url/url.go      | 33 +++++++++++++++++++++++++++++++++
+ src/net/url/url_test.go |  7 +++++++
+ 2 files changed, 40 insertions(+)

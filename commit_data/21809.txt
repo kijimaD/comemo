@@ -1,0 +1,12 @@
+commit 100d64b9206fb1e73c32ea513cedb31320e9c17e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 27 22:56:29 2015 -0500
+
+    cmd/go: use Go linker instead of C linker
+    
+    Change-Id: I783df66d762b52ad3d74340ad5692790cd0ab544
+    Reviewed-on: https://go-review.googlesource.com/6360
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

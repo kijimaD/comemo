@@ -1,0 +1,12 @@
+commit 114f20532e5f360a8738bfd7ab58dbd8d9f6ca98
+Author: Albert Strasheim <fullung@gmail.com>
+Date:   Sun Apr 7 18:37:32 2013 +1000
+
+    runtime: gofmt -s
+    
+    R=golang-dev, iant, dave
+    CC=golang-dev
+    https://golang.org/cl/8253045
+
+ src/pkg/runtime/map_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,21 @@
+commit 2e918c3aab6cc944380da672b93fb92c67b35de1
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Mar 16 02:38:43 2020 +1100
+
+    cmd/compile: provide Load8/Store8 atomic intrinsics on riscv64
+    
+    Updates #36765
+    
+    Change-Id: Ieeb6bbc54e4841a1348ad50e80342ec4bc675e07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223557
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go             |  4 ++--
+ src/cmd/compile/internal/riscv64/ssa.go        | 19 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules |  5 +++++
+ src/cmd/compile/internal/ssa/gen/RISCV64Ops.go |  9 +++++++++
+ src/cmd/compile/internal/ssa/opGen.go          | 27 ++++++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go |  6 ++++++
+ 6 files changed, 68 insertions(+), 2 deletions(-)

@@ -1,0 +1,26 @@
+commit cec84f7309f9ae962a326d60f19c9c7881749012
+Author: Rob Pike <r@golang.org>
+Date:   Tue Oct 25 19:14:20 2016 -0700
+
+    doc/effectivego: reword confusing sentence
+    
+    For some reason git won't let me write
+    
+            doc/effective_go.html: reword confusing sentence
+    
+    or even
+    
+            doc/effective_go: reword confusing sentence
+    
+    as the subject line for this CL, but that's not important. The
+    actual CL just rewrites one sentence and adds an option to grep in
+    the associated example.
+    
+    Fixes #15875
+    
+    Change-Id: Iee159ea751caf4b73eacf3dfc86e29032646373f
+    Reviewed-on: https://go-review.googlesource.com/32110
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/effective_go.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

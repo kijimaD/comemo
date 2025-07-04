@@ -1,0 +1,23 @@
+commit 05d8f1d1664e6413756ed4e18392310b75501ff4
+Author: David Chase <drchase@google.com>
+Date:   Fri May 22 22:01:01 2015 -0400
+
+    cmd/compile: propagate correct line numbers in treecopy
+    
+    Added a lineno parameter to treecopy and listtreecopy
+    (ignored if = 0).  When nodes are copied the copy is
+    assigned the non-zero lineno (normally this would be
+    the destination).
+    
+    Fixes #8183
+    
+    Change-Id: Iffb767a745093fb89aa08bf8a7692c2f0122be98
+    Reviewed-on: https://go-review.googlesource.com/10334
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/compile/internal/gc/dcl.go      |  5 +++--
+ src/cmd/compile/internal/gc/order.go    |  2 +-
+ src/cmd/compile/internal/gc/racewalk.go |  2 +-
+ src/cmd/compile/internal/gc/subr.go     | 23 +++++++++++++++++------
+ test/fixedbugs/issue8183.go             | 23 +++++++++++++++++++++++
+ 5 files changed, 45 insertions(+), 10 deletions(-)

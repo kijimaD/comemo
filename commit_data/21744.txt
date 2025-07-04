@@ -1,0 +1,18 @@
+commit c1216c3a335894c86d9eb2fe3005b171619e2bc3
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Feb 26 07:48:50 2015 +1100
+
+    runtime: skip failing gdb test on linux/arm
+    
+    Updates #10002
+    
+    The gdb test added in 1c82e236f5ee is failing on most arm systems.
+    
+    Temporarily disable this test so that we can return to a working arm build.
+    
+    Change-Id: Iff96ea8d5a99e1ceacf4979e864ff196e5503535
+    Reviewed-on: https://go-review.googlesource.com/5902
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/runtime-gdb_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

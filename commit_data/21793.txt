@@ -1,0 +1,15 @@
+commit 66c4031ee97289f26922126111e0510398fb43fd
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Feb 27 21:43:53 2015 +1100
+
+    image/draw: optimize drawFillSrc.
+    
+    benchmark                    old ns/op     new ns/op     delta
+    BenchmarkFillSrc             46781         46000         -1.67%
+    
+    Change-Id: I0ab25d42d5763f1a0fe5a67ee00b83f0aa55f1f6
+    Reviewed-on: https://go-review.googlesource.com/6235
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/draw/draw.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)

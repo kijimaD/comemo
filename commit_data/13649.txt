@@ -1,0 +1,13 @@
+commit 6918357031df3a7e3373fcb0b28657ead4afc1bb
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Mon Aug 20 10:55:40 2012 +0200
+
+    exp/locale/collate: Added test flag to maketables tool for comparing newly
+    against previously generated tables.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6441098
+
+ src/pkg/exp/locale/collate/maketables.go | 89 +++++++++++++++++++++++++++-----
+ 1 file changed, 77 insertions(+), 12 deletions(-)

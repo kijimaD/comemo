@@ -1,0 +1,14 @@
+commit 46ee09eff19f85512637bc85014f78937c3b688a
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Nov 8 10:09:17 2011 +1100
+
+    html: fix typo in package docs.
+    
+    Fixes #2419.
+    
+    R=dsymonds, rsc
+    CC=golang-dev
+    https://golang.org/cl/5352046
+
+ src/pkg/html/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

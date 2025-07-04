@@ -1,0 +1,16 @@
+commit 8a9dc05312ece25aae057e618f3715208d201f8e
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Dec 9 16:59:38 2016 -0800
+
+    cmd/compile: allow inlining of functions with intrinsics in them
+    
+    Intrinsics are ok to inline as they don't rewrite to actual calls.
+    
+    Change-Id: Ieb19c834c61579823c62c6d1a1b425d6c4d4de23
+    Reviewed-on: https://go-review.googlesource.com/34272
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/gc/inl.go | 4 ++++
+ 1 file changed, 4 insertions(+)

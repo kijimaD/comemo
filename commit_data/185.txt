@@ -1,0 +1,11 @@
+commit 9615542d102516a70717bdcc08cb563a9644dbfd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 17 16:22:02 2008 -0700
+
+    - added another bug test ('len' shouldn't be a keyword)
+    
+    SVN=123225
+
+ test/bugs/bug053.go | 11 +++++++++++
+ test/golden.out     |  4 ++++
+ 2 files changed, 15 insertions(+)

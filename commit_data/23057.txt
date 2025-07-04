@@ -1,0 +1,13 @@
+commit d36cc027959170c9927a52f139482d2369f173af
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri May 15 14:46:20 2015 -0400
+
+    reflect: make PtrTo(FuncOf(...)) not crash
+    
+    Change-Id: Ie67e295bf327126dfdc75b73979fe33fbcb79ad9
+    Reviewed-on: https://go-review.googlesource.com/10150
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/reflect/all_test.go | 23 ++++++++++++++++++++++-
+ src/reflect/type.go     |  2 +-
+ 2 files changed, 23 insertions(+), 2 deletions(-)

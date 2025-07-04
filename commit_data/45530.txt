@@ -1,0 +1,19 @@
+commit 10d625d5b41f17c118da18a592c683e60fcdcb3b
+Author: Ariel Mashraki <ariel@mashraki.co.il>
+Date:   Tue Apr 20 16:15:29 2021 +0300
+
+    database/sql: add NullInt16 and NullByte
+    
+    Fixes #40082
+    
+    Change-Id: I01cd4d0e23c0376a6ee6e0b196c9f840cd662325
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/311572
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/database/sql/fakedb_test.go |  8 +++++-
+ src/database/sql/sql.go         | 54 +++++++++++++++++++++++++++++++++++++++++
+ src/database/sql/sql_test.go    | 24 ++++++++++++++++++
+ 3 files changed, 85 insertions(+), 1 deletion(-)

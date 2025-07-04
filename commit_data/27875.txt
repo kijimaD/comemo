@@ -1,0 +1,17 @@
+commit 04e76f295f434bf1bd5ef3b01eed42b638a8b321
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Wed Aug 17 10:32:39 2016 -0400
+
+    test: add test for CL 26831
+    
+    Test nil check removal for access of PAUTOHEAP.
+    
+    Change-Id: Id739a9cda7cd3ff173bdcccfedcad93ee90711ef
+    Reviewed-on: https://go-review.googlesource.com/27232
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ test/nilptr3.go     | 8 ++++++++
+ test/nilptr3_ssa.go | 8 ++++++++
+ 2 files changed, 16 insertions(+)

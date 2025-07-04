@@ -1,0 +1,12 @@
+commit 26399948e3402d3512cb14fe5901afaef54482fa
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Dec 8 11:39:11 2014 +1100
+
+    add bin/ to .gitignore.
+    
+    Change-Id: I5c788d324e56ca88366fb54b67240cebf5dced2c
+    Reviewed-on: https://go-review.googlesource.com/1171
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ .gitignore | 1 +
+ 1 file changed, 1 insertion(+)

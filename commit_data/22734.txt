@@ -1,0 +1,20 @@
+commit 1fb948a0293526ac680785e74cad750571976f1f
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 26 21:58:53 2015 -0700
+
+    test: set GOMAXPROCS=1 in fixedbugs/issue9110
+    
+    With this fix,
+    
+    GOMAXPROCS=8 ./all.bash
+    
+    passes, at least on my machine.
+    
+    Fixes #10216.
+    
+    Change-Id: Ib5991950892a1399ec81aced0a52b435e6f83fdf
+    Reviewed-on: https://go-review.googlesource.com/9392
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/issue9110.go | 1 +
+ 1 file changed, 1 insertion(+)

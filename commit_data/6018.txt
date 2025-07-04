@@ -1,0 +1,20 @@
+commit 79c62aaa999cb659d070a8b380bd21a73e7801cf
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 13 14:29:23 2010 +1000
+
+    os: implement env using native windows api.
+    Fixes #864.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1975043
+
+ src/pkg/os/Makefile                     |  1 -
+ src/pkg/os/env.go                       | 87 -------------------------------
+ src/pkg/os/env_unix.go                  | 83 ++++++++++++++++++++++++++++--
+ src/pkg/os/env_windows.go               | 91 +++++++++++++++++++++++++++++++++
+ src/pkg/os/os_test.go                   |  2 +-
+ src/pkg/syscall/syscall_windows.go      |  4 ++
+ src/pkg/syscall/zsyscall_windows_386.go | 64 +++++++++++++++++++++++
+ src/pkg/syscall/ztypes_windows_386.go   |  1 +
+ 8 files changed, 241 insertions(+), 92 deletions(-)

@@ -1,0 +1,12 @@
+commit 44870547517e84cfd6ddb0b744823069ce83bf10
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 10 09:02:22 2013 -0700
+
+    runtime: clean up / align comment tabbing
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/13336046
+
+ src/pkg/runtime/runtime.h | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

@@ -1,0 +1,16 @@
+commit 8e3fe10ee381cb0200a683dfe116189aa8b41d9f
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Nov 24 14:01:12 2008 -0800
+
+    1. retract general field names
+    2. array bounds bug
+    3. ... optimization bug
+    
+    R=r
+    OCL=19927
+    CL=19927
+
+ src/cmd/6g/cgen.c | 33 ++++++++++++++++++++++++++++++---
+ src/cmd/6g/reg.c  |  4 ++--
+ src/cmd/gc/go.y   |  5 +----
+ 3 files changed, 33 insertions(+), 9 deletions(-)

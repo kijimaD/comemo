@@ -1,0 +1,32 @@
+commit 3cf79d96105d890d7097d274804644b2a2093df1
+Author: Ori Bernstein <ori@eigenstate.org>
+Date:   Sun Jul 3 12:26:30 2022 -0400
+
+    runtime: pass correct string to exits on Plan 9
+    
+    In CL 405901 the definition of exit in the Plan 9 go runtime
+    was changed like so:
+    
+            -               status = append(itoa(tmp[:len(tmp)-1], uint64(e)), 0)
+            +               sl := itoa(tmp[:len(tmp)-1], uint64(e))
+            +               // Don't append, rely on the existing data being zero.
+            +               status = tmp[:len(sl)+1]
+    
+    However, itoa only puts the converted number "somewhere" in the buffer.
+    Specifically, it builds it from the end of the buffer towards the start,
+    meaning the first byte of the buffer is a 0 byte, and the resulting string
+    that's passed to exits is empty, leading to a falsely successful exit.
+    
+    This change uses the returned value from itoa, rather than the buffer
+    that was passed in, so that we start from the correct location in the
+    string.
+    
+    Fixes #53669
+    
+    Change-Id: I63f0c7641fc6f55250857dc17a1eeb12ae0c2e10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/415680
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/runtime/os_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

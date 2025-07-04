@@ -1,0 +1,23 @@
+commit 9f5d0bff415b57726b38f0ca85183f379ca04432
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue May 5 16:10:12 2015 +1200
+
+    cmd/6l, cmd/internal/ld: handle R_PCREL to function in other shared library
+    
+    An ELF linker handles a PC-relative reference to an STT_FUNC defined in a
+    shared library by building a PLT entry and referring to that, so do the
+    same in 6l.
+    
+    Fixes #10690
+    
+    Change-Id: I061a96fd4400d957e301d0ac86760ce256910e1d
+    Reviewed-on: https://go-review.googlesource.com/9711
+    Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/6l/asm.go             |  7 ++++++-
+ src/cmd/internal/ld/lib.go    |  1 +
+ src/cmd/internal/ld/link.go   | 37 +++++++++++++++++++++----------------
+ src/cmd/internal/ld/symtab.go |  7 +++----
+ 4 files changed, 31 insertions(+), 21 deletions(-)

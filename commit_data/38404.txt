@@ -1,0 +1,21 @@
+commit 7c04110c5203c4502d4c23f1464acb9f07f8bb6b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Mar 6 22:24:54 2019 -0500
+
+    fmt: put back named results in ss.scanBasePrefix
+    
+    CL 165619 removed these names when it removed
+    the use of the plain 'return'. But the names help for
+    documentation purposes even without being mentioned
+    directly in the function, so removing them makes the
+    code less readable. Put them back. I renamed found
+    to zeroFound to make the meaning clearer.
+    
+    Change-Id: I1010931f08290af0b0ede7d21b1404c2eea196a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165899
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/fmt/scan.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

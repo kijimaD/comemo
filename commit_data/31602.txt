@@ -1,0 +1,14 @@
+commit 79eb88285b3aeb890d7ff2845fa1ac85fa841b28
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu May 18 13:53:43 2017 -0700
+
+    test: add test for issue 18636
+    
+    Updates #18636
+    
+    Change-Id: I143c670c3940231e29f1814e0a03165682f53243
+    Reviewed-on: https://go-review.googlesource.com/43621
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ test/fixedbugs/issue18636.go | 27 +++++++++++++++++++++++++++
+ 1 file changed, 27 insertions(+)

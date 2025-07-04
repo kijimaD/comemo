@@ -1,0 +1,16 @@
+commit e9983165dd9882e0156b1678f688f37d7f9836c2
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 18 12:11:11 2017 -0400
+
+    cmd/vendor/golang.org/x/arch: import latest (Aug 18 2017 ffd22fb365cd)
+    
+    Fixes #21486.
+    
+    Change-Id: I01794f008404f0e2d8a1408309ae6055513c5b49
+    Reviewed-on: https://go-review.googlesource.com/57030
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ .../golang.org/x/arch/arm64/arm64asm/ext_test.go       |  4 ++--
+ .../x/arch/arm64/arm64asm/objdumpext_test.go           | 18 +++++-------------
+ 2 files changed, 7 insertions(+), 15 deletions(-)

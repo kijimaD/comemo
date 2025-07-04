@@ -1,0 +1,19 @@
+commit 1ab827371858e02f864f91e7dc561ae48eb7bbd0
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 3 09:44:21 2022 -0800
+
+    cmd/compile: ensure size is computed for shape types
+    
+    Fixes #50993
+    
+    Change-Id: I5f1bf5a8375c3da3203083b11de26962523ccb36
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/382874
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/typecheck/subr.go |  1 +
+ test/typeparam/issue50993.go               | 35 ++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)

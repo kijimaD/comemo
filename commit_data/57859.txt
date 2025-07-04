@@ -1,0 +1,27 @@
+commit 43725ba2835d3c0f695d0b74d7d796e562b9aae2
+Author: khr@golang.org <khr@golang.org>
+Date:   Thu Oct 31 16:04:33 2024 -0700
+
+    internal/runtime/maps: return after fatal to help register allocator
+    
+    Seems simple, but putting the return after fatal ensures that at the
+    point of the small group loop, no call has happened so the key is
+    still in a register. This ensures that we don't have to restore the
+    key from the stack before the comparison on each iteration. That gets
+    rid of a load from the inner loop.
+    
+    name                                       old time/op  new time/op  delta
+    MapAccessHit/Key=int64/Elem=int64/len=6-8  4.01ns ± 6%  3.85ns ± 3%  -3.92%  (p=0.001 n=10+10)
+    
+    Change-Id: Ia23ac48e6c5522be88f7d9be0ff3489b2dfc52fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624255
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/runtime/maps/map.go                   | 1 +
+ src/internal/runtime/maps/runtime_fast32_swiss.go  | 2 ++
+ src/internal/runtime/maps/runtime_fast64_swiss.go  | 2 ++
+ src/internal/runtime/maps/runtime_faststr_swiss.go | 2 ++
+ src/internal/runtime/maps/table.go                 | 1 +
+ 5 files changed, 8 insertions(+)

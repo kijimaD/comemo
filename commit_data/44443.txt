@@ -1,0 +1,45 @@
+commit d8e33d558e2c5fcd7f9092790780e68adbac0f1b
+Author: Dan Scales <danscales@google.com>
+Date:   Sun Feb 21 10:54:38 2021 -0800
+
+    cmd/compile: deal with closures in generic functions and instantiated function values
+    
+     - Deal with closures in generic functions by fixing the stenciling code
+    
+     - Deal with instantiated function values (instantiated generic
+       functions that are not immediately called) during stenciling. This
+       requires changing the OFUNCINST node to an ONAME node for the
+       appropriately instantiated function. We do this in a second pass,
+       since this is uncommon, but requires editing the tree at multiple
+       levels.
+    
+     - Check global assignments (as well as functions) for generic function
+       instantiations.
+    
+     - Fix a bug in (*subst).typ where a generic type in a generic function
+       may definitely not use all the type args of the function, so we need
+       to translate the rparams of the type based on the tparams/targs of
+       the function.
+    
+     - Added new test combine.go that tests out closures in generic
+       functions and instantiated function values.
+    
+     - Added one new variant to the settable test.
+    
+     - Enabling inlining functions with closures for -G=3. (For now, set
+       Ntype on closures in -G=3 mode to keep compatibility with later parts
+       of compiler, and allow inlining of functions with closures.)
+    
+    Change-Id: Iea63d5704c322e42e2f750a83adc8b44f911d4ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/296269
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/inline/inl.go    |   2 +-
+ src/cmd/compile/internal/noder/expr.go    |  11 +-
+ src/cmd/compile/internal/noder/stencil.go | 182 +++++++++++++++++++++++-------
+ test/typeparam/combine.go                 |  65 +++++++++++
+ test/typeparam/settable.go                |  27 ++++-
+ 5 files changed, 236 insertions(+), 51 deletions(-)

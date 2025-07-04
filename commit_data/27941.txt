@@ -1,0 +1,18 @@
+commit 6a393dc64fb06ba17f737432a45c63233aa4bd3d
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sun Aug 21 09:57:01 2016 +0200
+
+    cmd/compile: fix compilation of math.Sqrt when used as a statement
+    
+    Fixes #16804
+    
+    Change-Id: I669c2c24d3135cd35e15a464894ac66945847d0c
+    Reviewed-on: https://go-review.googlesource.com/27437
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go |  3 +++
+ test/fixedbugs/issue16804.go       | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+)

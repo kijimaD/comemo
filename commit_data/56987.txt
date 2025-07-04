@@ -1,0 +1,66 @@
+commit ea82219d1c92ecdad513c022ab603358e500d0bb
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 25 17:31:26 2024 -0700
+
+    go/types, types2: completely rewrite method receiver type checking
+    
+    1) Factor out handling of receiver from Checker.funcType into
+       Checker.collectRecv. Analyze the receiver parameter "manually"
+       without resorting to calling Checker.collectParams.
+       The code is more straight-forward and error handling is simpler
+       because constructing the receiver type and variable is all handled
+       in one function.
+    
+    2) Change Checker.collectParams to collect parameter names and
+       corresponding parameter variables, but do not declare them.
+       Instead return two equal-length slices of parameter names
+       and variables for later declaration.
+    
+    3) Streamline Checker.funcType into a sequence of simple steps.
+       By declaring the receiver and parameters after type parameters,
+       there is no need for a temporary scope and scope squashing anymore.
+    
+    4) Simplify Checker.unpackRecv some more: don't strip multiple
+       *'s from receiver type expression because we don't typecheck
+       that expression as a whole later (we don't use collectParams
+       for receiver types anymore). If we have a **T receiver, we
+       need to use *T (one * stripped) as receiver base type expression
+       so that we can report an error later.
+    
+    5) Remove Checker.recvTParamMap and associated machinery as it is
+       not needed anymore.
+    
+    6) Remove Scope.Squash/squash as it is not needed anymore.
+    
+    7) Remove the explicit scope parameter from Checker.collectParams
+       as it is not needed anymore.
+    
+    8) Minor adjustments to tests: in some cases, error positions have
+       shifted slightly (because we don't use Checker.collectParams to
+       typecheck receivers anymore), and in some cases duplicate errors
+       don't appear anymore (resolves TODOs).
+    
+    Fixes #51343.
+    
+    Change-Id: Ia77e939bb68e2912ef2e4ed68d2a7a0ad605c5ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594740
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/check.go           |  16 +-
+ src/cmd/compile/internal/types2/resolver.go        |  25 +--
+ src/cmd/compile/internal/types2/scope.go           |  35 ---
+ src/cmd/compile/internal/types2/signature.go       | 233 ++++++++++---------
+ src/cmd/compile/internal/types2/typexpr.go         |  10 +-
+ src/go/types/check.go                              |   2 -
+ src/go/types/generate_test.go                      |   2 +-
+ src/go/types/resolver.go                           |  19 +-
+ src/go/types/scope.go                              |  35 ---
+ src/go/types/signature.go                          | 247 ++++++++++++---------
+ src/go/types/typexpr.go                            |  10 +-
+ src/internal/types/testdata/check/issues0.go       |   2 +-
+ .../types/testdata/fixedbugs/issue47818.go         |   2 +-
+ .../types/testdata/fixedbugs/issue51339.go         |   6 +-
+ 14 files changed, 296 insertions(+), 348 deletions(-)

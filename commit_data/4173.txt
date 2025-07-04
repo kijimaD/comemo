@@ -1,0 +1,18 @@
+commit 688ffc1dc1d4706074cdd876c6f064e2c7d03c54
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 20 08:59:11 2009 -0800
+
+    test/bench revisions;
+      * reverse-complement: port C algorithm to Go
+            saves 30% on my MacBook Pro and makes it a fairer comparison.
+      * test reverse-complement with and without GC (another 15%)
+      * revise timing.sh to work on more systems
+      * avoid two glibcisms in fasta.c
+    
+    R=r
+    https://golang.org/cl/156110
+
+ test/bench/fasta.c               | 10 ++++----
+ test/bench/reverse-complement.go | 54 ++++++++++++++++++++++++----------------
+ test/bench/timing.sh             | 10 ++++++--
+ 3 files changed, 46 insertions(+), 28 deletions(-)

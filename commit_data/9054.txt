@@ -1,0 +1,16 @@
+commit 932db13e93ddeff6ce1ff9809e6513b62449f8b3
+Author: Matthew Horsnell <matthew.horsnell@gmail.com>
+Date:   Wed Jul 13 12:34:29 2011 -0700
+
+    debug/elf: Read ELF Program headers.
+    
+    NewFile has been fixed to read ELF Program headers into the structs.
+    Added test coverage.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4628062
+
+ src/pkg/debug/elf/file.go      | 51 +++++++++++++++++++++++++++++++++++++++++-
+ src/pkg/debug/elf/file_test.go | 32 ++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 1 deletion(-)

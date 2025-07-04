@@ -1,0 +1,22 @@
+commit 428ed1e3d9e31428b3bf81ed55664a4c34238e4c
+Author: Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
+Date:   Fri May 15 00:53:10 2015 +0800
+
+    cmd/go: support git.apache.org Git repos
+    
+    This change fixes resolution of secure (https) repo URL for
+    git.apache.org Git repositories.
+    
+    E.g. the correct repo URL for git.apache.org/thrift.git/lib/go/thrift is
+    https://git.apache.org/thrift.git, not https://git.apache.org/thrift
+    
+    Fixes #10797
+    
+    Change-Id: I67d5312ad8620eb780e42c2e002c8f286f60645a
+    Reviewed-on: https://go-review.googlesource.com/10092
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/vcs.go      |  8 ++++++++
+ src/cmd/go/vcs_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+)

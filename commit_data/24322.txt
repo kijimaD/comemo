@@ -1,0 +1,28 @@
+commit b7c55ba49684cc454f6c699bd3b3fa8fe6455c67
+Author: Austin Clements <austin@google.com>
+Date:   Fri Sep 18 11:55:31 2015 -0400
+
+    runtime: improve invalid pointer error message
+    
+    By default, the runtime panics if it detects a pointer to an
+    unallocated span. At this point, this usually catches bad uses of
+    unsafe or cgo in user code (though it could also catch runtime bugs).
+    Unfortunately, the rather cryptic error misleads users, offers users
+    little help with debugging their own problem, and offers the Go
+    developers little help with root-causing.
+    
+    Improve the error message in various ways. First, the wording is
+    improved to make it clearer what condition was detected and to suggest
+    that this may be the result of incorrect use of unsafe or cgo. Second,
+    we add a dump of the object containing the bad pointer so that there's
+    at least some hope of figuring out why a bad pointer was stored in the
+    Go heap.
+    
+    Change-Id: I57b91b12bc3cb04476399d7706679e096ce594b9
+    Reviewed-on: https://go-review.googlesource.com/14763
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/crash_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ src/runtime/mbitmap.go    | 32 +++++++++++++++++++++++---------
+ src/runtime/mgcmark.go    |  8 ++++----
+ 3 files changed, 64 insertions(+), 13 deletions(-)

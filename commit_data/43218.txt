@@ -1,0 +1,32 @@
+commit 5c1567cdc064b68210aeeddc6bf76bf0a146a626
+Author: Ayan George <ayan@ayan.net>
+Date:   Tue Oct 6 18:40:40 2020 +0000
+
+    net/http/pprof: use Request.Context, not the deprecated CloseNotifier
+    
+    Prior to this commit, the profiling code had a sleep() function that
+    waits and unblocks on either time.After() or a channel provided by an
+    http.CloseNotifier derived from a supplied http.ResponseWriter.
+    
+    According to the documentation, http.CloseNotifier is deprecated:
+    
+      Deprecated: the CloseNotifier interface predates Go's context package.
+      New code should use Request.Context instead.
+    
+    This patch does just that -- sleep() now takes an *http.Request and uses
+    http.Request.Context() to signal when a request has been cancelled.
+    
+    Change-Id: I98702314addf494f5743a4f99172dc607389dbb8
+    GitHub-Last-Rev: c1e37a03ca28417ed5833618d3eeddb2eecccd09
+    GitHub-Pull-Request: golang/go#41756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/259157
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Emmanuel Odeke <emm.odeke@gmail.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/pprof/pprof.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)

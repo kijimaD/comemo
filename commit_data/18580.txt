@@ -1,0 +1,16 @@
+commit 3e37720bcebefe87459a7dd8f41164c0e2cfa4bc
+Author: Rob Pike <r@golang.org>
+Date:   Wed Feb 19 17:17:36 2014 -0800
+
+    syscall: terminate error string in exec package on Plan 9
+    Try to prevent messages like this:
+            './pack' file does not exist����������������������������������������������������������������������������������������������������
+    TBR=adonovan
+    
+    LGTM=adonovan
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/66270043
+
+ src/pkg/syscall/exec_plan9.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

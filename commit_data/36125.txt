@@ -1,0 +1,17 @@
+commit 6732633bc6ba81b2fb7e8db0601be0186c8d8565
+Author: Yury Smolsky <yury@smolsky.by>
+Date:   Fri Jul 27 17:01:34 2018 +0300
+
+    cmd/go: remove unused global var isGoRelease
+    
+    This variable is not used anymore. It was used in the
+    TestPackageNotStaleWithTrailingSlash test.
+    
+    Change-Id: I5e52d4d1d91592dd21e2d9cff96974a49d07f5f8
+    Reviewed-on: https://go-review.googlesource.com/126376
+    Run-TryBot: Yury Smolsky <yury@smolsky.by>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 6 ------
+ 1 file changed, 6 deletions(-)

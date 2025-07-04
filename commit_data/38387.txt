@@ -1,0 +1,27 @@
+commit 82af9e67493b14ad1e10f28a384645e904a88d6f
+Author: David Chase <drchase@google.com>
+Date:   Mon Jan 28 18:00:01 2019 -0500
+
+    cmd/compile: move statement marks from jumps to targets
+    
+    When a jump at the end of a block is about to be marked as
+    a statement, if the first real instruction in the target
+    block is also a statement for the same line, remove the
+    mark from the jump.
+    
+    This is a first effort at a minimal-harm heuristic.
+    A better heuristic might skip over any "not-statement"
+    values preceding a definitely marked value.
+    
+    Fixes #29443.
+    
+    Change-Id: Ibd52783713b4936e0c2dfda8d708bf186f33b00a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/159977
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/gc/ssa.go          |  3 +++
+ src/cmd/compile/internal/ssa/numberlines.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+)

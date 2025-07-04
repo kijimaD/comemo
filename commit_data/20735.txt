@@ -1,0 +1,20 @@
+commit fb173c41850c9ad049098be657c923589329fab8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 17 11:23:15 2014 -0400
+
+    runtime/pprof: fix test
+    
+    gogo called from GC is okay
+    for the same reasons that
+    gogo called from System or ExternalCode is okay.
+    All three are fake stack traces.
+    
+    Fixes #8408.
+    
+    LGTM=dvyukov, r
+    R=r, dvyukov
+    CC=golang-codereviews
+    https://golang.org/cl/152580043
+
+ src/runtime/pprof/pprof_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

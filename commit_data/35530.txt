@@ -1,0 +1,15 @@
+commit 555eb70db2f7ff4aa22768339425430c1dfdf6ac
+Author: Tim Cooper <tim.cooper@layeh.com>
+Date:   Tue May 29 17:29:31 2018 -0300
+
+    all: regenerate stringer files
+    
+    Change-Id: I34838320047792c4719837591e848b87ccb7f5ab
+    Reviewed-on: https://go-review.googlesource.com/115058
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/objabi/reloctype_string.go |  4 ++--
+ src/debug/macho/reloctype_string.go         | 10 +++++-----
+ src/math/big/accuracy_string.go             |  8 ++++----
+ src/math/big/roundingmode_string.go         |  8 ++++----
+ 4 files changed, 15 insertions(+), 15 deletions(-)

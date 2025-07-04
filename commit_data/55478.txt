@@ -1,0 +1,18 @@
+commit 0b1b6c1589215cde03c1492133e1e5314fc35de1
+Author: jeffery <superajun@gmail.com>
+Date:   Wed Jan 24 14:45:06 2024 +0000
+
+    runtime: compute data and bss root work units in one loop
+    
+    Change-Id: Ia730ca244c83db925879de206809938aeb969cdd
+    GitHub-Last-Rev: 711b8b8b935552eea6136242821444e83fc23d38
+    GitHub-Pull-Request: golang/go#64349
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544478
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/mgcmark.go | 2 --
+ 1 file changed, 2 deletions(-)

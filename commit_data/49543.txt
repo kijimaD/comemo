@@ -1,0 +1,21 @@
+commit 68289f39f0019ff5c03e047d68e5b7f6a9f9e9e2
+Author: SemihBKGR <buyukgungorsemih@gmail.com>
+Date:   Sun Jun 26 03:27:08 2022 +0000
+
+    html/template: fix typo in content_test.go
+    
+    esacped -> escaped
+    
+    Change-Id: I253c46b30bb1cf7cdfb4668628907d16428fefb9
+    GitHub-Last-Rev: accd0e089f35b93c7e26725fcac5c048799db022
+    GitHub-Pull-Request: golang/go#53553
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414274
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+
+ src/html/template/content_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

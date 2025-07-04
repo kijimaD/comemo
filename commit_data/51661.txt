@@ -1,0 +1,20 @@
+commit 7026a8a1a9aba58285b3cae215df04140245b6db
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 17 17:25:14 2023 -0800
+
+    go/types: factor out type parameter renaming (cleanup)
+    
+    Follow-up on CL 461687 which missed the go/types change.
+    
+    (As an aside, we cannot yet generate this change because
+    go/types uses a positioner and types2 just uses a syntax.Pos.)
+    
+    Change-Id: I28113a2efdc3ddd30cb9a80d2cb2c802ff035ec2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461688
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+
+ src/go/types/infer.go | 95 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 50 insertions(+), 45 deletions(-)

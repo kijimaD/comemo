@@ -1,0 +1,14 @@
+commit 3f085e643dd806d7402686ba0d6ff589c6304204
+Author: Kai Backman <kaib@golang.org>
+Date:   Thu Oct 15 21:27:09 2009 -0700
+
+    fix arm build
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=35812
+    CL=35814
+
+ src/make-arm.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

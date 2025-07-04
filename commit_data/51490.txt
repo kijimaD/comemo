@@ -1,0 +1,20 @@
+commit dadd80ae204bda1c3a48245d8a938f55f71259ea
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 29 15:13:52 2022 -0500
+
+    runtime/debug: more complete BuildInfo documentation
+    
+    A potential user did not realize Deps included all transitive dependencies,
+    not just direct dependencies of the main module. Clarify that and add
+    various other useful information.
+    
+    Change-Id: I5b8e1314bb26092edbcc090ba8eb9859f0a70662
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453602
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Julie Qiu <julieqiu@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/runtime/debug/mod.go | 44 ++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 36 insertions(+), 8 deletions(-)

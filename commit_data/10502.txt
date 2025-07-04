@@ -1,0 +1,12 @@
+commit 38c082f69e08d7dbb56392b54a546801224ee239
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Nov 25 13:32:44 2011 +1100
+
+    html/template: fix documentation indent
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5437061
+
+ src/pkg/html/template/content.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

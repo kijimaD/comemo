@@ -1,0 +1,16 @@
+commit 9725f2258b27f901afbcab2e6214d30e90e82a91
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Apr 10 09:11:03 2015 -0400
+
+    cmd/go: -buildmode=c-archive support
+    
+    Change-Id: I469254384b0f4e5b5f08a18658934e19259935f9
+    Reviewed-on: https://go-review.googlesource.com/8718
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/build.go | 49 +++++++++++++++++++++++++++++++++++--------------
+ src/cmd/go/doc.go   |  6 ++++++
+ src/cmd/go/help.go  |  6 ++++++
+ 3 files changed, 47 insertions(+), 14 deletions(-)

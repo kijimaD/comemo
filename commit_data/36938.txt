@@ -1,0 +1,20 @@
+commit 69c5830c2b74b9bf0701352f2e5773227cb6f304
+Author: David Chase <drchase@google.com>
+Date:   Wed Oct 10 16:08:24 2018 -0400
+
+    cmd/compile: repair display of values & blocks in prog column
+    
+    This restores the printing of vXX and bYY in the left-hand
+    edge of the last column of ssa.html, where the generated
+    progs appear.
+    
+    Change-Id: I81ab9b2fa5ae28e6e5de1b77665cfbed8d14e000
+    Reviewed-on: https://go-review.googlesource.com/c/141277
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Yury Smolsky <yury@smolsky.by>
+
+ src/cmd/compile/internal/gc/ssa.go    | 13 ++++++-------
+ src/cmd/compile/internal/ssa/debug.go |  6 +++++-
+ src/cmd/compile/internal/ssa/func.go  |  7 ++++---
+ 3 files changed, 15 insertions(+), 11 deletions(-)

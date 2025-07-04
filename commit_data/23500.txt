@@ -1,0 +1,15 @@
+commit a1cc84fa886301c6e93d22486fc1f6b28ec91cc5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Fri Jun 26 08:46:30 2015 +1000
+
+    doc: suggest security@golang.org for reporting security issues
+    
+    Fixes #11402
+    
+    Change-Id: I195575a54e30ad6d6b1d0996fde34c0163bbd2c2
+    Reviewed-on: https://go-review.googlesource.com/11530
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ CONTRIBUTING.md  | 2 ++
+ doc/contrib.html | 4 ++++
+ 2 files changed, 6 insertions(+)

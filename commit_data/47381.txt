@@ -1,0 +1,17 @@
+commit 318c024b498621932ace08736c38a51fe5519a63
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 8 20:17:22 2021 -0800
+
+    cmd/compile/internal/types2: rename Checker.cycle to Checker.validCycle
+    
+    Also, invert the boolean result. This matches Checker.validType;
+    it's also easier to understand. Preparation for the next CL which
+    detects cycles through type parameter lists.
+    
+    Change-Id: I00a75d2359ca20827c9bf406945508716c826fc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/362336
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/decl.go | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)

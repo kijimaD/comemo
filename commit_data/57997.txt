@@ -1,0 +1,22 @@
+commit 8ac0a7c512e7c1bf6fb94feb09b2f878d8eb14a1
+Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
+Date:   Fri Feb 2 17:12:27 2024 -0800
+
+    runtime/pprof: continued attempt to deflake the VMInfo test.
+    
+    This PR will use test.Skip to bypass a test run for which the vmmap
+    subprocess appears to hang before the test times out.
+    In addition it catches a different error message from vmmap that can
+    occur due to transient resource shortages and triggers a retry for
+    this additional case.
+    
+    Fixes #62352
+    
+    Change-Id: I3ae749e5cd78965c45b1b7c689b896493aa37ba0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/560935
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/pprof/vminfo_darwin_test.go | 34 +++++++++++++++++++++++++--------
+ 1 file changed, 26 insertions(+), 8 deletions(-)

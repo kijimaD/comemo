@@ -1,0 +1,20 @@
+commit 4516afebedd18692c6dc70cbdee16a049c26024b
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 5 10:55:12 2021 -0500
+
+    testing/fstest: avoid symlink-induced failures in tester
+    
+    Do not require directory entry and Stat result to match for symlinks,
+    because they won't (Stat dereferences the symlink).
+    
+    Fixes #44113.
+    
+    Change-Id: Ifc6dbce5719906e2f42254a7172f1ef787464a9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/290009
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/testing/fstest/testfs.go      | 25 ++++++++++++++++++-------
+ src/testing/fstest/testfs_test.go | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 7 deletions(-)

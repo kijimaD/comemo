@@ -1,0 +1,18 @@
+commit d1b434b839357206484f94de1e9dc5343f62551f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Sep 10 12:44:37 2010 -0700
+
+    test: Match gccgo error messages.
+    
+    undef.go:12:6: error: reference to undefined name ‘x’
+    undef.go:13:6: error: reference to undefined name ‘x’
+    undef.go:14:6: error: reference to undefined name ‘x’
+    undef.go:22:25: error: reference to undefined name ‘y’
+    undef.go:42:11: error: reference to undefined name ‘v’
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2152045
+
+ test/undef.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)

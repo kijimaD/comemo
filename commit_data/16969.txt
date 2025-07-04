@@ -1,0 +1,15 @@
+commit 461f82526a0535e6a63a5c87aec50ab6bc558fe5
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Aug 1 15:09:18 2013 +1000
+
+    doc: remove godocs.js and playground.js from core repo
+    
+    These are moved to code.google.com/p/go.tools/cmd/godoc.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/12220043
+
+ doc/godocs.js          | 266 ------------------------------
+ doc/play/playground.js | 428 -------------------------------------------------
+ 2 files changed, 694 deletions(-)

@@ -1,0 +1,19 @@
+commit f6b30e53bbb026ce1d0aeddd112a8bdb0cd836c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 20 16:30:43 2020 -0700
+
+    reflect: return user-visible method name in panic string
+    
+    This was accidentally broken in CL 166462, which introduce another
+    function in the panicking path without adjusting the argument to
+    runtime.Caller.
+    
+    Change-Id: Ib6f9ed8673fefd458c7a4e3a918c45c5b31ca552
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229082
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/reflect/all_test.go | 203 ++++++++++++++++++++++++++----------------------
+ src/reflect/value.go    |  21 +++--
+ 2 files changed, 127 insertions(+), 97 deletions(-)

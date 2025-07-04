@@ -1,0 +1,22 @@
+commit cfa1ba34cc98c5f804d5ab9672b09acf43fee102
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Oct 16 15:40:37 2012 -0400
+
+    crypto/tls: make closeNotify a warning alert.
+    
+    The RFC doesn't actually have an opinion on whether this is a fatal or
+    warning level alert, but common practice suggests that it should be a
+    warning.
+    
+    This involves rebasing most of the tests.
+    
+    Fixes #3413.
+    
+    R=golang-dev, shanemhansen, rsc
+    CC=golang-dev
+    https://golang.org/cl/6654050
+
+ src/pkg/crypto/tls/conn.go                  |    6 +-
+ src/pkg/crypto/tls/handshake_client_test.go |  100 +-
+ src/pkg/crypto/tls/handshake_server_test.go | 1666 +++++++++++----------------
+ 3 files changed, 755 insertions(+), 1017 deletions(-)

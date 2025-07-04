@@ -1,0 +1,20 @@
+commit b6c5a5baa7c2c4df7ec8016e9a766dcc57895582
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu May 12 14:06:31 2022 -0700
+
+    cmd/compile/internal/gc: parse command-line flags earlier
+    
+    This CL moves the call to base.ParseFlags() earlier in compiler
+    startup. This is necessary so CL 393715 can use base.Ctxt.Pkgpath to
+    construct types.LocalPkg.
+    
+    Updates #51734.
+    
+    Change-Id: I9f5f75dc9d5fd1b1d22e98523efc95e6cec64385
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/406055
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

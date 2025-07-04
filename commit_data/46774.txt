@@ -1,0 +1,18 @@
+commit 6487b1573e8359c1406a073c978c60a406055b5e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue Oct 5 15:36:25 2021 -0700
+
+    cmd/link: remove unnecessary int conversions
+    
+    By making off an int64 at the beginning,
+    the code gets a lot simpler. Cleanup only.
+    
+    Change-Id: I4a2519f953e2f71081a4ff3032f8fd6da06c7e24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/354138
+    Trust: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/link/internal/ld/pcln.go | 38 +++++++++++++++++++-------------------
+ 1 file changed, 19 insertions(+), 19 deletions(-)

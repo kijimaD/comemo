@@ -1,0 +1,17 @@
+commit 70f6c430248d57d40bef52fbd8c2c03c72badc16
+Author: Rui Ueyama <ruiu@google.com>
+Date:   Wed Apr 30 11:30:36 2014 -0400
+
+    time: MeST is a time zone name
+    
+    Not only ChST but also MeST (America/Metlakatla) is a zone
+    name containing a lower case letter.
+    
+    LGTM=robert.hencke, r
+    R=golang-codereviews, robert.hencke, bradfitz, r
+    CC=golang-codereviews
+    https://golang.org/cl/99910043
+
+ src/pkg/time/format.go      | 4 ++--
+ src/pkg/time/format_test.go | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)

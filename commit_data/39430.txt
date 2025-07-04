@@ -1,0 +1,15 @@
+commit 26c60cef983421f3d4e246381477fa70425fb078
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Jun 24 15:44:05 2019 -0400
+
+    cmd/go: fix a typo in module-private help text
+    
+    Change-Id: Idbdcb78d40cf58d7c878cfeaa4a34ab580fe472f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183626
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/alldocs.go                 | 2 +-
+ src/cmd/go/internal/modfetch/fetch.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

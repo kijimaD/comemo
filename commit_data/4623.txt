@@ -1,0 +1,15 @@
+commit 11b459cba8723309c30d39b877b90d78feb8a482
+Author: Rob Pike <r@golang.org>
+Date:   Sat Jan 16 13:06:50 2010 +1100
+
+    give bufio.Writer.WriteString the same signature as
+    bytes.Buffer.WriteString
+    
+    Fixes #535.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/189096
+
+ src/pkg/bufio/bufio.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

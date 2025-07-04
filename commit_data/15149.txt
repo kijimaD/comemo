@@ -1,0 +1,21 @@
+commit 8c6489bc27b639487f56392d13c43f95fab0ac20
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Wed Feb 6 22:37:34 2013 +1100
+
+    exp/cookiejar: infrastructure for upcoming implementation
+    
+    This CL is the first of a handful of CLs which will provide
+    the implementation of cookiejar. It contains several helper
+    functions and the skeleton of Cookies and SetCookies.
+    
+    Proper host name handling requires the ToASCII transformation
+    from package idna which currently lives in the go.net
+    subrepo. This CL thus contains just a TODO for this issue.
+    
+    R=nigeltao, rsc, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7287046
+
+ src/pkg/exp/cookiejar/jar.go      | 172 ++++++++++++++++++++++++++++++++++++--
+ src/pkg/exp/cookiejar/jar_test.go | 109 ++++++++++++++++++++++++
+ 2 files changed, 275 insertions(+), 6 deletions(-)

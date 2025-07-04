@@ -1,0 +1,15 @@
+commit 91baf5c65d50a1fd33097d2610e32d575d054e6f
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 11 16:33:01 2014 -0400
+
+    runtime: make Gosched nosplit
+    
+    Replacing gosched with Gosched broke some builds because
+    some of the call sites are at times when the stack cannot be grown.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/142000043
+
+ src/runtime/proc.go | 2 ++
+ 1 file changed, 2 insertions(+)

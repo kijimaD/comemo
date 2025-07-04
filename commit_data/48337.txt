@@ -1,0 +1,22 @@
+commit 7026eeb8cfdc5801adddaaa678fb6495a998db0e
+Author: Mark Pulford <mark@kyne.com.au>
+Date:   Sun Feb 27 23:22:22 2022 +1030
+
+    cmd/go: fix buildvcs when using older git versions
+    
+    Git versions before v2.10.0 do not support --no-show-signature.
+    Using "-c" allows Git to ignore the configuration option if it does not
+    exist.
+    
+    Fixes #51253
+    
+    Change-Id: I2b1adaca0eb18ae31f2e1119e354ce515b00cfc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388194
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/internal/vcs/vcs.go                      | 2 +-
+ src/cmd/go/testdata/script/version_buildvcs_git.txt | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

@@ -1,0 +1,19 @@
+commit 9238a8ffe12b6eb44aab12de1b861c0f045da8b7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Mar 14 17:08:25 2019 -0400
+
+    cmd/go: skip package loading if explicitly cleaning a cache
+    
+    Fixes #28680
+    Fixes #29925
+    
+    Change-Id: I9f7effb3e7743b96b0b8a797d6e1044b39d9b86b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167717
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                          |  3 ++-
+ src/cmd/go/internal/clean/clean.go             | 14 ++++++++++++--
+ src/cmd/go/testdata/script/mod_clean_cache.txt |  5 ++---
+ 3 files changed, 16 insertions(+), 6 deletions(-)

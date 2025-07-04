@@ -1,0 +1,15 @@
+commit 10a5eb0a29f49eb5f474d99753e1c33e776a2795
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jan 15 10:56:16 2010 +1100
+
+    fix +0000 time zones.
+    
+    Fixes #527.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/186159
+
+ src/pkg/time/format.go    | 16 ++++++++++++----
+ src/pkg/time/time_test.go | 20 ++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 4 deletions(-)

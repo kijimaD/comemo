@@ -1,0 +1,10 @@
+commit 6633be6a8646915957056859ab8ef1d3870f90a4
+Author: Ken Thompson <ken@golang.org>
+Date:   Wed Jun 4 15:32:47 2008 -0700
+
+    fix loader problem loading main from a library
+    
+    SVN=121174
+
+ src/cmd/6g/align.c | 7 +++++++
+ 1 file changed, 7 insertions(+)

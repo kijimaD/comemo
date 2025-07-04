@@ -1,0 +1,24 @@
+commit 4480c822ba37ea3795fa4dbb56d13578d7961d88
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Apr 13 13:49:55 2021 -0400
+
+    cmd/internal/obj: don't emit args_stackmap for ABIInternal asm funcs
+    
+    The compiler currently emits an "*.args_stackmap" symbol for all
+    bodyless functions, so that asm functions will have the proper stack
+    map. At the moment the code in the compiler that emits args_stackmap
+    assumes ABI0; to avoid misleading stackmaps, turn off args_stackmap
+    generation for non-ABI0 asm functions.
+    
+    Updates #40724.
+    
+    Change-Id: Ia5e3528d56da5fb107e799bd658e52496ba4a331
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309790
+    Trust: Than McIntosh <thanm@google.com>
+    Run-TryBot: Than McIntosh <thanm@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/plist.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

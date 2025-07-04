@@ -1,0 +1,12 @@
+commit 29d5d9a5bb874f1e5e84342e6d7684cd4f67d035
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Sep 12 17:18:25 2011 -0700
+
+    time: fix Windows build after ceeedb519c4a
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/4983060
+
+ src/pkg/time/zoneinfo_windows.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

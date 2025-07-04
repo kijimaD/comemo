@@ -1,0 +1,20 @@
+commit 40a6d0e0ef0fd2020423dd9c35b0fb62d2cb016e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Apr 30 16:18:53 2019 -0400
+
+    cmd/go: sort vendor/modules.txt package lists
+    
+    Right now they are in a deterministic order
+    but one that depends on the shape of the import graph.
+    Sort them instead.
+    
+    Change-Id: Ia0c076a0d6677a511e52acf01f38353e9895dec2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174527
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/modcmd/vendor.go      | 2 ++
+ src/cmd/go/testdata/script/mod_vendor.txt | 3 ++-
+ 2 files changed, 4 insertions(+), 1 deletion(-)

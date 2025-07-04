@@ -1,0 +1,20 @@
+commit 6450c591c7c1a67ee90bbc0df53c0997f1f683c0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Feb 22 13:51:24 2018 +0100
+
+    syscall: remove list of unimplemented syscalls
+    
+    The syscall package is frozen and we don't want to encourage anyone to
+    implement these syscalls.
+    
+    Change-Id: I6b6e33e32a4b097da6012226aa15300735e50e9f
+    Reviewed-on: https://go-review.googlesource.com/96315
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/syscall/syscall_darwin.go    | 205 -----------------------------
+ src/syscall/syscall_dragonfly.go | 205 -----------------------------
+ src/syscall/syscall_freebsd.go   | 204 -----------------------------
+ src/syscall/syscall_linux.go     | 137 --------------------
+ src/syscall/syscall_netbsd.go    | 269 ---------------------------------------
+ src/syscall/syscall_openbsd.go   |  97 --------------
+ 6 files changed, 1117 deletions(-)

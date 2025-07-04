@@ -1,0 +1,24 @@
+commit 7c4ee1b1659cec7eb9218fe2fd54e0587ab1dbd9
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Jan 23 17:36:06 2024 +0100
+
+    sort: use math/rand/v2 in tests and benchmarks
+    
+    This allows to drop the use of deprecated rand.Seed in benchmarks.
+    
+    Fixes #61142
+    
+    Change-Id: I628848c0d4a500dc9a361930c393e47c3361a95c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/551155
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/sort/sort_slices_benchmark_test.go | 16 ++++++++--------
+ src/sort/sort_test.go                  | 14 +++++++-------
+ 2 files changed, 15 insertions(+), 15 deletions(-)

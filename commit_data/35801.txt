@@ -1,0 +1,26 @@
+commit 7e9d55eeeb183ee95d26b3ed4ff171902605decf
+Author: David Chase <drchase@google.com>
+Date:   Mon Jun 25 15:26:45 2018 -0400
+
+    cmd/compile: avoid remainder in loopbce when increment=0
+    
+    For non-unit increment, loopbce checks to see if the
+    increment evenly divides the difference between (constant)
+    loop start and end.  This test panics when the increment
+    is zero.
+    
+    Fix: check for zero, if found, don't optimize the loop.
+    
+    Also added missing copyright notice to loopbce.go.
+    
+    Fixes #26043.
+    
+    Change-Id: I5f460104879cacc94481949234c9ce8c519d6380
+    Reviewed-on: https://go-review.googlesource.com/120759
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/loopbce.go |  6 +++++-
+ test/fixedbugs/issue26043.go            | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+), 1 deletion(-)

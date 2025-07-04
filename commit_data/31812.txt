@@ -1,0 +1,14 @@
+commit 2c3c8c4247f84f53533dc61f606bbde09f783cdf
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Wed Jun 14 11:55:05 2017 +0200
+
+    doc: list html/template and text/template changes in 1.9 relnotes
+    
+    Updates #20587
+    
+    Change-Id: I3d65a0124157990b302db8879ee1a4941124ea11
+    Reviewed-on: https://go-review.googlesource.com/45730
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.9.html | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)

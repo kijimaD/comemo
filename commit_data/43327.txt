@@ -1,0 +1,26 @@
+commit 606d4a38b9ae76df30cc1bcaeee79923a5792e59
+Author: Ross Light <ross@zombiezen.com>
+Date:   Sat Sep 26 08:49:56 2020 -0700
+
+    net/http: ensure Request.Body.Close is called once and only once
+    
+    Makes *Request.write always close the body, so that callers no longer
+    have to close the body on returned errors, which was the trigger for
+    double-close behavior.
+    
+    Fixes #40382
+    
+    Change-Id: I128f7ec70415f240d82154cfca134b3f692191e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/257819
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/client_test.go | 57 +++++++++++++++++++++++++++++++++++++++++++++
+ src/net/http/request.go     | 19 ++++++++++++---
+ src/net/http/transfer.go    | 14 +++++++++--
+ src/net/http/transport.go   | 17 ++++++++++----
+ 4 files changed, 97 insertions(+), 10 deletions(-)

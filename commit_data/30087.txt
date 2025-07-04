@@ -1,0 +1,18 @@
+commit 5c90e1cf8ab39625b1f73c499cf47c06a60e9c08
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Feb 3 14:28:32 2017 -0800
+
+    cmd/compile/internal/ssa: remove Func.StaticData field
+    
+    Rather than collecting static data nodes to be written out later, just
+    write them out immediately.
+    
+    Change-Id: I51708b690e94bc3e288b4d6ba3307bf738a80f64
+    Reviewed-on: https://go-review.googlesource.com/36352
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/ssa.go   | 19 +++----------------
+ src/cmd/compile/internal/ssa/func.go | 17 ++++++++---------
+ 2 files changed, 11 insertions(+), 25 deletions(-)

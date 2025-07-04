@@ -1,0 +1,16 @@
+commit 96b0594833f183ef41b393af3ddced8457f9e6ef
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 1 10:10:59 2012 -0400
+
+    cmd/5g, cmd/6g, cmd/8g: delete clearstk
+    
+    Dreg from https://golang.org/cl/4629042
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/6259057
+
+ src/cmd/5g/gsubr.c | 58 ------------------------------------------------------
+ src/cmd/6g/gsubr.c | 38 -----------------------------------
+ src/cmd/8g/gsubr.c | 38 -----------------------------------
+ 3 files changed, 134 deletions(-)

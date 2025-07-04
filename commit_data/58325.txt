@@ -1,0 +1,16 @@
+commit 953a1bec48662c57fb40f50a2a4f56f033d842c6
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Dec 3 13:18:38 2024 -0800
+
+    runtime: avoid defer on system stack in synctestidle_c
+    
+    Fixes #70661
+    
+    Change-Id: I58a465cfb1cd16709ffbb072eca0997569540074
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633281
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/synctest.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)

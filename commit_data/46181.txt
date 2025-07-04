@@ -1,0 +1,28 @@
+commit e7eee5e265440b0ed3b76093ccdfd776facc767a
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 15:30:40 2021 -0700
+
+    cmd/compile: remove ssagen/pgen_test.go
+    
+    This test was written in 2015, and hasn't had any meaningful changes
+    to it since. However, it's very ad hoc and pokes into internals that
+    it shouldn't, and it keeps getting in the way of more meaningful
+    refactorings. It doesn't even catch bugs; e.g., it didn't catch that
+    cmpstackvarlt wasn't asymmetric (CL 19778), and a bunch of its test
+    cases are bogus because we never actually use it to sort ir.PFUNC
+    nodes (assert added in this CL).
+    
+    The compiler is woefully lacking in unit tests like these, but I
+    strongly feel this test is more of a hinderance than a help at the
+    moment.
+    
+    Change-Id: I3ac7a3e533947aa95f325626c6eec13a43789f9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345478
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssagen/pgen.go      |  17 ++-
+ src/cmd/compile/internal/ssagen/pgen_test.go | 209 ---------------------------
+ 2 files changed, 16 insertions(+), 210 deletions(-)

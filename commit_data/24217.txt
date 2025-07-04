@@ -1,0 +1,18 @@
+commit 05c35ac5d1713c1bbd89cb2bc6b51aef87f8e80e
+Author: Marvin Stenger <marvin.stenger94@gmail.com>
+Date:   Tue Sep 8 20:04:43 2015 +0200
+
+    cmd/compile/internal/gc: convert fields of TempVar to bool
+    
+    Convert two fields of struct TempVar in popt.go from uint8 to bool.
+    
+    This change passes go build -toolexec 'toolstash -cmp' -a std.
+    
+    Change-Id: I1aa14313e0241a4e9cadd63c6c681ed4e965a9a3
+    Reviewed-on: https://go-review.googlesource.com/14377
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/popt.go | 30 +++++++++++++++---------------
+ 1 file changed, 15 insertions(+), 15 deletions(-)

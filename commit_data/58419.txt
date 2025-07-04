@@ -1,0 +1,33 @@
+commit 971448ddf8c55a5f4a829735a5a96cacf982f230
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 17 15:31:10 2024 -0800
+
+    testing: support B.Context and F.Context
+    
+    CL 603959 added T.Context for #36532.
+    
+    The discussion on the proposal only mentions t.Context.
+    However, the implementation of CL 603959 also added B.Context and F.Context.
+    They were added to the API listing, and B.Context was mentioned in
+    the release notes.
+    
+    Unfortunately, the new B.Context and F.Context methods always
+    returned nil, rather than a context.Context value.
+    
+    This change adds a working implementation of B.Context and F.Context.
+    
+    For #36532
+    Fixes #70866
+    
+    Change-Id: I8a44e6649fb658e4f641ffb7efd08b4374f578ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637236
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/cmd/go/testdata/script/test_fuzz_context.txt | 47 +++++++++++++++++++++++
+ src/testing/benchmark.go                         |  4 ++
+ src/testing/benchmark_test.go                    | 30 +++++++++++++++
+ src/testing/fuzz.go                              | 49 +++++++++++++++---------
+ src/testing/testing.go                           |  4 +-
+ 5 files changed, 113 insertions(+), 21 deletions(-)

@@ -1,0 +1,11 @@
+commit df8ac289757a0ea0dcbe2ecb25dcbb24e79c3f41
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jun 4 15:52:48 2008 -0700
+
+    initial runtime code checkin
+    
+    SVN=121183
+
+ src/lib/runtime/runtime.c | 595 ++++++++++++++++++++++++++++++++++++++++++++++
+ src/lib/runtime/runtime.h | 107 +++++++++
+ 2 files changed, 702 insertions(+)

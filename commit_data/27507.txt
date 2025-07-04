@@ -1,0 +1,28 @@
+commit 72eb46c5a086051e3677579a0810922724eb6a6d
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Mon May 16 15:51:07 2016 +0200
+
+    runtime,runtime/cgo: save callee-saved FP register on arm
+    
+    Other GOARCHs already handle their callee-saved FP registers, but
+    arm was missing. Without this change, code using Cgo and floating
+    point code might fail in mysterious and hard to debug ways.
+    
+    There are no floating point registers when GOARM=5, so skip the
+    registers when runtime.goarm < 6.
+    
+    darwin/arm doesn't support GOARM=5, so the check is left out of
+    rt0_darwin_arm.s.
+    
+    Fixes #14876
+    
+    Change-Id: I6bcb90a76df3664d8ba1f33123a74b1eb2c9f8b2
+    Reviewed-on: https://go-review.googlesource.com/23140
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/runtime/cgo/asm_arm.s    | 34 +++++++++++++++++++++++++++++++++-
+ src/runtime/rt0_darwin_arm.s | 19 ++++++++++++++++++-
+ src/runtime/rt0_linux_arm.s  | 27 ++++++++++++++++++++++++++-
+ 3 files changed, 77 insertions(+), 3 deletions(-)

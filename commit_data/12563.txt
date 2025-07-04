@@ -1,0 +1,16 @@
+commit d75abb7ca323ad8911b900cb4955e533e35f4559
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Mar 12 17:33:35 2012 +1100
+
+    archive/tar: catch short writes.
+    
+    Also make error messages consistent throughout.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5777064
+
+ src/pkg/archive/tar/reader.go      |  2 +-
+ src/pkg/archive/tar/writer.go      | 17 +++++++++++++----
+ src/pkg/archive/tar/writer_test.go |  9 +++++++--
+ 3 files changed, 21 insertions(+), 7 deletions(-)

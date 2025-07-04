@@ -1,0 +1,42 @@
+commit 3e2f980e2721c05eb4a324b1e26080e082568f88
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 17 13:35:31 2017 -0700
+
+    cmd/compile: eliminate direct uses of gc.Thearch in backends
+    
+    This CL changes the GOARCH.Init functions to take gc.Thearch as a
+    parameter, which gc.Main supplies.
+    
+    Additionally, the x86 backend is refactored to decide within Init
+    whether to use the 387 or SSE2 instruction generators, rather than for
+    each individual SSA Value/Block.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Ie6305a6cd6f6ab4e89ecbb3cbbaf5ffd57057a24
+    Reviewed-on: https://go-review.googlesource.com/38301
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/amd64/galign.go  | 22 +++++++--------
+ src/cmd/compile/internal/amd64/ssa.go     |  2 --
+ src/cmd/compile/internal/arm/galign.go    | 20 ++++++-------
+ src/cmd/compile/internal/arm/ssa.go       |  2 --
+ src/cmd/compile/internal/arm64/galign.go  | 20 ++++++-------
+ src/cmd/compile/internal/arm64/ssa.go     |  2 --
+ src/cmd/compile/internal/gc/main.go       |  4 ++-
+ src/cmd/compile/internal/gc/ssa.go        |  1 +
+ src/cmd/compile/internal/mips/galign.go   | 22 +++++++--------
+ src/cmd/compile/internal/mips/ssa.go      |  2 --
+ src/cmd/compile/internal/mips64/galign.go | 22 +++++++--------
+ src/cmd/compile/internal/mips64/ssa.go    |  2 --
+ src/cmd/compile/internal/ppc64/galign.go  | 22 +++++++--------
+ src/cmd/compile/internal/ppc64/ssa.go     |  3 --
+ src/cmd/compile/internal/s390x/galign.go  | 20 ++++++-------
+ src/cmd/compile/internal/s390x/ssa.go     |  2 --
+ src/cmd/compile/internal/x86/387.go       | 47 +++++++++++++------------------
+ src/cmd/compile/internal/x86/galign.go    | 24 ++++++++--------
+ src/cmd/compile/internal/x86/ssa.go       | 13 ---------
+ src/cmd/compile/main.go                   | 37 ++++++++++++------------
+ 20 files changed, 129 insertions(+), 160 deletions(-)

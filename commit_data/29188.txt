@@ -1,0 +1,19 @@
+commit eb88b3eefa113f67e7cf72dfd085f65bbd125179
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 26 20:23:03 2016 -0400
+
+    net: add (*UnixListener).SetUnlinkOnClose
+    
+    Let users control whether unix listener socket file is unlinked on close.
+    
+    Fixes #13877.
+    
+    Change-Id: I9d1cb47e31418d655f164d15c67e188656a67d1c
+    Reviewed-on: https://go-review.googlesource.com/32099
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/unixsock_posix.go |  12 +++++
+ src/net/unixsock_test.go  | 134 +++++++++++++++++++++++++++++++++-------------
+ 2 files changed, 109 insertions(+), 37 deletions(-)

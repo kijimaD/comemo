@@ -1,0 +1,12 @@
+commit 35f8a3f90e96d192dbf6eeb41e7854f54a2b7278
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Oct 25 16:54:59 2010 -0700
+
+    runtime: remove .c generated from .goc during make clean
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/2704042
+
+ src/pkg/runtime/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

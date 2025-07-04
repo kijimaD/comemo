@@ -1,0 +1,17 @@
+commit 34817dd365af2be50605b6c204c7412933a52c9b
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Wed Jan 16 18:53:35 2019 +0800
+
+    cmd/go/internal/clean: fix clean -testcache does not clean test cache
+    
+    Truncate changes the size of the file. It does not change the I/O offset.
+    
+    Fixes #29757
+    
+    Change-Id: I1aa9223a86d6a8ce3c0efc3ac1d7d7647b77f589
+    Reviewed-on: https://go-review.googlesource.com/c/158117
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/clean/clean.go             |  4 +++-
+ src/cmd/go/testdata/script/clean_testcache.txt | 16 ++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)

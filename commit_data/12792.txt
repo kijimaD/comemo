@@ -1,0 +1,33 @@
+commit 18f1a71dc282689f29eeb51e248e6f79a970965b
+Author: Francisco Souza <franciscossouza@gmail.com>
+Date:   Wed Mar 28 14:20:51 2012 +1100
+
+    doc: added The Go image package article
+    
+    Orignally published on The Go Programming Language, September 21, 2011.
+    
+    http://blog.golang.org/2011/09/go-image-package.html
+    
+    Update #2547
+    
+    R=adg, nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5933049
+
+ doc/Makefile                      |   1 +
+ doc/articles/image-package-01.png | Bin 0 -> 1393 bytes
+ doc/articles/image-package-02.png | Bin 0 -> 1494 bytes
+ doc/articles/image-package-03.png | Bin 0 -> 1477 bytes
+ doc/articles/image-package-04.png | Bin 0 -> 1631 bytes
+ doc/articles/image-package-05.png | Bin 0 -> 1613 bytes
+ doc/articles/image_package.html   | 312 ++++++++++++++++++++++++++++++++++++++
+ doc/docs.html                     |   2 +-
+ doc/progs/image_package1.go       |  15 ++
+ doc/progs/image_package2.go       |  16 ++
+ doc/progs/image_package3.go       |  15 ++
+ doc/progs/image_package4.go       |  16 ++
+ doc/progs/image_package5.go       |  17 +++
+ doc/progs/image_package6.go       |  17 +++
+ doc/progs/run                     |  19 ++-
+ src/pkg/image/image.go            |   2 +-
+ 16 files changed, 429 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 5311d915f4a71fd6966042d6f8c2319b111e2aa1
+Author: Adam Langley <agl@golang.org>
+Date:   Tue Feb 15 09:52:20 2011 -0500
+
+    encoding/line: fix line returned after EOF
+    
+    Fixes #1509.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/4167045
+
+ src/pkg/encoding/line/line.go      |  3 +++
+ src/pkg/encoding/line/line_test.go | 23 +++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)

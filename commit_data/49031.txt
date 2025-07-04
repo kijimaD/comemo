@@ -1,0 +1,33 @@
+commit 7b1f8b62be5f4901404071ddc7160217a60c9810
+Author: Rhys Hiltner <rhys@justin.tv>
+Date:   Wed May 4 07:44:50 2022 -0700
+
+    runtime: prefer curg for execution trace profile
+    
+    The CPU profiler adds goroutine labels to its samples based on
+    getg().m.curg. That allows the profile to correctly attribute work that
+    the runtime does on behalf of that goroutine on the M's g0 stack via
+    systemstack calls, such as using runtime.Callers to record the call
+    stack.
+    
+    Those labels also cover work on the g0 stack via mcall. When the active
+    goroutine calls runtime.Gosched, it will receive attribution of its
+    share of the scheduler work necessary to find the next runnable
+    goroutine.
+    
+    The execution tracer's attribution of CPU samples to specific goroutines
+    should match. When curg is set, attribute the CPU samples to that
+    goroutine's ID.
+    
+    Fixes #52693
+    
+    Change-Id: Ic9af92e153abd8477559e48bc8ebaf3739527b94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404055
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Rhys Hiltner <rhys@justin.tv>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/proc.go             |  6 +++-
+ src/runtime/trace/trace_test.go | 63 +++++++++++++++++++++++++++++++----------
+ 2 files changed, 53 insertions(+), 16 deletions(-)

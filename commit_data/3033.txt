@@ -1,0 +1,14 @@
+commit fe53795422f3ae9ee242b2565f7e20968918f076
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 20 10:47:40 2009 -0700
+
+    clean up multifile package section.
+    remove ASCII digit comment that isn't true.
+    
+    R=gri
+    DELTA=41  (1 added, 25 deleted, 15 changed)
+    OCL=33594
+    CL=33596
+
+ doc/go_spec.html | 52 ++++++++++++++--------------------------------------
+ 1 file changed, 14 insertions(+), 38 deletions(-)

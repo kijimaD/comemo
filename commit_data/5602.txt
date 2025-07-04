@@ -1,0 +1,15 @@
+commit 962e8b8736fa202ac1cd5770f8fb2b3a67eb03d7
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 3 16:06:41 2010 -0700
+
+    fmt.Scan: field widths
+    Also fix an interface bug: white-space-delimited doesn't work well for cases like "%d, %d" on "23, 23")
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1502041
+
+ src/pkg/fmt/print.go     |  19 ++--
+ src/pkg/fmt/scan.go      | 244 ++++++++++++++++++++++++++++++++---------------
+ src/pkg/fmt/scan_test.go | 149 +++++++++++++++++++++--------
+ 3 files changed, 290 insertions(+), 122 deletions(-)

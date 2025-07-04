@@ -1,0 +1,15 @@
+commit 3a72175cdcbfb64cca5968be52ac964f69d3a44a
+Author: wdvxdr <wdvxdr1123@gmail.com>
+Date:   Fri Sep 10 20:56:29 2021 +0800
+
+    cmd/compile: fix test/typeparam/mdempsky/4.go for -G=3
+    
+    Change-Id: I894ee000561a3c6afede8df697b1bce4576ceef0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349012
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/typecheck/iimport.go | 22 +++++++++++++++++++---
+ test/run.go                                   |  2 --
+ 2 files changed, 19 insertions(+), 5 deletions(-)

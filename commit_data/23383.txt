@@ -1,0 +1,25 @@
+commit 99f5f796d9e689befdd27f5563e28cd49dcc1567
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jan 28 20:08:41 2015 +0900
+
+    net: allow LookupAddr to use getnameinfo when cgo is enabled
+    
+    This change allows LookupAddr to use getnameinfo through cgo for working
+    together with various name services other than DNS.
+    
+    Fixes #7855.
+    
+    Change-Id: I5b3b4aefe3d1b904541c3350865734d8cbb1c1c4
+    Reviewed-on: https://go-review.googlesource.com/3420
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/cgo_resnew.go     | 23 +++++++++++++++++
+ src/net/cgo_resold.go     | 23 +++++++++++++++++
+ src/net/cgo_socknew.go    | 33 ++++++++++++++++++++++++
+ src/net/cgo_sockold.go    | 33 ++++++++++++++++++++++++
+ src/net/cgo_stub.go       |  4 +++
+ src/net/cgo_unix.go       | 66 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/net/dnsclient_unix.go | 25 ++++++++++++++++++
+ src/net/lookup_test.go    |  4 +--
+ src/net/lookup_unix.go    | 20 +++-----------
+ 9 files changed, 213 insertions(+), 18 deletions(-)

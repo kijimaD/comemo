@@ -1,0 +1,19 @@
+commit da3957ad0d16ca9d8d0c6bbe19694edc733b2827
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Nov 10 17:54:01 2020 +0000
+
+    Revert "cmd/go: don't copy cgo files to objdir when overlay is present"
+    
+    This reverts CL 265758.
+    
+    Reason for revert: longtest builders were failing
+    
+    Change-Id: Ic6c3f3759399e45c1625c7c57f7aa67a1d90c601
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268900
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/work/exec.go             | 14 -----------
+ src/cmd/go/testdata/script/build_overlay.txt | 36 ----------------------------
+ 2 files changed, 50 deletions(-)

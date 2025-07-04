@@ -1,0 +1,55 @@
+commit a89ace106f820a4f3b129c81ba0bcf0c48b5b7cd
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Apr 10 00:05:07 2021 +0000
+
+    runtime: update debug call protocol for register ABI
+    
+    The debug call tests currently assume that the target Go function is
+    ABI0; this is clearly no longer true when we switch to the new ABI, so
+    make the tests set up argument register state in the debug call handler
+    and copy back results returned in registers.
+    
+    A small snag in calling a Go function that follows the new ABI is that
+    the debug call protocol depends on the AX register being set to a
+    specific value as it bounces in and out of the handler, but this
+    register is part of the new register ABI, so results end up being
+    clobbered. Use R12 instead.
+    
+    Next, the new desugaring behavior for "go" statements means that
+    newosproc1 must always call a function with no frame; if it takes any
+    arguments, it closes over them and they're passed in the context
+    register. Currently when debugCallWrap creates a new goroutine, it uses
+    newosproc1 directly and passes a non-zero-sized frame, so that needs to
+    be updated. To fix this, briefly use the g's param field which is
+    otherwise only used for channels to pass an explicitly allocated object
+    containing the "closed over" variables. While we could manually do the
+    desugaring ourselves (we cannot do so automatically because the Go
+    compiler prevents heap-allocated closures in the runtime), that bakes in
+    more ABI details in a place that really doesn't need to care about them.
+    
+    Finally, there's an old bug here where the context register was set up
+    in CX, so technically closure calls never worked. Oops. It was otherwise
+    harmless for other types of calls before, but now CX is an argument
+    register, so now that interferes with regular calls, too.
+    
+    For #40724.
+    
+    Change-Id: I652c25ed56a25741bb04c24cfb603063c099edde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/309169
+    Trust: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/internal/objabi/funcid.go               |  4 +-
+ src/runtime/asm_amd64.s                         | 45 +++++++++--------
+ src/runtime/debug_test.go                       | 67 +++++++++++++++++--------
+ src/runtime/debugcall.go                        | 32 ++++++++----
+ src/runtime/export_debug_regabiargs_off_test.go | 17 +++++++
+ src/runtime/export_debug_regabiargs_on_test.go  | 47 +++++++++++++++++
+ src/runtime/export_debug_test.go                | 38 ++++++++------
+ src/runtime/mgcmark.go                          |  2 +-
+ src/runtime/runtime2.go                         | 27 +++++++---
+ src/runtime/symtab.go                           |  2 +-
+ 10 files changed, 203 insertions(+), 78 deletions(-)

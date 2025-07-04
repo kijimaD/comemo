@@ -1,0 +1,13 @@
+commit 99ec0313910121c3cb6273166af8d5edc04def02
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Sep 25 10:51:23 2008 -0700
+
+    To get an empty string, return an empty string, not 0.
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=15858
+    CL=15860
+
+ src/lib/strings.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

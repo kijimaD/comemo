@@ -1,0 +1,16 @@
+commit 02b444bc1d5f87f36a7726d0474358fb51fec13f
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Nov 6 14:49:35 2017 -0800
+
+    cmd/compile: use IsPtr instead of types.Tptr
+    
+    Produced using gofmt -r.
+    
+    Change-Id: I4184940618a3a1dac563a9d20aafe1d9f705300c
+    Reviewed-on: https://go-review.googlesource.com/c/76310
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

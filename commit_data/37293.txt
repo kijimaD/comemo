@@ -1,0 +1,24 @@
+commit 0fcd40503b41b84beb8d355615d1ad5ebc4eae57
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 5 15:51:11 2018 -0800
+
+    go/types: avoid certain problems with recursive alias type declarations
+    
+    It is possible to create certain recursive type declarations involving
+    alias types which cause the type-checker to produce an (invalid) type
+    for the alias because it is not yet available. By type-checking alias
+    declarations in a 2nd phase, the problem is mitigated a bit since it
+    requires more convoluted alias declarations for the problem to appear.
+    
+    Also re-enable testing of fixedbugs/issue27232.go again (which was the
+    original cause for this change).
+    
+    Updates #28576.
+    
+    Change-Id: If6f9656a95262e6575b01c4a003094d41551564b
+    Reviewed-on: https://go-review.googlesource.com/c/147597
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/types/resolver.go    | 18 ++++++++++++++++++
+ src/go/types/stdlib_test.go |  1 -
+ 2 files changed, 18 insertions(+), 1 deletion(-)

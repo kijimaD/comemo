@@ -1,0 +1,19 @@
+commit dd79b330c9115a62a482c655edb7911c8121744c
+Author: Dave Cheney <dave@cheney.net>
+Date:   Sat Sep 1 09:17:14 2012 +1000
+
+    syscall: add PtraceSyscall(pid int, signal int)
+    
+    Fixes #3525.
+    
+    PTRACE_SYSCALL behaves like PTRACE_CONT and can deliver
+    a signal to the process. Ideally PtraceSingleStep should
+    support the signal argument, but its interface is frozen
+    by Go1.
+    
+    R=golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/6353051
+
+ src/pkg/syscall/syscall_linux.go | 4 ++++
+ 1 file changed, 4 insertions(+)

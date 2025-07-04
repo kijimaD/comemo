@@ -1,0 +1,16 @@
+commit 9d20c85ae9652908b4bb1aeb756cb617e9552b31
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 20 16:44:03 2008 -0700
+
+    - fixed missing parens in some cases of unary expressions
+    - added validation test verifying that pretty output compiles with 6g again (disabled at the moment)
+    - replaced another recursive function with an interative solution
+    
+    R=r
+    OCL=17505
+    CL=17505
+
+ usr/gri/pretty/parser.go  | 15 ++++++++++-----
+ usr/gri/pretty/printer.go | 48 ++++++++++++++++++++++++++++++-----------------
+ usr/gri/pretty/test.sh    | 15 +++++++++++++++
+ 3 files changed, 56 insertions(+), 22 deletions(-)

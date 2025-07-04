@@ -1,0 +1,20 @@
+commit f51390b23cb94614ed8ba6b7a89b396c27c80511
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 7 12:37:50 2012 -0400
+
+    cmd/cgo: make Go code order deterministic
+    
+    The type declarations were being generated using
+    a range over a map, which meant that successive
+    runs produced different orders. This will make sure
+    successive runs produce the same files.
+    
+    Fixes #3707.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6300062
+
+ src/cmd/cgo/main.go | 16 ++++++++++++----
+ src/cmd/cgo/out.go  | 12 ++++++++----
+ 2 files changed, 20 insertions(+), 8 deletions(-)

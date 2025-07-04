@@ -1,0 +1,16 @@
+commit 4cad610401edc11fe921205438a7b3ab4faa3982
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri May 20 20:42:21 2016 +0000
+
+    os/exec: remove Cmd.RunContext and Cmd.WaitContext, add CommandContext
+    
+    Fixes #15775
+    
+    Change-Id: I0a6c2ca09d3850c3538494711f7a9801b9500411
+    Reviewed-on: https://go-review.googlesource.com/23300
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/exec/exec.go      | 38 +++++++++++++++++++-------------------
+ src/os/exec/exec_test.go | 18 +++++++++++++-----
+ 2 files changed, 32 insertions(+), 24 deletions(-)

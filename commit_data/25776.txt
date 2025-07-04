@@ -1,0 +1,22 @@
+commit 3e23442518d9c66def2ae48f83026e29c5f26609
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 28 22:51:50 2016 -0500
+
+    cmd/go: remove GO15VENDOREXPERIMENT variable
+    
+    The Go 1.6 release notes say that Go 1.7 will remove support
+    for the GO15VENDOREXPERIMENT environment variable,
+    making vendoring always on. Do that.
+    
+    Change-Id: Iba8b79532455828869c1a8076a82edce84259468
+    Reviewed-on: https://go-review.googlesource.com/19615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.7.txt             |  3 ++-
+ src/cmd/go/alldocs.go     |  8 --------
+ src/cmd/go/env.go         |  6 ------
+ src/cmd/go/help.go        |  8 --------
+ src/cmd/go/pkg.go         | 19 +++----------------
+ src/cmd/go/vcs.go         |  8 ++++----
+ src/cmd/go/vendor_test.go | 14 --------------
+ 7 files changed, 9 insertions(+), 57 deletions(-)

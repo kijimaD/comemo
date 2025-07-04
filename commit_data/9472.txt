@@ -1,0 +1,15 @@
+commit 52818f4583abbfefe5146c321bf8356b82ad976e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Aug 24 09:52:16 2011 -0700
+
+    godoc: use virtual file system when generating package synopses
+    
+    Fix for godoc on app engine.
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/4922050
+
+ src/cmd/godoc/dirtrees.go |  2 +-
+ src/cmd/godoc/parser.go   | 18 +++++++++---------
+ 2 files changed, 10 insertions(+), 10 deletions(-)

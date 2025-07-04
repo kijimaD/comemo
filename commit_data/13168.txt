@@ -1,0 +1,22 @@
+commit bf18d57d4a186302ed7a3b07d60cd6facda08a71
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu May 24 22:41:07 2012 -0400
+
+    runtime: handle and test large map values
+    
+    This is from CL 5451105 but was dropped from that CL.
+    See also CL 6137051.
+    
+    The only change compared to 5451105 is to check for
+    h != nil in reflect·mapiterinit; allowing use of nil maps
+    must have happened after that original CL.
+    
+    Fixes #3573.
+    
+    R=golang-dev, dave, r
+    CC=golang-dev
+    https://golang.org/cl/6215078
+
+ src/pkg/runtime/hashmap.c | 161 ++++++++++++++++++++++++++++++++--------------
+ test/bigmap.go            | 105 +++++++++++++++++++++++++++++-
+ 2 files changed, 215 insertions(+), 51 deletions(-)

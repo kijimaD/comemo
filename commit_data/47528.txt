@@ -1,0 +1,17 @@
+commit 9a33945f2cc4b2108defdcdea80dc0ebe5af3c24
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 10:42:13 2021 -0500
+
+    go/types: set tparamsIsIface to true
+    
+    This is a port of CL 363155 from types2 to go/types.
+    
+    Change-Id: Ic24f8c88513599c8f4685f0b66d3782ac4e6831a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364717
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/typeparam.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

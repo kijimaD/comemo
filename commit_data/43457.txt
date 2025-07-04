@@ -1,0 +1,20 @@
+commit 7e25bdba5e79d223566745fca2410f725a6dedda
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Fri Oct 16 09:19:00 2020 +0800
+
+    cmd/link: use xcode strip for macho combine dwarf
+    
+    The GNU strip will shrink text section while xcodetool strip don't.
+    We have to use xcodetool strip from system explicitly.
+    
+    Fixes #41967
+    
+    Change-Id: Ida372869e0ebc9e93f883640b1614836cea3672f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/262398
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+
+ src/cmd/link/internal/ld/lib.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

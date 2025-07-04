@@ -1,0 +1,13 @@
+commit 6d5eb61ae7d65d56bc6277ddea4264a10054f28b
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Tue Aug 14 01:57:24 2012 +0400
+
+    net: remove unused fields
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6454145
+
+ src/pkg/net/fd.go            | 28 ++--------------------------
+ src/pkg/net/newpollserver.go |  2 --
+ 2 files changed, 2 insertions(+), 28 deletions(-)

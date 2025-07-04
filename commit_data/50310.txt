@@ -1,0 +1,42 @@
+commit a295890c5c8ebae9cba8f01ddcee2bded7dad404
+Author: Tomasz Jezierski <tjomek.jezierski@gmail.com>
+Date:   Sun Jul 24 23:02:53 2022 +0200
+
+    net: precompute rfc6724policyTable in addrselect
+    
+    As net package has one of the biggest init time in standard library, I have tried to improve performance by doing two things in net/addrselect.go:
+    1. Precompute slice with RFC rules. Currently the rules are computed and sorted in init() function. We could save the time and allocations by using prepopulated values in sorted manner. The rules haven't changed since 2015. To be extra safe we could move order validation as test case. It should slightly speed up startup of each binary with "net" package and go dns resolver. It also saves 38 allocations, ~50% of allocations in init phase of `net` module.
+    2. Replace internal net.IP usage with netip.Addr in `sortByRFC6724` function. It results in ~40% performance improvement on samples from tests.
+    
+    The only risk is the difference between net.IP and netip.Addr behaviour.
+    
+    Init benchmark:
+    Init-8               1.89µs ± 2%    0.12µs ± 3%  -93.79%  (p=0.000 n=5+5)
+    
+    name               old alloc/op   new alloc/op   delta
+    Init-8               1.05kB ± 0%    0.38kB ± 0%     ~     (zero variance)
+    
+    name               old allocs/op  new allocs/op  delta
+    Init-8                 39.0 ± 0%       1.0 ± 0%     ~     (zero variance)
+    
+    Whole sortByRFC6724 function benchmark:
+    name               old time/op    new time/op    delta
+    SortByRFC6724/0-8     463ns ± 3%     303ns ± 4%  -34.72%  (p=0.000 n=5+5)
+    SortByRFC6724/1-8     481ns ± 8%     306ns ± 1%  -36.46%  (p=0.000 n=5+5)
+    SortByRFC6724/2-8     470ns ± 4%     307ns ± 4%  -34.77%  (p=0.000 n=5+5)
+    SortByRFC6724/3-8     567ns ± 3%     367ns ± 3%  -35.28%  (p=0.000 n=5+5)
+    SortByRFC6724/4-8     918ns ± 3%     560ns ± 2%  -38.93%  (p=0.000 n=5+5)
+    
+    Updates #54032
+    
+    Change-Id: Ic18df1ea73805cb184c6ceb73470ca7f0b922032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/419356
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/net/addrselect.go      | 148 +++++++++++++++++-------------------
+ src/net/addrselect_test.go | 183 ++++++++++++++++++++++++++++++---------------
+ 2 files changed, 191 insertions(+), 140 deletions(-)

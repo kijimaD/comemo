@@ -1,0 +1,27 @@
+commit 2d1dd4372211f6f9bcdc6a3e4623b5fd10cebdbf
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 14 13:23:30 2022 -0800
+
+    cmd/go: enable file shortening for lines starting with \t
+    
+    Compiler errors now (as of 1.18) might start with a tab character,
+    for errors which take multiple lines to report. e.g.:
+    
+    /Users/khr/gowork/tmp1.go:3:15: x redeclared in this block
+            /Users/khr/gowork/tmp1.go:3:8: other declaration of x
+    
+    This CL makes error lines starting with a tab character
+    eligible for replacing absolute paths with relative ones.
+    
+    Fixes #51177
+    
+    Change-Id: Ic9e9c610a1aa1e21e9f19e6a9bd05c73b5a14e4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385755
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/internal/work/exec.go | 1 +
+ 1 file changed, 1 insertion(+)

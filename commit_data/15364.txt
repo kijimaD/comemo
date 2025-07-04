@@ -1,0 +1,12 @@
+commit 6138e368f81f67f79d7b9039bf40009e28cd3e09
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 22 10:28:03 2013 +1100
+
+    cmd/gc: fix FreeBSD build
+    
+    R=jsing, mikioh.mikioh, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7390048
+
+ src/cmd/gc/dcl.c | 1 -
+ 1 file changed, 1 deletion(-)

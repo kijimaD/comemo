@@ -1,0 +1,30 @@
+commit 9ccfde6ee7df654be64a79c79ec4178c10d8fd18
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 25 13:03:03 2018 -0400
+
+    cmd/go: add support for 'go run pkg' or 'go run .'
+    
+    To date, go run has required a list of .go files.
+    This CL allows in place of that list a single import path
+    or a directory name or a pattern matching a single patckage.
+    This allows 'go run pkg' or 'go run dir', most importantly 'go run .'.
+    
+    The discussion in #22726 gives more motivation.
+    The basic idea is that you can already run 'go test .'
+    but if you're developing a command it's pretty awkward
+    to iterate at the same speed. This lets you do that,
+    by using 'go run . [args]'.
+    
+    Fixes #22726.
+    
+    Change-Id: Ibfc8172a4f752588ad96df0a6b0928e9b61fa27f
+    Reviewed-on: https://go-review.googlesource.com/109341
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                  |  9 ++++---
+ src/cmd/go/go_test.go                  | 12 ++++++++++
+ src/cmd/go/internal/run/run.go         | 44 ++++++++++++++++++++++++----------
+ src/cmd/go/testdata/src/hello/hello.go |  5 ++++
+ 4 files changed, 54 insertions(+), 16 deletions(-)

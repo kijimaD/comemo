@@ -1,0 +1,26 @@
+commit 460b76aef98490b3cf8d374c589db631eab85957
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Sep 4 09:34:03 2016 -0700
+
+    cmd/compile: clean up ctxt params in sinit
+    
+    The ctxt parameter is always set to 0 on entry into anylit so make this
+    parameter a literal constant, and where possibly remove ctxt as a parameter
+    where it is known to be a constant zero.
+    
+    Passes toolstash -cmp.
+    
+    This is a re-creation of CL 28221 by Dave Cheney.
+    That CL was graciously reverted in CL 28480
+    to make merging other CLs easier.
+    
+    Change-Id: If7a57bf0e27774d9890adbc30af9fabb4aff1058
+    Reviewed-on: https://go-review.googlesource.com/28483
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/cmd/compile/internal/gc/sinit.go | 65 ++++++++++++++++--------------------
+ src/cmd/compile/internal/gc/walk.go  |  2 +-
+ 2 files changed, 30 insertions(+), 37 deletions(-)

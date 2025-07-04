@@ -1,0 +1,13 @@
+commit 5236814edd14d072a0ee32071d2a008b360b1964
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 13 10:58:41 2011 -0700
+
+    timing: update numbers for regex-dna
+    After improved compilation of append, regexps improve and regex-dna is 35% faster.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4518062
+
+ test/bench/timing.log | 8 ++++++++
+ 1 file changed, 8 insertions(+)

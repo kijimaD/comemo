@@ -1,0 +1,25 @@
+commit 14849f0fa57c67996bb00bd42bb14cef9f4e9a1e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Aug 12 22:30:39 2019 +0000
+
+    runtime: add new page allocator constants and description
+    
+    This change is the first of a series of changes which replace the
+    current page allocator (which is based on the contents of mgclarge.go
+    and some of mheap.go) with one based on free/used bitmaps.
+    
+    It adds in the key constants for the page allocator as well as a comment
+    describing the implementation.
+    
+    Updates #35112.
+    
+    Change-Id: I839d3a07f46842ad379701d27aa691885afdba63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190619
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mpagealloc.go       | 72 +++++++++++++++++++++++++++++++++++++++++
+ src/runtime/mpagealloc_32bit.go | 23 +++++++++++++
+ src/runtime/mpagealloc_64bit.go | 14 ++++++++
+ 3 files changed, 109 insertions(+)

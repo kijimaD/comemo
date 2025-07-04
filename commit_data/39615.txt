@@ -1,0 +1,57 @@
+commit 145e193131eb486077b66009beb051aba07c52a5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 13 16:29:01 2019 -0400
+
+    net/http: update bundled golang.org/x/net/http2 to import security fix
+    
+    Update golang.org/x/net to v0.0.0-20190813141303-74dc4d7220e7 to import
+    the following security fix.
+    
+        commit 74dc4d7220e7acc4e100824340f3e66577424772
+        Author: Filippo Valsorda <filippo@golang.org>
+        Date:   Sun Aug 11 02:12:18 2019 -0400
+    
+        http2: limit number of control frames in server send queue
+    
+        An attacker could cause servers to queue an unlimited number of PING
+        ACKs or RST_STREAM frames by soliciting them and not reading them, until
+        the program runs out of memory.
+    
+        Limit control frames in the queue to a few thousands (matching the limit
+        imposed by other vendors) by counting as they enter and exit the scheduler,
+        so the protection will work with any WriteScheduler.
+    
+        Once the limit is exceeded, close the connection, as we have no way to
+        communicate with the peer.
+    
+        Change-Id: I842968fc6ed3eac654b497ade8cea86f7267886b
+        Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/525552
+        Reviewed-by: Brad Fitzpatrick <bradfitz@google.com>
+    
+    This change was generated with cmd/go and cmd/bundle:
+    
+    $ go get -u golang.org/x/net
+    $ go mod tidy
+    $ go mod vendor
+    $ go generate net/http
+    
+    Fixes CVE-2019-9512 and CVE-2019-9514
+    Fixes #33606
+    
+    Change-Id: I464baf96175006aa101d65d3b0f6494f28a626ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/190137
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/go.mod                                         |  2 +-
+ src/go.sum                                         |  4 +-
+ src/net/http/h2_bundle.go                          | 56 ++++++++++++++++++----
+ .../golang.org/x/net/lif/zsys_solaris_amd64.go     |  2 +-
+ src/vendor/golang.org/x/net/route/zsys_darwin.go   |  2 +-
+ .../golang.org/x/net/route/zsys_dragonfly.go       |  2 +-
+ .../golang.org/x/net/route/zsys_freebsd_386.go     |  2 +-
+ .../golang.org/x/net/route/zsys_freebsd_amd64.go   |  2 +-
+ .../golang.org/x/net/route/zsys_freebsd_arm.go     |  2 +-
+ src/vendor/golang.org/x/net/route/zsys_netbsd.go   |  2 +-
+ src/vendor/golang.org/x/net/route/zsys_openbsd.go  |  2 +-
+ src/vendor/modules.txt                             |  2 +-
+ 12 files changed, 58 insertions(+), 22 deletions(-)

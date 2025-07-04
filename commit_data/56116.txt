@@ -1,0 +1,21 @@
+commit d08a957298c961a26436d3991028f68ff36cfbfc
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Aug 8 12:58:33 2023 +0700
+
+    all: add reflect.SliceAt function
+    
+    Fixes #61308
+    
+    Change-Id: Ic17d737fda055a60779985d5da497745c80d5cfa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/516597
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ api/next/61308.txt                          |  1 +
+ doc/next/6-stdlib/99-minor/reflect/61308.md |  3 +++
+ src/reflect/all_test.go                     | 41 +++++++++++++++++++++++++++++
+ src/reflect/value.go                        | 13 +++++++++
+ src/runtime/unsafe.go                       |  5 ++++
+ 5 files changed, 63 insertions(+)

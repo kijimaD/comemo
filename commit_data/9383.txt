@@ -1,0 +1,13 @@
+commit 9801c8e886441460027c5b9a69382f26f3a86b4c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Aug 16 18:15:36 2011 -0400
+
+    A+C: Aleksandar Dezelin (individual CLA)
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/4901047
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,22 @@
+commit 3eab754cd061bf90ee7b540546bc0863f3ad1d85
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Tue Feb 11 15:09:39 2020 -0500
+
+    runtime: correct caller PC/SP offsets in walltime1/nanotime1
+    
+    In walltime1/nanotime1, we save the caller's PC and SP for stack
+    unwinding. The code does that assumed zero frame size. Now that
+    the frame size is not zero, correct the offset. Rewrite it in a
+    way that doesn't depend on hard-coded frame size.
+    
+    May fix #37127.
+    
+    Change-Id: I47d6d54fc3499d7d5946c3f6a2dbd24fbd679de1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/219118
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/sys_linux_386.s   | 12 ++++++------
+ src/runtime/sys_linux_amd64.s | 12 ++++++------
+ 2 files changed, 12 insertions(+), 12 deletions(-)

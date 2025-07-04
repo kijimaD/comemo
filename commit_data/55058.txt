@@ -1,0 +1,20 @@
+commit e6b154defba046609b6a36313298cfc207945df7
+Author: Andrei Matei <andreimatei1@gmail.com>
+Date:   Mon Jun 5 19:14:01 2023 -0400
+
+    ssa: clarify semantics of ID-to-PC translation function
+    
+    Make it clear that the `block` argument is not always used, and stop
+    passing it in a case where it didn't really make sense - at the end of a
+    function.
+    
+    Change-Id: I2fa86bed6ceb53a1b1cbfda5c3392e7e9da9579d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/502115
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/debug.go  | 7 +++++--
+ src/cmd/compile/internal/ssagen/ssa.go | 6 +++---
+ 2 files changed, 8 insertions(+), 5 deletions(-)

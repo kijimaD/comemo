@@ -1,0 +1,25 @@
+commit 69614c0d0e05787c8203bdc364c3293e1cf5094a
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 5 14:41:24 2019 -0500
+
+    runtime: give useful failure message on mlock failure
+    
+    Currently, we're ignoring failures to mlock signal stacks in the
+    workaround for #35777. This means if your mlock limit is low, you'll
+    instead get random memory corruption, which seems like the wrong
+    trade-off.
+    
+    This CL checks for mlock failures and panics with useful guidance.
+    
+    Updates #35777.
+    
+    Change-Id: I15f02d3a1fceade79f6ca717500ca5b86d5bd570
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/210098
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/os_linux_amd64.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit 4bb491b12e1461252c9375d6b796c8658b10965f
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Jun 15 16:06:28 2013 +0400
+
+    runtime: improve scheduler fairness
+    Currently global runqueue is starved if a group of goroutines
+    constantly respawn each other (local runqueue never becomes empty).
+    Fixes #5639.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/10042044
+
+ src/pkg/runtime/proc.c       | 31 ++++++++++++++++++++-------
+ src/pkg/runtime/proc_test.go | 50 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 7 deletions(-)

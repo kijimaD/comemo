@@ -1,0 +1,22 @@
+commit be48aa3f3a16006ab31c424487af352ca374afed
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 12 19:51:02 2016 -0700
+
+    cmd/cover: handle gotos
+    
+    If a labeled statement is the target of a goto, we must treat it as the
+    boundary of a new basic block, but only if it is not already the boundary
+    of a basic block such as a labeled for loop.
+    
+    Fixes #16624
+    
+    Now reports 100% coverage for the test in the issue.
+    
+    Change-Id: If118bb6ff53a96c738e169d92c03cb3ce97bad0e
+    Reviewed-on: https://go-review.googlesource.com/30977
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/cover/cover.go         | 43 ++++++++++++++++++++++++++++++++++++++----
+ src/cmd/cover/testdata/test.go | 19 +++++++++++++++++++
+ 2 files changed, 58 insertions(+), 4 deletions(-)

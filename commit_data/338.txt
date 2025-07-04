@@ -1,0 +1,19 @@
+commit 3856e45e030b815633a8d336b723031ef902226b
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jul 12 13:08:53 2008 -0700
+
+    more on channels
+    arg space magic number for morestack
+    
+    SVN=126936
+
+ src/cmd/6g/gen.c       |  11 ++-
+ src/cmd/6g/list.c      |  24 +++++-
+ src/cmd/gc/export.c    |  32 ++++++++
+ src/cmd/gc/go.h        |   8 +-
+ src/cmd/gc/go.y        |  13 +++
+ src/cmd/gc/subr.c      |   1 +
+ src/cmd/gc/sys.go      |   7 +-
+ src/cmd/gc/sysimport.c | 217 +++++++++++++++++++++++++------------------------
+ src/cmd/gc/walk.c      |  73 +++++++++++++++++
+ 9 files changed, 271 insertions(+), 115 deletions(-)

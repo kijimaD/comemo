@@ -1,0 +1,13 @@
+commit 21be71a41966c4b8d9107dec47bed1b3867487bb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Feb 16 17:21:21 2012 +1100
+
+    all: errors caught by go vet
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5674069
+
+ misc/cgo/test/basic.go | 2 +-
+ test/map.go            | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

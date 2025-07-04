@@ -1,0 +1,12 @@
+commit 97235a769f14db07eee47dbbd1abfacd440bfdbb
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Feb 13 14:32:45 2012 +1100
+
+    builder: really set $GOBUILDEXIT for Windows
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5649074
+
+ misc/dashboard/builder/main.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

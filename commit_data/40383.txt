@@ -1,0 +1,17 @@
+commit c824420d4744bd3e11128c000d88c24859602d46
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 11 09:02:37 2019 -0700
+
+    runtime: implement timeSleepUntil for new timers
+    
+    Updates #27707
+    
+    Change-Id: Id4b37594511895f404ee3c09a85263b2b35f835d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/171881
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/runtime/time.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)

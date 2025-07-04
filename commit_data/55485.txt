@@ -1,0 +1,28 @@
+commit ae457e811d44261801bda261731b5006d629930d
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Jan 24 11:22:14 2024 +0800
+
+    net/textproto: reject HTTP requests with empty header keys
+    
+    According to RFC 7230, empty field names in HTTP header are invalid.
+    However, there are no specific instructions for developers to deal
+    with that kind of case in the specification. CL 11242 chose to skip
+    it and do nothing about it, which now seems like a bad idea because
+    it has led `net/http` to behave inconsistently with the most widely-used
+    HTTP implementations: Apache, Nginx, Node with llhttp, H2O, Lighttpd, etc.
+    in the case of empty header keys.
+    
+    There is a very small chance that this CL will break a few existing HTTP clients.
+    
+    Fixes #65244
+    
+    Change-Id: Ie01e9a6693d27caea4d81d1539345cf42b225535
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558095
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/net/http/serve_test.go       |  4 ++++
+ src/net/textproto/reader.go      | 11 ++++-------
+ src/net/textproto/reader_test.go |  5 +++--
+ 3 files changed, 11 insertions(+), 9 deletions(-)

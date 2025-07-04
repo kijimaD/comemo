@@ -1,0 +1,12 @@
+commit 139cc96a5718f59867e1a4295a29c46bc38a9a29
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 9 13:28:47 2013 -0700
+
+    runtime: markfreed's error reports should be prefixed with "markfreed", not "markallocated".
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/14441055
+
+ src/pkg/runtime/mgc0.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

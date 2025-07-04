@@ -1,0 +1,18 @@
+commit 2d1a9510edc59cad463029fdc8ac93e62247baad
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon May 12 23:48:20 2014 -0400
+
+    cmd/cgo: omit misaligned struct fields, like we omit bitfields
+    
+    Fixes #7560.
+    
+    LGTM=iant
+    R=golang-codereviews, iant
+    CC=golang-codereviews
+    https://golang.org/cl/96300045
+
+ misc/cgo/test/cgo_test.go  |  1 +
+ misc/cgo/test/issue7560.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/doc.go         |  3 +++
+ src/cmd/cgo/gcc.go         | 15 ++++++++++++---
+ 4 files changed, 60 insertions(+), 3 deletions(-)

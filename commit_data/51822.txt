@@ -1,0 +1,23 @@
+commit d42c08a2be456d353a7aca3110edeb9bdb66ebd0
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Dec 15 18:14:13 2022 +0700
+
+    reflect,runtime: add Value.Clear
+    
+    Fixes #55002
+    
+    Change-Id: I7d0f14cc54f67f2769b51d2efafc4ae3714f0e3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/457895
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/next/55002.txt      |  1 +
+ src/reflect/all_test.go | 45 +++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go    | 24 ++++++++++++++++++++++++
+ src/runtime/map.go      |  5 +++++
+ src/runtime/mbarrier.go |  9 +++++++++
+ 5 files changed, 84 insertions(+)

@@ -1,0 +1,16 @@
+commit 925861f3068a397cec0b04154e11114bf3e3ab1e
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 27 21:07:35 2015 -0500
+
+    liblink: bug fixes for ppc64 %P format
+    
+    - certain code paths were appending to the string without first clearing it.
+    - some prints were using spaces instead of tabs
+    
+    Change-Id: I7a3d38289c8206682baf8942abf5a9950a56b449
+    Reviewed-on: https://go-review.googlesource.com/3511
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/liblink/list9.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

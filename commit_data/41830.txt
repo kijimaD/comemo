@@ -1,0 +1,31 @@
+commit 041bcb32b59b37ff55ad527083b7bd4ffa4c1a3d
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 2 12:00:50 2020 -0700
+
+    runtime/race: update some .syso files
+    
+    Update race detector syso files for some platforms.
+    
+    There's still 2 more to do, but they might take a while so I'm
+    mailing the ones I have now.
+    
+    Note: some arm64 tests did not complete successfully due to out
+    of memory errors, but I suspect the .syso is correct.
+    
+    Update #14481
+    Update #37485 (I think?)
+    Update #37355
+    
+    Change-Id: I7e7e707a1fd7574855a538ba89dc11acc999c760
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226981
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/race/README                  |  10 +++++-----
+ src/runtime/race/race_darwin_amd64.syso  | Bin 432640 -> 448992 bytes
+ src/runtime/race/race_freebsd_amd64.syso | Bin 555192 -> 577864 bytes
+ src/runtime/race/race_linux_amd64.syso   | Bin 478360 -> 516064 bytes
+ src/runtime/race/race_linux_arm64.syso   | Bin 454752 -> 493992 bytes
+ src/runtime/race/race_windows_amd64.syso | Bin 429378 -> 457408 bytes
+ 6 files changed, 5 insertions(+), 5 deletions(-)

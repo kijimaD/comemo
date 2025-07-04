@@ -1,0 +1,15 @@
+commit 54340bf56fb4b29ea175d85cff4ba765a60961b6
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sat Apr 6 20:01:28 2013 -0700
+
+    runtime: reset dangling typed pointer
+    +untype it because it can point to different types
+    Update #5193.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/8454043
+
+ src/pkg/runtime/proc.c    | 1 +
+ src/pkg/runtime/runtime.h | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)

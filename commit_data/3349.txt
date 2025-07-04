@@ -1,0 +1,15 @@
+commit ea4ada89e10e1731a237e98fb70fa990985b4219
+Author: Rob Pike <r@golang.org>
+Date:   Wed Sep 23 12:31:57 2009 -0700
+
+    process tutorial into new format
+    
+    R=rsc
+    DELTA=161  (57 added, 56 deleted, 48 changed)
+    OCL=34926
+    CL=34929
+
+ doc/go_tutorial.head |  8 ++++++++
+ doc/go_tutorial.html | 18 +++++++++---------
+ doc/go_tutorial.txt  | 10 ++--------
+ 3 files changed, 19 insertions(+), 17 deletions(-)

@@ -1,0 +1,13 @@
+commit 3811a441035b10c07fd186fe2ba51bc02cff8ec4
+Author: Anthony Starks <ajstarks@gmail.com>
+Date:   Mon Nov 14 11:19:08 2011 -0800
+
+    misc/notepadplus: error and rune support
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5376048
+
+ misc/notepadplus/go.xml             | 4 +++-
+ misc/notepadplus/userDefineLang.xml | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

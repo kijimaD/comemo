@@ -1,0 +1,13 @@
+commit d5bcf7bf41ee730765e07bf686c7ecc3b0f64d62
+Author: Charles L. Dorian <cldorian@gmail.com>
+Date:   Tue Dec 15 20:43:12 2009 -0800
+
+    math: special cases for Pow
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/176064
+
+ src/pkg/math/all_test.go | 152 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/math/pow.go      |  55 +++++++++++++++--
+ 2 files changed, 202 insertions(+), 5 deletions(-)

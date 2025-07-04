@@ -1,0 +1,19 @@
+commit 870256ec891421d9d68365f65e48d270e16958bb
+Author: j178 <sherlockjoe8@gmail.com>
+Date:   Thu Apr 7 02:44:08 2022 +0000
+
+    hash/maphash: use correct method name in comment
+    
+    Change-Id: I01a3a5232525683c987b52ab8ece3fc18b6f431b
+    GitHub-Last-Rev: d2ec8fe536c7a1cdbd23017185447a86bee5a82a
+    GitHub-Pull-Request: golang/go#52194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/398714
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+
+ src/hash/maphash/maphash.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

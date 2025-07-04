@@ -1,0 +1,20 @@
+commit caf45cde1873360d326af974575bd254b8011901
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 19 17:07:00 2019 +0200
+
+    cmd/compile: add documentation for isfat
+    
+    In CL 192980, I tend to think that canSSAType can be used as replacement
+    for isfat. It is not the truth as @khr points me out that isfat has very
+    different purpose.
+    
+    So this CL adds documentation for isfat, also remove outdated TODO.
+    
+    Change-Id: I15954d638759bd9f6b28a6aa04c1a51129d9ae7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/196499
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/plive.go | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)

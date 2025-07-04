@@ -1,0 +1,17 @@
+commit 0624fd3f144fdbc2d5dd88a7c407bcc85a75e195
+Author: Didier Spezia <didier.06@gmail.com>
+Date:   Wed Nov 11 11:00:56 2015 +0000
+
+    cmd/compile: regenerate builtin.go
+    
+    Following a recent change, file builtin.go is not up-to-date.
+    Generate it again by running go generate.
+    
+    Fixes #13203
+    
+    Change-Id: Ib91c5ccc93665c043da95c7d3783ce5d94e48466
+    Reviewed-on: https://go-review.googlesource.com/16821
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go | 2 --
+ 1 file changed, 2 deletions(-)

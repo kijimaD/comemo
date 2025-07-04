@@ -1,0 +1,26 @@
+commit 7c404d59db3591a7c5854b38dc0f05fcb7ac0cff
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 3 19:28:25 2022 +0000
+
+    runtime: store consistent total allocation stats as uint64
+    
+    Currently the consistent total allocation stats are managed as uintptrs,
+    which means they can easily overflow on 32-bit systems. Fix this by
+    storing these stats as uint64s. This will cause some minor performance
+    degradation on 32-bit systems, but there really isn't a way around this,
+    and it affects the correctness of the metrics we export.
+    
+    Fixes #52680.
+    
+    Change-Id: I7e6ca44047d46b4bd91c6f87c2d29f730e0d6191
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403758
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/runtime/mcache.go   | 20 ++++++++++----------
+ src/runtime/metrics.go  | 12 ++++++------
+ src/runtime/mgcsweep.go |  6 +++---
+ src/runtime/mstats.go   | 42 ++++++++++++++++++++++--------------------
+ 4 files changed, 41 insertions(+), 39 deletions(-)

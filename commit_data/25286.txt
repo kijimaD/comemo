@@ -1,0 +1,50 @@
+commit 1fe3933920eda140a75f87268a6d75260ba41823
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Dec 16 16:49:16 2015 +0000
+
+    net/http: fix Transport race returning bodyless responses and reusing conns
+    
+    The Transport had a delicate protocol between its readLoop goroutine
+    and the goroutine calling RoundTrip. The basic concern is that the
+    caller's RoundTrip goroutine wants to wait for either a
+    connection-level error (the conn dying) or the response. But sometimes
+    both happen: there's a valid response (without a body), but the conn
+    is also going away. Both goroutines' logic dealing with this had grown
+    large and complicated with hard-to-follow comments over the years.
+    
+    Simplify and document. Pull some bits into functions and do all
+    bodyless stuff in one place (it's special enough), rather than having
+    a bunch of conditionals scattered everywhere. One test is no longer
+    even applicable since the race it tested is no longer possible (the
+    code doesn't exist).
+    
+    The bug that this fixes is that when the Transport reads a bodyless
+    response from a server, it was returning that response before
+    returning the persistent connection to the idle pool. As a result,
+    ~1/1000 of serial requests would end up creating a new connection
+    rather than re-using the just-used connection due to goroutine
+    scheduling chance. Instead, this now adds bodyless responses'
+    connections back to the idle pool first, then sends the response to
+    the RoundTrip goroutine, but making sure that the RoundTrip goroutine
+    is outside of its select on the connection dying.
+    
+    There's a new buffered channel involved now, which is a minor
+    complication, but it's much more self-contained and well-documented
+    than the previous complexity. (The alternative of making the
+    responseAndError channel itself unbuffered is too invasive and risky
+    at this point; it would require a number of changes to avoid
+    deadlocked goroutines in error cases)
+    
+    In any case, flakes look to be gone now. We'll see if trybots agree.
+    
+    Fixes #13633
+    
+    Change-Id: I95a22942b2aa334ae7c87331fddd751d4cdfdffc
+    Reviewed-on: https://go-review.googlesource.com/17890
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/export_test.go    |   7 +-
+ src/net/http/transport.go      | 285 ++++++++++++++++++++++-------------------
+ src/net/http/transport_test.go |  91 +++++--------
+ 3 files changed, 194 insertions(+), 189 deletions(-)

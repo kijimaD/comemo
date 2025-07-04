@@ -1,0 +1,13 @@
+commit c53111d987ea5b4cf1496325ee3fd9f3cc5348d2
+Author: Shenghou Ma <minux@golang.org>
+Date:   Sat May 31 01:55:11 2014 -0700
+
+    C: add another email of mine.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/102920047
+
+ CONTRIBUTORS | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

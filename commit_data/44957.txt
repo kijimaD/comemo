@@ -1,0 +1,23 @@
+commit 79b2e14b1a08d5c5a6a6153c5fa85b6cab0fcbf4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 24 14:41:25 2021 +0100
+
+    crypto/ed25519: add comprehensive edge-case test vectors
+    
+    This will allow us to make changes to the internals confidently, without
+    risking causing issues in consensus applications. It will also prevent
+    architecture-specific divergence, like #40475.
+    
+    Fixes #40478
+    
+    Change-Id: I8c2b31406ca88add6941f14d8df8cecb96379cde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304349
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: Filippo Valsorda <filippo@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+
+ src/crypto/ed25519/ed25519vectors_test.go | 109 ++++++++++++++++++++++++++++++
+ 1 file changed, 109 insertions(+)

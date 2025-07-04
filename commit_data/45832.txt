@@ -1,0 +1,22 @@
+commit ed834853ad8224611f44a3c467e00a22df341d91
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Jun 17 14:12:34 2021 -0400
+
+    cmd/go: replace a TODO with an explanatory comment
+    
+    I left a TODO to decide whether to add 'go get' arguments as indirect
+    (as we have in the past), or to make them direct. I considered both
+    options, and decided to keep the indirect default because it is easier
+    (and less invasive) for users to fix.
+    
+    Updates #45979
+    
+    Change-Id: I1f23a88db59a01bdd9e6fe48c2fffc8a3b55145a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/328971
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/testdata/script/mod_get_lazy_indirect.txt | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

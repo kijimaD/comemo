@@ -1,0 +1,27 @@
+commit 469d9e26eec76341da8ebc4ef9cedb5bdb32ce73
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Sun Feb 19 23:19:20 2023 -0800
+
+    encoding: add AppendEncode and AppendDecode
+    
+    Implement append-like equivalent of Encode and Decode functions.
+    
+    Fixes #53693
+    
+    Change-Id: I79d8d834e3c8f77fad32be2fd391e33d4d1527ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/504884
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+
+ api/next/53693.txt                 |  6 ++++++
+ src/encoding/base32/base32.go      | 20 ++++++++++++++++++++
+ src/encoding/base32/base32_test.go | 10 +++++++---
+ src/encoding/base64/base64.go      | 20 ++++++++++++++++++++
+ src/encoding/base64/base64_test.go |  9 +++++++--
+ src/encoding/hex/hex.go            | 20 ++++++++++++++++++++
+ src/encoding/hex/hex_test.go       | 12 ++++++++++++
+ src/go/build/deps_test.go          |  2 +-
+ 8 files changed, 93 insertions(+), 6 deletions(-)

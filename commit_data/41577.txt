@@ -1,0 +1,39 @@
+commit 5ea58c63468bbc7e8705ee13d0bddbf3693785fe
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Mar 5 11:11:47 2020 -0500
+
+    cmd/go: make go test -json report failures for panicking/exiting tests
+    
+    'go test -json' should report that a test failed if the test binary
+    did not exit normally with status 0. This covers panics, non-zero
+    exits, and abnormal terminations.
+    
+    These tests don't print a final result when run with -test.v (which is
+    used by 'go test -json'). The final result should be "PASS" or "FAIL"
+    on a line by itself. 'go test' prints "FAIL" in this case, but
+    includes error information.
+    
+    test2json was changed in CL 192104 to report that a test passed if it
+    does not report a final status. This caused 'go test -json' to report
+    that a test passed after a panic or non-zero exit.
+    
+    With this change, test2json treats "FAIL" with error information the
+    same as "FAIL" on a line by itself. This is intended to be a minimal
+    fix for backporting, but it will likely be replaced by a complete
+    solution for #29062.
+    
+    Fixes #37555
+    Updates #29062
+    Updates #31969
+    
+    Change-Id: Icb67bcd36bed97e6a8d51f4d14bf71f73c83ac3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/222243
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/test/test.go                   |  8 +++
+ .../go/testdata/script/test_json_panic_exit.txt    | 69 ++++++++++++++++++++++
+ src/cmd/internal/test2json/test2json.go            |  9 ++-
+ src/cmd/internal/test2json/testdata/panic.json     |  2 +-
+ 4 files changed, 86 insertions(+), 2 deletions(-)

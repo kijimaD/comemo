@@ -1,0 +1,17 @@
+commit 8ecdc4e593676ff56f8ac273a01f27f0862992a9
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Wed Aug 9 21:13:50 2023 +0800
+
+    syscall: avoid setting O_NONBLOCK needlessly by checking flags beforehand
+    
+    Change-Id: I097a2941f1d1a7fd98ccf1534940d03f47ac3229
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/517675
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+
+ src/syscall/exec_unix.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,16 @@
+commit 0944837f7900d18f9be7e6f77673e994399b7ea7
+Author: Alexey Borzenkov <snaury@gmail.com>
+Date:   Thu Apr 10 14:12:36 2014 -0700
+
+    net/http: fix requests failing on short gzip body
+    
+    Fixes #7750.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, ibilicc, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/84850043
+
+ src/pkg/net/http/transport.go      | 29 ++++++++++++++++++++++-------
+ src/pkg/net/http/transport_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 7 deletions(-)

@@ -1,0 +1,98 @@
+commit 2f0cae46d8ad17751401f2c61009a10ea4bc17b3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 8 13:24:37 2010 -0700
+
+    runtime: work around kernel bug in Snow Leopard signal handling
+    
+    Could not take a signal on threads other than the main thread.
+    If you look at the spinning binary with dtrace, you can see a
+    fault happening over and over:
+    
+        $ dtrace -n '
+        fbt::user_trap:entry /execname=="boot32" && self->count < 10/
+        {
+            self->count++;
+            printf("%s %x %x %x %x", probefunc, arg1, arg2, arg3, arg4);
+            stack();
+            tracemem(arg4, 256);
+        }'
+    
+        dtrace: description 'fbt::user_trap:entry ' matched 1 probe
+        CPU     ID                    FUNCTION:NAME
+          1  17015                  user_trap:entry user_trap 0 10 79af0a0 79af0a0
+                      mach_kernel`lo_alltraps+0x12a
+    
+                 0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f  0123456789abcdef
+             0: 0e 00 00 00 37 00 00 00 00 00 00 00 1f 00 00 00  ....7...........
+            10: 1f 00 00 00 a8 33 00 00 00 00 00 01 00 00 00 00  .....3..........
+            20: 98 ba dc fe 07 09 00 00 00 00 00 00 98 ba dc fe  ................
+            30: 06 00 00 00 0d 00 00 00 34 00 00 00 9e 1c 00 00  ........4.......
+            40: 17 00 00 00 00 02 00 00 ac 30 00 00 1f 00 00 00  .........0......
+            50: 00 00 00 00 00 00 00 00 0d 00 00 00 e0 e6 29 00  ..............).
+            60: 34 00 00 00 00 00 00 00 9e 1c 00 00 00 00 00 00  4...............
+            70: 17 00 00 00 00 00 00 00 00 02 00 00 00 00 00 00  ................
+            80: ac 30 00 00 00 00 00 00 1f 00 00 00 00 00 00 00  .0..............
+            90: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+            a0: 48 00 00 00 10 00 00 00 85 00 00 00 a0 f2 29 00  H.............).
+            b0: 69 01 00 02 00 00 00 00 e6 93 04 82 ff 7f 00 00  i...............
+            c0: 2f 00 00 00 00 00 00 00 06 02 00 00 00 00 00 00  /...............
+            d0: 78 ee 42 01 01 00 00 00 1f 00 00 00 00 00 00 00  x.B.............
+            e0: 00 ed 9a 07 00 00 00 00 00 00 00 00 00 00 00 00  ................
+            f0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+    
+        ...
+    
+    The memory dump shows a 32-bit exception frame:
+    
+        x86_saved_state32
+    
+        gs = 0x37
+        fs = 0
+        es = 0x1f
+        ds = 0x1f
+        edi = 0x33a8
+        esi = 0x01000000
+        ebp = 0
+        cr2 = 0xfedcba98
+        ebx = 0x0907
+        edx = 0
+        ecx = 0xfedcba98
+        eax = 0x06
+        trapno = 0x0d
+        err = 0x34
+        eip = 0x1c9e
+        cs = 0x17
+        efl = 0x0200
+        uesp = 0x30ac
+        ss = 0x1f
+    
+    The cr2 of 0xfedcba98 is the address that the new thread read
+    to cause the fault, but note that the trap is now a GP fault with
+    error code 0x34, meaning it's moved past the cr2 problem and on
+    to an invaild segment selector.  The 0x34 is suspiciously similar
+    to the 0x37 in gs, and sure enough, OS X forces gs to have
+    that value in the signal handler, and if your thread hasn't set
+    up that segment (known as USER_CTHREAD), you'll fault on the IRET
+    into the signal handler and never be able to handle a signal.
+    
+    The kernel bug is that it forces segment 0x37 without making sure
+    it is a valid segment.  Leopard also forced 0x37 but had the courtesy
+    to set it up first.
+    
+    Since OS X requires us to set up that segment (using the
+    thread_fast_set_cthread_self system call), we might as well
+    use it instead of the more complicated i386_set_ldt call to
+    set up our per-OS thread storage.
+    
+    Also add some more zeros to bsdthread_register for new arguments
+    in Snow Leopard (apparently unnecessary, but being careful).
+    
+    Fixes #510.
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/824046
+
+ src/pkg/runtime/darwin/386/sys.s   | 81 +++++++++-----------------------------
+ src/pkg/runtime/darwin/amd64/sys.s |  4 ++
+ 2 files changed, 22 insertions(+), 63 deletions(-)

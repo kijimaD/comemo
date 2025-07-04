@@ -1,0 +1,35 @@
+commit 9613a638a95d5388f1f50189531a4e19af08fb15
+Author: David Chase <drchase@google.com>
+Date:   Tue May 30 16:06:59 2017 -0400
+
+    cmd/compile: fix subword store/load elision for amd64, x86, arm
+    
+    Replacing byteload-of-bytestore-of-x with x is incorrect
+    when x contains a larger-than-byte value (and so on for
+    16 and 32-bit load/store pairs).  Replace "x" with the
+    appropriate zero/sign extension of x, which if unnecessary
+    will be repaired by other rules.
+    
+    Made logic for arm match x86 and amd64; yields minor extra
+    optimization, plus I am (much) more confident it's correct,
+    despite inability to reproduce bug on arm.
+    
+    Ppc64 lacks this optimization, hence lacks this problem.
+    
+    See related https://golang.org/cl/37154/
+    Fixes #20530.
+    
+    Change-Id: I6af9cac2ad43bee99cafdcb04725ce7e55a43323
+    Reviewed-on: https://go-review.googlesource.com/44355
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/386.rules   |  8 ++-
+ src/cmd/compile/internal/ssa/gen/AMD64.rules | 11 ++--
+ src/cmd/compile/internal/ssa/gen/ARM.rules   | 11 ++--
+ src/cmd/compile/internal/ssa/rewrite386.go   | 58 +++++++++++++++++--
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 87 +++++++++++++++++++++++++---
+ src/cmd/compile/internal/ssa/rewriteARM.go   | 36 +++++-------
+ test/fixedbugs/issue20530.go                 | 18 ++++++
+ 7 files changed, 182 insertions(+), 47 deletions(-)

@@ -1,0 +1,92 @@
+commit 867121585ad4b524ae7b6de31ab13432a4e11ce3
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Feb 21 11:11:57 2013 -0500
+
+    exp/ssa: build fully pruned SSA form.
+    
+    Overview: Function.finish() now invokes the "lifting" pass which replaces local allocs and loads and stores to such cells by SSA registers.  We use very standard machinery:
+    
+    (1) we build the dominator tree for the function's control flow graph (CFG) using the "Simple" Lengauer-Tarjan algorithm.  (Very "simple" in fact: even simple path compression is not yet implemented.)
+    
+    In sanity-checking mode, we cross check the dominator tree against an alternative implementation using a simple iterative dataflow algorithm.
+    This all lives in dom.go, along with some diagnostic printing routines.
+    
+    (2) we build the dominance frontier for the entire CFG using the Cytron et al algorithm.  The DF is represented as a slice of slices, keyed by block index.  See buildDomFrontier() in lift.go.
+    
+    (3) we determine for each Alloc whether it can be lifted: is it only subject to loads and stores?  If so, we traverse the iterated dominance frontier (IDF) creating φ-nodes; they are not prepended to the blocks yet.
+    See liftAlloc() in lift.go.
+    
+    (4) we perform the SSA renaming algorithm from Cytron et al, replacing all loads to lifted Alloc cells by the value stored by the dominating store operation, and deleting the stores and allocs.  See rename() in lift.go.
+    
+    (5) we eliminate unneeded φ-nodes, then concatenate the remaining ones with the non-deleted instructions of the block into a new slice.  We eliminate any lifted allocs from Function.Locals.
+    
+    To ease reviewing, I have avoided almost all optimisations at this point, though there are many opportunities to explore.  These will be easier to understand as follow-up changes.
+    
+    All the existing tests (pending CL 7313062) pass.  (Faster!)
+    
+    Details:
+    
+    "NaiveForm" BuilderMode flag suppresses all the new logic.
+    Exposed as 'ssadump -build=N'.
+    
+    BasicBlock:
+    - add .Index field (b.Func[b.Index]==b), simplifying
+      algorithms such as Kildall-style dataflow with bitvectors.
+    - rename the Name field to Comment to better reflect its
+      reduced purpose.  It now has a String() method.
+    - 'dom' field holds dominator tree node; private for now.
+    - new predIndex method.
+    - hasPhi is now a method
+    
+    dom.go:
+    - domTree: a new struct for a node in a dominator tree.
+    - buildDomTree builds the dominator tree using the simple
+      variant Lengauer/Tarjan algorithm with Georgiadis'
+      bucket optimizations.
+    - sanityCheckDomTree builds dominance relation using
+      Kildall-style dataflow and ensures the same result is
+      obtained.
+    - printDomTreeDot prints the CFG/DomTree in GraphViz format.
+    
+    blockopt.go:
+    - perform a mark/sweep pass to eliminate unreachable
+      cycles; the previous prune() opt would only eliminate
+      trivially dead blocks.  (Needed for LT algo.)
+    - using .Index, fuseblocks can now delete fused blocks directly.
+    - delete prune().
+    
+    sanity.go: more consistency checks:
+    - Phi with missing edge value
+    - local Alloc instructions must appear in Function.Locals.
+    - BasicBlock.Index, Func consistency
+    - CFG edges are all intraprocedural.
+    - detect nils in BasicBlock.Instrs.
+    - detect Function.Locals with Heap flag set.
+    - check fn.Blocks is nil if empty.
+    
+    Also:
+    - Phi now has Comment field for debugging.
+    - Fixed bug in Select.Operands()
+      (took address of temporary copy of field)
+    - new Literal constructor zeroLiteral().
+    - algorithms steal private fields Alloc.index,
+      BasicBlock.gaps to avoid allocating maps.
+    - We print Function.Locals in DumpTo.
+    - added profiling support to ssadump.
+    
+    R=iant, gri
+    CC=golang-dev
+    https://golang.org/cl/7229074
+
+ src/pkg/exp/ssa/blockopt.go | 105 +++++-----
+ src/pkg/exp/ssa/builder.go  |   9 +-
+ src/pkg/exp/ssa/doc.go      |   9 +-
+ src/pkg/exp/ssa/dom.go      | 296 ++++++++++++++++++++++++++
+ src/pkg/exp/ssa/func.go     | 143 ++++++++++---
+ src/pkg/exp/ssa/lift.go     | 492 ++++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/exp/ssa/literal.go  |  35 ++++
+ src/pkg/exp/ssa/print.go    |  18 +-
+ src/pkg/exp/ssa/sanity.go   |  83 ++++++--
+ src/pkg/exp/ssa/ssa.go      |  15 +-
+ src/pkg/exp/ssa/ssadump.go  |  16 ++
+ 11 files changed, 1096 insertions(+), 125 deletions(-)

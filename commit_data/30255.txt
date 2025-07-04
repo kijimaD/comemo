@@ -1,0 +1,17 @@
+commit cc2a52adef473aa94cbbcc148eef4dfd79259ae7
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Feb 12 22:56:28 2017 -0800
+
+    all: use keyed composite literals
+    
+    Makes vet happy.
+    
+    Change-Id: I7250f283c96e82b9796c5672a0a143ba7568fa63
+    Reviewed-on: https://go-review.googlesource.com/36937
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/envcmd/env.go  | 52 +++++++++++++++++++-------------------
+ src/runtime/pprof/protomem_test.go |  6 ++---
+ 2 files changed, 29 insertions(+), 29 deletions(-)

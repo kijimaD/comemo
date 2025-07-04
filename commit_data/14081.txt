@@ -1,0 +1,12 @@
+commit d5b570cdb105d8ea3c6a86c603949d3a9de647f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sun Oct 7 18:16:04 2012 -0700
+
+    fix build: use temporary variable to avoid compiler error
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6612066
+
+ src/pkg/exp/types/staging/types_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

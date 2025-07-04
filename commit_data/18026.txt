@@ -1,0 +1,20 @@
+commit 0a6ad46b4f59f38fd1b55d0f46134133d74bd376
+Author: Michael Hudson-Doyle <michael.hudson@linaro.org>
+Date:   Tue Dec 17 14:49:51 2013 -0800
+
+    reflect: Add tests for Call with functions taking and returning structs.
+    
+    gccgo has problems using reflect.Call with functions that take and
+    return structs with no members.  Prior to fixing that problem there, I
+    thought it sensible to add some tests of this situation.
+    
+    Update #6761
+    
+    First contribution to Go, apologies in advance if I'm doing it wrong.
+    
+    R=golang-dev, dave, minux.ma, iant, khr, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/26570046
+
+ src/pkg/reflect/all_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)

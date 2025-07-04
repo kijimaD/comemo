@@ -1,0 +1,31 @@
+commit cdce82485047bd0f7f5dc31d27326bb4ca869e53
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 29 19:23:35 2018 +0000
+
+    net/http: update bundled http2
+    
+    Updates http2 to x/net/http2 git rev 97aa3a539 for:
+    
+        http2: dynamic table updates must occur first
+        https://golang.org/cl/111681
+    
+        http2: receiving too much data is a protocol error
+        https://golang.org/cl/111679
+    
+        http2: correct overflow protection
+        https://golang.org/cl/111675
+    
+        http2: make Server send GOAWAY if Handler sets "Connection: close" header
+        https://golang.org/cl/121415
+    
+    Fixes #20977
+    
+    Change-Id: I9b8659b5191409ed007e2d911913763bcbabb7cc
+    Reviewed-on: https://go-review.googlesource.com/121695
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/clientserver_test.go |  1 -
+ src/net/http/h2_bundle.go         | 32 +++++++++++++++++++++++---------
+ 2 files changed, 23 insertions(+), 10 deletions(-)

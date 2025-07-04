@@ -1,0 +1,12 @@
+commit e3cecfdcaec55c4dd62c7d4fef3d03fed6d03e38
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Mon Aug 22 15:02:59 2016 +0900
+
+    net: fix a typo
+    
+    Change-Id: I29fadde646095fa8507f239a339857bf53172c14
+    Reviewed-on: https://go-review.googlesource.com/27418
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/dnsclient_unix_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

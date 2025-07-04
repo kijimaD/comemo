@@ -1,0 +1,35 @@
+commit bd8bb6735765653b29c672d724eaf80a477d1eba
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Tue May 19 15:25:35 2015 -0700
+
+    cmd/internal/gc: unembed Param field
+    
+    This is an automated follow-up to CL 10210.
+    It was generated with a combination of eg and gofmt -r.
+    
+    No functional changes. Passes toolstash -cmp.
+    
+    Change-Id: I35f5897948a270b472d8cf80612071b4b29e9a2b
+    Reviewed-on: https://go-review.googlesource.com/10253
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/align.go     |  4 +--
+ src/cmd/compile/internal/gc/closure.go   | 48 ++++++++++++++++----------------
+ src/cmd/compile/internal/gc/dcl.go       | 38 ++++++++++++-------------
+ src/cmd/compile/internal/gc/esc.go       | 14 +++++-----
+ src/cmd/compile/internal/gc/export.go    |  2 +-
+ src/cmd/compile/internal/gc/fmt.go       | 10 +++----
+ src/cmd/compile/internal/gc/gen.go       |  8 +++---
+ src/cmd/compile/internal/gc/go.y         |  4 +--
+ src/cmd/compile/internal/gc/init.go      |  2 +-
+ src/cmd/compile/internal/gc/lex.go       |  4 +--
+ src/cmd/compile/internal/gc/sinit.go     |  2 +-
+ src/cmd/compile/internal/gc/subr.go      | 10 +++----
+ src/cmd/compile/internal/gc/swt.go       |  4 +--
+ src/cmd/compile/internal/gc/syntax.go    |  2 +-
+ src/cmd/compile/internal/gc/typecheck.go | 46 +++++++++++++++---------------
+ src/cmd/compile/internal/gc/walk.go      | 10 +++----
+ src/cmd/compile/internal/gc/y.go         |  4 +--
+ 17 files changed, 106 insertions(+), 106 deletions(-)

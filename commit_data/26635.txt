@@ -1,0 +1,25 @@
+commit 47c9e139aed3e6d24ee980828835fb03229272ff
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Mar 23 10:20:44 2016 -0700
+
+    cmd/compile: extend prove pass to handle constant comparisons
+    
+    Find comparisons to constants and propagate that information
+    down the dominator tree.  Use it to resolve other constant
+    comparisons on the same variable.
+    
+    So if we know x >= 7, then a x > 4 condition must return true.
+    
+    This change allows us to use "_ = b[7]" hints to eliminate bounds checks.
+    
+    Fixes #14900
+    
+    Change-Id: Idbf230bd5b7da43de3ecb48706e21cf01bf812f7
+    Reviewed-on: https://go-review.googlesource.com/21008
+    Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
+
+ src/cmd/compile/internal/ssa/prove.go | 190 +++++++++++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/value.go |   5 +
+ src/encoding/binary/binary.go         |  24 ++---
+ test/prove.go                         | 176 ++++++++++++++++++++++++++++++-
+ 4 files changed, 379 insertions(+), 16 deletions(-)

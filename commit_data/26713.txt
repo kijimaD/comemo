@@ -1,0 +1,25 @@
+commit ffbd31e9f79ad8b6aaeceac1397678e237581064
+Author: Augusto Roman <aroman@gmail.com>
+Date:   Tue Mar 8 12:41:35 2016 -0800
+
+    encoding/json: allow non-string type keys for (un-)marshal
+    
+    This CL allows JSON-encoding & -decoding maps whose keys are types that
+    implement encoding.TextMarshaler / TextUnmarshaler.
+    
+    During encode, the map keys are marshaled upfront so that they can be
+    sorted.
+    
+    Fixes #12146
+    
+    Change-Id: I43809750a7ad82a3603662f095c7baf75fd172da
+    Reviewed-on: https://go-review.googlesource.com/20356
+    Run-TryBot: Caleb Spare <cespare@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/encoding/json/decode.go      | 32 +++++++++++++++------
+ src/encoding/json/decode_test.go | 62 ++++++++++++++++++++++++++++------------
+ src/encoding/json/encode.go      | 53 +++++++++++++++++++++++++---------
+ src/encoding/json/encode_test.go | 16 +++++++++++
+ 4 files changed, 123 insertions(+), 40 deletions(-)

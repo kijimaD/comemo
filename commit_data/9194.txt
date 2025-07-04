@@ -1,0 +1,37 @@
+commit a1e7cd97d509bae39d9e6a964b8920b1863a4e22
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Jul 24 17:00:28 2011 -0400
+
+    exp/regexp: implement regexp API using exp/regexp/syntax
+    
+    Still need to write tests for new syntax
+    and fix bugs that the tests find, but this
+    is a good check point.
+    
+    All tests pass.
+    
+    Compared against existing regexp:
+    
+    benchmark                                old ns/op    new ns/op    delta
+    regexp.BenchmarkLiteral                       1869          620  -66.83%
+    regexp.BenchmarkNotLiteral                    9489         7823  -17.56%
+    regexp.BenchmarkMatchClass                   10372         8386  -19.15%
+    regexp.BenchmarkMatchClass_InRange           10800         7750  -28.24%
+    regexp.BenchmarkReplaceAll                   13492         8519  -36.86%
+    regexp.BenchmarkAnchoredLiteralShortNonMatch   747          339  -54.62%
+    regexp.BenchmarkAnchoredLiteralLongNonMatch    599          335  -44.07%
+    regexp.BenchmarkAnchoredShortMatch            2137          917  -57.09%
+    regexp.BenchmarkAnchoredLongMatch             2029          917  -54.81%
+    
+    R=r, r
+    CC=golang-dev, sam.thorogood
+    https://golang.org/cl/4820046
+
+ src/pkg/exp/regexp/Makefile          |  12 +
+ src/pkg/exp/regexp/all_test.go       | 429 +++++++++++++++++++
+ src/pkg/exp/regexp/exec.go           | 295 +++++++++++++
+ src/pkg/exp/regexp/find_test.go      | 472 +++++++++++++++++++++
+ src/pkg/exp/regexp/regexp.go         | 795 +++++++++++++++++++++++++++++++++++
+ src/pkg/exp/regexp/syntax/compile.go |   1 +
+ src/pkg/exp/regexp/syntax/prog.go    |  55 +++
+ 7 files changed, 2059 insertions(+)

@@ -1,0 +1,37 @@
+commit 4dd9c7cadcbe689ef607931ed839456509e59104
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Dec 11 17:03:17 2020 -0500
+
+    cmd/go: remove some fsyncs when writing files
+    
+    cache.Trim, dowloadZip, rewriteVersionList, writeDiskCache all use
+    renameio.WriteFile to write their respective files to disk. For the
+    uses in cache.Trim and downloadZip, instead do of renameio.WriteFile,
+    do a truncate to the length of the file, then write the relevant bytes
+    so that a corrupt file (which would contain null bytes because of
+    the truncate) could be detected. For rewriteVersionList, use
+    lockedfile.Transform to do the write (which does a truncate as part of
+    the write too. writeDiskCache stays the same in this CL.
+    
+    Also desete renameio methods that aren't used and remove the
+    renameio.WriteFile wrapper and just use renameio.WriteToFile which it
+    wraps.
+    
+    There is a possibility of corrupt files in the cache (which was true
+    even before this CL) so later CLs will add facilities to clear corrupt
+    files in the cache.
+    
+    Change-Id: I0d0bda40095e4cb898314315bf313e71650d8d25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/277412
+    Trust: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Michael Matloob <matloob@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/internal/cache/cache.go            | 23 +++++++---
+ src/cmd/go/internal/modfetch/cache.go         | 64 ++++++++++++++++++--------
+ src/cmd/go/internal/modfetch/fetch.go         | 66 ++++++++++++++++++++++-----
+ src/cmd/go/internal/renameio/renameio.go      |  8 +---
+ src/cmd/go/internal/renameio/renameio_test.go |  2 +-
+ 5 files changed, 118 insertions(+), 45 deletions(-)

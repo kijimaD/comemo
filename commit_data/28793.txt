@@ -1,0 +1,51 @@
+commit 442de98c14d49bf306ab880e9f9c898ca0ae7c19
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Oct 11 08:36:38 2016 -0700
+
+    cmd/compile,runtime: redo how map assignments work
+    
+    To compile:
+      m[k] = v
+    instead of:
+      mapassign(maptype, m, &k, &v), do
+    do:
+      *mapassign(maptype, m, &k) = v
+    
+    mapassign returns a pointer to the value slot in the map.  It is just
+    like mapaccess except that it will allocate a new slot if k is not
+    already present in the map.
+    
+    This makes map accesses faster but potentially larger (codewise).
+    
+    It is faster because the write into the map is done when the compiler
+    knows the concrete type, so it can be done with a few store
+    instructions instead of calling typedmemmove.  We also potentially
+    avoid stack temporaries to hold v.
+    
+    The code can be larger when the map has pointers in its value type,
+    since there is a write barrier call in addition to the mapassign call.
+    That makes the code at the callsite a bit bigger (go binary is 0.3%
+    bigger).
+    
+    This CL is in preparation for doing operations like m[k] += v with
+    only a single runtime call.  That will roughly double the speed of
+    such operations.
+    
+    Update #17133
+    Update #5147
+    
+    Change-Id: Ia435f032090a2ed905dac9234e693972fe8c2dc5
+    Reviewed-on: https://go-review.googlesource.com/30815
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 92 +++++++++++++-------------
+ src/cmd/compile/internal/gc/builtin/runtime.go |  2 +-
+ src/cmd/compile/internal/gc/order.go           | 32 ++++-----
+ src/cmd/compile/internal/gc/racewalk.go        |  4 +-
+ src/cmd/compile/internal/gc/syntax.go          |  2 +-
+ src/cmd/compile/internal/gc/walk.go            | 84 ++++++++++-------------
+ src/runtime/hashmap.go                         | 38 +++++------
+ test/live.go                                   | 33 ++++-----
+ 8 files changed, 137 insertions(+), 150 deletions(-)

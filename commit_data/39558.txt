@@ -1,0 +1,28 @@
+commit 8a317ebc0f50339628c003bf06107cd865406dd4
+Author: Keith Randall <khr@google.com>
+Date:   Tue Jul 30 16:14:20 2019 -0700
+
+    cmd/compile: don't eliminate all registers when restricting to desired ones
+    
+    We shouldn't mask to desired registers if we haven't masked out all the
+    forbidden registers yet.  In this path we haven't masked out the nospill
+    registers yet. If the resulting mask contains only nospill registers, then
+    allocReg fails.
+    
+    This can only happen on resultNotInArgs-marked instructions, which exist
+    only on the ARM64, MIPS, MIPS64, and PPC64 ports.
+    
+    Maybe there's a better way to handle resultNotInArgs instructions.
+    But for 1.13, this is a low-risk fix.
+    
+    Fixes #33355
+    
+    Change-Id: I1082f78f798d1371bde65c58cc265540480e4fa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/188178
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/regalloc.go |   2 +-
+ test/fixedbugs/issue33355.go             | 147 +++++++++++++++++++++++++++++++
+ 2 files changed, 148 insertions(+), 1 deletion(-)

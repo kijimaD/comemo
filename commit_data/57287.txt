@@ -1,0 +1,32 @@
+commit 44483133fd991ec929fb1404e087d08f679c8d28
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 21 13:43:42 2024 -0700
+
+    syscall: honor prlimit set by a different process
+    
+    On Linux one process can call prlimit to change the resource limit
+    of another process. With this change we treat that as though the
+    current process called prlimit (or setrlimit) to set its own limit.
+    The cost is one additional getrlimit system call per fork/exec,
+    for cases in which the rlimit Cur and Max values differ at startup.
+    
+    This revealed a bug: the setrlimit (not Setrlimit) function should not
+    change the cached rlimit. That means that it must call prlimit1, not prlimit.
+    
+    Fixes #66797
+    
+    Change-Id: I46bfd06e09ab7273fe8dd9b5b744dffdf31d828b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607516
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Aleksa Sarai <cyphar@cyphar.com>
+    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/syscall/exec_linux.go         |  19 +++-
+ src/syscall/rlimit.go             |  12 ++-
+ src/syscall/syscall_linux.go      |   2 +-
+ src/syscall/syscall_linux_test.go | 195 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 223 insertions(+), 5 deletions(-)

@@ -1,0 +1,28 @@
+commit 053549ca1bd77aeaff45ddb574a9f5593962e0d5
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Fri Oct 28 09:06:30 2011 +1100
+
+    html: allow whitespace text nodes in <head>
+    
+    Pass tests1.dat, test 50:
+    <!DOCTYPE html><script> <!-- </script> --> </script> EOF
+    
+    | <!DOCTYPE html>
+    | <html>
+    |   <head>
+    |     <script>
+    |       " <!-- "
+    |     " "
+    |   <body>
+    |     "-->  EOF"
+    
+    Also pass tests through test 54:
+    <!DOCTYPE html><title>U-test</title><body><div><p>Test<u></p></div></body>
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5311066
+
+ src/pkg/html/parse.go      | 18 ++++++++++++++++--
+ src/pkg/html/parse_test.go |  2 +-
+ 2 files changed, 17 insertions(+), 3 deletions(-)

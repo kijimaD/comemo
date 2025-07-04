@@ -1,0 +1,17 @@
+commit 2674efbdf414ce97a542e557224fca0b978a7fa5
+Author: Rob Pike <r@golang.org>
+Date:   Sat Apr 26 10:18:17 2014 -0600
+
+    doc/debugging_with_gdb.html: add introductory disclaimer
+    The instructions in this document are useful but not reliable.
+    Explain the situation up top.
+    
+    Fixes #7471.
+    
+    LGTM=josharian, iant
+    R=golang-codereviews, josharian, iant
+    CC=golang-codereviews
+    https://golang.org/cl/96830045
+
+ doc/debugging_with_gdb.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

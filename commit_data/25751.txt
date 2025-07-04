@@ -1,0 +1,24 @@
+commit e136cac48c14aa85795625169379eeeddce35e4f
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Thu Feb 11 10:15:58 2016 +1100
+
+    net: make TestInterfaceAddrsWithNetsh more robust
+    
+    TestInterfaceAddrsWithNetsh invokes Windows netsh command passing
+    it a particular interface name. This approach somehow does not work
+    on some computers (see issue for details). Change that to call netsh
+    without specifying any interface name. This provides output for all
+    interfaces available. So we can achieve same goal parsing this output.
+    Also makes test faster because we only need to invoke netsh once.
+    
+    Fixes #14130.
+    
+    Change-Id: I7911692ca64e372af1e1f9d6acb718c67071de67
+    Reviewed-on: https://go-review.googlesource.com/19441
+    Reviewed-by: Volker Dobler <dr.volker.dobler@gmail.com>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/net_windows_test.go | 105 ++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 82 insertions(+), 23 deletions(-)

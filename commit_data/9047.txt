@@ -1,0 +1,21 @@
+commit 050d839df01f0f7ba5bd59ebea54e5fa5f5caba6
+Author: Bobby Powers <bobbypowers@gmail.com>
+Date:   Wed Jul 13 17:12:17 2011 +1000
+
+    gob: register more slice types
+    
+    Without explicitly registering slice types, gob fails to encode
+    map[string]interface{} instances where the value is a slice,
+    failing with a message such as:
+    
+      gob: type not registered for interface: []string
+    
+    Fixes #2065.
+    
+    R=golang-dev, gri, r
+    CC=golang-dev
+    https://golang.org/cl/4672056
+
+ src/pkg/gob/encoder_test.go | 29 +++++++++++++++++++++++++++++
+ src/pkg/gob/type.go         | 18 ++++++++++++++++++
+ 2 files changed, 47 insertions(+)

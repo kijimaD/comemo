@@ -1,0 +1,14 @@
+commit 0d77947a3e0c46e8a612cc8ff08079441355e718
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jun 23 16:44:01 2009 -0700
+
+    publish strconv.UnquoteChar
+    
+    R=r
+    DELTA=69  (37 added, 3 deleted, 29 changed)
+    OCL=30661
+    CL=30667
+
+ src/pkg/strconv/quote.go      | 82 ++++++++++++++++++++++++++++++-------------
+ src/pkg/strconv/quote_test.go |  6 ++--
+ 2 files changed, 61 insertions(+), 27 deletions(-)

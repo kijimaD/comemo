@@ -1,0 +1,18 @@
+commit 6ece1b561c8b42efce68484edd2c9a6449264e96
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Wed Aug 19 10:05:11 2009 -0700
+
+    ELF reader and Go symbol table and PC/line table decoder.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1425  (1425 added, 0 deleted, 0 changed)
+    OCL=33432
+    CL=33517
+
+ usr/austin/sym/Makefile    |  14 ++
+ usr/austin/sym/binary.go   | 190 ++++++++++++++
+ usr/austin/sym/elf.go      | 237 +++++++++++++++++
+ usr/austin/sym/elffmt.go   | 389 ++++++++++++++++++++++++++++
+ usr/austin/sym/gosymtab.go | 615 +++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 1445 insertions(+)

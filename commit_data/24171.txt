@@ -1,0 +1,15 @@
+commit 40af15f28e63709859138f00179dc7bcdfdc834b
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Fri Sep 4 14:57:59 2015 +1200
+
+    runtime: teach softfloat interpreter about "add r11, pc, r11"
+    
+    This is generated during fp code when -shared is active.
+    
+    Change-Id: Ia1092299b9c3b63ff771ca4842158b42c34bd008
+    Reviewed-on: https://go-review.googlesource.com/14286
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/softfloat_arm.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

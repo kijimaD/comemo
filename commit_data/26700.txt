@@ -1,0 +1,26 @@
+commit 9db7ef561462606085759a2f8a93b7224fdfd2fc
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 00:07:18 2016 +0000
+
+    context: add the context package from golang.org/x/net/context
+    
+    This copies the golang.org/x/net/context package to the standard library.
+    
+    It is imported from the x/net repo's git rev 1d9fd3b8333e (the most
+    recent modified to x/net/context as of 2016-03-07).
+    
+    The corresponding change to x/net/context is in https://golang.org/cl/20347
+    
+    Updates #14660
+    
+    Change-Id: Ida14b1b7e115194d6218d9ac614548b9f41641cc
+    Reviewed-on: https://go-review.googlesource.com/20346
+    Reviewed-by: Sameer Ajmani <sameer@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/context/context.go          | 447 +++++++++++++++++++++++++++++++
+ src/context/context_test.go     | 575 ++++++++++++++++++++++++++++++++++++++++
+ src/context/withtimeout_test.go |  25 ++
+ src/go/build/deps_test.go       |   1 +
+ 4 files changed, 1048 insertions(+)

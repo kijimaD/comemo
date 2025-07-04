@@ -1,0 +1,13 @@
+commit 5512f6f3b333c97207a860cf89d78edf6bb38940
+Author: Peter Collingbourne <pcc@google.com>
+Date:   Wed Jul 9 10:04:38 2014 -0700
+
+    cmd/go: use $CC to build _cgo_defun.c
+    
+    LGTM=dave, iant
+    R=iant, dave
+    CC=golang-codereviews
+    https://golang.org/cl/112000043
+
+ src/cmd/go/build.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

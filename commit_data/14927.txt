@@ -1,0 +1,14 @@
+commit d3679726b4639c27ca6b632374cdf4be1c74dbb6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 18 13:59:25 2013 -0800
+
+    spec: clarify lhs syntax for range and select
+    
+    Fixes #4653.
+    
+    R=rsc, r, iant, ken, thakis
+    CC=golang-dev
+    https://golang.org/cl/7135058
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

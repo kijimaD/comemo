@@ -1,0 +1,14 @@
+commit 4e1d1965435046192267a6a03dd14773517b28b5
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Oct 16 13:58:32 2014 -0700
+
+    reflect: fix struct size calculation to include terminal padding
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/160920045
+
+ src/reflect/all_test.go | 20 ++++++++++++++++++++
+ src/reflect/type.go     |  1 +
+ 2 files changed, 21 insertions(+)

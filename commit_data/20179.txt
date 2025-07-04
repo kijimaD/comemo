@@ -1,0 +1,27 @@
+commit e66ff2b9080669373704914191abf2ee5f65eb75
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 28 12:16:06 2014 -0700
+
+    go/token: implement PositionFor accessors
+    
+    Package addition.
+    
+    PositionFor permits access to both, positions
+    adjusted by //line comments (like the Position
+    accessors), and unadjusted "raw" positions
+    unaffected by //line comments.
+    
+    Raw positions are required for correct formatting
+    of source code via go/printer which until now had
+    to manually fix adjusted positions.
+    
+    Fixes #7702.
+    
+    LGTM=adonovan
+    R=adonovan
+    CC=golang-codereviews
+    https://golang.org/cl/135110044
+
+ src/pkg/go/token/position.go      |  51 +++++++++++++------
+ src/pkg/go/token/position_test.go | 101 ++++++++++++++++++++++++++++++--------
+ 2 files changed, 116 insertions(+), 36 deletions(-)

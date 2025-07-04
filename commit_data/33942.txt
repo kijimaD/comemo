@@ -1,0 +1,38 @@
+commit 29208ce548f156d68269bf529dc7605d568a8f67
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 4 13:07:44 2018 -0500
+
+    cmd/go: fix coverage rebuild corner case
+    
+    If you have a package p1 with an xtest (package p1_test)
+    that imports p2, where p2 itself imports p1, then when
+    trying to do coverage for p1 we need to make sure to
+    recompile p2. The problem was that the overall package
+    import graph looked like:
+    
+        main -> p1_test -> p2 -> p1
+    
+    Since we were recompiling p1 with coverage, we correctly
+    figured out that because p2 depends on a package being
+    recompiled due to coverage, p2 also needs to be split (forked) to
+    insert the dependency on the modified p1. But then we used
+    the same logic to split p1_test and main, with the effect that
+    the changes to p2 and p1_test and main were lost, since the
+    caller was still holding on to the original main, not the split version.
+    
+    Change the code to treat main and p1_test as "already split"
+    and just update them in place.
+    
+    Fixes #23314.
+    
+    Change-Id: If7edeca6e39cdaeb5b9380d00b0c7d8c5891f086
+    Reviewed-on: https://go-review.googlesource.com/86237
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/go_test.go                          | 11 +++++++++++
+ src/cmd/go/internal/test/test.go               |  9 ++++++---
+ src/cmd/go/testdata/src/coverdep2/p1/p.go      |  3 +++
+ src/cmd/go/testdata/src/coverdep2/p1/p_test.go | 10 ++++++++++
+ src/cmd/go/testdata/src/coverdep2/p2/p2.go     |  7 +++++++
+ 5 files changed, 37 insertions(+), 3 deletions(-)

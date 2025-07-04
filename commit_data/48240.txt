@@ -1,0 +1,44 @@
+commit d6d2ebb7b8194eb20d95b84bae39f7a5837e9f72
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 28 15:31:35 2022 -0800
+
+    cmd/compile/internal/ir: remove unused -G=0 node types
+    
+    ir.PkgName was only used by the old -G=0 frontend for representing
+    identifiers that refer to a package name. The new types2-based
+    frontends directly resolve the qualified identifier to the respective
+    object during IR construction.
+    
+    Similarly, most of the ir.*Type nodes were only needed for
+    representing types in the IR prior to type checking. The new
+    types2-based frontends directly construct the corresponding types.Type
+    instead.
+    
+    Exception: The internal typecheck.DeclFunc API used for
+    compiler-generated functions still depends on ir.FuncType, so that IR
+    node type is retained for now. (Eventually, we should update
+    typecheck.DeclFunc and callers to not depend on it, but it's not
+    urgent.)
+    
+    Change-Id: I982f1bbd41eef5b42ce0f32676c7dc4a8ab6d0ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388538
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ir/copy.go             |   2 +-
+ src/cmd/compile/internal/ir/fmt.go              |  52 +---
+ src/cmd/compile/internal/ir/name.go             |  20 --
+ src/cmd/compile/internal/ir/node.go             |  10 +-
+ src/cmd/compile/internal/ir/node_gen.go         | 123 ----------
+ src/cmd/compile/internal/ir/op_string.go        | 313 ++++++++++++------------
+ src/cmd/compile/internal/ir/sizeof_test.go      |   2 +-
+ src/cmd/compile/internal/ir/type.go             | 116 ---------
+ src/cmd/compile/internal/noder/noder.go         |   2 +-
+ src/cmd/compile/internal/noder/reader.go        |   2 +-
+ src/cmd/compile/internal/staticinit/sched.go    |   1 -
+ src/cmd/compile/internal/typecheck/expr.go      |  15 --
+ src/cmd/compile/internal/typecheck/type.go      | 126 ----------
+ src/cmd/compile/internal/typecheck/typecheck.go |  45 +---
+ 14 files changed, 162 insertions(+), 667 deletions(-)

@@ -1,0 +1,17 @@
+commit 083045f99dde6fb00c4e8658a67cacce1e06825f
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Aug 13 16:33:30 2024 +0000
+
+    internal/sync: add Delete to HashTrieMap
+    
+    This change adds the Delete operation (with the same semantics as
+    sync.Map's Delete) to HashTrieMap.
+    
+    Change-Id: If90376ff735256444538719d670ed07e9e42870b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606458
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/internal/sync/hashtriemap.go | 5 +++++
+ 1 file changed, 5 insertions(+)

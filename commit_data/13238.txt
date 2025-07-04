@@ -1,0 +1,27 @@
+commit d2a6098e9c72fdb5acac0dd8992cd174155c1caa
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Fri Jun 1 09:36:05 2012 +1000
+
+    exp/html/atom: faster, hash-based lookup.
+    
+    exp/html/atom benchmark:
+    benchmark          old ns/op    new ns/op    delta
+    BenchmarkLookup       199226        80770  -59.46%
+    
+    exp/html benchmark:
+    benchmark                      old ns/op    new ns/op    delta
+    BenchmarkParser                  4864890      4510834   -7.28%
+    BenchmarkHighLevelTokenizer      2209192      1969684  -10.84%
+    benchmark                       old MB/s     new MB/s  speedup
+    BenchmarkParser                    16.07        17.33    1.08x
+    BenchmarkHighLevelTokenizer        35.38        39.68    1.12x
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/6261054
+
+ src/pkg/exp/html/atom/atom.go      |   76 +-
+ src/pkg/exp/html/atom/atom_test.go |   21 +
+ src/pkg/exp/html/atom/gen.go       |   86 ++-
+ src/pkg/exp/html/atom/table.go     | 1418 ++++++++++++++++++++++--------------
+ 4 files changed, 1001 insertions(+), 600 deletions(-)

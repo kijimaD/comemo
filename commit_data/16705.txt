@@ -1,0 +1,13 @@
+commit 1856286fc23ec4332b7ccc46d9838fbb96fd4ce0
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Jul 4 14:24:21 2013 +1000
+
+    doc: update playground.js
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/10933044
+
+ doc/play/playground.js | 650 +++++++++++++++++++++++++++++--------------------
+ doc/style.css          |   5 +-
+ 2 files changed, 395 insertions(+), 260 deletions(-)

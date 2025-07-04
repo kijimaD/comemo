@@ -1,0 +1,40 @@
+commit 69d3a34b176f7e5ac26d289eea66ed5b2dd5f1c8
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Thu Mar 12 18:56:40 2020 -0400
+
+    cmd/go: add support for GOPROXY fallback on unexpected errors
+    
+    URLs in GOPROXY may now be separated with commas (,) or pipes (|). If
+    a request to a proxy fails with any error (including connection errors
+    and timeouts) and the proxy URL is followed by a pipe, the go command
+    will try the request with the next proxy in the list. If the proxy is
+    followed by a comma, the go command will only try the next proxy if
+    the error a 404 or 410 HTTP response.
+    
+    The go command will determine how to connect to the checksum database
+    using the same logic. Before accessing the checksum database, the go
+    command sends a request to <proxyURL>/sumdb/<sumdb-name>/supported.
+    If a proxy responds with 404 or 410, or if any other error occurs and
+    the proxy URL in GOPROXY is followed by a pipe, the go command will
+    try the request with the next proxy. If all proxies respond with 404
+    or 410 or are configured to fall back on errors, the go command will
+    connect to the checksum database directly.
+    
+    This CL does not change the default value or meaning of GOPROXY.
+    
+    Fixes #37367
+    
+    Change-Id: If53152ec1c3282c67d4909818b666af58884fb2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223257
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ doc/go1.15.html                                |  12 +++
+ src/cmd/go/alldocs.go                          |  18 ++--
+ src/cmd/go/internal/modfetch/proxy.go          | 109 +++++++++++++++++--------
+ src/cmd/go/internal/modfetch/sumdb.go          |  82 ++++++++++---------
+ src/cmd/go/internal/modload/help.go            |  18 ++--
+ src/cmd/go/testdata/script/mod_proxy_list.txt  |  14 +++-
+ src/cmd/go/testdata/script/mod_sumdb_proxy.txt |  17 ++++
+ 7 files changed, 174 insertions(+), 96 deletions(-)

@@ -1,0 +1,12 @@
+commit ba98a7ee5eab17423674e8c85c5e694700dda61c
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Nov 14 22:31:39 2011 +0300
+
+    time: fix test hang
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5374083
+
+ src/pkg/time/sleep_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

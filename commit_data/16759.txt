@@ -1,0 +1,15 @@
+commit aad4720b5193221c000892e73615322698170d68
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 12 20:58:38 2013 -0400
+
+    cmd/6l, cmd/8l: use one-byte XCHG forms when possible
+    
+    Pointed out by khr.
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/11145044
+
+ src/cmd/6l/optab.c | 10 ++++++----
+ src/cmd/8l/optab.c |  8 +++++---
+ 2 files changed, 11 insertions(+), 7 deletions(-)

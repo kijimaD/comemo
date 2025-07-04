@@ -1,0 +1,17 @@
+commit 3cf15b57f76400b22366ccd8ef5b211c72ab6a7f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 12:54:00 2015 -0400
+
+    crypto/tls: check cert chain during VerifyHostname
+    
+    Fixes #9063.
+    
+    Change-Id: I536ef1f0b30c94c1ebf7922d84cb2f701b7d8a1a
+    Reviewed-on: https://go-review.googlesource.com/12526
+    Reviewed-by: Adam Langley <agl@golang.org>
+    Run-TryBot: Adam Langley <agl@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/tls/conn.go     |  3 +++
+ src/crypto/tls/tls_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+)

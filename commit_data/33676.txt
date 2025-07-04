@@ -1,0 +1,16 @@
+commit 294963fb7f8983c7f5560dc20ab75c869f30da14
+Author: Austin Clements <austin@google.com>
+Date:   Wed Nov 22 21:58:57 2017 -0500
+
+    runtime: document sigtrampgo better
+    
+    Add an explanation of why sigtrampgo is nosplit.
+    
+    Updates #21314.
+    
+    Change-Id: I3f5909d2b2c180f9fa74d53df13e501826fd4316
+    Reviewed-on: https://go-review.googlesource.com/79615
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_unix.go | 6 ++++++
+ 1 file changed, 6 insertions(+)

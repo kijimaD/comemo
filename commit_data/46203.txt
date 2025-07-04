@@ -1,0 +1,31 @@
+commit d7a43e89124044f0f468e656ec17a3cc86916b33
+Author: Dan Scales <danscales@google.com>
+Date:   Wed Aug 25 17:12:27 2021 -0700
+
+    cmd/compile: support type C comparable
+    
+    Support 'type C comparable' properly by using the same logic as for
+    'type T error', since ErrorType and ComparableType are entirely
+    analogous.
+    
+    Added support for 'any' type as well, as requested by Robert. (For the
+    future - we can't currently have 'any' anywhere other than in a
+    constraint.)
+    
+    Fixes #47966
+    
+    Change-Id: I68bd284ced9a8bfca7d2339cd576f3cb909b1b83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345174
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/typecheck/bexport.go | 3 +++
+ src/cmd/compile/internal/typecheck/iexport.go | 8 ++++++++
+ src/cmd/compile/internal/types/type.go        | 2 ++
+ src/cmd/compile/internal/types/universe.go    | 8 ++++++++
+ test/typeparam/issue47966.go                  | 9 +++++++++
+ test/typeparam/subdict.go                     | 4 +++-
+ 6 files changed, 33 insertions(+), 1 deletion(-)

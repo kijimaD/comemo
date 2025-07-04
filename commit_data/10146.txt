@@ -1,0 +1,39 @@
+commit 604e10c34d359f6522b076e488dccd7b075f4bc7
+Author: Andrew Balholm <andybalholm@gmail.com>
+Date:   Sat Oct 29 10:51:59 2011 +1100
+
+    html: adjust bookmark in "adoption agency" algorithm
+    
+    In the adoption agency algorithm, the formatting element is sometimes
+    removed from the list of active formatting elements and reinserted at a later index.
+    In that case, the bookmark showing where it is to be reinserted needs to be moved,
+    so that its position relative to its neighbors remains the same
+    (and also so that it doesn't become out of bounds).
+    
+    Pass tests1.dat, test 70:
+    <DIV> abc <B> def <I> ghi <P> jkl </B>
+    
+    | <html>
+    |   <head>
+    |   <body>
+    |     <div>
+    |       " abc "
+    |       <b>
+    |         " def "
+    |         <i>
+    |           " ghi "
+    |       <i>
+    |         <p>
+    |           <b>
+    |             " jkl "
+    
+    Also pass tests through test 76:
+    <test attribute---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------->
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5322052
+
+ src/pkg/html/parse.go      | 4 ++++
+ src/pkg/html/parse_test.go | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)

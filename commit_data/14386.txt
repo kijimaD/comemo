@@ -1,0 +1,32 @@
+commit 677c6e6ee7da904e9858ba57afdb92088fd81fe4
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Tue Nov 13 12:56:28 2012 +0900
+
+    net: protocol specific listen functions return a proper local socket address
+    
+    When a nil listener address is passed to some protocol specific
+    listen function, it will create an unnamed, unbound socket because
+    of the nil listener address. Other listener functions may return
+    invalid address error.
+    
+    This CL allows to pass a nil listener address to all protocol
+    specific listen functions to fix above inconsistency. Also make it
+    possible to return a proper local socket address in case of a nil
+    listner address.
+    
+    Fixes #4190.
+    Fixes #3847.
+    
+    R=rsc, iant
+    CC=golang-dev
+    https://golang.org/cl/6525048
+
+ src/pkg/net/ipraw_test.go      | 30 ++++++++++++++++++++++
+ src/pkg/net/iprawsock_posix.go |  4 +--
+ src/pkg/net/tcp_test.go        | 30 ++++++++++++++++++++++
+ src/pkg/net/tcpsock_plan9.go   |  2 +-
+ src/pkg/net/tcpsock_posix.go   | 58 +++++++++++++++++++++++++-----------------
+ src/pkg/net/udp_test.go        | 30 ++++++++++++++++++++++
+ src/pkg/net/udpsock_plan9.go   |  2 +-
+ src/pkg/net/udpsock_posix.go   |  2 +-
+ 8 files changed, 130 insertions(+), 28 deletions(-)

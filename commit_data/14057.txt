@@ -1,0 +1,16 @@
+commit f82c59b6cf4cc50964c6068a704647db5a73c4fa
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Oct 8 01:56:27 2012 +0800
+
+    runtime: disable TestParForParallel for now on 32-bit hosts
+    Also add call to GC() to make it easier to re-enable the test.
+    
+    Update #4155.
+    When we have precise GC merged, re-enable this test.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6622058
+
+ src/pkg/runtime/parfor_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

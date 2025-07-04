@@ -1,0 +1,36 @@
+commit 4dae3bbe0e6a5700037bb996ae84d6f457c4f58a
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri May 12 14:15:16 2023 -0400
+
+    cmd/go: disallow package directories containing newlines
+    
+    Directory or file paths containing newlines may cause tools (such as
+    cmd/cgo) that emit "//line" or "#line" -directives to write part of
+    the path into non-comment lines in generated source code. If those
+    lines contain valid Go code, it may be injected into the resulting
+    binary.
+    
+    (Note that Go import paths and file paths within module zip files
+    already could not contain newlines.)
+    
+    Thanks to Juho Nurminen of Mattermost for reporting this issue.
+    
+    Fixes #60167.
+    Fixes CVE-2023-29402.
+    
+    Change-Id: I64572e9f454bce7b685d00e2e6a1c96cd33d53df
+    Reviewed-on: https://team-review.git.corp.google.com/c/golang/go-private/+/1882606
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Run-TryBot: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/501226
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/go/internal/load/pkg.go                  |   4 +
+ src/cmd/go/internal/work/exec.go                 |   6 ++
+ src/cmd/go/script_test.go                        |   1 +
+ src/cmd/go/testdata/script/build_cwd_newline.txt | 104 +++++++++++++++++++++++
+ 4 files changed, 115 insertions(+)

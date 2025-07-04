@@ -1,0 +1,15 @@
+commit f853e9aa4ed4e3f1aa299cc9b123cda574707eaa
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 27 15:19:23 2013 +1100
+
+    syscall: Fix FD passing on OpenBSD
+    
+    Fixes #3349.
+    
+    R=bradfitz, dave, minux.ma
+    CC=golang-dev
+    https://golang.org/cl/7383056
+
+ src/pkg/syscall/passfd_test.go   | 48 +++++++++++++++++++++++++++++++++++++++-
+ src/pkg/syscall/sockcmsg_unix.go | 16 ++++++--------
+ 2 files changed, 54 insertions(+), 10 deletions(-)

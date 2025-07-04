@@ -1,0 +1,20 @@
+commit 12eedc00b810a20f5665ef51417812d26999e8e6
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue May 3 21:10:34 2022 +0700
+
+    cmd/compile: update comment/message that mention betypeinit
+    
+    Since when CL 29244 did remove it.
+    
+    Change-Id: I5f96d7404209cbc336b0541502943871461cb72e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/403714
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/types/size.go     | 2 +-
+ src/cmd/compile/internal/types/universe.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

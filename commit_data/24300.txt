@@ -1,0 +1,15 @@
+commit e7e27398498b1d91458ed24cbffcb19111fe5941
+Author: Aaron Jacobs <jacobsa@google.com>
+Date:   Thu Sep 17 16:28:15 2015 +1000
+
+    os: touch up the EINTR retry loop in OpenFile
+    
+    In particular, don't use goto and do restrict the behavior to darwin.
+    This addresses comments from http://golang.org/cl/14484.
+    
+    Change-Id: I5b99e1762d1c5b27fdd12b72a5c6d981f6a92f0f
+    Reviewed-on: https://go-review.googlesource.com/14673
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/os/file_unix.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)

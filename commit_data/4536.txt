@@ -1,0 +1,13 @@
+commit 9c9c89c013c71617ce7f0dec3344eff1c8171ca5
+Author: Jan H. Hosang <jan.hosang@gmail.com>
+Date:   Wed Jan 6 13:55:47 2010 -0800
+
+    Added me to authors and contributors.
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/181153
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

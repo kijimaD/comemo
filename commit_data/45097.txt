@@ -1,0 +1,17 @@
+commit 39dd96ca5a60502d66494bff83257379df660eea
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Apr 10 18:26:01 2021 -0700
+
+    cmd/compile/internal/types: add example test for type inference
+    
+    Follow-up on https://golang.org/cl/308372.
+    
+    For #44799.
+    
+    Change-Id: I27d149241d465ee31e9c21d5f0935f31efcb5b60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308973
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../compile/internal/types2/examples/inference.go2 | 101 +++++++++++++++++++++
+ 1 file changed, 101 insertions(+)

@@ -1,0 +1,23 @@
+commit 28e549dec3954b36d0c83442be913d8709d7e5ae
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Sat Sep 12 12:33:24 2020 -0400
+
+    runtime: use sigaltstack on macOS/ARM64
+    
+    Currently we don't use sigaltstack on darwin/arm64, as is not
+    supported on iOS. However, it is supported on macOS. Use it.
+    (iOS remains unchanged.)
+    
+    Change-Id: Icc154c5e2edf2dbdc8ca68741ad9157fc15a72ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/256917
+    Trust: Cherry Zhang <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/test/sigaltstack.go       |  2 +-
+ src/cmd/internal/obj/arm64/obj7.go |  2 +-
+ src/runtime/mkpreempt.go           |  7 ++-----
+ src/runtime/os_darwin.go           |  8 ++++----
+ src/runtime/preempt_arm64.s        |  3 ---
+ src/runtime/stack.go               |  2 +-
+ src/runtime/sys_darwin_arm64.s     | 22 ++++++++++++++++++----
+ 7 files changed, 27 insertions(+), 19 deletions(-)

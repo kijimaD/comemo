@@ -1,0 +1,14 @@
+commit 69937d213192b1a87d6ca8a71337b7aa05f3566e
+Author: Hyang-Ah (Hana) Kim <hyangah@gmail.com>
+Date:   Fri Feb 13 15:31:00 2015 -0500
+
+    androidtest.bash: remove use of cp --preserve.
+    
+    --preserve flag is not a valid flag for some versions of cp.
+    
+    Change-Id: I57f5bf21cbe726057fdadcd55b040ef7ff5d7479
+    Reviewed-on: https://go-review.googlesource.com/4835
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/androidtest.bash | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

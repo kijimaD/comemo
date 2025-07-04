@@ -1,0 +1,23 @@
+commit d0e408334be22158fbf58a4d02789a48f5cb911e
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Oct 30 23:53:09 2016 -0400
+
+    cmd/link: support plugins with no exported symbols
+    
+    A plugin with no exported symbols is still potentially very useful.
+    Its init functions are called on load, and it so it can have visible
+    side effects.
+    
+    Fixes #17681
+    
+    Change-Id: Icdca31f48e5ab13c99020a2ef724f3de47dcd74b
+    Reviewed-on: https://go-review.googlesource.com/32437
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/host/host.go       |  8 ++++++++
+ misc/cgo/testplugin/src/plugin2/plugin2.go | 18 ++++++++++++++++++
+ misc/cgo/testplugin/test.bash              |  1 +
+ src/cmd/link/internal/ld/deadcode.go       |  6 ++++--
+ src/cmd/link/internal/ld/symtab.go         |  3 +--
+ 5 files changed, 32 insertions(+), 4 deletions(-)

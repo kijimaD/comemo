@@ -1,0 +1,15 @@
+commit cc5ccd71ef6df461fed01a91c18c5adde10ae2c8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Dec 13 11:12:44 2023 -0800
+
+    doc: in pre-generic spec, be explicit that it is not the current spec
+    
+    Change-Id: I4cf7efc8e704d41ee2e3743f6aa712cc46dd1fe9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/549515
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ doc/go1.17_spec.html | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

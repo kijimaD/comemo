@@ -1,0 +1,20 @@
+commit d8c8a1421837e86d5b5a20f2925b783c594ef9d6
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 30 10:23:54 2018 +0200
+
+    cmd/dist, go/types: add support for GOARCH=sparc64
+    
+    This is needed in addition to CL 102555 in order to be able to generate
+    Go type definitions for linux/sparc64 in the golang.org/x/sys/unix
+    package.
+    
+    Change-Id: I928185e320572fecb0c89396f871ea16cba8b9a6
+    Reviewed-on: https://go-review.googlesource.com/132155
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/dist/build.go   | 2 ++
+ src/cmd/vet/all/main.go | 6 +++---
+ src/go/types/sizes.go   | 3 ++-
+ 3 files changed, 7 insertions(+), 4 deletions(-)

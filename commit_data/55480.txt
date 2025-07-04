@@ -1,0 +1,29 @@
+commit 7e91cfb877048030d29a4b5628ec34f8e363007d
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Jan 30 15:19:54 2024 +0000
+
+    all: fix typos
+    
+    Found by codespell.
+    
+    Change-Id: I2ebefbbbc8eacf9bc83051407519fa8fd5e4495f
+    GitHub-Last-Rev: 9cc550f3dbd7c85194a58fd6858507db3e2962a9
+    GitHub-Pull-Request: golang/go#65346
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/559095
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go | 2 +-
+ src/cmd/compile/internal/test/README                          | 2 +-
+ src/cmd/go/internal/work/shell.go                             | 2 +-
+ src/cmd/link/internal/arm64/asm.go                            | 2 +-
+ src/cmd/link/internal/ld/inittask.go                          | 2 +-
+ src/crypto/x509/oid_test.go                                   | 2 +-
+ src/internal/cpu/cpu_arm64_hwcap.go                           | 4 ++--
+ src/runtime/arena.go                                          | 2 +-
+ src/syscall/syscall_aix.go                                    | 2 +-
+ src/syscall/syscall_windows.go                                | 2 +-
+ 10 files changed, 11 insertions(+), 11 deletions(-)

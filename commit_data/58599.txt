@@ -1,0 +1,39 @@
+commit 5cb5437b6daee8971be0bd393535e263333ef311
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 4 11:56:38 2025 -0800
+
+    cmd/go/internal/vcsweb/vcstest: skip bzr test if deps not found
+    
+    The linux-arm64 trybots are consistently failing with
+    
+        vcstest_test.go:155: 2025/01/30 21:50:41 hello.txt:
+            > handle bzr
+            > env BZR_EMAIL='Russ Cox <rsc@google.com>'
+            > env EMAIL='Russ Cox <rsc@google.com>'
+            > bzr init-repo .
+            [stderr]
+            brz: ERROR: Couldn't import breezy and dependencies.
+            Please check the directory containing breezy is on your PYTHONPATH.
+    
+            Error: PyErr { type: <class 'ModuleNotFoundError'>, value: ModuleNotFoundError("No module named 'breezy'"), traceback: None }
+    
+        vcstest_test.go:161: hello.txt:6: bzr init-repo .: exit status 1
+    
+    This seems to be a problem with the builder.
+    
+    For now, skip the test if we see that error message, just as we already
+    skip the test if the bzr executable is not found.
+    
+    For #71504
+    
+    Change-Id: If8b6d4dea02dc16198ba6067595dff3340a81299
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646635
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/internal/vcweb/vcstest/vcstest_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)

@@ -1,0 +1,23 @@
+commit 0993b2fd06a43a2e51b68dd7d8b0643e50c54b9d
+Author: Austin Clements <austin@google.com>
+Date:   Thu Feb 9 14:11:13 2017 -0500
+
+    runtime: remove g.stackAlloc
+    
+    Since we're no longer stealing space for the stack barrier array from
+    the stack allocation, the stack allocation is simply
+    g.stack.hi-g.stack.lo.
+    
+    Updates #17503.
+    
+    Change-Id: Id9b450ae12c3df9ec59cfc4365481a0a16b7c601
+    Reviewed-on: https://go-review.googlesource.com/36621
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/proc.go        | 10 ++++------
+ src/runtime/runtime2.go    |  1 -
+ src/runtime/signal_unix.go |  4 ----
+ src/runtime/stack.go       | 19 +++++++++----------
+ 4 files changed, 13 insertions(+), 21 deletions(-)

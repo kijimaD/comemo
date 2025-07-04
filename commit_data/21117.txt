@@ -1,0 +1,12 @@
+commit f005d6e34aa94cad99e881c4fc87bc6e614ba9a6
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Dec 29 22:28:02 2014 -0800
+
+    archive/tar: document Reader.Next's behavior at the end
+    
+    Change-Id: I72f6d0fc66dbee3f832d2d960b99a166a5bb10c3
+    Reviewed-on: https://go-review.googlesource.com/2191
+    Reviewed-by: David Symonds <dsymonds@golang.org>
+
+ src/archive/tar/reader.go | 2 ++
+ 1 file changed, 2 insertions(+)

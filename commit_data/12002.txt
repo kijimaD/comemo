@@ -1,0 +1,14 @@
+commit b8f465644cc075b742b8af2eea1e7362e6c38497
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Feb 17 17:05:41 2012 +1100
+
+    runtime: silence warnings
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5656084
+
+ src/pkg/runtime/signal_plan9_386.c     | 1 +
+ src/pkg/runtime/signal_windows_386.c   | 1 +
+ src/pkg/runtime/signal_windows_amd64.c | 1 +
+ 3 files changed, 3 insertions(+)

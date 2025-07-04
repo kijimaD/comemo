@@ -1,0 +1,21 @@
+commit 2c7cdec2a762108ae9231b7861c3689f4d23b58c
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Oct 28 10:04:36 2021 +0800
+
+    io: remove UTF8 specified document for RuneReader
+    
+    RuneReader is fine with UTF16 or any other character encoding
+    
+    Fixes #49178
+    
+    Change-Id: I08a5ac205e095349d451d3b60411eaeebc3aa563
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359334
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Meng Zhuo <mzh@golangcn.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/io/io.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

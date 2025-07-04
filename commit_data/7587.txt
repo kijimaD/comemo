@@ -1,0 +1,17 @@
+commit b00f7310f3d9b38a4989ff89a2c60865ac106b1c
+Author: Chris Dollin <ehog.hedge@gmail.com>
+Date:   Mon Feb 28 14:09:04 2011 -0500
+
+    xml: permit nested directives
+    
+    Return <!DOCTYPE ...> with nested directives as one big token.
+    
+    Fixes #1549.
+    
+    R=niemeyer, rsc
+    CC=golang-dev
+    https://golang.org/cl/4216050
+
+ src/pkg/xml/xml.go      | 23 +++++++++++++++++++++--
+ src/pkg/xml/xml_test.go | 46 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 67 insertions(+), 2 deletions(-)

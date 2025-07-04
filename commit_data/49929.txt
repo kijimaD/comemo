@@ -1,0 +1,23 @@
+commit c6be7103a5ab8cd45e08d822efa24da4fd88b9c5
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Aug 5 15:44:15 2022 -0400
+
+    cmd/go: add go generate -skip flag
+    
+    Following proposal discussion in #38687, add go generate -skip
+    to allow easier skipping of specific //go:generate directives.
+    
+    Fixes #38687.
+    
+    Change-Id: Ied5b4042965dd6a2b93c1c517045fccae2d95c3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421440
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/alldocs.go                    |  9 ++++++++-
+ src/cmd/go/internal/generate/generate.go | 29 ++++++++++++++++++++++++-----
+ src/cmd/go/testdata/script/generate.txt  | 10 +++++++++-
+ 3 files changed, 41 insertions(+), 7 deletions(-)

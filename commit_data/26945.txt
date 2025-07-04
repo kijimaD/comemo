@@ -1,0 +1,17 @@
+commit d093a6269160cf94b7add76dc3e60e94d8afc44e
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Apr 14 12:12:11 2016 +1000
+
+    doc: add classes to version tags in source install instructions
+    
+    This will allow us to mechanically substitute these strings
+    using javascript (in a forthcoming change to x/tools/godoc).
+    
+    Updates #14371
+    
+    Change-Id: I96e876283060ffbc9f3eabaf55d6b880685453e1
+    Reviewed-on: https://go-review.googlesource.com/22055
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/install-source.html | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

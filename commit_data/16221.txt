@@ -1,0 +1,38 @@
+commit d33f09bcc0814d900510c23ad5285b3a7c3b2e5c
+Author: Anthony Martin <ality@pbrane.org>
+Date:   Tue Apr 23 16:02:50 2013 -0700
+
+    cmd/dist: fix line numbers in goc2c generated files
+    
+    We have to reset the global lineno variable before
+    processing each file otherwise line numbers will be
+    offset by the number of lines in the previous file.
+    
+    The following examples are from the beginning of the
+    ztime_linux_amd64.c file which is generated from
+    time.goc in the runtime package.
+    
+    Before:
+        #line 2483 "/home/apm/src/go/src/pkg/runtime/time.goc"
+        static Timers timers;
+        static void addtimer ( Timer* ) ;
+        void
+        time·Sleep(int64 ns)
+        {
+        #line 2492 "/home/apm/src/go/src/pkg/runtime/time.goc"
+    
+    After:
+        #line 16 "/home/apm/src/go/src/pkg/runtime/time.goc"
+        static Timers timers;
+        static void addtimer ( Timer* ) ;
+        void
+        time·Sleep(int64 ns)
+        {
+        #line 25 "/home/apm/src/go/src/pkg/runtime/time.goc"
+    
+    R=golang-dev, minux.ma, iant, r, adg
+    CC=golang-dev
+    https://golang.org/cl/8653045
+
+ src/cmd/dist/goc2c.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

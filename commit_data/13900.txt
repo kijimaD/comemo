@@ -1,0 +1,16 @@
+commit 49aa74ef7f3a3c3c261bd9cdf3b8eb26631dcd17
+Author: Joel Sing <jsing@google.com>
+Date:   Sat Sep 22 17:57:54 2012 +1000
+
+    cmd/cgo: use debug data for enums on windows
+    
+    Use the debug data for enums on windows.
+    
+    Fixes #4120.
+    
+    R=alex.brainman
+    CC=golang-dev
+    https://golang.org/cl/6545047
+
+ src/cmd/cgo/gcc.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)

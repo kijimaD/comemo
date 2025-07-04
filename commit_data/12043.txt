@@ -1,0 +1,14 @@
+commit c3ef1980209ff152dec97203bb987d2d74a79bba
+Author: Rob Pike <r@golang.org>
+Date:   Sun Feb 19 14:15:26 2012 +1100
+
+    go 1: add a description of the os error changes.
+    I'm sure I wrote these before but they've disappeared.
+    
+    R=golang-dev, bradfitz, r
+    CC=golang-dev
+    https://golang.org/cl/5673100
+
+ doc/go1.html | 44 ++++++++++++++++++++++++++++++++------------
+ doc/go1.tmpl | 42 +++++++++++++++++++++++++++++++-----------
+ 2 files changed, 63 insertions(+), 23 deletions(-)

@@ -1,0 +1,12 @@
+commit a3855013a24c79b571f672fc031b78816802c3a3
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Wed Feb 13 16:47:33 2013 -0500
+
+    cmd/5l: fix print format
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/7304065
+
+ src/cmd/5l/asm.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

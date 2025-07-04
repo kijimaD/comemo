@@ -1,0 +1,17 @@
+commit c74659290a473cf932ec6bc96bfa7e96a930676e
+Author: Baokun Lee <nototon@gmail.com>
+Date:   Tue Mar 5 03:10:38 2019 +0800
+
+    os: remove unreadable directories in RemoveAll
+    
+    Fixes #30555
+    
+    Change-Id: Ib894b4f3cdba23a18a69c9470cf69ceb83591a4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/165057
+    Run-TryBot: Baokun Lee <nototon@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/removeall_at.go   |  3 ++-
+ src/os/removeall_test.go | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)

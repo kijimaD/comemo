@@ -1,0 +1,28 @@
+commit b8a3e88ea73fded96fe9f5a72b4b3032bf2873ed
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Feb 3 15:27:54 2015 -0500
+
+    cmd/gc: remove cgen_asop, no longer used
+    
+    gc/order.c rewrites OASOP nodes into ordinary assignments.
+    The back ends never see them anymore.
+    
+    Change-Id: I268ac8bdc92dccd7123110a21f99ada3ceeb2baa
+    Reviewed-on: https://go-review.googlesource.com/3882
+    Reviewed-by: Austin Clements <austin@google.com>
+
+ src/cmd/5g/galign.c |   1 -
+ src/cmd/5g/gg.h     |   1 -
+ src/cmd/5g/ggen.c   | 129 ------------------------------------------------
+ src/cmd/6g/galign.c |   1 -
+ src/cmd/6g/gg.h     |   1 -
+ src/cmd/6g/ggen.c   | 139 ----------------------------------------------------
+ src/cmd/8g/galign.c |   1 -
+ src/cmd/8g/gg.h     |   1 -
+ src/cmd/8g/ggen.c   | 136 --------------------------------------------------
+ src/cmd/9g/galign.c |   1 -
+ src/cmd/9g/gg.h     |   1 -
+ src/cmd/9g/ggen.c   |   7 ---
+ src/cmd/gc/gen.c    |   4 --
+ src/cmd/gc/go.h     |   1 -
+ 14 files changed, 424 deletions(-)

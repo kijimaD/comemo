@@ -1,0 +1,15 @@
+commit c6540d31f6c1aa1c93638db28d32ad6eb7392c9f
+Author: Rob Pike <r@golang.org>
+Date:   Fri Aug 28 13:02:34 2009 -0700
+
+    print the value using (in effect) %v when Printf is given mismatched args for its format
+    Printf("%s", 2) gives %s(int=2)
+    
+    R=rsc
+    DELTA=12  (10 added, 0 deleted, 2 changed)
+    OCL=34042
+    CL=34044
+
+ src/pkg/fmt/fmt_test.go |  4 ++++
+ src/pkg/fmt/print.go    | 10 ++++++++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)

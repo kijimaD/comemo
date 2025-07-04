@@ -1,0 +1,14 @@
+commit 2ebf0de27c8f12517323d8fd57ac99d213259681
+Author: David Symonds <dsymonds@golang.org>
+Date:   Wed Jan 18 08:28:09 2012 +1100
+
+    net/http: change test to use override param instead of chan.
+    
+    Follow-on from https://golang.org/cl/5543062.
+    
+    R=bradfitz, dvyukov
+    CC=golang-dev
+    https://golang.org/cl/5539071
+
+ src/pkg/net/http/fs_test.go | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)

@@ -1,0 +1,21 @@
+commit 4388faf9646bd4df0b0c3a5b781281d5b7948ce4
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun May 8 23:26:28 2022 +0700
+
+    runtime: use unsafe.Slice in getStackMap
+    
+    CL 362934 added open code for unsafe.Slice, so using it now no longer
+    negatively impacts the performance.
+    
+    Updates #48798
+    
+    Change-Id: Ifbabe8bc1cc4349c5bcd11586a11fc99bcb388b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/404974
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/stack.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

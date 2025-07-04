@@ -1,0 +1,14 @@
+commit e6d9eda2fc13786c55292429b510128252ad8817
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jun 28 10:50:31 2017 -0700
+
+    cmd/vet/all: fix print statement, add platform information
+    
+    Change-Id: Ibbb89c01f3e812a0602961f959672fcb6523449b
+    Reviewed-on: https://go-review.googlesource.com/47031
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/vet/all/main.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

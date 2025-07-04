@@ -1,0 +1,30 @@
+commit 09660450394657510880197974d5ccfabd7bef8b
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 4 12:35:23 2017 +1100
+
+    internal/testenv: mark SkipFlaky and SkipFlakyNet as helpers
+    
+    This makes the output they print refer to the code that called them.
+    
+    For example, instead of
+    
+    === RUN   TestWindowsStackMemoryCgo
+    --- SKIP: TestWindowsStackMemoryCgo (0.00s)
+            testenv.go:213: skipping known flaky test ...
+    PASS
+    
+    we see
+    
+    === RUN   TestWindowsStackMemoryCgo
+    --- SKIP: TestWindowsStackMemoryCgo (0.00s)
+            crash_cgo_test.go:471: skipping known flaky test ...
+    PASS
+    
+    Change-Id: I5f4c77c3aeab5c0e43c6dde2f15db70a6df24603
+    Reviewed-on: https://go-review.googlesource.com/76031
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/testenv/testenv.go | 2 ++
+ 1 file changed, 2 insertions(+)

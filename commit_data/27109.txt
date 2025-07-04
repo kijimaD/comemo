@@ -1,0 +1,16 @@
+commit 2bf7034d87c051ff3d3fcce9f62d7ef2d2f4108d
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 25 10:48:45 2016 -0400
+
+    cmd/go: disable failing TestGoGetInsecure
+    
+    Update #15410
+    
+    Change-Id: Iad3f2639aa7a67b11efc35a629e1893f7d87b957
+    Reviewed-on: https://go-review.googlesource.com/22430
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/go_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

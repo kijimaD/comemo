@@ -1,0 +1,12 @@
+commit 64bc38eb854b860342031d98eb8788eea1f69815
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Tue Feb 28 16:05:12 2012 +1100
+
+    godoc: add Examples link to top-level index
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/5702043
+
+ lib/godoc/package.html | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)

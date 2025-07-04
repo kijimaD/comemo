@@ -1,0 +1,16 @@
+commit f67c76606991411cd0075c5715624a579de40d46
+Author: Andy Pan <panjf2000@gmail.com>
+Date:   Sat Aug 6 02:15:46 2022 +0800
+
+    cmd/internal/obj/ppc64: eliminate dead code from asm9.go
+    
+    Change-Id: Ie59703ea7315a3f8efa1f543a8ca0afecff014d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421754
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 5 -----
+ 1 file changed, 5 deletions(-)

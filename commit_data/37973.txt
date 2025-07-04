@@ -1,0 +1,16 @@
+commit cf4dc25503e6fb630280f8de0f11112aecb94b57
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 12 10:20:28 2019 -0800
+
+    os: don't return ENOENT if directory removed before Fstatat
+    
+    Fixes #30197
+    
+    Change-Id: I08b592fbd477d6879eb5d3b7fcbbc8322ea90103
+    Reviewed-on: https://go-review.googlesource.com/c/162078
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/os/removeall_at.go | 3 +++
+ 1 file changed, 3 insertions(+)

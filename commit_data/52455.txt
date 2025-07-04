@@ -1,0 +1,25 @@
+commit f521077b018c833453fcef947da72fe70a877300
+Author: Daniel Frederick Crisman <daniel@crisman.org>
+Date:   Sat Mar 25 15:53:55 2023 +0000
+
+    doc: normalize proposal-process links
+    
+    The docs in .github & CONTRIBUTING.md have three different links to the same place. I have picked the one from "10-proposal.md" as the canonical url as it uses the normal go website shortener service (thus centralizing any future maintenance of this location), uses the new public domain (go.dev over golang.org), and also picks up the readme URI fragment from the shortener redirect which allows the doc links to be cleaner, but also the convenience for the reader starting directly at the human readable parsed README.md.
+    
+    Should also cut down on confusion like I had reading documentation about why there were multiple proposal sites, which turned out all to be the same place.
+    
+    Update all proposal-process links to the same URL.
+    
+    Change-Id: I2f2ea3a6ca34a445268285520e1b19570946afb8
+    GitHub-Last-Rev: eb769089e612e6c00c29baf3c6cd2e0875e46364
+    GitHub-Pull-Request: golang/go#59238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/479415
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ .github/SUPPORT.md | 2 +-
+ CONTRIBUTING.md    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

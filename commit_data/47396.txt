@@ -1,0 +1,48 @@
+commit 96c94c2c831a5c074d33e2b7b553e91eb602e6bd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Nov 10 12:11:03 2021 -0800
+
+    cmd/compile/internal/types2: slightly relax notion of structural type
+    
+    If we have all channel types in a constraint, there is no structural type
+    if they don't all have the same channel direction (and identical element
+    types, of course). By allowing different channel types for the purposes of
+    the structural type, as long as there is not a send-only _and_ a receive-
+    only channel in the type set, we make it possible to find a useful, if
+    restricted by channel direction, structural type where before there was
+    none.
+    
+    So if we have unrestricted and send-only channels, the structural type is
+    the send-only channel, and vice versa.
+    
+    For all operations on channels that rely on a structural type, it's always
+    ok to have an unrestricted channel, so this is not affecting their behavior.
+    But it makes those operations more flexible in the presence of type parameters
+    containing mixed channel types.
+    
+    For constraint type inference, where we currently may not infer a channel
+    at all, this change allows us to infer a more restricted channel (send- or
+    receive-only). If the inferred channel type is a valid type argument we win;
+    if not we haven't lost anything.
+    
+    Use structuralType for send and receive operations and adjust related
+    error messages (the error message that change are the ones involving
+    type parameters, so historic error messages are preserved).
+    
+    Fixes #45920.
+    
+    Change-Id: If3a64d29c37e7734d3163df330f8b02dd032bc60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363075
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/compilersupport.go | 10 ++--
+ src/cmd/compile/internal/types2/expr.go            | 34 ++++++--------
+ src/cmd/compile/internal/types2/stmt.go            | 32 ++++++-------
+ .../internal/types2/testdata/check/typeparams.go2  |  2 +-
+ .../types2/testdata/fixedbugs/issue43671.go2       |  6 +--
+ .../types2/testdata/fixedbugs/issue45920.go2       | 17 +++++++
+ .../types2/testdata/fixedbugs/issue47115.go2       |  4 +-
+ src/cmd/compile/internal/types2/type.go            | 53 ++++++++++++++++++----
+ 8 files changed, 102 insertions(+), 56 deletions(-)

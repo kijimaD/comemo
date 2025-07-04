@@ -1,0 +1,18 @@
+commit 510327012bd42aca3deac989e2e109dc71bb4605
+Author: Chris Hines <chris.cs.guy@gmail.com>
+Date:   Sun Nov 12 00:31:52 2017 -0500
+
+    cmd/vet: ignore unrecognized flags for fmt.Formatter
+    
+    Fixes #22608.
+    
+    Change-Id: Id85eb86b0b262156646e55f102fe888b345b20cf
+    Reviewed-on: https://go-review.googlesource.com/77230
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/vet/print.go          | 16 +++++++++-------
+ src/cmd/vet/testdata/print.go | 11 ++++++-----
+ 2 files changed, 15 insertions(+), 12 deletions(-)

@@ -1,0 +1,23 @@
+commit 8d6c4e07fdd4a81c466450b51cda71a1bfab41fc
+Author: Robert Findley <rfindley@google.com>
+Date:   Wed Nov 17 20:17:55 2021 -0500
+
+    go/types: use "implements" rather than "satisfies" in error messages
+    
+    This is a port of CL 363839 from types2 to go/types.
+    
+    Change-Id: I9efe412a6a602fd55170d1ee89c8e1513037c926
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364936
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/instantiate.go                    | 21 +++++++++----------
+ src/go/types/testdata/check/issues.go2         |  6 +++---
+ src/go/types/testdata/check/typeinst2.go2      | 28 +++++++++++++-------------
+ src/go/types/testdata/examples/inference.go2   |  2 +-
+ src/go/types/testdata/fixedbugs/issue39754.go2 |  4 ++--
+ src/go/types/testdata/fixedbugs/issue45920.go2 |  4 ++--
+ src/go/types/testdata/fixedbugs/issue47411.go2 | 10 ++++-----
+ 7 files changed, 37 insertions(+), 38 deletions(-)

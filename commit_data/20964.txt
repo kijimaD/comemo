@@ -1,0 +1,14 @@
+commit 3fa5d3a6dc96bf42a68afe69a65c05012b893284
+Author: Austin Clements <austin@google.com>
+Date:   Tue Dec 9 15:36:10 2014 -0500
+
+    cmd/pprof: remove -show_bytes from command line help
+    
+    This flag no longer exists.  It has been replaced with -unit=byte.
+    
+    Change-Id: Iff9fc501f2c666067c9b1948c4623c8e3adddb8d
+    Reviewed-on: https://go-review.googlesource.com/1287
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/pprof/internal/driver/driver.go | 1 -
+ 1 file changed, 1 deletion(-)

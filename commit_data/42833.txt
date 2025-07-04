@@ -1,0 +1,23 @@
+commit bf869c65d1a96da5db78a891430ea3acd7ddf1ab
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Mon Apr 13 16:33:28 2020 -0400
+
+    cmd/go: update vendored golang.org/x/mod
+    
+    This CL vendors go.mod parser changes for the retract directive.
+    
+    For #24031
+    
+    Change-Id: Ief19b0eca4c7956eceadc893bb209da7e9ecf22c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228377
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go.mod                                  |   2 +-
+ src/cmd/go.sum                                  |   5 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/read.go |   8 +
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 243 ++++++++++++++++++++++--
+ src/cmd/vendor/modules.txt                      |   2 +-
+ 5 files changed, 235 insertions(+), 25 deletions(-)

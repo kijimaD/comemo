@@ -1,0 +1,17 @@
+commit 979d65dbc7687ca4c0bc76576d37affae7b7c041
+Author: Lars Lehtonen <lars.lehtonen@gmail.com>
+Date:   Mon Nov 4 18:13:06 2019 -0800
+
+    net/smtp: fix dropped test error
+    
+    Pick up a dropped error in TestSendMailWithAuth() and simplify goroutine
+    to use an error channel instead of a sync.WaitGroup and an empty struct
+    doneCh.
+    
+    Change-Id: Ie70d0f7c4c85835eb682e81d086ce4d9900269e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/205247
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/smtp/smtp_test.go | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)

@@ -1,0 +1,15 @@
+commit cf6d0175d900f1b7a8997f7d7737d1247cde1a4d
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Sep 23 10:57:31 2011 -0700
+
+    http: add Location method to Response
+    
+    Fixes #2300
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5117041
+
+ src/pkg/http/response.go      | 18 ++++++++++++++++
+ src/pkg/http/response_test.go | 50 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

@@ -1,0 +1,13 @@
+commit e656a184cb32e07cd91bde3f3bcc72a1ac2dd6e8
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Aug 23 16:03:42 2011 -0700
+
+    go/ast cleanup: base File/PackageExports on FilterFile/FilterPackage code
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4927046
+
+ src/pkg/go/ast/filter.go         | 190 +++------------------------------------
+ src/pkg/go/parser/filter_test.go |  91 -------------------
+ 2 files changed, 14 insertions(+), 267 deletions(-)

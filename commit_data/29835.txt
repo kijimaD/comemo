@@ -1,0 +1,29 @@
+commit 29cb72154d3bb3530d8092cc89d35b3ed4f7e9c5
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 15 14:21:13 2016 -0800
+
+    runtime: preserve callee-saved C registers in sigtramp
+    
+    This fixes Linux and the *BSD platforms on 386/amd64.
+    
+    A few OS/arch combinations were already saving registers and/or doing
+    something that doesn't clearly resemble the SysV C ABI; those have
+    been left alone.
+    
+    Fixes #18328.
+    
+    Change-Id: I6398f6c71020de108fc8b26ca5946f0ba0258667
+    Reviewed-on: https://go-review.googlesource.com/34501
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testsanitizers/tsan9.go  | 11 +++++++++--
+ src/runtime/sys_dragonfly_amd64.s | 25 +++++++++++++++++++++----
+ src/runtime/sys_freebsd_amd64.s   | 25 +++++++++++++++++++++----
+ src/runtime/sys_linux_386.s       | 15 ++++++++++++++-
+ src/runtime/sys_linux_amd64.s     | 25 +++++++++++++++++++++----
+ src/runtime/sys_netbsd_386.s      | 15 ++++++++++++++-
+ src/runtime/sys_netbsd_amd64.s    | 27 +++++++++++++++++++++------
+ src/runtime/sys_openbsd_386.s     | 15 ++++++++++++++-
+ src/runtime/sys_openbsd_amd64.s   | 25 +++++++++++++++++++++----
+ 9 files changed, 156 insertions(+), 27 deletions(-)

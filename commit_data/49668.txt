@@ -1,0 +1,21 @@
+commit 795a88d0c383fae04242632449518a5985d50973
+Author: Justin Traglia <jtraglia@pm.me>
+Date:   Wed Jul 20 14:20:41 2022 +0000
+
+    cmd/go: add space after comma in 'go help test'
+    
+    This PR fixes a simple typo. It adds a space after a comma. Noticed while looking at `go help test` output.
+    
+    Change-Id: I5b54f4da0d08a056bffc04899983d858dfa91043
+    GitHub-Last-Rev: da9cab5eb946523b8783aafe4f05f516e4a77437
+    GitHub-Pull-Request: golang/go#53931
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/418034
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go/alldocs.go            | 2 +-
+ src/cmd/go/internal/test/test.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

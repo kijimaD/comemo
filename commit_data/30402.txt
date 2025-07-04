@@ -1,0 +1,14 @@
+commit bf584b15d6104661c272e2ab900c3d83d015b7d0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 24 21:52:37 2017 -0800
+
+    cmd/dist: ran mkdeps.bash
+    
+    Change-Id: Iae9fe2db69c02cd442cba01a78820dc7c0fdda51
+    Reviewed-on: https://go-review.googlesource.com/37462
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/deps.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

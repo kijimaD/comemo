@@ -1,0 +1,18 @@
+commit c082f9fee0e08ac5ea6498ade1153fb6e68f7c72
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Mar 4 15:06:38 2021 +0700
+
+    cmd/compile: do not set ONAME type when evaluated in type context
+    
+    Updates #43311
+    
+    Change-Id: I26e397d071b434256dab0cc7fff9d134b80bd6e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/298711
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/typecheck/typecheck.go | 6 +++++-
+ test/fixedbugs/issue22389.go                    | 2 +-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

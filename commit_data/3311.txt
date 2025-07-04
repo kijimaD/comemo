@@ -1,0 +1,49 @@
+commit ad9c6f7700e6cfdf8821b1fd28e1cc28f673b072
+Author: Austin Clements <aclements@csail.mit.edu>
+Date:   Fri Sep 18 09:11:19 2009 -0700
+
+    Rudimentary command shell for Ogle.  Hack to prevent linker
+    from inlining newprocreadylocked.  Fix type bridge's handling
+    of basic types.  Include interpreter's Thread in bridged
+    native function calls.
+    
+    ; load . "6.out"
+    Started 6.out
+    ; BpSet("main·merge")
+    ; ContWait()
+    breakpoint at 0x400800
+    =>   400800 main·merge /home/austin/src-go1/usr/austin/ptrace/test/sort.go:19
+    ; bt
+    =>   400800 main·merge /home/austin/src-go1/usr/austin/ptrace/test/sort.go:19
+         400b6a main·mergeSort+0x1be /home/austin/src-go1/usr/austin/ptrace/test/sort.go:34
+         448313 goexit /home/austin/src-go1/src/pkg/runtime/proc.c:133
+    ; main.merge.a
+    {1}
+    
+    ; load . "pid:25753"
+    Attached to 25753
+    ; bt
+    =>   479ddf syscall·Syscall+0x24 /home/austin/src-go1/src/pkg/syscall/asm_linux_amd64.s:24
+         47c011 syscall·Read+0x5d /home/austin/src-go1/src/pkg/syscall/zsyscall_linux_amd64.go:368
+         4119e5 os·*File·Read+0x5f /home/austin/src-go1/src/pkg/os/file.go:122
+         427bf3 bufio·*Reader·fill+0x116 /home/austin/src-go1/src/pkg/bufio/bufio.go:105
+         428361 bufio·*Reader·ReadSlice+0x195 /home/austin/src-go1/src/pkg/bufio/bufio.go:244
+         40204a ogle·Main+0x94 /home/austin/src-go1/usr/austin/ogle/cmd.go:226
+         40080f main·main+0xf /home/austin/src-go1/usr/austin/ogle/main.go:6
+         41c4b8 mainstart+0xf /home/austin/src-go1/src/pkg/runtime/amd64/asm.s:55
+         41531f goexit /home/austin/src-go1/src/pkg/runtime/proc.c:133
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=433  (420 added, 2 deleted, 11 changed)
+    OCL=34410
+    CL=34782
+
+ src/pkg/runtime/proc.c       |   6 +
+ usr/austin/eval/bridge.go    |  14 +-
+ usr/austin/ogle/Makefile     |  27 +++
+ usr/austin/ogle/cmd.go       | 379 +++++++++++++++++++++++++++++++++++++++++++
+ usr/austin/ogle/goroutine.go |   1 -
+ usr/austin/ogle/main.go      |  11 ++
+ usr/austin/ogle/process.go   |  18 +-
+ 7 files changed, 443 insertions(+), 13 deletions(-)

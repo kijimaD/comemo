@@ -1,0 +1,23 @@
+commit bc0c0770941acc3da196ce55cb55e083a05c91c4
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 7 12:17:05 2019 -0400
+
+    doc: update /doc/asm compiler output example
+    
+    The compiler output shown in the doc is now quite old
+    (most of the changes happened in Go 1.5).
+    Update it to be more like what users will actually see.
+    
+    Also explain how to get literal machine code again.
+    
+    Prompted by #30968.
+    
+    Change-Id: I0ce139c3fe299ccc43e85b6aca81c6e0aac1a2df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/175757
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/asm.html | 93 ++++++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 50 insertions(+), 43 deletions(-)

@@ -1,0 +1,14 @@
+commit 4edb40d441b0def61507e65141535de4d86b9edc
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 27 11:08:58 2016 -0700
+
+    syscall: fix uint64->int cast of control message header
+    
+    Change-Id: I28980b307d10730b122a4f833809bc400d6aff24
+    Reviewed-on: https://go-review.googlesource.com/22525
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/sockcmsg_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

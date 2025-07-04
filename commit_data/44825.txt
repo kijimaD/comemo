@@ -1,0 +1,16 @@
+commit 5834ce1dd770c848342ec357a8317a4eb2d88aca
+Author: cui <cuiweixie@gmail.com>
+Date:   Sun Jan 10 06:52:16 2021 +0000
+
+    cmd/compile/internal/ssa: unnecessary loop break
+    
+    Change-Id: I32860a36b4acf5412c20bac2e8ebbb3965b796fe
+    GitHub-Last-Rev: c0076390168b2425a1e2c30ea2e9ac32fb4c3365
+    GitHub-Pull-Request: golang/go#43617
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/282832
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Trust: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/likelyadjust.go | 1 +
+ 1 file changed, 1 insertion(+)

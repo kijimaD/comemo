@@ -1,0 +1,14 @@
+commit 0816debdfcb1138b15fd05ebbe34269b6d05f9ab
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 16 10:31:08 2008 -0800
+
+    update tests - 119 is fixed
+    
+    R=gri
+    DELTA=62  (28 added, 34 deleted, 0 changed)
+    OCL=21269
+    CL=21271
+
+ test/{bugs => fixedbugs}/bug119.go | 0
+ test/golden.out                    | 6 ------
+ 2 files changed, 6 deletions(-)

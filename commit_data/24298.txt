@@ -1,0 +1,18 @@
+commit 3d1f8c237956ca657b9517040a7431e87f9d8a18
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Sep 16 14:18:12 2015 +1000
+
+    runtime: print errno and byte count before crashing in mem_windows.go
+    
+    As per iant suggestion during issue #12587 crash investigation.
+    
+    Also adjust incorrect throw message in sysUsed while we are here.
+    
+    Change-Id: Ice07904fdd6e0980308cb445965a696d26a1b92e
+    Reviewed-on: https://go-review.googlesource.com/14633
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/runtime/mem_windows.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)

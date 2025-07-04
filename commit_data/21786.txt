@@ -1,0 +1,12 @@
+commit 90dbd428e5d1755bd1945ed978fea483ba557de1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Fri Feb 27 08:58:54 2015 -0500
+
+    runtime/pprof: skip tests that fork on darwin/arm
+    
+    Change-Id: I9b08b74214e5a41a7e98866a993b038030a4c073
+    Reviewed-on: https://go-review.googlesource.com/6251
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/pprof/pprof_test.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)

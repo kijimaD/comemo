@@ -1,0 +1,20 @@
+commit 4f074b58d2016eee2b63ffb668f6ed28156ecf62
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jan 22 20:48:21 2020 -0800
+
+    runtime/cgo: fix unsetenv wrapper
+    
+    The wrapper takes a pointer to the argument, not the argument itself.
+    
+    Fixes #36705
+    
+    Change-Id: I566d4457d00bf5b84e4a8315a26516975f0d7e10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/215942
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/cgo/gcc_setenv.c |  4 ++--
+ test/fixedbugs/issue36705.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 2 deletions(-)

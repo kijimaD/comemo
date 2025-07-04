@@ -1,0 +1,27 @@
+commit bc0d7fd9b7b2a8791441a07921b0c26b7b316b92
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Oct 27 11:30:14 2020 +0100
+
+    cmd/compile: delete log2, switch to log64
+    
+    rewrite.go has two identical functions log2 and log64; the former has
+    been there for a while, while the latter was added together with
+    log{8,16,32} for use in typed rules.
+    
+    This change deletes log2 and switches to using log64 everywhere.
+    
+    Change-Id: I759b878814e4c115a5fa470274f22477738d69ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/265457
+    Trust: Alberto Donizetti <alb.donizetti@gmail.com>
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules  |  12 +-
+ src/cmd/compile/internal/ssa/gen/ARM64.rules  | 174 ++++++-------
+ src/cmd/compile/internal/ssa/gen/MIPS64.rules |   4 +-
+ src/cmd/compile/internal/ssa/lca.go           |   2 +-
+ src/cmd/compile/internal/ssa/rewrite.go       |   6 -
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  |  44 ++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 344 +++++++++++++-------------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go |   8 +-
+ 8 files changed, 295 insertions(+), 299 deletions(-)

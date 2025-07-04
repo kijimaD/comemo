@@ -1,0 +1,29 @@
+commit f0cea848679b8f8cdc5f76e1b1e36ebb924a68f8
+Author: Roland Shoemaker <rolandshoemaker@gmail.com>
+Date:   Wed Apr 29 18:24:15 2020 +0000
+
+    encoding/asn1: sort order of 'SET of' components during Marshal
+    
+    Per X690 Section 11.6 sort the order of SET of components when generating
+    DER. This CL makes no changes to Unmarshal, meaning unordered components
+    will still be accepted, and won't be re-ordered during parsing.
+    
+    In order to sort the components a new encoder, setEncoder, which is similar
+    to multiEncoder is added. The functional difference is that setEncoder
+    encodes each component to a [][]byte, sorts the slice using a sort.Sort
+    interface, and then writes it out to the destination slice. The ordering
+    matches the output of OpenSSL.
+    
+    Fixes #24254
+    
+    Change-Id: Iff4560f0b8c2dce5aae616ba30226f39c10b972e
+    GitHub-Last-Rev: e52fc43658e9351538ad8484d81e892ff67a4914
+    GitHub-Pull-Request: golang/go#38228
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226984
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/encoding/asn1/marshal.go      | 56 ++++++++++++++++++++++++++++++++++++++
+ src/encoding/asn1/marshal_test.go | 57 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 113 insertions(+)

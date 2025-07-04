@@ -1,0 +1,20 @@
+commit 86bbcc6a7503e96ea55d5c685141c7d109b07cde
+Author: ianwoolf <btw515wolf2@gmail.com>
+Date:   Wed Nov 9 16:40:24 2022 +0800
+
+    cmd/go: enable -x in go mod tidy
+    
+    Updates #35849
+    
+    Change-Id: I8b40a2de6a05880a9f939349a714b631888f5f94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/448915
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go                                  |  4 +++-
+ src/cmd/go/internal/modcmd/tidy.go                     |  5 ++++-
+ src/cmd/go/testdata/script/mod_tidy_support_buildx.txt | 18 ++++++++++++++++++
+ 3 files changed, 25 insertions(+), 2 deletions(-)

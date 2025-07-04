@@ -1,0 +1,14 @@
+commit cd277e28f26a916d9095fa839f5a8939be5d6b69
+Author: Dave Cheney <dave@cheney.net>
+Date:   Wed Mar 4 08:54:16 2015 +1100
+
+    cmd/internal/obj/ppc64: fix ppc64 build
+    
+    Apply mask fix from 527b478 to ppc64.
+    
+    Change-Id: Iac62228f0f04fa8b138e21d82786026158267aaf
+    Reviewed-on: https://go-review.googlesource.com/6582
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/internal/obj/ppc64/asm9.go | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)

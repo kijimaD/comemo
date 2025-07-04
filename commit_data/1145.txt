@@ -1,0 +1,12 @@
+commit 7692a93173cb8555acf4d24433224d48f531bf5a
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 17 16:46:56 2008 -0800
+
+    - new() accepts too many arguments
+    
+    R=r
+    OCL=19413
+    CL=19413
+
+ test/bugs/bug122.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

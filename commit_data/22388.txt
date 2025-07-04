@@ -1,0 +1,22 @@
+commit 92c57363e0b4d193c4324e2af6902fe56b7524a0
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Feb 26 12:10:11 2015 -0800
+
+    os: windows Rename should overwrite destination file.
+    
+    Rename now uses MoveFileEx which was previously not available to
+    use because it is not supported on Windows 2000.
+    
+    Change-Id: I583d029c4467c9be6d1574a790c423559b441e87
+    Reviewed-on: https://go-review.googlesource.com/6140
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/internal/syscall/windows/syscall_windows.go  | 21 ++++++++-
+ src/internal/syscall/windows/zsyscall_windows.go | 13 ++++++
+ src/os/error_windows_test.go                     | 47 --------------------
+ src/os/file_posix.go                             |  8 ----
+ src/os/file_unix.go                              |  8 ++++
+ src/os/file_windows.go                           |  9 ++++
+ src/os/os_test.go                                | 55 ++++++++++++++++++++++--
+ 7 files changed, 102 insertions(+), 59 deletions(-)

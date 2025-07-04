@@ -1,0 +1,12 @@
+commit 531c01d9902b39c6666fc8cd7747b4ac557615c7
+Author: Adam Langley <agl@golang.org>
+Date:   Fri Jun 10 13:32:20 2011 -0400
+
+    crypto/openpgp: build fix (unreviewed)
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/4572057
+
+ src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

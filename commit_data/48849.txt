@@ -1,0 +1,28 @@
+commit 1de1c0d10df18f4fda46aff82aadd9edfba2b751
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Feb 28 13:41:33 2022 -0500
+
+    syscall: move Syscall declarations to OS files
+    
+    Future CLs will be changing the provenance of these functions. Move the
+    declarations to the individual OS files now so that future CLs can
+    change only 1 OS at a time rather than changing all at once.
+    
+    For #51087
+    
+    Change-Id: I5e1bca71e670263d8c0faa586c1b6b4de1a114b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388474
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/syscall/syscall_aix.go       | 5 +++++
+ src/syscall/syscall_darwin.go    | 5 +++++
+ src/syscall/syscall_dragonfly.go | 5 +++++
+ src/syscall/syscall_freebsd.go   | 5 +++++
+ src/syscall/syscall_linux.go     | 5 +++++
+ src/syscall/syscall_netbsd.go    | 8 ++++++--
+ src/syscall/syscall_openbsd.go   | 8 ++++++--
+ src/syscall/syscall_solaris.go   | 5 +++++
+ src/syscall/syscall_unix.go      | 5 -----
+ 9 files changed, 42 insertions(+), 9 deletions(-)

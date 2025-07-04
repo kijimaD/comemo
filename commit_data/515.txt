@@ -1,0 +1,17 @@
+commit 2b7555643635b4721c49c21bb7af6f340e54ac30
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Aug 11 13:22:04 2008 -0700
+
+    export large constants
+    
+    R=r
+    DELTA=37  (31 added, 4 deleted, 2 changed)
+    OCL=14089
+    CL=14089
+
+ src/cmd/gc/export.c   |  2 +-
+ src/cmd/gc/go.h       |  1 +
+ src/cmd/gc/lex.c      |  1 +
+ src/cmd/gc/mparith1.c | 29 +++++++++++++++++++++++++++++
+ src/cmd/gc/subr.c     |  6 +-----
+ 5 files changed, 33 insertions(+), 6 deletions(-)

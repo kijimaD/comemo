@@ -1,0 +1,15 @@
+commit 0ea27e345e006b177d8ffc7e86188accf871d0d0
+Author: Rob Pike <r@golang.org>
+Date:   Wed Mar 4 22:43:51 2009 -0800
+
+    flag: document
+    also write to stderr not stdout
+    
+    R=rsc
+    DELTA=48  (38 added, 2 deleted, 8 changed)
+    OCL=25729
+    CL=25733
+
+ src/lib/Makefile |  2 +-
+ src/lib/flag.go  | 54 +++++++++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 46 insertions(+), 10 deletions(-)

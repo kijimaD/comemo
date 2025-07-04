@@ -1,0 +1,36 @@
+commit 80ced393965eb74382c4df63e74461f0bf144c55
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 23 16:22:37 2020 -0700
+
+    cmd/compile: add more non-ID comparisons to schedule
+    
+    These comparisons are fairly arbitrary,
+    but they should be more stable in the face
+    of other compiler changes than value ID.
+    
+    This reduces the number of value ID
+    comparisons in schedule while running
+    make.bash from 542,442 to 99,703.
+    
+    There are lots of changes to generated code
+    from this change, but they appear to
+    be overall neutral.
+    
+    It is possible to further reduce the
+    number of comparisons in schedule;
+    I have changes locally that reduce the
+    number to about 25,000 during make.bash.
+    However, the changes are increasingly
+    complex and arcane, and reduce in much less
+    code churn. Given that the goal is stability,
+    that suggests that this is a reasonable
+    place to stop, at least for now.
+    
+    Change-Id: Ie3a75f84fd3f3fdb102fcd0b29299950ea66b827
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229799
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/schedule.go | 10 ++++++++++
+ 1 file changed, 10 insertions(+)

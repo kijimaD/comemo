@@ -1,0 +1,15 @@
+commit a456e356b2ff551f77640269e6bab06732b98e15
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 4 11:39:57 2015 -0500
+
+    net/url: accept empty port after colon in IPv6 literal host
+    
+    Fixes #12200.
+    
+    Change-Id: I89f2a7326bb9182024c44bf815a06fa48639649d
+    Reviewed-on: https://go-review.googlesource.com/17384
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/url/url.go      |  4 ++--
+ src/net/url/url_test.go | 59 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 60 insertions(+), 3 deletions(-)

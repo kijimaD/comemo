@@ -1,0 +1,16 @@
+commit 20ebee2c31688e6b67c1c5c235616d67cdd4ac09
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Sun Jun 23 18:39:07 2013 +0200
+
+    cmd/gc: fix pointer composite literals in exported if statements.
+    
+    Fixes #4230 (again).
+    
+    R=rsc, golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/10470043
+
+ src/cmd/gc/fmt.c               |  2 +-
+ test/fixedbugs/bug465.dir/a.go | 15 +++++++++++++++
+ test/fixedbugs/bug465.dir/b.go |  2 +-
+ 3 files changed, 17 insertions(+), 2 deletions(-)

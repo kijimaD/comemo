@@ -1,0 +1,12 @@
+commit 77f11f3ef12ecd55a0d6386c83fe727f7abb3879
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 2 16:42:29 2012 -0800
+
+    go/scanner: idiomatic receiver names
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5606057
+
+ src/pkg/go/scanner/scanner.go | 450 +++++++++++++++++++++---------------------
+ 1 file changed, 225 insertions(+), 225 deletions(-)

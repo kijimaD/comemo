@@ -1,0 +1,12 @@
+commit d5f78d77c065b2c202e17b3be0d3490507cf5a4c
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Mar 5 23:16:11 2012 +0800
+
+    builder: use short test for subrepos
+    
+    R=rsc, golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5732053
+
+ misc/dashboard/builder/main.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

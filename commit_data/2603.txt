@@ -1,0 +1,16 @@
+commit d436a701931129f1ab52d681e1b851af31ec1c31
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jul 6 17:20:48 2009 -0700
+
+    allow conversion to interface type
+    when implicit assignment would have been okay.
+    
+    R=ken
+    OCL=31225
+    CL=31227
+
+ src/cmd/gc/subr.c          |  4 ++--
+ src/cmd/gc/walk.c          |  9 ++++++++-
+ src/pkg/http/client.go     |  4 +---
+ test/interface/explicit.go | 15 +++++++++++----
+ 4 files changed, 22 insertions(+), 10 deletions(-)

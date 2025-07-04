@@ -1,0 +1,24 @@
+commit 5d081792b6990ecb34346573d351b8a4d530270e
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Thu May 30 03:03:52 2013 +0800
+
+    cmd/5a, cmd/dist, runtime: support m/g in the assembler, drop support for R9/R10
+    to avoid unintentionally clobber R9/R10.
+    Thanks Lucio for the suggestion.
+    
+    PS: yes, this could be considered a big change (but not an API change), but
+    as it turns out even temporarily changes R9/R10 in user code is unsafe and
+    leads to very hard to diagnose problems later, better to disable using R9/R10
+    when the user first uses it.
+    See CL 6300043 and CL 6305100 for two problems caused by misusing R9/R10.
+    
+    R=golang-dev, khr, rsc
+    CC=golang-dev
+    https://golang.org/cl/9840043
+
+ doc/go1.2.txt                 |  2 ++
+ src/cmd/5a/lex.c              |  4 ++--
+ src/cmd/dist/buildruntime.c   |  2 --
+ src/pkg/runtime/cgo/asm_arm.s |  4 ++--
+ src/pkg/runtime/vlop_arm.s    | 44 +++++++++++++++++++++----------------------
+ 5 files changed, 28 insertions(+), 28 deletions(-)

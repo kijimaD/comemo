@@ -1,0 +1,34 @@
+commit b3f00c6985a28073c8ac20369597c2e982f4ef68
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Feb 28 11:22:05 2018 -0800
+
+    cmd/compile: fix unexpected type alias crash
+    
+    OCOMPLIT stores the pre-typechecked type in n.Right, and then moves it
+    to n.Type. However, it wasn't clearing n.Right, so n.Right continued
+    to point to the OTYPE node. (Exception: slice literals reused n.Right
+    to store the array length.)
+    
+    When exporting inline function bodies, we don't expect to need to save
+    any type aliases. Doing so wouldn't be wrong per se, but it's
+    completely unnecessary and would just bloat the export data.
+    
+    However, reexportdep (whose role is to identify types needed by inline
+    function bodies) uses a generic tree traversal mechanism, which visits
+    n.Right even for O{ARRAY,MAP,STRUCT}LIT nodes. This means it finds the
+    OTYPE node, and mistakenly interpreted that the type alias needs to be
+    exported.
+    
+    The straight forward fix is to just clear n.Right when typechecking
+    composite literals.
+    
+    Fixes #24173.
+    
+    Change-Id: Ia2d556bfdd806c83695b08e18b6cd71eff0772fc
+    Reviewed-on: https://go-review.googlesource.com/97719
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/typecheck.go |  5 ++++-
+ test/fixedbugs/issue24173.go             | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 02561981291600d901db7d4886147480cf3de332
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Sep 13 13:07:09 2023 +0000
+
+    regexp: use built-in clear to clear b.visited in *bitState.reset
+    
+    Change-Id: I1a723124f7050aeb971377db8c3cd04ebf9f7a16
+    GitHub-Last-Rev: 465da88feb20b4a3ebea3c3e36560f6c82f7fa2e
+    GitHub-Pull-Request: golang/go#62611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/527975
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+
+ src/regexp/backtrack.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

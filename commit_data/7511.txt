@@ -1,0 +1,12 @@
+commit 90847a85774a5c340266576f6b5a538f1fed7129
+Author: Dave Cheney <dave@cheney.net>
+Date:   Fri Feb 18 13:48:13 2011 -0500
+
+    net: fix multicast tests
+    
+    R=rsc, mikioh, rsc1, dho
+    CC=golang-dev
+    https://golang.org/cl/4174056
+
+ src/pkg/net/multicast_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

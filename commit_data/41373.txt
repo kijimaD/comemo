@@ -1,0 +1,14 @@
+commit 7ee3b63c8bab7d1e6d3b8df21a465aecd2e08447
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 7 10:55:35 2020 -0800
+
+    runtime: mark testCallersEqual as a test helper
+    
+    Change-Id: I25e6fb733618b0a7af8adc69be85f3503810acf4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/213658
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/runtime/callers_test.go | 2 ++
+ 1 file changed, 2 insertions(+)

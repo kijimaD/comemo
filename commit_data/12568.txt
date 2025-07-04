@@ -1,0 +1,14 @@
+commit 4084f0840126e7b271e651e2f3d955ea808c9645
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 12 14:26:10 2012 -0400
+
+    html/template: doc nit
+    
+    Execute's data is untrusted regardless of package.
+    
+    R=golang-dev, gri
+    CC=golang-dev
+    https://golang.org/cl/5797062
+
+ src/pkg/html/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

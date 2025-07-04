@@ -1,0 +1,22 @@
+commit 0a1da095d1cef7c8ac6065da2983565b450566a5
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Aug 18 11:49:39 2022 +0200
+
+    runtime/internal/atomic: remove double-check in kernelcas on linux/arm
+    
+    Older kernels which require the double check of the __kuser_cmpxchg
+    result are no longer supported as of Go 1.18 which requires at least
+    Linux 2.6.32.
+    
+    For #45964
+    
+    Change-Id: Ic3d6691bf006353ac51b9d43e742d970e3d4e961
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/424556
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/internal/atomic/sys_linux_arm.s | 14 ++------------
+ 1 file changed, 2 insertions(+), 12 deletions(-)

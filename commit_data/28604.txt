@@ -1,0 +1,14 @@
+commit c5f064ee49e98c00c7959fdf095e2c61ff0747b8
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Fri Sep 30 17:23:24 2016 -0400
+
+    context: discourage use of basic types as keys in WithValue
+    
+    Fixes #17302
+    
+    Change-Id: I375d5d4f2714ff415542f4fe56a548e53c5e8ba6
+    Reviewed-on: https://go-review.googlesource.com/30134
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/context.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

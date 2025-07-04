@@ -1,0 +1,25 @@
+commit b2e7eae7c443adafe11c91bc6419af812400b2e2
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Wed Sep 27 13:27:22 2017 -0700
+
+    cmd/compile: remove Local flags on Type and Node
+    
+    These are redundant with checking x.Sym.Pkg == localpkg.
+    
+    Passes toolstash-check -all.
+    
+    Change-Id: Iebe25f7932cd15a036141b468ad75c239abcdcf7
+    Reviewed-on: https://go-review.googlesource.com/66670
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/closure.go   | 2 --
+ src/cmd/compile/internal/gc/dcl.go       | 2 +-
+ src/cmd/compile/internal/gc/noder.go     | 1 -
+ src/cmd/compile/internal/gc/reflect.go   | 4 +---
+ src/cmd/compile/internal/gc/select.go    | 2 --
+ src/cmd/compile/internal/gc/syntax.go    | 3 ---
+ src/cmd/compile/internal/gc/typecheck.go | 1 -
+ src/cmd/compile/internal/types/type.go   | 5 +----
+ 8 files changed, 3 insertions(+), 17 deletions(-)

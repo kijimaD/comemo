@@ -1,0 +1,10 @@
+commit 8c1408dd8e224e146651deb1e9a16d5e789c15b3
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 27 21:42:25 2008 -0700
+
+    Add select statement
+    
+    SVN=114147
+
+ doc/go_lang.txt | 62 +++++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 60 insertions(+), 2 deletions(-)

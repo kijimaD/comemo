@@ -1,0 +1,15 @@
+commit 9f0ffc938058de4b21c09126e996bb593575f973
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 28 11:38:59 2022 -0500
+
+    doc/go1.20: fix missing </code> tag
+    
+    Change-Id: I8767696a62d8a814c7ed94abfd4b99ca0cab31f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/453635
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+
+ doc/go1.20.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

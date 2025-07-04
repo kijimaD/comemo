@@ -1,0 +1,29 @@
+commit ec745fc4cb7de5f1c15d9d7da7d10a26d7029d89
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 3 23:21:30 2015 -0700
+
+    test: make test/run.go support sharding
+    
+    Also modifies 'dist test' to use that sharding, and removes some old
+    temporary stuff from dist test which are no longer required.
+    
+    'dist test' now also supports running a list of tests given in
+    arguments, mutually exclusive with the existing -run=REGEXP flag. The
+    hacky fast paths for avoiding the 1 second "go list" latency are now
+    removed and only apply to the case where partial tests are run via
+    args, instead of regex.  The build coordinator will use both styles
+    for awhile. (the statically-sharded ARM builders on scaleway will
+    continue to use regexps, but the dynamically-shared builders on GCE
+    will use the list of tests)
+    
+    Updates #10029
+    
+    Change-Id: I557800a54dfa6f3b5100ef4c26fe397ba5189813
+    Reviewed-on: https://go-review.googlesource.com/10688
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/dist/test.go | 143 ++++++++++++++++++++++-----------------------------
+ test/run.go          |  16 +++++-
+ 2 files changed, 77 insertions(+), 82 deletions(-)

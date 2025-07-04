@@ -1,0 +1,19 @@
+commit 8d2b3bb7b1a96c8373f9493ccb41860d07b48efc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Jun 15 10:47:57 2017 -0700
+
+    Revert "cmd/compile: skip reexporting types in reexportdep"
+    
+    This reverts commit edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc.
+    
+    Fixes #20682.
+    
+    Change-Id: If998c8b4bf177d5da9e26f75579bd5497ec86d38
+    Reviewed-on: https://go-review.googlesource.com/45911
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/cmd/compile/internal/gc/bexport.go |  9 ++++-
+ src/cmd/compile/internal/gc/export.go  | 73 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 81 insertions(+), 1 deletion(-)

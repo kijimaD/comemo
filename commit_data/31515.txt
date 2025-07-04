@@ -1,0 +1,18 @@
+commit 716761b8b13926ef4a82dcb4ffc324066779239c
+Author: Rob Phoenix <rob@robphoenix.com>
+Date:   Mon May 8 22:08:42 2017 +0100
+
+    net: add examples for IPv4, ParseCIDR & IPv4Mask
+    
+    Further examples to support the net package.
+    
+    See issue #5757
+    
+    Change-Id: I839fd97a468c8d9195e8f4a0ee886ba50ca3f382
+    Reviewed-on: https://go-review.googlesource.com/42912
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/example_test.go | 36 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 36 insertions(+)

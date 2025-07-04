@@ -1,0 +1,17 @@
+commit b424a312ea9d970b4ee7e535a092b7f183c53ae5
+Author: Rodolfo Carvalho <rhcarvalho@gmail.com>
+Date:   Fri Jun 19 15:31:25 2020 +0000
+
+    runtime/trace: fix file name in example
+    
+    The preceding paragraph suggests the test run will produce a file called trace.out.
+    The same name, trace.out, is used in the output from go help testflag, thus we change the go test line instead of changing the preceding paragraph.
+    
+    Change-Id: Ib1fa7e49e540853e263a2399b16040ea6f41b703
+    GitHub-Last-Rev: 3535e62bf8dd02dd9955a28e7fa9cca98de89efd
+    GitHub-Pull-Request: golang/go#39709
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/238997
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+
+ src/runtime/trace/trace.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

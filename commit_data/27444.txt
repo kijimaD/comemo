@@ -1,0 +1,18 @@
+commit 075880a8e8f6363a554c100ad09a85d108953eea
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 18 13:28:48 2016 -0700
+
+    cmd/compile: fix build
+    
+    Run live vars test only on ssa builds.
+    We can't just drop KeepAlive ops during regalloc.  We need
+    to replace them with copies.
+    
+    Change-Id: Ib4b3b1381415db88fdc2165fc0a9541b73ad9759
+    Reviewed-on: https://go-review.googlesource.com/23225
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/regalloc.go | 5 +++--
+ test/fixedbugs/issue15277.go             | 1 +
+ 2 files changed, 4 insertions(+), 2 deletions(-)

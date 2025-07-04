@@ -1,0 +1,15 @@
+commit a25c58462992704dbb6819769f530b6cc6a8ebe3
+Author: Charlie Moog <moogcharlie@gmail.com>
+Date:   Wed Mar 24 19:17:03 2021 -0500
+
+    os: implement fs.StatFS for os.DirFS
+    
+    Change-Id: I1d7382bf522aeda7148431b348f6ab9a162be097
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/304531
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Robert Griesemer <gri@golang.org>
+
+ src/os/file.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

@@ -1,0 +1,18 @@
+commit 8eec4ebd7d6f81ec432710a87902746e560b7a37
+Author: Rick Arnold <rickarnoldjr@gmail.com>
+Date:   Wed Feb 19 11:29:36 2014 -0800
+
+    cmd/gc: fix array index out of bounds error message
+    
+    The error message was previously off by one in all cases.
+    
+    Fixes #7150.
+    
+    LGTM=r
+    R=golang-codereviews, r
+    CC=golang-codereviews
+    https://golang.org/cl/65850043
+
+ src/cmd/gc/typecheck.c      |  2 +-
+ test/fixedbugs/issue7150.go | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)

@@ -1,0 +1,12 @@
+commit bad5673c8f434b30803c879f4e969cf74c247e1c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 21 12:09:19 2011 -0400
+
+    CONTRIBUTORS: add Dmitriy Vyukov (Google CLA)
+    
+    R=golang-dev, r2
+    CC=golang-dev
+    https://golang.org/cl/4432055
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

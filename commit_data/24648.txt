@@ -1,0 +1,12 @@
+commit 4038901b0f971f554f1a22db6e3e32c57637005b
+Author: Nodir Turakulov <nodir@google.com>
+Date:   Tue Oct 13 21:34:47 2015 -0700
+
+    text/template: remove redundant indirect
+    
+    Change-Id: I8cc9783fd044bed48347824dcf973c61c78275a5
+    Reviewed-on: https://go-review.googlesource.com/15833
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/text/template/exec.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,15 @@
+commit 4f64ecfddad44524fe686f3e16a8f92487d912d9
+Author: Fazlul Shahriar <fshahriar@gmail.com>
+Date:   Wed Jul 28 18:13:56 2010 -0700
+
+    http: add https client support
+    
+    Fixes #851.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1729052
+
+ src/pkg/crypto/tls/handshake_client.go |  2 +-
+ src/pkg/http/client.go                 | 15 +++++++++++----
+ 2 files changed, 12 insertions(+), 5 deletions(-)

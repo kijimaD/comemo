@@ -1,0 +1,19 @@
+commit 94197135287ae2e1b886c4de9eaf4e1d8b1488ba
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue Apr 17 14:59:13 2018 -0700
+
+    cmd/compile: cleanup import logic slightly
+    
+    Use bio.Reader. Include newline character in the expected string value
+    instead of truncating it. Get rid of weird "empty archive" check.
+    
+    Passes toolstash-check.
+    
+    Change-Id: I16e42542db4827e6ee3644b9a5540a4a30b9bc41
+    Reviewed-on: https://go-review.googlesource.com/107620
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/main.go | 37 ++++++++++++++-----------------------
+ 1 file changed, 14 insertions(+), 23 deletions(-)

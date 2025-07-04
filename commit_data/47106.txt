@@ -1,0 +1,24 @@
+commit f2885263748364a2a7f4e0d47abd5095699cd39f
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Oct 28 22:25:02 2021 -0400
+
+    cmd/go: test that the reserved paths "example" and "test" are not used
+    
+    Proposal #37641 reserved the paths "example" and "test" for end users,
+    so no path beginning with either of those elements may be added to the
+    standard library.
+    
+    (We are unlikely to add them by accident, but this test codifies the
+    policy accepted in the proposal.)
+    
+    Fixes #37641
+    
+    Change-Id: I999064180336c923d4918a1176c371b8f5666f8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/359576
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/cmd/go/testdata/script/list_reserved.txt | 7 +++++++
+ 1 file changed, 7 insertions(+)

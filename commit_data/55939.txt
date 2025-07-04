@@ -1,0 +1,18 @@
+commit 1d96895ccbea79daa9d6538bf9da6a4dd197336b
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Mar 14 10:41:08 2024 +0000
+
+    net/netip: use built-in clear to simplify code
+    
+    Change-Id: Ic7b390935df107c5b7f53f9347a52031eac8a897
+    GitHub-Last-Rev: a7194571e1c2f90537f1caa8a3b5bcd60cea60be
+    GitHub-Pull-Request: golang/go#66310
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+
+ src/net/netip/netip.go | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)

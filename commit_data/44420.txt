@@ -1,0 +1,18 @@
+commit 3137da82fd74d534fff59092329c0ca820ff6589
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Feb 19 14:41:02 2021 -0500
+
+    cmd/go: add a script test corresponding to the downhiddenartifact MVS test
+    
+    For #36460
+    
+    Change-Id: I95abff45bb325732a19eb8b9c0d3fc34df08b4d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294293
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ .../script/mod_get_downup_pseudo_artifact.txt      | 132 +++++++++++++++++++++
+ 1 file changed, 132 insertions(+)

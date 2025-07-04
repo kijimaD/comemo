@@ -1,0 +1,18 @@
+commit 0eaabf6452149ecbcc1caf40e22ae16cf73c768e
+Author: Joel Sing <jsing@google.com>
+Date:   Fri Dec 20 03:58:27 2013 +1100
+
+    cmd/ld: make hostobj work on newer openbsd
+    
+    Make hostobj work on OpenBSD 5.3/5.4/-current - these have PIE
+    enabled by default and linking fails since the Go linker generates
+    objects that are neither PIC nor PIE.
+    
+    Fixes #5067
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/7572049
+
+ src/cmd/ld/lib.c | 2 ++
+ 1 file changed, 2 insertions(+)

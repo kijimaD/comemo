@@ -1,0 +1,49 @@
+commit cd037bce09ec1aecd40d9c91c23d09f5b60549f4
+Author: Hana (Hyang-Ah) Kim <hyangah@gmail.com>
+Date:   Tue Mar 27 12:23:19 2018 -0400
+
+    runtime/pprof: introduce "allocs" profile
+    
+    The Go's heap profile contains four kinds of samples
+    (inuse_space, inuse_objects, alloc_space, and alloc_objects).
+    The pprof tool by default chooses the inuse_space (the bytes
+    of live, in-use objects). When analyzing the current memory
+    usage the choice of inuse_space as the default may be useful,
+    but in some cases, users are more interested in analyzing the
+    total allocation statistics throughout the program execution.
+    For example, when we analyze the memory profile from benchmark
+    or program test run, we are more likely interested in the whole
+    allocation history than the live heap snapshot at the end of
+    the test or benchmark.
+    
+    The pprof tool provides flags to control which sample type
+    to be used for analysis. However, it is one of the less-known
+    features of pprof and we believe it's better to choose the
+    right type of samples as the default when producing the profile.
+    
+    This CL introduces a new type of profile, "allocs", which is
+    the same as the "heap" profile but marks the alloc_space
+    as the default type unlike heap profiles that use inuse_space
+    as the default type.
+    
+    'go test -memprofile=...' command is changed to use the new
+    "allocs" profile type instead of the traditional "heap" profile.
+    
+    Fixes #24443
+    
+    Change-Id: I012dd4b6dcacd45644d7345509936b8380b6fbd9
+    Reviewed-on: https://go-review.googlesource.com/102696
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/test/test.go              |  9 ++++----
+ src/runtime/pprof/internal/profile/encode.go  | 12 ++++++++++
+ src/runtime/pprof/internal/profile/profile.go | 20 ++++++++++-------
+ src/runtime/pprof/pprof.go                    | 32 +++++++++++++++++++++++++--
+ src/runtime/pprof/proto.go                    | 26 ++++++++++++----------
+ src/runtime/pprof/proto_test.go               | 17 +++++++++-----
+ src/runtime/pprof/protomem.go                 |  5 ++++-
+ src/runtime/pprof/protomem_test.go            | 32 ++++++++++++++++++---------
+ src/testing/internal/testdeps/deps.go         |  4 ----
+ src/testing/testing.go                        |  8 +++----
+ 10 files changed, 111 insertions(+), 54 deletions(-)

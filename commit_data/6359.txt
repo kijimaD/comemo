@@ -1,0 +1,14 @@
+commit 344600f68917b3b0aae253e63b69dc50fb91b5b3
+Author: Rob Pike <r@golang.org>
+Date:   Fri Sep 24 11:53:26 2010 +1000
+
+    fmt/Printf: document and tweak error messages produced for bad formats
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/2198044
+
+ src/pkg/fmt/doc.go      | 26 +++++++++++++++++++++++---
+ src/pkg/fmt/fmt_test.go | 28 ++++++++++++++--------------
+ src/pkg/fmt/print.go    |  9 +++++----
+ 3 files changed, 42 insertions(+), 21 deletions(-)

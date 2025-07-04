@@ -1,0 +1,17 @@
+commit dedce99c06c85c25f5e999ee55691648486dd934
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 10:13:50 2022 +0800
+
+    os: convert Process.isdone to atomic type
+    
+    Change-Id: Ia3213d22678be0d56bf4f34dfe458441f7f5da97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426077
+    Run-TryBot: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Jenny Rakoczy <jenny@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Jenny Rakoczy <jenny@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Jenny Rakoczy <jenny@golang.org>
+
+ src/os/exec.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,23 @@
+commit 38b2c06e144c6ea7087c575c76c66e41265ae0b7
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Aug 28 01:22:02 2023 +1000
+
+    cmd/internal/obj/riscv: clean up immediate checking
+    
+    Change immIFits to return an error in the case that it does not fit.
+    This allows for deduplication and consistency of error messages.
+    Additionally, since we've already calculated the min and max values,
+    we can easily include these in the message. Also provide and use
+    immEven, for the same reasons.
+    
+    Change-Id: Ie680558744f3e9bc19d6913c4144ce9ddbd0429c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523458
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Run-TryBot: M Zhuo <mzh@golangcn.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: M Zhuo <mzh@golangcn.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go | 93 +++++++++++++++++++++++----------------
+ 1 file changed, 54 insertions(+), 39 deletions(-)

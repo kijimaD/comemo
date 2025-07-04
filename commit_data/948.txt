@@ -1,0 +1,19 @@
+commit 816c1cefff6193f7fb8623742f19df22294ddbfd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Oct 23 17:56:54 2008 -0700
+
+    - expanded parsing heuristics to deal with new(T, ...)
+    - fixed an issue with select
+    - added all bugs and fixedbugs tests that are syntactically correct to the test suite
+    - minor cosmetic changes
+    
+    R=r
+    OCL=17759
+    CL=17759
+
+ usr/gri/pretty/ast.go     | 30 +++++++++++------
+ usr/gri/pretty/parser.go  | 86 +++++++++++++++++++++++++++++++++++------------
+ usr/gri/pretty/printer.go |  8 ++---
+ usr/gri/pretty/scanner.go | 28 ++++++++-------
+ usr/gri/pretty/test.sh    |  6 ++--
+ 5 files changed, 107 insertions(+), 51 deletions(-)

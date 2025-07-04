@@ -1,0 +1,24 @@
+commit 0cf48b4d919e5137ec03f1bf230fbd8720873151
+Author: Peter Waldschmidt <peter@waldschmidt.com>
+Date:   Sat Apr 18 03:23:32 2015 -0400
+
+    encoding/json: add JSON streaming parse API
+    
+    This change adds new methods to Decoder.
+    
+     * Decoder.Token steps through a JSON document, returning a value for each token.
+     * Decoder.Decode unmarshals the entire value at the token stream's current
+       position (in addition to its existing function in a stream of JSON values)
+    
+    Fixes #6050.
+    Fixes #6499.
+    
+    Change-Id: Iff283e0e7b537221ae256392aca6529f06ebe211
+    Reviewed-on: https://go-review.googlesource.com/9073
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/encoding/json/bench_test.go   |  23 +++
+ src/encoding/json/example_test.go |  91 +++++++++++
+ src/encoding/json/stream.go       | 316 +++++++++++++++++++++++++++++++++++---
+ src/encoding/json/stream_test.go  | 111 +++++++++++++
+ 4 files changed, 518 insertions(+), 23 deletions(-)

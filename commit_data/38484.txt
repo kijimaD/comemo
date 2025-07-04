@@ -1,0 +1,26 @@
+commit 9e0e9ac5547a9cc5174cca79abaac0cdd3ec787e
+Author: LE Manh Cuong <cuong.manhle.vn@gmail.com>
+Date:   Sun Mar 17 11:56:29 2019 +0700
+
+    os: fix windows Lstat missing name for some files
+    
+    On Windows, GetFileAttributesEx fails with ERROR_SHARING_VIOLATION for
+    some files, like c:\pagefile.sys. In this case,
+    newFileStatFromWin32finddata is used to fill file info, but it does not fill
+    name and path.
+    
+    After getting file stat from newFileStatFromWin32finddata, just set file info
+    name and path before return fixes the issue.
+    
+    Fixes #30883
+    
+    Change-Id: I654e96c634e8a9bf5ce7e1aaa93968e88953620d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167779
+    Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+
+ src/os/os_windows_test.go |  5 ++++-
+ src/os/stat_windows.go    | 16 +++++++---------
+ src/os/types_windows.go   | 15 +++++++++++++++
+ 3 files changed, 26 insertions(+), 10 deletions(-)

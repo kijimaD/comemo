@@ -1,0 +1,23 @@
+commit 24b90391495094f1059cb7b09cf6bcfc790f7fe5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jun 13 15:39:08 2022 -0400
+
+    doc/go1.19: prefer relative links to other parts of the Go website
+    
+    The Go website can be served on more than one domain (for example,
+    go.dev, golang.google.cn, tip.golang.org, localhost:6060, and so on).
+    Use relative links which work in all contexts.
+    
+    For #51400.
+    Updates #53337.
+    
+    Change-Id: I100938981447537ac242b4045929f6db8a2674c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/411974
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ doc/go1.19.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

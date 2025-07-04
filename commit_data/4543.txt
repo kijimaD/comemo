@@ -1,0 +1,11 @@
+commit 5c07e0c17ce6a0627a2fe4bbc4254b322ec879ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jan 6 16:35:28 2010 -0800
+
+    time: fix Makefile so deps.bash is happy (fixes build)
+    
+    TBR=r
+    https://golang.org/cl/183133
+
+ src/pkg/time/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

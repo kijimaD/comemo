@@ -1,0 +1,11 @@
+commit e67161ee3f36c23ae21757459f84d04c857d65a0
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Nov 7 18:56:29 2009 -0800
+
+    fix authentication in parallel LoadAllCL
+    
+    R=r
+    http://go/go-review/1024018
+
+ lib/codereview/codereview.py | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

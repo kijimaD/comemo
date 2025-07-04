@@ -1,0 +1,19 @@
+commit 578ada410de8065dbca46bca08a5993d1307f423
+Author: Illirgway <illirgway@gmail.com>
+Date:   Mon Jul 5 11:22:03 2021 +0000
+
+    mime: keep parsing after trailing semicolon
+    
+    Fixes #46323
+    
+    Change-Id: Ibd624b1aaa15f907b7eb965b4eaec61018a45486
+    GitHub-Last-Rev: 7ad670b088144a2a09860dd990c53dea75c0d40f
+    GitHub-Pull-Request: golang/go#47029
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/332509
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/mime/mediatype.go      |  2 +-
+ src/mime/mediatype_test.go | 17 ++++++++++++++---
+ 2 files changed, 15 insertions(+), 4 deletions(-)

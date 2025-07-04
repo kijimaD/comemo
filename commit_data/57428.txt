@@ -1,0 +1,22 @@
+commit 9deda35ff81acb1dcb6fc66d69fa6da6ca4f5d87
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Sep 11 15:40:43 2024 +0200
+
+    cmd/cgo: use slices.ContainsFunc
+    
+    Now that Go 1.22.6 is the minimum bootstrap toolchain (cf. CL 606156),
+    the slices package (introduced in Go 1.21) can be used in packages built
+    using the bootstrap toolchain.
+    
+    For #64751
+    
+    Change-Id: Ib36f39016f57c5e110f78a85ca9c806d91356024
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612316
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/gcc.go | 34 +++++++++++++---------------------
+ 1 file changed, 13 insertions(+), 21 deletions(-)

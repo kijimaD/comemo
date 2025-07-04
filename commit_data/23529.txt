@@ -1,0 +1,21 @@
+commit 29ff86b05b573cd715975155092d38d063ae2276
+Author: c9s <yoanlin93@gmail.com>
+Date:   Sat May 30 01:12:35 2015 +0800
+
+    cmd/go: handle error when git remote origin doesn't exist
+    
+    - Let runOutput return the error message
+    - When `git config ...` returns empty buffer, it means the config key is
+      correct, but there is no corresponding value.
+    - Return the correct error when the url of remote origin is not found.
+    - Update error message
+    
+    Fixes: #10922
+    
+    Change-Id: I3f8880f6717a4f079b840d1249174378d36bca1b
+    Reviewed-on: https://go-review.googlesource.com/10475
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/get.go | 29 +++++++++++++++--------------
+ src/cmd/go/vcs.go | 10 ++++++++--
+ 2 files changed, 23 insertions(+), 16 deletions(-)

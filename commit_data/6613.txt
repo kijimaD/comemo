@@ -1,0 +1,12 @@
+commit 32a6613e94b4ff31df836dd0c9417717b65adfb1
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Oct 25 14:50:47 2010 +1100
+
+    container/list: elide redundant tests and fix comment typo
+    
+    R=dsymonds
+    CC=golang-dev
+    https://golang.org/cl/2700041
+
+ src/pkg/container/list/list.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)

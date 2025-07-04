@@ -1,0 +1,13 @@
+commit 1b5eaa4382e1d7cd1b6d8aaa63fc4eeb10a70e4a
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jul 20 15:14:01 2015 -0700
+
+    doc: add crypto/sha512 additions to go1.5.html
+    
+    Change-Id: I805bb7ba40c8ed579c4ca796e408995586d219b3
+    Reviewed-on: https://go-review.googlesource.com/12434
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go1.5.html | 6 ++++++
+ 1 file changed, 6 insertions(+)

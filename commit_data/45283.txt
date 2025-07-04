@@ -1,0 +1,22 @@
+commit ece59353645d250162e47c792da77cbb44a84f01
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 20 16:18:59 2021 -0700
+
+    cmd/compile/internal/types2: better errors for invalid short var decls
+    
+    - rewrite Checker.shortVarDecl core loop for clarity
+    - match compiler error messages (#43087)
+    - don't allow multiple identical redeclarations (#45652)
+    
+    For #43087.
+    For #45652.
+    
+    Change-Id: I8c3329a553aa104d7853fbaea8b88049bc9b3b88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/312170
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/assignments.go     | 98 +++++++++++++---------
+ .../internal/types2/fixedbugs/issue43087.src       | 43 ++++++++++
+ src/cmd/compile/internal/types2/testdata/stmt0.src |  6 +-
+ 3 files changed, 105 insertions(+), 42 deletions(-)

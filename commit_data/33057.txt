@@ -1,0 +1,30 @@
+commit cdbc363cb2a04bcf25e6bfd1e0937859291570a3
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 6 15:48:51 2017 -0400
+
+    cmd/go: record both build ID and content ID in archives and binaries
+    
+    The content ID will be needed for content-based staleness
+    determination. It is defined as the SHA256 hash of the file
+    in which it appears, with occurrences of the build+content IDs
+    changed to zeros during the hashing operation.
+    
+    Storing the content ID in the archives is a little tricky
+    but it means that later builds need not rehash the archives
+    each time they are referenced, so under the assumption
+    that each package is imported at least once after being
+    compiled, hashing at build time is a win. (Also the whole
+    file is more likely to be in cache at build time,
+    since we just wrote it.)
+    
+    In my unscientific tests, the time for "go build -a std cmd"
+    rises from about 14.3s to 14.5s on my laptop, or under 2%.
+    
+    Change-Id: Ia3d4dc657d003e8295631f73363868bd92ebf96a
+    Reviewed-on: https://go-review.googlesource.com/69054
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/dist/deps.go              |  1 +
+ src/cmd/go/internal/load/pkg.go   | 15 +++++++
+ src/cmd/go/internal/work/build.go | 82 ++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 93 insertions(+), 5 deletions(-)

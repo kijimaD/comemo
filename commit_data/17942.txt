@@ -1,0 +1,22 @@
+commit aa0ae7554c460947ff40ae43eb10a098dc4e3f6d
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Mon Dec 9 23:25:13 2013 -0500
+
+    os: clarify docs for Rename.
+    
+    Three changes:
+    1. mention "move" to clarify things up.
+    2. use {old,new}path instead of {old,new}name, which makes it clear what
+       relative path would do here.
+    3. mention "OS-specific restrictions might apply".
+    
+    Fixes #6887.
+    
+    R=golang-dev, alex.brainman, iant, r
+    CC=golang-dev
+    https://golang.org/cl/36930044
+
+ src/pkg/os/file.go       | 3 +++
+ src/pkg/os/file_plan9.go | 3 +--
+ src/pkg/os/file_posix.go | 3 +--
+ 3 files changed, 5 insertions(+), 4 deletions(-)

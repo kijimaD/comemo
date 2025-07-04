@@ -1,0 +1,17 @@
+commit 876b7cc2273a64cd44c1f7932c612bdf696c27fe
+Author: Michael Hudson-Doyle <michael.hudson@canonical.com>
+Date:   Tue Sep 1 14:03:38 2015 +1200
+
+    cmd/compile, cmd/go: generate position independent code with -buildmode=c-shared on arm
+    
+    All the code was there to do this, it just wasn't hooked up.
+    
+    Fixes #10914
+    
+    Change-Id: Ide8f9bbe50fecb5d11cd579915ee98d4c7efe403
+    Reviewed-on: https://go-review.googlesource.com/14142
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 4 +++-
+ src/cmd/go/build.go                | 5 +----
+ 2 files changed, 4 insertions(+), 5 deletions(-)

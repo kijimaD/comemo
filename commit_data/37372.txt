@@ -1,0 +1,15 @@
+commit 7ebe35093dbac03f86f7471590a18bf4ddd4b29c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Nov 12 10:38:02 2018 -0800
+
+    cmd/compile: correct check for valid -lang version
+    
+    Change-Id: Iad10d0a2dbc8e12e9f776c6cfb34070f584fd439
+    Reviewed-on: https://go-review.googlesource.com/c/149057
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/cmd/compile/internal/gc/lang_test.go | 5 +++++
+ src/cmd/compile/internal/gc/main.go      | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)

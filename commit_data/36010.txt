@@ -1,0 +1,15 @@
+commit 274fde9a36bf62f62f9ffda4b178df437649e8bf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Jul 16 16:17:27 2018 -0700
+
+    cmd/internal/buildid: close ELF file after reading note
+    
+    Updates #26400
+    
+    Change-Id: I1747d1f1018521cdfa4b3ed13412a944829967cf
+    Reviewed-on: https://go-review.googlesource.com/124235
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/buildid/note.go | 1 +
+ 1 file changed, 1 insertion(+)

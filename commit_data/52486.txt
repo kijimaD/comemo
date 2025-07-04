@@ -1,0 +1,23 @@
+commit e72cd86b360aa523ca7af552b7ad9d3e57b28e35
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Mar 31 19:03:42 2023 +0000
+
+    Revert "runtime: consolidate function descriptor definitions on PPC64"
+    
+    This reverts CL 478917.
+    
+    Reason for revert: need to revert CL 392854, and this caused a conflict.
+    
+    Change-Id: I02c3285de5635b431a99adc8790c8310d1c4e6a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481059
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+
+ src/runtime/asm_ppc64x.h       | 20 ++------------------
+ src/runtime/asm_ppc64x.s       | 21 ++++++++++++++++++---
+ src/runtime/cgo/asm_ppc64x.s   | 25 +++++++++++++------------
+ src/runtime/rt0_aix_ppc64.s    | 17 +++++++++++++----
+ src/runtime/rt0_linux_ppc64.s  | 13 ++++++++++---
+ src/runtime/sys_linux_ppc64x.s | 23 +++++++++++++++++------
+ 6 files changed, 73 insertions(+), 46 deletions(-)

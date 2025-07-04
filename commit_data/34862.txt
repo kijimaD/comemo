@@ -1,0 +1,17 @@
+commit 3f483e6520ff2d4be6a4a3eeb7a5b485ba0c2d96
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Thu Apr 5 10:20:05 2018 -0700
+
+    cmd/compile: rewrite a & 1 != 1 into a & 1 == 0 on amd64
+    
+    These rules trigger 190 times during make.bash.
+    
+    Change-Id: I20d1688db5d8c904a7237c08635c6c9d8bd58b1c
+    Reviewed-on: https://go-review.googlesource.com/105037
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Giovanni Bajo <rasky@develer.com>
+
+ src/cmd/compile/internal/ssa/gen/AMD64.rules |   7 +
+ src/cmd/compile/internal/ssa/rewriteAMD64.go | 336 +++++++++++++++++++++++----
+ 2 files changed, 299 insertions(+), 44 deletions(-)

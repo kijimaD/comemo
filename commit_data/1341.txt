@@ -1,0 +1,16 @@
+commit 42d89ac02ceeccbaf6973e8bd0636935398bd9f8
+Author: Ken Thompson <ken@golang.org>
+Date:   Sun Dec 14 18:45:00 2008 -0800
+
+    even more code improvement
+    
+    R=r
+    OCL=21160
+    CL=21160
+
+ src/cmd/6g/gen.c   | 109 ++++++++++++++++++++++++++++++++++++-----------------
+ src/cmd/6g/gg.h    |   1 -
+ src/cmd/6g/gsubr.c |  95 ++++++++++++++++------------------------------
+ src/cmd/gc/const.c |  18 +++++++++
+ src/cmd/gc/go.h    |   1 +
+ 5 files changed, 126 insertions(+), 98 deletions(-)

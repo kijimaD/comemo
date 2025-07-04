@@ -1,0 +1,16 @@
+commit bc3bcfd4e76195ead984e9d2ae1a1783d1272dc4
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 22 09:47:42 2016 -0700
+
+    html/template: update security model link
+    
+    Fixes #16148.
+    
+    Change-Id: Ifab773e986b768602476824d005eea9200761236
+    Reviewed-on: https://go-review.googlesource.com/24327
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ src/html/template/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

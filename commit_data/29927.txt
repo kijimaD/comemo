@@ -1,0 +1,24 @@
+commit a8871194f296383d313972da083e1b5f7513dfeb
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Jan 9 01:00:36 2017 -0800
+
+    net/http: preserve original HTTP method when possible
+    
+    In Go1.7, a 301, 302, or 303 redirect on a HEAD method, would still
+    cause the following redirects to still use a HEAD.
+    In CL/29852 this behavior was changed such that those codes always
+    caused a redirect with the GET method. Fix this such that both
+    GET and HEAD will preserve the method.
+    
+    Fixes #18570
+    
+    Change-Id: I4bfe69872a30799419e3fad9178f907fe439b449
+    Reviewed-on: https://go-review.googlesource.com/34981
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/client.go      | 22 ++++++++++++++--------
+ src/net/http/client_test.go |  6 +++---
+ 2 files changed, 17 insertions(+), 11 deletions(-)

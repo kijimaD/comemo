@@ -1,0 +1,16 @@
+commit 80c4b53e1e5159cc440e52c906583edc1eb79abc
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 20 12:27:25 2017 -0700
+
+    cmd/compile/internal/gc: remove unneeded Type.Pos field
+    
+    Change-Id: I9ab650d9d2d0a99186009362454e1eabc9f6bad6
+    Reviewed-on: https://go-review.googlesource.com/38393
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/sizeof_test.go | 2 +-
+ src/cmd/compile/internal/gc/type.go        | 6 ++----
+ 2 files changed, 3 insertions(+), 5 deletions(-)

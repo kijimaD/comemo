@@ -1,0 +1,12 @@
+commit 5b7d422a05652893e27fc8393f9435ec2386bc83
+Author: Oling Cat <olingcat@gmail.com>
+Date:   Sat Jun 1 10:28:04 2013 -0400
+
+    doc/go1.1.html: remove extra space; close some tags.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9941043
+
+ doc/go1.1.html | 38 ++++++++++++++++++++------------------
+ 1 file changed, 20 insertions(+), 18 deletions(-)

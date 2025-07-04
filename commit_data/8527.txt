@@ -1,0 +1,15 @@
+commit b7582852f63fd8bedba53ab415c1b3cc5ac2ae9c
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat May 28 21:26:03 2011 +1000
+
+    gotest, pkg/exec: use bash instead of sh to execute shell scripts on windows
+    
+    As suggested by dho, iant2.
+    
+    R=golang-dev, rsc
+    CC=devon.odell, golang-dev, iant
+    https://golang.org/cl/4515147
+
+ src/cmd/gotest/gotest.go  | 4 ++--
+ src/pkg/exec/exec_test.go | 8 ++++----
+ 2 files changed, 6 insertions(+), 6 deletions(-)

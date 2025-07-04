@@ -1,0 +1,14 @@
+commit 4d87e8ab087fa0dfdc796219e739e4cff095cb73
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jul 26 12:50:03 2010 +1000
+
+    net: fix crashing Read/Write when passed empty slice on windows
+    
+    Fixes #921.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1862043
+
+ src/pkg/net/fd_windows.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)

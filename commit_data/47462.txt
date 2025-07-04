@@ -1,0 +1,27 @@
+commit c2397905e027cdbab3a28d02813adcb82368422c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Nov 12 18:24:54 2021 -0800
+
+    cmd/compile/internal/types2: simplify under() and fix a crash
+    
+    The simplified version of under exposed a bug (by crashing):
+    When a pointer base is used before the pointer is fully set
+    up, the base is nil. Set the pointer base to Typ[Invalid]
+    when creating the pointer, and add an extra safety check
+    into deref. Reviewed all code that creates pointers.
+    
+    The same error cannot happen with other types because
+    accessing parts of another type results in an expression
+    that is not a type, and thus these kids of cycles cannot
+    happen.
+    
+    Change-Id: I8332a281a534c094cfbb3623a636960865813ff6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363665
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/lookup.go                 | 7 +++++++
+ src/cmd/compile/internal/types2/testdata/check/cycles.src | 1 +
+ src/cmd/compile/internal/types2/type.go                   | 7 ++-----
+ src/cmd/compile/internal/types2/typexpr.go                | 1 +
+ 4 files changed, 11 insertions(+), 5 deletions(-)

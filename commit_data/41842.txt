@@ -1,0 +1,43 @@
+commit ed7a8332c413f41d466db3bfc9606025e0c264d8
+Author: Dan Scales <danscales@google.com>
+Date:   Tue Mar 31 20:24:05 2020 -0700
+
+    cmd/compile: allow mid-stack inlining when there is a cycle of recursion
+    
+    We still disallow inlining for an immediately-recursive function, but allow
+    inlining if a function is in a recursion chain.
+    
+    If all functions in the recursion chain are simple, then we could inline
+    forever down the recursion chain (eventually running out of stack on the
+    compiler), so we add a map to keep track of the functions we have
+    already inlined at a call site. We stop inlining when we reach a
+    function that we have already inlined in the recursive chain. Of course,
+    normally the inlining will have stopped earlier, because of the cost
+    function.
+    
+    We could also limit the depth of inlining by a simple count (say, limit
+    max inlining of 10 at any given site). Would that limit other
+    opportunities too much?
+    
+    Added a test in test/inline.go. runtime.BenchmarkStackCopyNoCache() is
+    also already a good test that triggers the check to stop inlining
+    when we reach the start of the recursive chain again.
+    
+    For the bent benchmark suite, the performance improvement was mostly not
+    statistically significant, but the geomean averaged out to: -0.68%. The text size
+    increase was less than .1% for all bent benchmarks. The cmd/go text size increase
+    was 0.02% and the cmd/compile text size increase was .1%.
+    
+    Fixes #29737
+    
+    Change-Id: I892fa84bb07a947b3125ec8f25ed0e508bf2bdf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/226818
+    Run-TryBot: Dan Scales <danscales@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/gc/inl.go  | 51 ++++++++++++++++++++++++-------------
+ src/cmd/compile/internal/gc/main.go | 17 ++++++++++++-
+ test/inline.go                      | 18 +++++++++++++
+ test/nowritebarrier.go              |  1 +
+ 4 files changed, 69 insertions(+), 18 deletions(-)

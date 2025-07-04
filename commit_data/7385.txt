@@ -1,0 +1,13 @@
+commit 0ae041735a39695b8e449929507b1779b81dda26
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 7 14:40:36 2011 -0800
+
+    ld: fix build (uvlong vs uint64 conflict on freebsd)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4023071
+
+ src/cmd/8l/l.h      | 2 +-
+ src/cmd/ld/symtab.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

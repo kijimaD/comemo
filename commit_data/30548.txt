@@ -1,0 +1,14 @@
+commit d8485ee2e7c86def7318ce72b6a3714941452195
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 3 13:42:41 2017 -0800
+
+    go/internal/gcimporter: return (possibly incomplete) package in case of error
+    
+    For #16088.
+    
+    Change-Id: Ib38bda06a5c5d110ca86510043775c5cf229e6a8
+    Reviewed-on: https://go-review.googlesource.com/37756
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/go/internal/gcimporter/bimport.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

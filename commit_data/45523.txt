@@ -1,0 +1,27 @@
+commit 86e42c2fbfe14c41746fe5cfc5c8bda94bb4bc4e
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Mar 9 23:27:48 2021 -0500
+
+    cmd/go: suppress SSH password prompts when fetching modules or repos
+    
+    We were already setting GIT_SSH_COMMAND (if unset) to explicitly
+    include 'ControlMaster=no' in order to disable connection pooling.
+    Now we also set 'BatchMode=yes' to suppress password prompts for
+    password-protected keys.
+    
+    While we're here, we also set GCM_INTERACTIVE=never to suppress
+    similar prompts from the Git Credential Manager for Windows.
+    
+    Fixes #44904
+    
+    Change-Id: Iebb050079ff7dd54d5b944c459ae212e9e6f2579
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/300157
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ doc/go1.17.html                     | 11 +++++++++++
+ src/cmd/go/internal/get/get.go      | 16 +++++++++++++---
+ src/cmd/go/internal/modload/init.go |  6 +++++-
+ 3 files changed, 29 insertions(+), 4 deletions(-)

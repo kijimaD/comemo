@@ -1,0 +1,37 @@
+commit 045dbeaf053f0c78941a11140e5a877237ccc489
+Author: Rémy Oudompheng <oudomphe@phare.normalesup.org>
+Date:   Mon Sep 16 20:31:21 2013 -0400
+
+    cmd/gc, runtime: inline append in frontend.
+    
+    A new transformation during walk turns append calls
+    into a combination of growslice and memmove.
+    
+    benchmark                     old ns/op    new ns/op    delta
+    BenchmarkAppend                     141          141   +0.00%
+    BenchmarkAppend1Byte                 18           11  -39.56%
+    BenchmarkAppend4Bytes                19           10  -42.63%
+    BenchmarkAppend7Bytes                18           10  -42.16%
+    BenchmarkAppend8Bytes                18           10  -40.44%
+    BenchmarkAppend15Bytes               19           11  -41.67%
+    BenchmarkAppend16Bytes               19           11  -41.97%
+    BenchmarkAppend32Bytes               23           14  -38.82%
+    BenchmarkAppendStr1Byte              14           10  -23.78%
+    BenchmarkAppendStr4Bytes             14           11  -21.13%
+    BenchmarkAppendStr8Bytes             14           10  -25.17%
+    BenchmarkAppendStr16Bytes            19           11  -41.45%
+    BenchmarkAppendStr32Bytes            18           14  -19.44%
+    BenchmarkAppendSpecialCase           62           63   +1.77%
+    
+    R=golang-dev, khr, cshapiro, rsc, dave
+    CC=golang-dev
+    https://golang.org/cl/12815046
+
+ src/cmd/gc/builtin.c         |   3 --
+ src/cmd/gc/runtime.go        |   5 --
+ src/cmd/gc/walk.c            | 108 ++++++++++++++++++++++++++++++++++++++-----
+ src/pkg/runtime/arch_386.h   |   1 -
+ src/pkg/runtime/arch_amd64.h |   1 -
+ src/pkg/runtime/arch_arm.h   |   1 -
+ src/pkg/runtime/slice.c      | 103 -----------------------------------------
+ 7 files changed, 96 insertions(+), 126 deletions(-)

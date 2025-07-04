@@ -1,0 +1,18 @@
+commit 258fc75505f170bc94c73d64e9b4a0d986108e96
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Feb 28 21:21:40 2022 -0800
+
+    cmd/compile/internal/importer: lazier unified IR importing
+    
+    No need to eagerly read the object dictionary or setup the object
+    reader outside of the lazy resolve function.
+    
+    Change-Id: Ic4245b0c09f3beaff97860d7f2dfb5b2b5778cc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/388615
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/importer/ureader.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

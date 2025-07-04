@@ -1,0 +1,32 @@
+commit ac01de5446ec92544768dabee3b0d1faf5f596d9
+Author: João Penteado <4219131+joaopenteado@users.noreply.github.com>
+Date:   Tue Nov 30 18:59:41 2021 +0000
+
+    net/http: optimize StatusText implementation
+    
+    The current implementation, although more succinct, relies on a runtime
+    lookup to a "constant" unexported map (which also needs to be
+    initialized at runtime).
+    
+    The proposed implementation is able to be optimized by the compiler at
+    build-time, resulting in *much* more efficient instructions.
+    Additionally, unused string literals may even be removed altogether
+    from the generated binary in some cases.
+    
+    This change is fully backwards-compatible behavior-wise with the
+    existing implementation.
+    
+    Change-Id: I36450320aacff5b322195820552f2831d4fecd52
+    GitHub-Last-Rev: e2058f132ef7a193529d4b0e84329ac93e5d1dcb
+    GitHub-Pull-Request: golang/go#49811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367201
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/net/http/response.go |   5 +-
+ src/net/http/server.go   |   4 +-
+ src/net/http/status.go   | 198 ++++++++++++++++++++++++++++++-----------------
+ 3 files changed, 132 insertions(+), 75 deletions(-)

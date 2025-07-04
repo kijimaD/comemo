@@ -1,0 +1,23 @@
+commit 4160ebf28f69a738203571bba6abab6ec0913080
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 9 13:04:51 2025 -0800
+
+    net: permit Interface with no Name
+    
+    On darwin the utun interface sometimes has no name.
+    
+    Fixes #71064
+    
+    Change-Id: Iec51641880515f8bd3f97bd892c26f68fd588fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641855
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/internal/routebsd/interface_classic.go | 21 +++++++++++++--------
+ src/net/interface.go                       | 10 ++++++----
+ src/net/interface_test.go                  | 14 ++++++++------
+ 3 files changed, 27 insertions(+), 18 deletions(-)

@@ -1,0 +1,21 @@
+commit b48bda9c6f57ca9a940eac95700485b9640a62e9
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Thu Mar 14 23:42:57 2019 -0700
+
+    cmd/go: allow -o to point to a folder that writes multiple execs
+    
+    If -o points to a directory that exists then allow multiple
+    executables to be written to that directory.
+    
+    Fixes #14295
+    
+    Change-Id: Ic951e637c70a2ada5e7534bae9a43901a39fe2c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167679
+    Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/alldocs.go                           |  8 +++---
+ src/cmd/go/internal/work/build.go               | 33 ++++++++++++++++++++-----
+ src/cmd/go/testdata/script/build_multi_main.txt | 27 ++++++++++++++++++++
+ 3 files changed, 58 insertions(+), 10 deletions(-)

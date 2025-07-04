@@ -1,0 +1,14 @@
+commit 6739b8d606e7439a5a2d5c29dd9e67451131e8b6
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jun 4 16:51:47 2009 -0700
+
+    string([]int) is now implemented
+    
+    R=rsc
+    DELTA=18  (10 added, 2 deleted, 6 changed)
+    OCL=29909
+    CL=29909
+
+ doc/go_spec.html   |  2 --
+ test/ken/string.go | 20 +++++++++++++++-----
+ 2 files changed, 15 insertions(+), 7 deletions(-)

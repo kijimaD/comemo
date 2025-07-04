@@ -1,0 +1,14 @@
+commit 002c764533bd15414ce26b99570815bd5e48b16e
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon May 28 15:29:01 2018 -0700
+
+    test: gofmt bounds.go
+    
+    Change-Id: I8b462e20064658120afc8eb1cbac926254d1e24e
+    Reviewed-on: https://go-review.googlesource.com/114937
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ test/bounds.go | 92 +++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 46 insertions(+), 46 deletions(-)

@@ -1,0 +1,15 @@
+commit 6531fab06fc4667b7d167c7e3ee936f28bac68e2
+Author: Tal Shprecher <tshprecher@gmail.com>
+Date:   Tue Apr 12 22:29:34 2016 -0700
+
+    cmd/compile: remove unnecessary assignments while type checking.
+    
+    Change-Id: Ica0ec84714d7f01d800d62fa10cdb08321d43cf3
+    Reviewed-on: https://go-review.googlesource.com/21967
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/typecheck.go | 6 ------
+ 1 file changed, 6 deletions(-)

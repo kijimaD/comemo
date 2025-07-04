@@ -1,0 +1,13 @@
+commit 3ddf65015aea7dfcde2774b615784cc068442ece
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 26 09:24:50 2017 -0700
+
+    runtime/pprof: ignore dummy huge page mapping in /proc/self/maps
+    
+    Change-Id: I72bea1450386100482b4681b20eb9a9af12c7522
+    Reviewed-on: https://go-review.googlesource.com/41816
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/pprof/proto.go      | 11 +++++++++--
+ src/runtime/pprof/proto_test.go | 13 ++++++++++++-
+ 2 files changed, 21 insertions(+), 3 deletions(-)

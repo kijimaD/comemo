@@ -1,0 +1,17 @@
+commit 66c27093d0df8be8a75b1ae35fe4ab2003fe028e
+Author: Ikko Ashimine <eltociear@gmail.com>
+Date:   Sat Feb 13 02:45:51 2021 +0000
+
+    cmd/link: fix typo in link_test.go
+    
+    specfic -> specific
+    
+    Change-Id: Icad0f70c77c866a1031a2929b90fef61fe92aaee
+    GitHub-Last-Rev: f66b56491c0125f58c47f7f39410e0aeef2539be
+    GitHub-Pull-Request: golang/go#44246
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/291829
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/link/link_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

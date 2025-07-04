@@ -1,0 +1,19 @@
+commit c4416ac06b8bf6e086411c3ea6f22643b2d41d7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Dec 19 09:03:24 2008 -0800
+
+    new error messages
+    
+    x.go:11: illegal types for operand: AS
+            *I
+            *T
+            (*interface vs *struct)
+    
+    R=r
+    DELTA=10  (8 added, 0 deleted, 2 changed)
+    OCL=21457
+    CL=21602
+
+ src/cmd/gc/go.h   | 4 ++--
+ src/cmd/gc/subr.c | 8 ++++++++
+ 2 files changed, 10 insertions(+), 2 deletions(-)

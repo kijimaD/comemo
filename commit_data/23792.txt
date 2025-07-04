@@ -1,0 +1,31 @@
+commit 75d779566b75fc1a09239bfbca40b6dba42000fd
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 22 15:31:54 2015 -0400
+
+    runtime/cgo: make compatible with race detector
+    
+    Some routines run without and m or g and cannot invoke the
+    race detector runtime. They must be opaque to the runtime.
+    That used to be true because they were written in C.
+    Now that they are written in Go, disable the race detector
+    annotations for those functions explicitly.
+    
+    Add test.
+    
+    Fixes #10874.
+    
+    Change-Id: Ia8cc28d51e7051528f9f9594b75634e6bb66a785
+    Reviewed-on: https://go-review.googlesource.com/12534
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go                      |   1 +
+ src/cmd/compile/internal/gc/go.go       |   1 +
+ src/cmd/compile/internal/gc/go.y        |   2 +
+ src/cmd/compile/internal/gc/lex.go      |   5 +
+ src/cmd/compile/internal/gc/racewalk.go |   3 +-
+ src/cmd/compile/internal/gc/syntax.go   |   1 +
+ src/cmd/compile/internal/gc/y.go        | 234 ++++++++++++++++----------------
+ src/cmd/dist/test.go                    |   8 ++
+ src/runtime/cgo/callbacks.go            |   1 +
+ src/runtime/sigqueue.go                 |   1 +
+ 10 files changed, 140 insertions(+), 117 deletions(-)

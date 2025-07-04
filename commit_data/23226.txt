@@ -1,0 +1,17 @@
+commit 8f0cc6c0d8d300ce518ed4800b182c75d094b992
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 20 13:45:56 2015 -0400
+
+    cmd/go: expand 'internal' rule to all repositories
+    
+    See golang.org/s/go14internal.
+    
+    Fixes #10479.
+    
+    Change-Id: I8c657dadeb5f10af060f22dedc15c1af989d4519
+    Reviewed-on: https://go-review.googlesource.com/9156
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/go/pkg.go    |  7 -------
+ src/cmd/go/test.bash | 10 +++++++---
+ 2 files changed, 7 insertions(+), 10 deletions(-)

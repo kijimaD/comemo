@@ -1,0 +1,21 @@
+commit 77567265a8052bd6ef75c0ae3c28bc9caccbfa91
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 3 18:25:07 2009 -0800
+
+    Preparation for moving scanner into a lib:
+    - separated out token definition from scanner
+    - cleaned up token and scanner implementation
+    - added comments to exported interfaces
+    
+    R=r
+    OCL=25665
+    CL=25665
+
+ usr/gri/pretty/Makefile       |  12 +-
+ usr/gri/pretty/ast.go         |  12 +-
+ usr/gri/pretty/parser.go      | 408 +++++++++++++++++++++---------------------
+ usr/gri/pretty/printer.go     | 162 ++++++++---------
+ usr/gri/pretty/scanner.go     | 400 ++++++++++-------------------------------
+ usr/gri/pretty/token.go       | 286 +++++++++++++++++++++++++++++
+ usr/gri/pretty/typechecker.go |  25 +--
+ 7 files changed, 691 insertions(+), 614 deletions(-)

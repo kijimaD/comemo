@@ -1,0 +1,24 @@
+commit 90e2e2b89633770d42f2ff558588dfc53c3288c8
+Author: Marko Tiikkaja <marko@joh.to>
+Date:   Tue Sep 2 09:08:41 2014 -0700
+
+    database/sql: Avoid re-preparing statements when all connections are busy
+    
+    Previously, if all connections were busy, we would always
+    re-prepare the statement on the connection we were assigned from
+    the pool.  That meant that if all connections were busy most of the
+    time, the number of prepared statements for each connection would
+    keep increasing over time.
+    
+    Instead, after getting a free connection, check to see if the
+    statement has already been prepared on it, and reuse the statement
+    handle if so.
+    
+    LGTM=bradfitz
+    R=golang-codereviews, gobot, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/116930043
+
+ src/pkg/database/sql/sql.go      | 58 +++++++++++++++++++++++-----------------
+ src/pkg/database/sql/sql_test.go | 13 ++++-----
+ 2 files changed, 41 insertions(+), 30 deletions(-)

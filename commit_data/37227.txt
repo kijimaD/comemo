@@ -1,0 +1,16 @@
+commit d6e204e71ff68b69af30b8ff0a0026bca1cbee10
+Author: Vladimir Kovpak <cn007b@gmail.com>
+Date:   Fri Nov 2 16:56:42 2018 +0000
+
+    database/sql: add description to String method of IsolationLevel struct.
+    
+    Add simple description to String method of IsolationLevel struct.
+    
+    Change-Id: I8bdf829c81d4895b8542a3f21437bed61c6e925d
+    GitHub-Last-Rev: 7e16d6a93a9560cf3a09413dfc47d0cb04bb2fde
+    GitHub-Pull-Request: golang/go#28560
+    Reviewed-on: https://go-review.googlesource.com/c/147040
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 1 +
+ 1 file changed, 1 insertion(+)

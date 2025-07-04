@@ -1,0 +1,16 @@
+commit 4ab1793a781462d61f19abc1c6060704a8ed01c3
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Fri Mar 4 19:04:50 2016 -0800
+
+    cmd/compile: convert asmlist to []*Node
+    
+    Updates #14473.
+    
+    Change-Id: I88745c2a6119dea3b81b57299e70a2a7e4c584a8
+    Reviewed-on: https://go-review.googlesource.com/20272
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/gc/export.go | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)

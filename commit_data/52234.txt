@@ -1,0 +1,29 @@
+commit 6f22d42c741c88c08b5df1a77831b6646e368fd1
+Author: Austin Clements <austin@google.com>
+Date:   Sun Jul 17 15:57:09 2022 -0400
+
+    runtime: resolve caller funcInfo after processing current frame
+    
+    Currently, gentraceback resolves the funcInfo of the caller prior to
+    processing the current frame (calling the callback, printing it, etc).
+    As a result, if this lookup fails in a verbose context, it will print
+    the failure before printing the frame that it's already resolved.
+    
+    To fix this, move the resolution of LR to a funcInfo to after current
+    frame processing.
+    
+    This also has the advantage that we can reduce the scope of "flr" (the
+    caller's funcInfo) to only the post-frame part of the loop, which will
+    make it easier to stack-rip gentraceback into an iterator.
+    
+    For #54466.
+    
+    Change-Id: I8be44d4eac598a686c32936ab37018b8aa97c00b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/458217
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+
+ src/runtime/traceback.go | 50 +++++++++++++++++++++++-------------------------
+ 1 file changed, 24 insertions(+), 26 deletions(-)

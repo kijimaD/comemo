@@ -1,0 +1,26 @@
+commit 2be3ab441578413972d93fc1048decc422640b09
+Author: Austin Clements <austin@google.com>
+Date:   Sun Oct 16 21:22:02 2016 -0400
+
+    runtime: keep gcMarkRootCheck happy with spare Gs
+    
+    oneNewExtraM creates a spare M and G for use with cgo callbacks. The G
+    doesn't run right away, but goes directly into syscall status. For the
+    garbage collector, it's marked as "scan valid" and not on the rescan
+    list, but I forgot to also mark it as "scan done". As a result,
+    gcMarkRootCheck thinks that the goroutine hasn't been scanned and
+    panics.
+    
+    This only affects GODEBUG=gccheckmark=1 mode, since we otherwise skip
+    the gcMarkRootCheck.
+    
+    Fixes #17473.
+    
+    Change-Id: I94f5671c42eb44bd5ea7dc68fbf85f0c19e2e52c
+    Reviewed-on: https://go-review.googlesource.com/31139
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/proc.go | 1 +
+ 1 file changed, 1 insertion(+)

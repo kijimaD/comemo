@@ -1,0 +1,16 @@
+commit 59681802ad3af66f86b9526e0e1c985e1485d1f5
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Mar 1 13:47:48 2016 -0800
+
+    cmd/compile: remove _ssa print trigger
+    
+    SSA is a real compiler now, don't trigger on function names.
+    
+    Change-Id: Iaf6dd78248c1b6ca2630275bd59f7ea7b7576497
+    Reviewed-on: https://go-review.googlesource.com/20088
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David Chase <drchase@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

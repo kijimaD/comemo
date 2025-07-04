@@ -1,0 +1,18 @@
+commit f9763a648bbe4468118b95e147bc5e81268d0341
+Author: Katie Hockman <katie@golang.org>
+Date:   Fri Feb 4 17:02:49 2022 -0500
+
+    internal/fuzz: change meaning of "total" in output
+    
+    Fixes #51023
+    
+    Change-Id: I7dd9f7c696e15ba9c6c887d4c4e0f4d281a82b17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383414
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/internal/fuzz/fuzz.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

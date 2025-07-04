@@ -1,0 +1,18 @@
+commit a1b4796394b19c92aa880f73fa5d15c09de65b31
+Author: Kai Backman <kaib@golang.org>
+Date:   Wed Sep 30 18:56:37 2009 -0700
+
+    fixed a few calls to gcmp and some really bothched OINDEX code
+    (how did that happen?)
+    
+    go/test: passes 70% (238/339)
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=18  (10 added, 0 deleted, 8 changed)
+    OCL=35185
+    CL=35188
+
+ src/cmd/5g/cgen.c | 25 +++++++++++++++++--------
+ test/arm-pass.txt |  1 +
+ 2 files changed, 18 insertions(+), 8 deletions(-)

@@ -1,0 +1,15 @@
+commit 50e5951374bfea2c363c2181198980ca152bcf36
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed May 23 13:05:05 2012 +1000
+
+    syscall: implement SetsockoptLinger for windows
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/6225048
+
+ api/next.txt                              |  2 ++
+ src/pkg/syscall/syscall_windows.go        | 22 ++++++++++++++++++++--
+ src/pkg/syscall/zsyscall_windows_386.go   | 27 ++++++++++++++++++++-------
+ src/pkg/syscall/zsyscall_windows_amd64.go | 27 ++++++++++++++++++++-------
+ 4 files changed, 62 insertions(+), 16 deletions(-)

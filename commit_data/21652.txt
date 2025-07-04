@@ -1,0 +1,15 @@
+commit b2c2bc48564a322a0d68ae429ec6a19836dfd6c1
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Tue Feb 17 15:17:46 2015 -0500
+
+    crypto/x509: embed certificates on darwin/arm
+    
+    Change-Id: Ia6b06f19e5ac424f01a1b90b78b507363b0c4577
+    Reviewed-on: https://go-review.googlesource.com/5061
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/crypto/x509/root_cgo_darwin.go     |    2 +-
+ src/crypto/x509/root_darwin.go         |    2 +
+ src/crypto/x509/root_darwin_arm.go     | 4903 ++++++++++++++++++++++++++++++++
+ src/crypto/x509/root_darwin_arm_gen.go |  187 ++
+ 4 files changed, 5093 insertions(+), 1 deletion(-)

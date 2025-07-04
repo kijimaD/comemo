@@ -1,0 +1,18 @@
+commit 6697aa58aef7f15c143f9af6878f1f4e406a6576
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 9 10:28:29 2018 -0800
+
+    go/internal/gccgoimporter: parse optional escape info in export data
+    
+    Fixes #23324.
+    
+    Change-Id: Ie2383bad35f0bcc1344a8a1683be08d5fd0eea96
+    Reviewed-on: https://go-review.googlesource.com/86977
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/go/internal/gccgoimporter/importer_test.go        |   1 +
+ src/go/internal/gccgoimporter/parser.go               |   8 ++++++++
+ src/go/internal/gccgoimporter/testdata/escapeinfo.go  |  13 +++++++++++++
+ src/go/internal/gccgoimporter/testdata/escapeinfo.gox | Bin 0 -> 824 bytes
+ 4 files changed, 22 insertions(+)

@@ -1,0 +1,32 @@
+commit 0046c1414c4910dfe54abfcdbe18e565dd5a60f6
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Oct 26 01:52:57 2023 +0000
+
+    net/http: pull http2 underflow fix from x/net/http2
+    
+    After CL 534295 was merged to fix a CVE it introduced
+    an underflow when we try to decrement sc.curHandlers
+    in handlerDone.
+    
+    Pull in a fix from x/net/http2:
+    http2: fix underflow in http2 server push
+    https://go-review.googlesource.com/c/net/+/535595
+    
+    Fixes #63511
+    
+    Change-Id: I5c678ce7dcc53635f3ad5e4999857cb120dfc1ab
+    GitHub-Last-Rev: 587ffa3cafbb9da6bc82ba8a5b83313f81e5c89b
+    GitHub-Pull-Request: golang/go#63561
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/535575
+    Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/go.mod                | 2 +-
+ src/go.sum                | 4 ++--
+ src/net/http/h2_bundle.go | 1 +
+ src/vendor/modules.txt    | 2 +-
+ 4 files changed, 5 insertions(+), 4 deletions(-)

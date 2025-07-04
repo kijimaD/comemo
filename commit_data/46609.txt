@@ -1,0 +1,15 @@
+commit ecac3512e5454bc8d778a07d641e11579e9d7a4b
+Author: nimelehin <nimelehin@gmail.com>
+Date:   Fri Sep 24 21:11:21 2021 +0300
+
+    cmd/compile: clean up remnants of amd64p32 in OnesCount
+    
+    Change-Id: Ie90d8dd3f644a96cda706c6a5286e99042e070bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352129
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Trust: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssagen/ssa.go | 14 +++++---------
+ 1 file changed, 5 insertions(+), 9 deletions(-)

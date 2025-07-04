@@ -1,0 +1,25 @@
+commit ee0e40aaef3dc5c6fb8612dd80622e02fc4b574f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 7 23:12:53 2022 +0700
+
+    reflect: use cgo.Incomplete instead of go:notinheap in tests
+    
+    go:notinheap will be replaced by runtime/internal/sys.NotInHeap, and for
+    longer term, we want to restrict all of its usages inside the runtime
+    package only.
+    
+    Updates #46731
+    
+    Change-Id: I267adc2a19f0dc8a1ed29b5b4aeec1a7dc7318d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421880
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/reflect/all_test.go  | 22 ----------------------
+ src/reflect/deepequal.go |  6 +++---
+ src/reflect/nih_test.go  | 38 ++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go     |  4 ++--
+ 4 files changed, 43 insertions(+), 27 deletions(-)

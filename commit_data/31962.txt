@@ -1,0 +1,20 @@
+commit 7e99ccb52b9c921f2e088cd1b9634ed15ce3d4ea
+Author: smasher164 <contact@akhilindurti.com>
+Date:   Wed Jun 28 04:22:25 2017 -0400
+
+    io: clarify documentation for io.ByteReader on error values
+    
+    Document that the byte value returned by ReadByte() is meaningless
+    if its error != nil. Because io.Reader and io.ByteReader are similar in
+    name, this CL aims to clear up any ambiguity surrounding the returned
+    values, particularly where io.Reader is allowed to return both a
+    non-zero number of valid bytes and err == EOF.
+    
+    Fixes #20825
+    
+    Change-Id: I3a23c18c80c471c0caae3b4d2f6f8e547da0bed9
+    Reviewed-on: https://go-review.googlesource.com/46950
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/io/io.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)

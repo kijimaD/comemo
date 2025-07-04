@@ -1,0 +1,56 @@
+commit 251daf46fb6531220145603ff3d977f9146a43f6
+Author: Sven Anderson <sven@anderson.de>
+Date:   Sun Nov 28 13:05:16 2021 +0900
+
+    runtime: implement Pinner API for object pinning
+    
+    Some C APIs require the use or structures that contain pointers to
+    buffers (iovec, io_uring, ...).  The pointer passing rules would
+    require that these buffers are allocated in C memory and to process
+    this data with Go libraries it would need to be copied.
+    
+    In order to provide a zero-copy way to use these C APIs, this CL
+    implements a Pinner API that allows to pin Go objects, which
+    guarantees that the garbage collector does not move these objects
+    while pinned.  This allows to relax the pointer passing rules so that
+    pinned pointers can be stored in C allocated memory or can be
+    contained in Go memory that is passed to C functions.
+    
+    The Pin() method accepts pointers to objects of any type and
+    unsafe.Pointer.  Slices and arrays can be pinned by calling Pin()
+    with the pointer to the first element.  Pinning of maps is not
+    supported.
+    
+    If the GC collects unreachable Pinner holding pinned objects it
+    panics.  If Pin() is called with the other non-pointer types it
+    panics as well.
+    
+    Performance considerations: This change has no impact on execution
+    time on existing code, because checks are only done in code paths,
+    that would panic otherwise.  The memory footprint on existing code is
+    one pointer per memory span.
+    
+    Fixes: #46787
+    
+    Signed-off-by: Sven Anderson <sven@anderson.de>
+    Change-Id: I110031fe789b92277ae45a9455624687bd1c54f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/367296
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+
+ api/next/46787.txt                          |   3 +
+ src/cmd/cgo/internal/testerrors/ptr_test.go |  11 +
+ src/runtime/cgocall.go                      |  32 +-
+ src/runtime/cgocheck.go                     |  33 +-
+ src/runtime/export_test.go                  |  14 +
+ src/runtime/mbitmap.go                      |   7 +
+ src/runtime/mfinal.go                       |  45 ++-
+ src/runtime/mheap.go                        | 113 +++---
+ src/runtime/mksizeclasses.go                |  12 +
+ src/runtime/pinner.go                       | 261 ++++++++++++++
+ src/runtime/pinner_test.go                  | 526 ++++++++++++++++++++++++++++
+ src/runtime/sizeclasses.go                  |   1 +
+ 12 files changed, 968 insertions(+), 90 deletions(-)

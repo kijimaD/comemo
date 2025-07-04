@@ -1,0 +1,26 @@
+commit 370f4e49cdebc6450ca09ec37308b1439c87ee07
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 23 10:41:54 2012 -0800
+
+    go/doc: test all operation modes
+    
+    Golden files have extension .d.golden where d is the mode value (0 or 1 for now)
+    (i.e., testdata/file.out is now testdata/file.0.golden, and there is a new file
+    testdata/file.1.golden for each testcase)
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5573046
+
+ src/pkg/go/doc/doc_test.go                         |  12 +-
+ src/pkg/go/doc/testdata/{alpha.out => a.0.golden}  |   4 +-
+ src/pkg/go/doc/testdata/a.1.golden                 |  13 +
+ src/pkg/go/doc/testdata/a0.go                      |   2 +-
+ src/pkg/go/doc/testdata/a1.go                      |   2 +-
+ src/pkg/go/doc/testdata/{b.out => b.0.golden}      |   0
+ src/pkg/go/doc/testdata/b.1.golden                 |  34 +++
+ src/pkg/go/doc/testdata/{c.out => c.0.golden}      |   0
+ src/pkg/go/doc/testdata/c.1.golden                 |  48 ++++
+ .../doc/testdata/{testing.out => testing.0.golden} |   0
+ src/pkg/go/doc/testdata/testing.1.golden           | 298 +++++++++++++++++++++
+ 11 files changed, 406 insertions(+), 7 deletions(-)

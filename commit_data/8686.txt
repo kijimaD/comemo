@@ -1,0 +1,14 @@
+commit 09241858400a9863dbebfdd6f3a4678995898bb6
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Fri Jun 10 17:23:54 2011 +1000
+
+    runtime: fix Plan 9 "lingering goroutines bug".
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/4589042
+
+ src/pkg/runtime/plan9/386/sys.s |  5 +++++
+ src/pkg/runtime/plan9/os.h      | 30 ++++++++++++++++++++++++++++++
+ src/pkg/runtime/plan9/thread.c  | 30 +++++++++++++++++++++++++++---
+ 3 files changed, 62 insertions(+), 3 deletions(-)

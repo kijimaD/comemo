@@ -1,0 +1,19 @@
+commit 1243ec9c177007879958443262fe4d25099c5ede
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Jun 29 02:05:21 2022 +0700
+
+    cmd/compile: only check implicit dots for method call enabled by a type bound
+    
+    Fixes #53419
+    
+    Change-Id: Ibad64f5c4af2112deeb0a9ecc9c589b17594bd05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/414836
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/noder/stencil.go | 14 ++++++++------
+ test/run.go                               |  1 -
+ 2 files changed, 8 insertions(+), 7 deletions(-)

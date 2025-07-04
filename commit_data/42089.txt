@@ -1,0 +1,21 @@
+commit 6303c34d7f16eab5824a586f1ac30ec8921e7602
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Dec 30 13:16:28 2019 -0800
+
+    cmd/compile: remove dead values after flagalloc
+    
+    Fix a longstanding TODO.
+    
+    Provides widespread, minor improvements.
+    Negligible compiler cost.
+    
+    Because the freeze nears, put in a safety flag to easily disable.
+    
+    Change-Id: I338812181ab6d806fecf22afd3c3502e2c94f7a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/229600
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/flagalloc.go | 61 ++++++++++++++++++++++++++++++-
+ 1 file changed, 59 insertions(+), 2 deletions(-)

@@ -1,0 +1,30 @@
+commit 2c05ba4ae08317c6d0ad7418d5ecb0f971275d69
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 28 23:07:38 2021 -0700
+
+    runtime: top align tinyallocs in race mode
+    
+    Top align allocations in tinyalloc buckets when in race mode.
+    This will make checkptr checks more reliable, because any code
+    that modifies a pointer past the end of the object will trigger
+    a checkptr error.
+    
+    No test, because we need -race for this to actually kick in.  We could
+    add it to the race detector tests, but the race detector tests are all
+    geared towards race detector reports, not checkptr reports. Mucking
+    with parsing reports is more than a test is worth.
+    
+    Fixes #38872
+    
+    Change-Id: Ie56f0fbd1a9385539f6631fd1ac40c3de5600154
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/315029
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/runtime/export_test.go |  2 ++
+ src/runtime/malloc.go      | 19 ++++++++++++++++++-
+ src/runtime/malloc_test.go |  6 ++++++
+ 3 files changed, 26 insertions(+), 1 deletion(-)

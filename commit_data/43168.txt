@@ -1,0 +1,17 @@
+commit 41df0e22184a0fcfb1e67e994c993239e9c2efc7
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 1 14:55:11 2020 -0700
+
+    reflect: add test for variadic reflect.Type.Method
+    
+    For #41737
+    
+    Change-Id: Id065880dd7da54dec1b45662c202aeb7f8397c60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/258819
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/reflect/all_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)

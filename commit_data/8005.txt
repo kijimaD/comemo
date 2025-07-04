@@ -1,0 +1,12 @@
+commit 5b0ef4ac1fc91999cc2fa9e7379fa444a9b3598f
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Apr 6 23:07:08 2011 -0400
+
+    codereview: recognize code URL without trailing slash
+    
+    R=adg
+    CC=golang-dev
+    https://golang.org/cl/4385042
+
+ lib/codereview/codereview.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

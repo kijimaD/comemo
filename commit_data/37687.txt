@@ -1,0 +1,14 @@
+commit 8fd53db4cf536ff8f425afc7902cd44b5ca98663
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 13 18:22:53 2018 +0000
+
+    doc/go1.12: add note about CL 153559's syscall/js.Callback rename
+    
+    Updates #28711
+    
+    Change-Id: I03139a394fdf0540db07d6d1e38b3fa223b06d58
+    Reviewed-on: https://go-review.googlesource.com/c/154059
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.12.html | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)

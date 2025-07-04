@@ -1,0 +1,15 @@
+commit 4d7c63558c2f4b79169eaa6f6b3ce017f5d43b1e
+Author: Frithjof Schulze <schulze@math.uni-hannover.de>
+Date:   Wed Oct 2 12:09:13 2013 -0400
+
+    crypto/tls: Update reference to the TLS 1.2 RFC.
+    
+    Ticket 13740047 updated the documented TLS version to 1.2.
+    This also updates the RFC refered to.
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/14029043
+
+ src/pkg/crypto/tls/tls.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

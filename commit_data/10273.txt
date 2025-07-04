@@ -1,0 +1,18 @@
+commit 1c42db883522997230819f512a92622434838842
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Nov 7 13:15:06 2011 -0500
+
+    runtime/cgo: fix data declaration to be extern
+    
+    Otherwise some OS X toolchains complain about the redeclaration
+    of libcgo_thread_start by multiple object files.  The real definition
+    is in util.c.
+    
+    Fixes #2167.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5364045
+
+ src/pkg/runtime/cgo/libcgo.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

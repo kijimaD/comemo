@@ -1,0 +1,23 @@
+commit fded5dbb2f51d1c24d1541076b143929cdc988af
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Dec 8 17:39:00 2016 -0800
+
+    runtime: don't crash if signal delivered on g0 stack
+    
+    Also, if we changed the gsignal stack to match the stack we are
+    executing on, restore it when returning from the signal handler, for
+    safety.
+    
+    Fixes #18255.
+    
+    Change-Id: Ic289b36e4e38a56f8a6d4b5d74f68121c242e81a
+    Reviewed-on: https://go-review.googlesource.com/34239
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ misc/cgo/testsanitizers/test.bash |  1 +
+ misc/cgo/testsanitizers/tsan9.go  | 60 ++++++++++++++++++++++++++
+ src/runtime/signal_unix.go        | 88 +++++++++++++++++++++++++++++++--------
+ 3 files changed, 131 insertions(+), 18 deletions(-)

@@ -1,0 +1,28 @@
+commit eca3618fd3977512fb9c6aded3e373b7729b952c
+Author: Denys Honsiorovskyi <honsiorovskyi@gmail.com>
+Date:   Wed Sep 2 13:40:34 2015 +0300
+
+    net/http: support URLs without schemes in http.Redirect
+    
+    Many browsers now support schemeless URLs in the Location headers
+    and also it is allowed in the draft HTTP/1.1 specification (see
+    http://stackoverflow.com/q/4831741#comment25926312_4831741), but
+    Go standard library lacks support for them.
+    
+    This patch implements schemeless URLs support in http.Redirect().
+    Since url.Parse() correctly handles schemeless URLs, I've just added
+    an extra condition to verify URL's Host part in the absoulute/relative
+    check in the http.Redirect function.
+    
+    Also I've moved oldpath variable initialization inside the block
+    of code where it is used.
+    
+    Change-Id: Ib8a6347816a83e16576f00c4aa13224a89d610b5
+    Reviewed-on: https://go-review.googlesource.com/14172
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/net/http/serve_test.go | 35 +++++++++++++++++++++++++++++++++++
+ src/net/http/server.go     | 11 ++++++-----
+ 2 files changed, 41 insertions(+), 5 deletions(-)

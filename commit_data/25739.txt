@@ -1,0 +1,24 @@
+commit 53b66616736480152969fe1749f62e3da07644f7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 10 19:58:44 2016 +0000
+
+    net/http/httptest: make Server.CloseClientConnections wait for conns to close
+    
+    httptest.Server was rewritten during Go 1.6, but
+    CloseClientConnections was accidentally made async in the rewrite and
+    not caught due to lack of tests.
+    
+    Restore the Go 1.5 behavior and add tests.
+    
+    Fixes #14290
+    Updates #14291
+    
+    Change-Id: I14f01849066785053ccca2373931bc82d78c0a13
+    Reviewed-on: https://go-review.googlesource.com/19432
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/net/http/httptest/server.go      | 49 ++++++++++++++++++++++++++++++++----
+ src/net/http/httptest/server_test.go | 14 +++++++++++
+ 2 files changed, 58 insertions(+), 5 deletions(-)

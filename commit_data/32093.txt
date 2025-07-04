@@ -1,0 +1,27 @@
+commit 193eda7291c570e84307b3122a4f496a77b0fa4c
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Tue Aug 1 17:41:51 2017 +0200
+
+    time: skip ZoneAbbr test in timezones with no abbreviation
+    
+    The testZoneAbbr assumes that
+    
+      Parse(RFC1123, t1.Format(RFC1123))
+    
+    will always succeed. This is not true because Format will fall back to
+    the numeric zone (ex. -07) for timezones with no abbreviation, but
+    Parse won't accept the numeric zone when the layout specifies 'MST'
+    (an abbreviation).
+    
+    Skip the zone abbreviation test in timezones with no abbreviation.
+    
+    Fixes #21183
+    
+    Change-Id: If04691cc23ae1075d8a953733024e17f5a7646de
+    Reviewed-on: https://go-review.googlesource.com/52430
+    Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/time/zoneinfo_windows_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)

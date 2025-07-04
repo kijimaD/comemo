@@ -1,0 +1,12 @@
+commit ef05d8688f1ea1952d87cdea37d0848629dcb13b
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Sep 6 15:02:42 2012 +1000
+
+    C: add Manu Garg (Google CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6493087
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

@@ -1,0 +1,14 @@
+commit 326ef13976abb332a1b9bab6bc043ed199ca2a17
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 28 19:21:15 2009 -0700
+
+    - assignments to structs are only legal if all struct fields are visible
+    - removed section on Multiple-file packages as this seems now now covered
+      sufficiently elsewhere
+    
+    DELTA=45  (11 added, 25 deleted, 9 changed)
+    OCL=35065
+    CL=35071
+
+ doc/go_spec.html | 54 ++++++++++++++++++++----------------------------------
+ 1 file changed, 20 insertions(+), 34 deletions(-)

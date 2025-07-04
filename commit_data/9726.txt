@@ -1,0 +1,38 @@
+commit 52a46bb77352bd911a478d870acb7453234c52f3
+Author: Mike Samuel <mikesamuel@gmail.com>
+Date:   Sun Sep 18 12:04:40 2011 -0700
+
+    exp/template/html: normalize '<' in text and RCDATA nodes.
+    
+    The template
+    
+      <{{.}}
+    
+    would violate the structure preservation property if allowed and not
+    normalized, because when {{.}} emitted "", the "<" would be part of
+    a text node, but if {{.}} emitted "a", the "<" would not be part of
+    a text node.
+    
+    This change rewrites '<' in text nodes and RCDATA text nodes to
+    '&lt;' allowing template authors to write the common, and arguably more
+    readable:
+    
+        Your price: {{.P1}} < list price {{.P2}}
+    
+    while preserving the structure preservation property.
+    
+    It also lays the groundwork for comment elision, rewriting
+    
+        Foo <!-- comment with secret project details --> Bar
+    
+    to
+    
+        Foo  Bar
+    
+    R=nigeltao
+    CC=golang-dev
+    https://golang.org/cl/5043043
+
+ src/pkg/exp/template/html/escape.go      | 94 ++++++++++++++++++++++----------
+ src/pkg/exp/template/html/escape_test.go | 19 ++++++-
+ 2 files changed, 81 insertions(+), 32 deletions(-)

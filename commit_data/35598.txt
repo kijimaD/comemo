@@ -1,0 +1,19 @@
+commit 9be4f312bf921f9c48c33269bb6d80ab20fb8b92
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 5 12:48:51 2018 -0700
+
+    cmd/compile: revert internal parameter rename (from ".anonX" to "") before export
+    
+    In the old binary export format, parameter names for parameter lists
+    which contained only types where never written, so this problem didn't
+    come up.
+    
+    Fixes #25101.
+    
+    Change-Id: Ia8b817f7f467570b05f88d584e86b6ef4acdccc6
+    Reviewed-on: https://go-review.googlesource.com/116376
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/gc/dcl.go | 17 ++++++++++++++---
+ test/fixedbugs/issue25101.go       | 16 ++++++++++++++++
+ 2 files changed, 30 insertions(+), 3 deletions(-)

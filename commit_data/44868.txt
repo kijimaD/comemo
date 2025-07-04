@@ -1,0 +1,25 @@
+commit c40dc677be05e2774c7805bf55002a960cb4dec5
+Author: Norman B. Lancaster <qbradq@gmail.com>
+Date:   Tue Mar 30 17:30:45 2021 +0000
+
+    go/doc: avoid panic on references to functions with no body
+    
+    This change guards a call to ast.Inspect with a nil check on the first
+    argument. This avoids a panic when inspecting a reference to a function
+    with a nil body. This can only happen when a function body is defined outside Go.
+    
+    Fixes #42706
+    
+    Change-Id: I91bc607b24b6224920c24cfd07e76ce7737a98d4
+    GitHub-Last-Rev: 08072b9ce5c1fd4ee77eba6f1acc0a84e838ad7b
+    GitHub-Pull-Request: golang/go#43011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/275516
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Daniel Martí <mvdan@mvdan.cc>
+    Trust: Emmanuel Odeke <emmanuel@orijtech.com>
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/go/doc/example.go      |  5 ++++-
+ src/go/doc/example_test.go | 25 +++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)

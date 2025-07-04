@@ -1,0 +1,28 @@
+commit 221bc23af6feeab821c49ad11f4661270d310ecd
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Thu Feb 23 16:09:05 2017 -0500
+
+    os/exec: deflake TestPipeLookPathLeak
+    
+    The number of open file descriptors reported by lsof is unreliable
+    because it depends on whether the parent process (the test) closed
+    the file descriptors it passed into the child process (lsof) before
+    lsof runs.
+    
+    Reading /proc/self/fd directly on Linux appears to be much more
+    reliable and still detects any file descriptor leaks originating
+    from attempting to run an executable that cannot be found (issue
+    #5071). If /proc/self/fd is not available (e.g. on Darwin) then we
+    fall back to lsof and tolerate small differences in open file
+    descriptor counts.
+    
+    Fixes #19243.
+    
+    Change-Id: I052b0c129e609010f1083e43a9911cba154117bf
+    Reviewed-on: https://go-review.googlesource.com/37343
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/exec/exec_test.go | 87 +++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 57 insertions(+), 30 deletions(-)

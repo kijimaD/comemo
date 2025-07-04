@@ -1,0 +1,12 @@
+commit 326ccebec8986de534c8608ff6f8fe7bd0070b10
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Dec 19 01:48:09 2012 +0800
+
+    cmd/go: pass gccgoflags at the end of gccgo command line, warn if user passes the wrong toolchain options
+    
+    R=iant
+    CC=golang-dev
+    https://golang.org/cl/6940082
+
+ src/cmd/go/build.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)

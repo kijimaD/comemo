@@ -1,0 +1,24 @@
+commit c801232525575a6b473cdfd446de30905a6d15e3
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Thu Jul 5 20:31:33 2018 -0400
+
+    cmd/compile: make sure alg functions are generated when we call them
+    
+    When DWARF is disabled, some alg functions were not generated.
+    Make sure they are generated when we about to generate calls to
+    them.
+    
+    Fixes #23546.
+    
+    Change-Id: Iecfa0eea830e42ee92e55268167cefb1540980b2
+    Reviewed-on: https://go-review.googlesource.com/122403
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/reflect.go |  6 ++++++
+ test/fixedbugs/issue23545.go           |  4 ----
+ test/fixedbugs/issue23546.go           | 22 ++++++++++++++++++++++
+ 3 files changed, 28 insertions(+), 4 deletions(-)

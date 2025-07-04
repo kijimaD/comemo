@@ -1,0 +1,26 @@
+commit ae33032893132bd5610f4221b01b1a6265556fe3
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Wed Jun 30 23:33:49 2010 -0700
+
+    goinstall: support for Bazaar+Launchpad
+    
+    With these changes, goinstall is now able to use branches
+    maintained with Bazaar located in Launchpad.
+    
+    Project aliases such as /project and /project/series are
+    supported in addition to specific user or team branches
+    such as /~user/project/branch.  Temporary branches under
+    the +junk special project are also supported.
+    
+    As a curious side effect, since Launchpad is able to import
+    code from other locations, they can be indirectly
+    accessible too if desired.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1699050
+
+ src/cmd/goinstall/doc.go      |   9 ++++
+ src/cmd/goinstall/download.go | 120 +++++++++++++++++++++++++++---------------
+ src/cmd/goinstall/main.go     |   2 +-
+ 3 files changed, 88 insertions(+), 43 deletions(-)

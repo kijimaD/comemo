@@ -1,0 +1,13 @@
+commit 4f193cdc5d828a246d6a8cab3c34e8c5b89d6f08
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 8 19:46:33 2014 -0700
+
+    doc: add a couple net/http go1.3 items
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/85760043
+
+ doc/go1.3.html | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)

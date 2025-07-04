@@ -1,0 +1,13 @@
+commit f00be0caeec654587270c558bcc1b322f7251450
+Author: Rob Pike <r@golang.org>
+Date:   Fri Oct 16 16:16:02 2009 -0700
+
+    more embedding. enough for now?
+    
+    R=rsc
+    DELTA=51  (48 added, 0 deleted, 3 changed)
+    OCL=35846
+    CL=35853
+
+ doc/effective_go.html | 54 ++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 51 insertions(+), 3 deletions(-)

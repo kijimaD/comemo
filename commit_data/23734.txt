@@ -1,0 +1,12 @@
+commit ebb67836f9dfec6016a1fb7922872cb0c1c0d4bc
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Jul 16 15:30:47 2015 -0400
+
+    doc: document ios build tag for crypto/x509
+    
+    Change-Id: I6e6d38ae347b4f5a33dff609b89785a038bc384c
+    Reviewed-on: https://go-review.googlesource.com/12304
+    Reviewed-by: Andrew Gerrand <adg@golang.org>
+
+ doc/go1.5.html | 5 +++++
+ 1 file changed, 5 insertions(+)

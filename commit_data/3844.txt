@@ -1,0 +1,14 @@
+commit 79284cae32ae358684182efad32f301bfbf68729
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 5 22:25:46 2009 -0800
+
+    gofmt'ed src/cmd
+    
+    R=rsc
+    http://go/go-review/1024004
+
+ src/cmd/godoc/godoc.go | 51 +++++++++++++++++++++++++-------------------------
+ src/cmd/godoc/main.go  |  8 ++++----
+ src/cmd/godoc/spec.go  |  3 ++-
+ src/cmd/goyacc/doc.go  |  2 +-
+ 4 files changed, 32 insertions(+), 32 deletions(-)

@@ -1,0 +1,13 @@
+commit 423e410258e0354a5096dbb5a6c1e82dc00f20b5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 25 18:00:42 2010 -0400
+
+    gotest: allow make test of cgo packages (without make install)
+    
+    R=r
+    CC=golang-dev, stevvooe
+    https://golang.org/cl/1995051
+
+ src/Make.pkg          | 12 ++++++++----
+ src/cmd/gotest/gotest |  6 ++++++
+ 2 files changed, 14 insertions(+), 4 deletions(-)

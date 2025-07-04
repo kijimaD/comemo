@@ -1,0 +1,26 @@
+commit b7041c7ad1c9d42078cfc376320e5b307e617a80
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 14 11:03:23 2022 -0400
+
+    cmd/api: require proposal # for new API features
+    
+    Having the proposal numbers recorded in the API files
+    should help significantly when it comes time to audit
+    the new API additions at the end of each release cycle.
+    
+    Change-Id: Id18e8cbdf892228a10ac17e4e21c7e17de5d4ff7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/392414
+    Trust: Russ Cox <rsc@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ api/README           | 16 ++++++++++---
+ api/next.txt         |  9 -------
+ api/next/45754.txt   |  2 ++
+ api/next/46059.txt   |  2 ++
+ api/next/47005.txt   |  2 ++
+ api/next/50601.txt   |  5 ++++
+ src/cmd/api/goapi.go | 58 ++++++++++++++++++++++++++++++++-------------
+ src/cmd/api/run.go   | 66 ++++++++++++++++++++++++++++++++--------------------
+ 8 files changed, 107 insertions(+), 53 deletions(-)

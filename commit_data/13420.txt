@@ -1,0 +1,14 @@
+commit 33d2b495c5656b060d835bd395a5c736bd7f1e6a
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sat Jun 30 12:40:07 2012 +0800
+
+    cmd/cgo: generate definitions for GoSlice
+            Fixes #3741.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/6308076
+
+ misc/cgo/test/issue3741.go | 22 ++++++++++++++++++++++
+ src/cmd/cgo/out.go         |  1 +
+ 2 files changed, 23 insertions(+)

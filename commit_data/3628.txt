@@ -1,0 +1,11 @@
+commit 8a20cfc0094cfb852410db201ca195b87847d100
+Author: Rob Pike <r@golang.org>
+Date:   Thu Oct 22 11:52:35 2009 -0700
+
+    fix build: no acid
+    
+    R=rsc
+    http://go/go-review/1014005
+
+ src/pkg/runtime/Makefile | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)

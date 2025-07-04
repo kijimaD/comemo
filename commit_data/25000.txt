@@ -1,0 +1,18 @@
+commit 624d798a41675a543c6b969715c4750f376b71da
+Author: Austin Clements <austin@google.com>
+Date:   Fri Nov 20 14:12:04 2015 -0500
+
+    runtime/pprof: disable TestStackBarrierProfiling on ppc64
+    
+    This test depends on GODEBUG=gcstackbarrierall, which doesn't work on
+    ppc64.
+    
+    Updates #13334.
+    
+    Change-Id: Ie554117b783c4e999387f97dd660484488499d85
+    Reviewed-on: https://go-review.googlesource.com/17120
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/runtime/pprof/pprof_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

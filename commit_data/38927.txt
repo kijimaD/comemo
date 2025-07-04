@@ -1,0 +1,17 @@
+commit f67f5511ee0f225bcc8943994ba6139eed375e85
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Apr 27 02:36:34 2019 +1000
+
+    cmd/dist: add support for openbsd/arm64
+    
+    Updates #31656
+    
+    Change-Id: If481df050cd879f7c7c22a79c17c33af00a8b389
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/174125
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/dist/build.go | 1 +
+ src/cmd/dist/main.go  | 5 +++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

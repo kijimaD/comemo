@@ -1,0 +1,13 @@
+commit a77f7b24971cbf03c92cdb4ce574e50441ba9d76
+Author: Ken Thompson <ken@golang.org>
+Date:   Sat Jun 21 15:08:04 2008 -0700
+
+    remove receclarations from tests
+    that are supposed to succeed
+    
+    SVN=124018
+
+ test/ken/simparray.go | 18 +++++++++---------
+ test/ken/simpconv.go  | 12 ++++++------
+ test/ken/string.go    | 20 ++++++++++----------
+ 3 files changed, 25 insertions(+), 25 deletions(-)

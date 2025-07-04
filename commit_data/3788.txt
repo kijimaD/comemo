@@ -1,0 +1,11 @@
+commit 7f534246c6960a4918e69e3c79ad5125a6b4bb6b
+Author: Rob Pike <r@golang.org>
+Date:   Wed Nov 4 21:56:33 2009 -0800
+
+    bumper for video
+    
+    R=rsc
+    http://go/go-review/1017038
+
+ doc/gordon/bumper.png | Bin 0 -> 380345 bytes
+ 1 file changed, 0 insertions(+), 0 deletions(-)

@@ -1,0 +1,16 @@
+commit b49c3ac2d50c1aed28bc55b09415ad8d861237e9
+Author: Dominik Vogt <vogt@linux.vnet.ibm.com>
+Date:   Tue Jan 13 12:36:44 2015 +0100
+
+    cmd/cgo: add support for s390 and s390x
+    
+    This patch was previously sent for review using hg:
+    golang.org/cl/173930043
+    
+    Change-Id: I559a2f2ee07990d0c23d2580381e32f8e23077a5
+    Reviewed-on: https://go-review.googlesource.com/3033
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/gcc.go  | 4 ++++
+ src/cmd/cgo/main.go | 4 ++++
+ 2 files changed, 8 insertions(+)

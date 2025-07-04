@@ -1,0 +1,14 @@
+commit b07a51b3d443660e3489d0821facf8b401177034
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon Sep 14 00:18:22 2015 +0000
+
+    database/sql: fix typo
+    
+    Fixes #12606
+    
+    Change-Id: Ib68cb20108ad35c3dd96e606649c4c8f9c0f085c
+    Reviewed-on: https://go-review.googlesource.com/14571
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/sql.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,13 @@
+commit 1f1ae404f81af785dd139d955c959ba698decd18
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 30 14:02:53 2008 -0700
+
+    for loops in hashmap.
+    a few missing FLUSH.
+    
+    R=ken
+    OCL=16221
+    CL=16221
+
+ src/runtime/iface.c | 64 +++++++++++++++++++++++------------------------------
+ 1 file changed, 28 insertions(+), 36 deletions(-)

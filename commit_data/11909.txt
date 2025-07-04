@@ -1,0 +1,19 @@
+commit c210ddfe2c881835a283346e8fa498a777ea8af7
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Feb 15 11:05:51 2012 +1100
+
+    net/http: make strace test more robust
+    
+    Apparently some distros don't let you ptrace attach
+    to your own existing processes.
+    
+    Run strace on the child directly, instead, which
+    reportedly is more often allowed, and makes the
+    code simpler too.
+    
+    R=golang-dev, n13m3y3r
+    CC=golang-dev
+    https://golang.org/cl/5675050
+
+ src/pkg/net/http/fs_test.go | 21 +++++----------------
+ 1 file changed, 5 insertions(+), 16 deletions(-)

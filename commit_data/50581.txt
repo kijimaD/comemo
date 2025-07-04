@@ -1,0 +1,36 @@
+commit 5d213a3dc764624e3f01d7e957fedc63bfdcfa0f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 21 18:38:23 2022 -0700
+
+    cmd/compile: handle go.mod error msg reference in noder, not type checker
+    
+    Currently, for version errors, types2 adds the helpful hint
+    
+    (-lang was set to go1.xx; check go.mod)
+    
+    where 1.xx is the respective language version, to the error message.
+    This requires that the type checker knows that it was invoked by the
+    compiler, which is done through the Config.CompilerErrorMessages flag.
+    
+    This change looks for version errors being returned by the type checker
+    and then adds the hint at that point, external to the type checker.
+    This removes a dependency on the Config.CompilerErrorMessages. Once
+    we have removed all dependencies on Config.CompilerErrorMessages we
+    can remove it.
+    
+    For #55326.
+    
+    Change-Id: I1f9b2e472c49fe785a2075e26c4b3d9b8fcdbf4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/432559
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/noder/irgen.go        | 10 +++++++++-
+ src/cmd/compile/internal/types2/conversions.go |  7 -------
+ src/cmd/compile/internal/types2/errors.go      |  6 +-----
+ src/go/types/conversions.go                    |  7 -------
+ src/go/types/errors.go                         |  6 +-----
+ 5 files changed, 11 insertions(+), 25 deletions(-)

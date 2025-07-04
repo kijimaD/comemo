@@ -1,0 +1,20 @@
+commit 3836983779a8f1f1a1b6dc629832e695dcacaf36
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Aug 26 11:46:24 2021 -0700
+
+    cmd/compile/internal/types: unexport Type.Extra
+    
+    Not used outside of package types anymore. Let's keep it that.
+    
+    Change-Id: I69b464ac94edaacd219da4210f7b8618e2beaf70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/345413
+    Trust: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/types/fmt.go       |   4 +-
+ src/cmd/compile/internal/types/size.go      |   2 +-
+ src/cmd/compile/internal/types/type.go      | 182 ++++++++++++++--------------
+ src/cmd/compile/internal/types/type_test.go |  19 ++-
+ 4 files changed, 103 insertions(+), 104 deletions(-)

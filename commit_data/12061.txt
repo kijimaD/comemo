@@ -1,0 +1,13 @@
+commit f03a5796e399d613172aa9a7bb33760bdb5f0d09
+Author: Rob Pike <r@golang.org>
+Date:   Mon Feb 20 07:44:41 2012 +1100
+
+    test/initsyscall.go: delete
+    It's testing an old property of the language and is no longer relevant.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5676104
+
+ test/initsyscall.go | 26 --------------------------
+ 1 file changed, 26 deletions(-)

@@ -1,0 +1,16 @@
+commit 06478e4b4659966e4f5dba1f399da9767995fee5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 25 08:57:36 2024 -0700
+
+    go/types, types2: simplify Default function
+    
+    Change-Id: Ie2b7c1324ec7947c6ff43187dda99b83bcb64f08
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581775
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/types2/predicates.go | 4 +++-
+ src/go/types/predicates.go                    | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)

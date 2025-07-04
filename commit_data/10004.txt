@@ -1,0 +1,14 @@
+commit b0c674b65d4e90684d8481b8004e12f1374ad23e
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Mon Oct 17 15:14:07 2011 -0400
+
+    gc: treat uintptr as potentially containing a pointer
+    Fixes #2376
+    
+    R=golang-dev, lvd, rsc
+    CC=golang-dev
+    https://golang.org/cl/5278048
+
+ src/cmd/gc/reflect.c       |  2 +-
+ src/pkg/runtime/gc_test.go | 71 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 1 deletion(-)

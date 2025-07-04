@@ -1,0 +1,19 @@
+commit 90a59d448e152d790c2043a5777d9ee496365bcf
+Author: Shahar Kohanim <skohanim@gmail.com>
+Date:   Wed Mar 9 16:23:25 2016 +0200
+
+    cmd/link: use stdlib sort in dodata
+    
+    Speeds up linking cmd/go by 1.7%
+    
+    name       old s/op   new s/op   delta
+    LinkCmdGo  0.58 ± 4%  0.57 ± 5%  -1.74%  (p=0.000 n=96+97)
+    
+    Change-Id: I7844cf4e2eeac260318de2b6ddf52ce07a6e00f5
+    Reviewed-on: https://go-review.googlesource.com/20915
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Crawshaw <crawshaw@golang.org>
+
+ src/cmd/link/internal/ld/data.go | 84 +++++++++++++++++++++++++++++++---------
+ src/cmd/link/internal/ld/util.go | 11 ------
+ 2 files changed, 65 insertions(+), 30 deletions(-)

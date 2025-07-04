@@ -1,0 +1,23 @@
+commit c13ce2985c35b4c6a4b65779c7b30648c6a6e3b8
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Nov 17 17:38:20 2022 +0100
+
+    io/fs: clean up test helper functions
+    
+    Inline the only use of checkMarks which also allows to drop the
+    always-true report argument. This also ensures the correct line gets
+    reported in case of an error.
+    
+    Also remove the unused markTree function and drop the unused testing.T
+    argument from makeTree.
+    
+    Change-Id: I4033d3e5ecd929d08ce03c563aa99444e102d931
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/451615
+    Reviewed-by: Joedian Reid <joedian@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/io/fs/walk_test.go | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)

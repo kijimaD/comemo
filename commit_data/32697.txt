@@ -1,0 +1,19 @@
+commit eb2dc3d3d076f6924b4d25f89de267dc93066ea5
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Sep 11 21:51:38 2017 +0200
+
+    all: remove strings.Contains check around Replace
+    
+    It doesn't change the outcome. It might have been useful at some point
+    to avoid Replace from doing work or allocating. However, nowadays the
+    func returns early without doing any work if Count returns 0.
+    
+    Change-Id: Id69dc74042a6e39672b405016484db8b50f43d58
+    Reviewed-on: https://go-review.googlesource.com/62991
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/path/filepath/path_windows.go | 4 +---
+ src/text/template/exec.go         | 5 +----
+ 2 files changed, 2 insertions(+), 7 deletions(-)

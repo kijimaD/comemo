@@ -1,0 +1,18 @@
+commit 626a3cd9fa6ea412aa8ccd5f33ca836fa4ca116f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Aug 28 11:26:17 2023 -0700
+
+    cmd/go: only print cgo.Incomplete warning if -x
+    
+    Change-Id: I1e0476d6d67f0b2d3d4ad487c2619e3d09f485d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/523576
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+
+ src/cmd/go/internal/work/gccgo.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

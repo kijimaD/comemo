@@ -1,0 +1,71 @@
+commit 22a5c78f4488cd226e746a50d2420746f6721bc5
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Oct 15 23:10:49 2009 -0700
+
+    rename sys functions to runtime,
+    because they are in package runtime.
+    
+    another step to enforcing package boundaries.
+    
+    R=r
+    DELTA=732  (114 added, 93 deleted, 525 changed)
+    OCL=35811
+    CL=35824
+
+ src/cmd/5l/noop.c                  |   8 +-
+ src/cmd/6l/pass.c                  |  22 +++---
+ src/cmd/8l/pass.c                  |   4 +-
+ src/cmd/gc/Makefile                |   2 +-
+ src/cmd/gc/builtin.c.boot          | 150 ++++++++++++++++++-------------------
+ src/cmd/gc/dcl.c                   |   2 +-
+ src/cmd/gc/export.c                |   4 +-
+ src/cmd/gc/gen.c                   |   2 +-
+ src/cmd/gc/go.h                    |   4 +-
+ src/cmd/gc/go.y                    |   8 +-
+ src/cmd/gc/lex.c                   |   4 +-
+ src/cmd/gc/mkbuiltin               |   2 +-
+ src/cmd/gc/{sys.go => runtime.go}  |   0
+ src/cmd/gc/subr.c                  |  11 +--
+ src/cmd/ld/go.c                    |  28 +++----
+ src/pkg/runtime/386/asm.s          |  12 +--
+ src/pkg/runtime/386/closure.c      |   2 +-
+ src/pkg/runtime/386/traceback.c    |   6 +-
+ src/pkg/runtime/386/vlrt.c         |   8 +-
+ src/pkg/runtime/amd64/asm.s        |  50 ++++++-------
+ src/pkg/runtime/amd64/closure.c    |   2 +-
+ src/pkg/runtime/amd64/traceback.c  |   6 +-
+ src/pkg/runtime/arm/asm.s          |  16 ++--
+ src/pkg/runtime/arm/traceback.c    |   2 +-
+ src/pkg/runtime/arm/vlrt.c         |  12 +--
+ src/pkg/runtime/cgocall.c          |   8 +-
+ src/pkg/runtime/chan.c             | 106 +++++++++++++-------------
+ src/pkg/runtime/darwin/386/sys.s   |   2 +-
+ src/pkg/runtime/darwin/amd64/sys.s |   8 +-
+ src/pkg/runtime/darwin/thread.c    |  16 ++--
+ src/pkg/runtime/hashmap.c          |  74 +++++++++---------
+ src/pkg/runtime/hashmap.h          |   2 +-
+ src/pkg/runtime/iface.c            |  40 +++++-----
+ src/pkg/runtime/linux/386/sys.s    |   2 +-
+ src/pkg/runtime/linux/amd64/sys.s  |  10 +--
+ src/pkg/runtime/linux/arm/sys.s    |   2 +-
+ src/pkg/runtime/linux/thread.c     |  10 +--
+ src/pkg/runtime/malloc.cgo         |   6 +-
+ src/pkg/runtime/mem.c              |   8 +-
+ src/pkg/runtime/mheapmap32.c       |   2 +-
+ src/pkg/runtime/mheapmap64.c       |   4 +-
+ src/pkg/runtime/nacl/386/sys.s     |   2 +-
+ src/pkg/runtime/print.c            |  42 +++++------
+ src/pkg/runtime/proc.c             |  14 ++--
+ src/pkg/runtime/runtime.c          |  22 +++---
+ src/pkg/runtime/runtime.h          |  62 +++++++--------
+ src/pkg/runtime/slice.c            |  88 +++++++++++-----------
+ src/pkg/runtime/string.cgo         |  12 +--
+ src/pkg/runtime/symtab.c           |   2 +-
+ src/pkg/syscall/asm_darwin_386.s   |  12 +--
+ src/pkg/syscall/asm_darwin_amd64.s |  12 +--
+ src/pkg/syscall/asm_linux_386.s    |  26 +++----
+ src/pkg/syscall/asm_linux_amd64.s  |  12 +--
+ src/pkg/syscall/asm_linux_arm.s    |   8 +-
+ src/pkg/syscall/asm_nacl_386.s     |  12 +--
+ test/runtime.go                    |  20 +++++
+ 56 files changed, 517 insertions(+), 496 deletions(-)

@@ -1,0 +1,24 @@
+commit 5a706d163d332ec3a83e38849efbaf550a9da7ab
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 13 23:26:39 2020 +0000
+
+    Revert "time/tzdata: new package"
+    
+    This reverts CL 224588.
+    
+    Reason for revert: Test failing on secondary platforms.
+    
+    Change-Id: Ic15fdc73a0d2b860e776733abb82c58809e13160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228200
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.15.html                     |    14 -
+ lib/time/update.bash                |     2 -
+ src/go/build/deps_test.go           |     2 -
+ src/time/embed.go                   |    12 -
+ src/time/tzdata/generate_zipdata.go |    83 -
+ src/time/tzdata/tzdata.go           |   107 -
+ src/time/tzdata/tzdata_test.go      |    95 -
+ src/time/tzdata/zipdata.go          | 13048 ----------------------------------
+ src/time/zoneinfo_read.go           |    23 -
+ 9 files changed, 13386 deletions(-)

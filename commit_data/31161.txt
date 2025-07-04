@@ -1,0 +1,16 @@
+commit 58908114a860908bdff775d7d4a0223554896dcb
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sun Apr 16 18:18:24 2017 -0700
+
+    cmd/go: don't generate DWARF in the compiler for plan9
+    
+    Follow-up to CL 40859.
+    
+    Change-Id: I785b8b28f179a8f2fcd42b0a97ffcd41de4b21bc
+    Reviewed-on: https://go-review.googlesource.com/40865
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/work/build.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

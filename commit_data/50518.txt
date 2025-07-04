@@ -1,0 +1,25 @@
+commit 2d89bec2de0ee9d340346dea6b1506457f5f7722
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Sep 9 06:40:57 2022 +0000
+
+    net: set AD bit in DNS queries when trust-ad in resolv.conf
+    
+    Fixes #51152
+    
+    Change-Id: Ib366e733434b4bb60ac93e6e622d9ba50bfe4e26
+    GitHub-Last-Rev: e98220d62fc4f5b60aa3e4839f46ecf8f8f75485
+    GitHub-Pull-Request: golang/go#54921
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/428955
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/net/dnsclient_unix.go      | 10 +++---
+ src/net/dnsclient_unix_test.go | 73 +++++++++++++++++++++++++++++++++++++++---
+ src/net/dnsconfig.go           |  1 +
+ src/net/dnsconfig_unix.go      |  2 ++
+ 4 files changed, 77 insertions(+), 9 deletions(-)

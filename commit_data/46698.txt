@@ -1,0 +1,32 @@
+commit 952df981580659389679b27d65e1eceeedf0e2df
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 30 10:04:46 2021 -0700
+
+    cmd/compile: accept constraint literals with elided interfaces
+    
+    This change enables the relaxed syntax for constraint literals
+    as proposed in issue #48424 and adds a simple smoke test for
+    the compiler. (Most of the relevant changes are in the syntax
+    and types2 package which have more extensive tests for this.)
+    
+    This makes it possible to experiment with the new syntax while
+    we contemplate the fate of #48424.
+    
+    If #48424 is accepted, this change can remain. If #48424 is
+    not accepted, reverting this CL will remove this feature in
+    the compiler.
+    
+    For #48424.
+    
+    Change-Id: I624fbb37c2f616ee9ad692e17e4fc75c9d5b06e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/353389
+    Trust: Robert Griesemer <gri@golang.org>
+    Trust: Dan Scales <danscales@google.com>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Dan Scales <danscales@google.com>
+
+ src/cmd/compile/internal/noder/noder.go       |  2 +-
+ src/go/internal/gcimporter/gcimporter_test.go |  5 ++-
+ test/typeparam/issue48424.go                  | 54 +++++++++++++++++++++++++++
+ 3 files changed, 58 insertions(+), 3 deletions(-)

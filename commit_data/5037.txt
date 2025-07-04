@@ -1,0 +1,17 @@
+commit 11a218444f59567c9c65300045dccddef60e193a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Mar 10 20:38:38 2010 -0800
+
+    Revert previous change: complexN only converts to complexN.
+    
+    This was discussed with Ken and Russ.  6g has been changed,
+    and both compilers now work this way.  This avoids a double
+    type conversion--first to the float type, then to the complex
+    type.
+    
+    R=r
+    CC=golang-dev, ken2, rsc
+    https://golang.org/cl/419042
+
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

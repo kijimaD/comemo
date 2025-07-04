@@ -1,0 +1,14 @@
+commit 25d18954f68f0f90e337addfe1970b4f960d0418
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 21 15:31:56 2016 -0700
+
+    test: add test case that gccgo miscompiled
+    
+    Change-Id: I384eac632a4a87c12977e56a7d7bad7614305c51
+    Reviewed-on: https://go-review.googlesource.com/25143
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ test/fixedbugs/bug498.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

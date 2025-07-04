@@ -1,0 +1,25 @@
+commit 770746af1cf7900cb770767584abd3251013d932
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue May 28 17:45:22 2019 +0000
+
+    net/http: quiet some log spam in tests
+    
+    One of these tests creates a bunch of connections concurrently, then
+    discovers it doesn't need them all, which then makes the server log
+    that the client went away midway through the TLS handshake. Perhaps
+    the server should recognize that as a case not worthy of logging
+    about, but this is a safer way to eliminate the stderr spam during go
+    test for now.
+    
+    The other test's client gives up on its connection and closes it,
+    similarly confusing the server.
+    
+    Change-Id: I49ce442c9a63fc437e58ca79f044aa76e8c317b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/179179
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/http/client_test.go | 2 +-
+ src/net/http/serve_test.go  | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

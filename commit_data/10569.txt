@@ -1,0 +1,24 @@
+commit a6729b3085d764b845de505606008311860512b7
+Author: Volker Dobler <dr.volker.dobler@gmail.com>
+Date:   Thu Dec 1 09:49:58 2011 -0800
+
+    go/doc: Detect headings in comments and format them as h3 in html.
+    
+    To structure larger sections of comments in html output headings
+    are detected in comments and formated as h3 in the generated html.
+    A simple heuristic is used to detect headings in comments:
+    A heading is a non-blank, non-indented line preceded by a blank
+    line. It is followed by a blank and a non-blank, non-indented line.
+    A heading must start with an uppercase letter and end with a letter,
+    digit or a colon.  A heading may not contain punctuation characters.
+    
+    R=jan.mercl, gri, adg, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5437056
+
+ doc/all.css                    |  3 ++
+ src/pkg/go/doc/Makefile        |  6 ++++
+ src/pkg/go/doc/comment.go      | 74 ++++++++++++++++++++++++++++++++++++++++++
+ src/pkg/go/doc/comment_test.go | 39 ++++++++++++++++++++++
+ src/pkg/go/doc/headscan.go     | 53 ++++++++++++++++++++++++++++++
+ 5 files changed, 175 insertions(+)

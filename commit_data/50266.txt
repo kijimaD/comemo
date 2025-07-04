@@ -1,0 +1,17 @@
+commit 134cd34c07862aa8618e25d1d1279b4fd127c512
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Sat Aug 27 11:11:08 2022 +0800
+
+    hash: convert haveCastagnoli to atomic type
+    
+    Change-Id: I313fff5684d89ee737572d11b1b697c5575866a8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/426083
+    Reviewed-by: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/hash/crc32/crc32.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

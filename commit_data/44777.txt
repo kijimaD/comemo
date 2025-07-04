@@ -1,0 +1,31 @@
+commit 05250429ae0e43041c9976a8451426d3ad907e5a
+Author: Artur M. Wolff <artur.m.wolff@gmail.com>
+Date:   Sun Mar 21 01:18:21 2021 +0100
+
+    net/http: treat MaxBytesReader's negative limits as equivalent to zero limit
+    
+    Current MaxBytesReader behaviour differs from its documentation. It's
+    not similar enough to io.LimitReader. It panics when limit (n) < -1 and
+    returns [-1, <nil>] when limit (n) = -1. To fix that, we treat all
+    negative limits as equivalent to 0.
+    
+    It would be possible to make MaxBytesReader analogically identical in
+    behaviour to io.LimitReader, but that would require to stop
+    maxBytesReader's Read from reading past the limit. Read always reads one
+    more byte (if possible) for non-negative limits and returns a non-EOF
+    error. This behaviour will now apply to all limits.
+    
+    Fixes #45101
+    
+    Change-Id: I25d1877dbff1eb4b195c8741fe5e4a025d01ebc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/303171
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Damien Neil <dneil@google.com>
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Damien Neil <dneil@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/net/http/request.go      |  3 ++
+ src/net/http/request_test.go | 86 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 89 insertions(+)

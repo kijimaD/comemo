@@ -1,0 +1,17 @@
+commit 2f5718a80bdbc3d09a03a2bd21181945df040e24
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jan 11 16:43:11 2023 -0800
+
+    go/types: generate unify.go
+    
+    Change-Id: If94a4c18e954ff403892d0a70e424ab58e997451
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461603
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Run-TryBot: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/types/generator.go | 30 ++++++++++++++++++++++++++++++
+ src/go/types/unify.go     |  2 ++
+ 2 files changed, 32 insertions(+)

@@ -1,0 +1,23 @@
+commit c9031a44b2cf734e6d1f64c31d6ee3a34ca1a9cc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 21 00:00:38 2022 +0200
+
+    net/netip: fix Addr.Unmap reference in Addr.Is4 godoc comment
+    
+    In CL 339309 this was probably copied from the respective godoc comment
+    in package inet.af/netaddr, also see
+    https://pkg.go.dev/inet.af/netaddr#IP.Is4
+    
+    In net/netip the type is named Addr, so adjust the godoc comment
+    accordingly.
+    
+    Change-Id: Ib5ab8054067f8b74119efa4732192a8407189f9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/401394
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/net/netip/netip.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

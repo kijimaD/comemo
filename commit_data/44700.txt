@@ -1,0 +1,19 @@
+commit a826f7dc45f2e0f210341893bd70740aef6b777d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 16 13:31:20 2021 -0700
+
+    debug/dwarf: support DW_FORM_rnglistx aka formRnglistx
+    
+    Change-Id: I7df915978af3488f46a27595a1b04d0d33f81f7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/302369
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/debug/dwarf/entry.go              |  66 +++++++++++++++++++++++++++++++---
+ src/debug/dwarf/entry_test.go         |  13 +++++++
+ src/debug/dwarf/line_test.go          |  23 ++++++++++++
+ src/debug/dwarf/testdata/rnglistx.c   |  19 ++++++++++
+ src/debug/dwarf/testdata/rnglistx.elf | Bin 0 -> 11024 bytes
+ 5 files changed, 116 insertions(+), 5 deletions(-)

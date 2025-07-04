@@ -1,0 +1,17 @@
+commit 20a96a1f68cfe608b8066f3ee1b0db28d1d3e4e0
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jan 30 14:20:04 2015 -0800
+
+    math/big: split rat conversion routines and tests into separate files
+    
+    No other functional changes.
+    
+    Change-Id: I8be1fc488caa4f3d4c00afcb8c00475bfcd10709
+    Reviewed-on: https://go-review.googlesource.com/3673
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+
+ src/math/big/rat.go          | 226 ----------------------
+ src/math/big/rat_test.go     | 440 -----------------------------------------
+ src/math/big/ratconv.go      | 238 +++++++++++++++++++++++
+ src/math/big/ratconv_test.go | 451 +++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 689 insertions(+), 666 deletions(-)

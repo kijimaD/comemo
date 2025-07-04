@@ -1,0 +1,27 @@
+commit 94c75232fbe4e24c38f728fd05e0a151893fb2c5
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue May 23 19:17:51 2023 +0000
+
+    runtime: move pinner variable into inner loop for benchmarks
+    
+    Currently the pinner is created outside of the benchmarking loop.
+    However, this means that we get to reuse the same pinner for each loop;
+    in general, users are expected to create a pinner for a e.g. a cgo
+    call and then that variable will expire with the frame it lives in. (If
+    they can reuse the variable, great! However, I don't expect that to be
+    common.)
+    
+    In essence, this benchmarks a harder case. It's not more right or wrong
+    than the previous version, but the fact that it's a slightly harder case
+    (that still mostly captures what the original version was capturing) is
+    useful.
+    
+    Change-Id: I94987127f54d7bfecd7b8e6a5e632631ea57ad24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/497616
+    Run-TryBot: Michael Knyszek <mknyszek@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+
+ src/runtime/pinner_test.go | 24 +++++++++---------------
+ 1 file changed, 9 insertions(+), 15 deletions(-)

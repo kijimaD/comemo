@@ -1,0 +1,18 @@
+commit 0a092d7f8007554e393e19ff5f841574bb2cb790
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Feb 27 06:03:31 2023 +1100
+
+    cmd/internal/obj/arm64: use more appropriate types for opldpstp
+    
+    This allows for a large number of casts to be removed at call sites.
+    While here, use consistent register naming.
+    
+    Change-Id: I68cee985f6500ed9523f7fb3efbc11bb849681dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471516
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+
+ src/cmd/internal/obj/arm64/asm7.go | 72 ++++++++++++++++++++------------------
+ 1 file changed, 37 insertions(+), 35 deletions(-)

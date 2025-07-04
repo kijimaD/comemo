@@ -1,0 +1,19 @@
+commit d4a9bbef51d6b631fa799cc5560294f465273f47
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Sun Feb 23 16:20:40 2014 -0500
+
+    cmd/ld: don't emit unreachable dynimport symbols in ELF symtab.
+    Fix build for Dragonfly BSD.
+    Fixes #7318.
+    Fixes #7367.
+    
+    LGTM=jsing, iant
+    R=jsing, iant, mikioh.mikioh
+    CC=golang-codereviews
+    https://golang.org/cl/64340043
+
+ misc/cgo/testso/cgoso_c.c     |  1 +
+ misc/cgo/testso/cgoso_unix.go | 20 ++++++++++++++++++++
+ src/cmd/ld/data.c             |  9 +++++++--
+ src/cmd/ld/symtab.c           |  2 +-
+ 4 files changed, 29 insertions(+), 3 deletions(-)

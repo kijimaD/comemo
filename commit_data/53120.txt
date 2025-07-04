@@ -1,0 +1,48 @@
+commit a674ab1961ca75d902ebbdf0a3d363501fd017ae
+Author: Austin Clements <austin@google.com>
+Date:   Wed Apr 26 12:16:26 2023 -0400
+
+    cmd/dist: refine test conditions and enable more cgo tests on Android, iOS
+    
+    This CL moves many cgo test conditions out of dist and into the tests
+    themselves, now that they can use the testenv.Must* helpers.
+    
+    This refines a lot of the conditions, which happens to have the effect
+    of enabling many tests on Android and iOS that are disabled by
+    too-coarse GOOS checks in dist today.
+    
+    Fixes #15919.
+    
+    Change-Id: I2947526b08928d2f7f89f107b5b2403b32092ed8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/495918
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cgo/internal/testcarchive/carchive_test.go | 29 ++++++++-
+ src/cmd/cgo/internal/testcshared/cshared_test.go   | 70 +++++++++++++++-------
+ .../cgo/internal/testerrors/argposition_test.go    |  4 ++
+ src/cmd/cgo/internal/testerrors/badsym_test.go     | 14 ++++-
+ src/cmd/cgo/internal/testerrors/errors_test.go     |  5 ++
+ src/cmd/cgo/internal/testerrors/ptr_test.go        |  9 +++
+ src/cmd/cgo/internal/testfortran/fortran_test.go   |  1 +
+ src/cmd/cgo/internal/testgodefs/testgodefs_test.go |  1 +
+ src/cmd/cgo/internal/testlife/life_test.go         |  4 +-
+ src/cmd/cgo/internal/testplugin/plugin_test.go     | 14 +++++
+ src/cmd/cgo/internal/testsanitizers/asan_test.go   | 10 +++-
+ src/cmd/cgo/internal/testsanitizers/cc_test.go     | 24 --------
+ .../cgo/internal/testsanitizers/cshared_test.go    |  8 ++-
+ src/cmd/cgo/internal/testsanitizers/msan_test.go   |  3 +-
+ src/cmd/cgo/internal/testsanitizers/tsan_test.go   |  4 ++
+ src/cmd/cgo/internal/testshared/shared_test.go     | 16 +++++
+ src/cmd/cgo/internal/testso/noso_test.go           |  9 ---
+ src/cmd/cgo/internal/testso/so_test.go             | 27 +++------
+ src/cmd/cgo/internal/testsovar/noso_test.go        |  9 ---
+ src/cmd/cgo/internal/testsovar/so_test.go          | 27 +++------
+ src/cmd/cgo/internal/teststdio/stdio_test.go       |  4 +-
+ src/cmd/dist/test.go                               | 42 ++++---------
+ src/internal/platform/supported.go                 |  2 -
+ src/internal/testenv/testenv.go                    |  9 +++
+ 24 files changed, 197 insertions(+), 148 deletions(-)

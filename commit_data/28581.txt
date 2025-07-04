@@ -1,0 +1,14 @@
+commit 518cc7f3079bbd5ad141efb1e16c5a6eae52b831
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Thu Sep 29 11:00:47 2016 -0700
+
+    cmd/internal/obj/arm: cleanup some unnecessary temps and conversions
+    
+    Change-Id: I573278c9aee80e62463b2542774dabeec7c3b098
+    Reviewed-on: https://go-review.googlesource.com/29969
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/internal/obj/arm/asm5.go | 37 +++++++++++++++----------------------
+ 1 file changed, 15 insertions(+), 22 deletions(-)

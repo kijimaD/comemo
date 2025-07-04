@@ -1,0 +1,26 @@
+commit e2e2d10b9afe0cf4845aede06c6dd083a1d281c9
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 26 16:57:00 2016 +1000
+
+    time: always use $GOROOT/lib/time/zoneinfo.zip with genzabbrs.go
+    
+    genzabbrs.go uses whatever zoneinfo database available on the system.
+    This makes genzabbrs.go output change from system to system. Adjust
+    go:generate line to always use $GOROOT/lib/time/zoneinfo.zip, so it
+    does not matter who runs the command.
+    
+    Also move go:generate line into zoneinfo.go, so it can be run
+    on Unix (see #16368 for details).
+    
+    Fixes #15802.
+    
+    Change-Id: I8ae4818aaf40795364e180d7bb4326ad7c07c370
+    Reviewed-on: https://go-review.googlesource.com/27832
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/time/zoneinfo.go               |   2 +
+ src/time/zoneinfo_abbrs_windows.go | 183 ++++++++++++++++++++-----------------
+ src/time/zoneinfo_windows.go       |   2 -
+ 3 files changed, 103 insertions(+), 84 deletions(-)

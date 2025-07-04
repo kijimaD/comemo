@@ -1,0 +1,32 @@
+commit 0eb93d6b43dde6721b2a52460037745843f7f2bf
+Author: Wayne Zuo <wdvxdr@golangcn.org>
+Date:   Wed Apr 27 21:53:00 2022 +0800
+
+    math/big: delete all mulWW assembly code
+    
+    Now gc can generate the same assembly code.
+    
+    Change-Id: Iac503003e14045d63e2def66408c13cee516aa37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/402575
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/math/big/arith.go           |  2 +-
+ src/math/big/arith_386.s        |  9 ---------
+ src/math/big/arith_amd64.s      | 10 ----------
+ src/math/big/arith_arm.s        | 11 -----------
+ src/math/big/arith_arm64.s      | 11 -----------
+ src/math/big/arith_decl.go      |  1 -
+ src/math/big/arith_decl_pure.go |  4 ----
+ src/math/big/arith_mips64x.s    |  3 ---
+ src/math/big/arith_mipsx.s      |  3 ---
+ src/math/big/arith_ppc64x.s     | 10 ----------
+ src/math/big/arith_riscv64.s    | 11 -----------
+ src/math/big/arith_s390x.s      |  9 ---------
+ src/math/big/arith_test.go      |  2 +-
+ src/math/big/arith_wasm.s       |  3 ---
+ 14 files changed, 2 insertions(+), 87 deletions(-)

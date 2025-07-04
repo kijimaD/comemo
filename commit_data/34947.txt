@@ -1,0 +1,21 @@
+commit a44cd6866380c90870ee92a3b053f780a900b282
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Wed Apr 11 01:24:09 2018 +0200
+
+    misc/ios: don't wait for response to lldb run in the exec wrapper
+    
+    CL 106096 changed the iOS exec wrapper to directly run the binary
+    without waiting for a SIGINT signal, but did so in a way that
+    expects a "(lldb)" response from lldb in 2 seconds. Lldb might
+    not out output anything until the program finishes, so change the
+    exec wrapper to just fire and forget the the run command and go
+    straight to waiting for exit, successfully or otherwise.
+    
+    Change-Id: I6a2dc63f9b29fe44edb3591afb048b9a8e2e0822
+    Reviewed-on: https://go-review.googlesource.com/106176
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/ios/go_darwin_arm_exec.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

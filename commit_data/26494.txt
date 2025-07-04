@@ -1,0 +1,14 @@
+commit fb49655d7b3a319dfbf48ad55dd7951a91668949
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Thu Mar 24 19:55:40 2016 +0100
+
+    os: skip TestStatStdin on Android
+    
+    Android doesn't (generally) have /bin/sh.
+    
+    Change-Id: I343817c342e3473d09c85155761682b5ddb043e4
+    Reviewed-on: https://go-review.googlesource.com/21075
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/os_test.go | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)

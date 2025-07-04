@@ -1,0 +1,19 @@
+commit 78ad19f214394a1cb1e96d448bacb84011204452
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Tue Oct 18 16:31:03 2011 -0400
+
+    ld: modify macho linkedit segment to enable OS X code signing
+    
+    Move string table to the end of the __LINKEDIT segment.
+    
+    This change allows Apple's codesign(1) utility to successfully sign
+    Go binaries, as long as they don't contain DWARF data (-w flag to
+    8l/6l).  This is because codesign(1) expects the string table to be
+    the last part of the file.
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5271050
+
+ src/cmd/ld/macho.c | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)

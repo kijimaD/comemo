@@ -1,0 +1,30 @@
+commit 84c7a6583aac493fec25e87c60be7b98508c5b43
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Tue Feb 17 16:28:10 2015 +1100
+
+    image: change Rectangle.Eq to return true for all empty rectangles, even
+    if their nominal Min and Max points differ.
+    
+    This is a behavior change, but arguably a bug fix, as Eq wasn't
+    previously consistent with In, and the concept of a rectangle being a
+    set of points. This is demonstrated by the new geom_test.go test.
+    
+    It does mean that r.Eq(s) no longer implies that Inset'ting both r and s
+    with a negative inset results in two rectangles that are still Eq, but
+    that seems acceptable to me.
+    
+    The previous behavior is still available as "r == s".
+    
+    Also clarify the image.Rect doc comment when the inputs are
+    non-canonical.
+    
+    Also simplify the Point and Rectangle Eq implementations dating from
+    before Go 1.0, when you couldn't compare structs via the == operator.
+    
+    Change-Id: Ic39e628db31dc5fe5220f4b444e6d5000eeace5b
+    Reviewed-on: https://go-review.googlesource.com/5006
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/image/geom.go      | 12 +++++++-----
+ src/image/geom_test.go | 12 ++++++++++++
+ 2 files changed, 19 insertions(+), 5 deletions(-)

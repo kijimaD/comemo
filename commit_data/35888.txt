@@ -1,0 +1,13 @@
+commit 4f72b7b8305e669e23be4aeb1b51a3a4c7ecaf4c
+Author: Dan Kortschak <dan@kortschak.io>
+Date:   Fri Jul 6 09:33:07 2018 +0930
+
+    A+C: add additional email address
+    
+    Change-Id: Ic636be3ffe5c9e9dc0dd8faba7898142f5231d15
+    Reviewed-on: https://go-review.googlesource.com/122417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ AUTHORS      | 2 +-
+ CONTRIBUTORS | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

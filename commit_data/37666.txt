@@ -1,0 +1,20 @@
+commit bf141a18c6eb852834065c78c30432f86a90d345
+Author: Hana Kim <hyangah@gmail.com>
+Date:   Tue Dec 11 18:06:50 2018 -0500
+
+    cmd/go/internal/web2: log http requests with -v
+    
+    It's similar to what cmd/go/internal/web package does
+    when cfg.BuildV is set. The web2 package is what
+    cmd/go/internal/modfetch uses, so this change allows us
+    to trace web requests go get command in module mode
+    sends for modfetch.
+    
+    Change-Id: If387efd8a8698c816bf267d1e6c6766fd357c298
+    Reviewed-on: https://go-review.googlesource.com/c/153640
+    Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/go/internal/web2/web.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)

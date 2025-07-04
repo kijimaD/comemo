@@ -1,0 +1,27 @@
+commit 7ee793652307269c9fdee2c0cb222509371a6e36
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Sun Nov 13 21:20:58 2016 -0500
+
+    cmd/link: handle R_GOTPCREL separately on darwin
+    
+    To generate the correct section offset the shared code path for
+    R_CALL, R_PCREL, and R_GOTPCREL on darwin when externally linking
+    walks up the symbol heirarchy adding the differences. This is fine,
+    except in the case where we are generating a GOT lookup, because
+    the topmost symbol is left in r.Xsym instead of the symbol we are
+    looking up. So all funcsym GOT lookups were looking up the outer
+    "go.func.*" symbol.
+    
+    Fix this by separating out the R_GOTPCREL code path.
+    
+    For #17828 (and may fix it).
+    
+    Change-Id: I2c9f4d135e77c17270aa064d8c876dc6d485d659
+    Reviewed-on: https://go-review.googlesource.com/33211
+    Run-TryBot: David Crawshaw <crawshaw@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/src/plugin1/plugin1.go | 10 +++++++++-
+ src/cmd/link/internal/ld/data.go           | 14 +++++++++++++-
+ 2 files changed, 22 insertions(+), 2 deletions(-)

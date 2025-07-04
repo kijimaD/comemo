@@ -1,0 +1,18 @@
+commit 181e8cde301cd8205489e746334174fee7290c9b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Sep 14 10:36:29 2021 +0700
+
+    go/internal/gcimporter: remove outdated comment
+    
+    CL 349010 ported the fix from CL 349009, but forgot to remove the
+    outdated comment from old solution. This CL removes that one.
+    
+    Change-Id: Ia401295e9d0984f4a088ddce5db09d306bfd89b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/349729
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/go/internal/gcimporter/iimport.go | 2 --
+ 1 file changed, 2 deletions(-)

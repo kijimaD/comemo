@@ -1,0 +1,13 @@
+commit 681299a4448ca577893c2f3c663adf268dabf0eb
+Author: Rob Pike <r@golang.org>
+Date:   Thu Mar 5 17:50:36 2009 -0800
+
+    document testing and incidentally gotest
+    
+    R=rsc
+    DELTA=25  (25 added, 0 deleted, 0 changed)
+    OCL=25798
+    CL=25802
+
+ src/lib/testing.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

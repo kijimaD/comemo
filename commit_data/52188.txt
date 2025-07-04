@@ -1,0 +1,35 @@
+commit 5a7793b7b81e1069cc830a14997ede3730295175
+Author: David Chase <drchase@google.com>
+Date:   Wed Jan 25 17:08:16 2023 -0500
+
+    cmd/compile: add flag to FOR/RANGE to preserve loop semantics across inlines
+    
+    This modifies the loopvar change to be tied to the
+    package if it is specified that way, and preserves
+    the change across inlining.
+    
+    Down the road, this will be triggered (and flow correctly)
+    if the changed semantics are tied to Go version specified
+    in go.mod (or rather, for the compiler, by the specified
+    version for compilation).
+    
+    Includes tests.
+    
+    Change-Id: If54e8b6dd23273b86be5ba47838c90d38af9bd1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/463595
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: David Chase <drchase@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ src/cmd/compile/internal/escape/stmt.go          |  2 +
+ src/cmd/compile/internal/ir/fmt.go               |  6 +++
+ src/cmd/compile/internal/ir/stmt.go              | 36 ++++++++-------
+ src/cmd/compile/internal/loopvar/loopvar.go      | 27 ++++++-----
+ src/cmd/compile/internal/loopvar/loopvar_test.go | 58 +++++++++++++++++++++++-
+ src/cmd/compile/internal/noder/reader.go         |  6 ++-
+ src/cmd/compile/internal/noder/writer.go         |  1 +
+ src/cmd/compile/internal/reflectdata/alg.go      |  4 +-
+ src/cmd/compile/internal/ssagen/ssa.go           |  1 +
+ src/cmd/compile/internal/walk/complit.go         |  2 +-
+ src/cmd/compile/internal/walk/range.go           |  3 +-
+ 11 files changed, 112 insertions(+), 34 deletions(-)

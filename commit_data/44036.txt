@@ -1,0 +1,20 @@
+commit 8fcf318123e15abf6ce35e33831bdb64a4e071ff
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Dec 17 15:17:14 2020 -0500
+
+    api/go1.16: remove crypto/tls APIs that are moved to Go 1.17
+    
+    CL 269697 was created before CL 276454 and submitted after,
+    so the api/go1.16.txt file needs to be updated accordingly
+    to fix the build.
+    
+    Updates #32406.
+    
+    Change-Id: I6bf79cc981be504e0baefa82982814aaee4434dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278992
+    Trust: Dmitri Shuralyov <dmitshur@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ api/go1.16.txt | 3 ---
+ 1 file changed, 3 deletions(-)

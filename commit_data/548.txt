@@ -1,0 +1,14 @@
+commit 53010efe01ce49249eb33d98c29e94394d10e85d
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Aug 28 19:59:42 2008 -0700
+
+    shift operations to new spec
+    
+    R=r
+    OCL=14641
+    CL=14641
+
+ src/cmd/6g/gen.c      | 19 +++++++++++++++++--
+ src/cmd/gc/mparith2.c | 15 ++++++++++++---
+ src/cmd/gc/walk.c     | 24 +++++++++++++++++++++++-
+ 3 files changed, 52 insertions(+), 6 deletions(-)

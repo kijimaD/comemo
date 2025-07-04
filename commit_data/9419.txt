@@ -1,0 +1,12 @@
+commit fd80efee103b96ac9d5b70f3a1be363fa2234666
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Fri Aug 19 13:00:09 2011 +1000
+
+    net: fix windows build
+    
+    R=golang-dev
+    CC=golang-dev
+    https://golang.org/cl/4873058
+
+ src/pkg/syscall/ztypes_windows.go | 3 +++
+ 1 file changed, 3 insertions(+)

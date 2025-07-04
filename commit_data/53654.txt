@@ -1,0 +1,42 @@
+commit b490bdc27d5576e5ccdac33755c0156d609e1bb9
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Jul 5 12:08:51 2023 -0400
+
+    go/types: record Config.GoVersion for reporting in Package.GoVersion method
+    
+    Clients of go/types, such as analyzers, may need to know which
+    specific Go version a package is written for. Record that information
+    in the Package and expose it using the new GoVersion method.
+    
+    Update parseGoVersion to handle the new Go versions that may
+    be passed around starting in Go 1.21.0: versions like "go1.21.0"
+    and "go1.21rc2". This is not strictly necessary today, but it adds some
+    valuable future-proofing.
+    
+    While we are here, change NewChecker from panicking on invalid
+    version to saving an error for returning later from Files.
+    Go versions are now likely to be coming from a variety of sources,
+    not just hard-coded in calls to NewChecker, making a panic
+    inappropriate.
+    
+    For #61174.
+    Fixes #61175.
+    
+    Change-Id: Ibe41fe207c1b6e71064b1fe448ac55776089c541
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/507975
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ api/go1.21.txt                                 |  1 +
+ src/cmd/compile/internal/types2/package.go     | 21 ++++++++-----
+ src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types2/version.go     | 23 ++++++++-------
+ src/go/build/deps_test.go                      |  2 +-
+ src/go/types/check.go                          | 41 ++++++++++++++++----------
+ src/go/types/package.go                        | 21 ++++++++-----
+ src/go/types/sizeof_test.go                    |  2 +-
+ src/go/types/version.go                        | 23 ++++++++-------
+ src/go/types/version_test.go                   | 24 +++++++++++++++
+ 10 files changed, 105 insertions(+), 55 deletions(-)

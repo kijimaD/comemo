@@ -1,0 +1,12 @@
+commit 3c939b5348c32d232d0a84553fdbe850aa101969
+Author: Sebastien Binet <seb.binet@gmail.com>
+Date:   Tue Apr 21 17:30:49 2015 +0200
+
+    doc/go1.5.txt: add reflect.ArrayOf
+    
+    Change-Id: I89704249218d4fdba11463c239c69143f8ad0051
+    Reviewed-on: https://go-review.googlesource.com/9185
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.5.txt | 1 +
+ 1 file changed, 1 insertion(+)

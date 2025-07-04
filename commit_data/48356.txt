@@ -1,0 +1,24 @@
+commit 5003ed884a67ee26b4cedbe6f5b1c02bd5eb6630
+Author: Steven Johnstone <steven.james.johnstone@gmail.com>
+Date:   Thu Mar 10 13:38:00 2022 +0000
+
+    internal/fuzz: minimization should not reduce coverage
+    
+    Minimization should result in a fuzz input which
+    includes the same coverage bits as the original
+    input.
+    
+    Updates #48326
+    
+    Change-Id: I6c5f30058b57ccd1a096ad0e9452a4dfbb7d9aab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/391454
+    Trust: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/go/testdata/script/test_fuzz_minimize_interesting.txt | 11 -----------
+ src/internal/fuzz/coverage.go                                 | 11 +++++++++++
+ src/internal/fuzz/worker.go                                   |  3 ++-
+ 3 files changed, 13 insertions(+), 12 deletions(-)

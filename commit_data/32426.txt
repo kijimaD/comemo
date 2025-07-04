@@ -1,0 +1,21 @@
+commit 75fbc8a3d00cf310a5f67aae946fbc346dbb725d
+Author: Alexander Morozov <lk4d4math@gmail.com>
+Date:   Wed Aug 23 11:49:22 2017 -0700
+
+    syscall: skip some exec tests in container
+    
+    For those tests there won't be enough permissions in containers.
+    I decided to go this way instead of just skipping os.IsPermission errors because
+    many of those tests were specifically written to check false positive permission
+    errors.
+    
+    Fixes #21379
+    
+    Change-Id: Ie25e1d6d47f85bb6b570352638440f3ac1e18e03
+    Reviewed-on: https://go-review.googlesource.com/58170
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/syscall/exec_linux_test.go | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)

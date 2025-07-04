@@ -1,0 +1,15 @@
+commit 3b5be4522a21df8ce52a06a0c4ba005c89a8590f
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Sun Jan 18 16:28:15 2015 +0900
+
+    net: more accurate parsing of IPv4 header on IPConn
+    
+    As shown in #9395, inaccurate implementation would be a cause of parsing
+    IPv4 header twice and corrupted upper-layer message issues.
+    
+    Change-Id: Ia1a042e7ca58ee4fcb38fe9ec753c2ab100592ca
+    Reviewed-on: https://go-review.googlesource.com/3001
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/iprawsock_posix.go | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)

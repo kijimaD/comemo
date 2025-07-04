@@ -1,0 +1,23 @@
+commit a5cea062b305c8502bdc959c0eec279dbcd4391f
+Author: Jonathon Lacher <jonathon.lacher@gmail.com>
+Date:   Tue May 14 15:11:30 2019 +0000
+
+    net/http/httputil: remove all fields in Connection header
+    
+    In the reverseproxy, replace use (Header).Get, which returns only one value
+    of a multiple value header, with using the Header map directly. Also fixes
+    corresponding tests which hid the bug, and adds more tests.
+    
+    Fixes #30303
+    
+    Change-Id: Ic9094b5983043460697748759f6dfd95fc111db7
+    GitHub-Last-Rev: b41038143f602d4286cb46c542d40de02e6e639d
+    GitHub-Pull-Request: golang/go#30687
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/166298
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/net/http/httputil/reverseproxy.go      |  8 +++----
+ src/net/http/httputil/reverseproxy_test.go | 37 ++++++++++++++++++++++++++----
+ 2 files changed, 36 insertions(+), 9 deletions(-)

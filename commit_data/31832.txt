@@ -1,0 +1,16 @@
+commit 90a8b7361cf0d4f117af49fb9c72ec77c345298b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Jun 14 23:17:30 2017 +0000
+
+    doc: add more Go 1.9 release notes
+    
+    Only one TODO remains, for pprof changes.
+    
+    Updates #20587
+    
+    Change-Id: Ib67b23adc7851cc96455b0c20649c8e565a4f92a
+    Reviewed-on: https://go-review.googlesource.com/45810
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ doc/go1.9.html | 75 +++++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 48 insertions(+), 27 deletions(-)

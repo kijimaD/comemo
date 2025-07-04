@@ -1,0 +1,18 @@
+commit 8684a089896bffb5ed0818bc39d7ab7c2cf0e2fe
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jul 20 00:03:59 2010 -0700
+
+    strings: add Title
+    strings.ToTitle converts all characters to title case, which for consistency with the
+    other To* functions it should continue to do.  This CL adds string.Title, which
+    does a proper title-casing of the string.
+    A similar function for package bytes will follow once this is settled.
+    Fixes #933.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1869042
+
+ src/pkg/strings/strings.go      | 46 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/strings/strings_test.go | 22 ++++++++++++++++++++
+ 2 files changed, 68 insertions(+)

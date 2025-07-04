@@ -1,0 +1,15 @@
+commit c0efcac6a97588f7013b7ec09dd56cb780bdce64
+Author: Gustavo Niemeyer <gustavo@niemeyer.net>
+Date:   Fri Jul 20 16:04:22 2012 -0300
+
+    bytes: make Join return a new buffer on len(a) == 1
+    
+    Fixes #3844.
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/6432054
+
+ src/pkg/bytes/bytes.go      | 11 +++++------
+ src/pkg/bytes/bytes_test.go |  6 ++++++
+ 2 files changed, 11 insertions(+), 6 deletions(-)

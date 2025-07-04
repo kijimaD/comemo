@@ -1,0 +1,24 @@
+commit b0da26a668fd6d4e351a00ca76695c5a233e84a2
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Fri Apr 17 20:41:59 2020 -0400
+
+    cmd/link: stop checking reflect.Value.Call in deadcode pass
+    
+    In the linker's deadcode pass, we need to keep a method live if
+    it can be reached through reflection. We do this by marking all
+    exported method live if reflect.Value.Method or
+    reflect.Type.Method is used. Currently we also check for
+    reflect.Value.Call, which is unnecessary because in order to call
+    a method through reflection, the method must be obtained through
+    reflect.Value.Method or reflect.Type.Method, which we already
+    check.
+    
+    Per discussion in https://groups.google.com/d/msg/golang-dev/eG9It63-Bxg/_bnoVy-eAwAJ
+    Thanks Brad, Russ, and Ian for bringing this up.
+    
+    Change-Id: I8e9529a224bb898dbf5752674cc9d155db386c14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/228792
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/link/internal/ld/deadcode2.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)

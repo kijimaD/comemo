@@ -1,0 +1,12 @@
+commit 2c3d13b21045c337475ac0c08b226e4dd51f2280
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Mon Jun 5 15:40:32 2017 +1000
+
+    cmd/link: introduce and use peSection.pad
+    
+    Change-Id: I068e9bb6e692b5eff193ddb46af3f04785f98518
+    Reviewed-on: https://go-review.googlesource.com/56316
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/link/internal/ld/pe.go | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)

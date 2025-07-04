@@ -1,0 +1,22 @@
+commit c71b5ff76a1b1d79b53e268b83fb721e0af4614b
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Sep 3 14:51:01 2024 +0000
+
+    cmd/go: print toolchain switching with GODEBUG=toolchaintrace
+    
+    This CL introduces the ability to print information about the toolchain switch used in the
+    go command, controlled by the `toolchaintrace` setting. This setting defaults to `toolchaintrace=0`,
+    meaning no information is printed. Setting it to `toolchaintrace=1` will cause the go command
+    to print a message indicating the toolchain used and where it was found.
+    
+    Fixes: #63939
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Idc58e3d5bc76573aa48e1f7df352caa13004c25e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610235
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/go/internal/toolchain/exec.go              |   8 ++
+ src/cmd/go/internal/toolchain/select.go            |  30 +++++
+ .../testdata/script/gotoolchain_godebug_trace.txt  | 122 +++++++++++++++++++++
+ 3 files changed, 160 insertions(+)

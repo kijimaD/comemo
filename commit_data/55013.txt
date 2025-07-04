@@ -1,0 +1,21 @@
+commit 1ab9df4849d1bb527035ccf475cc5b7b4aa9b789
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Nov 16 13:00:55 2023 -0500
+
+    cmd/compile: allow disable of PGO function value devirtualization with flag
+    
+    Extend the pgodevirtualize debug flag to distinguish interface and
+    function devirtualization. Setting 1 keeps interface devirtualization
+    enabled but disables function value devirtualization.
+    
+    For #64209.
+    
+    Change-Id: I33aa7eb95ca0bdb215256d8c7cc8f9dac53ae30e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543115
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/base/debug.go       | 2 +-
+ src/cmd/compile/internal/base/flag.go        | 2 +-
+ src/cmd/compile/internal/devirtualize/pgo.go | 8 ++++++++
+ 3 files changed, 10 insertions(+), 2 deletions(-)

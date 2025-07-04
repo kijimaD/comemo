@@ -1,0 +1,24 @@
+commit 4869996b928d0e5dc978a4de31f2824b47ae8cb7
+Author: Rob Pike <r@golang.org>
+Date:   Tue Dec 20 12:58:23 2011 -0800
+
+    template: better error message for empty templates
+    New("x").ParseFiles("y") can result in an empty "x" template.
+    Make the message clearer that this is the problem. The error
+    returns from both template packages in this case were
+    confusing.
+    
+    I considered making the method use "x" instead of "y" in
+    this case, but that just made other situations confusing
+    and harder to explain.
+    
+    Fixes #2594.
+    
+    R=golang-dev, rsc, r
+    CC=golang-dev
+    https://golang.org/cl/5498048
+
+ src/pkg/html/template/escape.go      | 10 +++++++++-
+ src/pkg/html/template/escape_test.go |  2 +-
+ src/pkg/text/template/exec.go        |  2 +-
+ 3 files changed, 11 insertions(+), 3 deletions(-)

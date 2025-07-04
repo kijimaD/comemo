@@ -1,0 +1,31 @@
+commit ab75484d7130496ac9b204b0d418b1ec95bee2f8
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Nov 15 17:47:15 2021 -0800
+
+    internal/fuzz: limit number of consecutive mutations
+    
+    This makes two changes: (1) mutator.mutate now only applies a single
+    mutation to the input, and (2) in workerServer.fuzz if, after five
+    mutations are applied to the input, no new coverage is found the input
+    is reset to its initial state. This process is repeated until new
+    coverage is found, or the fuzz call times out.
+    
+    This results in finding new coverage expanding inputs which have less
+    divergence from the initial input they were mutated from, which makes
+    traversing certain types of call graphs significantly more efficient.
+    
+    Fixes #49601
+    Fixes #48179
+    Fixes #47090
+    
+    Change-Id: I74d18a56ca2669f20192951090b281f58ee0b5dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/364214
+    Trust: Roland Shoemaker <roland@golang.org>
+    Trust: Katie Hockman <katie@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ src/internal/fuzz/mutator.go | 39 +++++++++++++++------------------------
+ src/internal/fuzz/worker.go  | 23 ++++++++++++++++++++---
+ 2 files changed, 35 insertions(+), 27 deletions(-)

@@ -1,0 +1,22 @@
+commit 135ce43c8731506d541329a1dfea2c737c6dd0b1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Mar 10 10:04:42 2017 -0800
+
+    cmd/go: when expanding "cmd", skip vendored main packages
+    
+    We are vendoring pprof from github.com/google/pprof, which comes with
+    a main package. If we don't explicitly skip that main package, then
+    `go install cmd` will install the compiled program in $GOROOT/bin.
+    
+    Fixes #19441.
+    
+    Change-Id: Ib268ffd16d4be65f7d80e4f8d9dc6e71523a94de
+    Reviewed-on: https://go-review.googlesource.com/38007
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Raul Silvera <rsilvera@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/go/internal/load/search.go | 11 ++++++++++-
+ src/make.bash                      | 13 +++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)

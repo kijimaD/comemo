@@ -1,0 +1,19 @@
+commit f858c221270addffaceb668196caf7fd8ceb0019
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Fri Nov 6 15:15:44 2020 -0500
+
+    cmd/go/internal/modget: fix a typo introduced in CL 263267
+    
+    Updates #37438
+    
+    Change-Id: I78f377afd73dad75aed219836725a27fbaa5b69c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/268117
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    Reviewed-by: Dan Peterson <dpiddy@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go             | 4 ++--
+ src/cmd/go/internal/modget/get.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)

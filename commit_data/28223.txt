@@ -1,0 +1,48 @@
+commit 1b9499b06989d2831e5b156161d6c07642926ee1
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jul 18 22:00:45 2016 -0400
+
+    syscall: make Getpagesize return page size from runtime
+    
+    syscall.Getpagesize currently returns hard-coded page sizes on all
+    architectures (some of which are probably always wrong, and some of
+    which are definitely not always right). The runtime now has this
+    information, queried from the OS during runtime init, so make
+    syscall.Getpagesize return the page size that the runtime knows.
+    
+    Updates #10180.
+    
+    Change-Id: I4daa6fbc61a2193eb8fa9e7878960971205ac346
+    Reviewed-on: https://go-review.googlesource.com/25051
+    Run-TryBot: Austin Clements <austin@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/runtime.go                 | 3 +++
+ src/syscall/syscall.go                 | 4 ++++
+ src/syscall/syscall_darwin_386.go      | 2 --
+ src/syscall/syscall_darwin_amd64.go    | 2 --
+ src/syscall/syscall_darwin_arm.go      | 2 --
+ src/syscall/syscall_darwin_arm64.go    | 2 --
+ src/syscall/syscall_dragonfly_amd64.go | 2 --
+ src/syscall/syscall_freebsd_386.go     | 2 --
+ src/syscall/syscall_freebsd_amd64.go   | 2 --
+ src/syscall/syscall_freebsd_arm.go     | 2 --
+ src/syscall/syscall_linux_386.go       | 2 --
+ src/syscall/syscall_linux_amd64.go     | 2 --
+ src/syscall/syscall_linux_arm.go       | 2 --
+ src/syscall/syscall_linux_arm64.go     | 2 --
+ src/syscall/syscall_linux_mips64x.go   | 2 --
+ src/syscall/syscall_linux_ppc64x.go    | 2 --
+ src/syscall/syscall_linux_s390x.go     | 2 --
+ src/syscall/syscall_nacl.go            | 1 -
+ src/syscall/syscall_netbsd_386.go      | 2 --
+ src/syscall/syscall_netbsd_amd64.go    | 2 --
+ src/syscall/syscall_netbsd_arm.go      | 2 --
+ src/syscall/syscall_openbsd_386.go     | 2 --
+ src/syscall/syscall_openbsd_amd64.go   | 2 --
+ src/syscall/syscall_openbsd_arm.go     | 2 --
+ src/syscall/syscall_plan9.go           | 2 --
+ src/syscall/syscall_solaris_amd64.go   | 2 --
+ src/syscall/syscall_windows.go         | 2 --
+ 27 files changed, 7 insertions(+), 49 deletions(-)

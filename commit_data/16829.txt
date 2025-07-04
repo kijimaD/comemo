@@ -1,0 +1,15 @@
+commit dfbe467eda17d720ba33b83a0482a3fd03d52aa8
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Jul 20 12:43:50 2013 +1000
+
+    libmach,lib9: override unused parameter warnings (fixes windows build)
+    
+    R=golang-dev, dave
+    CC=golang-dev
+    https://golang.org/cl/11620044
+
+ src/lib9/_p9dir.c     |  3 +++
+ src/lib9/dirfwstat.c  |  2 ++
+ src/lib9/windows.c    |  1 +
+ src/libmach/windows.c | 16 ++++++++++++++++
+ 4 files changed, 22 insertions(+)

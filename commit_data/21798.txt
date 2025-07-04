@@ -1,0 +1,29 @@
+commit 05ca0f3370ce335fc69a85a837655b821a68a706
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Sat Feb 28 20:31:32 2015 +0000
+
+    cmd/internal/gc, cmd/internal/obj: remove pointless fmt.Sprintf calls
+    
+    This is a follow-up to CL 6265. No behavior changes.
+    The diff was generated with eg, using template:
+    
+    package p
+    
+    import "fmt"
+    
+    func before(a string) string { return fmt.Sprintf(a) }
+    func after(a string) string  { return a }
+    
+    Change-Id: I7b3bebf31be5cd1ae2233da06cb4502a3d73f092
+    Reviewed-on: https://go-review.googlesource.com/6269
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/gc/bits.go     |  2 +-
+ src/cmd/internal/gc/fmt.go      | 30 +++++++++++++++---------------
+ src/cmd/internal/gc/init.go     |  4 ++--
+ src/cmd/internal/gc/mparith1.go |  8 ++++----
+ src/cmd/internal/gc/plive.go    |  4 ++--
+ src/cmd/internal/gc/subr.go     |  4 ++--
+ src/cmd/internal/gc/walk.go     |  8 ++++----
+ src/cmd/internal/obj/util.go    |  2 +-
+ 8 files changed, 31 insertions(+), 31 deletions(-)

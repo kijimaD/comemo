@@ -1,0 +1,8 @@
+commit a155a5a68fdfb809016295a27444be9bf7441782
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 6 17:34:17 2013 -0700
+
+    tag go1.1rc2
+
+ .hgtags | 1 +
+ 1 file changed, 1 insertion(+)

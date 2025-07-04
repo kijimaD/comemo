@@ -1,0 +1,17 @@
+commit dd1889cb22c1fd37cf444d672274a8460fe6e2bf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 17 18:35:43 2019 -0800
+
+    cmd/cgo: don't replace newlines with semicolons in expressions
+    
+    Fixes #29781
+    
+    Change-Id: Id032d07a54b8c24f0c6d3f6e512932f76920ee04
+    Reviewed-on: https://go-review.googlesource.com/c/158457
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ misc/cgo/test/issue29781.go | 17 +++++++++++++++++
+ src/cmd/cgo/godefs.go       | 21 ++++++++++++++++++---
+ 2 files changed, 35 insertions(+), 3 deletions(-)

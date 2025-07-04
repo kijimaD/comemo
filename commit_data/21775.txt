@@ -1,0 +1,12 @@
+commit d0bcdd3f6a95a5d4c4e46bc1cab96bc9f5eb6250
+Author: David Crawshaw <crawshaw@golang.org>
+Date:   Thu Feb 26 17:52:51 2015 -0500
+
+    cmd/addr2line: exclude Go tool test on darwin/arm
+    
+    Change-Id: Icee6c88b7eed5fb27f046373ecf53bf64b68c696
+    Reviewed-on: https://go-review.googlesource.com/6191
+    Reviewed-by: Minux Ma <minux@golang.org>
+
+ src/cmd/addr2line/addr2line_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

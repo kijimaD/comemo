@@ -1,0 +1,19 @@
+commit ba76567bc2500204432ed8a5cb28848410e74447
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Dec 15 22:00:02 2020 -0500
+
+    cmd/go/internal/modload: delete unused *mvsReqs.next method
+    
+    For #36460
+    Updates #36465
+    
+    Change-Id: Id818dce21d39a48cf5fc9c015b30497dce9cd1ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/278596
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/cmd/go/internal/modload/mvs.go | 16 ----------------
+ 1 file changed, 16 deletions(-)

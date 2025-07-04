@@ -1,0 +1,12 @@
+commit 4f1fca9564944ded19938f1a84399a72c759d17c
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Dec 7 23:27:11 2017 +0000
+
+    doc/go1.10: fix HTML close tags
+    
+    Change-Id: I28ddb8cd347120c08d5b58ae20f481b60416abc1
+    Reviewed-on: https://go-review.googlesource.com/82755
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.10.html | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

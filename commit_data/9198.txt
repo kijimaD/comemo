@@ -1,0 +1,12 @@
+commit 2aa2ceb8730f5e0fff792b43a091a6fa2cfa8e0f
+Author: Yuval Pavel Zholkover <paulzhol@gmail.com>
+Date:   Mon Jul 25 12:25:41 2011 -0400
+
+    runtime: Plan 9, skip calling runtime·ldt0setup.
+    
+    R=golang-dev
+    CC=alex.brainman, golang-dev
+    https://golang.org/cl/4816049
+
+ src/pkg/runtime/386/asm.s | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)

@@ -1,0 +1,17 @@
+commit f9dd99cae3b08e2fea303b88ff6ffae6261f65b5
+Author: ramenjuniti <ramenjuniti@gmail.com>
+Date:   Mon Nov 18 19:58:22 2019 +0900
+
+    misc/chrome/gophertool: replace deprecated tabs.getSelected method
+    
+    tabs.getSelected has been deprecated since Chrome 33. Instead,
+    use tabs.query.
+    
+    Fixes #35663
+    
+    Change-Id: I4f7f17f948987aff8409ac8210f04eb1f7ebf908
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/207402
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ misc/chrome/gophertool/background.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,14 @@
+commit ecda82012d3cff21c758fa45eb5e86365015a131
+Author: Nicolas Hillegeer <aktau@google.com>
+Date:   Thu Dec 12 08:35:17 2024 -0800
+
+    runtime: only read pp.m in schedtrace if needed
+    
+    Change-Id: Iad3353431a2ef97c1e0c440bdd84b78cb5ea990e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635635
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Nicolas Hillegeer <aktau@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/runtime/proc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,17 @@
+commit e6f21be3f48802f18013a7e95bb3850882ab96e3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Wed Sep 24 16:55:39 2014 -0700
+
+    net/http: support https_proxy in ProxyFromEnvironment
+    
+    Fixes #6181
+    
+    LGTM=adg
+    R=adg
+    CC=golang-codereviews
+    https://golang.org/cl/148980043
+
+ src/net/http/export_test.go    |  1 +
+ src/net/http/transport.go      | 11 ++++++++++-
+ src/net/http/transport_test.go | 33 ++++++++++++++++++++++++++++-----
+ 3 files changed, 39 insertions(+), 6 deletions(-)

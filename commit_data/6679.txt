@@ -1,0 +1,12 @@
+commit 7b4eed7d660b91dc8a3bc60a1892a96d5782c977
+Author: Michael Hoisie <hoisie@gmail.com>
+Date:   Mon Nov 1 16:15:03 2010 -0400
+
+    http server: don't send trailing '0' for chunked encoding when responding with 304 NotModified
+    
+    R=rsc, adg
+    CC=golang-dev
+    https://golang.org/cl/2723041
+
+ src/pkg/http/server.go | 1 +
+ 1 file changed, 1 insertion(+)

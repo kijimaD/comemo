@@ -1,0 +1,16 @@
+commit acc5e3a0c20432199181fef2bc6204fbd11d21d0
+Author: cuiweixie <cuiweixie@gmail.com>
+Date:   Wed Sep 28 00:31:44 2022 +0800
+
+    net/textproto: use bytes.Clone
+    
+    Change-Id: Ic73d667a98df3f2d1705a67e7e8625c6ba65cc0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/435284
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+
+ src/net/textproto/reader.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)

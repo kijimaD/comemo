@@ -1,0 +1,37 @@
+commit 0ad2cd004c94c664dfee3ff16e9d587467f99883
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Thu Jan 23 15:13:21 2014 -0500
+
+    bufio: fix benchmarks behavior
+    Currently the benchmarks lie to testing package by doing O(N)
+    work under StopTimer. And that hidden O(N) actually consitutes
+    the bulk of benchmark work (e.g includes GC per iteration).
+    This behavior accounts for windows-amd64-race builder hangs.
+    
+    Before:
+    BenchmarkReaderCopyOptimal-4     1000000              1861 ns/op
+    BenchmarkReaderCopyUnoptimal-4    500000              3327 ns/op
+    BenchmarkReaderCopyNoWriteTo-4     50000             34549 ns/op
+    BenchmarkWriterCopyOptimal-4      100000             16849 ns/op
+    BenchmarkWriterCopyUnoptimal-4    500000              3126 ns/op
+    BenchmarkWriterCopyNoReadFrom-4    50000             34609 ns/op
+    ok      bufio   65.273s
+    
+    After:
+    BenchmarkReaderCopyOptimal-4    10000000               172 ns/op
+    BenchmarkReaderCopyUnoptimal-4  10000000               267 ns/op
+    BenchmarkReaderCopyNoWriteTo-4    100000             22905 ns/op
+    BenchmarkWriterCopyOptimal-4    10000000               170 ns/op
+    BenchmarkWriterCopyUnoptimal-4  10000000               226 ns/op
+    BenchmarkWriterCopyNoReadFrom-4   100000             20575 ns/op
+    ok      bufio   14.074s
+    
+    Note the change in total time.
+    
+    LGTM=alex.brainman, rsc
+    R=golang-codereviews, alex.brainman, rsc
+    CC=golang-codereviews
+    https://golang.org/cl/51360046
+
+ src/pkg/bufio/bufio_test.go | 68 +++++++++++++++++++++++++++++----------------
+ 1 file changed, 44 insertions(+), 24 deletions(-)

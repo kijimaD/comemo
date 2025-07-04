@@ -1,0 +1,20 @@
+commit 487b3501a54e5479972a7982fe1eb154f0447b58
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Aug 8 21:51:01 2022 +0700
+
+    context: Revert "context: use CompareAndSwap in cancelCtx.Done"
+    
+    This reverts commit 964f0c7a306998256f1c5a5fd78fc457a972f001.
+    
+    Reason: cause increasing timeout in crypto/tls tests on race builders.
+    
+    Change-Id: Id16d4fcd19c2ca2e89ad4d0c9d55ef1105b19c76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/422035
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/context/context.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)

@@ -1,0 +1,16 @@
+commit a697c4b439852821aa7bb0e179b64b66e9f9f812
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 9 20:21:37 2014 -0500
+
+    cmd/internal/objfile: minor edits
+    
+    Follow-up in response to comments on
+    TBR'ed CL 171260043.
+    
+    LGTM=r
+    R=r
+    CC=golang-codereviews
+    https://golang.org/cl/172080043
+
+ src/cmd/internal/objfile/disasm.go | 23 ++++++++++++++---------
+ 1 file changed, 14 insertions(+), 9 deletions(-)

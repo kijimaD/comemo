@@ -1,0 +1,21 @@
+commit 03640f688b6ae069c72373d7aaa8d23784e456fc
+Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
+Date:   Fri Apr 11 22:19:49 2025 +0000
+
+    all: use built-in min, max functions
+    
+    Change-Id: Ie76ebb556d635068342747f3f91dd7dc423df531
+    GitHub-Last-Rev: aea61fb3a054e6bd24f4684f90fb353d5682cd0b
+    GitHub-Pull-Request: golang/go#73340
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664677
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+
+ src/internal/poll/copy_file_range_unix.go |  5 +----
+ src/os/root_unix.go                       |  4 +---
+ src/runtime/debug/garbage_test.go         | 16 ++++++++--------
+ src/time/sleep_test.go                    |  8 +++-----
+ 4 files changed, 13 insertions(+), 20 deletions(-)

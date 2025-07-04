@@ -1,0 +1,16 @@
+commit 4e056ade247bdab4a328776e4516a06fe7f26259
+Author: GiantsLoveDeathMetal <sebastien@cytora.com>
+Date:   Fri Jan 25 02:07:03 2019 +0000
+
+    sort: change let to let's
+    
+    Trivial typo
+    
+    Change-Id: I3804f365519453bfa19997f55ead34742ac1a9db
+    GitHub-Last-Rev: 0e04e928d05121099b78a2cefc1cb7531f6a7650
+    GitHub-Pull-Request: golang/go#29930
+    Reviewed-on: https://go-review.googlesource.com/c/159479
+    Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
+
+ src/sort/sort.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

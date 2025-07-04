@@ -1,0 +1,16 @@
+commit 9a65a06e37c0a2fb796296c286275ba4553ad1e7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Mar 5 10:13:58 2010 -0800
+
+    godoc: don't throw away function documentation
+    if there are multiple functions (for a package, type)
+    with the same name
+    
+    Fixes #642.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/243041
+
+ src/pkg/go/doc/doc.go | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)

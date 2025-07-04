@@ -1,0 +1,13 @@
+commit 83d4cd758c20bdfa1acb13a14425db692bc445e2
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Sun Jun 2 01:45:26 2013 +0400
+
+    runtime: minor code style improvements (followup to change 9778049)
+    
+    R=golang-dev, r
+    CC=golang-dev
+    https://golang.org/cl/9693044
+
+ src/pkg/runtime/malloc.goc | 2 +-
+ src/pkg/runtime/symtab.c   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

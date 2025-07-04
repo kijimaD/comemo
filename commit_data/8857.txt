@@ -1,0 +1,14 @@
+commit 6c6c23207248400e88f5b98106b28ddcaf95ed8e
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 27 11:03:43 2011 -0700
+
+    http: add StripPrefix handler wrapper
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4626067
+
+ src/pkg/http/fs.go         | 12 ++++--------
+ src/pkg/http/serve_test.go | 24 ++++++++++++++++++++++++
+ src/pkg/http/server.go     | 16 ++++++++++++++++
+ 3 files changed, 44 insertions(+), 8 deletions(-)

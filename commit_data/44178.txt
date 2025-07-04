@@ -1,0 +1,13 @@
+commit b634f5d97a6e65f19057c00ed2095a1a872c7fa8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jan 22 20:38:29 2021 -0800
+
+    doc/go1.16: add crypto/x509 memory optimization
+    
+    Change-Id: I0c61b0e0d1430f66e3f7dbf07817264258a1c15a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/285682
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Trust: Brad Fitzpatrick <bradfitz@golang.org>
+
+ doc/go1.16.html | 8 ++++++++
+ 1 file changed, 8 insertions(+)

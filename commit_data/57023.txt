@@ -1,0 +1,17 @@
+commit 966688a43a8b577c2eb2e7165a57fdae87a1840e
+Author: Than McIntosh <thanm@google.com>
+Date:   Tue Jul 30 13:47:58 2024 +0000
+
+    internal/coverage: add internal/stringslite to hard-coded coverpkg ID list
+    
+    Add internal/stringslite to the list of hard-coded package IDs to be
+    special cased in coverage package registration. This patch fixes
+    a new -coverpkg=all failure on the darwin longtest builders.
+    
+    Change-Id: I56357572f215fab09f46226fe205924136322d9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601755
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/internal/coverage/pkid.go | 1 +
+ 1 file changed, 1 insertion(+)

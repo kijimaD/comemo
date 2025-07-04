@@ -1,0 +1,28 @@
+commit b928e2faa8d90989276ff0880aaef666c970cc68
+Author: David Lazar <lazard@golang.org>
+Date:   Sat May 27 17:43:37 2017 -0400
+
+    cmd/compile: retain source positions of arguments to inlined calls
+    
+    Arguments to inlined calls are hidden from setPos as follows:
+    
+        args := as.Rlist
+        as.Rlist.Set(nil)
+        // setPos...
+        as.Rlist.Set(args.Slice())
+    
+    Previously, this code had no effect since the value of as was
+    overwritten by the assignment in the retvars loop.
+    
+    Fixes #19799.
+    
+    Change-Id: Iaf97259f82fdba8b236136337cc42b2774c7fef5
+    Reviewed-on: https://go-review.googlesource.com/44351
+    Run-TryBot: David Lazar <lazard@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/gc/inl.go |  6 ++--
+ test/fixedbugs/issue19799.go       | 71 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 74 insertions(+), 3 deletions(-)

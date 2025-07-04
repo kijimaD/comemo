@@ -1,0 +1,48 @@
+commit 507d1b22f4b58ac68841582d0c2c0ab6b20e5a98
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Nov 5 10:35:12 2023 +0100
+
+    cmd: remove support for GOROOT_FINAL
+    
+    Fixes #62047
+    
+    Change-Id: If7811c1eb9073fb09b7006076998f8b2e1810bfb
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539975
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ doc/next/3-tools.md                                |  6 +++
+ src/cmd/addr2line/addr2line_test.go                | 20 ++------
+ src/cmd/dist/build.go                              | 19 +-------
+ src/cmd/go/alldocs.go                              |  5 --
+ src/cmd/go/go_test.go                              |  8 ----
+ src/cmd/go/internal/cfg/cfg.go                     | 13 ------
+ src/cmd/go/internal/help/helpdoc.go                |  5 --
+ src/cmd/go/internal/work/exec.go                   | 19 ++++----
+ src/cmd/go/internal/work/gc.go                     |  8 ++--
+ src/cmd/go/script_test.go                          |  1 -
+ src/cmd/go/scriptconds_test.go                     |  9 ----
+ src/cmd/go/scriptreadme_test.go                    |  1 -
+ src/cmd/go/testdata/script/README                  |  3 --
+ src/cmd/go/testdata/script/build_issue48319.txt    | 53 ----------------------
+ src/cmd/go/testdata/script/build_trimpath.txt      | 37 ++++++++-------
+ .../go/testdata/script/build_trimpath_goroot.txt   |  8 +---
+ .../go/testdata/script/cgo_stale_precompiled.txt   | 10 +---
+ src/cmd/go/testdata/script/goroot_executable.txt   |  9 +---
+ .../testdata/script/goroot_executable_trimpath.txt |  5 +-
+ src/cmd/internal/bootstrap_test/reboot_test.go     |  2 +-
+ src/cmd/internal/moddeps/moddeps_test.go           |  2 -
+ src/cmd/link/internal/ld/main.go                   | 10 ++--
+ src/cmd/link/internal/ld/pcln.go                   | 11 +----
+ src/cmd/objdump/objdump_test.go                    |  3 --
+ src/internal/buildcfg/cfg.go                       | 27 ++++++-----
+ src/internal/testenv/testenv.go                    |  6 +--
+ src/make.bash                                      |  3 --
+ src/make.bat                                       |  3 --
+ src/make.rc                                        |  3 --
+ src/runtime/runtime-gdb_test.go                    | 21 ---------
+ src/runtime/runtime-lldb_test.go                   |  3 --
+ 31 files changed, 71 insertions(+), 262 deletions(-)

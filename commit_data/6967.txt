@@ -1,0 +1,110 @@
+commit 0c54225b515f80ac3ff27337bde1653908a78f0d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Dec 15 11:49:23 2010 -0500
+
+    remove nacl
+    
+    The recent linker changes broke NaCl support
+    a month ago, and there are no known users of it.
+    
+    The NaCl code can always be recovered from the
+    repository history.
+    
+    R=adg, r
+    CC=golang-dev
+    https://golang.org/cl/3671042
+
+ doc/devel/roadmap.html                 |    2 -
+ doc/install.html                       |    6 +-
+ src/Make.inc                           |    3 +-
+ src/all-nacl.bash                      |   48 -
+ src/cmd/5l/asm.c                       |    2 -
+ src/cmd/6l/asm.c                       |    4 +-
+ src/cmd/8g/ggen.c                      |   12 +-
+ src/cmd/8l/asm.c                       |   34 +-
+ src/cmd/8l/l.h                         |    1 -
+ src/cmd/8l/obj.c                       |   22 +-
+ src/cmd/8l/span.c                      |  111 +-
+ src/cmd/cc/dpchk.c                     |    1 +
+ src/cmd/ld/lib.h                       |    1 -
+ src/pkg/Makefile                       |   21 -
+ src/pkg/crypto/rand/Makefile           |    3 -
+ src/pkg/debug/proc/proc_nacl.go        |   20 -
+ src/pkg/debug/proc/regs_nacl_386.go    |    5 -
+ src/pkg/exec/Makefile                  |    3 -
+ src/pkg/exp/4s/4s.go                   |   77 -
+ src/pkg/exp/4s/4s.html                 |   26 -
+ src/pkg/exp/4s/5s.go                   |    9 -
+ src/pkg/exp/4s/5s.html                 |   26 -
+ src/pkg/exp/4s/Makefile                |   20 -
+ src/pkg/exp/4s/data.go                 |  142 -
+ src/pkg/exp/4s/xs.go                   |  750 ----
+ src/pkg/exp/nacl/README                |   36 -
+ src/pkg/exp/nacl/av/Makefile           |   13 -
+ src/pkg/exp/nacl/av/av.go              |  289 --
+ src/pkg/exp/nacl/av/event.go           |  473 --
+ src/pkg/exp/nacl/av/image.go           |   84 -
+ src/pkg/exp/nacl/srpc/Makefile         |   13 -
+ src/pkg/exp/nacl/srpc/client.go        |  210 -
+ src/pkg/exp/nacl/srpc/msg.go           |  522 ---
+ src/pkg/exp/nacl/srpc/server.go        |  192 -
+ src/pkg/exp/spacewar/Makefile          |   18 -
+ src/pkg/exp/spacewar/code.go           | 7556 --------------------------------
+ src/pkg/exp/spacewar/pdp1.go           |  389 --
+ src/pkg/exp/spacewar/spacewar.go       |  202 -
+ src/pkg/exp/spacewar/spacewar.html     |   21 -
+ src/pkg/net/Makefile                   |    7 -
+ src/pkg/net/fd_nacl.go                 |   33 -
+ src/pkg/os/Makefile                    |    5 -
+ src/pkg/os/dir_nacl.go                 |   69 -
+ src/pkg/os/stat_nacl.go                |   38 -
+ src/pkg/os/sys_nacl.go                 |    7 -
+ src/pkg/path/Makefile                  |    3 -
+ src/pkg/runtime/386/closure.c          |    3 -
+ src/pkg/runtime/Makefile               |    6 -
+ src/pkg/runtime/malloc.h               |    4 -
+ src/pkg/runtime/mgc0.c                 |   16 -
+ src/pkg/runtime/mheap.c                |    2 +-
+ src/pkg/runtime/nacl/386/closure.c     |  249 --
+ src/pkg/runtime/nacl/386/defs.h        |   17 -
+ src/pkg/runtime/nacl/386/rt0.s         |    8 -
+ src/pkg/runtime/nacl/386/signal.c      |   14 -
+ src/pkg/runtime/nacl/386/sys.s         |  142 -
+ src/pkg/runtime/nacl/defs.c            |   27 -
+ src/pkg/runtime/nacl/mem.c             |   37 -
+ src/pkg/runtime/nacl/os.h              |    9 -
+ src/pkg/runtime/nacl/runtime_defs.go   |   14 -
+ src/pkg/runtime/nacl/signals.h         |    0
+ src/pkg/runtime/nacl/thread.c          |  164 -
+ src/pkg/syscall/Makefile               |    4 -
+ src/pkg/syscall/asm_nacl_386.s         |  119 -
+ src/pkg/syscall/mkerrors_nacl.sh       |   41 -
+ src/pkg/syscall/mksysnum_nacl.sh       |   29 -
+ src/pkg/syscall/syscall_nacl.go        |  357 --
+ src/pkg/syscall/syscall_nacl_386.go    |   19 -
+ src/pkg/syscall/types_nacl.c           |  123 -
+ src/pkg/syscall/zerrors_nacl_386.go    |  246 --
+ src/pkg/syscall/zsyscall_nacl_386.go   |  303 --
+ src/pkg/syscall/zsysnum_nacl_386.go    |   64 -
+ src/pkg/syscall/zsysnum_windows_386.go |    3 +-
+ src/pkg/syscall/ztypes_nacl.go         |    9 -
+ src/pkg/syscall/ztypes_nacl_386.go     |  105 -
+ src/pkg/time/Makefile                  |    3 -
+ test/env.go                            |    1 -
+ test/fixedbugs/bug243.go               |    1 -
+ test/nilptr/arrayindex.go              |    1 -
+ test/nilptr/arrayindex1.go             |    1 -
+ test/nilptr/arraytoslice.go            |    1 -
+ test/nilptr/arraytoslice1.go           |    1 -
+ test/nilptr/arraytoslice2.go           |    1 -
+ test/nilptr/slicearray.go              |    1 -
+ test/nilptr/structfield.go             |    1 -
+ test/nilptr/structfield1.go            |    1 -
+ test/nilptr/structfield2.go            |    1 -
+ test/nilptr/structfieldaddr.go         |    1 -
+ test/nul1.go                           |    1 -
+ test/recover2.go                       |    6 -
+ test/recover3.go                       |    1 -
+ test/sigchld.go                        |    1 -
+ test/zerodivide.go                     |    3 +-
+ 93 files changed, 22 insertions(+), 13668 deletions(-)

@@ -1,0 +1,18 @@
+commit 841a9136b3d737d1252f7c5c371f109f23d76b2d
+Author: Johan Brandhorst <johan.brandhorst@gmail.com>
+Date:   Sat Aug 4 09:45:36 2018 +0100
+
+    strings, bytes: avoid unnecessary function literals
+    
+    A number of explicit function literals found through the
+    unlambda linter are removed.
+    
+    Fixes #26802
+    
+    Change-Id: I0b122bdd95e9cb804c77efe20483fdf681c8154e
+    Reviewed-on: https://go-review.googlesource.com/127756
+    Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
+
+ src/bytes/bytes.go     | 6 +++---
+ src/strings/strings.go | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)

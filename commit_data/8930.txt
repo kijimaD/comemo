@@ -1,0 +1,13 @@
+commit 72a73198dfac573e824d7aeb83be5cae6df45fd2
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sat Jul 2 14:05:43 2011 +1000
+
+    goinstall: documentation for new remote repository behavior and tweaks
+    
+    R=rsc, julian
+    CC=golang-dev
+    https://golang.org/cl/4642049
+
+ src/cmd/goinstall/doc.go      |  66 ++++++++++++++-----
+ src/cmd/goinstall/download.go | 144 ++++++++++++++++++++++++------------------
+ 2 files changed, 135 insertions(+), 75 deletions(-)

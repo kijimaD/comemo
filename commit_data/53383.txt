@@ -1,0 +1,14 @@
+commit 993707a9d62d7541afe47d13caf5e3555e317702
+Author: Keith Randall <khr@golang.org>
+Date:   Tue May 30 12:47:34 2023 -0700
+
+    doc: mention improvements in checking R15 use in assembly when dynamic linking
+    
+    Change-Id: I223649818763c0620875c034a77a8865252e3e69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/499280
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Keith Randall <khr@golang.org>
+
+ doc/go1.21.html | 7 +++++++
+ 1 file changed, 7 insertions(+)

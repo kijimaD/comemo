@@ -1,0 +1,13 @@
+commit 5784dcfd1957419353f03562c53656174c880101
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Mon May 30 11:27:31 2011 +1000
+
+    dashboard: send notification emails when the build breaks
+    
+    R=bradfitz, rsc
+    CC=golang-dev
+    https://golang.org/cl/4530061
+
+ misc/dashboard/godashboard/app.yaml   |  2 +-
+ misc/dashboard/godashboard/gobuild.py | 91 ++++++++++++++++++++++++++++++++---
+ 2 files changed, 86 insertions(+), 7 deletions(-)

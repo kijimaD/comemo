@@ -1,0 +1,17 @@
+commit 819543986d7673b0c21cdc467be8c4ddf266fb57
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Aug 31 16:08:12 2009 -0700
+
+    translate C ld/elf.h into Go
+    
+    R=austin
+    DELTA=1630  (1630 added, 0 deleted, 0 changed)
+    OCL=34001
+    CL=34142
+
+ src/pkg/Make.deps             |    1 +
+ src/pkg/Makefile              |    1 +
+ src/pkg/debug/elf/Makefile    |   12 +
+ src/pkg/debug/elf/elf.go      | 1571 +++++++++++++++++++++++++++++++++++++++++
+ src/pkg/debug/elf/elf_test.go |   49 ++
+ 5 files changed, 1634 insertions(+)

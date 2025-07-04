@@ -1,0 +1,21 @@
+commit d1a3edaee72d6ac7d4e74017dc12d34da153dcbe
+Author: Rob Pike <r@golang.org>
+Date:   Sun Aug 21 09:46:19 2011 +1000
+
+    effective_go: convert to use tmpltohtml.
+    Also update the big example to the new template system.
+    There are a number of other examples that should be
+    extracted; this CL serves as an introduction to the
+    approach.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/4923043
+
+ doc/Makefile          |    7 +
+ doc/effective_go.html |   80 +-
+ doc/effective_go.tmpl | 2980 +++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/makehtml          |    2 +-
+ doc/progs/eff_qr.go   |   47 +
+ doc/progs/run         |    1 +
+ 6 files changed, 3069 insertions(+), 48 deletions(-)

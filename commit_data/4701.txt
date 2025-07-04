@@ -1,0 +1,14 @@
+commit b81065d07f3ab6036f4bc8e5a1fa58464e16fa15
+Author: Rob Pike <r@golang.org>
+Date:   Wed Jan 27 13:14:40 2010 -0800
+
+    add definition of new parameter style
+            ... T
+    for trailing arguments of type T.
+    
+    R=rsc, gri, ken2, iant
+    CC=golang-dev
+    https://golang.org/cl/194100
+
+ doc/go_spec.html | 68 ++++++++++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 51 insertions(+), 17 deletions(-)

@@ -1,0 +1,16 @@
+commit bf89d58e738a492012ee67af0ab57b0a322dea0b
+Author: David Symonds <dsymonds@golang.org>
+Date:   Fri Feb 3 11:15:06 2012 +1100
+
+    encoding/json: call (*T).MarshalJSON for addressable T values.
+    
+    Fixes #2170.
+    
+    R=golang-dev, cw, adg
+    CC=golang-dev
+    https://golang.org/cl/5618045
+
+ src/pkg/encoding/json/decode_test.go | 21 ++++++++++++++++++
+ src/pkg/encoding/json/encode.go      | 14 ++++++++++--
+ src/pkg/encoding/json/encode_test.go | 41 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 74 insertions(+), 2 deletions(-)

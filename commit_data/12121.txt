@@ -1,0 +1,12 @@
+commit 43cfbb0fb50b468830b52a568b283c4514a3c481
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Wed Feb 22 12:45:01 2012 +1100
+
+    godoc: adjust line height in pre blocks
+    
+    R=gri, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5687071
+
+ doc/style.css | 3 +++
+ 1 file changed, 3 insertions(+)

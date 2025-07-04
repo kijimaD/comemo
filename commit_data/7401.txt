@@ -1,0 +1,13 @@
+commit 5e83d40904f35fab8a0e302833ee1fb7ad104cfd
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Wed Feb 9 14:54:54 2011 +1100
+
+    syscall: implement windows version of Fsync
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4158043
+
+ src/pkg/syscall/syscall_windows.go      | 11 ++++++++---
+ src/pkg/syscall/zsyscall_windows_386.go | 16 ++++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)

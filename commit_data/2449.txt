@@ -1,0 +1,18 @@
+commit d4e57ff248bdca4896aca537ba92a329af986e07
+Author: David Symonds <dsymonds@golang.org>
+Date:   Mon Jun 15 18:35:04 2009 -0700
+
+    Fix a proto encoding crasher whereby a nil in a repeated group field would crash the server.
+    
+    Also fix the reflect bug that was exposed by this bug.
+    
+    R=r
+    APPROVED=rsc
+    DELTA=162  (103 added, 32 deleted, 27 changed)
+    OCL=30125
+    CL=30319
+
+ src/pkg/reflect/all_test.go  |  7 +++++++
+ src/pkg/reflect/deepequal.go |  6 ++++++
+ src/pkg/reflect/value.go     | 11 +++++++----
+ 3 files changed, 20 insertions(+), 4 deletions(-)

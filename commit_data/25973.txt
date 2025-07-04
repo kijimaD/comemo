@@ -1,0 +1,15 @@
+commit ed1a5e5da6fc904a612dac710f546bce779186fd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 24 12:53:28 2016 -0800
+
+    cmd/compile: cleanup number lexing
+    
+    Change-Id: Ib0dd458d4ab1c58a2baf36491e288ac32e2ff99e
+    Reviewed-on: https://go-review.googlesource.com/19962
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/lex.go | 235 ++++++++++++++++---------------------
+ test/fixedbugs/issue9036.go        |  16 ++-
+ 2 files changed, 116 insertions(+), 135 deletions(-)

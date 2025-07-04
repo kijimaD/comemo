@@ -1,0 +1,19 @@
+commit f3cdc94154f75880ddd5d47d3cb78121aa622d22
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jul 6 15:22:56 2018 -0700
+
+    cmd/go: search test imports when matching -coverpkg
+    
+    Fixes #25093
+    
+    Change-Id: If283275e2b73621ade56d014e60c2d18199b366c
+    Reviewed-on: https://go-review.googlesource.com/122555
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/go_test.go            | 20 ++++++++++++++++++++
+ src/cmd/go/internal/load/pkg.go  | 38 +++++++++++++++++++++++++++++++++++++-
+ src/cmd/go/internal/test/test.go |  2 +-
+ 3 files changed, 58 insertions(+), 2 deletions(-)

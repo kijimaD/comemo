@@ -1,0 +1,17 @@
+commit d8d3542815a2e63ecd69ffc9edad75e82026a740
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Fri Apr 24 22:00:21 2020 +0000
+
+    internal/goversion: revert "update to 1.15"
+    
+    This reverts CL 230024, commit 5e10ba996915f25e21808eee6baff950d2895634.
+    
+    Reason for revert: breaks cmd/go TestScript/mod_retention
+    
+    Change-Id: I2044beff3008156dd11d7bd8154a6208ae692c57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/230029
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/doc.go                 | 1 -
+ src/internal/goversion/goversion.go | 2 +-
+ 2 files changed, 1 insertion(+), 2 deletions(-)

@@ -1,0 +1,13 @@
+commit 2e4b8d94cdbc044755fb291a148be3aff29b83ec
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Oct 16 13:29:03 2008 -0700
+
+    diagnosed some incorrect
+    inputs for method receivers.
+    
+    R=r
+    OCL=17304
+    CL=17304
+
+ src/cmd/gc/go.y | 25 ++++++++++++++-----------
+ 1 file changed, 14 insertions(+), 11 deletions(-)

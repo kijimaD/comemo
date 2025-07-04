@@ -1,0 +1,18 @@
+commit 1f7e55e418659dc3b5fe66792b85807a7065144f
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Mar 14 20:23:22 2016 -0400
+
+    path, path/filepath: add Join example with joined rooted path
+    
+    This makes clear that Go's path.Join and filepath.Join are different
+    from the Python os.path.join (and perhaps others).
+    
+    Requested in private mail.
+    
+    Change-Id: Ie5dfad8a57f9baa5cca31246af1fd4dd5b1a64ee
+    Reviewed-on: https://go-review.googlesource.com/20711
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/path/example_test.go               |  9 ++++++++-
+ src/path/filepath/example_unix_test.go | 14 ++++++++++++++
+ 2 files changed, 22 insertions(+), 1 deletion(-)

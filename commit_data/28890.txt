@@ -1,0 +1,22 @@
+commit 2a85578b0ecd424e95b29d810b7a414a299fd6a7
+Author: Daniel Theophanes <kardianos@gmail.com>
+Date:   Tue Sep 27 13:27:02 2016 -0700
+
+    database/sql: support returning query database types
+    
+    Creates a ColumnType structure that can be extended in to future.
+    Allow drivers to implement what makes sense for the database.
+    
+    Fixes #16652
+    
+    Change-Id: Ieb1fd64eac1460107b1d3474eba5201fa300a4ec
+    Reviewed-on: https://go-review.googlesource.com/29961
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/database/sql/driver/driver.go |  55 ++++++++++++++++++++
+ src/database/sql/fakedb_test.go   |  59 +++++++++++++++++----
+ src/database/sql/sql.go           | 106 +++++++++++++++++++++++++++++++++++++-
+ src/database/sql/sql_test.go      |  50 ++++++++++++++++++
+ 4 files changed, 259 insertions(+), 11 deletions(-)

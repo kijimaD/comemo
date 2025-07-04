@@ -1,0 +1,13 @@
+commit e5bd12ea90bd5a5727f51ade05c87962ca390670
+Author: Ken Thompson <ken@golang.org>
+Date:   Thu Oct 21 18:15:00 2010 -0700
+
+    bug right shifting 64 bits
+    by a variable that equals 32
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2645042
+
+ src/cmd/5g/cgen64.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

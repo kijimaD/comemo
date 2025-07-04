@@ -1,0 +1,13 @@
+commit 4d2766e9944e2524ece4a1c0e30dd777227aa174
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Sun Jul 31 15:29:10 2011 -0700
+
+    doc: document release.r59
+    
+    R=golang-dev, dsymonds, r, r
+    CC=golang-dev
+    https://golang.org/cl/4835044
+
+ doc/devel/release.html | 107 +++++++++++++++++++++++++++++++++++++++++++++++++
+ doc/devel/weekly.html  |   2 +-
+ 2 files changed, 108 insertions(+), 1 deletion(-)

@@ -1,0 +1,16 @@
+commit f274551f962f982daafd681c0a8a2e6b29e88315
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Feb 20 02:49:58 2012 -0800
+
+    build: remove old version*.go files from hgignore
+    
+    This broke a build on a Linux box I hadn't updated
+    in awhile. The hgignore files were preventing hg status
+    from showing and hg purge from cleaning up junk.
+    
+    R=golang-dev, dsymonds
+    CC=golang-dev
+    https://golang.org/cl/5687048
+
+ .hgignore | 2 --
+ 1 file changed, 2 deletions(-)

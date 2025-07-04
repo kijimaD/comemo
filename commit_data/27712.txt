@@ -1,0 +1,13 @@
+commit 4764d6fd6e64d9d40e7131a3bf4ea0eb1507ef1f
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Jun 22 10:41:30 2016 -0400
+
+    cmd/vet/internal/cfg: don't crash on malformed goto statement
+    
+    Change-Id: Ib285c02e240f02e9d5511bd448163ec1d4e75516
+    Reviewed-on: https://go-review.googlesource.com/24323
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ src/cmd/vet/internal/cfg/builder.go  | 4 +++-
+ src/cmd/vet/internal/cfg/cfg_test.go | 6 ++++++
+ 2 files changed, 9 insertions(+), 1 deletion(-)

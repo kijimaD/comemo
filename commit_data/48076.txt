@@ -1,0 +1,16 @@
+commit 4e2410617d7b13e63e80ad77c9b2d44abaf39e9a
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Feb 3 15:17:00 2022 -0800
+
+    cmd/compile: restrict generics test to -G=3
+    
+    Change-Id: Ifdb4f4f4fab8d45847ca525198b3960f87799f0c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/383034
+    Trust: Keith Randall <khr@golang.org>
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+
+ test/typeparam/issue50993.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

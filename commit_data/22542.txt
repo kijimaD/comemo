@@ -1,0 +1,14 @@
+commit 015c7608932d98255dbaa34b6954e80441ac8efe
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Apr 14 15:22:02 2015 -0700
+
+    os: clarify that ModePerm permission bits are the Unix ones
+    
+    Fixes #7075
+    
+    Change-Id: I57fcebaaef768b00263b6b91211b1434f6a4b229
+    Reviewed-on: https://go-review.googlesource.com/8919
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/os/types.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

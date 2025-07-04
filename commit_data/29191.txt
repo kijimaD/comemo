@@ -1,0 +1,18 @@
+commit 58e2edafb718718225056530a7a09ee3e08a96d1
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 18 10:01:56 2016 -0400
+
+    cmd/compile: lower slice clears to memclrHasPointers
+    
+    If a slice's backing store has pointers, we need to lower clears of
+    that slice to memclrHasPointers instead of memclrNoHeapPointers.
+    
+    Updates #17503.
+    
+    Change-Id: I20750e4bf57f7b8862f3d898bfb32d964b91d07b
+    Reviewed-on: https://go-review.googlesource.com/31450
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/cmd/compile/internal/gc/range.go | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

@@ -1,0 +1,17 @@
+commit ab0d2582b475751ef0f81adff13e616067250b1b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Dec 18 09:55:33 2008 -0800
+
+    - fixed a bug in Natural.And()
+    - removed some non-beneficial factorization and reduced number of array slices per
+      operations significantly
+    - reduced line count
+    - benchhil benchmark time reduced by ~2%
+    
+    R=r
+    DELTA=313  (106 added, 163 deleted, 44 changed)
+    OCL=21473
+    CL=21497
+
+ src/lib/bignum.go | 315 ++++++++++++++++++++++--------------------------------
+ 1 file changed, 129 insertions(+), 186 deletions(-)

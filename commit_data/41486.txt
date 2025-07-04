@@ -1,0 +1,19 @@
+commit ff811c8396818b94301f6c7b78310ea5e1167381
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jan 13 11:11:06 2020 -0500
+
+    cmd/go: convert TestGoTestRaceInstallsCgo to script framework
+    
+    Part of converting all tests to script framework to improve
+    test parallelism.
+    
+    Updates #36320
+    Updates #17751
+    
+    Change-Id: I9a99aa5d37300c83a2f95fb906949cb4c1d5356f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/214426
+    Reviewed-by: Jay Conrod <jayconrod@google.com>
+
+ src/cmd/go/go_test.go                              | 31 --------
+ .../go/testdata/script/test_race_install_cgo.txt   | 91 ++++++++++++++++++++++
+ 2 files changed, 91 insertions(+), 31 deletions(-)

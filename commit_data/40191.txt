@@ -1,0 +1,44 @@
+commit 1fba10c999613e8c04cef7f1331ff0051bfa7057
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Mon Jul 1 18:30:01 2019 +0200
+
+    cmd/go: fail if a test binary exits with no output
+    
+    For example, if a test calls os.Exit(0), that could trick a 'go test'
+    run into not running some of the other tests, and thinking that they all
+    succeeded. This can easily go unnoticed and cause developers headaches.
+    
+    Add a simple sanity check as part of 'go test': if the test binary
+    succeeds and doesn't print anything, we should error, as something
+    clearly went very wrong.
+    
+    This is done by inspecting each of the stdout writes from the spawned
+    process, since we don't want to read the entirety of the output into a
+    buffer. We need to introduce a "buffered" bool var, as there's now an
+    io.Writer layer between cmd.Stdout and &buf.
+    
+    A few TestMain funcs in the standard library needed fixing, as they
+    returned without printing anything as a means to skip testing the entire
+    package. For that purpose add testenv.MainMust, which prints a warning
+    and prints SKIP, similar to when -run matches no tests.
+    
+    Finally, add tests for both os.Exit(0) and os.Exit(1), both as part of
+    TestMain and as part of a single test, and test that the various stdout
+    modes still do the right thing.
+    
+    Fixes #29062.
+    
+    Change-Id: Ic6f8ef3387dfc64e4cd3e8f903d7ca5f5f38d397
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/184457
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/test/test.go         |  37 +++++++-
+ src/cmd/go/testdata/script/test_exit.txt | 152 +++++++++++++++++++++++++++++++
+ src/cmd/internal/goobj/goobj_test.go     |   4 +-
+ src/cmd/nm/nm_test.go                    |   4 +-
+ src/cmd/objdump/objdump_test.go          |   4 +-
+ src/go/build/deps_test.go                |   2 +-
+ src/internal/testenv/testenv.go          |   9 ++
+ 7 files changed, 200 insertions(+), 12 deletions(-)

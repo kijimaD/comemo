@@ -1,0 +1,13 @@
+commit 036640fab79903273ca0f8b24bb5ac3f539f1bfc
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Sep 20 12:24:36 2012 -0400
+
+    A+C: Add Andrew Harding  (Individual CLA)
+    
+    R=golang-dev, iant
+    CC=golang-dev
+    https://golang.org/cl/6544044
+
+ AUTHORS      | 1 +
+ CONTRIBUTORS | 1 +
+ 2 files changed, 2 insertions(+)

@@ -1,0 +1,15 @@
+commit 54b63f06478d390d69fc826a16ab19dc6b5d5503
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Sep 18 21:50:22 2014 -0400
+
+    path/filepath: document that Glob ignores i/o errors
+    
+    Fixes #8008.
+    
+    LGTM=adg
+    R=golang-codereviews, nightlyone, adg
+    CC=golang-codereviews
+    https://golang.org/cl/138630045
+
+ src/path/filepath/match.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

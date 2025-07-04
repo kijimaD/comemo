@@ -1,0 +1,30 @@
+commit a8d45a72eb7a204ff9e8189eb54d7ea3da1ea7a7
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Wed Aug 30 10:48:09 2023 -0400
+
+    net: skip TestDialTimeout subtests on Windows if Dial returns WSAECONNREFUSED
+    
+    Since we have only seen this failure mode on windows/arm64,
+    we do not skip on the Go project's windows/amd64 builders
+    so that we will be more likely to find out whether this failure mode
+    is specific to arm64.
+    
+    Also simplify the ECONNRESET check, since I've remembered that the
+    error_*_test.go files exist.
+    
+    Fixes #62359.
+    Updates #56876.
+    
+    Change-Id: I17bd678486f3d3ec3363a45986a711f570b013d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524455
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+
+ src/net/error_plan9_test.go   |  8 ++++++++
+ src/net/error_unix_test.go    |  8 ++++++++
+ src/net/error_windows_test.go |  9 +++++++++
+ src/net/timeout_test.go       | 10 ++++++++--
+ 4 files changed, 33 insertions(+), 2 deletions(-)

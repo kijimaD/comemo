@@ -1,0 +1,14 @@
+commit bcdafaa582017ad7cd32739e564cedd6d0a5a83b
+Author: Shenghou Ma <minux.ma@gmail.com>
+Date:   Wed Apr 4 00:04:36 2012 +0800
+
+    5c, 6c, 8c: take GOROOT_FINAL into consideration
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/5936050
+
+ src/cmd/5c/swt.c | 31 +++++++++++++++++++++++++++++++
+ src/cmd/6c/swt.c | 31 +++++++++++++++++++++++++++++++
+ src/cmd/8c/swt.c | 31 +++++++++++++++++++++++++++++++
+ 3 files changed, 93 insertions(+)

@@ -1,0 +1,17 @@
+commit 895c5db6df786e9312d187f27d6a4538afd4b0b1
+Author: Rob Pike <r@golang.org>
+Date:   Thu Aug 5 13:31:10 2010 +1000
+
+    sync: add sync.Once, a proposed replacement for package once.
+    This implementation is simpler and more useful, since it can work
+    with methods.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/1864051
+
+ src/pkg/sync/Makefile     |  1 +
+ src/pkg/sync/mutex.go     |  7 ++++---
+ src/pkg/sync/once.go      | 32 ++++++++++++++++++++++++++++++++
+ src/pkg/sync/once_test.go | 37 +++++++++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 3 deletions(-)

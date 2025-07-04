@@ -1,0 +1,25 @@
+commit 8a1519249fb482c9ae0831913d7a963e052cb97a
+Author: Adam Langley <agl@golang.org>
+Date:   Thu Feb 22 14:40:03 2018 -0800
+
+    crypto/x509: support the PSS certificates that OpenSSL 1.1.0 generates.
+    
+    It serialises optional parameters as empty rather than NULL. It's
+    probably technically correct, although ASN.1 has a long history of doing
+    this different ways.
+    
+    But OpenSSL is likely common enough that we want to support this
+    encoding.
+    
+    Fixes #23847
+    
+    Change-Id: I81c60f0996edfecf59467dfdf75b0cf8ba7b1efb
+    Reviewed-on: https://go-review.googlesource.com/96417
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/crypto/x509/x509.go      |  4 ++--
+ src/crypto/x509/x509_test.go | 53 +++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 45 insertions(+), 12 deletions(-)

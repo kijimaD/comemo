@@ -1,0 +1,16 @@
+commit 0f7acf111452fe7168221885fea778312ad4826c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 19 14:38:49 2011 -0700
+
+    go spec: attempt at clarifying language for "append"
+    
+    Specifically, fix a wrong comment.
+    
+    Fixes #1717.
+    
+    R=r, rsc
+    CC=golang-dev
+    https://golang.org/cl/4445050
+
+ doc/go_spec.html | 14 +++++++++-----
+ 1 file changed, 9 insertions(+), 5 deletions(-)

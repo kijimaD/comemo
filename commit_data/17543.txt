@@ -1,0 +1,32 @@
+commit 80a153dd5189d8bbc9d090f0ef0691c224d8b0a1
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Sep 10 14:53:41 2013 -0400
+
+    cmd/6l, cmd/8l: fix MOVL MOVQ optab
+    
+    The entry for LEAL/LEAQ in these optabs was listed as having
+    two data bytes in the y array. In fact they had and expect no data
+    bytes. However, the general loop expects to be able to look at at
+    least one data byte, to make sure it is not 0x0f. So give them each
+    a single data byte set to 0 (not 0x0f).
+    
+    Since the MOV instructions have the largest optab cases, this
+    requires growing the size of the data array.
+    
+    Clang found this bug because the general o->op[z] == 0x0f
+    test was using z == 22, which was out of bounds.
+    
+    In practice the next byte in memory was probably not 0x0f
+    so it wasn't truly broken. But might as well be clean.
+    
+    Update #5764
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/13241050
+
+ src/cmd/6l/l.h     |  2 +-
+ src/cmd/6l/optab.c |  6 +++---
+ src/cmd/8l/l.h     |  2 +-
+ src/cmd/8l/optab.c | 17 ++++++++++++++---
+ 4 files changed, 19 insertions(+), 8 deletions(-)

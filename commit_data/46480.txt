@@ -1,0 +1,20 @@
+commit 3fa7dbeff53b56edd98f295bd0c34423c080ac57
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Sep 17 22:34:15 2021 +0200
+
+    cmd/go: fix GOARCH value in GOAMD64 docs
+    
+    GOAMD64 is for GOARCH=amd64. Fix the GOAMD64 environment variable docs
+    introduced by CL 349595.
+    
+    Change-Id: I794990ebe2e306d21ed275446fc52373bfe4ae7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/350534
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/alldocs.go               | 2 +-
+ src/cmd/go/internal/help/helpdoc.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)

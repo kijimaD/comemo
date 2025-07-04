@@ -1,0 +1,15 @@
+commit fcf45174232be8a151cacc49efc87f82a0a8145b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jan 25 10:06:18 2010 -0800
+
+    Scoping snapshot.
+    - separate parsing from declaration
+    - setup of correct scopes
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/189098
+
+ src/pkg/go/ast/Makefile     |   2 +-
+ src/pkg/go/parser/parser.go | 206 ++++++++++++++++++++++++++++----------------
+ 2 files changed, 134 insertions(+), 74 deletions(-)

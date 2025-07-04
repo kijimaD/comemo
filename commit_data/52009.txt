@@ -1,0 +1,24 @@
+commit 0e42632301f17ae384e2cc1edb273860ed8f9fac
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 9 14:29:49 2023 -0800
+
+    cmd/compile: share compiler allocations of similar shapes
+    
+    Use the same allocator for, e.g., []int32 and []int8. Anything with
+    similar base shapes and be coerced into a single allocator, which helps
+    reuse memory more often.
+    
+    There is not much unsafe in the compiler currently. This adds quite a bit,
+    joining cmd/compiler/internal/base/mapfile_mmap.go and some unsafe.Sizeof calls.
+    
+    Change-Id: I95d6d6e47c42b9f0a45f3556f4d7605735e65d99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/461084
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: Keith Randall <khr@golang.org>
+
+ src/cmd/compile/internal/ssa/_gen/allocators.go | 133 +++++----
+ src/cmd/compile/internal/ssa/allocators.go      | 378 +++++++++++-------------
+ src/cmd/compile/internal/ssa/cache.go           |   7 +-
+ 3 files changed, 254 insertions(+), 264 deletions(-)

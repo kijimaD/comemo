@@ -1,0 +1,12 @@
+commit 60dac9b3db4aa1771ba1d843fa94928b4ff515b8
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jul 29 13:31:42 2011 -0400
+
+    CONTRIBUTORS: add Joel Sing (Google CLA)
+    
+    R=golang-dev, r
+    CC=golang-dev, jsing
+    https://golang.org/cl/4830044
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

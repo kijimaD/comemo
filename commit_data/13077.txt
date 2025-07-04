@@ -1,0 +1,12 @@
+commit 6f6bbdf9b7de15b68b52649be35cd8b62a2edb9d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue May 15 13:29:46 2012 -0700
+
+    test: add bug439, valid code that caused a gccgo crash
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/6198075
+
+ test/fixedbugs/bug439.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)

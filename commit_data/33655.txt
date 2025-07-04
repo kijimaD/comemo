@@ -1,0 +1,21 @@
+commit 3fec6da0ab544bfa3a3b3d9988df20739b40dd49
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 21 15:24:12 2017 -0800
+
+    internal/poll: loop on EINTR in Read on Darwin
+    
+    Test is in os/signal package because the problem is signal related.
+    
+    Fixes #22838.
+    
+    Change-Id: I223eeebb5fbc972910737eddef8ab9784cb984a6
+    Reviewed-on: https://go-review.googlesource.com/79215
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go         |   3 +
+ src/internal/poll/fd_unix.go      |   7 ++
+ src/os/signal/internal/pty/pty.go |  42 +++++++++++
+ src/os/signal/signal_cgo_test.go  | 145 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 197 insertions(+)

@@ -1,0 +1,14 @@
+commit 676f9dfa067ec4990b45c7f91364c680d04beb99
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jan 7 14:36:54 2010 +1100
+
+    make Format about twice as fast by removing allocations, using a bytes.Buffer
+    add a benchmark
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/181164
+
+ src/pkg/time/format.go    | 52 +++++++++++++++++++----------------------------
+ src/pkg/time/time_test.go |  7 +++++++
+ 2 files changed, 28 insertions(+), 31 deletions(-)

@@ -1,0 +1,62 @@
+commit 5f40351708cabe28f90500be87dbe316a2280f4a
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Sun Nov 25 17:30:36 2018 +0000
+
+    encoding/base64: speed up the decoder
+    
+    Most of the decoding time is spent in the first Decode loop, since the
+    rest of the function only deals with the few remaining bytes. Any
+    unnecessary work done in that loop body matters tremendously.
+    
+    One such unnecessary bottleneck was the use of the enc.decodeMap table.
+    Since enc is a pointer receiver, and the field is used within the
+    non-inlineable function decode64, the decoder must perform a nil check
+    at every iteration.
+    
+    To fix that, move the enc.decodeMap uses to the parent function, where
+    we can lift the nil check outside the loop. That gives roughly a 15%
+    speed-up. The function no longer performs decoding per se, so rename it.
+    While at it, remove the now unnecessary receivers.
+    
+    An unfortunate side effect of this change is that the loop now contains
+    eight bounds checks on src instead of just one. However, not having to
+    slice src plus the nil check removal well outweigh the added cost.
+    
+    The other piece that made decode64 slow was that it wasn't inlined, and
+    had multiple branches. Use a simple bitwise-or trick suggested by Roger
+    Peppe, and collapse the rest of the bitwise logic into a single
+    expression. Inlinability and the reduced branching give a further 10%
+    speed-up.
+    
+    Finally, add these two functions to TestIntendedInlining, since we want
+    them to stay inlinable.
+    
+    Apply the same refactor to decode32 for consistency, and to let 32-bit
+    architectures see a similar performance gain for large inputs.
+    
+    name                 old time/op    new time/op    delta
+    DecodeString/2-8       47.3ns ± 1%    45.8ns ± 0%   -3.28%  (p=0.002 n=6+6)
+    DecodeString/4-8       55.8ns ± 2%    51.5ns ± 0%   -7.71%  (p=0.004 n=5+6)
+    DecodeString/8-8       64.9ns ± 0%    61.7ns ± 0%   -4.99%  (p=0.004 n=5+6)
+    DecodeString/64-8       238ns ± 0%     198ns ± 0%  -16.54%  (p=0.002 n=6+6)
+    DecodeString/8192-8    19.5µs ± 0%    14.6µs ± 0%  -24.96%  (p=0.004 n=6+5)
+    
+    name                 old speed      new speed      delta
+    DecodeString/2-8     84.6MB/s ± 1%  87.4MB/s ± 0%   +3.38%  (p=0.002 n=6+6)
+    DecodeString/4-8      143MB/s ± 2%   155MB/s ± 0%   +8.41%  (p=0.004 n=5+6)
+    DecodeString/8-8      185MB/s ± 0%   195MB/s ± 0%   +5.29%  (p=0.004 n=5+6)
+    DecodeString/64-8     369MB/s ± 0%   442MB/s ± 0%  +19.78%  (p=0.002 n=6+6)
+    DecodeString/8192-8   560MB/s ± 0%   746MB/s ± 0%  +33.27%  (p=0.004 n=6+5)
+    
+    Updates #19636.
+    
+    Change-Id: Ib839577b0e3f5a2bb201f5cae580c61365d92894
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/151177
+    Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: roger peppe <rogpeppe@gmail.com>
+
+ src/cmd/compile/internal/gc/inl_test.go |   4 ++
+ src/encoding/base64/base64.go           | 112 +++++++++++++++-----------------
+ 2 files changed, 56 insertions(+), 60 deletions(-)

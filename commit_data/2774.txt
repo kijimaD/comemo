@@ -1,0 +1,13 @@
+commit 5a74c0b6ba5e4d3398eafe5bda3d8faf7d00b751
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jul 21 16:38:56 2009 -0700
+
+    do not use ONONAMEs for line number information,
+    just like ONAME etc.
+    
+    R=ken
+    OCL=31964
+    CL=31964
+
+ src/cmd/gc/subr.c | 1 +
+ 1 file changed, 1 insertion(+)

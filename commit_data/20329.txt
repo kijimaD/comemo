@@ -1,0 +1,16 @@
+commit 8a7597fd7a28cd408852e227661044b31d525032
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Sep 7 07:23:18 2014 -0400
+
+    runtime: fix nacl/amd64p32 build
+    
+    Update #8675
+    Fixes nacl/amd64p32 build.
+    
+    TBR=khr
+    CC=golang-codereviews
+    https://golang.org/cl/141140045
+
+ src/liblink/obj6.c             | 22 ++++++++++++++++++++++
+ src/pkg/runtime/asm_amd64p32.s | 16 +++-------------
+ 2 files changed, 25 insertions(+), 13 deletions(-)

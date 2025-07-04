@@ -1,0 +1,12 @@
+commit 3a317183a140c6804ce1729f8f456075faf7252f
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Feb 16 10:15:10 2012 +1100
+
+    net/http: add some examples
+    
+    R=golang-dev, dsymonds, adg, rogpeppe, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5673052
+
+ src/pkg/net/http/example_test.go | 51 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 51 insertions(+)

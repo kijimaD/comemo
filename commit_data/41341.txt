@@ -1,0 +1,18 @@
+commit 60651a1bc8540d9144e69fc71065f4994dfb0bbc
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Wed Jan 22 09:59:24 2020 -0800
+
+    cmd/compile: add rule location to some rulegen logging
+    
+    This requires threading location information through varCount.
+    
+    This provides much more useful error messages.
+    
+    Change-Id: If5ff942cbbbf386724eda15a523c181c137fac20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/216221
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+
+ src/cmd/compile/internal/ssa/gen/rulegen.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)

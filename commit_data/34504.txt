@@ -1,0 +1,12 @@
+commit ed8b7a778573727da7362d2107050058fb07bf0b
+Author: Kunpei Sakai <namusyaka@gmail.com>
+Date:   Thu Mar 8 01:51:09 2018 +0900
+
+    cmd/compile: go fmt
+    
+    Change-Id: I2eae33928641c6ed74badfe44d079ae90e5cc8c8
+    Reviewed-on: https://go-review.googlesource.com/99195
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/compile/internal/ssa/cache.go | 1 -
+ 1 file changed, 1 deletion(-)

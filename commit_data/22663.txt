@@ -1,0 +1,24 @@
+commit edc53e1f144fe5d1be8c787992ea6e9d9067ebf6
+Author: Shenghou Ma <minux@golang.org>
+Date:   Wed Apr 22 18:03:18 2015 -0400
+
+    runtime: fix build after CL 9164 on Linux
+    
+    There is an assumption that the function executed in child thread
+    created by runtime.close should not return. And different systems
+    enforce that differently: some exit that thread, some exit the
+    whole process.
+    
+    The test TestNewOSProc0 introduced in CL 9161 breaks that assumption,
+    so we need to adjust the code to only exit the thread should the
+    called function return.
+    
+    Change-Id: Id631cb2f02ec6fbd765508377a79f3f96c6a2ed6
+    Reviewed-on: https://go-review.googlesource.com/9246
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/sys_linux_amd64.s  | 2 +-
+ src/runtime/sys_linux_arm.s    | 2 +-
+ src/runtime/sys_linux_arm64.s  | 4 ++--
+ src/runtime/sys_linux_ppc64x.s | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)

@@ -1,0 +1,13 @@
+commit 032acb3a1fdaff2899273c49e1b89ef3d56d80b7
+Author: Andrew Bonventre <andybons@golang.org>
+Date:   Thu Mar 14 16:44:38 2019 -0400
+
+    doc: add minor revisions header for 1.12
+    
+    Change-Id: I0d4a55af0bee754ab1ee817780027e9f72475afb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/167711
+    Reviewed-by: Katie Hockman <katiehockman@google.com>
+    Reviewed-by: Katie Hockman <katie@golang.org>
+
+ doc/devel/release.html | 2 ++
+ 1 file changed, 2 insertions(+)

@@ -1,0 +1,55 @@
+commit 7e5804cb7014bf3154542a3d2afc68c3a61b7452
+Author: Heschi Kreinick <heschi@google.com>
+Date:   Wed Mar 16 18:17:58 2022 -0400
+
+    cmd: update vendored pprof
+    
+      go get github.com/google/pprof@latest
+      go mod vendor
+    
+    Plus a tiny change to the pprof command to match an upstream interface
+    change.
+    
+    Updates #36905.
+    
+    Change-Id: I4c7bbe8c317a6eeb217fce971b208f96ab0727fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/393370
+    Trust: Heschi Kreinick <heschi@google.com>
+    Run-TryBot: Heschi Kreinick <heschi@google.com>
+    Auto-Submit: Heschi Kreinick <heschi@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Heschi Kreinick <heschi@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/go.mod                                     |    2 +-
+ src/cmd/go.sum                                     |    4 +-
+ src/cmd/pprof/pprof.go                             |    2 +-
+ .../github.com/google/pprof/driver/driver.go       |   10 +-
+ .../google/pprof/internal/binutils/binutils.go     |   38 +-
+ .../github.com/google/pprof/internal/driver/cli.go |    2 +-
+ .../google/pprof/internal/driver/fetch.go          |    6 +-
+ .../google/pprof/internal/driver/webhtml.go        |   21 +-
+ .../google/pprof/internal/elfexec/elfexec.go       |    6 +-
+ .../google/pprof/internal/graph/dotgraph.go        |    4 +-
+ .../google/pprof/internal/plugin/plugin.go         |    6 +-
+ .../google/pprof/internal/report/report.go         |    2 +-
+ .../google/pprof/internal/report/source.go         |    2 +-
+ .../google/pprof/internal/symbolizer/symbolizer.go |    5 +-
+ .../github.com/google/pprof/profile/encode.go      |    9 +
+ .../github.com/google/pprof/profile/merge.go       |   21 +-
+ .../github.com/google/pprof/profile/profile.go     |    9 +
+ .../github.com/google/pprof/third_party/d3/LICENSE |   27 -
+ .../google/pprof/third_party/d3/README.md          |  119 -
+ .../github.com/google/pprof/third_party/d3/d3.go   | 4675 --------------------
+ .../{LICENSE => D3_FLAME_GRAPH_LICENSE}            |    0
+ .../pprof/third_party/d3flamegraph/D3_LICENSE      |   13 +
+ .../pprof/third_party/d3flamegraph/README.md       |   33 +
+ .../third_party/d3flamegraph/d3_flame_graph.go     |  976 +---
+ .../google/pprof/third_party/d3flamegraph/index.js |   13 +
+ .../third_party/d3flamegraph/package-lock.json     | 1106 +++++
+ .../pprof/third_party/d3flamegraph/package.json    |   17 +
+ .../pprof/third_party/d3flamegraph/update.sh       |   62 +
+ .../third_party/d3flamegraph/webpack.config.js     |   13 +
+ src/cmd/vendor/modules.txt                         |    3 +-
+ 30 files changed, 1361 insertions(+), 5845 deletions(-)

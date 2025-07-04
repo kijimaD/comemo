@@ -1,0 +1,26 @@
+commit c7065bb9db1981b32d2f1c9ca1de7aae1f7d4a38
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Mar 7 15:37:14 2024 -0600
+
+    cmd/compile/internal: generate ADDZE on PPC64
+    
+    This usage shows up in quite a few places, and helps reduce
+    register pressure in several complex cryto functions by
+    removing a MOVD $0,... instruction.
+    
+    Change-Id: I9444ea8f9d19bfd68fb71ea8dc34e109681b3802
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571055
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Paul Murphy <murp@ibm.com>
+
+ src/cmd/compile/internal/ppc64/ssa.go         |  7 +++++++
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  1 +
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go         | 17 +++++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 15 +++++++++++++++
+ test/codegen/mathbits.go                      | 10 ++++++++++
+ 6 files changed, 52 insertions(+)

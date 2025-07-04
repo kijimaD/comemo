@@ -1,0 +1,22 @@
+commit 1f631a2f9a20d8dc57fb877fb95f807c895d1c40
+Author: Dmitry Vyukov <dvyukov@google.com>
+Date:   Tue Jun 13 13:54:46 2017 +0200
+
+    cmd/go: parallelize fmt
+    
+    Currently go fmt formats all files sequentially.
+    That's a shame. Parallelize it over files.
+    
+    Reduces time of go fmt ./... in std lib
+    from ~6.1s to ~0.9s.
+    
+    Reduces time of go fmt github.com/google/syzkaller/...
+    from ~5.2s to ~1.8s.
+    
+    Change-Id: I3d27fc25326106b2a4781e13506a25c12d5bcdc5
+    Reviewed-on: https://go-review.googlesource.com/45491
+    Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/go/internal/fmtcmd/fmt.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)

@@ -1,0 +1,18 @@
+commit 388d5330ac64eb4f2e3ad0635bf1a440c07923ca
+Author: Dmitriy Vyukov <dvyukov@google.com>
+Date:   Fri Apr 11 13:01:10 2014 +0400
+
+    net/http/httptest: add test for issue 7264
+    The test fails now with -race, so it's disabled.
+    The intention is that the fix for issue 7264
+    will also modify this test the same way and enable it.
+    Reporduce with 'go test -race -issue7264 -cpu=4'.
+    Update #7264
+    
+    LGTM=bradfitz
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/86770043
+
+ src/pkg/net/http/httptest/server_test.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)

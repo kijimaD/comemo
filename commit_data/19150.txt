@@ -1,0 +1,14 @@
+commit c8ef6776e49d5dddd7d328fee2dde522197f2cdc
+Author: Rob Pike <r@golang.org>
+Date:   Tue Apr 15 16:40:48 2014 -0700
+
+    doc/install.html: FreeBSD 8 and higher only are supported
+    Fixes #7188
+    
+    LGTM=adg
+    R=golang-codereviews, adg
+    CC=golang-codereviews
+    https://golang.org/cl/88280044
+
+ doc/install.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

@@ -1,0 +1,23 @@
+commit 991a85c88944e9cb92c4860c173f49d549a92845
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 11 11:47:14 2016 -0400
+
+    runtime: make mSpanList more go:notinheap-friendly
+    
+    Currently mspan links to its previous mspan using a **mspan field that
+    points to the previous span's next field. This simplifies some of the
+    list manipulation code, but is going to make it very hard to convince
+    the compiler that mspan list manipulations don't need write barriers.
+    
+    Fix this by using a more traditional ("boring") linked list that uses
+    a simple *mspan pointer to the previous mspan. This complicates some
+    of the list manipulation slightly, but it will let us eliminate all
+    write barriers from the mspan list manipulation code by marking mspan
+    go:notinheap.
+    
+    Change-Id: I0d0b212db5f20002435d2a0ed2efc8aa0364b905
+    Reviewed-on: https://go-review.googlesource.com/30940
+    Reviewed-by: Rick Hudson <rlh@golang.org>
+
+ src/runtime/mheap.go | 44 ++++++++++++++++++++++++++------------------
+ 1 file changed, 26 insertions(+), 18 deletions(-)

@@ -1,0 +1,14 @@
+commit c0fa9e3f6ff0c63d063d81c859a7f87a519a4182
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Apr 20 15:31:07 2015 -0700
+
+    runtime/pprof: disable flaky TestTraceFutileWakeup on linux/ppc64le
+    
+    Update #10512.
+    
+    Change-Id: Ifdc59c3a5d8aba420b34ae4e37b3c2315dd7c783
+    Reviewed-on: https://go-review.googlesource.com/9162
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+
+ src/runtime/pprof/trace_test.go | 4 ++++
+ 1 file changed, 4 insertions(+)

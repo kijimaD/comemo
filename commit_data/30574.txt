@@ -1,0 +1,22 @@
+commit 68177d9ec034b5d2f0ef35fa1a225616c2af3827
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Mon Mar 6 07:32:37 2017 -0800
+
+    cmd/internal/obj: move dwarf.Var generation into compiler
+    
+    Passes toolstash -cmp.
+    
+    Change-Id: I4bd60f7ebba5457e7b3ece688fee2351bfeeb59a
+    Reviewed-on: https://go-review.googlesource.com/37874
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+
+ src/cmd/compile/fmt_test.go         |  1 +
+ src/cmd/compile/internal/gc/main.go |  1 +
+ src/cmd/compile/internal/gc/pgen.go | 52 +++++++++++++++++++++---------
+ src/cmd/internal/obj/link.go        |  2 ++
+ src/cmd/internal/obj/objfile.go     | 63 +++++++++----------------------------
+ src/cmd/internal/obj/plist.go       |  2 +-
+ 6 files changed, 57 insertions(+), 64 deletions(-)

@@ -1,0 +1,12 @@
+commit 36b6d1aaf20fa78532f83df48ebf1a12a2dd81af
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Tue Apr 12 16:21:01 2011 -0400
+
+    8l: correct Plan 9 compiler warnings
+    
+    R=golang-dev, rsc
+    CC=golang-dev
+    https://golang.org/cl/4390047
+
+ src/cmd/8l/asm.c | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)

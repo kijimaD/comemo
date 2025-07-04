@@ -1,0 +1,14 @@
+commit 8d50557979b30c277c7c846bb61f6d1a0466db4a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Dec 7 16:45:06 2010 -0500
+
+    cc: allow $ as letter in pragma arguments
+    
+    (Needed for Mac OS X symbol names.)
+    
+    R=ken2
+    CC=golang-dev
+    https://golang.org/cl/3499041
+
+ src/cmd/cc/macbody | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

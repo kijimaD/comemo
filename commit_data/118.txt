@@ -1,0 +1,11 @@
+commit fc184ef8872da96bfd5414da6cea1aaf5a74b6a7
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 6 17:35:08 2008 -0700
+
+    - forward decl bug
+    
+    SVN=121561
+
+ test/bugs/bug043.go | 21 +++++++++++++++++++++
+ test/golden.out     |  5 +++++
+ 2 files changed, 26 insertions(+)

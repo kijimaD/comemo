@@ -1,0 +1,14 @@
+commit 96a6bd4bf6281a57c933bdcc1da96a7608cf20d7
+Author: Elias Naur <elias.naur@gmail.com>
+Date:   Fri Nov 30 12:09:59 2018 +0100
+
+    cmd/go/internal/lockedfile/internal/filelock: fix test on iOS
+    
+    Change-Id: I0390b382db0ca36de20af0ef15204c5bfc084d3d
+    Reviewed-on: https://go-review.googlesource.com/c/151937
+    Run-TryBot: Elias Naur <elias.naur@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go | 3 +++
+ 1 file changed, 3 insertions(+)

@@ -1,0 +1,26 @@
+commit 7e43aee3016006fb74760d1936fb1ce6d2d08560
+Author: Shenghou Ma <minux@golang.org>
+Date:   Tue Feb 3 12:59:40 2015 -0500
+
+    net: document that user shouldn't modify returned Addr
+    
+    Ideally, those methods should return a copy of the Addr, but
+    due to the Go 1 API guarantee, we cannot make that change now:
+    there might exist client code that uses the returned Addr as
+    map index and thus relies on the fact that different invocation
+    of the method returns the same pointer. Changing this behavior
+    will lead to hidden behaviour change in those programs.
+    
+    Update #9654.
+    
+    Change-Id: Iad4235f2ed7789b3a3c8e0993b9718cf0534ea2b
+    Reviewed-on: https://go-review.googlesource.com/3851
+    Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/net/net.go            | 4 ++++
+ src/net/tcpsock_plan9.go  | 2 ++
+ src/net/tcpsock_posix.go  | 2 ++
+ src/net/unixsock_plan9.go | 2 ++
+ src/net/unixsock_posix.go | 2 ++
+ 5 files changed, 12 insertions(+)

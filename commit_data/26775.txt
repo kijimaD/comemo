@@ -1,0 +1,19 @@
+commit 9cc9e95b288648d796d92f0b92cb713b35f20062
+Author: Dave Cheney <dave@cheney.net>
+Date:   Thu Apr 7 14:05:06 2016 +0000
+
+    Revert "runtime: merge lfstack{Pack,Unpack} into one file"
+    
+    This broke solaris, which apparently does use the upper 17 bits of the address space.
+    
+    This reverts commit 3b02c5b1b66df9cdb23d5a3243bb37b2c312ea1b.
+    
+    Change-Id: Iedfe54abd0384960845468205f20191a97751c0b
+    Reviewed-on: https://go-review.googlesource.com/21652
+    Reviewed-by: Dave Cheney <dave@cheney.net>
+
+ src/runtime/lfstack.go       | 35 -----------------------------------
+ src/runtime/lfstack_32bit.go | 19 +++++++++++++++++++
+ src/runtime/lfstack_64bit.go | 33 +++++++++++++++++++++++++++++++++
+ src/runtime/lfstack_amd64.go | 22 ++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 35 deletions(-)

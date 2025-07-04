@@ -1,0 +1,27 @@
+commit 41b9e99d5bfbea795a53fa260ef2c8c1cb8bdb3e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Jun 21 09:06:56 2019 -0700
+
+    cmd/gofmt: fix normalization of imaginary number literals
+    
+    The old code only normalized decimal integer imaginary number
+    literals. But with the generalized imaginary number syntax,
+    the number value may be decimal, binary, octal, or hexadecimal,
+    integer or floating-point.
+    
+    The new code only looks at the number pattern. Only for decimal
+    integer imaginary literals do we need to strip leading zeroes.
+    The remaining normalization code simply ignore the 'i' suffix.
+    As a result, the new code is both simpler and shorter.
+    
+    Fixes #32718.
+    
+    Change-Id: If43fc962a48ed62002e65d5c81fddbb9bd283984
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/183378
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/gofmt/gofmt.go                   | 75 ++++++++++++--------------------
+ src/cmd/gofmt/testdata/go2numbers.golden | 18 +++++++-
+ src/cmd/gofmt/testdata/go2numbers.input  | 16 +++++++
+ src/math/cmplx/cmath_test.go             |  2 +-
+ 4 files changed, 63 insertions(+), 48 deletions(-)

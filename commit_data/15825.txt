@@ -1,0 +1,26 @@
+commit 24f476409cf92193471006e0224b14cc6b3884a3
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Tue Mar 19 11:29:28 2013 -0400
+
+    misc/emacs: Add support for godef
+    
+    godef[1][2] is a third party tool for printing information about
+    expressions, especially the location of their definition. This can be
+    used to implement a "jump to definition" function. Unlike
+    cross-language solutions like ctags, godef does not require an index,
+    operates on the Go AST instead of symbols and works across packages,
+    including the standard library.
+    
+    This patch implements two new public functions: godef-describe (C-c
+    C-d) and godef-jump (C-d C-j). godef-describe describes the expression
+    at point, printing its type, and godef-jump jumps to its definition.
+    
+    [1]: https://code.google.com/p/rog-go/source/browse/exp/cmd/godef/
+    [2]: go get code.google.com/p/rog-go/exp/cmd/godef
+    
+    R=adonovan, cw, patrick.allen.higgins, sameer
+    CC=golang-dev
+    https://golang.org/cl/7781043
+
+ misc/emacs/go-mode.el | 73 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 73 insertions(+)

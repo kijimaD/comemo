@@ -1,0 +1,12 @@
+commit bb57a5bc2c167f82698654419376ce3a4825489f
+Author: Rob Pike <r@golang.org>
+Date:   Mon Jun 16 15:18:10 2008 -0700
+
+    added two new small tests
+    
+    SVN=123010
+
+ test/bugs/bug047.go | 21 +++++++++++++++++++++
+ test/bugs/bug048.go | 13 +++++++++++++
+ test/golden.out     | 17 +++++++++++++++++
+ 3 files changed, 51 insertions(+)

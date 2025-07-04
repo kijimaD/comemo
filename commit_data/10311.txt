@@ -1,0 +1,16 @@
+commit 74f61fc656fdcd7ded63660c542b0820202120db
+Author: Lucio De Re <lucio.dere@gmail.com>
+Date:   Wed Nov 9 13:24:36 2011 -0500
+
+    gopack: fixes for Plan 9 build
+    
+    . removed an unnexessary initialisation.
+    . replaced 0 with 0L to match print format that in turn matched
+      the type of the original function return value.
+    
+    R=golang-dev
+    CC=golang-dev, rsc
+    https://golang.org/cl/5306072
+
+ src/cmd/gopack/ar.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)

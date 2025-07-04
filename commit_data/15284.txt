@@ -1,0 +1,12 @@
+commit c92d3552e5de31a5195aef5ff04979d61dcbf1a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Feb 15 17:11:13 2013 -0500
+
+    os: point users of ProcessState.SysUsage to getrusage(2)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/7352044
+
+ src/pkg/os/doc.go | 2 ++
+ 1 file changed, 2 insertions(+)

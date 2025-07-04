@@ -1,0 +1,12 @@
+commit bb7cd9659b24388c53f9ff5311c67096f341c219
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jan 9 19:46:46 2014 -0800
+
+    liblink: fix comments.  Someone was overzealous with search & replace.
+    
+    R=golang-codereviews, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/49160045
+
+ src/liblink/asm6.c | 48 ++++++++++++++++++++++++------------------------
+ 1 file changed, 24 insertions(+), 24 deletions(-)

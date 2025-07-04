@@ -1,0 +1,14 @@
+commit fc51a98ffb1667a55e82784737df37b07f001d40
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sat May 2 17:59:42 2009 -0700
+
+    Fix mismatched quote in a comment.
+    
+    R=gri
+    APPROVED=gri
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=28184
+    CL=28192
+
+ src/lib/bignum.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

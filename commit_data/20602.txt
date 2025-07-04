@@ -1,0 +1,18 @@
+commit 74b8693c544abffbce69262b609410459d8796f8
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Sep 30 16:08:04 2014 -0400
+
+    cmd/cgo: add missing ast.SliceExpr.Max case to AST traversal.
+    
+    + static test
+    
+    NB: there's a preexisting (dynamic) failure of test issue7978.go.
+    
+    LGTM=iant
+    R=rsc, iant
+    CC=golang-codereviews
+    https://golang.org/cl/144650045
+
+ misc/cgo/test/basic.go | 5 +++++
+ src/cmd/cgo/ast.go     | 3 +++
+ 2 files changed, 8 insertions(+)

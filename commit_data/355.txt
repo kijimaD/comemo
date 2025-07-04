@@ -1,0 +1,11 @@
+commit c6e8e1cebf48e960cafc2411a5a28f5704e12ebd
+Author: Ken Thompson <ken@golang.org>
+Date:   Mon Jul 14 20:40:48 2008 -0700
+
+    go call fn address
+    
+    SVN=127151
+
+ src/cmd/6g/gen.c    | 10 ++++++++--
+ src/cmd/gc/export.c |  8 ++++----
+ 2 files changed, 12 insertions(+), 6 deletions(-)

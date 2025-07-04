@@ -1,0 +1,16 @@
+commit 1419ca7cead4438c8c9f17d8901aeecd9c72f577
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 27 17:25:43 2021 -0700
+
+    doc/go1.17: mention new definitions of MSG_CMSG_CLOEXEC
+    
+    For #44513
+    
+    Change-Id: I8c0070b116ee520a76726eb9d3dcbdd489a1fb1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/323351
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.17.html | 5 +++++
+ 1 file changed, 5 insertions(+)

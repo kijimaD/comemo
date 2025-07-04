@@ -1,0 +1,20 @@
+commit ab7c904bf2bb883b83001d8bb188d1809d74eee6
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Aug 24 01:01:06 2021 +1000
+
+    cmd/internal/obj/riscv: factor out instructions for MOV pseudo-instructions
+    
+    This factors out the machine instruction generation for MOV pseudo-instructions,
+    which will simplify further changes.
+    
+    Change-Id: Ic0d2c3ae9e0881f7894af50ed45e93b0e4961632
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/344461
+    Trust: Joel Sing <joel@sing.id.au>
+    Trust: Meng Zhuo <mzh@golangcn.org>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Meng Zhuo <mzh@golangcn.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+
+ src/cmd/internal/obj/riscv/obj.go | 103 ++++++++++++++++++++++++--------------
+ 1 file changed, 65 insertions(+), 38 deletions(-)

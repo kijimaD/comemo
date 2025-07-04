@@ -1,0 +1,17 @@
+commit 3dced519cbabc213df369d9112206986e62687fa
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Jun 22 17:45:30 2018 +0000
+
+    syscall, internal/poll: fix build on js/wasm
+    
+    Fixes #26014
+    
+    Change-Id: I9d92414a9181c5d189e3e266666950656bf00406
+    Reviewed-on: https://go-review.googlesource.com/120576
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/internal/poll/fd_unix.go | 7 ++++---
+ src/syscall/net_js.go        | 7 +++++++
+ 2 files changed, 11 insertions(+), 3 deletions(-)

@@ -1,0 +1,17 @@
+commit 954bd8203bfe3033b9794ad4ec2c82cfd6be1414
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Sun Apr 11 14:53:18 2021 +0200
+
+    cmd/cgo: use tabs to indent _cgoPREFIX_Cfunc__CMalloc function body
+    
+    All other _cgoPREFIX_Cfunc_* functions are indented using tabs.
+    
+    Change-Id: Ic5cfccd3000d34d0bbe08d035f18640af5e05473
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/308993
+    Trust: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/cgo/out.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)

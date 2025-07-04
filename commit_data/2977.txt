@@ -1,0 +1,24 @@
+commit 45ce825544e2aec385cafbc2a8c29dfb9dce487c
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Aug 13 15:45:58 2009 -0700
+
+    debugging symbols for 8g.
+    backtraces don't work,
+    but they didn't work when i started either.
+    
+    R=ken
+    OCL=33230
+    CL=33230
+
+ src/cmd/8g/gg.h           |   3 +-
+ src/cmd/8g/gobj.c         | 131 ++++++++++++++++++++++++++--------------------
+ src/cmd/8g/gsubr.c        |   6 ++-
+ src/cmd/8l/8.out.h        |   1 +
+ src/cmd/8l/l.h            |   3 +-
+ src/cmd/8l/obj.c          |  10 +++-
+ src/cmd/8l/span.c         |  26 +++++----
+ src/cmd/ld/go.c           |  24 ---------
+ src/libmach_amd64/6obj.c  |   1 +
+ src/libmach_amd64/8obj.c  |   3 ++
+ src/pkg/runtime/runtime.h |   1 -
+ 11 files changed, 112 insertions(+), 97 deletions(-)

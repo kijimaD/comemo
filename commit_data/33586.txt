@@ -1,0 +1,13 @@
+commit a8474c799f82c543379ef4a355dc7b5be785d8d8
+Author: Joe Kyo <xunianzu@gmail.com>
+Date:   Wed Nov 15 10:24:21 2017 +0000
+
+    archive/zip: add documentation about compression methods
+    
+    Change-Id: I491c5ddd1a5d8e55f8e6bb9377bc3811e42773f8
+    Reviewed-on: https://go-review.googlesource.com/77870
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/zip/struct.go | 10 +++++++---
+ src/archive/zip/writer.go |  1 +
+ 2 files changed, 8 insertions(+), 3 deletions(-)

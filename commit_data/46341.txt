@@ -1,0 +1,15 @@
+commit 963218cc9c331931c5886f2eb7199e6d0c362e93
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Sep 7 16:10:31 2021 -0700
+
+    reflect: correct typoo in comment
+    
+    Change-Id: Ic3c69906a8afde63278f173df0427b1c460c9f3e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/348189
+    Trust: Ian Lance Taylor <iant@golang.org>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/reflect/type.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

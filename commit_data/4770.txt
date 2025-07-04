@@ -1,0 +1,12 @@
+commit cd4a684214f5396c860e4f8ee16fc2d4b928c14e
+Author: Kai Backman <kaib@golang.org>
+Date:   Tue Feb 2 18:09:07 2010 -0800
+
+    added note about the GOARM env variable
+    
+    R=rsc, r
+    CC=golang-dev
+    https://golang.org/cl/198074
+
+ doc/install.html | 11 +++++++++++
+ 1 file changed, 11 insertions(+)

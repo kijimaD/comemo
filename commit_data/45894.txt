@@ -1,0 +1,23 @@
+commit 835d86a17ebf32a3cb081f66119c74363dbd8825
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Wed Jun 23 01:02:33 2021 +0900
+
+    cmd/go: use path.Dir instead of filepath.Dir for package paths in 'go mod vendor'
+    
+    copyMetadata walk-up to parent directory until the pkg become modPath.
+    But pkg should be slash-separated paths. It have to use path.Dir instead of
+    filepath.Dir.
+    
+    Fixes #46867
+    
+    Change-Id: I44cf1429fe52379a7415b94cc30ae3275cc430e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330149
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+    Trust: Bryan C. Mills <bcmills@google.com>
+    Trust: Alexander Rakoczy <alex@golang.org>
+    Trust: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/go/internal/modcmd/vendor.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

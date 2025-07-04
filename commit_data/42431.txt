@@ -1,0 +1,12 @@
+commit 0eb9767caad4c4a0b447824d7b27328864612d58
+Author: Cherry Zhang <cherryyz@google.com>
+Date:   Mon Jun 1 18:06:45 2020 -0400
+
+    misc/cgo/testplugin: fix typo in comment
+    
+    Change-Id: I7d1a5f6936505dff8f765541b5102dcbcd6ae835
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/235924
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ misc/cgo/testplugin/plugin_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

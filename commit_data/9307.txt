@@ -1,0 +1,13 @@
+commit 604b91a43ec7532b100104db183983c1dd775b75
+Author: Joel Sing <jsing@google.com>
+Date:   Mon Aug 8 09:56:36 2011 -0400
+
+    os: add support for openbsd
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/4798061
+
+ src/pkg/os/Makefile        | 12 ++++++++++++
+ src/pkg/os/stat_openbsd.go | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+)

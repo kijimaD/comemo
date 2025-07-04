@@ -1,0 +1,26 @@
+commit 3c8545c5f6f6db7de1e9c8186fa9f23f4820ad45
+Author: Giovanni Bajo <rasky@develer.com>
+Date:   Tue May 1 00:57:57 2018 +0200
+
+    cmd/compile: reduce allocations in prove by reusing posets
+    
+    In prove, reuse posets between different functions by storing them
+    in the per-worker cache.
+    
+    Allocation count regression caused by prove improvements is down
+    from 5% to 3% after this CL.
+    
+    Updates #25179
+    
+    Change-Id: I6d14003109833d9b3ef5165fdea00aa9c9e952e8
+    Reviewed-on: https://go-review.googlesource.com/110455
+    Run-TryBot: Giovanni Bajo <rasky@develer.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+
+ src/cmd/compile/internal/ssa/cache.go      |  1 +
+ src/cmd/compile/internal/ssa/func.go       | 15 +++++++++++++++
+ src/cmd/compile/internal/ssa/poset.go      | 15 +++++++++------
+ src/cmd/compile/internal/ssa/poset_test.go |  3 ++-
+ src/cmd/compile/internal/ssa/prove.go      | 25 +++++++++++++++++++++----
+ 5 files changed, 48 insertions(+), 11 deletions(-)

@@ -1,0 +1,17 @@
+commit a7b51cfb47b551f3352d5158b6c3a9e68a931d5b
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 3 14:14:09 2017 -0400
+
+    testing/quick: use Uint64 instead of Int63
+    
+    Followup to CL 39152.
+    
+    Change-Id: I9bfed0c6071ea3d3a43294a6c4a50edc131368cf
+    Reviewed-on: https://go-review.googlesource.com/39313
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/testing/quick/quick.go      |  6 +-----
+ src/testing/quick/quick_test.go | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 5 deletions(-)

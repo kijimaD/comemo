@@ -1,0 +1,19 @@
+commit 0ad241dd550d224f65c634f767f5e73a025fc2bc
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Jan 9 15:38:07 2012 -0800
+
+    cmd/go: fix import directory list for compilation
+    
+    This fixes the most annoying bug in the go command,
+    that 'go build' sometimes ignored packages it had just
+    rebuilt in favor of stale installed ones.
+    
+    This part of the code needs more thought, but this small
+    change is an important improvement.
+    
+    R=golang-dev, adg
+    CC=golang-dev
+    https://golang.org/cl/5531053
+
+ src/cmd/go/build.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

@@ -1,0 +1,22 @@
+commit 409420c08893dad4c112fc1a7fa2568cc0f8a98c
+Author: Rob Pike <r@golang.org>
+Date:   Fri May 1 15:33:08 2015 -0700
+
+    text/template/parse: huge integers are not floats
+    
+    Ideal constants in the template package are a little different from Go.
+    This is a case that slipped through the cracks: A huge integer number
+    was accepted as a floating-point number, but this loses precision
+    and is confusing. Also, the code in the template package (as opposed
+    to the parse package) wasn't expecting it.
+    
+    Root this out at the source: If an integer doesn't fit an int64 or uint64,
+    complain right away.
+    
+    Change-Id: I375621e6f5333c4d53f053a3c84a9af051711b7a
+    Reviewed-on: https://go-review.googlesource.com/9651
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/text/template/parse/node.go       | 5 +++++
+ src/text/template/parse/parse_test.go | 1 +
+ 2 files changed, 6 insertions(+)

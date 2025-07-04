@@ -1,0 +1,21 @@
+commit ab3c2b6d89daa54679cdaa0d78d2902473e0d63b
+Author: Austin Clements <austin@google.com>
+Date:   Wed May 17 15:32:41 2023 -0400
+
+    cmd/cgo/internal/testtls: build and run everywhere
+    
+    This makes testtls build and run on all platforms in the default build
+    configuration (though it will Skip on some).
+    
+    Change-Id: I6aba96a82d618c9798a0d4418b40b2644cfceec9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/496177
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Austin Clements <austin@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+
+ src/cmd/cgo/internal/testtls/{tls_unix.c => tls.c} |  4 ++++
+ src/cmd/cgo/internal/testtls/tls.go                |  2 +-
+ src/cmd/cgo/internal/testtls/tls_none.go           | 13 +++++++++++++
+ src/cmd/cgo/internal/testtls/tls_test.go           |  2 --
+ src/cmd/dist/test.go                               |  2 +-
+ 5 files changed, 19 insertions(+), 4 deletions(-)

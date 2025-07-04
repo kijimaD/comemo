@@ -1,0 +1,15 @@
+commit e8b4c5bfe9405c573c63337b739a135c06edf7d9
+Author: Shenghou Ma <minux@golang.org>
+Date:   Thu Nov 12 15:43:18 2015 -0500
+
+    runtime, runtime/internal/sys: fix build for linux/{mips64,mips64le}
+    
+    Change-Id: I37bac9680efdfd797ca5dca90bd9a9e1001bfb68
+    Reviewed-on: https://go-review.googlesource.com/16874
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+
+ src/runtime/internal/sys/zgoarch_mips64.go   | 26 ++++++++++++++++++++++++++
+ src/runtime/internal/sys/zgoarch_mips64le.go | 26 ++++++++++++++++++++++++++
+ src/runtime/signal_linux_mips64x.go          |  7 +++++--
+ src/runtime/signal_mips64x.go                |  7 +++++--
+ 4 files changed, 62 insertions(+), 4 deletions(-)

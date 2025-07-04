@@ -1,0 +1,34 @@
+commit 39d3c4ad35984b470b2928a37ea4a7e721b1225a
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Oct 24 16:24:39 2023 +0800
+
+    debug/elf,cmd/link: add additional relocations for loong64
+    
+    The Linker Relaxation feature on Loong64 is already supported in binutils 2.41.
+    The intermediate code generated after enabling this feature introduces three
+    reloc types R_LARCH_B26, R_LARCH_ADD32 and R_LARCH_SUB32.
+    
+    The other relocation types are not currently used when running all.bash, but
+    in order to avoid the host tool chain making the decision to use it we don't
+    have to catch it every time.
+    
+    The LoongArch ABI at here:
+    https://github.com/loongson/la-abi-specs/blob/release/la-abi.adoc
+    
+    Corresponding binutils implementation:
+    https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=be1ebb6710a8f707bd4b0eecbd00f4f4964050e5
+    https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=1b6fccd28db14fffe75ff6755307047ef932c81e
+    
+    Fixes #63725
+    
+    Change-Id: I891115cfdbcf785ab494c881d5f9d1bf8748da8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537615
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ api/next/63725.txt                     | 18 ++++++++++++++++++
+ src/cmd/link/internal/loadelf/ldelf.go | 18 +++++++++++++++++-
+ src/debug/elf/elf.go                   | 18 ++++++++++++++++++
+ 3 files changed, 53 insertions(+), 1 deletion(-)

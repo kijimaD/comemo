@@ -1,0 +1,16 @@
+commit 2e79d7fbee7d635f93940c482cd366ad4ae551a1
+Author: Marcel van Lohuizen <mpvl@golang.org>
+Date:   Wed Mar 23 17:22:09 2016 +0100
+
+    cmd/go: update alldocs.go
+    
+    Also added go:generate directive.
+    
+    Change-Id: Ib1f0eddc75e3c47a4d904786a29b964a35b18456
+    Reviewed-on: https://go-review.googlesource.com/21042
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
+
+ src/cmd/go/doc.go       | 2 ++
+ src/cmd/go/mkalldocs.sh | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)

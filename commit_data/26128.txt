@@ -1,0 +1,20 @@
+commit b20187196f2674c736bb89d9dde741c93bec3255
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 8 15:58:20 2016 +0000
+
+    os/user: skip Current test on android
+    
+    Also, add more failure output to debug why linux/mips64le and
+    linux/ppc64 are failing. They should be working. I suspect their
+    builder test envs are missing something.
+    
+    Change-Id: I97273fe72c4e3009db400394636d0da1ef147485
+    Reviewed-on: https://go-review.googlesource.com/20358
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/os/user/lookup_stubs.go | 2 +-
+ src/os/user/user_test.go    | 5 ++++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)

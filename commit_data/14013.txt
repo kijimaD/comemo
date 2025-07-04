@@ -1,0 +1,13 @@
+commit e7f453148c22789660ad064107ffa7e2541ae740
+Author: Andrew Gerrand <adg@golang.org>
+Date:   Thu Oct 4 11:21:37 2012 +1000
+
+    godoc: show contents in correct order, expand sections on click
+    
+    R=dsymonds
+    CC=gobot, golang-dev
+    https://golang.org/cl/6588079
+
+ doc/godocs.js          | 2 ++
+ lib/godoc/package.html | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)

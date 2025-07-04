@@ -1,0 +1,16 @@
+commit 165a8d93cde73208487d854b71fc4142f2c39c6b
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Tue Feb 19 14:43:52 2019 -0500
+
+    cmd/vet: do not write test vet binary to GOROOT
+    
+    Updates #28387
+    
+    Change-Id: Ie5a5f1f798eb5900f9c7bdef165abcca02dd0dde
+    Reviewed-on: https://go-review.googlesource.com/c/163037
+    Run-TryBot: Bryan C. Mills <bcmills@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/vet/vet_test.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)

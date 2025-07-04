@@ -1,0 +1,24 @@
+commit d54b921c9baf19105d074896da98d6dbf3c9e219
+Author: Rob Pike <r@golang.org>
+Date:   Sat Sep 4 23:41:54 2010 +1000
+
+    netchan: use acknowledgements on export send.
+    Also add exporter.Drain() to wait for completion.
+    This makes it possible for an Exporter to fire off a message
+    and wait (by calling Drain) for the message to be received,
+    even if a client has yet to call to retrieve it.
+    
+    Once this design is settled, I'll do the same for import send.
+    
+    Testing strategies welcome.  I have some working stand-alone
+    tests.
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/2137041
+
+ src/pkg/netchan/common.go       |  98 +++++++++++++++++++++++-
+ src/pkg/netchan/export.go       | 162 ++++++++++++++++++++++++++++++----------
+ src/pkg/netchan/import.go       |  26 +++----
+ src/pkg/netchan/netchan_test.go |  43 ++++++++++-
+ 4 files changed, 268 insertions(+), 61 deletions(-)

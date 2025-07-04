@@ -1,0 +1,20 @@
+commit 9c94baa7a49464e5fb780ea2e291249ad2c83c75
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Wed Mar 20 03:32:14 2024 +0000
+
+    encoding/gob: close output file
+    
+    Change-Id: Ia9ecb82e87fca319e89aa1779aeed0f573fa808f
+    GitHub-Last-Rev: 33361bcb8ae5817dcc618d67d69009001b271ffc
+    GitHub-Pull-Request: golang/go#66417
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572955
+    Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/encoding/gob/decgen.go | 3 +++
+ 1 file changed, 3 insertions(+)

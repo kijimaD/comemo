@@ -1,0 +1,21 @@
+commit ae2e2446c22ce84c275543e90036785aab194fb1
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Tue Dec 3 15:02:10 2019 -0500
+
+    go/build: don't include imports from cgo files when CGO_ENABLED=0
+    
+    Fixes #35873
+    Fixes #35946
+    
+    Change-Id: I9f9a9c09006f8957569db6e5cc13382b9b28f829
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/209660
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/testdata/script/list_constraints.txt    | 85 ++++++++++++++++++++++
+ src/cmd/go/testdata/script/list_tags.txt           | 10 ---
+ src/go/build/build.go                              | 47 ++++++++----
+ src/go/build/build_test.go                         | 17 +++++
+ src/go/build/testdata/cgo_disabled/cgo_disabled.go |  5 ++
+ src/go/build/testdata/cgo_disabled/empty.go        |  1 +
+ 6 files changed, 139 insertions(+), 26 deletions(-)

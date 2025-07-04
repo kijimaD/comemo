@@ -1,0 +1,15 @@
+commit a2a4e0c01af416f0ca1892cefa176942ed103c16
+Author: Alex Brainman <alex.brainman@gmail.com>
+Date:   Sat Nov 13 11:15:09 2010 +1100
+
+    exec: enable tests on windows
+    
+    Fixes #1104.
+    
+    R=golang-dev, mattn, r
+    CC=Joe Poirier, golang-dev
+    https://golang.org/cl/3051041
+
+ src/pkg/Makefile          |  1 -
+ src/pkg/exec/exec_test.go | 42 +++++++++++++++++-------------------------
+ 2 files changed, 17 insertions(+), 26 deletions(-)

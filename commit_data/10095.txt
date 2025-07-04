@@ -1,0 +1,12 @@
+commit 81b014818cda818dbbbea53a2042dc77224b7963
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Oct 25 22:20:35 2011 -0700
+
+    govet: update signatures for rune
+    
+    R=r
+    CC=golang-dev
+    https://golang.org/cl/5301053
+
+ src/cmd/govet/govet.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)

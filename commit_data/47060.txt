@@ -1,0 +1,31 @@
+commit 3f1b0ce6bb4f2e7d44791c5532728f86e24f1f1f
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Oct 25 09:13:16 2021 -0700
+
+    cmd/compile/internal/types2: clarify is/underIs semantics and implementation
+    
+    The behavior of is/underIs was murky with the presence of a top type term
+    (corresponding to a type set that is not constrained by any types, yet the
+    function argument f of is/underIs was called with that term).
+    
+    Change is/underIs to call f explicitly for existing specific type terms,
+    otherwise return the result of f(nil). Review all uses of is/underIs and
+    variants.
+    
+    This makes the conversion code slightly more complicated because we need
+    to explicitly exclude type parameters without specific types; but the
+    code is clearer now.
+    
+    Change-Id: I6115cb46f7f2a8d0f54799aafff9a67c4cca5e30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/358594
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/builtins.go    |  5 ++-
+ src/cmd/compile/internal/types2/conversions.go | 11 ++++--
+ src/cmd/compile/internal/types2/expr.go        |  2 ++
+ src/cmd/compile/internal/types2/infer.go       |  2 +-
+ src/cmd/compile/internal/types2/operand.go     |  3 ++
+ src/cmd/compile/internal/types2/typeparam.go   | 11 ++++++
+ src/cmd/compile/internal/types2/typeset.go     | 46 ++++++++++++++------------
+ 7 files changed, 54 insertions(+), 26 deletions(-)

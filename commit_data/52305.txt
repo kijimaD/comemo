@@ -1,0 +1,16 @@
+commit bf03fa98077c11fc76de8afa48bcf676ca0e0704
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Mar 15 16:44:36 2023 -0700
+
+    internal/fuzz: more debug logging
+    
+    Change-Id: I2c36baf423dde419aaa940ce9308088f3bf431f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/476718
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+
+ src/internal/fuzz/fuzz.go   |  5 +++--
+ src/internal/fuzz/worker.go | 10 ++++++++++
+ 2 files changed, 13 insertions(+), 2 deletions(-)

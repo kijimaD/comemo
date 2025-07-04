@@ -1,0 +1,13 @@
+commit 4321beba85d2317b86911401dd25bb87a48677e7
+Author: David du Colombier <0intro@gmail.com>
+Date:   Tue Dec 10 08:42:41 2013 -0500
+
+    liblink, cmd/gc: fix incompatible type signatures on Plan 9
+    
+    R=ality, golang-dev, r, rsc
+    CC=golang-dev
+    https://golang.org/cl/39640043
+
+ include/link.h  | 6 ++++++
+ src/cmd/gc/go.h | 3 +++
+ 2 files changed, 9 insertions(+)

@@ -1,0 +1,13 @@
+commit 38b8f6c7a427978968452234e10c0b214b862c8c
+Author: Rob Pike <r@golang.org>
+Date:   Tue Feb 7 16:15:03 2012 +1100
+
+    bufio: remove special error type, update docs
+    Updates #2836.
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/5639045
+
+ src/pkg/bufio/bufio.go | 23 ++++++++++-------------
+ 1 file changed, 10 insertions(+), 13 deletions(-)

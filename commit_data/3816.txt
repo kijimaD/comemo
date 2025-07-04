@@ -1,0 +1,18 @@
+commit 790c9b59d674768bafd1cd45ffe856ee7db3b8ce
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 5 14:44:57 2009 -0800
+
+    codereview: new commands
+            * clpatch
+            * download
+            * submit, on behalf of clpatch
+    
+    stir hgpatch to fix a few bugs
+    
+    R=r
+    CC=go-dev
+    http://go/go-review/1016051
+
+ lib/codereview/codereview.py | 262 ++++++++++++++++++++++++++++++++++++++-----
+ src/cmd/hgpatch/main.go      |  33 +++---
+ 2 files changed, 249 insertions(+), 46 deletions(-)

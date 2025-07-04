@@ -1,0 +1,62 @@
+commit 78b8e4fbce8a49d7624362242e344968c4fa8382
+Author: Motiejus Jakštys <motiejus@jakstys.lt>
+Date:   Fri May 20 07:32:48 2022 +0000
+
+    cmd/dist: support spaces and quotes in CC
+    
+    As of CL 334732 `go build` can accept `$CC` with spaces and quotes,
+    which lets us easily use `zig cc` as the C compiler, or easily pass
+    extra compiler parameters:
+    
+    ```
+    CC="zig cc" go build <...>
+    CC="clang-13 -v" go build <...>
+    CC="zig cc -Wl,--print-gc-sections" go build <...>
+    ```
+    
+    However, the same does not apply for building go itself:
+    
+    ```
+    $ CC="zig cc" ./make.bash
+    Building Go cmd/dist using /usr/local/go. (go1.18.2 linux/amd64)
+    go tool dist: cannot invoke C compiler "zig cc": exec: "zig cc": executable file not found in $PATH
+    
+    Go needs a system C compiler for use with cgo.
+    To set a C compiler, set CC=the-compiler.
+    To disable cgo, set CGO_ENABLED=0.
+    ```
+    
+    With this change Go can be built directly with `zig cc` (the linker arg
+    will disappear with CL 405414):
+    
+    ```
+    $ CC="zig cc -Wl,--no-gc-sections" ./make.bash
+    Building Go cmd/dist using /usr/local/go. (go1.18.2 linux/amd64)
+    Building Go toolchain1 using /usr/local/go.
+    Building Go bootstrap cmd/go (go_bootstrap) using Go toolchain1.
+    Building Go toolchain2 using go_bootstrap and Go toolchain1.
+    Building Go toolchain3 using go_bootstrap and Go toolchain2.
+    Building packages and commands for linux/amd64.
+    ---
+    Installed Go for linux/amd64 in /home/motiejus/code/go
+    Installed commands in /home/motiejus/code/go/bin
+    $ ../bin/go version
+    go version devel go1.19-811f1913a8 Thu May 19 09:44:49 2022 +0300 linux/amd64
+    ```
+    
+    Fixes #52990
+    
+    Change-Id: I66b3525d47db488d3c583c1aee3af78060fd5a38
+    GitHub-Last-Rev: ecc70d722406f0c7d0c1930c872db392e80e7cf5
+    GitHub-Pull-Request: golang/go#52991
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/407216
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Rakoczy <alex@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/cmd/dist/build.go             | 10 ++++++--
+ src/cmd/dist/quoted.go            | 49 +++++++++++++++++++++++++++++++++++++++
+ src/cmd/internal/quoted/quoted.go |  2 ++
+ 3 files changed, 59 insertions(+), 2 deletions(-)

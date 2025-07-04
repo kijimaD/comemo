@@ -1,0 +1,26 @@
+commit 9f601690da59e601ff68f9868d5eb863bd770eae
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Sat Apr 24 02:12:55 2021 -0700
+
+    cmd/compile: workaround inlining of closures with type switches
+    
+    Within clovar, n.Defn can also be *ir.TypeSwitchGuard. The proper fix
+    here would be to populate m.Defn and have it filled in too, but we
+    already leave it nil in inlvar. So for consistency, this CL does the
+    same in clovar too.
+    
+    Eventually inl.go should be rewritten to fully respect IR invariants.
+    
+    Fixes #45743.
+    
+    Change-Id: I8b38e5d8b2329ad242de97670f2141f713954d28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/313289
+    Run-TryBot: Matthew Dempsky <mdempsky@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Dan Scales <danscales@google.com>
+    Trust: Dan Scales <danscales@google.com>
+    Trust: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+
+ src/cmd/compile/internal/inline/inl.go |  2 ++
+ test/fixedbugs/issue45743.go           | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+)

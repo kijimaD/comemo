@@ -1,0 +1,12 @@
+commit e15b64e87e85261e329982206cb83f120737e595
+Author: Rob Pike <r@golang.org>
+Date:   Tue Jun 16 14:03:13 2009 -0700
+
+    clean gofmt
+    
+    R=rsc
+    OCL=30363
+    CL=30363
+
+ src/cmd/clean.bash | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

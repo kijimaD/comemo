@@ -1,0 +1,38 @@
+commit 81d5810be9599ed574d837948b3b77854757e010
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 00:47:05 2015 -0400
+
+    cmd/compile: merge Node.Opt and Node.Val behind access methods
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 144
+    $
+    
+    Change-Id: I688e3790964fe42f48c19f697ec38094a92fe1c1
+    Reviewed-on: https://go-review.googlesource.com/10531
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/cmd/compile/internal/gc/cgen.go      |  64 ++++++++---------
+ src/cmd/compile/internal/gc/const.go     | 116 +++++++++++++++----------------
+ src/cmd/compile/internal/gc/cplx.go      |   6 +-
+ src/cmd/compile/internal/gc/dcl.go       |   6 +-
+ src/cmd/compile/internal/gc/esc.go       |  22 +++---
+ src/cmd/compile/internal/gc/export.go    |   6 +-
+ src/cmd/compile/internal/gc/fmt.go       |  16 ++---
+ src/cmd/compile/internal/gc/gen.go       |  20 +++---
+ src/cmd/compile/internal/gc/go.y         |  42 +++++------
+ src/cmd/compile/internal/gc/gsubr.go     |  10 +--
+ src/cmd/compile/internal/gc/obj.go       |   6 +-
+ src/cmd/compile/internal/gc/order.go     |   2 +-
+ src/cmd/compile/internal/gc/plive.go     |  12 ++--
+ src/cmd/compile/internal/gc/popt.go      |  16 ++---
+ src/cmd/compile/internal/gc/reg.go       |  16 ++---
+ src/cmd/compile/internal/gc/sinit.go     |  28 ++++----
+ src/cmd/compile/internal/gc/subr.go      |  22 +++---
+ src/cmd/compile/internal/gc/swt.go       |  16 ++---
+ src/cmd/compile/internal/gc/syntax.go    |  51 ++++++++++++--
+ src/cmd/compile/internal/gc/typecheck.go |  74 ++++++++++----------
+ src/cmd/compile/internal/gc/unsafe.go    |   2 +-
+ src/cmd/compile/internal/gc/walk.go      |  50 ++++++-------
+ src/cmd/compile/internal/gc/y.go         |  42 +++++------
+ 23 files changed, 345 insertions(+), 300 deletions(-)

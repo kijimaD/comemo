@@ -1,0 +1,19 @@
+commit 0f82cfd3f0ef84b553cd0f1e8cd578b3c29ea5d9
+Author: Daniel Morsing <daniel.morsing@gmail.com>
+Date:   Thu Mar 27 20:23:16 2014 +0000
+
+    cmd/cgo: enforce typing of 0-sized types
+    
+    cgo represents all 0-sized and unsized types internally as [0]byte. This means that pointers to incomplete types would be interchangable, even if given a name by typedef.
+    
+    Fixes #7409.
+    
+    LGTM=iant
+    R=golang-codereviews, bradfitz, iant
+    CC=golang-codereviews
+    https://golang.org/cl/76450043
+
+ misc/cgo/errors/err3.go   | 18 ++++++++++++++++++
+ misc/cgo/errors/test.bash |  1 +
+ src/cmd/cgo/gcc.go        |  7 +++++--
+ 3 files changed, 24 insertions(+), 2 deletions(-)

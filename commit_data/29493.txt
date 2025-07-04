@@ -1,0 +1,20 @@
+commit eafe48781a013554961b9bcad8a0262f9ea20acc
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Nov 11 11:32:07 2016 -0500
+
+    runtime/pprof/internal: delete package gzip0
+    
+    rsc's change golang.org/cl/32455 added a mechanism
+    that allows pprof to depend on gzip without introducing
+    an import cycle. This obsoletes the need for the gzip0
+    package, which was created solely to remove the need
+    for that dependency.
+    
+    Change-Id: Ifa3b98faac9b251f909b84b4da54742046c4e3ad
+    Reviewed-on: https://go-review.googlesource.com/33137
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/go/build/deps_test.go                      |   1 -
+ src/runtime/pprof/internal/gzip0/gzip0.go      | 156 -------------------------
+ src/runtime/pprof/internal/gzip0/gzip0_test.go |  43 -------
+ 3 files changed, 200 deletions(-)

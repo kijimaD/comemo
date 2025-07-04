@@ -1,0 +1,12 @@
+commit 553e003414d3aa90cc39830ee22f08453d9f3408
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Thu Apr 30 07:48:12 2020 -0700
+
+    doc/go1.15: add 32-bit darwin removal and Resolver.LookupIP
+    
+    Change-Id: I3a67908de9c85bcd39fb03c1b674caa9f817606b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/231117
+    Reviewed-by: Andrew Bonventre <andybons@golang.org>
+
+ doc/go1.15.html | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)

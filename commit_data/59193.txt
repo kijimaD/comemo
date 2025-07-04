@@ -1,0 +1,24 @@
+commit b9934d855c4635edf02092a72802017676abd8eb
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Mar 28 20:38:34 2025 +0100
+
+    internal/poll: honor ERROR_OPERATION_ABORTED if pipe is not closed
+    
+    FD.Read converts a syscall.ERROR_OPERATION_ABORTED error to
+    ErrFileClosing. It does that in case the pipe operation was aborted by
+    a CancelIoEx call in FD.Close.
+    
+    It doesn't take into account that the operation might have been
+    aborted by a CancelIoEx call in external code. In that case, the
+    operation should return the error as is.
+    
+    Change-Id: I75dcf0edaace8b57dc47b398ea591ca9f116112b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+
+ src/internal/poll/fd_mutex.go        |  5 +++++
+ src/internal/poll/fd_windows.go      | 12 +++++-----
+ src/internal/poll/fd_windows_test.go | 43 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 55 insertions(+), 5 deletions(-)

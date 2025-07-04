@@ -1,0 +1,16 @@
+commit 1ac3b0618170279474fcdf9c625b2e237bf2881c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Dec 7 18:22:04 2018 -0800
+
+    cmd/compile: emit a symbol for a method expression when using -dynlink
+    
+    Fixes #25065
+    
+    Change-Id: Ia3db518cfd9c006caf951b51342a491ac8372e9c
+    Reviewed-on: https://go-review.googlesource.com/c/153297
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ misc/cgo/testshared/shared_test.go       |  6 ++++++
+ misc/cgo/testshared/src/issue25065/a.go  | 20 ++++++++++++++++++++
+ src/cmd/compile/internal/gc/typecheck.go |  6 ++++++
+ 3 files changed, 32 insertions(+)

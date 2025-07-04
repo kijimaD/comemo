@@ -1,0 +1,24 @@
+commit b619d5573e4ed02780018cad845a941f2a1c374e
+Author: Burcu Dogan <jbd@google.com>
+Date:   Wed Nov 11 15:45:09 2015 -0800
+
+    Revert "cmd/go: use shallow clones for new git checkouts"
+    
+    This reverts commit bc1f9d20b40998b87c9a5f56f2b22595de65c2d4.
+    
+    The current go-get strategy doesn't support cases that servers
+    cannot handle shallow clients.
+    
+    Also, `go get -u` is broken and is not compatible with already
+    go-getted unshallow repos.
+    
+    Fixes #13213.
+    Fixes #13206.
+    
+    Change-Id: Ie89d7603d96d323db64ad82997793fda0972f709
+    Reviewed-on: https://go-review.googlesource.com/16832
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/vcs.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)

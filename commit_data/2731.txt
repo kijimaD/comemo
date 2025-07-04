@@ -1,0 +1,19 @@
+commit 1399badb02926bb80b067a4a9ba2776343175650
+Author: Rob Pike <r@golang.org>
+Date:   Thu Jul 16 17:55:16 2009 -0700
+
+    - allow wire type and receive type to differ.
+    - still TODO: ignoring struct fields.
+    
+    R=rsc
+    DELTA=309  (240 added, 2 deleted, 67 changed)
+    OCL=31750
+    CL=31750
+
+ src/pkg/gob/codec_test.go   |  82 ++++++++++++--
+ src/pkg/gob/decode.go       | 255 +++++++++++++++++++++++++++++++++++---------
+ src/pkg/gob/decoder.go      |   8 +-
+ src/pkg/gob/encoder.go      |   2 +
+ src/pkg/gob/encoder_test.go |   9 +-
+ src/pkg/gob/type.go         |  12 ++-
+ 6 files changed, 303 insertions(+), 65 deletions(-)

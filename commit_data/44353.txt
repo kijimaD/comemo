@@ -1,0 +1,22 @@
+commit 0398a771d2fb4c4702e31bbb485924198b1b2603
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 17 21:03:59 2021 +1100
+
+    cmd/internal/obj/riscv: prevent constant loads that do not target registers
+    
+    Check that the target of a constant load is a register and add test coverage
+    for this error condition. While here, rename the RISC-V testdata and tests
+    to be consistent with other platforms.
+    
+    Change-Id: I7fd0bfcee8cf9df0597d72e65cd74a2d0bfd349a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/292895
+    Trust: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    Run-TryBot: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+
+ src/cmd/asm/internal/asm/endtoend_test.go                  |  8 ++++++--
+ .../asm/internal/asm/testdata/{riscvenc.s => riscv64.s}    |  0
+ src/cmd/asm/internal/asm/testdata/riscv64error.s           | 14 ++++++++++++++
+ src/cmd/internal/obj/riscv/obj.go                          |  5 ++++-
+ 4 files changed, 24 insertions(+), 3 deletions(-)

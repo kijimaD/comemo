@@ -1,0 +1,18 @@
+commit 861af80458e846bc535f262cca23649e703b7885
+Author: Mikio Hara <mikioh.mikioh@gmail.com>
+Date:   Wed Jul 29 12:55:19 2015 +0900
+
+    cmd/internal/asm: delete
+    
+    Updates #10510.
+    
+    Change-Id: Ib4d39943969d18517b373292b83d87650d5df12a
+    Reviewed-on: https://go-review.googlesource.com/12787
+    Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/cmd/internal/asm/asm.go     | 307 ---------------
+ src/cmd/internal/asm/lexbody.go | 710 ---------------------------------
+ src/cmd/internal/asm/macbody.go | 855 ----------------------------------------
+ 3 files changed, 1872 deletions(-)

@@ -1,0 +1,15 @@
+commit b9661a14eabeb6ee3b9bf4a001aed4c88991be28
+Author: Zac Bergquist <zbergquist99@gmail.com>
+Date:   Mon Jul 24 19:05:43 2017 -0400
+
+    doc: add Atom to editor guide
+    
+    Fixes #20569
+    
+    Change-Id: I752a49ed50c1567f8db7112859ac073f37dd77dc
+    Reviewed-on: https://go-review.googlesource.com/50952
+    Reviewed-by: Jaana Burcu Dogan <jbd@google.com>
+
+ doc/editors.html        |  27 ++++++++++++++++++++++++---
+ doc/editors/go-plus.png | Bin 0 -> 15558 bytes
+ 2 files changed, 24 insertions(+), 3 deletions(-)

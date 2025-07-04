@@ -1,0 +1,24 @@
+commit 63f1bc59922d454f288ad3d193bc60d7c980dbb0
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Feb 28 12:59:38 2020 -0800
+
+    runtime: print instruction bytes when reporting a SIGILL
+    
+    Print the bytes of the instruction that generated a SIGILL.
+    This should help us respond to bug reports without having to
+    go back-and-forth with the reporter to get the instruction involved.
+    Might also help with SIGILL problems that are difficult to reproduce.
+    
+    Update #37513
+    
+    Change-Id: I33059b1dbfc97bce16142a843f32a88a6547e280
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/221431
+    Run-TryBot: Keith Randall <khr@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+
+ src/runtime/signal_unix.go                   | 24 ++++++++++++++++++++++++
+ test/fixedbugs/issue37513.dir/main.go        | 27 +++++++++++++++++++++++++++
+ test/fixedbugs/issue37513.dir/sigill_amd64.s |  7 +++++++
+ test/fixedbugs/issue37513.go                 |  9 +++++++++
+ 4 files changed, 67 insertions(+)

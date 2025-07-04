@@ -1,0 +1,13 @@
+commit 965ff4bb3a01a87b70d061ad0eb2766352e7d598
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jun 9 17:18:28 2011 -0400
+
+    A+C: Fan Hongjian (individual CLA)
+    
+    R=golang-dev, bradfitz
+    CC=golang-dev
+    https://golang.org/cl/4591059
+
+ AUTHORS      | 3 ++-
+ CONTRIBUTORS | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)

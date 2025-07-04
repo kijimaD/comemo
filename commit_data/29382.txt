@@ -1,0 +1,40 @@
+commit cd670a61c193e6717400c6cc130484d6ad97c96b
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Fri Nov 4 03:23:37 2016 +0000
+
+    net/http: speed up tests, use t.Parallel when it's safe
+    
+    Before: 8.9 seconds for go test -short
+     After: 2.8 seconds
+    
+    There are still 250 tests without t.Parallel, but I got the important
+    onces using a script:
+    
+        $ go test -short -v 2>&1 | go run ~/slowtests.go
+    
+    Where slowtests.go is https://play.golang.org/p/9mh5Wg1nLN
+    
+    The remaining 250 (the output lines from slowtests.go) all have a
+    reported duration of 0ms, except one 50ms test which has to be serial.
+    
+    Where tests can't be parallel, I left a comment at the top saying why,
+    so people don't add t.Parallel later and get surprised at failures.
+    
+    Updates #17751
+    
+    Change-Id: Icbe32cbe2b996e23c89f1af6339287fa22af5115
+    Reviewed-on: https://go-review.googlesource.com/32684
+    Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/net/http/client_test.go       |   6 ++
+ src/net/http/clientserver_test.go |   5 ++
+ src/net/http/fs_test.go           |   2 +
+ src/net/http/http_test.go         |   1 +
+ src/net/http/npn_test.go          |   1 +
+ src/net/http/response_test.go     |   1 +
+ src/net/http/serve_test.go        | 122 ++++++++++++++++++++++++++++----------
+ src/net/http/sniff_test.go        |   2 +
+ src/net/http/transport_test.go    |  20 ++++++-
+ 9 files changed, 127 insertions(+), 33 deletions(-)

@@ -1,0 +1,21 @@
+commit 7d30af8e17d62932f8a458ad96f483b9afec6171
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Fri Dec 13 12:07:06 2019 +0100
+
+    spec: reword claim about the grammar being regular
+    
+    Since the word "regular" has a precise meaning in the context of
+    formal languages, the Introduction sentence claiming that Go's grammar
+    is "compact and regular" may mislead readers.
+    
+    Reword it using Rob's suggestion.
+    
+    Fixes #36037
+    
+    Change-Id: I00c1a5714bdab8878d9a77b36d67dae67d63da0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/211277
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

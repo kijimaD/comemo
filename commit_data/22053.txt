@@ -1,0 +1,23 @@
+commit 0a048ce5e9b599912872c4d8865e8f5beceb04ff
+Author: Nick Sullivan <nicholas.sullivan@gmail.com>
+Date:   Tue Feb 24 17:55:25 2015 -0800
+
+    crypto/rsa: implement crypto.Decrypter
+    
+    Decrypter is an interface to support opaque private keys that perform
+    decryption operations. This interface is analogous to the crypto.Signer
+    interface.
+    
+    This change introduces the crypto.Decrypter interface and implements
+    the crypto.Decrypter interface for rsa.PrivateKey with both OAEP and
+    PKCS#1 v1.5 padding modes.
+    
+    Change-Id: I433f649f84ed3c2148337d735cafd75f1d94a904
+    Reviewed-on: https://go-review.googlesource.com/3900
+    Reviewed-by: Adam Langley <agl@golang.org>
+
+ src/crypto/crypto.go            | 16 +++++++++++++++
+ src/crypto/rsa/pkcs1v15.go      | 10 ++++++++++
+ src/crypto/rsa/pkcs1v15_test.go | 43 +++++++++++++++++++++++++++++++++--------
+ src/crypto/rsa/rsa.go           | 41 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 102 insertions(+), 8 deletions(-)

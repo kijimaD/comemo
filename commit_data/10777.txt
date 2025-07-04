@@ -1,0 +1,15 @@
+commit 3c638f2892471b55ded3982d2639e5c62f00d506
+Author: Luuk van Dijk <lvd@golang.org>
+Date:   Wed Dec 14 08:22:36 2011 +0100
+
+    gc: Use %#F in error messages instead of %F.
+    
+    Fixes #2520
+    
+    R=rsc
+    CC=golang-dev
+    https://golang.org/cl/5482056
+
+ src/cmd/gc/fmt.c         | 10 +++++++---
+ test/fixedbugs/bug383.go | 13 +++++++++++++
+ 2 files changed, 20 insertions(+), 3 deletions(-)

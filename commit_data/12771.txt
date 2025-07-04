@@ -1,0 +1,12 @@
+commit b485629e476d4069b8294e0b09ea1a43d4b35954
+Author: Rob Pike <r@golang.org>
+Date:   Mon Mar 26 23:26:28 2012 -0400
+
+    C: add Ben Fried, Googler
+    
+    R=golang-dev, dsymonds
+    CC=ben.fried, golang-dev
+    https://golang.org/cl/5869043
+
+ CONTRIBUTORS | 1 +
+ 1 file changed, 1 insertion(+)

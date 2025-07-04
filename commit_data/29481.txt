@@ -1,0 +1,28 @@
+commit fb8c896aff9549e868df58f9d40fd06b67ae7d07
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Nov 10 14:34:32 2016 -0800
+
+    cmd/cgo: don't ignore qualifiers, don't cast to void*
+    
+    The cgo tool used to simply ignore C type qualifiers. To avoid problems
+    when a C function expected a qualifier that was not present, cgo emitted
+    a cast to void* around all pointer arguments. Unfortunately, that broke
+    code that contains both a function declaration and a macro, when the
+    macro required the argument to have the right type. To fix this problem,
+    don't ignore qualifiers. They are easy enough to handle for the limited
+    set of cases that matter for cgo, in which we don't care about array or
+    function types.
+    
+    Fixes #17537.
+    
+    Change-Id: Ie2988d21db6ee016a3e99b07f53cfb0f1243a020
+    Reviewed-on: https://go-review.googlesource.com/33097
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+
+ misc/cgo/test/cgo_test.go   |  1 +
+ misc/cgo/test/issue17537.go | 42 ++++++++++++++++++++++++++++++++++++++++++
+ src/cmd/cgo/gcc.go          | 10 +++++++---
+ src/cmd/cgo/out.go          | 24 +++---------------------
+ 4 files changed, 53 insertions(+), 24 deletions(-)

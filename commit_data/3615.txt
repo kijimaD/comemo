@@ -1,0 +1,13 @@
+commit f1b91263d8ec8e0b6ac3f50e4fe614cccc3bff9d
+Author: Rob Pike <r@golang.org>
+Date:   Wed Oct 21 19:51:05 2009 -0700
+
+    fix typo/oversight: s/Title/ToTitle/.  the comment was already correct
+    
+    R=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=35964
+    CL=35979
+
+ src/pkg/bytes/bytes.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

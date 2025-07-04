@@ -1,0 +1,22 @@
+commit d49a14c6092ba30d0afbdaa06a24016ff1fe2a82
+Author: Kévin Dunglas <kevin@dunglas.fr>
+Date:   Sat Mar 30 09:13:39 2024 +0000
+
+    cmd/cgo: update outdated docs about cgocheck2
+    
+    Setting GODEBUG=cgocheck=2 now panics with a message
+    such as "fatal error: cgocheck > 1 mode is no longer supported at runtime.
+    Use GOEXPERIMENT=cgocheck2 at build time instead."
+    
+    Change-Id: If9a5a96933973e14a1a60b8e9fb6a1f4a818cf59
+    GitHub-Last-Rev: 787d62454c31565d0828777bf5ba24c99345af4d
+    GitHub-Pull-Request: golang/go#65224
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557597
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiulaidongfeng <2645477756@qq.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/cgo/doc.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)

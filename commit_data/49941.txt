@@ -1,0 +1,18 @@
+commit 901b9233e6eadc7b5235d4bb492c6b04f75cab9a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Aug 17 16:13:09 2022 +0700
+
+    runtime: convert linux netpollWakeSig to atomic type
+    
+    Updates #53821
+    
+    Change-Id: If4090393a127c2f468c8ae5ba478a9f59d73b945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/423876
+    Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+
+ src/runtime/netpoll_epoll.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)

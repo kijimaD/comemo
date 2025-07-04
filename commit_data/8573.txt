@@ -1,0 +1,16 @@
+commit 2899535de5a343b645ebaddca4147e34d764b8a5
+Author: Mikkel Krautz <mikkel@krautz.dk>
+Date:   Wed Jun 1 12:54:16 2011 -0400
+
+    asn1: fix marshalling of empty optional RawValues
+    
+    This fixes creation of X509 certificates with
+    RSA keys. (Broken by e5ecc416f2fd)
+    
+    R=agl
+    CC=golang-dev
+    https://golang.org/cl/4553052
+
+ src/pkg/asn1/marshal.go      | 11 ++++-------
+ src/pkg/asn1/marshal_test.go |  5 +++++
+ 2 files changed, 9 insertions(+), 7 deletions(-)

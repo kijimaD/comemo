@@ -1,0 +1,21 @@
+commit 0a39e4a89d26d8375bb5877f736dcc0047894060
+Author: Robert Griesemer <gri@golang.org>
+Date:   Sat Nov 13 11:02:51 2021 -0800
+
+    cmd/compile/internal/types2: optimize common case in structuralType
+    
+    Most of the time we don't have a type parameter. Avoid using a
+    closure in that case.
+    
+    While at it, rename argument from typ to t (to match style in
+    that file), and clarify the doc string.
+    
+    Change-Id: Ie62821073f60f353526263f8b380bad9f72d842e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/363668
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/type.go | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)

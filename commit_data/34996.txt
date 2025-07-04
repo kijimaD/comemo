@@ -1,0 +1,17 @@
+commit 0b9c1ad20d4d4120e30f05129987f44de57032be
+Author: Keegan Carruthers-Smith <keegan.csmith@gmail.com>
+Date:   Sun Apr 15 22:22:13 2018 +0100
+
+    context: avoid defer in the cancelCtx.Err method
+    
+    name                  old time/op  new time/op  delta
+    CheckCanceled/Err-4   53.5ns ± 2%  20.8ns ± 0%  -61.05%  (p=0.008 n=5+5)
+    CheckCanceled/Done-4  44.4ns ± 1%  44.5ns ± 0%     ~     (p=0.889 n=5+5)
+    
+    Change-Id: I2c68700a2b33f8feb3d307ce7c966590a3e960af
+    Reviewed-on: https://go-review.googlesource.com/107137
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/context/benchmark_test.go | 18 ++++++++++++++++++
+ src/context/context.go        |  5 +++--
+ 2 files changed, 21 insertions(+), 2 deletions(-)

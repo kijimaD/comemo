@@ -1,0 +1,21 @@
+commit 83cd4ee0705677c94db0307fbc27c8fc6781ba8c
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 6 13:47:40 2009 -0700
+
+    6g: generate string data as individual symbols,
+    so that 6l can discard strings used by dead code.
+    also, for short strings, generate DUPOK global
+    symbols so that references to, say, "%s: %s" in
+    multiple files result in only a single symbol.
+    
+    R=ken
+    OCL=28361
+    CL=28361
+
+ src/cmd/6g/gg.h    |   1 +
+ src/cmd/6g/gsubr.c |   8 +--
+ src/cmd/6g/obj.c   | 190 ++++++++++++++++++++++++++++++++++++++---------------
+ src/cmd/gc/go.h    |  20 +-----
+ src/cmd/gc/lex.c   |   3 -
+ src/cmd/gc/obj.c   |  38 +----------
+ 6 files changed, 142 insertions(+), 118 deletions(-)

@@ -1,0 +1,23 @@
+commit 3adcce5ae7203e9ee7bee93a4ad913a3145e682e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jun 22 17:57:22 2023 +0200
+
+    crypto: document non-determinism of GenerateKey
+    
+    Fixes #58637
+    
+    Change-Id: I9eb3905d5b35ea22e22e1d8eb8c33594eac487fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/505155
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/ecdh/ecdh.go       |  6 +++++-
+ src/crypto/ecdsa/ecdsa.go     | 10 +++++++++-
+ src/crypto/ed25519/ed25519.go |  5 ++++-
+ src/crypto/rsa/pkcs1v15.go    |  9 ++++++---
+ src/crypto/rsa/pss.go         | 10 ++++++++++
+ src/crypto/rsa/rsa.go         | 16 +++++++++++++---
+ 6 files changed, 47 insertions(+), 9 deletions(-)

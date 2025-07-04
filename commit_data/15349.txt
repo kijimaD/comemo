@@ -1,0 +1,21 @@
+commit 92cbf82f1443223e21856f408b50821082babecc
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Feb 21 12:14:33 2013 -0500
+
+    exp/ssa: add dedicated Panic instruction.
+    
+    By avoiding the need for self-loops following calls to panic,
+    we reduce the number of basic blocks considerably.
+    
+    R=gri
+    CC=golang-dev, iant
+    https://golang.org/cl/7403043
+
+ src/pkg/exp/ssa/builder.go       | 30 ++++++++++++------------------
+ src/pkg/exp/ssa/emit.go          | 12 ------------
+ src/pkg/exp/ssa/interp/interp.go |  5 ++++-
+ src/pkg/exp/ssa/interp/ops.go    |  5 +++++
+ src/pkg/exp/ssa/print.go         |  4 ++++
+ src/pkg/exp/ssa/sanity.go        |  8 +++++++-
+ src/pkg/exp/ssa/ssa.go           | 23 ++++++++++++++++++++++-
+ 7 files changed, 54 insertions(+), 33 deletions(-)

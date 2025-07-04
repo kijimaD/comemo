@@ -1,0 +1,18 @@
+commit d6f7203a3c63276680457b9794191a366a1a4401
+Author: Robert Findley <rfindley@google.com>
+Date:   Tue Nov 2 18:29:27 2021 -0400
+
+    go/types: adjust printing of type parameter in error
+    
+    This is a clean port of CL 360514 to go/types.
+    
+    Change-Id: Ia13638b3758b3b8017867934d09136ac5f9a62ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/360935
+    Trust: Robert Findley <rfindley@google.com>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/infer.go                          | 7 ++++---
+ src/go/types/testdata/fixedbugs/issue45985.go2 | 2 +-
+ 2 files changed, 5 insertions(+), 4 deletions(-)

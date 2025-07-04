@@ -1,0 +1,25 @@
+commit 8f4d9646417ae1904f53d7ba111b2290d80d0097
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 27 10:40:47 2015 -0400
+
+    cmd/compile, cmd/internal: replace %P with %v in a few final prints
+    
+    $ sizeof -p cmd/compile/internal/gc Node
+    Node 168
+    $
+    
+    Change-Id: I1e2f17bfee0e6ca7213706c4cef8d990f4461915
+    Reviewed-on: https://go-review.googlesource.com/10533
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+
+ src/cmd/compile/internal/arm/cgen64.go | 6 +++---
+ src/cmd/compile/internal/arm/ggen.go   | 4 ++--
+ src/cmd/compile/internal/arm/gsubr.go  | 2 +-
+ src/cmd/compile/internal/gc/popt.go    | 6 +++---
+ src/cmd/internal/obj/arm/asm5.go       | 2 +-
+ src/cmd/internal/obj/data.go           | 4 ++--
+ src/cmd/internal/obj/pcln.go           | 2 +-
+ src/cmd/internal/obj/ppc64/asm9.go     | 6 +++---
+ src/cmd/internal/obj/x86/asm6.go       | 6 +++---
+ 9 files changed, 19 insertions(+), 19 deletions(-)

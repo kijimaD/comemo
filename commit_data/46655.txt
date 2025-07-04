@@ -1,0 +1,33 @@
+commit 435718edd9e9ba60d0c5bca45cc9d57c6b5527bc
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 28 13:50:15 2021 -0700
+
+    cmd/compile/internal/types2: avoid infinite recursion in unification
+    
+    If the type T inferred for a type parameter P is P itself (or a derived
+    type containing P), a subsequent unification step leads to infinite
+    recursion: at each encounter of P with the already inferred type T
+    (which is or contains P), P stands for that T and the recursive matching
+    process continues with T, which inevitably contains P again and recursion
+    never terminates.
+    
+    This CL introduces a set of masks, one for each type parameter.
+    When a type parameter is encountered for which a type has already
+    been inferred, the type parameter is "masked" for the recursive
+    matching of the inferred type. Masking makes the type parameter
+    "invisible" such that it will be handled like any other type and
+    not unpacked further.
+    
+    Fixes #48619.
+    For #48656.
+    
+    Change-Id: Ic1d938322be51fd44323ea14f925303f58b27c97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/352832
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ .../types2/testdata/fixedbugs/issue48619.go2       | 22 ++++++++++++++++++
+ .../types2/testdata/fixedbugs/issue48656.go2       | 13 +++++++++++
+ src/cmd/compile/internal/types2/unify.go           | 26 +++++++++++++++++++---
+ 3 files changed, 58 insertions(+), 3 deletions(-)

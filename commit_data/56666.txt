@@ -1,0 +1,53 @@
+commit 63c1e141bccff884dd9cab51a46c42c1a058fbe2
+Author: fanzha02 <fannie.zhang@arm.com>
+Date:   Wed Apr 10 08:45:02 2024 +0000
+
+    cmd/compile: intrinsify atomic And/Or on arm64
+    
+    The atomic And/Or operators were added by the CL 528797,
+    the compiler does not intrinsify them, this CL does it for
+    arm64.
+    
+    Also, for the existing atomicAnd/Or operations, the updated
+    value are not used, but at that time we need a register to
+    temporarily hold it. Now that we have v.RegTmp, the new value
+    is not needed anymore. This CL changes it.
+    
+    The other change is that the existing operations don't use their
+    result, but now we need the old value and not the new value for
+    the result.
+    
+    And this CL alias all of the And/Or operations into sync/atomic
+    package.
+    
+    Peformance on an ARMv8.1 machine:
+                          old.txt       new.txt
+                          sec/op         sec/op         vs base
+    And32-160            8.716n ± 0%    4.771n ± 1%  -45.26% (p=0.000 n=10)
+    And32Parallel-160    30.58n ± 2%   26.45n ± 4% -13.49% (p=0.000 n=10)
+    And64-160            8.750n ± 1%    4.754n ± 0%  -45.67% (p=0.000 n=10)
+    And64Parallel-160    29.40n ± 3%    25.55n ± 5%  -13.11% (p=0.000 n=10)
+    Or32-160             8.847n ± 1%    4.754±1%  -46.26% (p=0.000 n=10)
+    Or32Parallel-160     30.75n ± 3%    26.10n ± 4%  -15.14% (p=0.000 n=10)
+    Or64-160             8.825n ± 1%    4.766n ± 0%  -46.00% (p=0.000 n=10)
+    Or64Parallel-160     30.52n ± 5%    25.89n ± 6%  -15.17% (p=0.000 n=10)
+    
+    For #61395
+    
+    Change-Id: Ib1d1ac83f7f67dcf67f74d003fadb0f80932b826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584715
+    Auto-Submit: Austin Clements <austin@google.com>
+    TryBot-Bypass: Austin Clements <austin@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Fannie Zhang <Fannie.Zhang@arm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+
+ src/cmd/compile/internal/arm64/ssa.go           |  63 ++++----
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules   |  10 +-
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go   |  30 ++--
+ src/cmd/compile/internal/ssa/_gen/genericOps.go |  24 +--
+ src/cmd/compile/internal/ssa/opGen.go           | 129 ++++++++++++++--
+ src/cmd/compile/internal/ssa/rewriteARM64.go    | 188 ++++--------------------
+ src/cmd/compile/internal/ssagen/ssa.go          |  51 +++++--
+ 7 files changed, 252 insertions(+), 243 deletions(-)

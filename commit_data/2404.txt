@@ -1,0 +1,26 @@
+commit 01fe6a9c5845f654d0306ef228854a171c67fb24
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Jun 5 22:18:32 2009 -0700
+
+    more build refinements:
+     * use new Make.$GOARCH files in gobuild.
+     * rename 6ar to arch-generic gopack.
+     * place objects in $GOROOT/pkg/$GOOS_$GOARCH
+       (makes cross-compiling easier, and no one
+       ever types these paths by hand anyway).
+    
+    R=r
+    DELTA=29  (6 added, 8 deleted, 15 changed)
+    OCL=29923
+    CL=29967
+
+ src/Make.386                |  1 +
+ src/Make.amd64              |  1 +
+ src/Make.arm                |  1 +
+ src/cmd/6l/obj.c            |  2 +-
+ src/cmd/8l/obj.c            |  2 +-
+ src/cmd/ar/Makefile         |  2 +-
+ src/cmd/gc/lex.c            | 10 ++++++----
+ src/cmd/gobuild/makefile.go | 20 ++++++--------------
+ src/cmd/gobuild/util.go     |  4 ++--
+ 9 files changed, 20 insertions(+), 23 deletions(-)

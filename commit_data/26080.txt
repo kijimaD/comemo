@@ -1,0 +1,38 @@
+commit bd6d84282a441a35b4629eaa958d3ce24d396a6f
+Author: Martin Möhrmann <martisch@uos.de>
+Date:   Sat Feb 27 14:37:10 2016 +0100
+
+    fmt: refactor and unify float and complex formatting
+    
+    Removes specialized functions for each verb and float/complex size
+    and replaces them with generic variants fmtFloat and
+    fmtComplex similar to other generic fmt functions.
+    
+    Simplifies the complex formatting by relying on fmtFloat
+    to handle the verb and default precision selection.
+    
+    Complex imaginary formatting does not need to clear the f.space flag
+    because the set f.plus flag will force a sign instead of a space.
+    
+    Sets default precision for %b to -1 (same as %g and %G)
+    since precision for %b has no affect in strconv.AppendFloat.
+    
+    Add more tests and group them a bit better.
+    Use local copies of +Inf,-Inf and NaN instead
+    of math package functions for testing.
+    
+    Saves around 8kb in the go binary.
+    
+    name              old time/op  new time/op  delta
+    SprintfFloat-2     200ns ± 4%   196ns ± 4%  -1.55%  (p=0.007 n=20+20)
+    SprintfComplex-2   569ns ± 4%   570ns ± 3%    ~     (p=0.804 n=20+20)
+    
+    Change-Id: I36d35dab6f835fc2bd2c042ac97705868eb2446f
+    Reviewed-on: https://go-review.googlesource.com/20252
+    Reviewed-by: Rob Pike <r@golang.org>
+    Run-TryBot: Rob Pike <r@golang.org>
+
+ src/fmt/fmt_test.go | 100 +++++++++++++++++++++++++++++++++++++---------------
+ src/fmt/format.go   |  99 ++++-----------------------------------------------
+ src/fmt/print.go    | 100 +++++++++++++++++++---------------------------------
+ 3 files changed, 115 insertions(+), 184 deletions(-)

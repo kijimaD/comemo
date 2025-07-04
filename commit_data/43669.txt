@@ -1,0 +1,20 @@
+commit 0be8280d8d01ef348fede17aef13aecf15cd7091
+Author: Michał Derkacz <michal@Lnet.pl>
+Date:   Thu Oct 29 01:10:49 2020 +0100
+
+    cmd/compile: optimize small zeroing/moving on riscv64
+    
+    Optimize small (s <= 32) zeroing/moving operations on riscv64.
+    Avoid generating unaligned memory accesses.
+    
+    The code is almost one to one translation of the corresponding
+    mips64 rules with additional rule for s=32.
+    
+    Change-Id: I753b0b8e53cb9efcf43c8080cab90f3d03539fb8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/266217
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+
+ src/cmd/compile/internal/ssa/gen/RISCV64.rules | 133 ++++-
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go | 654 ++++++++++++++++++++++++-
+ 2 files changed, 751 insertions(+), 36 deletions(-)

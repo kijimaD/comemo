@@ -1,0 +1,13 @@
+commit 3f7da4f861b87f869b6f7ddb903382dcced9367c
+Author: Rob Pike <r@golang.org>
+Date:   Fri Apr 16 16:17:47 2010 -0700
+
+    rpc: Add Close() method to rpc.Client to allow graceful connection teardown.
+    Fixes #675.
+    
+    R=rsc, msolo
+    CC=golang-dev
+    https://golang.org/cl/882049
+
+ src/pkg/rpc/client.go | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)

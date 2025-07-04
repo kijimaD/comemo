@@ -1,0 +1,12 @@
+commit 3b3568ba498e1e7f08565ab0f3592ae83e540d46
+Author: Yasuhiro Matsumoto <mattn.jp@gmail.com>
+Date:   Thu Feb 10 16:00:24 2011 -0800
+
+    godoc: Use IsAbs to test for absolute paths (fix for win32).
+    
+    R=gri
+    CC=golang-dev
+    https://golang.org/cl/4129046
+
+ src/cmd/godoc/main.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

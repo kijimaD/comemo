@@ -1,0 +1,15 @@
+commit f4b92c8624d220592b374fb8d1a654d6e8a356c6
+Author: David Symonds <dsymonds@golang.org>
+Date:   Sun Apr 26 20:57:01 2009 -0700
+
+    Add string-valued variables to exvar.
+    
+    R=r
+    APPROVED=r
+    DELTA=62  (58 added, 1 deleted, 3 changed)
+    OCL=27756
+    CL=27877
+
+ src/lib/exvar.go      | 41 ++++++++++++++++++++++++++++++++++++++++-
+ src/lib/exvar_test.go | 24 +++++++++++++++++++++---
+ 2 files changed, 61 insertions(+), 4 deletions(-)

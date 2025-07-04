@@ -1,0 +1,20 @@
+commit 7c5f33b173d7bde6b3ae33bab940b76b4c991556
+Author: Josh Bleecher Snyder <josharian@gmail.com>
+Date:   Mon Jul 11 16:05:41 2016 -0700
+
+    runtime: cull dead code
+    
+    They are unused, and vet wants them to have
+    a function prototype.
+    
+    Updates #11041
+    
+    Change-Id: Idedc96ddd3c3cf1b1d2ab6d98796367eab29f032
+    Reviewed-on: https://go-review.googlesource.com/27492
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/runtime/asm.s                          | 3 ---
+ src/runtime/internal/atomic/asm.s          | 8 --------
+ src/runtime/internal/atomic/sys_nacl_arm.s | 3 ---
+ 3 files changed, 14 deletions(-)

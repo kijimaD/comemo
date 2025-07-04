@@ -1,0 +1,21 @@
+commit 04262986a0b112de5f6f0b287447319c31ef15f9
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Thu Oct 13 17:14:24 2016 -0700
+
+    archive/tar: compact slices in tests
+    
+    Took this opportunity to also embed tables in the functions
+    that they are actually used in and other stylistic cleanups.
+    
+    There was no logical changes to the tests.
+    
+    Change-Id: Ifa724060532175f6f4407d6cedc841891efd8f7b
+    Reviewed-on: https://go-review.googlesource.com/31436
+    Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+
+ src/archive/tar/reader_test.go | 494 ++++++++++++++++++-----------------------
+ src/archive/tar/tar_test.go    | 236 ++++++++++----------
+ src/archive/tar/writer_test.go | 329 +++++++++++++--------------
+ 3 files changed, 486 insertions(+), 573 deletions(-)

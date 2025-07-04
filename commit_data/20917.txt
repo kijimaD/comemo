@@ -1,0 +1,17 @@
+commit 14948481f60accb7d7062f2f1d4f4cc50fb4e140
+Author: Dominik Honnef <dominik.honnef@gmail.com>
+Date:   Wed Dec 3 10:28:54 2014 +1100
+
+    cmd/go: regenerate doc.go
+    
+    Move change from CL 170770043 to correct file and regenerate docs
+    for changes from CL 164120043.
+    
+    LGTM=adg
+    R=golang-codereviews, adg, bradfitz
+    CC=golang-codereviews
+    https://golang.org/cl/183000043
+
+ src/cmd/go/doc.go      | 7 ++++++-
+ src/cmd/go/generate.go | 2 +-
+ 2 files changed, 7 insertions(+), 2 deletions(-)

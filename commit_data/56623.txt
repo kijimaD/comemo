@@ -1,0 +1,31 @@
+commit efe7a1f5d3ccdef5c25cb4d8386492a7b1785600
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon May 20 20:31:36 2024 +0000
+
+    runtime: write out a batch with alignment info for traceallocfree
+    
+    Currently the traceallocfree experiment is missing info in the trace for
+    interpeting the produced events. Most notably, the base heap address is
+    missing. While not technically necessary, it is useful for getting an
+    accurate picture of the program's memory layout, and will be useful for
+    future trace experiments. Since we want to emit a batch for this, we
+    should also emit a batch for all the alignment info that's used to
+    compress the addresses (IDs) produced for the alloc/free events.
+    
+    This CL distinguishes the different formats of the experimental batches
+    (note that there's already batches containing type information in this
+    experiment) by putting a byte at the beginning of each experimental
+    batch indicating its format.
+    
+    Change-Id: Ifc4e77a23458713b7d95e0dfa056a29e1629ccd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586997
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+
+ src/runtime/mksizeclasses.go  |  4 +++-
+ src/runtime/sizeclasses.go    |  1 +
+ src/runtime/trace.go          |  2 +-
+ src/runtime/traceallocfree.go | 29 +++++++++++++++++++++++++++--
+ src/runtime/tracetype.go      |  9 +++++++--
+ 5 files changed, 39 insertions(+), 6 deletions(-)

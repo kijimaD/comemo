@@ -1,0 +1,18 @@
+commit d7549821a0136593e9872e9c50c45c8ce038704b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Aug 16 10:39:34 2023 -0400
+
+    cmd/go: clean internal/vcs slightly
+    
+    Delete CheckNested, which was for GOPATH get.
+    Unexport CheckGOVCS, which was only exported for GOPATH get.
+    
+    Change-Id: I6d3f772bfea70f4a3ec197d48b74c3d6d58bcdce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/520037
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+
+ src/cmd/go/internal/vcs/vcs.go | 39 ++++-----------------------------------
+ 1 file changed, 4 insertions(+), 35 deletions(-)

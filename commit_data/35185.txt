@@ -1,0 +1,34 @@
+commit 22ff9521daf9478da54efe708d46a62bf928fbf1
+Author: ChrisALiles <caveryliles@gmail.com>
+Date:   Sat Apr 21 17:31:21 2018 +1000
+
+    cmd/compile: pass arguments to convt2E/I integer functions by value
+    
+    The motivation is avoid generating a pointer to the data being
+    converted so it can be garbage collected.
+    The change also slightly reduces binary size by shrinking call sites.
+    
+    Fixes #24286
+    
+    Benchmark results:
+    name                   old time/op  new time/op  delta
+    ConvT2ESmall-4         2.86ns ± 0%  2.80ns ± 1%  -2.12%  (p=0.000 n=29+28)
+    ConvT2EUintptr-4       2.88ns ± 1%  2.88ns ± 0%  -0.20%  (p=0.002 n=28+30)
+    ConvT2ELarge-4         19.6ns ± 0%  20.4ns ± 1%  +4.22%  (p=0.000 n=19+30)
+    ConvT2ISmall-4         3.01ns ± 0%  2.85ns ± 0%  -5.32%  (p=0.000 n=24+28)
+    ConvT2IUintptr-4       3.00ns ± 1%  2.87ns ± 0%  -4.44%  (p=0.000 n=29+25)
+    ConvT2ILarge-4         20.4ns ± 1%  21.3ns ± 1%  +4.41%  (p=0.000 n=30+26)
+    ConvT2Ezero/zero/16-4  2.84ns ± 1%  2.99ns ± 0%  +5.38%  (p=0.000 n=30+25)
+    ConvT2Ezero/zero/32-4  2.83ns ± 2%  3.00ns ± 0%  +5.91%  (p=0.004 n=27+3)
+    
+    Change-Id: I65016ec94c53f97c52113121cab582d0c342b7a8
+    Reviewed-on: https://go-review.googlesource.com/102636
+    Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
+    Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/gc/builtin.go         | 12 ++---
+ src/cmd/compile/internal/gc/builtin/runtime.go | 12 ++---
+ src/cmd/compile/internal/gc/walk.go            | 62 +++++++++++-----------
+ src/runtime/iface.go                           | 72 +++++++-------------------
+ 4 files changed, 61 insertions(+), 97 deletions(-)

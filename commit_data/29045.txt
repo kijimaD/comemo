@@ -1,0 +1,19 @@
+commit a3faa80033ae2ffa3ee56439759f0ea0200a3a3e
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Oct 21 09:21:06 2016 -0400
+
+    cmd/go: bypass install to os.DevNull entirely, test mayberemovefile(os.DevNull)
+    
+    Fixes #16811.
+    
+    Change-Id: I7d018015f691838482ccf845d621209b96935ba4
+    Reviewed-on: https://go-review.googlesource.com/31657
+    Run-TryBot: Russ Cox <rsc@golang.org>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Quentin Smith <quentin@golang.org>
+
+ src/cmd/go/build.go      |  5 +++++
+ src/cmd/go/build_test.go | 25 +++++++++++++++++++++++++
+ src/cmd/go/go_test.go    |  3 ---
+ 3 files changed, 30 insertions(+), 3 deletions(-)

@@ -1,0 +1,15 @@
+commit 0c5b00d0cd41a9f1662f6cc306bb74f70e8abd08
+Author: griesemer <gri@golang.org>
+Date:   Mon Oct 23 14:08:41 2017 -0700
+
+    spec: remove sentence discussing existing implementations
+    
+    Fixes #22282.
+    
+    Change-Id: I4097e9cbd590ab6c8b1511a3b752c6ac98ac819b
+    Reviewed-on: https://go-review.googlesource.com/72792
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+
+ doc/go_spec.html | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)

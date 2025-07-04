@@ -1,0 +1,15 @@
+commit 0347e95b63c183fa5107609603ab30496d829260
+Author: Ken Thompson <ken@golang.org>
+Date:   Tue Oct 21 15:04:10 2008 -0700
+
+    changes to imbedded
+    
+    R=r
+    OCL=17572
+    CL=17572
+
+ src/cmd/gc/dcl.c  |  18 ++++++-
+ src/cmd/gc/go.h   |   6 ++-
+ src/cmd/gc/go.y   |  22 ++++----
+ src/cmd/gc/walk.c | 155 +++++++++++++++++++++++++++++++++---------------------
+ 4 files changed, 130 insertions(+), 71 deletions(-)

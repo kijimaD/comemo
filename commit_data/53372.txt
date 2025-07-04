@@ -1,0 +1,18 @@
+commit 30db6f202637251d57ee6c17ce666dacb0c59b46
+Author: Marten Seemann <martenseemann@gmail.com>
+Date:   Thu May 25 11:06:41 2023 +0300
+
+    crypto/tls: fix cipher suite check when doing 0-RTT resumption
+    
+    Change-Id: Ia50898308b80149f862457f9cd9f1123da4e6b6f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/498215
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Macrombi Lux <macrentals502@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+
+ src/crypto/tls/handshake_client.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

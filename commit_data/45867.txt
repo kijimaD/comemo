@@ -1,0 +1,31 @@
+commit 37f9a8f69d6299783eac8848d87e27eb563500ac
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu Jun 24 11:01:49 2021 -0400
+
+    go/types: fix a bug in package qualification logic
+    
+    CL 313035 had a bug, initializing pkgPathMap by walking the imported
+    package being considered rather than check.pkg.
+    
+    Fix this, and enhance our tests to exercise this bug as well as other
+    edge cases.
+    
+    Also fix error assertions in issues.src to not use quotation marks
+    inside the error regexp. The check tests only matched the error regexp
+    up to the first quotation mark.
+    
+    Fixes #46905
+    
+    Change-Id: I6aa8eae4bec6495006a5c03fc063db0d66b44cd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/330629
+    Trust: Robert Findley <rfindley@google.com>
+    Trust: Robert Griesemer <gri@golang.org>
+    Run-TryBot: Robert Findley <rfindley@google.com>
+    TryBot-Result: Go Bot <gobot@golang.org>
+    Reviewed-by: Robert Griesemer <gri@golang.org>
+
+ src/go/types/check_test.go             | 15 ++++---
+ src/go/types/errors.go                 |  2 +-
+ src/go/types/issues_test.go            | 72 ++++++++++++++++++++++------------
+ src/go/types/testdata/check/issues.src |  4 +-
+ 4 files changed, 59 insertions(+), 34 deletions(-)

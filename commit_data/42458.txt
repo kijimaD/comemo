@@ -1,0 +1,14 @@
+commit bdf76ca045c989bcff9a0111819559d632a4a39a
+Author: Julie Qiu <julie@golang.org>
+Date:   Tue Jun 2 13:51:38 2020 -0400
+
+    doc/go1.15: add release notes for time
+    
+    Updates #37419
+    
+    Change-Id: I2018b55f335400070bfa3573adab9549a5bf6a1a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/236158
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+
+ doc/go1.15.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

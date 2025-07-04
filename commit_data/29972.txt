@@ -1,0 +1,21 @@
+commit 4cce27a3fa0cc1f13afa6ffa358efa07144e00ec
+Author: Michael Munday <munday@ca.ibm.com>
+Date:   Fri Jan 20 22:03:13 2017 -0500
+
+    cmd/compile: fix constant propagation through s390x MOVDNE instructions
+    
+    The constant propagation rules selected the wrong operand to
+    propagate. So MOVDNE (move if not equal) propagated operands as if
+    it were a MOVDEQ (move if equal).
+    
+    Fixes #18735.
+    
+    Change-Id: I87ac469172f9df7d5aabaf7106e2936ce54ae202
+    Reviewed-on: https://go-review.googlesource.com/35498
+    Run-TryBot: Michael Munday <munday@ca.ibm.com>
+    Reviewed-by: Cherry Zhang <cherryyz@google.com>
+    TryBot-Result: Gobot Gobot <gobot@golang.org>
+
+ src/cmd/compile/internal/ssa/gen/S390X.rules |  6 +++---
+ src/cmd/compile/internal/ssa/rewriteS390X.go | 12 ++++++------
+ 2 files changed, 9 insertions(+), 9 deletions(-)

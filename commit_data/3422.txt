@@ -1,0 +1,14 @@
+commit 032f2d399f2e8117caa348a7153f2066a17aba45
+Author: Nigel Tao <nigeltao@golang.org>
+Date:   Thu Oct 1 17:50:16 2009 -0700
+
+    Change deflate.go's default compression level from 4 to 6.
+    
+    R=rsc
+    APPROVED=rsc
+    DELTA=1  (0 added, 0 deleted, 1 changed)
+    OCL=35208
+    CL=35261
+
+ src/pkg/compress/flate/deflate.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)

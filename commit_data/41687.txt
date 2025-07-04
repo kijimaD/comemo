@@ -1,0 +1,19 @@
+commit b816cb2cd5f1b7cee660c6e4b85d8130b960752a
+Author: Jay Conrod <jayconrod@google.com>
+Date:   Wed Mar 18 14:59:44 2020 -0400
+
+    cmd/go: update 'go help modules' for automatic vendoring
+    
+    * Mention vendor/modules.txt verification with -mod=vendor.
+    * Update "Modules and vendoring" section.
+    
+    Fixes #37930
+    
+    Change-Id: Ia3ee72457daabaa2fc15b7ea7427eb324c088b8f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/223926
+    Run-TryBot: Jay Conrod <jayconrod@google.com>
+    Reviewed-by: Bryan C. Mills <bcmills@google.com>
+
+ src/cmd/go/alldocs.go               | 52 +++++++++++++++++++++++--------------
+ src/cmd/go/internal/modload/help.go | 52 +++++++++++++++++++++++--------------
+ 2 files changed, 66 insertions(+), 38 deletions(-)

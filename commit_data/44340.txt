@@ -1,0 +1,15 @@
+commit 378f73e2d56998fba872decd61583d96cd9b1f77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Feb 19 16:47:04 2021 -0800
+
+    cmd/compile/internal/types2: enable TestIssue25627
+    
+    Since we have syntax.Walk, we can make this test work again.
+    
+    Change-Id: I55cbde7303e5bcbe1123b6679f2ce859d377fd86
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/294472
+    Trust: Robert Griesemer <gri@golang.org>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+
+ src/cmd/compile/internal/types2/issues_test.go | 23 +++++++++--------------
+ 1 file changed, 9 insertions(+), 14 deletions(-)
