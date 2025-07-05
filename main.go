@@ -161,8 +161,6 @@ func executePrompts(cliCommand string) error {
 	case "gemini":
 		cliCommandLine = "gemini -m gemini-2.5-flash -p"
 	case "claude":
-		cliCommandLine = "claude"
-	case "claude-sonnet":
 		cliCommandLine = "claude --model sonnet"
 	default:
 		return fmt.Errorf("error subcommand: %s", cliCommand)
