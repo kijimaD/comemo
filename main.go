@@ -12,11 +12,48 @@ import (
 	"time"
 )
 
-const (
-	goRepoPath    = "go"
-	promptsDir    = "prompts"
-	outputDir     = "src"
-	commitDataDir = "commit_data" // git showの結果を保存する一時ディレクトリ
+// Config holds application configuration
+type Config struct {
+	GoRepoPath    string
+	PromptsDir    string
+	OutputDir     string
+	CommitDataDir string
+	MaxConcurrency int
+	ExecutionTimeout time.Duration
+}
+
+// QuotaErrors contains patterns that indicate quota limits
+type QuotaErrors []string
+
+// CLICommand represents supported AI CLI commands
+type CLICommand struct {
+	Name    string
+	Command string
+}
+
+var (
+	config = Config{
+		GoRepoPath:       "go",
+		PromptsDir:       "prompts",
+		OutputDir:        "src",
+		CommitDataDir:    "commit_data",
+		MaxConcurrency:   20,
+		ExecutionTimeout: 10 * time.Minute,
+	}
+
+	quotaErrors = QuotaErrors{
+		"Quota exceeded",
+		"quota metric",
+		"RESOURCE_EXHAUSTED",
+		"rateLimitExceeded",
+		"per day per user",
+		"Claude AI usage limit reached",
+	}
+
+	supportedCLIs = map[string]CLICommand{
+		"claude": {"claude", "claude --model sonnet"},
+		"gemini": {"gemini", "gemini -m gemini-2.5-flash -p"},
+	}
 )
 
 // runGitCommand は指定されたディレクトリでgitコマンドを実行します。
@@ -33,8 +70,32 @@ func runGitCommand(repoPath string, args ...string) (string, error) {
 	return stdout.String(), nil
 }
 
+// isQuotaError checks if the output contains quota-related error messages
+func isQuotaError(output string) bool {
+	for _, pattern := range quotaErrors {
+		if strings.Contains(output, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// handleQuotaError handles quota limit errors by terminating the program
+func handleQuotaError(scriptPath, output string) {
+	fmt.Fprintf(os.Stderr, "\n!!! Daily quota limit reached. Terminating program. !!!\n")
+	fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
+	fmt.Fprintf(os.Stderr, "Please try again tomorrow or switch to a different API.\n")
+	fmt.Fprintf(os.Stderr, "Output:\n%s\n", output)
+	os.Exit(1)
+}
+
 // getCommitHashes はコミットハッシュを古い順に取得します。
-func getCommitHashes(repoPath string) ([]string, error) {
+func getCommitHashes() ([]string, error) {
+	return getCommitHashesFromRepo(config.GoRepoPath)
+}
+
+// getCommitHashesFromRepo は指定されたリポジトリからコミットハッシュを取得します。
+func getCommitHashesFromRepo(repoPath string) ([]string, error) {
 	output, err := runGitCommand(repoPath, "log", "--reverse", "--pretty=format:%H")
 	if err != nil {
 		return nil, err
@@ -58,8 +119,8 @@ func getCommitIndex(allHashes []string, targetHash string) int {
 
 // prepareCommitData は `git show` の結果をファイルに保存します。
 func prepareCommitData(hash string, index int) (string, error) {
-	filePath := filepath.Join(commitDataDir, fmt.Sprintf("%d.txt", index))
-	commitData, err := runGitCommand(goRepoPath, "show", "--patch-with-stat", hash) // --patch-with-statで統計情報と差分の両方を表示
+	filePath := filepath.Join(config.CommitDataDir, fmt.Sprintf("%d.txt", index))
+	commitData, err := runGitCommand(config.GoRepoPath, "show", "--patch-with-stat", hash)
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit data for %s: %w", hash, err)
 	}
@@ -71,7 +132,7 @@ func prepareCommitData(hash string, index int) (string, error) {
 
 // generatePromptScript は解説生成を指示するシェルスクリプトを作成します。
 func generatePromptScript(hash string, index int, commitDataPath string) error {
-	scriptPath := filepath.Join(promptsDir, fmt.Sprintf("%d.sh", index))
+	scriptPath := filepath.Join(config.PromptsDir, fmt.Sprintf("%d.sh", index))
 	githubURL := fmt.Sprintf("https://github.com/golang/go/commit/%s", hash)
 
 	// 絶対パスを生成
@@ -138,7 +199,7 @@ EOF
 
 // executePrompts は prompts ディレクトリ内のスクリプトを並列実行します。
 func executePrompts(cliCommand string) error {
-	files, err := os.ReadDir(promptsDir)
+	files, err := os.ReadDir(config.PromptsDir)
 	if err != nil {
 		return fmt.Errorf("error reading prompts directory: %w", err)
 	}
@@ -156,14 +217,9 @@ func executePrompts(cliCommand string) error {
 	}
 
 	// CLIコマンドの決定
-	var cliCommandLine string
-	switch cliCommand {
-	case "gemini":
-		cliCommandLine = "gemini -m gemini-2.5-flash -p"
-	case "claude":
-		cliCommandLine = "claude --model sonnet"
-	default:
-		return fmt.Errorf("error subcommand: %s", cliCommand)
+	cli, exists := supportedCLIs[cliCommand]
+	if !exists {
+		return fmt.Errorf("unsupported CLI command: %s", cliCommand)
 	}
 
 	fmt.Printf("\n--- Executing %d Prompt Scripts with %s ---\n", len(shFiles), cliCommand)
@@ -179,11 +235,11 @@ func executePrompts(cliCommand string) error {
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			scriptPath := filepath.Join(promptsDir, fName)
+			scriptPath := filepath.Join(config.PromptsDir, fName)
 
 			// ファイル名から出力ファイルのパスを決定
 			baseName := strings.TrimSuffix(fName, ".sh")
-			outputPath := filepath.Join(outputDir, baseName+".md")
+			outputPath := filepath.Join(config.OutputDir, baseName+".md")
 
 			// スクリプト内のプレースホルダーを置換
 			content, err := os.ReadFile(scriptPath)
@@ -193,12 +249,12 @@ func executePrompts(cliCommand string) error {
 			}
 
 			// プレースホルダーを実際のCLIコマンドに置換（メモリ上でのみ）
-			modifiedContent := strings.ReplaceAll(string(content), "{{AI_CLI_COMMAND}}", cliCommandLine)
+			modifiedContent := strings.ReplaceAll(string(content), "{{AI_CLI_COMMAND}}", cli.Command)
 
 			fmt.Printf("Executing script: %s\n", scriptPath)
 
 			// 修正されたスクリプトをstdinから実行（タイムアウト付き）
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+			ctx, cancel := context.WithTimeout(context.Background(), config.ExecutionTimeout)
 			defer cancel()
 
 			cmd := exec.CommandContext(ctx, "/bin/bash")
@@ -210,23 +266,14 @@ func executePrompts(cliCommand string) error {
 
 			// タイムアウトエラーをチェック
 			if ctx.Err() == context.DeadlineExceeded {
-				fmt.Fprintf(os.Stderr, "\n!!! Script execution timed out after 10 minutes. Terminating. !!!\n")
+				fmt.Fprintf(os.Stderr, "\n!!! Script execution timed out after %v. Terminating. !!!\n", config.ExecutionTimeout)
 				fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
 				return
 			}
 
 			// 一日のクォータ制限に達した場合はプログラム全体を終了
-			if strings.Contains(outputStr, "Quota exceeded") ||
-				strings.Contains(outputStr, "quota metric") ||
-				strings.Contains(outputStr, "RESOURCE_EXHAUSTED") ||
-				strings.Contains(outputStr, "rateLimitExceeded") ||
-				strings.Contains(outputStr, "per day per user") ||
-				strings.Contains(outputStr, "Claude AI usage limit reached") {
-				fmt.Fprintf(os.Stderr, "\n!!! Daily quota limit reached. Terminating program. !!!\n")
-				fmt.Fprintf(os.Stderr, "Script: %s\n", scriptPath)
-				fmt.Fprintf(os.Stderr, "Please try again tomorrow or switch to a different API.\n")
-				fmt.Fprintf(os.Stderr, "Output:\n%s\n", outputStr) // Print output for debugging
-				os.Exit(1)                                         // プログラム全体を終了
+			if isQuotaError(outputStr) {
+				handleQuotaError(scriptPath, outputStr)
 			}
 
 			if cmdErr != nil {
@@ -304,9 +351,9 @@ func executePrompts(cliCommand string) error {
 	fmt.Println("\n--- All script executions complete ---")
 
 	// 最終確認
-	remainingFiles, _ := os.ReadDir(promptsDir)
+	remainingFiles, _ := os.ReadDir(config.PromptsDir)
 	if len(remainingFiles) > 0 {
-		fmt.Printf("\n%d scripts failed to execute and remain in the '%s' directory.\n", len(remainingFiles), promptsDir)
+		fmt.Printf("\n%d scripts failed to execute and remain in the '%s' directory.\n", len(remainingFiles), config.PromptsDir)
 		fmt.Println("Please check the error messages above, fix the issues, and run the program again.")
 	} else {
 		fmt.Println("\nAll prompt scripts executed successfully and were deleted.")
@@ -314,14 +361,14 @@ func executePrompts(cliCommand string) error {
 	return nil
 }
 
-// collectCommits は goRepoPath からコミットデータを収集し、commitDataDir に保存します。
+// collectCommits は Go リポジトリからコミットデータを収集します。
 func collectCommits() error {
 	// 必要なディレクトリを作成
-	if err := os.MkdirAll(commitDataDir, 0755); err != nil {
-		return fmt.Errorf("error creating directory %s: %w", commitDataDir, err)
+	if err := os.MkdirAll(config.CommitDataDir, 0755); err != nil {
+		return fmt.Errorf("error creating directory %s: %w", config.CommitDataDir, err)
 	}
 
-	allHashes, err := getCommitHashes(goRepoPath)
+	allHashes, err := getCommitHashes()
 	if err != nil {
 		return fmt.Errorf("error getting commit hashes: %w", err)
 	}
@@ -329,7 +376,7 @@ func collectCommits() error {
 	fmt.Printf("Found %d total commits. Collecting commit data...\n", len(allHashes))
 
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 20) // 同時実行数を20に制限
+	sem := make(chan struct{}, config.MaxConcurrency)
 
 	for _, hash := range allHashes {
 		index := getCommitIndex(allHashes, hash)
@@ -338,7 +385,7 @@ func collectCommits() error {
 		}
 
 		// commit_data にファイルが既に存在する場合はスキップ
-		commitDataFile := filepath.Join(commitDataDir, fmt.Sprintf("%d.txt", index))
+		commitDataFile := filepath.Join(config.CommitDataDir, fmt.Sprintf("%d.txt", index))
 		if _, err := os.Stat(commitDataFile); err == nil {
 			// fmt.Printf("Commit data for index %d already exists. Skipping.\n", index)
 			continue
@@ -366,7 +413,7 @@ func collectCommits() error {
 // generatePrompts は収集されたコミットデータに基づいてプロンプトスクリプトを生成します。
 func generatePrompts() error {
 	// 必要なディレクトリを作成
-	for _, dir := range []string{promptsDir, outputDir} {
+	for _, dir := range []string{config.PromptsDir, config.OutputDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("error creating directory %s: %w", dir, err)
 		}
@@ -375,7 +422,7 @@ func generatePrompts() error {
 	// commit_data ディレクトリからコミットハッシュとインデックスの対応を取得
 	// または、再度 getCommitHashes を実行して、commit_data のファイルと突き合わせる
 	// ここでは、getCommitHashes を再度実行し、commit_data の存在を確認する方式を採用
-	allHashes, err := getCommitHashes(goRepoPath)
+	allHashes, err := getCommitHashes()
 	if err != nil {
 		return fmt.Errorf("error getting commit hashes: %w", err)
 	}
@@ -391,16 +438,16 @@ func generatePrompts() error {
 			continue
 		}
 
-		outputFile := filepath.Join(outputDir, fmt.Sprintf("%d.md", index))
+		outputFile := filepath.Join(config.OutputDir, fmt.Sprintf("%d.md", index))
 		if _, err := os.Stat(outputFile); err == nil {
 			// fmt.Printf("Explanation for index %d already exists. Skipping prompt generation.\n", index)
 			continue // 既に解説ファイルが存在する場合はスキップ
 		}
 
 		// commit_data が存在しない場合はスキップ
-		commitDataPath := filepath.Join(commitDataDir, fmt.Sprintf("%d.txt", index))
+		commitDataPath := filepath.Join(config.CommitDataDir, fmt.Sprintf("%d.txt", index))
 		if _, err := os.Stat(commitDataPath); os.IsNotExist(err) {
-			fmt.Fprintf(os.Stderr, "Warning: Commit data for index %d (%s) not found in %s. Skipping prompt generation.\n", index, hash, commitDataDir)
+			fmt.Fprintf(os.Stderr, "Warning: Commit data for index %d (%s) not found in %s. Skipping prompt generation.\n", index, hash, config.CommitDataDir)
 			continue
 		}
 
@@ -427,7 +474,7 @@ func verify() error {
 	fmt.Println("--- Verification Started ---")
 
 	// 1. コミット数を取得
-	allHashes, err := getCommitHashes(goRepoPath)
+	allHashes, err := getCommitHashes()
 	if err != nil {
 		return fmt.Errorf("error getting commit hashes: %w", err)
 	}
@@ -435,10 +482,10 @@ func verify() error {
 	fmt.Printf("Total commits: %d\n", commitCount)
 
 	// 2. commit_dataディレクトリ内のファイル数を取得
-	commitDataFiles, err := os.ReadDir(commitDataDir)
+	commitDataFiles, err := os.ReadDir(config.CommitDataDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			fmt.Printf("commit_data directory does not exist: %s\n", commitDataDir)
+			fmt.Printf("commit_data directory does not exist: %s\n", config.CommitDataDir)
 			commitDataFiles = []os.DirEntry{}
 		} else {
 			return fmt.Errorf("error reading commit_data directory: %w", err)
@@ -454,10 +501,10 @@ func verify() error {
 	fmt.Printf("commit_data files: %d\n", commitDataCount)
 
 	// 3. promptsディレクトリ内のファイル数を取得
-	promptFiles, err := os.ReadDir(promptsDir)
+	promptFiles, err := os.ReadDir(config.PromptsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			fmt.Printf("prompts directory does not exist: %s\n", promptsDir)
+			fmt.Printf("prompts directory does not exist: %s\n", config.PromptsDir)
 			promptFiles = []os.DirEntry{}
 		} else {
 			return fmt.Errorf("error reading prompts directory: %w", err)
@@ -473,10 +520,10 @@ func verify() error {
 	fmt.Printf("prompt scripts: %d\n", promptCount)
 
 	// 4. srcディレクトリ内の説明ファイル数を取得
-	outputFiles, err := os.ReadDir(outputDir)
+	outputFiles, err := os.ReadDir(config.OutputDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			fmt.Printf("src directory does not exist: %s\n", outputDir)
+			fmt.Printf("src directory does not exist: %s\n", config.OutputDir)
 			outputFiles = []os.DirEntry{}
 		} else {
 			return fmt.Errorf("error reading src directory: %w", err)
@@ -585,12 +632,8 @@ func main() {
 		}
 
 		// サポートされているCLIかチェック
-		supportedCLIs := map[string]bool{
-			"claude":        true,
-			"claude-sonnet": true,
-			"gemini":        true,
-		}
-		if !supportedCLIs[cliCommand] {
+		_, exists := supportedCLIs[cliCommand]
+		if !exists {
 			fmt.Fprintf(os.Stderr, "Error: Unsupported CLI command '%s'. Supported: claude, claude-sonnet, gemini\n", cliCommand)
 			os.Exit(1)
 		}

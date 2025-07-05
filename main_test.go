@@ -115,7 +115,7 @@ func TestGetCommitHashes(t *testing.T) {
 	}
 
 	// Test empty repository (this will return an error which is expected)
-	hashes, err := getCommitHashes(tempDir)
+	hashes, err := getCommitHashesFromRepo(tempDir)
 	if err == nil {
 		// If no error, check that we get 0 hashes
 		assert.Empty(t, hashes, "Expected 0 hashes in empty repository")
@@ -140,12 +140,12 @@ func TestGetCommitHashes(t *testing.T) {
 	}
 
 	// Test repository with one commit
-	hashes, err = getCommitHashes(tempDir)
+	hashes, err = getCommitHashesFromRepo(tempDir)
 	assert.NoError(t, err, "getCommitHashes should not return error for valid repository")
 	assert.Len(t, hashes, 1, "Expected 1 hash after creating commit")
 
 	// Test non-existent repository
-	_, err = getCommitHashes("/non/existent/path")
+	_, err = getCommitHashesFromRepo("/non/existent/path")
 	assert.Error(t, err, "Non-existent repository should return error")
 }
 
@@ -153,7 +153,7 @@ func TestGetCommitHashes(t *testing.T) {
 func prepareCommitDataWithPath(t *testing.T, hash string, index int, repoPath, dataDir string) string {
 	t.Helper()
 	filePath := filepath.Join(dataDir, fmt.Sprintf("%d.txt", index))
-	commitData, err := runGitCommand(repoPath, "show", "--stat", hash)
+	commitData, err := runGitCommand(repoPath, "show", "--patch-with-stat", hash)
 	assert.NoError(t, err, "failed to get commit data for %s", hash)
 	err = os.WriteFile(filePath, []byte(commitData), filePermission)
 	assert.NoError(t, err, "failed to write commit data file")
@@ -267,7 +267,7 @@ func TestPrepareCommitData(t *testing.T) {
 	}
 
 	// コミットハッシュを取得
-	hashes, err := getCommitHashes(repoDir)
+	hashes, err := getCommitHashesFromRepo(repoDir)
 	if err != nil {
 		t.Skip("Failed to get commit hashes")
 	}
@@ -354,7 +354,7 @@ func collectCommitsWithPath(t *testing.T, repoPath, dataDir string) {
 	err := os.MkdirAll(dataDir, dirPermission)
 	assert.NoError(t, err, "error creating directory %s", dataDir)
 
-	allHashes, err := getCommitHashes(repoPath)
+	allHashes, err := getCommitHashesFromRepo(repoPath)
 	assert.NoError(t, err, "error getting commit hashes")
 
 	// テストのために最初の3コミットのみを処理（全部63k+コミットの代わりに）
@@ -444,7 +444,7 @@ func generatePromptsWithPath(t *testing.T, repoPath, promptsDir, outputDir, comm
 		assert.NoError(t, err, "error creating directory %s", dir)
 	}
 
-	allHashes, err := getCommitHashes(repoPath)
+	allHashes, err := getCommitHashesFromRepo(repoPath)
 	assert.NoError(t, err, "error getting commit hashes")
 
 	// テストのために最初の3コミットのみを処理
