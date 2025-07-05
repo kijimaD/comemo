@@ -407,6 +407,9 @@ func executeMultipleCLIs(shFiles []string, manager *CLIManager) error {
 // cliWorker processes scripts for a specific CLI
 func cliWorker(cliName string, scriptQueue <-chan string, manager *CLIManager) {
 	pendingScripts := make(map[string]bool) // Use map to prevent duplicates
+	lastUnavailableLogTime := time.Time{}
+	unavailableLogInterval := 30 * time.Second
+	wasUnavailable := false
 
 	for {
 		select {
@@ -424,9 +427,22 @@ func cliWorker(cliName string, scriptQueue <-chan string, manager *CLIManager) {
 				// Add to pending scripts map (prevents duplicates)
 				if !pendingScripts[fileName] {
 					pendingScripts[fileName] = true
-					fmt.Printf("CLI %s is not available, queuing script %s for retry\n", cliName, fileName)
+					
+					// Log unavailability message only periodically to reduce spam
+					now := time.Now()
+					if now.Sub(lastUnavailableLogTime) > unavailableLogInterval {
+						fmt.Printf("CLI %s is not available, queuing %d scripts for retry\n", cliName, len(pendingScripts))
+						lastUnavailableLogTime = now
+					}
 				}
+				wasUnavailable = true
 				continue
+			}
+
+			// Log when CLI becomes available again after being unavailable
+			if wasUnavailable && len(pendingScripts) > 0 {
+				fmt.Printf("CLI %s is now available, processing %d pending scripts\n", cliName, len(pendingScripts))
+				wasUnavailable = false
 			}
 
 			cli, exists := manager.GetCLICommand(cliName)
