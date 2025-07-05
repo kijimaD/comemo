@@ -59,7 +59,7 @@ func getCommitIndex(allHashes []string, targetHash string) int {
 // prepareCommitData は `git show` の結果をファイルに保存します。
 func prepareCommitData(hash string, index int) (string, error) {
 	filePath := filepath.Join(commitDataDir, fmt.Sprintf("%d.txt", index))
-	commitData, err := runGitCommand(goRepoPath, "show", "--stat", hash) // --statを追加して統計情報も表示
+	commitData, err := runGitCommand(goRepoPath, "show", "--patch-with-stat", hash) // --patch-with-statで統計情報と差分の両方を表示
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit data for %s: %w", hash, err)
 	}
