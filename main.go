@@ -244,15 +244,7 @@ func generatePromptScript(hash string, index int, commitDataPath string) error {
 	scriptPath := filepath.Join(config.PromptsDir, fmt.Sprintf("%d.sh", index))
 	githubURL := fmt.Sprintf("https://github.com/golang/go/commit/%s", hash)
 
-	// 絶対パスを生成
-	absCommitDataPath, err := filepath.Abs(commitDataPath)
-	if err != nil {
-		return fmt.Errorf("failed to get absolute path for %s: %w", commitDataPath, err)
-	}
-
-	// `read_file("...")` という文字列をプロンプトに含めるための正しい方法
-	readCmd := fmt.Sprintf("`read_file(\"%s\")`", absCommitDataPath)
-
+	readCmd := fmt.Sprintf("@%s", commitDataPath)
 	prompt := `これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、` + readCmd + ` を開いて、コミット情報を取得してください。
